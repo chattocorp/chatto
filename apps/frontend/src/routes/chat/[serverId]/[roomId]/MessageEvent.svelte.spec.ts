@@ -11,6 +11,7 @@ import { render } from 'vitest-browser-svelte';
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 import { q } from '$lib/test-utils';
+import { toast } from '$lib/ui/toast';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 import { messageEvent } from './messageEventFixture';
@@ -115,6 +116,162 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('copies the exact selected text above full-message copy after focus loss and row unmount', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    const event = messageEvent({ body: 'Before  selected text  after' });
+    const rendered = render(MessageEventTestHarness, { props: { event } });
+    const body = q(rendered.container, '[data-testid="message-body"]')!;
+    const range = document.createRange();
+    range.setStart(body.firstChild!, 6);
+    range.setEnd(body.firstChild!, 23);
+    window.getSelection()!.addRange(range);
+    const selectedText = window.getSelection()!.toString();
+    expect(selectedText).toBe(' selected text ');
+
+    q(rendered.container, '[data-testid="message-row"]')!.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, button: 2 })
+    );
+    window.getSelection()!.removeAllRanges();
+    await openContextMenu(rendered.container);
+    await rendered.rerender({ event, showMessage: false });
+
+    const labels = Array.from(rendered.container.querySelectorAll('.menu-entry')).map((button) =>
+      button.textContent?.trim()
+    );
+    const index = labels.indexOf('Copy selected text');
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(labels[index + 1]).toBe('Copy message text');
+    menuButton(rendered.container, 'Copy selected text')!.click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledExactlyOnceWith(selectedText));
+    expect(mocks.actions.copyMessageText).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy selected text')).toBeUndefined()
+    );
+  });
+
+  it.each(['none', 'collapsed', 'other message', 'cross-message', 'metadata', 'changed selection'])(
+    'hides selected-text copy for a %s selection',
+    async (kind) => {
+      const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+      const other = render(MessageEventTestHarness, {
+        props: { event: messageEvent({ id: 'other-message', body: 'Other message' }) }
+      });
+      const body = q(rendered.container, '[data-testid="message-body"]')!;
+      const otherBody = q(other.container, '[data-testid="message-body"]')!;
+      if (kind === 'changed selection') {
+        const range = document.createRange();
+        range.selectNodeContents(body);
+        window.getSelection()!.addRange(range);
+        q(rendered.container, '[data-testid="message-row"]')!.dispatchEvent(
+          new MouseEvent('mouseup', { bubbles: true, button: 0 })
+        );
+        window.getSelection()!.removeAllRanges();
+      }
+      if (kind !== 'none') {
+        const range = document.createRange();
+        range.selectNodeContents(
+          kind === 'other message' || kind === 'changed selection' ? otherBody : body
+        );
+        if (kind === 'collapsed') range.collapse(true);
+        if (kind === 'cross-message') range.setEnd(otherBody.firstChild!, 5);
+        if (kind === 'metadata') {
+          range.selectNodeContents(q(rendered.container, '[data-testid="message-row"]')!);
+        }
+        window.getSelection()!.addRange(range);
+      }
+
+      await openContextMenu(rendered.container);
+      expect(menuButton(rendered.container, 'Copy selected text')).toBeUndefined();
+      expect(menuButton(rendered.container, 'Copy message text')).toBeTruthy();
+    }
+  );
+
+  it('reports a selected-text clipboard failure and closes the menu', async () => {
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('Clipboard denied'));
+    const showError = vi.spyOn(toast, 'error');
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+    await openContextMenu(rendered.container);
+
+    menuButton(rendered.container, 'Copy selected text')!.click();
+    await vi.waitFor(() => expect(showError).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy selected text')).toBeUndefined()
+    );
+  });
+
+  it('copies a selection from the touch action sheet', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    const { container } = render(MessageEventTestHarness, {
+      props: { event: messageEvent({ body: 'Touch selection' }) }
+    });
+    const range = document.createRange();
+    range.selectNodeContents(q(container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+    vi.useFakeTimers();
+    q(container, '[data-testid="message-row"]')!.dispatchEvent(
+      new Event('touchstart', { bubbles: true, cancelable: true })
+    );
+    vi.advanceTimersByTime(500);
+    flushSync();
+    vi.useRealTimers();
+    await vi.waitFor(() => expect(actionSheetButton(container, 'Copy selected text')).toBeTruthy());
+    actionSheetButton(container, 'Copy selected text')!.click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledExactlyOnceWith('Touch selection'));
+  });
+
+  it('does not reuse a selected-text snapshot when the menu reopens', async () => {
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Copy selected text')).toBeTruthy();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy message link')).toBeUndefined()
+    );
+
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Copy selected text')).toBeUndefined();
+  });
+
+  it('preserves full-message copy when text is selected', async () => {
+    const body = '**Full message** with a selection';
+    const rendered = render(MessageEventTestHarness, { props: { event: messageEvent({ body }) } });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+    await openContextMenu(rendered.container);
+
+    menuButton(rendered.container, 'Copy message text')!.click();
+    expect(mocks.actions.copyMessageText).toHaveBeenCalledWith(
+      expect.objectContaining({ messageBody: body })
+    );
+  });
+
+  it('keeps selected-text copy available from the toolbar after selection collapse', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    const rendered = render(MessageEventTestHarness, {
+      props: { event: messageEvent({ body: 'Toolbar selection' }) }
+    });
+    const range = document.createRange();
+    range.selectNodeContents(q(rendered.container, '[data-testid="message-body"]')!);
+    window.getSelection()!.addRange(range);
+    q(rendered.container, '[data-testid="message-row"]')!.dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true, button: 0 })
+    );
+    window.getSelection()!.removeAllRanges();
+    (q(rendered.container, 'button[aria-label="More actions"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(menuButton(rendered.container, 'Copy selected text')).toBeTruthy()
+    );
+    menuButton(rendered.container, 'Copy selected text')!.click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('Toolbar selection'));
+  });
+
   it('shows an image label after lazily loading an image-only reply target', async () => {
     const messages = mockService(MessageService);
     const rooms = mockService(RoomService);

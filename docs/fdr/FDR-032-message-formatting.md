@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -23,6 +23,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. Unlabelled and unsupported languages remain plain code.
 - Each rendered code block has a button to copy its code without the Markdown fence, line numbers, or display-only tab spacing.
+- The message menu offers **Copy message text** to copy the full Markdown source. When text is selected wholly within that message body, **Copy selected text** appears immediately above it and copies only the selected text. A selection outside the message or across messages does not show this action. The menu keeps the selected text when it opens, even if focus changes.
 - Right-clicking a link in a message body opens the message menu. **Copy Link** copies that link's URL; **Copy Message Link** copies the message permalink.
 - The app applies the editor choice to every registered Chatto server. It does not sync this App Preference to other browsers or devices.
 - The app applies the sending keys to every registered Chatto server. Return sends by default. People can select the platform modifier plus Return instead.
