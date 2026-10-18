@@ -2389,6 +2389,21 @@ describe('MessageComposer', () => {
       expect(roomStateMock.replyState!.messageEventId).toBe('room-target');
     });
 
+    it('does not adopt another draft target when remounting with a retained pane context', async () => {
+      const first = renderMessageComposer({ roomId: 'retained-context-a' });
+      await findEditor(first.container);
+      roomStateMock.replyState!.startReply('first-target', 'First author', 'First excerpt');
+      await first.unmount();
+
+      // The pane context survives, but its next composer has a different destination.
+      const next = renderMessageComposer({ roomId: 'retained-context-b' });
+      await findEditor(next.container);
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      roomStateMock.replyState!.startReply('second-target', 'Second author', 'Second excerpt');
+      await next.rerender({ roomId: first.roomId });
+      expect(roomStateMock.replyState!.messageEventId).toBe('first-target');
+    });
+
     it('keeps reply cancellation after leaving and returning without clearing text', async () => {
       const rendered = renderMessageComposer({ roomId: 'cancel-reply-draft' });
       await typeInEditor(await findEditor(rendered.container), 'Keep text');

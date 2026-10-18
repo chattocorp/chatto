@@ -3,12 +3,15 @@ import { ReplyState } from '$lib/state/room/composerContext.svelte';
 /** Reply targets for one server session. Message content stays in memory. */
 export class DraftReplies {
   readonly #drafts = new Map<string, { roomId: string; reply: ReplyState }>();
+  /** A retained pane context must not share one reply state across destinations. */
+  readonly #ownedReplies = new WeakSet<ReplyState>();
 
   /** Select a room or thread draft. Keep a reply selected before the composer mounted. */
   select(key: string, roomId: string, initial?: ReplyState): ReplyState {
     const saved = this.#drafts.get(key);
     if (saved) return saved.reply;
-    const reply = initial ?? new ReplyState();
+    const reply = initial && !this.#ownedReplies.has(initial) ? initial : new ReplyState();
+    this.#ownedReplies.add(reply);
     this.#drafts.set(key, { roomId, reply });
     return reply;
   }
