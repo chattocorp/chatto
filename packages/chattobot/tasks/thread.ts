@@ -11,7 +11,7 @@ export const FOLLOW_UP_INTERVAL_MS = 90_000;
 /** Empty or ignored checks do not extend this lifetime. */
 export const IDLE_MS = 60 * 60_000;
 
-interface ThreadOptions {
+export interface ThreadOptions {
   classifier: ReturnType<typeof createIntakeClassifier>;
   conversation: ReturnType<typeof createConversation>;
   /** Read current content and verify its human author. Missing or deleted posts are ignored. */
@@ -25,10 +25,21 @@ interface ThreadOptions {
   idleMs?: number;
 }
 
+/** Root-owned JSON data. Live channels, tasks, and timers are recreated on entry. */
+interface ThreadState {
+  first?: IncomingMessage;
+  delivered: string[];
+  checked?: string;
+  lastActivity: number;
+}
+
 /** The router only starts this workflow and delivers messages. Classification, silence, and
  * the child conversation belong here. An addressed message can bypass pending classification. */
-export function createThreadWorkflow(options: ThreadOptions) {
-  const { classifier, conversation, read } = options;
+export function createThreadWorkflow(
+  configure:
+    | ThreadOptions
+    | ((ctx: TaskContext<IncomingMessage>, message: IncomingMessage) => Promise<ThreadOptions>)
+) {
   return task(
     {
       name: 'Chatto thread',
@@ -37,6 +48,14 @@ export function createThreadWorkflow(options: ThreadOptions) {
       receives: IncomingMessage
     },
     async (ctx, message) => {
+      const saved = ctx.state as Partial<ThreadState>;
+      const resume = !!saved.delivered || !!ctx.run?.resumed;
+      const hadConversation = !!saved.first;
+      saved.delivered ??= [message.id];
+      saved.lastActivity ??= Date.now();
+      const state = saved as ThreadState;
+      const options = typeof configure === 'function' ? await configure(ctx, message) : configure;
+      const { classifier, conversation, read } = options;
       const reader = ctx.inbox[Symbol.asyncIterator]();
       let queued: IteratorResult<IncomingMessage> | undefined;
       const nextMessage = reader.next().then((item) => {
@@ -45,7 +64,8 @@ export function createThreadWorkflow(options: ThreadOptions) {
       });
       // Cancellation can fail the inbox while metadata is still being read.
       void nextMessage.catch(() => {});
-      let first: IncomingMessage | undefined = message.trigger === 'intake' ? undefined : message;
+      let first: IncomingMessage | undefined =
+        saved.first ?? (message.trigger === 'intake' ? undefined : message);
       let usedNextMessage = false;
       if (!first) {
         const input = await read(message, ctx.signal).catch(() => {
@@ -86,8 +106,16 @@ export function createThreadWorkflow(options: ThreadOptions) {
       }
       if (!first) return null;
 
-      await using child = ctx.start(conversation, first);
-      const monitor = monitorConversation(ctx, child, first, options);
+      // Omit absent optional fields so the snapshot contains JSON values only.
+      state.first = JSON.parse(JSON.stringify(first)) as IncomingMessage;
+      if (!state.delivered.includes(first.id)) state.delivered.push(first.id);
+      const resumeConversation =
+        resume && !usedNextMessage && (hadConversation || message.trigger !== 'intake');
+      await using child = ctx.start(conversation, {
+        ...first,
+        ...(resumeConversation ? { resume: true } : {})
+      });
+      const monitor = monitorConversation(ctx, child, first, options, state);
       const finished = child.result.then(() => ({ done: true as const, value: undefined }));
       const forward = async () => {
         let pending = usedNextMessage ? reader.next() : nextMessage;
@@ -122,15 +150,14 @@ function monitorConversation(
   ctx: TaskContext<IncomingMessage, unknown>,
   child: TaskInvocation<ReturnType<typeof createConversation>>,
   first: IncomingMessage,
-  { classifier, readFollowUp, intervalMs = FOLLOW_UP_INTERVAL_MS, idleMs = IDLE_MS }: ThreadOptions
+  { classifier, readFollowUp, intervalMs = FOLLOW_UP_INTERVAL_MS, idleMs = IDLE_MS }: ThreadOptions,
+  saved: ThreadState
 ) {
   const lifetime = new AbortController();
   const signal = AbortSignal.any([ctx.signal, lifetime.signal]);
   let state: 'busy' | 'waiting' | 'idle' = 'busy';
-  let lastActivity = performance.now();
-  let checked: string | undefined;
   // A turn can finish without a bot post. The post boundary alone cannot deduplicate delivery.
-  const delivered = new Set([first.id]);
+  const delivered = new Set(saved.delivered);
   let check: AbortController | undefined;
   let classification: TaskInvocation<ReturnType<typeof createIntakeClassifier>> | undefined;
   const interrupt = () => {
@@ -143,10 +170,15 @@ function monitorConversation(
     interrupt();
   };
   const send = async (message: ConversationInput) => {
+    const fresh = (Array.isArray(message) ? message : [message]).filter(
+      (item) => !delivered.has(item.id)
+    );
+    if (!fresh.length) return;
     interrupt();
-    await child.send(message);
-    for (const item of Array.isArray(message) ? message : [message]) delivered.add(item.id);
-    lastActivity = performance.now();
+    await child.send(Array.isArray(message) ? fresh : fresh[0]!);
+    for (const item of fresh) delivered.add(item.id);
+    saved.delivered = [...delivered];
+    saved.lastActivity = Date.now();
   };
   const updates = (async () => {
     try {
@@ -163,7 +195,7 @@ function monitorConversation(
       try {
         await delay(intervalMs, undefined, { signal });
         if (state === 'busy') continue;
-        if (state === 'idle' && performance.now() - lastActivity >= idleMs) {
+        if (state === 'idle' && Date.now() - saved.lastActivity >= idleMs) {
           stop();
           child.closeInput();
           break;
@@ -177,8 +209,8 @@ function monitorConversation(
         if (!pending.length) continue;
         const messages = pending.map(({ message }) => message);
         const key = JSON.stringify([snapshot.boundary, messages.map((item) => item.id)]);
-        if (key === checked) continue;
-        checked = key;
+        if (key === saved.checked) continue;
+        saved.checked = key;
         {
           await using decision = ctx.start(classifier, {
             ...snapshot.input,

@@ -3,7 +3,7 @@
  * investigator works. */
 import { defineAgentExtension, log, Type, type TaskContext } from 'runling';
 import { replyTo, type IncomingMessage } from '../chatto/message.ts';
-import type { Jobs } from '../harness/jobs.ts';
+import type { WorkOwner } from '../harness/work.ts';
 import { linkCitations } from './citations.ts';
 import type { createInvestigator } from '../tasks/investigate.ts';
 
@@ -19,7 +19,7 @@ export interface Investigation {
 }
 
 export interface InvestigateToolOptions {
-  jobs: Jobs;
+  work: WorkOwner;
   maintainers: ReadonlySet<string>;
   /** Only host-owned addressed messages in the current turn can authorize starts or resumes. */
   messages: () => readonly IncomingMessage[];
@@ -35,25 +35,12 @@ export const MAX_RUNNING = 3;
 export function investigateExtension(
   ctx: TaskContext<any, any>,
   { directory, investigator, repository }: Investigation,
-  { jobs, maintainers, messages, take, scope }: InvestigateToolOptions
+  { work, maintainers, messages, take, scope }: InvestigateToolOptions
 ) {
   const investigate = investigator(scope);
 
-  /** Run one investigation and return its answer for the agent. */
-  async function run(
-    id: string,
-    input: Parameters<typeof investigate>[1],
-    report: (update: string) => void
-  ) {
-    const investigation = ctx.start(investigate, input);
-    investigation.closeInput();
-    const progress = (async () => {
-      for await (const update of investigation.updates) report(update);
-    })();
-    // A failed investigation also fails its updates; its result reports the failure.
-    void progress.catch(() => {});
-    const result = await investigation.result;
-    await progress;
+  /** Present the investigator's result for the next conversation turn. */
+  function formatResult(id: string, result: Awaited<ReturnType<typeof investigate>>) {
     const answer =
       repository && result.commit
         ? linkCitations(result.answer, result.citations, { repository, commit: result.commit })
@@ -94,11 +81,14 @@ export function investigateExtension(
           throw new Error('Investigation requires a message from a maintainer in this turn.');
         }
         ctx.signal.throwIfAborted();
-        if (resume && jobs.has(resume))
+        if (resume && [...work.pending.values()].some((job) => job.sessionId === resume))
           throw new Error(
             `Investigation ${resume} is still running. Its answer reaches you when it finishes.`
           );
-        if (jobs.list().filter((job) => job.kind === 'investigation').length >= MAX_RUNNING)
+        if (
+          [...work.pending.values()].filter((job) => job.kind === 'investigation').length >=
+          MAX_RUNNING
+        )
           throw new Error(
             `${MAX_RUNNING} investigations are running. Wait until one of them finishes.`
           );
@@ -110,15 +100,19 @@ export function investigateExtension(
         log.info(
           `Investigation authorization allowed: request=${request.id}; reason=current-maintainer`
         );
-        jobs.start(
+        work.track(
+          ctx.start(investigate, {
+            directory,
+            question,
+            ...(resume ? { session: resume } : { id })
+          }),
           {
-            id,
-            kind: 'investigation',
+            sessionId: id,
             label: `Investigation: ${question.slice(0, 300)}`,
+            kind: 'investigation',
             replyTo: replyTo(request)
           },
-          (report) =>
-            run(id, { directory, question, ...(resume ? { session: resume } : { id }) }, report)
+          (result) => formatResult(id, result)
         );
         return {
           content: [

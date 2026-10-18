@@ -6,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   createAgentSession,
+  AgentSessionStore,
   defineAgentExtension,
   log,
   task,
@@ -263,7 +264,8 @@ export default task(
                   },
                   investigation: {
                     directory,
-                    investigator: () => createInvestigator({ model, sessions: directory })
+                    investigator: () =>
+                      createInvestigator({ model, sessions: new AgentSessionStore(directory) })
                   }
                 }
               : {})

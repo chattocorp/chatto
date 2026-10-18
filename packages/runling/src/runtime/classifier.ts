@@ -1,12 +1,8 @@
 /** Shared execution for isolated, tool-free classifiers. Policy and schemas belong to callers. */
-import {
-  createAgentSession,
-  task,
-  validateSchema,
-  type AgentSessionFactory,
-  type SchemaOutput,
-  type WorkflowSchema
-} from 'runling';
+import { createAgentSession } from './agent.ts';
+import type { AgentSessionFactory } from './agent-task.ts';
+import { task } from './task.ts';
+import type { SchemaInput, WorkflowSchema } from './schema.ts';
 import { usePrivateTempDirectory } from './private-temp.ts';
 
 /** Define one model turn with a strict JSON result. Errors and cancellation never become
@@ -52,9 +48,8 @@ export function createClassifier<Input extends WorkflowSchema, Output extends Wo
       } catch {
         throw new Error('Invalid classification decision');
       }
-      const validated = await validateSchema(options.output, decision);
-      if (validated.issues) throw new Error('Invalid classification decision');
-      return validated.value as SchemaOutput<Output>;
+      // The ordinary task boundary validates once, including Standard Schema transforms.
+      return decision as SchemaInput<Output>;
     }
   );
 }

@@ -1,10 +1,10 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { parseEnv } from 'node:util';
 import { RealtimeEvent } from '@chatto/client';
-import { createTaskContext, task, Type } from 'runling';
+import { createTaskContext, runWorkflow, task, Type } from 'runling';
 import type { EventSource, WebhookContext } from 'runling/web';
 import { IntakeDecision, IntakeInput } from '../tasks/classify-intake.ts';
-import { chattoSource } from './source.ts';
+import { chattoSource, chattoWorkflow } from './source.ts';
 import { IncomingMessage } from './message.ts';
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +22,7 @@ vi.mock('@chatto/client', async (original) => ({
   ...(await original<typeof import('@chatto/client')>()),
   createClient: () => ({ connect: () => mocks, close: mocks.close }),
   createApi: () => ({
+    ready: mocks.ready,
     service: () => ({ batchGetUsers: mocks.batchGetUsers }),
     readThread: mocks.readThread
   })
@@ -135,6 +136,7 @@ async function run(
   const ctx: Parameters<EventSource>[0] = {
     signal: new AbortController().signal,
     state: new Map(),
+    runs: () => [],
     dispatch: async (route, input) => {
       await route({ start }, input);
       return [];
@@ -165,6 +167,25 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
     body: '',
     attachmentTypes: ['image/png']
   });
+});
+
+test('a recovered thread cannot use a different configured server or bot identity', async () => {
+  await run([]);
+  const result = await runWorkflow(chattoWorkflow, {
+    input: {
+      id: 'old',
+      roomId: 'room',
+      threadRootId: 'old',
+      authorId: 'human',
+      body: 'old request',
+      connection: 'another bot'
+    },
+    run: { id: 'recovered', resumed: true }
+  });
+  expect(result.ok).toBe(false);
+  expect(result.error).toContain('different Chatto connection');
+  expect(mocks.conversation).not.toHaveBeenCalled();
+  expect(mocks.classify).not.toHaveBeenCalled();
 });
 
 test.each([

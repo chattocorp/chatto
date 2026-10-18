@@ -78,6 +78,39 @@ discards them.
 The parent must wait for its children or dispose of them. When a parent
 returns, Runling does not wait for its children.
 
+## Background children
+
+Background work uses ordinary tasks. A call starts work without requiring the
+parent to await the promise immediately:
+
+```ts
+const pending = researchTask(ctx, question);
+// Handle rejection immediately, even while the parent does other work.
+const delivery = pending.then(
+  (result) => enqueueForNextTurn({ result }),
+  (error) => enqueueForNextTurn({ error })
+);
+
+await processOtherMessages();
+await delivery;
+```
+
+A direct call records updates but does not deliver them to the parent. Use
+`ctx.start` when the parent needs progress, steering, or explicit cancellation.
+Retain that handle, consume `updates`, and observe `result`. Dispose the handle
+in the owning parent's `finally` block or with `await using`; its lifetime must
+not be limited to the short tool callback that started the work.
+
+The parent implementation owns pending-work state, reply destinations, status
+information, and result queues. It must keep itself alive while it wants results,
+and wait for or dispose its children before it exits. Handle failures on every
+pending promise. For several children, cancel all first, then await their disposal
+so one child's cleanup does not delay cancellation of the others.
+
+Runling has no separate background-task type or public child registry. It does not
+automatically join children when a parent returns, retry them, or reconstruct them
+after a restart. Cancellation and disposal cannot undo external effects.
+
 ## Inside a task
 
 The task context gives these members:
@@ -87,6 +120,9 @@ The task context gives these members:
 - `ctx.emit(message)`: send a message to the parent.
 - `ctx.start(task, input)`: start a child task.
 - `ctx.signal`: an abort signal for cancellation.
+- `ctx.state`: the mutable root state saved by the server. Children get independent,
+  unsaved objects; pass selected sub-objects as input to share state. See
+  [workflow state](workflow-state.md).
 - `ctx.abort(reason)`: stop the complete workflow run and report it as failed.
 - `ctx.run`: the ID and reference of the run, when the host records runs.
 - `ctx.usage` and `ctx.recordUsage()`: the token usage of the run.

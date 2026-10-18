@@ -72,6 +72,65 @@ it creates the session and before it starts the first turn. Concurrent
 invocations have separate sessions. If you set `sessionFile`, give concurrent
 invocations distinct paths.
 
+For a session that should survive run recovery, use Runling-owned storage:
+
+```ts
+import { agentSessionFile, createAgentSession } from 'runling';
+
+await using bot = await createAgentSession({
+  cwd: '.',
+  model: 'openai-codex/gpt-5.6-sol',
+  sessionFile: await agentSessionFile(ctx, 'conversation')
+});
+```
+
+Choose a stable key unique within the run. The same key opens the same transcript
+after recovery. Different run IDs have separate storage. The server and CLI provide
+`ctx.run.filesDirectory`; a custom host must provide it to use this storage.
+Without it, the helper returns `undefined` and the session stays in memory.
+Runling removes run-owned files when it purges a run 30 days after closure.
+Explicit `sessionFile` paths outside that directory remain caller-owned.
+
+When a session must continue across separate runs, use `AgentSessionStore`:
+
+```ts
+import { AgentSessionStore, createAgentSession } from 'runling';
+
+const sessions = new AgentSessionStore('.runling/research').scope('project-one');
+await using saved = await sessions.open();
+await using researcher = await createAgentSession({
+  model, cwd, sessionFile: saved.file
+});
+// Save saved.id to resume later with sessions.open({ id, resume: true }).
+```
+
+Declare the lease before the agent so disposal closes the agent first. New IDs
+must not exist; resume IDs must exist. IDs are UUIDs. Leases prevent concurrent
+turns on the same file in one process, including across configuration reloads.
+Use one owning process per storage directory. The directory and scope are host
+configuration, not model-selected paths. A scope key is one path component.
+
+Opening a session removes other session files in that scope unused for more than
+30 days. Open leases are preserved; explicit resumes renew activity before cleanup.
+Disposal renews activity again. Cleanup errors are logged and retried at the next
+open. `sessions.prune()` can also run from host maintenance. Unlike run-owned
+files, a shared scope that is never opened again is not cleaned by run retention.
+Unrelated files and subdirectories are preserved. This store manages files and
+leases only; it does not recover execution or authorize new work.
+
+## Classifiers
+
+`createClassifier({ name, label, model, input, output, systemPrompt })` defines an
+ordinary task. It performs one model turn, parses JSON, and validates the output
+through the task schema. Standard Schema transformations run once. The task has
+no tools, local resources, or saved agent history. Its default thinking level is
+`low`, and its model turn receives a 30-second cancellation signal.
+
+The caller supplies classification policy and schemas. Invalid JSON, invalid
+output, cancellation, and provider failures reject the task without a retry or
+fallback decision. An optional second argument supplies an `AgentSessionFactory`
+for tests. A classifier decision is model output, not a hard security boundary.
+
 ## Explicit sessions and output modes
 
 Use `createAgentSession(options)` when you need a custom conversation loop,
@@ -228,8 +287,12 @@ and can make at most `codemode.maxCalls` tool calls (100 by default). Scripts
 get only the text of tool results. Register tools that return images or end the
 turn with `exposure: 'model-only'`. Pi saves the complete output of a long
 script to a temporary file. Runling deletes the file when the agent ends, or at
-once when the agent has no `read` tool. Set `TMPDIR` to a private directory when
-tool results are sensitive. Each call from a script goes through the same hooks
+once when the agent has no `read` tool. Before opening a session, Runling creates
+a private process directory and points `TMPDIR` there. This affects other libraries
+in that process too. Normal process exit removes the directory; crashes can leave
+private files behind. `usePrivateTempDirectory()` returns the same directory for
+host scratch work and replaces it if a system cleaner removed it. This is private
+storage, not a filesystem sandbox. Each call from a script goes through the same hooks
 as a call from the model, so `trust` and other extension gates apply. See
 [FDR-008](fdr/FDR-008-codemode.md).
 

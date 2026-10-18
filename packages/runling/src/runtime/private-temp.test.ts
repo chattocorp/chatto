@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const STATE = Symbol.for('chattobot.privateTemp');
-const BASE = Symbol.for('chattobot.privateTempBase');
+const STATE = Symbol.for('runling.privateTemp');
+const BASE = Symbol.for('runling.privateTempBase');
 type State = { [STATE]?: unknown; [BASE]?: unknown };
 let base: string;
 beforeEach(async () => {
-  base = await mkdtemp(join(tmpdir(), 'chattobot-temp-test-'));
+  base = await mkdtemp(join(tmpdir(), 'runling-temp-test-'));
   vi.stubEnv('TMPDIR', base);
   vi.resetModules();
   delete (globalThis as State)[STATE];
@@ -21,13 +21,12 @@ afterEach(async () => {
   await rm(base, { recursive: true, force: true });
 });
 
-// The test setup mocks this module for all other tests.
 const load = async () =>
   (await vi.importActual<typeof import('./private-temp.ts')>('./private-temp.ts'))
     .usePrivateTempDirectory;
 
 test.skipIf(process.platform === 'win32')(
-  'creates a directory that only the bot user can read and points TMPDIR at it',
+  'creates a directory that only the process user can read and points TMPDIR at it',
   async () => {
     const directory = await (await load())();
     expect(dirname(directory)).toBe(base);

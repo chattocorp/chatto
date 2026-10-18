@@ -7,10 +7,11 @@
  * Run it on its own: `runling run tasks/investigate.ts --input '{"directory":
  * "/path/to/repo", "question": "..."}'`.
  */
-import { mkdir, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   createAgentSession,
+  AgentSessionStore,
   task,
   Type,
   type AgentOptions,
@@ -26,9 +27,8 @@ import { GIT_TOOLS, gitExtension, runGit } from '../investigation/git.ts';
 export interface InvestigatorSettings {
   model: string;
   thinkingLevel?: ThinkingLevel;
-  /** Where investigations keep their agent sessions. The files contain the code that the
-   * investigator read and the questions, so keep the directory private. */
-  sessions: string;
+  /** Runling storage for resumable investigations, scoped by the host to this caller. */
+  sessions: AgentSessionStore;
 }
 
 const Input = Type.Object({
@@ -76,9 +76,6 @@ const INSTRUCTIONS = [
   'Be concise. The reader is an agent that will summarize your answer.'
 ];
 
-/** Investigations that run now, by session ID. One session runs one question at a time. */
-const active = new Set<string>();
-
 /** Create the investigator task. `createAgent` is injectable for tests. */
 export function createInvestigator(
   settings: InvestigatorSettings,
@@ -90,63 +87,55 @@ export function createInvestigator(
       const directory = resolve(input.directory);
       if (!(await stat(directory).catch(() => undefined))?.isDirectory())
         throw new Error('The directory to investigate does not exist');
-      await mkdir(settings.sessions, { recursive: true, mode: 0o700 });
       if (input.session && input.id)
         throw new Error('Give either the ID of an earlier investigation or a new ID, not both');
-      const session = input.session ?? input.id ?? crypto.randomUUID();
-      const sessionFile = resolve(settings.sessions, `${session}.jsonl`);
-      const exists = !!(await stat(sessionFile).catch(() => undefined));
-      if (input.session && !exists) throw new Error(`There is no investigation ${input.session}`);
-      if (input.id && exists) throw new Error(`Investigation ${input.id} exists already`);
-      if (active.has(session))
-        throw new Error(`Investigation ${session} is answering another question. Wait for it.`);
-      active.add(session);
-      try {
-        await using investigator = await createAgent({
-          label: 'investigate',
-          model: settings.model,
-          thinkingLevel: settings.thinkingLevel ?? 'medium',
-          output: 'text',
-          cwd: directory,
-          sessionFile,
-          tools: ['read', 'grep', 'find', 'ls', ...GIT_TOOLS],
-          extensions: [confineExtension(directory), gitExtension(directory)],
-          // Repository instructions help; host extensions and skills do not belong here.
-          resources: { extensions: false, skills: false, promptTemplates: false, themes: false },
-          instructions: INSTRUCTIONS,
-          // Progress for the caller. A caller that does not read updates must not stop the work.
-          onEvent: (event) => {
-            const update = describeEvent(event);
-            if (update) void ctx.emit(update).catch(() => {});
-          }
-        });
-        let answer = await answerOf(investigator, ctx, input.question);
-        let checked = await checkCitations(directory, findCitations(answer));
-        const problems = checked.flatMap((citation) => citation.problem ?? []);
-        // One chance to correct invalid references; the answer is kept either way.
-        if (problems.length) {
-          answer = await answerOf(
-            investigator,
-            ctx,
-            `Some references in your answer are wrong:\n${problems.map((problem) => `- ${problem}`).join('\n')}\nCheck them, then write your complete answer again with correct references.`
-          );
-          checked = await checkCitations(directory, findCitations(answer));
+      await using saved = await settings.sessions.open({
+        id: input.session ?? input.id,
+        resume: !!input.session
+      });
+      const session = saved.id;
+      await using investigator = await createAgent({
+        label: 'investigate',
+        model: settings.model,
+        thinkingLevel: settings.thinkingLevel ?? 'medium',
+        output: 'text',
+        cwd: directory,
+        sessionFile: saved.file,
+        tools: ['read', 'grep', 'find', 'ls', ...GIT_TOOLS],
+        extensions: [confineExtension(directory), gitExtension(directory)],
+        // Repository instructions help; host extensions and skills do not belong here.
+        resources: { extensions: false, skills: false, promptTemplates: false, themes: false },
+        instructions: INSTRUCTIONS,
+        // Progress for the caller. A caller that does not read updates must not stop the work.
+        onEvent: (event) => {
+          const update = describeEvent(event);
+          if (update) void ctx.emit(update).catch(() => {});
         }
-        const commit = await runGit(directory, ['rev-parse', 'HEAD'], ctx.signal).then(
-          (output) => output.trim(),
-          () => undefined
+      });
+      let answer = await answerOf(investigator, ctx, input.question);
+      let checked = await checkCitations(directory, findCitations(answer));
+      const problems = checked.flatMap((citation) => citation.problem ?? []);
+      // One chance to correct invalid references; the answer is kept either way.
+      if (problems.length) {
+        answer = await answerOf(
+          investigator,
+          ctx,
+          `Some references in your answer are wrong:\n${problems.map((problem) => `- ${problem}`).join('\n')}\nCheck them, then write your complete answer again with correct references.`
         );
-        return {
-          session,
-          answer,
-          ...(commit ? { commit } : {}),
-          citations: checked
-            .filter((citation) => !citation.problem)
-            .map(({ path, start, end }) => ({ path, start, end }))
-        };
-      } finally {
-        active.delete(session);
+        checked = await checkCitations(directory, findCitations(answer));
       }
+      const commit = await runGit(directory, ['rev-parse', 'HEAD'], ctx.signal).then(
+        (output) => output.trim(),
+        () => undefined
+      );
+      return {
+        session,
+        answer,
+        ...(commit ? { commit } : {}),
+        citations: checked
+          .filter((citation) => !citation.problem)
+          .map(({ path, start, end }) => ({ path, start, end }))
+      };
     }
   );
 }
@@ -165,7 +154,7 @@ export function investigatorSettings(): InvestigatorSettings {
     model,
     thinkingLevel: thinkingSetting('CHATTO_INVESTIGATION_THINKING', 'medium'),
     // The old investigations directory holds worktrees of the previous bot; keep them apart.
-    sessions: resolve('.runling/subagents/investigate')
+    sessions: new AgentSessionStore('.runling/subagents/investigate')
   };
 }
 

@@ -2,11 +2,11 @@
  * comes from host-owned messages, not from the supervisor's arguments or thread text. */
 import { defineAgentExtension, log, Type, type TaskContext } from 'runling';
 import { replyTo, type IncomingMessage } from '../chatto/message.ts';
-import type { Jobs } from '../harness/jobs.ts';
+import type { WorkOwner } from '../harness/work.ts';
 import type { createGitHubWorker } from '../tasks/github.ts';
 
 export interface GitHubWorkOptions {
-  jobs: Jobs;
+  work: WorkOwner;
   maintainers: ReadonlySet<string>;
   /** Only addressed messages in the current turn can start work. */
   messages: () => readonly IncomingMessage[];
@@ -16,7 +16,7 @@ export interface GitHubWorkOptions {
 export function githubWorkExtension(
   ctx: TaskContext<unknown, unknown>,
   worker: ReturnType<typeof createGitHubWorker>,
-  { jobs, maintainers, messages }: GitHubWorkOptions
+  { work, maintainers, messages }: GitHubWorkOptions
 ) {
   const started = new Set<string>();
   return defineAgentExtension((pi) => {
@@ -60,13 +60,18 @@ export function githubWorkExtension(
         ctx.signal.throwIfAborted();
         if (started.has(requestId))
           deny('already-started', 'GitHub work already started for this message.');
-        if (jobs.list().some((job) => job.kind === 'github'))
+        if ([...work.pending.values()].some((job) => job.kind === 'github'))
           deny('worker-running', 'A GitHub worker is still running. Wait for its result.');
         started.add(requestId);
         log.info(`GitHub authorization allowed: request=${request.id}; reason=current-maintainer`);
-        const job = jobs.start(
-          { kind: 'github', label: 'GitHub work', replyTo: replyTo(request) },
-          () => worker(ctx, { task, evidence })
+        const job = work.track(
+          ctx.start(worker, { task, evidence }),
+          {
+            label: 'GitHub work',
+            kind: 'github',
+            replyTo: replyTo(request)
+          },
+          (result) => result
         );
         return {
           content: [

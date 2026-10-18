@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import {
   createTaskContext,
+  AgentSessionStore,
   emptyTokenUsage,
   type AgentOptions,
   type AgentResult,
@@ -39,7 +40,10 @@ async function setup(answers: (string | AgentResult)[]) {
       async [Symbol.asyncDispose]() {}
     } as unknown as RunlingAgent;
   });
-  const investigate = createInvestigator({ model: 'test/model', sessions }, createAgent);
+  const investigate = createInvestigator(
+    { model: 'test/model', sessions: new AgentSessionStore(sessions) },
+    createAgent
+  );
   return { directory, investigate, prompts, options };
 }
 
@@ -90,7 +94,7 @@ test('resumes an earlier investigation with its session file', async () => {
       question: 'Three?',
       session: '00000000-0000-0000-0000-000000000000'
     })
-  ).rejects.toThrow('There is no investigation 00000000-0000-0000-0000-000000000000');
+  ).rejects.toThrow('There is no agent session 00000000-0000-0000-0000-000000000000');
 });
 
 test('fails when the agent cannot answer or the directory is missing', async () => {
@@ -147,7 +151,7 @@ test('starts a new investigation with an ID that the caller chose', async () => 
     id
   );
   await expect(investigate(createTaskContext(), { directory, question: 'Q?', id })).rejects.toThrow(
-    `Investigation ${id} exists already`
+    `Agent session ${id} exists already`
   );
   await expect(
     investigate(createTaskContext(), { directory, question: 'Q?', id, session: id })

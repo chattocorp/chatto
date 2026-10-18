@@ -1,7 +1,6 @@
 /** Replay a reported bug and its withdrawal through the real supervisor and GitHub worker.
  * Only the model provider is external; Chatto messages and GitHub effects are synthetic. */
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
 import { createAgentSession, createChannel, type TaskContext } from 'runling';
 import { createConversation } from '../tasks/conversation.ts';
 import { createGitHubWorker } from '../tasks/github.ts';
@@ -114,7 +113,6 @@ export function checkLanguageReport({ github, turns, requests }: LanguageReportE
 export async function languageReport(
   ctx: TaskContext<unknown, unknown>,
   model: string,
-  directory: string,
   evidence: (value: LanguageReportEvidence) => void
 ) {
   const github = new FakeGitHub();
@@ -156,20 +154,17 @@ export async function languageReport(
       return bot;
     },
     (settings) =>
-      createGitHubWorker(
-        { ...settings, sessions: resolve(directory, 'sessions') },
-        async (options) => {
-          const bot = await createAgentSession(options);
-          if (options.label !== 'github') return bot;
-          const run = bot.runOutcome.bind(bot);
-          bot.runOutcome = async (context, prompt, options) => {
-            const input = JSON.parse(prompt) as { task: string; evidence: string };
-            record.requests.push(input);
-            return run(context, prompt, options);
-          };
-          return bot;
-        }
-      )
+      createGitHubWorker(settings, async (options) => {
+        const bot = await createAgentSession(options);
+        if (options.label !== 'github') return bot;
+        const run = bot.runOutcome.bind(bot);
+        bot.runOutcome = async (context, prompt, options) => {
+          const input = JSON.parse(prompt) as { task: string; evidence: string };
+          record.requests.push(input);
+          return run(context, prompt, options);
+        };
+        return bot;
+      })
   );
   const message = (index: number) => ({
     id: `language-${index}`,

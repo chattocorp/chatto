@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { createTaskContext, Type, task, type AgentExtensionAPI } from 'runling';
-import { Jobs, type Job, type JobOutcome } from '../harness/jobs.ts';
+import { recordWork } from '../harness/work-fixture.ts';
 import { investigateExtension, MAX_RUNNING, type Investigation } from './tool.ts';
 
 type Tool = { execute(id: string, input: unknown, signal?: AbortSignal): Promise<any> };
@@ -27,12 +27,7 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
       };
     }
   ) as unknown as ReturnType<Investigation['investigator']>;
-  const progress: [string, string[]][] = [];
-  const finished: [Job, JobOutcome][] = [];
-  const jobs = new Jobs({
-    progress: (job, updates) => void progress.push([job.id, updates]),
-    finished: (job, outcome) => void finished.push([job, outcome])
-  });
+  const { owner: work, pending, progress, finished } = recordWork();
   let budget = 2;
   const messages = [
     { ...thread, id: 'request', authorId: 'maintainer', body: 'Investigate' },
@@ -49,7 +44,7 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
       ...(repository ? { repository } : {})
     },
     {
-      jobs,
+      work,
       maintainers: new Set(['maintainer']),
       messages: () => messages,
       take: () => budget-- > 0,
@@ -68,7 +63,8 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
     scopes,
     progress,
     finished,
-    jobs,
+    work,
+    pending,
     messages,
     release: release.resolve
   };
@@ -77,23 +73,26 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
 test('starts an investigation as a background job and returns at once', async () => {
   const bot = await tool({ repository: 'org/repo' });
   const result = await bot.investigate.execute('1', { requestId: 'request', question: 'Where?' });
-  const [job] = bot.jobs.list();
+  const [job] = bot.pending.values();
   expect(job).toMatchObject({
-    kind: 'investigation',
     label: 'Investigation: Where?',
+    kind: 'investigation',
     replyTo: { ...thread, inReplyTo: 'request' }
   });
   expect(result.content[0].text).toContain(
-    `Investigation ${job!.id} started. It has not finished.`
+    `Investigation ${job!.sessionId} started. It has not finished.`
   );
   expect(bot.scopes).toEqual(['thread-1']);
   await vi.waitFor(() =>
-    expect(bot.inputs).toEqual([{ directory: '/repo', question: 'Where?', id: job!.id }])
+    expect(bot.inputs).toEqual([{ directory: '/repo', question: 'Where?', id: job!.sessionId }])
   );
 
   bot.release();
   await vi.waitFor(() => expect(bot.finished).toHaveLength(1));
-  expect(bot.progress).toEqual([[job!.id, ['Reading src/a.ts', 'Reading src/b.ts']]]);
+  expect(bot.progress).toEqual([
+    [job!.id, 'Reading src/a.ts'],
+    [job!.id, 'Reading src/b.ts']
+  ]);
   const outcome = bot.finished[0]![1];
   expect('result' in outcome && outcome.result).toContain(
     'See [`src/a.ts:2`](https://github.com/org/repo/blob/abcdef0123456789/src/a.ts#L2).'
@@ -129,8 +128,21 @@ test('reports a failed investigation and keeps the limits', async () => {
 test(`refuses more than ${MAX_RUNNING} running investigations`, async () => {
   const bot = await tool();
   const forever = new Promise<string>(() => {});
+  const pending = task(
+    { name: 'Pending', input: Type.Null(), output: Type.String() },
+    () => forever
+  );
   for (const id of ['a', 'b', 'c'])
-    bot.jobs.start({ id, kind: 'investigation', label: id, replyTo: thread }, () => forever);
+    bot.work.track(
+      createTaskContext().start(pending, null),
+      {
+        sessionId: id,
+        label: id,
+        kind: 'investigation',
+        replyTo: thread
+      },
+      (result) => result
+    );
   await expect(
     bot.investigate.execute('1', { requestId: 'request', question: 'Four' })
   ).rejects.toThrow(`${MAX_RUNNING} investigations are running`);
@@ -138,11 +150,21 @@ test(`refuses more than ${MAX_RUNNING} running investigations`, async () => {
 
 test('authorization rejects members, forged and stale IDs before resume and concurrency checks', async () => {
   const bot = await tool();
+  const pending = task({ name: 'Pending', input: Type.Null(), output: Type.String() }, async () => {
+    await new Promise<void>((done) => setTimeout(done, 50));
+    return 'done';
+  });
   for (const id of ['a', 'b', 'c'])
-    bot.jobs.start({ id, kind: 'investigation', label: id, replyTo: thread }, async () => {
-      await new Promise<void>((done) => setTimeout(done, 50));
-      return 'done';
-    });
+    bot.work.track(
+      createTaskContext().start(pending, null),
+      {
+        sessionId: id,
+        label: id,
+        kind: 'investigation',
+        replyTo: thread
+      },
+      (result) => result
+    );
   for (const requestId of ['member', 'forged'])
     for (const resume of [undefined, 'a'])
       await expect(

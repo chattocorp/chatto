@@ -1,7 +1,7 @@
 # FDR-008: Codemode
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -48,8 +48,9 @@ results before the model reads them.
   complete output to a file in the temporary directory and names the file in the
   result. For an agent without the `read` tool, Runling deletes the file at once
   and removes its name from the result. Otherwise, Runling deletes the file when
-  the agent ends. Set `TMPDIR` to a private directory when tool results are
-  sensitive.
+  the agent ends. Runling creates a private process temporary directory before
+  opening an agent and points `TMPDIR` there. Normal process exit removes it;
+  an abrupt exit can leave private files for the operating system to clean up.
 - `store()` keeps small values for later scripts of the same agent. With
   `sessionFile`, the values stay after a restart. A fork does not get them.
 - Without the option, agents have no `codemode` tool.

@@ -1,6 +1,6 @@
 # ADR-009: Typed task invocations are the execution model
 
-**Status:** Accepted
+**Status:** Amended by ADR-010
 **Date:** 2026-10-14
 
 Supersedes [ADR-003](ADR-003-task-context.md). Amends
@@ -91,6 +91,18 @@ These items are not primitives:
   authorization classifier. Applications can implement this policy with the
   primitives.
 
+Background work is an ordinary task invocation that the parent does not await
+immediately. The parent retains the promises or handles it needs, processes their
+updates and results, and waits for or disposes its children before exiting.
+Runling has no separate background-job execution API or public child registry.
+`createClassifier` defines a tool-free task with a validated output; its policy
+belongs to the caller. It does not restore the former approval subsystem.
+
+Runling also owns agent runtime temporary files and session storage mechanics.
+Run-owned sessions follow run retention. `AgentSessionStore` supports explicitly
+shared sessions with exclusive process-local leases and independent inactivity
+retention. Applications select scopes and decide whether a new turn is authorized.
+
 ## Consequences
 
 Users learn one invocation model. The same task can run as a workflow, as a
@@ -101,9 +113,9 @@ This is a breaking API change. Runling is at version 0.x and ChattoBot is its
 only known user. ChattoBot must change to the new API before Runling removes the
 old API.
 
-[ADR-001](ADR-001-process-local-workflows.md) continues to apply. A long run
-stops when its process stops, and Runling does not resume it. Long runs make
-this limit more visible.
+[ADR-010](ADR-010-workflow-state-snapshots.md) adds snapshots and root re-entry
+for registered server workflows. Execution remains process-local. Recovery does
+not reconstruct the task hierarchy or resume JavaScript execution.
 
 A parent that waits for a long child does not process its own inbox during the
 wait, unless its code does so. For example, an agent tool that waits for an

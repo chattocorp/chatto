@@ -15,6 +15,16 @@ such as who can request a GitHub change, belong to the application.
 - For tasks and agents, read
   [ADR-009](docs/adr/ADR-009-task-invocations.md) and
   [FDR-001](docs/fdr/FDR-001-agent-interactions.md).
+- For persistence and recovery, read [ADR-010](docs/adr/ADR-010-workflow-state-snapshots.md)
+  and [FDR-012](docs/fdr/FDR-012-workflow-state.md). Keep state as ordinary JSON data,
+  saved by the server timer and shutdown. Roots own recovery; never infer child
+  execution or repeat external effects from journal entries.
+- Parents retain the promises or invocation handles of their pending children and
+  own result handling and cleanup. Do not add a background-job abstraction or a
+  public child registry. Keep permissions and reply routing in the application. Use
+  `createClassifier` for isolated schema-validated decisions, `agentSessionFile`
+  for run-owned transcripts, and `AgentSessionStore` only for cross-run sessions.
+  Private runtime temporary storage belongs to Runling, not its applications.
 - For terminal output, read [FDR-011](docs/fdr/FDR-011-cli-output.md).
   Preserve both live run details and the separate final root result.
 - Use the linked API guides for examples and usage details. Check the source

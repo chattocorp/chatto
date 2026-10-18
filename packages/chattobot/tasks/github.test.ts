@@ -10,7 +10,7 @@ import {
   type RunlingAgent,
   type TaskContext
 } from 'runling';
-import { usePrivateTempDirectory } from '../private-temp.ts';
+import { usePrivateTempDirectory } from 'runling';
 import { createGitHubWorker } from './github.ts';
 import type { githubTool } from '../github/tools.ts';
 import type { GhRunner } from '../github/gh.ts';
@@ -105,7 +105,6 @@ async function setup(
   const worker = createGitHubWorker(
     {
       model: 'test/model',
-      sessions,
       settings: {
         clientId: 'Iv23liExample1',
         repository: 'org/repo',
@@ -133,16 +132,19 @@ async function setup(
 test('the worker uses an isolated gh agent and returns its result to its parent', async () => {
   const h = await setup();
   expect(
-    await h.worker(createTaskContext(), {
-      task: request,
-      evidence: 'Steps from the investigation'
-    })
+    await h.worker(
+      { ...createTaskContext(), run: { id: 'test', filesDirectory: h.sessions } },
+      {
+        task: request,
+        evidence: 'Steps from the investigation'
+      }
+    )
   ).toBe('Updated #12.');
   expect(h.options()).toMatchObject({
     tools: ['gh'],
     resources: { contextFiles: false, extensions: false }
   });
-  expect(h.options().sessionFile).toMatch(new RegExp(`${h.sessions}/[0-9a-f-]+\\.jsonl$`));
+  expect(h.options().sessionFile).toMatch(new RegExp(`${h.sessions}/agents/[0-9a-f]{64}\\.jsonl$`));
   expect(JSON.parse(h.prompts[0]!)).toEqual({
     task: request,
     evidence: 'Steps from the investigation'

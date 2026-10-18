@@ -1,7 +1,7 @@
 /** Deliver messages to one workflow run per thread. The selected workflow owns its behavior. */
 import { createDeliveryTracker } from '@chatto/client';
 import { log, type Task, type TSchema } from 'runling';
-import type { RunHandle, WebhookRouter } from 'runling/web';
+import type { RunHandle, SourceRun, WebhookRouter } from 'runling/web';
 import { IncomingMessage } from './message.ts';
 
 interface Thread {
@@ -23,6 +23,9 @@ export interface RouterOptions {
   /** The thread workflow owns intake, participation checks, and the conversation child. */
   workflow: Task<typeof IncomingMessage, TSchema, typeof IncomingMessage>;
   state: RouterState;
+  /** Active runs returned by the source host after recovery. */
+  recovered?: SourceRun[];
+  connection?: string;
 }
 
 /**
@@ -32,7 +35,9 @@ export interface RouterOptions {
 export function createChattoRouter({
   botId,
   workflow,
-  state
+  state,
+  recovered = [],
+  connection
 }: RouterOptions): WebhookRouter<IncomingMessage> {
   const { threads } = state;
   const deliveries = createDeliveryTracker({ accepted: state.accepted });
@@ -43,6 +48,23 @@ export function createChattoRouter({
     if (thread?.run !== run) return;
     threads.delete(key);
   };
+
+  for (const run of recovered) {
+    const input = run.input as Partial<IncomingMessage> | null;
+    if (
+      !input ||
+      !connection ||
+      input.connection !== connection ||
+      typeof input.roomId !== 'string' ||
+      typeof input.threadRootId !== 'string'
+    )
+      continue;
+    const key = JSON.stringify([botId, input.roomId, input.threadRootId]);
+    if (threads.has(key)) continue;
+    threads.set(key, { run });
+    if (typeof input.id === 'string') deliveries.accept(JSON.stringify([botId, input.id]));
+    void run.finished.then(() => forget(key, run));
+  }
 
   const deliver: WebhookRouter<IncomingMessage> = async (ctx, message) => {
     const delivery = JSON.stringify([botId, message.id]);

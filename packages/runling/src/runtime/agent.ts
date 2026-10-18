@@ -1,4 +1,5 @@
 import type { TaskContext } from './context.ts';
+import { usePrivateTempDirectory } from './private-temp.ts';
 import { requireDirectory } from './directory.ts';
 import { executionServices } from './execution.ts';
 import { stripVTControlCharacters } from 'node:util';
@@ -327,6 +328,7 @@ function commentaryText(content: readonly ContentPart[]): string {
 
 /** Create a live agent session for a custom conversation loop. The caller owns disposal. */
 export async function createAgentSession(options: AgentOptions): Promise<RunlingAgent> {
+  await usePrivateTempDirectory();
   return createRunlingAgent(options);
 }
 

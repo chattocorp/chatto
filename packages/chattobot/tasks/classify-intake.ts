@@ -1,6 +1,6 @@
 /** One tool-free model turn decides whether a report or ordinary replies need participation. */
 import { createAgentSession, task, Type, type AgentSessionFactory, type Static } from 'runling';
-import { createClassifier } from '../classification.ts';
+import { createClassifier } from 'runling';
 import { ConfigurationError, setting } from '../settings.ts';
 
 export const ReportInput = Type.Object({

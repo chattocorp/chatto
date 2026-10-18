@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createAgentSession, emptyTokenUsage, isTask, runWorkflow } from 'runling';
-import { usePrivateTempDirectory } from '../private-temp.ts';
+import { usePrivateTempDirectory } from 'runling';
 import workflow from './github.ts';
 
 vi.mock('runling', async (importOriginal) => ({

@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   managerClose: vi.fn(),
   start: vi.fn(),
-  storeClose: vi.fn()
+  storeClose: vi.fn(),
+  restore: vi.fn()
 }));
 vi.mock('./web-config.ts', () => ({
   getConfigReloader: () => ({
@@ -20,7 +21,7 @@ vi.mock('./web-config.ts', () => ({
   })
 }));
 vi.mock('./run-store.ts', () => ({
-  getRunStore: async () => ({ start: mocks.start, close: mocks.storeClose })
+  getRunStore: async () => ({ start: mocks.start, close: mocks.storeClose, restore: mocks.restore })
 }));
 vi.mock('../../runtime/source-manager.ts', () => ({
   SourceManager: class {
@@ -35,12 +36,16 @@ afterEach(async () => {
   vi.resetAllMocks();
 });
 
-test('startup and reload launch sources but never invoke saved workflows', async () => {
+test('startup and reload restore registered roots before launching sources', async () => {
   mocks.load.mockResolvedValue({ webhooks: {} });
   mocks.subscribe.mockReturnValue(() => {});
   await startSourceHost();
   await startSourceHost();
   expect(mocks.replace).toHaveBeenCalledOnce();
+  expect(mocks.restore).toHaveBeenCalledOnce();
+  expect(mocks.restore.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.replace.mock.invocationCallOrder[0]!
+  );
   expect(mocks.start).not.toHaveBeenCalled();
   const listener = mocks.subscribe.mock.calls[0]?.[0];
   expect(listener).toBeTypeOf('function');

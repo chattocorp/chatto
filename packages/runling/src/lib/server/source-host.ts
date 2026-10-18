@@ -17,13 +17,15 @@ export function startSourceHost() {
     const manager = new SourceManager(
       (name) =>
         (task, { input }) =>
-          store.start(name, task, input, 'source')
+          store.start(name, task, input, 'source'),
+      (name) => store.sourceRuns(name)
     );
     let revision = -1;
     const reload = async () => {
       const next = await config.load();
       if (config.revision === revision) return;
       revision = config.revision;
+      await store.restore(next.workflows);
       await manager.replace(next);
     };
     try {
@@ -31,6 +33,7 @@ export function startSourceHost() {
     } catch (error) {
       await config.close();
       await manager.close();
+      await store.close();
       throw error;
     }
     const unsubscribe = config.subscribe(() => {

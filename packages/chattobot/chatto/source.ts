@@ -1,6 +1,7 @@
 /** The realtime Chatto source: route addressed messages and configured report intake. */
 import { statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { createApi, createClient, type Server } from '@chatto/client';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
@@ -64,7 +65,7 @@ export function sourceSettings() {
       maintainerLogin: maintainerLoginSetting(),
       web: webSettings(),
       paseo: paseoSettings(),
-      // One token source per generation, so conversations share cached installation tokens.
+      // Each workflow keeps its cached installation tokens for its lifetime.
       github: github && { settings: github, tokens: createTokenSource(github) },
       ...(source
         ? {
@@ -73,7 +74,7 @@ export function sourceSettings() {
               investigator: (scope: string) =>
                 createInvestigator({
                   ...investigator!,
-                  sessions: resolve(investigator!.sessions, scope)
+                  sessions: investigator!.sessions.scope(scope)
                 }),
               ...(github ? { repository: github.repository } : {})
             }
@@ -109,28 +110,26 @@ export const chattoSource: EventSource = async (ctx) => {
   }
 };
 
-async function consume(
-  ctx: Parameters<EventSource>[0],
-  server: Server,
-  {
-    serverUrl,
-    apiKey,
-    allowedUserId,
-    autoEngageRooms,
-    conversation: conversationSettings
-  }: ReturnType<typeof sourceSettings>
-) {
-  const { viewerId: botId } = await server.ready({ signal: ctx.signal });
-  const api = createApi({ serverUrl, apiKey, viewerId: botId });
-  const identity = JSON.stringify([new URL(serverUrl).origin, botId]);
-  let session = ctx.state.get('chatto') as { identity: string; state: RouterState } | undefined;
-  if (session?.identity !== identity) {
-    session = { identity, state: createRouterState() };
-    ctx.state.set('chatto', session);
-  } else {
-    // Each generation starts from a new snapshot; the previous one is closed.
-    console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
+/** Stable registered root. Recovery uses HTTP access without waiting for the realtime source. */
+export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
+  const { serverUrl, apiKey, allowedUserId, conversation: conversationSettings } = sourceSettings();
+  const api = createApi({ serverUrl, apiKey });
+  // A server outage during restart must not close all recovered conversations.
+  let botId: string;
+  while (true) {
+    try {
+      ({ viewerId: botId } = await api.ready({
+        signal: AbortSignal.any([ctx.signal, AbortSignal.timeout(10_000)])
+      }));
+      break;
+    } catch {
+      ctx.signal.throwIfAborted();
+      log.info('Thread waiting for Chatto connection');
+      await delay(10_000, undefined, { signal: ctx.signal });
+    }
   }
+  if (message.connection !== connectionIdentity(serverUrl, botId))
+    throw new Error('Thread belongs to a different Chatto connection');
   const conversation = createConversation(conversationSettings, {
     post: async (destination, body, signal) =>
       (await api.postMessage(destination, body, { signal })).ids[0],
@@ -140,7 +139,7 @@ async function consume(
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
-  const workflow = createThreadWorkflow({
+  return {
     classifier: createIntakeClassifier(conversationSettings.model),
     conversation,
     readFollowUp: createFollowUpReader(api, allowedUserId),
@@ -162,8 +161,34 @@ async function consume(
         attachmentTypes: (root.attachments ?? []).map((item) => item.contentType)
       };
     }
+  };
+});
+
+/** Server and authenticated bot identity; no credentials enter saved workflow input. */
+const connectionIdentity = (serverUrl: string, botId: string) =>
+  JSON.stringify([new URL(serverUrl).origin, botId]);
+
+async function consume(
+  ctx: Parameters<EventSource>[0],
+  server: Server,
+  { serverUrl, allowedUserId, autoEngageRooms }: ReturnType<typeof sourceSettings>
+) {
+  const { viewerId: botId } = await server.ready({ signal: ctx.signal });
+  const identity = connectionIdentity(serverUrl, botId);
+  let session = ctx.state.get('chatto') as { identity: string; state: RouterState } | undefined;
+  if (session?.identity !== identity) {
+    session = { identity, state: createRouterState() };
+    ctx.state.set('chatto', session);
+  } else {
+    console.warn('ChattoBot reloaded: messages sent during the reload are not replayed.');
+  }
+  const route = createChattoRouter({
+    botId,
+    workflow: chattoWorkflow,
+    state: session.state,
+    recovered: ctx.runs().filter((run) => run.workflow === 'chattoThread'),
+    connection: identity
   });
-  const route = createChattoRouter({ botId, workflow, state: session.state });
 
   await server.consumeEvents({
     signal: ctx.signal,
@@ -184,10 +209,11 @@ async function consume(
       });
       if (message?.authorId === botId) return;
       try {
-        if (message) await ctx.dispatch(route, incomingMessage(message));
+        if (message)
+          await ctx.dispatch(route, { ...incomingMessage(message), connection: identity });
         else {
           const candidate = intakeMessage(event, autoEngageRooms, botId);
-          if (candidate) await ctx.dispatch(route, candidate);
+          if (candidate) await ctx.dispatch(route, { ...candidate, connection: identity });
         }
       } catch {
         ctx.signal.throwIfAborted();
