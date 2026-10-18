@@ -102,6 +102,12 @@ const roomStateMock = vi.hoisted(() => ({
 let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
 // Match the connection getter's reactive counter, including changes below its threshold.
 const connectionAttempts = new SvelteMap([['failed', 0]]);
+// Match ComposerContext's reactive selection when a mounted composer changes destination.
+const activeReply = new SvelteMap<string, ReplyState | null>();
+Object.defineProperty(roomStateMock, 'replyState', {
+  get: () => activeReply.get('current') ?? null,
+  set: (value: ReplyState | null) => activeReply.set('current', value)
+});
 const roomUnread = { setRoomUnread: vi.fn() };
 let server: TestServerScope;
 
@@ -154,7 +160,12 @@ vi.mock('$lib/state/room', () => ({
       roomStateMock.focus = value;
     },
     editState: roomStateMock.reactiveEditState ?? roomStateMock.editState,
-    replyState: roomStateMock.replyState,
+    get replyState() {
+      return roomStateMock.replyState;
+    },
+    set replyState(value) {
+      roomStateMock.replyState = value;
+    },
     quoteInsertionState: roomStateMock.quoteInsertionState,
     lastEditableMessage: roomStateMock.lastEditableMessage,
     scrollState: roomStateMock.scrollState
@@ -2307,6 +2318,127 @@ describe('MessageComposer', () => {
         .element(await findEditor(container, 'thread-reply-input'))
         .toHaveTextContent('thread draft');
       expect(sessionStorage.getItem('chatto:draft:room_draft')).toBe('room draft');
+    });
+
+    it.each([undefined, 'draft-thread'])(
+      'restores and sends the reply target after remounting draft %s',
+      async (inThread) => {
+        const first = renderMessageComposer({ roomId: 'reply-draft', inThread });
+        const testid = inThread ? 'thread-reply-input' : 'message-input';
+        await typeInEditor(await findEditor(first.container, testid), 'Saved reply');
+        roomStateMock.replyState!.startReply(
+          'original-message',
+          'Original author',
+          'Original body'
+        );
+        await first.unmount();
+        roomStateMock.replyState = new ReplyState();
+
+        const restored = renderMessageComposer(
+          { roomId: first.roomId, inThread },
+          { exactRoomId: true }
+        );
+        await expect
+          .element(await findEditor(restored.container, testid))
+          .toHaveTextContent('Saved reply');
+        expect(roomStateMock.replyState!.messageEventId).toBe('original-message');
+        const indicator = q(restored.container, '[data-testid="reply-indicator"]');
+        await expect.element(indicator).toHaveTextContent('Original author');
+        await expect.element(indicator).toHaveTextContent('Original body');
+        (q(restored.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        await vi.waitFor(() =>
+          expect(createMessageConnectMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              inReplyTo: 'original-message',
+              threadRootEventId: inThread ?? null
+            })
+          )
+        );
+        await vi.waitFor(() => expect(roomStateMock.replyState!.messageEventId).toBeNull());
+        await restored.unmount();
+        roomStateMock.replyState = new ReplyState();
+        const sent = renderMessageComposer(
+          { roomId: first.roomId, inThread },
+          { exactRoomId: true }
+        );
+        await findEditor(sent.container, testid);
+        expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      }
+    );
+
+    it('keeps independent reply targets when a mounted composer switches rooms and threads', async () => {
+      const rendered = renderMessageComposer({ roomId: 'reply-scopes' });
+      await findEditor(rendered.container);
+      roomStateMock.replyState!.startReply('room-target', 'Room author', 'Room excerpt');
+      await rendered.rerender({ inThread: 'thread-a' });
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      roomStateMock.replyState!.startReply('thread-target', 'Thread author', 'Thread excerpt');
+      await rendered.rerender({ inThread: 'thread-b' });
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      await rendered.rerender({ roomId: 'different-room', inThread: undefined });
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      await rendered.rerender({ roomId: rendered.roomId, inThread: 'thread-a' });
+      await expect
+        .element(q(rendered.container, '[data-testid="reply-indicator"]'))
+        .toHaveTextContent('Thread excerpt');
+      expect(roomStateMock.replyState!.messageEventId).toBe('thread-target');
+      await rendered.rerender({ inThread: undefined });
+      await expect
+        .element(q(rendered.container, '[data-testid="reply-indicator"]'))
+        .toHaveTextContent('Room excerpt');
+      expect(roomStateMock.replyState!.messageEventId).toBe('room-target');
+    });
+
+    it('keeps reply cancellation after leaving and returning without clearing text', async () => {
+      const rendered = renderMessageComposer({ roomId: 'cancel-reply-draft' });
+      await typeInEditor(await findEditor(rendered.container), 'Keep text');
+      roomStateMock.replyState!.startReply('cancelled-target', 'Author', 'Excerpt');
+      await tick();
+      await userEvent.click(q(rendered.container, '[data-testid="reply-indicator"] button')!);
+      await rendered.rerender({ inThread: 'elsewhere' });
+      await rendered.rerender({ inThread: undefined });
+      await expect.element(await findEditor(rendered.container)).toHaveTextContent('Keep text');
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+    });
+
+    it('retains a reply draft after a failed send and a remount', async () => {
+      createMessageConnectMock.mockRejectedValueOnce(
+        new ConnectError('Unavailable', Code.Unavailable)
+      );
+      const rendered = renderMessageComposer({ roomId: 'failed-reply' });
+      await typeInEditor(await findEditor(rendered.container), 'Try again');
+      roomStateMock.replyState!.startReply('failed-target', 'Author', 'Excerpt');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      await expect
+        .element(q(rendered.container, 'button[aria-label="Send message"]'))
+        .toBeEnabled();
+      await rendered.unmount();
+      roomStateMock.replyState = new ReplyState();
+      const restored = renderMessageComposer({ roomId: rendered.roomId }, { exactRoomId: true });
+      await expect.element(await findEditor(restored.container)).toHaveTextContent('Try again');
+      expect(roomStateMock.replyState!.messageEventId).toBe('failed-target');
+    });
+
+    it('clears only the submitted reply target when a send completes in another destination', async () => {
+      const pending = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      createMessageConnectMock.mockReturnValueOnce(pending.promise);
+      const rendered = renderMessageComposer({ roomId: 'pending-reply' });
+      await typeInEditor(await findEditor(rendered.container), 'Pending reply');
+      roomStateMock.replyState!.startReply('sent-target', 'Author', 'Excerpt');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      await rendered.rerender({ inThread: 'next-thread' });
+      roomStateMock.replyState!.startReply('next-target', 'Other author', 'Other excerpt');
+      pending.resolve({ event: postedMessageEvent() });
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem(`chatto:draft:${rendered.roomId}`)).toBeNull()
+      );
+      expect(roomStateMock.replyState!.messageEventId).toBe('next-target');
+      await rendered.rerender({ inThread: undefined });
+      expect(roomStateMock.replyState!.messageEventId).toBeNull();
+      await rendered.rerender({ inThread: 'next-thread' });
+      expect(roomStateMock.replyState!.messageEventId).toBe('next-target');
     });
 
     it('clears the active text draft after a successful send', async () => {

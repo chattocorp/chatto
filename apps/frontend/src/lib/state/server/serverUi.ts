@@ -2,13 +2,13 @@
  * Frontend state of one server that the Chatto client does not own: the
  * voice call, read views and notification attention, sidebar navigation,
  * optimistic unread and membership state, pending highlights, message search
- * sessions, and the admin room-layout editor.
+ * sessions, draft reply targets, and the admin room-layout editor.
  *
  * `serverUi(store)` returns the state of one server store. It lives as long as
  * the store: a new store, for example after an account change, gets new
  * state. `$lib/client` creates it for each store when the registry creates
  * the store, outside reactive reads, so that Svelte tracks its `$state`.
- * Search results and the layout editor copy server data, and the voice call
+ * Search results, reply targets, and the layout editor copy server data, and the voice call
  * holds media, so the state subscribes to the store's boundary events and
  * clears or releases them itself.
  */
@@ -32,6 +32,7 @@ import { RoomUnreadStore } from './roomUnread';
 import { MessageSearchStore } from './messageSearch';
 import { PendingHighlightStore } from './pendingHighlight';
 import { VoiceCallState } from './voiceCall.svelte';
+import { DraftReplies } from './draftReplies';
 
 /**
  * What the server icon shows: `notification` for an occurrence that needs
@@ -71,6 +72,8 @@ function callPermissions(store: ServerStateStore, roomId: string): CallPermissio
 
 /** The frontend state of one server store; see the module documentation. */
 export class ServerUi {
+  /** Reply targets retained when room and thread composers unmount. */
+  readonly draftReplies = new DraftReplies();
   /** The LiveKit call of this server. */
   readonly voiceCall: VoiceCallState;
   /** Active calls from the projection, with this client's own call overlaid. */
@@ -125,6 +128,7 @@ export class ServerUi {
     );
 
     store.onReset(({ privacy, retainView }) => {
+      if (privacy) this.draftReplies.clear();
       // Navigation targets contain no cached message content. Keep an unfinished
       // jump through snapshot recovery, but never across a viewer privacy reset.
       if (privacy) this.pendingHighlights.clear();
@@ -136,6 +140,7 @@ export class ServerUi {
       this.#forEachSearch((search) => search.clearResults());
     });
     store.onRoomAccessLost(({ roomId, messagesOnly, removed }) => {
+      this.draftReplies.clearRoom(roomId);
       const highlight = this.pendingHighlights.current;
       if (highlight?.roomId === roomId) this.pendingHighlights.complete(highlight);
       if (!messagesOnly) this.voiceCall.handleRoomAccessRevoked(roomId);
@@ -145,9 +150,12 @@ export class ServerUi {
       }
       this.#forRoomSearch(roomId, (search) => search.revokeRoom(roomId));
     });
-    store.onUserDeleted((userId) =>
-      this.#forEachSearch((search) => search.invalidateAuthor(userId))
-    );
+    store.onUserDeleted((userId) => {
+      // Reply targets have display names and excerpts, but no author IDs.
+      this.draftReplies.clear();
+      this.#forEachSearch((search) => search.invalidateAuthor(userId));
+    });
+    store.onSessionEnded(() => this.draftReplies.clear());
     store.onPermissionsChanged(() => {
       // Search holds plaintext outside the projection: fence it at once.
       this.#forEachSearch((search) => search.refreshPermissions());
@@ -173,12 +181,16 @@ export class ServerUi {
       }
       this.#handleCallEvent(update.event);
       const event = update.event?.event;
+      if (event?.case === 'messageRetracted') {
+        this.draftReplies.clearMessage(event.value.messageEventId);
+      }
       if (!SEARCHABLE_MESSAGE_EVENTS.has(event?.case)) return;
       const roomId = (event?.value as { roomId?: string } | undefined)?.roomId;
       if (roomId) this.#forRoomSearch(roomId, (search) => search.invalidateRoom(roomId));
       else this.#forEachSearch((search) => search.clearResults());
     });
     store.onDispose(() => {
+      this.draftReplies.clear();
       // Release call media first; nothing waits for the server.
       this.voiceCall.dispose();
       this.readViews.clear();

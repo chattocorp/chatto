@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -33,6 +33,12 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   excerpt inside its input surface. Muted text keeps the draft prominent.
   The close button removes reply attribution without clearing the draft;
   Escape has the same effect when no editor popup is open.
+- Each room and thread draft keeps its reply target when the user leaves and
+  returns during the same server session. The composer restores the target
+  name and excerpt. A successful send or explicit cancellation clears the
+  target; a failed send keeps it. Reply targets stay in memory and do not
+  survive a page reload. Loss of room access, session end, and privacy resets
+  clear retained targets.
 - DMs support thread creation, replies, follows, unread state, links,
   notifications, echoes, and My Threads entries. Their Threading Mode is fixed
   to Enabled and cannot be configured.

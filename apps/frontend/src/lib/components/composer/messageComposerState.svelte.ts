@@ -30,6 +30,7 @@ import {
 } from './editorTypes';
 import { LinkPreviewState } from './linkPreviews.svelte';
 import { ComposerSubmissionState, type PreparedPost } from './submission.svelte';
+import type { DraftReplies } from '$lib/state/server/draftReplies';
 
 const emptyFormattingState: ComposerFormattingState = {
   bold: false,
@@ -87,6 +88,7 @@ export type MessageComposerProps = {
 };
 
 type MessageComposerDependencies = {
+  draftReplies: DraftReplies;
   getRoomId: () => string;
   getThreadRootEventId: () => string | undefined;
   getCanPost: () => boolean;
@@ -454,6 +456,11 @@ export class MessageComposerState {
       // A reused composer drops its edit when it moves to another room or thread.
       if (this.#shownDraftKey !== this.draftKey) {
         if (this.#shownDraftKey && this.isEditing) this.#dropEdit();
+        this.#dependencies.context.replyState = this.#dependencies.draftReplies.select(
+          this.draftKey,
+          roomId,
+          this.#shownDraftKey ? undefined : this.#dependencies.context.replyState
+        );
         this.#shownDraftKey = this.draftKey;
       }
       if (this.isEditing) {
@@ -566,6 +573,7 @@ export class MessageComposerState {
     const activeDraftWasSent = this.draftKey === post.draftKey;
     const stashedFiles = this.draft.discardFiles(post.draftKey);
     this.draft.clearText(post.draftKey);
+    this.#dependencies.draftReplies.clearDraft(post.draftKey);
     if (activeDraftWasSent) {
       const api = this.editorApi;
       this.#resetEditor();

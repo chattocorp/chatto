@@ -130,7 +130,8 @@ thread IDs can change while the pane stays mounted.
   // pane shadows the room's context, so its jumps, replies, and scroll
   // requests stay in the thread.
   const composerContext = createComposerContext();
-  const { editState, replyState, jumpState, quoteInsertionState } = composerContext;
+  const { editState, jumpState, quoteInsertionState } = composerContext;
+  const replyState = $derived(composerContext.replyState);
 
   const events = $derived(isThread ? messageStore.threadEvents : messageStore.rootEvents);
   // The unread separator marks the first message from another user after the
@@ -285,7 +286,8 @@ thread IDs can change while the pane stays mounted.
         onLifecycleRead: handleLifecycleRead
       }));
 
-  // A reply or a jump belongs to the conversation that started it. The server
+  // A jump belongs to the conversation that started it. The composer selects
+  // the reply draft for each destination. The server
   // store loads each timeline when it creates it, so a target change needs no
   // explicit load here.
   let previousTargetKey = untrack(() => targetKey);
@@ -293,7 +295,6 @@ thread IDs can change while the pane stays mounted.
     const key = targetKey;
     if (key === previousTargetKey) return;
     previousTargetKey = key;
-    replyState.cancelReply();
     jumpState.reset();
   });
 

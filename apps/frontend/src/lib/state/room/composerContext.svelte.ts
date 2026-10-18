@@ -153,7 +153,8 @@ export class ComposerContext {
   /** Focus the mounted composer after the current UI update. Cleared on unmount. */
   focus?: () => void;
   readonly editState = new EditState();
-  readonly replyState = new ReplyState();
+  /** The active draft's reply target, selected by the mounted composer. */
+  replyState = $state.raw(new ReplyState());
   readonly quoteInsertionState = new QuoteInsertionState();
   readonly lastEditableMessage = new LastEditableMessageContext();
   readonly jumpState = new JumpToMessageState();
