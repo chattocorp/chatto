@@ -1058,7 +1058,7 @@ describe('ThreadPane', () => {
     await vi.waitFor(() => expect(mocks.cancelEdit).toHaveBeenCalledOnce());
   });
 
-  it('leaves reply draft selection to the composer when the pane switches threads', async () => {
+  it('does not cancel stored replies when the pane switches threads', async () => {
     const rendered = render(ThreadPane, { props: threadProps });
     await tick();
     expect(mocks.cancelReply).not.toHaveBeenCalled();

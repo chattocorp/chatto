@@ -9,6 +9,7 @@ import { NotificationStore } from '@chatto/client/server/notifications';
 import { ServerProjectionStore } from '@chatto/client/server/projection';
 import { RoomListView } from '@chatto/client/server/rooms';
 import { serverUi } from './serverUi';
+import { ComposerContext } from '$lib/state/room/composerContext.svelte';
 
 type Listener<T extends unknown[] = []> = (...args: T) => unknown;
 
@@ -77,6 +78,24 @@ describe('serverUi', () => {
     expect(second).not.toBe(first);
     expect(second.query).toBe('');
     expect(ui.messageSearch.query).toBe('');
+  });
+
+  it('selects separate reply drafts from the pane destination across remounts', () => {
+    const drafts = serverUi(fakeStore().store).draftReplies;
+    let key = 'room-draft';
+    const context = new ComposerContext(() => drafts.select(key, 'R1'));
+    const original = context.replyState;
+    original.startReply('M1', 'Author', 'Excerpt');
+
+    key = 'thread-draft';
+    expect(context.replyState.messageEventId).toBeNull();
+    context.replyState.startReply('M2', 'Other author', 'Other excerpt');
+    const remounted = new ComposerContext(() => drafts.select('room-draft', 'R1'));
+    expect(remounted.replyState).toBe(original);
+    expect(remounted.replyState.messageEventId).toBe('M1');
+    drafts.clearDraft('room-draft');
+    expect(original.messageEventId).toBeNull();
+    expect(context.replyState.messageEventId).toBe('M2');
   });
 
   it('clears draft reply metadata at room and session privacy boundaries', () => {

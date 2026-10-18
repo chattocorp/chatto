@@ -8,9 +8,9 @@
  * the store: a new store, for example after an account change, gets new
  * state. `$lib/client` creates it for each store when the registry creates
  * the store, outside reactive reads, so that Svelte tracks its `$state`.
- * Search results, reply targets, and the layout editor copy server data, and the voice call
- * holds media, so the state subscribes to the store's boundary events and
- * clears or releases them itself.
+ * Search results, reply targets, and the layout editor copy server data. The
+ * voice call holds media. The state subscribes to the store's boundary events
+ * and clears or releases them itself.
  */
 
 import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';

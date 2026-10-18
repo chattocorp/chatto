@@ -456,11 +456,6 @@ export class MessageComposerState {
       // A reused composer drops its edit when it moves to another room or thread.
       if (this.#shownDraftKey !== this.draftKey) {
         if (this.#shownDraftKey && this.isEditing) this.#dropEdit();
-        this.#dependencies.context.replyState = this.#dependencies.draftReplies.select(
-          this.draftKey,
-          roomId,
-          this.#shownDraftKey ? undefined : this.#dependencies.context.replyState
-        );
         this.#shownDraftKey = this.draftKey;
       }
       if (this.isEditing) {

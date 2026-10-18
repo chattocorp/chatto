@@ -1633,7 +1633,7 @@ describe('Room local message echo', () => {
     );
   });
 
-  it('leaves reply draft selection to the composer when the room changes', async () => {
+  it('restores each room draft reply target when the room changes', async () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
     const { container } = rendered;
 
@@ -1646,8 +1646,13 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="composer-in-reply-to"]'))
       .toHaveTextContent('reply-target');
 
-    // This mock composer does not select drafts. The pane must not cancel its target.
     await rendered.rerender({ roomId: 'room-2' });
+
+    await expect
+      .element(q(container, '[data-testid="composer-in-reply-to"]'))
+      .toHaveTextContent(/^$/);
+
+    await rendered.rerender({ roomId: 'room-1' });
 
     await expect
       .element(q(container, '[data-testid="composer-in-reply-to"]'))

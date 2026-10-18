@@ -135,13 +135,7 @@ function buildScope(t: TestServerScope, options: TestServerScopeOptions): Server
     options.connection
   ) as unknown as ServerConnection;
   const store = buildStore(t, connection, options.serverInfo, options.store);
-  setServerUiForTests(
-    store,
-    withMembers(
-      Object.assign(Object.create(store), { draftReplies: new DraftReplies() }),
-      options.ui
-    )
-  );
+  setServerUiForTests(store, withMembers(Object.create(store), options.ui));
   return {
     get serverId() {
       return t.serverId;
@@ -162,6 +156,7 @@ function buildStore(
   const subscribe = () => () => {};
   const store = withMembers(
     {
+      draftReplies: new DraftReplies(),
       serverId: t.serverId,
       connection,
       projection: { rooms: new Map(), activeCalls: [] },
