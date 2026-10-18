@@ -61,7 +61,7 @@ describe('ComposerLinkPreviewCard', () => {
     container.querySelector('img')!.dispatchEvent(new Event('error'));
 
     await expect.poll(() => container.querySelector('img')).toBeNull();
-    expect(container.querySelector('.icon-\\[uil--link\\]')).not.toBeNull();
+    expect(container.querySelector('a .iconify')).not.toBeNull();
   });
 
   it.each([
