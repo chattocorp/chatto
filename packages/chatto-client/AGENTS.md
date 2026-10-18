@@ -67,8 +67,9 @@ examples use it. See
 - Every module is importable as `@chatto/client/<path>`. The exports point to
   TypeScript source, and the package has no build (ADR-116). Consumers load it
   through a compiling tool; plain Node cannot load it. Consumers type-check
-  the source with their own settings, so keep it valid under ChattoBot's
-  stricter settings, such as `noUncheckedIndexedAccess`.
+  the source with their own settings. `tsconfig.strict.json` applies
+  ChattoBot's stricter settings, such as `noUncheckedIndexedAccess`, to the
+  production source; the package check runs it.
 - The root entry has the public API: `createClient`, `Server`,
   `createApi`, the request helpers, and their types. `src/types.ts` and
   `src/types/admin.ts` re-export `@chatto/api-types`; regenerate them with

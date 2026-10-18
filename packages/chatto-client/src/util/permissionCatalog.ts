@@ -232,7 +232,7 @@ export function getIncludingPermissions(permissions: readonly string[], id: stri
 export function getPermissionCategory(id: string): PermissionCategory {
   const known = PERMISSION_DEFINITIONS[id]?.category;
   if (known) return known;
-  const prefix = id.split('.', 1)[0];
+  const [prefix = ''] = id.split('.', 1);
   return (PERMISSION_CATEGORIES as readonly string[]).includes(prefix) && prefix !== 'other'
     ? (prefix as PermissionCategory)
     : 'other';

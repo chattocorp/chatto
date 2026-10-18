@@ -21,7 +21,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "check": "tsc -p tsconfig.json && node scripts/generate-types.mjs --check",
+    "check": "tsc -p tsconfig.json && tsc -p tsconfig.strict.json && node scripts/generate-types.mjs --check",
     "test": "vitest run --coverage",
     "lint": "eslint ."
   },

@@ -35,9 +35,10 @@ tests and the end-to-end bot test, use `node --import tsx`.
 Consumers type-check the package source with their own compiler and settings.
 Package source must therefore pass the strictest consumer settings. Today,
 ChattoBot adds `noUncheckedIndexedAccess`, `noImplicitOverride`, and
-`noFallthroughCasesInSwitch`. Source consumers use the same TypeScript major
-version as the packages. `mise check-workspace` runs every consumer check, so
-it finds code that does not pass these settings.
+`noFallthroughCasesInSwitch`. The client check applies these settings to its
+production source with `tsconfig.strict.json`, so a client change cannot fail
+a consumer check later. Specs and test helpers keep the base settings. Source
+consumers use the same TypeScript major version as the packages.
 
 Runling is not in scope. It is published to npm and keeps its build.
 
