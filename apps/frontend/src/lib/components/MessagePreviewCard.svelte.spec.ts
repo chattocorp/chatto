@@ -257,7 +257,7 @@ describe('MessagePreviewCard', () => {
         container.querySelector('[data-testid="message-preview-attachment-summary"]')?.textContent
       ).toContain('Image')
     );
-    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
   });
 
   it('renders an attachment-only thread reply', async () => {

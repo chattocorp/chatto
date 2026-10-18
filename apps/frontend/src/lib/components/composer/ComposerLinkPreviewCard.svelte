@@ -23,7 +23,8 @@ user types. A social post with a content warning shows no image or post text.
   const urlParts = $derived.by(() => {
     try {
       const url = new URL(preview.url);
-      return { host: url.hostname, label: `${url.hostname}${url.pathname}`.replace(/\/$/, '') };
+      const path = decodeURI(url.pathname).replace(/\/$/, '');
+      return { host: url.hostname, label: `${url.hostname}${path}` };
     } catch {
       return { host: preview.url, label: preview.url };
     }
