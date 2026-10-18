@@ -18,6 +18,18 @@ backups, and know which tool repairs an account or a deployment.
 | Operator CLI | Local recovery and bootstrap over a Unix socket. |
 | Backups | Disaster recovery, migration tests, and upgrade safety. |
 
+### Room data
+
+Chatto currently has no supported operation to delete a room's event or message
+data. Archiving only hides a room from active room lists. It does not erase the
+room's data. Deleting and recreating a room is not a supported way to clear its
+data. Do not rely on creating a new room with the same name.
+
+Account deletion has specific cleanup behavior. See
+[Encryption at Rest and Data Erasure](/guides/operations/security/#encryption-and-data-erasure)
+for the data that account deletion removes or makes unreadable, and the event
+metadata that remains.
+
 ## Check configuration
 
 Before deployment, run the check with the same environment as the server:
