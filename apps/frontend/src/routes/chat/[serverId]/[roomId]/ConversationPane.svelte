@@ -17,6 +17,7 @@ thread IDs can change while the pane stays mounted.
   import type { MessageComposerProps } from '$lib/components/composer/messageComposerState.svelte';
   import { queryCaches } from '$lib/query/cacheRegistry';
   import { serverUi } from '$lib/state/server/serverUi';
+  import { draftKey } from '$lib/components/composer/draft.svelte';
 
   /** Composer options that the owner decides. The pane supplies the rest. */
   export type ConversationComposerOptions = Omit<
@@ -129,8 +130,11 @@ thread IDs can change while the pane stays mounted.
   // The composer and the timeline below share this pane's context. A thread
   // pane shadows the room's context, so its jumps, replies, and scroll
   // requests stay in the thread.
-  const composerContext = createComposerContext();
-  const { editState, replyState, jumpState, quoteInsertionState } = composerContext;
+  const composerContext = createComposerContext(() =>
+    serverUi(stores).draftReplies.select(draftKey(roomId, threadRootEventId ?? undefined), roomId)
+  );
+  const { editState, jumpState, quoteInsertionState } = composerContext;
+  const replyState = $derived(composerContext.replyState);
 
   const events = $derived(isThread ? messageStore.threadEvents : messageStore.rootEvents);
   // The unread separator marks the first message from another user after the
@@ -285,15 +289,14 @@ thread IDs can change while the pane stays mounted.
         onLifecycleRead: handleLifecycleRead
       }));
 
-  // A reply or a jump belongs to the conversation that started it. The server
-  // store loads each timeline when it creates it, so a target change needs no
-  // explicit load here.
+  // A jump belongs to the conversation that started it. Reply state follows
+  // the pane's current draft key. The server store loads each timeline when
+  // it creates it, so a target change needs no explicit load here.
   let previousTargetKey = untrack(() => targetKey);
   $effect(() => {
     const key = targetKey;
     if (key === previousTargetKey) return;
     previousTargetKey = key;
-    replyState.cancelReply();
     jumpState.reset();
   });
 

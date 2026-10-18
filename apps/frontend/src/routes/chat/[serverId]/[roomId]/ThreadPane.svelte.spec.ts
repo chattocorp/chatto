@@ -1058,14 +1058,14 @@ describe('ThreadPane', () => {
     await vi.waitFor(() => expect(mocks.cancelEdit).toHaveBeenCalledOnce());
   });
 
-  it('cancels a pending reply when the pane switches to another thread', async () => {
+  it('does not cancel stored replies when the pane switches threads', async () => {
     const rendered = render(ThreadPane, { props: threadProps });
     await tick();
     expect(mocks.cancelReply).not.toHaveBeenCalled();
 
     await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
 
-    expect(mocks.cancelReply).toHaveBeenCalledOnce();
+    expect(mocks.cancelReply).not.toHaveBeenCalled();
   });
 
   it('keeps a reply queued for the next thread when the pane switches to it', async () => {
@@ -1084,9 +1084,8 @@ describe('ThreadPane', () => {
     });
 
     await vi.waitFor(() => expect(mocks.startReply).toHaveBeenCalledOnce());
-    expect(mocks.cancelReply.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.startReply.mock.invocationCallOrder[0]
-    );
+    expect(mocks.cancelReply).not.toHaveBeenCalled();
+    expect(mocks.startReply).toHaveBeenCalledWith('reply-2', 'Bob', 'hi', undefined);
   });
 
   it('starts a queued reply once the thread composer is ready', async () => {

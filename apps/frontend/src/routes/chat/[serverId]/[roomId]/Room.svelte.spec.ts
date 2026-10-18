@@ -1633,13 +1633,13 @@ describe('Room local message echo', () => {
     );
   });
 
-  it('clears pending in-room reply state when the room changes', async () => {
+  it('restores each room draft reply target when the room changes', async () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
     const { container } = rendered;
 
     await expect
       .element(q(container, '[data-testid="composer-in-reply-to"]'))
-      .toHaveTextContent('');
+      .toHaveTextContent(/^$/);
 
     (q(container, '[data-testid="start-composer-reply"]') as HTMLButtonElement).click();
     await expect
@@ -1650,7 +1650,13 @@ describe('Room local message echo', () => {
 
     await expect
       .element(q(container, '[data-testid="composer-in-reply-to"]'))
-      .toHaveTextContent('');
+      .toHaveTextContent(/^$/);
+
+    await rendered.rerender({ roomId: 'room-1' });
+
+    await expect
+      .element(q(container, '[data-testid="composer-in-reply-to"]'))
+      .toHaveTextContent('reply-target');
   });
 
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {

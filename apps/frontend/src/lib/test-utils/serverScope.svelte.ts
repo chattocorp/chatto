@@ -7,6 +7,7 @@ import type { ServerScope } from '$lib/state/server/scope.svelte';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import type { ServerStateStore } from '@chatto/client/server/store';
 import { setServerUiForTests } from '$lib/state/server/serverUi';
+import { DraftReplies } from '$lib/state/server/draftReplies';
 
 /** Options for {@link createTestServerScope}. Every option has a working default. */
 export type TestServerScopeOptions = {
@@ -155,6 +156,7 @@ function buildStore(
   const subscribe = () => () => {};
   const store = withMembers(
     {
+      draftReplies: new DraftReplies(),
       serverId: t.serverId,
       connection,
       projection: { rooms: new Map(), activeCalls: [] },

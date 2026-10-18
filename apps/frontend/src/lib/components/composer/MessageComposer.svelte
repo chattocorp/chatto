@@ -132,9 +132,10 @@
 
   const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
   const composerContext = getComposerContext();
-  const replyState = composerContext.replyState;
+  const replyState = $derived(composerContext.replyState);
   const membersStore = useRoomMembersStore();
   const composer = new MessageComposerState({
+    draftReplies: serverUi(stores).draftReplies,
     getRoomId: () => roomId,
     getThreadRootEventId: () => inThread,
     getCanPost: () => canPost,
