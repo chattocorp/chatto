@@ -13,7 +13,8 @@ import {
   type RunlingAgent
 } from 'runling';
 import type { Destination } from '@chatto/client';
-import type { IncomingMessage } from '../chatto/message.ts';
+import type { IncomingMessage, ConversationStart } from '../chatto/message.ts';
+import type { Static } from 'runling';
 import {
   createConversation,
   type ChattoAccess,
@@ -151,8 +152,13 @@ function harness({
   );
   const messages = createChannel<unknown>();
   const events: RunlingEvent[] = [];
-  const start = (first: IncomingMessage) =>
-    runWorkflow(conversation, { input: first, messages, onEvent: (event) => events.push(event) });
+  const start = (first: Static<typeof ConversationStart>, signal?: AbortSignal) =>
+    runWorkflow(conversation, {
+      input: first,
+      messages,
+      signal,
+      onEvent: (event) => events.push(event)
+    });
   return {
     events,
     start,
@@ -891,8 +897,7 @@ test('runs investigations in the background and stays available while they run',
   const run = bot.start(message('one', 'images are gone', 'maintainer'));
   await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
   expect(bot.posts[0]!.body).toBe('I started an investigation.');
-  // Progress is kept in batches about a second apart. It is not posted (#2787).
-  await new Promise((resolve) => setTimeout(resolve, 1200));
+  // Progress is retained for status answers, not posted separately (#2787).
   expect(bot.posts).toHaveLength(1);
 
   // The investigation still runs, and the conversation answers a new message at once.
@@ -916,6 +921,80 @@ test('runs investigations in the background and stays available while they run',
   expect(bot.reactions).toEqual(['one', 'two']);
 });
 
+test('a failed child reaches a later turn once, even after input closes', async () => {
+  const release = Promise.withResolvers<void>();
+  const investigator = task(
+    { name: 'Investigate', input: Type.Any(), output: Type.Any(), emits: Type.String() },
+    async (ctx) => {
+      for (let i = 0; i < 100; i++) await ctx.emit(`Step ${i}`);
+      await release.promise;
+      throw new Error('Investigation failed');
+    }
+  );
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    investigation: { directory: '/repo', investigator: () => investigator as never },
+    turn: async (prompt) => {
+      if (prompt.includes('Message ID: request'))
+        await bot.tools
+          .get('investigate')!
+          .execute('1', { requestId: 'request', question: 'Check it' });
+    },
+    answer: (prompt) =>
+      prompt.includes('Investigation failed') ? 'The investigation failed.' : 'I am investigating.'
+  });
+  const run = bot.start(message('request', 'Please investigate', 'maintainer'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  bot.messages.close();
+  release.resolve();
+  expect(await run).toMatchObject({ ok: true });
+  expect(bot.posts.map((post) => post.body)).toEqual([
+    'I am investigating.',
+    'The investigation failed.'
+  ]);
+  expect(bot.posts[1]!.destination.inReplyTo).toBe('request');
+});
+
+test('conversation cancellation waits for its child cleanup without posting a result', async () => {
+  const controller = new AbortController();
+  const stopped = Promise.withResolvers<void>();
+  const cleanup = Promise.withResolvers<void>();
+  const investigator = task(
+    { name: 'Investigate', input: Type.Any(), output: Type.Any() },
+    async (ctx) => {
+      ctx.signal.addEventListener('abort', () => stopped.resolve(), { once: true });
+      await stopped.promise;
+      await cleanup.promise;
+      ctx.signal.throwIfAborted();
+    }
+  );
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    investigation: { directory: '/repo', investigator: () => investigator as never },
+    turn: async () => {
+      await bot.tools
+        .get('investigate')!
+        .execute('1', { requestId: 'request', question: 'Check it' });
+    },
+    answer: () => 'I am investigating.'
+  });
+  let finished = false;
+  const run = bot
+    .start(message('request', 'Please investigate', 'maintainer'), controller.signal)
+    .then((result) => {
+      finished = true;
+      return result;
+    });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  controller.abort(new Error('Stopped'));
+  await stopped.promise;
+  expect(finished).toBe(false);
+  cleanup.resolve();
+  expect(await run).toMatchObject({ ok: false, error: 'Stopped' });
+  expect(bot.posts).toHaveLength(1);
+  expect(bot.disposed()).toBe(true);
+});
+
 const github = {
   settings: {
     clientId: 'Iv23liExample1',
@@ -925,6 +1004,24 @@ const github = {
   tokens: vi.fn(async () => 'token'),
   run: vi.fn(async () => ({ ok: true, output: 'unused' }))
 };
+
+test('recovery waits for fresh input and cannot reuse an old maintainer request', async () => {
+  const bot = harness({ maintainers: ['maintainer'], github });
+  const run = bot.start({ ...message('old', 'Create an issue', 'maintainer'), resume: true });
+  await vi.waitFor(() => expect(bot.createAgent).toHaveBeenCalledOnce());
+  expect(bot.prompts).toEqual([]);
+  expect(bot.posts).toEqual([]);
+  const work = bot.tools.get('githubWork')!;
+  await expect(
+    work.execute('stale', { requestId: 'old', task: 'Create an issue', evidence: '' })
+  ).rejects.toThrow('requires a message from a maintainer in this turn');
+  bot.messages.send(message('new', 'What happened?'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  expect(bot.prompts[0]).toContain('Previously delegated work is no longer monitored');
+  expect(bot.prompts[0]).not.toContain('Message ID: old');
+  bot.messages.close();
+  expect((await run).ok).toBe(true);
+});
 
 test('starts a GitHub worker for a maintainer and delivers its result while the thread stays available', async () => {
   const release = Promise.withResolvers<void>();

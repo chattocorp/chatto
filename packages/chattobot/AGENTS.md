@@ -29,6 +29,14 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   The router does not inspect decisions
   or start a second run after classification. Keep the classifier free of tools
   and Chatto effects. Check model behavior with `pnpm eval:intake`.
+- Register the thread root as `chattoThread` for Runling recovery. The root owns
+  its plain `ctx.state`: accepted entry, delivered IDs, checked batch, and activity
+  time. Restore source routing from `ctx.runs()`, bound to the same server and bot.
+  Use Runling's `agentSessionFile(ctx, 'conversation')` for the transcript. Runling
+  owns its path and retention; keep filesystem cleanup out of ChattoBot.
+  Recovery waits for new input; never replay an old addressed maintainer request
+  or restart a background job. Previous delegation outcomes can be unknown.
+  Preserve intake status and the inactivity deadline. See [Recovery](README.md#recovery).
 - `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
   each turn, and the only posts to the thread. The agent's final text is the
   reply.
@@ -36,11 +44,14 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   own agent, write it as a Runling task that can also run on its own, like
   `tasks/investigate.ts`, and give it to the agent as a tool. A task
   returns its result to the agent; it does not post to Chatto itself.
-- Long work runs as a background job (`harness/jobs.ts`), as in agent
-  harnesses: its tool returns at once, the conversation keeps answering
-  messages, and the result reaches the agent in a later turn.
-- A subagent keeps its agent session in a file. Investigations support resume;
-  each GitHub request starts a new session. The caller chooses its working directory.
+- Long work starts ordinary Runling children with `ctx.start`. The conversation
+  retains their handles, latest progress, and reply destinations in its pending
+  map, then queues results for later turns. It waits for pending work after input
+  closes and disposes children before it exits. Keep this bookkeeping in the
+  parent implementation; do not add a separate background-job execution API.
+- A subagent uses Runling session storage. Investigations use `AgentSessionStore`
+  for cross-workflow resume; GitHub workers use distinct `agentSessionFile` keys
+  owned by the run. The caller chooses the working directory.
 - Do not add host code that corrects or replaces the model's replies. If the
   model behaves badly, change the prompt, the tools, or the model, and add a
   test or an evaluation that shows the problem.
@@ -97,7 +108,7 @@ without discussion.
 
 Job progress is kept as each job's latest step, which the agent sees to answer
 status questions. It is not posted: it will move to the bot's temporary status
-in the thread (#2787). The posting code is commented out in `tasks/conversation.ts`.
+in the thread (#2787).
 
 Do not add slash commands. People talk to the bot in plain language.
 
@@ -170,7 +181,7 @@ a maintainer gate before delegation:
   arguments cannot replace it. Denials return to the worker for correction within
   that scope. Invalid output, model errors, and cancellation prevent execution.
   Do not turn a rejected command into another user approval step.
-  Use the shared `createClassifier` mechanism for isolated, schema-validated
+  Use Runling's `createClassifier` mechanism for isolated, schema-validated
   decisions; keep policies in their domain tasks. No approval cache or ledger.
   Model decisions can be wrong: this is not a hard command authorization guarantee.
   Check `pnpm eval:github authorization`, `retry`, and `scope`.
@@ -182,5 +193,5 @@ a maintainer gate before delegation:
   and people.
 - Keep per-turn limits, such as the attachment and web limits, in the
   conversation, and make sure that parallel tool calls cannot pass them.
-- Write temporary files only to the private temporary directory
-  (`private-temp.ts`).
+- Use Runling's `usePrivateTempDirectory()` for temporary host files. Runling
+  configures private agent runtime temporary storage automatically.

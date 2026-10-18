@@ -1,4 +1,4 @@
-import type { AnyTask, Task, TaskInput, TaskReceives } from './task.ts';
+import { isTask, type AnyTask, type Task, type TaskInput, type TaskReceives } from './task.ts';
 import { toJsonSchema, isWorkflowSchema, type WorkflowSchema } from './schema.ts';
 
 /** The ID of a run that a delivery started. */
@@ -54,6 +54,9 @@ export interface WebConfig<
 > {
   webhooks: Webhooks;
   sources?: Record<string, EventSource>;
+  /** Stable keys for roots that can recover from saved state. Register the same task object
+   * that routers start. Renaming a key leaves its saved workflows interrupted. */
+  workflows?: Record<string, AnyTask>;
 }
 
 /** Host services for a source generation. State survives reloads of the same source name. */
@@ -61,8 +64,17 @@ export interface EventSourceContext {
   signal: AbortSignal;
   /** Process-local adapter state. Removed when the source is removed. Never serialized. */
   state: Map<string, unknown>;
+  /** Current runs owned by this source, including recovered roots. Use their original input
+   * to rebuild application routing. Queued messages and adapter state are not restored. */
+  runs(): SourceRun[];
   /** Route one delivery and wait for all initiated registrations. Throws on routing failure. */
   dispatch<Input>(router: WebhookRouter<Input>, input: Input): Promise<StartedRun[]>;
+}
+
+/** A live run and the original input needed to rebuild a source's routing table. */
+export interface SourceRun extends RunHandle {
+  workflow: string;
+  input: unknown;
 }
 
 /** Run until aborted; settle only after releasing sockets, timers, and pending deliveries. */
@@ -71,7 +83,25 @@ export type EventSource = (ctx: EventSourceContext) => Promise<void>;
 /** Preserve names and concrete router types in configuration. */
 export function defineWebConfig<
   const Webhooks extends Record<string, WebhookRouter<any>> = Record<string, WebhookRouter<any>>
->(config: { webhooks?: Webhooks; sources?: Record<string, EventSource> }): WebConfig<Webhooks> {
+>(config: {
+  webhooks?: Webhooks;
+  sources?: Record<string, EventSource>;
+  workflows?: Record<string, AnyTask>;
+}): WebConfig<Webhooks> {
+  if (config.workflows !== undefined) {
+    if (
+      !config.workflows ||
+      typeof config.workflows !== 'object' ||
+      Array.isArray(config.workflows)
+    )
+      throw new TypeError('workflows must be a map of root tasks');
+    const tasks = new Set<AnyTask>();
+    for (const [key, task] of Object.entries(config.workflows)) {
+      if (!key.trim() || !isTask(task) || tasks.has(task))
+        throw new TypeError('Each workflow must have a unique key and task');
+      tasks.add(task);
+    }
+  }
   if (
     config.sources !== undefined &&
     (typeof config.sources !== 'object' || config.sources === null || Array.isArray(config.sources))

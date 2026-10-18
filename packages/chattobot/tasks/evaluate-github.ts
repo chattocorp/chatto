@@ -28,8 +28,7 @@ interface CaseResult {
 async function supervisor(
   ctx: TaskContext<unknown, unknown>,
   model: string,
-  scenario: SupervisorCase,
-  directory: string
+  scenario: SupervisorCase
 ) {
   const github = scenario.fixture?.() ?? new FakeGitHub();
   const delegated: Parameters<ReturnType<typeof createGitHubWorker>>[1][] = [];
@@ -131,8 +130,7 @@ async function supervisor(
       const worker = scenario.realWorker
         ? createGitHubWorker({
             ...settings,
-            ...github.settings(),
-            sessions: resolve(directory, 'sessions')
+            ...github.settings()
           })
         : undefined;
       return task(
@@ -273,8 +271,7 @@ export default task(
         const worker = createGitHubWorker({
           ...github.settings(),
           model,
-          thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
-          sessions: resolve(directory, 'sessions')
+          thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium')
         });
         record.answer = await worker(context, {
           task: scenario.request,
@@ -289,7 +286,7 @@ export default task(
     }
     for (const scenario of supervisorCases.filter((item) => selected(item.name))) {
       await evaluate(scenario.name, async (context, evidence) => {
-        const result = await supervisor(context, model, scenario, directory);
+        const result = await supervisor(context, model, scenario);
         evidence(result);
         const expected = scenario.messages.find(
           (message) => message.id === scenario.expectedRequest
@@ -340,7 +337,7 @@ export default task(
     }
     if (selected('language-report-withdrawal')) {
       await evaluate('language-report-withdrawal', (context, evidence) =>
-        languageReport(context, model, directory, evidence)
+        languageReport(context, model, evidence)
       );
     }
     const passed = results.filter((result) => result.passed).length;

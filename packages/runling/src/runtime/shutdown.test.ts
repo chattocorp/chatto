@@ -45,7 +45,7 @@ test('repeated shutdown signals flush an idle conversation with a completed chil
       ],
       { timeout: 10_000 }
     );
-    const [file] = await readdir(directory);
+    const [file] = (await readdir(directory)).filter((file) => file.endsWith('.jsonl'));
     const records = (await readFile(join(directory, file!), 'utf8'))
       .trim()
       .split('\n')

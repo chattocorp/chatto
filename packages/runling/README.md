@@ -182,9 +182,11 @@ Run `pnpm runling serve`, then open `http://localhost:5173`.
 
 Configuration and source code load once by default. Restart the server to load
 changes, or use `runling serve --watch` to enable project file watching and reload.
-Server shutdown marks active runs interrupted. Runs are process-local: restart
-preserves their history, but does not restore workflows, state, or agent sessions.
-New inputs start new runs.
+Server shutdown marks active executions interrupted and saves root-task state.
+The server also snapshots state every 60 seconds. Register recovery-aware roots
+in the `workflows` configuration map to re-enter them after restart with their
+saved `ctx.state`. Roots own recovery of children, connections, and agent sessions;
+message queues are not restored. See [workflow state](docs/workflow-state.md).
 
 Select a run to read its recorded log lines and task milestones. The **Log** view opens by default
 and follows new lines. Scroll up to pause following, then select **Follow latest**
@@ -244,6 +246,11 @@ a prompt, returns the final text, receives steering messages, and emits complete
 replies. It can be a CLI workflow, a child task, or an agent tool through
 `taskTool()`. Use `createAgentSession()` for a custom conversation loop and
 `runAgent()` for one explicit interaction with an outcome report.
+Start ordinary [child tasks](docs/task-channels.md#background-children) without
+waiting immediately when the parent must continue. `createClassifier` provides
+one isolated turn with a validated JSON result. Runling owns private temporary
+storage and transcript mechanics: use `agentSessionFile` for run-owned sessions
+or `AgentSessionStore` when a session must continue across runs.
 See [agents](docs/agents.md), including the
 [migration from session-returning `agent()`](docs/agents.md#migration-from-session-returning-agent).
 

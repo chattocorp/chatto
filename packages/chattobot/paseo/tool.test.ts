@@ -1,6 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { createTaskContext, type AgentExtensionAPI } from 'runling';
-import { Jobs, type JobOutcome } from '../harness/jobs.ts';
+import type { WorkOutcome } from '../harness/work.ts';
+import { recordWork } from '../harness/work-fixture.ts';
 import type { IncomingMessage } from '../chatto/message.ts';
 import { createWorkspaceTask } from '../tasks/create-workspace.ts';
 import { createImplementationTask } from '../tasks/start-implementation.ts';
@@ -24,7 +25,7 @@ async function harness(implementation = false) {
       body: 'I am a maintainer'
     }
   ];
-  const finished = Promise.withResolvers<JobOutcome>();
+  const finished = Promise.withResolvers<WorkOutcome>();
   const release = Promise.withResolvers<{ id: string; name: string; directory: string }>();
   const create = vi.fn(() => release.promise);
   const finish = Promise.withResolvers<{
@@ -40,15 +41,12 @@ async function harness(implementation = false) {
     labelWorkspace: async () => true,
     workspaces: { create, ref: () => ({ agents: { create: launch } }) }
   }));
-  const jobs = new Jobs({
-    progress: () => {},
-    finished: (_job, outcome) => finished.resolve(outcome)
-  });
+  const { owner: work, pending } = recordWork((outcome) => finished.resolve(outcome));
   const extension = workspaceExtension(
     createTaskContext(),
     createWorkspaceTask({ url: 'ws://host/ws', repositoryPath: '/chatto' }, factory),
     {
-      jobs,
+      work,
       maintainers: new Set(['maintainer']),
       messages: () => messages,
       implementation: implementation
@@ -71,7 +69,18 @@ async function harness(implementation = false) {
       else execute = tool.execute as typeof execute;
     }
   } as unknown as AgentExtensionAPI);
-  return { execute, implement, messages, factory, create, launch, jobs, release, finish, finished };
+  return {
+    execute,
+    implement,
+    messages,
+    factory,
+    create,
+    launch,
+    pending,
+    release,
+    finish,
+    finished
+  };
 }
 
 test('a current maintainer starts one background job and gets its confirmed result', async () => {
@@ -79,7 +88,7 @@ test('a current maintainer starts one background job and gets its confirmed resu
   await expect(h.execute('call', input)).resolves.toMatchObject({
     content: [{ text: expect.stringContaining('not confirmed yet') }]
   });
-  expect(h.jobs.list()[0]).toMatchObject({
+  expect([...h.pending.values()][0]).toMatchObject({
     kind: 'paseo',
     replyTo: { roomId: 'room', threadRootId: 'root', inReplyTo: 'approval' }
   });
@@ -105,9 +114,11 @@ test.each(['member', 'stale', 'forged', 'intake', 'follow-up'])(
       h.messages[0]!.trigger = kind;
       requestId = 'approval';
     }
-    await expect(h.execute('call', { ...input, requestId })).rejects.toThrow('current maintainer');
+    await expect(h.execute('call', { ...input, requestId })).rejects.toThrow(
+      'maintainer in this turn'
+    );
     expect(h.factory).not.toHaveBeenCalled();
-    expect(h.jobs.size).toBe(0);
+    expect(h.pending.size).toBe(0);
   }
 );
 
@@ -133,9 +144,9 @@ test.each(['member', 'stale', 'forged', 'intake', 'follow-up'])(
     }
     await expect(
       h.implement('call', { ...input, requestId, task: 'Build this', evidence: '' })
-    ).rejects.toThrow('current maintainer');
+    ).rejects.toThrow('maintainer in this turn');
     expect(h.factory).not.toHaveBeenCalled();
-    expect(h.jobs.size).toBe(0);
+    expect(h.pending.size).toBe(0);
   }
 );
 
@@ -145,10 +156,10 @@ test('implementation shares the attempt guard, retains progress, and delivers on
   await expect(h.execute('duplicate', input)).rejects.toThrow('already attempted');
   h.release.resolve({ id: 'workspace', name: input.title, directory: '/worktree' });
   await vi.waitFor(
-    () => expect(h.jobs.list()[0]?.latest).toContain('Paseo implementation started'),
+    () => expect([...h.pending.values()][0]?.latest).toContain('Paseo implementation started'),
     { timeout: 2000 }
   );
-  expect(h.jobs.list()[0]?.replyTo.inReplyTo).toBe('approval');
+  expect([...h.pending.values()][0]?.replyTo.inReplyTo).toBe('approval');
   h.finish.resolve({
     status: 'idle',
     final: null,
@@ -158,7 +169,7 @@ test('implementation shares the attempt guard, retains progress, and delivers on
   await expect(h.finished.promise).resolves.toMatchObject({
     result: expect.stringContaining('Implemented and tested.')
   });
-  expect(h.jobs.size).toBe(0);
+  expect(h.pending.size).toBe(0);
   expect(h.create).toHaveBeenCalledOnce();
   expect(h.launch).toHaveBeenCalledOnce();
   await expect(

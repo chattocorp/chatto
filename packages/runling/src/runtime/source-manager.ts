@@ -1,6 +1,6 @@
 import { dispatchRoute } from './routing.ts';
 import { serverLog } from './server-log.ts';
-import type { EventSource, WebhookContext, WebConfig } from './web-config.ts';
+import type { EventSource, WebhookContext, WebConfig, SourceRun } from './web-config.ts';
 
 interface RunningSource {
   controller: AbortController;
@@ -14,7 +14,10 @@ export class SourceManager {
   private pending = Promise.resolve();
   private closed = false;
 
-  constructor(private start: (name: string) => WebhookContext['start']) {}
+  constructor(
+    private start: (name: string) => WebhookContext['start'],
+    private runs: (name: string) => SourceRun[] = () => []
+  ) {}
 
   replace(config: WebConfig): Promise<void> {
     this.pending = this.pending.then(async () => {
@@ -39,6 +42,7 @@ export class SourceManager {
         source({
           signal: controller.signal,
           state,
+          runs: () => this.runs(name),
           dispatch: (route, input) => {
             if (!accepting || controller.signal.aborted)
               return Promise.reject(new Error('Event source has stopped'));

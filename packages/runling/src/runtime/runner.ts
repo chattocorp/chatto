@@ -1,8 +1,9 @@
 import { createTimeout } from './timeout.ts';
 import { createChannel } from './channel.ts';
-import { createRootContext, type RunIdentity } from './context.ts';
+import { createRootContext, type RunIdentity, type WorkflowState } from './context.ts';
+import { invoke } from './invocation.ts';
 import { withExecutionServices } from './execution.ts';
-import { relative, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 import type { RunOptions } from './cli.ts';
@@ -68,6 +69,8 @@ export interface TerminalCapabilities {
 
 export interface RunWorkflowOptions<Input = unknown> {
   input: Input;
+  /** Root-owned state, supplied by the host. This function does not persist it. */
+  state?: WorkflowState;
   /** Maximum elapsed time in seconds. Omit it to wait without a deadline. Cancellation is
    * cooperative. */
   timeout?: number;
@@ -108,14 +111,15 @@ export async function runWorkflow<T extends AnyTask>(
     signal,
     messages,
     onUpdate,
-    run: identity
+    run: identity,
+    state
   }: RunWorkflowOptions<TaskInput<T>>
 ): Promise<WorkflowExecution<TaskOutput<T>>> {
   return withExecutionServices({ verbose }, () =>
     withRunlingEventScope(onEvent, () =>
       withRootLog(() =>
         log.withDestination('silent', () =>
-          captureExecution(task, input, { timeout, signal, messages, onUpdate, identity })
+          captureExecution(task, input, { timeout, signal, messages, onUpdate, identity, state })
         )
       )
     )
@@ -130,8 +134,9 @@ async function captureExecution(
     signal,
     messages,
     onUpdate,
-    identity
-  }: Pick<RunWorkflowOptions, 'timeout' | 'signal' | 'messages' | 'onUpdate'> & {
+    identity,
+    state
+  }: Pick<RunWorkflowOptions, 'timeout' | 'signal' | 'messages' | 'onUpdate' | 'state'> & {
     identity?: RunIdentity;
   }
 ): Promise<WorkflowExecution> {
@@ -150,7 +155,7 @@ async function captureExecution(
 
   try {
     root.signal.throwIfAborted();
-    invocation = root.start(task, input);
+    invocation = invoke(root, task, input, { state });
     if (messages) void forward(messages, invocation, root.signal);
     else invocation.closeInput();
     // Always read updates: an unread buffer would make the task's emit fail.
@@ -282,7 +287,11 @@ export async function runRunling(workflowPath: string, prompt: string, options: 
             captureExecution(task, input, {
               signal: controller.signal,
               messages: terminal,
-              identity: journal && { id: journal.run.id, reference: journal.run.reference }
+              identity: journal && {
+                id: journal.run.id,
+                reference: journal.run.reference,
+                filesDirectory: resolve(dirname(journal.writer.path), journal.run.id)
+              }
             })
           )
         );

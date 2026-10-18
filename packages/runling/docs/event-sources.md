@@ -72,5 +72,7 @@ compatible state shapes across code reloads; restart after incompatible changes.
 
 Active workflows continue across reloads. If later deliveries must reach an
 active run, keep its run handle in `state`. New runs use the updated code. A
-process restart loses run handles, messages in queues, and checkpoints. Runling
-provides no durable inbox or automatic deduplication.
+process restart loses source state and queued messages. Registered roots can
+recover from [workflow state](workflow-state.md). Sources start after recovery and
+can use `ctx.runs()` to rebuild routing from each live run's original input and
+handle. Runling provides no durable inbox or automatic deduplication.

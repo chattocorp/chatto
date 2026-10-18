@@ -30,10 +30,13 @@ questions are not promises of future behavior.
 
 - [Package README](../README.md): setup, CLI, tasks, run references, and releases.
 - [Task invocations and messages](task-channels.md): `ctx.start`, message
-  schemas, `ctx.inbox`, `ctx.emit`, and cancellation.
+  schemas, `ctx.inbox`, `ctx.emit`, background children, and cancellation.
+- [Workflow state](workflow-state.md): mutable root state, periodic snapshots,
+  configuration keys, and root-owned restart recovery.
 - [Workflow messages and output](workflow-messages.md): messages between the
   host and a run, and the output of a run.
-- [Agents](agents.md): output modes, session files, trust, codemode, and task tools.
+- [Agents](agents.md): output modes, classifiers, session stores, private temporary
+  files, trust, codemode, and task tools.
 - [Agent steering](agent-steering.md): messages to a running agent.
 - [Event sources](event-sources.md): external inputs, retained state, and reloads.
 - [Webhook routing](webhook-routing.md): HTTP delivery, run handles, and run registration.

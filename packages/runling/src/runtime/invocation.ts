@@ -1,6 +1,6 @@
 import { bindRunlingContext, emitRunlingEvent, observeRunlingEvents } from './events.ts';
 import { createChannel } from './channel.ts';
-import type { TaskContext } from './context.ts';
+import type { TaskContext, WorkflowState } from './context.ts';
 import { step } from './step.ts';
 import { parseBoundary } from './schema.ts';
 import type { AnyTask } from './task.ts';
@@ -33,6 +33,8 @@ export interface Invocation<Receives, Emits, Output> extends AsyncDisposable {
 }
 
 export interface InvokeOptions {
+  /** Host-owned root state. Never inherited by child invocations. */
+  state?: WorkflowState;
   /** A direct call: nobody sends messages or reads updates. Updates are recorded, then dropped. */
   direct?: boolean;
 }
@@ -42,7 +44,7 @@ export function invoke(
   parent: TaskContext<any, any>,
   task: AnyTask,
   input: unknown,
-  { direct = false }: InvokeOptions = {}
+  { direct = false, state = {} }: InvokeOptions = {}
 ): Invocation<unknown, unknown, unknown> {
   // Parent cancellation flows down; cancellation through this handle stays local.
   const controller = new AbortController();
@@ -124,6 +126,7 @@ export function invoke(
   if (direct) incoming.channel.close();
   const ctx: TaskContext<unknown, unknown> = {
     ...parent,
+    state,
     signal,
     inbox: { [Symbol.asyncIterator]: () => incoming[Symbol.asyncIterator]() },
     emit: outgoing.send

@@ -1,7 +1,7 @@
 # FDR-001: Agent interactions and steering
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -52,6 +52,19 @@ one session, gives parent messages to it, and emits its completed replies.
 - An application can give a task to an agent as a tool. The model gets the
   output of the task as text and its updates as partial results. Cancellation
   of the tool call cancels the task.
+- Background child tasks let a parent continue to answer messages while work
+  runs. These are ordinary invocations. The parent keeps the handles or promises
+  it needs, consumes progress, and decides how to deliver results. It owns waiting
+  and disposal; Runling does not provide a separate job tracker or child registry.
+  Child work is not retried or restored after restart.
+- Classifiers run one tool-free model turn with no local instructions or saved
+  history. Malformed output, schema failures, model failures, and cancellation
+  fail the task; they never become an implicit decision. Classification policy
+  and any authorization based on it belong to the application.
+- Shared agent sessions can be resumed across workflows with an explicit ID.
+  Only one lease in the process can use a file at a time. Scopes have separate
+  files. Opening a shared session renews its activity and removes other inactive
+  session files older than 30 days in the same scope. Leased files are preserved.
 - The console opens each run on its recorded Log view. It shows log lines and
   task milestones in journal order, with time, level, indentation, branch
   guides, and ANSI colors. Task milestones use their task depth so the guides
@@ -86,8 +99,9 @@ owns the agent must keep or reroute missed messages.
 Runling has no agent supervision layer.
 **Why:** One invocation model is easier to learn and to change. Supervision
 policy belongs to the application ([ADR-009](../adr/ADR-009-task-invocations.md)).
-**Tradeoff:** Applications that need background agents, notifications, or
-approvals implement them with tasks and messages.
+**Tradeoff:** Applications own the conversation loop, pending-child bookkeeping,
+notification routing, and approval policy. Framework helpers provide isolated
+classification and session storage without interpreting application policy.
 
 ## Related
 

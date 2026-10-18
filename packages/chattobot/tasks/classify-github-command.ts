@@ -1,6 +1,6 @@
 /** Classify command scope, not the conversational approval already resolved by the caller. */
 import { createAgentSession, Type, type AgentSessionFactory } from 'runling';
-import { createClassifier } from '../classification.ts';
+import { createClassifier } from 'runling';
 
 export const GitHubCommandInput = Type.Object({
   task: Type.String({ minLength: 1, maxLength: 20_000 }),

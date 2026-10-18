@@ -22,6 +22,11 @@ export interface RunIdentity {
   id: string;
   /** The run's human-readable name, such as `funky-comics-8426`. Older runs have none. */
   reference?: string;
+  /** The server re-entered an open root from a snapshot. No prior input is replayed by the host. */
+  resumed?: boolean;
+  /** Host-owned files for this run. The server removes this directory with expired history.
+   * Absent when the host does not provide persistent run storage. */
+  filesDirectory?: string;
 }
 
 /**
@@ -29,6 +34,9 @@ export interface RunIdentity {
  * is the type of messages to the parent. The host is the parent of a workflow's top-level task.
  */
 export interface TaskContext<Receives = unknown, Emits = unknown> {
+  /** Mutable JSON data. The server snapshots the root task's object.
+   * Children get a fresh, unsaved object; pass selected sub-objects as input to share state. */
+  readonly state: WorkflowState;
   /** Start a task as a child. Exchange messages with it through the returned handle.
    * A direct call, `await task(ctx, input)`, starts the task and waits for its result. */
   start<T extends AnyTask>(task: T, input: TaskInput<T>): TaskInvocation<T>;
@@ -56,6 +64,9 @@ export interface TaskContext<Receives = unknown, Emits = unknown> {
   /** Add one usage increment, including any reported cost in US dollars. */
   recordUsage(usage: TokenUsageInput): void;
 }
+
+/** Application-owned recovery data. Store JSON-compatible values only. */
+export type WorkflowState = Record<string, unknown>;
 
 /** Create a context without a parent, for example to call a task in a test or a script. */
 export function createTaskContext(): TaskContext<never, unknown> {
@@ -96,6 +107,7 @@ export function createRootContext(
   });
 
   return {
+    state: {},
     // Use the receiving context, so that children get the signal of their own parent.
     start(task, input) {
       return invoke(this, task, input) as TaskInvocation<typeof task>;

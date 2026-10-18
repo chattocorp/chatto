@@ -1,6 +1,13 @@
 import { expect, test, vi } from 'vitest';
-import { createTaskContext, runWorkflow, task, Type, type RunlingEvent } from 'runling';
-import { IncomingMessage, ConversationInput } from '../chatto/message.ts';
+import {
+  createChannel,
+  createTaskContext,
+  runWorkflow,
+  task,
+  Type,
+  type RunlingEvent
+} from 'runling';
+import { IncomingMessage, ConversationInput, ConversationStart } from '../chatto/message.ts';
 import { IntakeDecision, IntakeInput } from './classify-intake.ts';
 import { createThreadWorkflow } from './thread.ts';
 import type { FollowUpSnapshot, ReadFollowUp } from '../chatto/follow-up.ts';
@@ -51,14 +58,14 @@ function harness(
   const conversation = task(
     {
       name: 'Fixture conversation',
-      input: IncomingMessage,
+      input: ConversationStart,
       output: Type.Null(),
       receives: ConversationInput,
       emits: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
     },
     async (ctx, first) => {
       runIds.push(ctx.run?.id);
-      received.push(first);
+      if (!first.resume) received.push(first);
       await options.ready;
       await ctx.emit(options.state ?? 'idle');
       for await (const next of ctx.inbox) {
@@ -106,6 +113,57 @@ test('the host records intake, classifier, and conversation in one run', async (
   ]);
   expect(steps[0]?.activityId).toBeUndefined();
   expect(steps.slice(1).every((event) => event.activityId === steps[0]?.id)).toBe(true);
+});
+
+test('an empty recovery snapshot never repeats the original addressed request', async () => {
+  const h = harness(async () => true);
+  const messages = createChannel<IncomingMessage>();
+  const run = runWorkflow(h.workflow, {
+    input: ping,
+    state: {},
+    run: { id: 'recovered', resumed: true },
+    messages
+  });
+  const next = { ...ping, id: 'fresh' };
+  messages.send(next);
+  messages.close();
+  expect((await run).ok).toBe(true);
+  expect(h.received).toEqual([next]);
+  expect(h.classify).not.toHaveBeenCalled();
+});
+
+test('an expired saved conversation closes on the polling tick without another turn or read', async () => {
+  const readFollowUp = vi.fn(async () => undefined);
+  const h = harness(async () => true, true, { readFollowUp, intervalMs: 5 });
+  const messages = createChannel<IncomingMessage>();
+  const result = await runWorkflow(h.workflow, {
+    input: message,
+    state: { first: message, delivered: [message.id], lastActivity: 0 },
+    run: { id: 'expired', resumed: true },
+    messages
+  });
+  messages.close();
+  expect(result.ok).toBe(true);
+  expect(h.received).toEqual([]);
+  expect(h.classify).not.toHaveBeenCalled();
+  expect(readFollowUp).not.toHaveBeenCalled();
+});
+
+test('a fresh reply queued during recovery renews an expired conversation', async () => {
+  const h = harness(async () => true, true, { intervalMs: 5, idleMs: 1000 });
+  const messages = createChannel<IncomingMessage>();
+  messages.send({ ...ping, id: 'new' });
+  const state = { first: message, delivered: [message.id], lastActivity: 0 };
+  const run = runWorkflow(h.workflow, {
+    input: message,
+    state,
+    run: { id: 'expired', resumed: true },
+    messages
+  });
+  await vi.waitFor(() => expect(h.received.map((item) => item.id)).toEqual(['new']));
+  expect(state.lastActivity).toBeGreaterThan(0);
+  messages.close();
+  expect((await run).ok).toBe(true);
 });
 
 test('a ping queued during metadata lookup is answered even if the report is gone', async () => {
@@ -321,7 +379,7 @@ test('ignored checks do not keep a conversation alive', async () => {
 });
 
 test('the next polling tick expires an inactive conversation before another thread read', async () => {
-  const clock = vi.spyOn(performance, 'now').mockReturnValue(0);
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(0);
   try {
     const readFollowUp = vi.fn(async () => undefined);
     const h = harness(async () => true, true, { readFollowUp, intervalMs: 10, idleMs: 1000 });

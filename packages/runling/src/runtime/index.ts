@@ -4,6 +4,7 @@ export {
   createTaskContext,
   WorkflowAbortError,
   type RunIdentity,
+  type WorkflowState,
   type TaskContext
 } from './context.ts';
 export {
@@ -22,6 +23,10 @@ export {
   type TaskReceives
 } from './task.ts';
 export { type Invocation } from './invocation.ts';
+export { agentSessionFile } from './agent-sessions.ts';
+export { AgentSessionStore, type AgentSessionLease } from './agent-session-store.ts';
+export { createClassifier } from './classifier.ts';
+export { usePrivateTempDirectory } from './private-temp.ts';
 export { taskTool, type TaskToolOptions } from './task-tool.ts';
 export {
   agent,

@@ -31,7 +31,8 @@ a webhook endpoint. Webhooks and sources can coexist or be configured separately
   stopped until reload. The source owns transport retries.
 - Shutdown stops sources and awaits pending dispatches before interrupting active
   runs and flushing journals. Explicit user cancellation remains cancelled.
-  Cleanup is cooperative. Runs cannot continue after a process restart.
+  Cleanup is cooperative. Registered roots can re-enter after a process restart
+  with snapshot state. Sources can use `ctx.runs()` to rebuild their routing.
 - Run records identify source origin and name. Older journals remain readable;
   run history does not restore source state or active execution.
 
@@ -56,6 +57,7 @@ must reset incompatible credentials, identity, or routing state itself.
 - [ADR-001: Process-local workflows](../adr/ADR-001-process-local-workflows.md)
 - [ADR-004: Event sources](../adr/ADR-004-event-sources.md)
 - [ADR-009: Typed task invocations](../adr/ADR-009-task-invocations.md)
+- [ADR-010: Periodic workflow state snapshots](../adr/ADR-010-workflow-state-snapshots.md)
 - [FDR-010: Messages between hosts, tasks, and runs](FDR-010-host-messages.md)
 - [Event source guide](../event-sources.md) and [webhook routing](../webhook-routing.md)
 

@@ -49,7 +49,8 @@ workflow in the same way as a parent task talks to a child.
 - Runs and invocations have no default timeout. A run can wait for a message for
   a long time.
 - Run handles and queued messages are process-local. A process restart loses
-  them.
+  them. Registered roots can re-enter with snapshot state, and sources can obtain
+  new handles through `ctx.runs()`. Queued messages remain lost.
 
 ## Design Decisions
 
@@ -94,7 +95,8 @@ until a person or a router cancels it, or the process stops.
 - **ADRs:** [ADR-001](../adr/ADR-001-process-local-workflows.md),
   [ADR-004](../adr/ADR-004-event-sources.md),
   [ADR-006](../adr/ADR-006-parent-child-communication.md),
-  [ADR-009](../adr/ADR-009-task-invocations.md)
+  [ADR-009](../adr/ADR-009-task-invocations.md),
+  [ADR-010](../adr/ADR-010-workflow-state-snapshots.md)
 - **FDRs:** [FDR-001](FDR-001-agent-interactions.md),
   [FDR-004](FDR-004-event-sources.md), [FDR-011](FDR-011-cli-output.md)
 - Guides: [task invocations and messages](../task-channels.md),

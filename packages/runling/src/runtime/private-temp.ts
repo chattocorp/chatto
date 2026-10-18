@@ -1,14 +1,12 @@
-/** A private temporary directory for the bot process. Pi's codemode writes the complete output
- * of a long script to the temporary directory. That output can contain thread messages and
- * GitHub content, so it must not land in a shared, world-readable `/tmp`. */
+/** Private process storage for agent runtime output, which can contain sensitive data. */
 import { rmSync } from 'node:fs';
 import { lstat, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Runling reloads configuration modules without a cache, so the state lives on globalThis.
-const STATE = Symbol.for('chattobot.privateTemp');
-const BASE = Symbol.for('chattobot.privateTempBase');
+const STATE = Symbol.for('runling.privateTemp');
+const BASE = Symbol.for('runling.privateTempBase');
 type State = { [STATE]?: Promise<string | undefined>; [BASE]?: string };
 
 /** True when `path` is a directory that only this user can read. Windows has no such modes. */
@@ -24,7 +22,7 @@ async function isPrivate(path: string): Promise<boolean> {
 }
 
 /**
- * Create a directory that only the bot's user can read, with a random name, and point `TMPDIR`
+ * Create a directory that only the process user can read, with a random name, and point `TMPDIR`
  * at it. Node reads `TMPDIR` whenever code asks for the temporary directory on POSIX systems, so
  * later temporary files of this process, including Pi's, go there. Later calls in the same
  * process, also after a configuration reload, return the same directory while it stays private.
@@ -42,7 +40,7 @@ export function usePrivateTempDirectory(): Promise<string> {
     .catch(() => undefined)
     .then(async (current) => {
       if (current && (await isPrivate(current))) return current;
-      const path = await mkdtemp(join(base, 'chattobot-'));
+      const path = await mkdtemp(join(base, 'runling-'));
       process.env.TMPDIR = path;
       process.once('exit', () => {
         // A child process can still write there; a failed cleanup must not change the exit.

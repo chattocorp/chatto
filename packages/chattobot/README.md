@@ -25,7 +25,47 @@ See [the TODO list](docs/TODO.md) for planned work and experiments.
 A conversation ends after one hour without an addressed message or an accepted
 automatic follow-up, once its current turn and background jobs finish. The next
 addressed message starts a new conversation, which reads the thread again.
-A restart of the bot also ends all conversations.
+Open conversations recover after a bot restart. See [Recovery](#recovery) for its limits.
+
+## Recovery
+
+ChattoBot registers its thread root with Runling as `chattoThread`. Recovery applies
+to new runs with this registration; older unregistered runs cannot recover.
+Runling saves workflow state every 60 seconds and after cleanup at graceful shutdown. The root
+keeps the accepted first message, delivered message IDs, last classification batch,
+and inactivity timestamp in `ctx.state`. It recreates the conversation and polling
+loop on restart. The source reconnects its router to those same runs.
+
+Conversation and GitHub worker sessions use Runling's `agentSessionFile` API and live
+under `.runling/runs/<run-id>/agents/`. Keep the complete `.runling/` directory on persistent storage, private to the
+bot's operating-system user. It contains message content and model context.
+Changing the configured server or bot identity prevents old threads from being
+opened with that connection. A temporary connection failure waits for Chatto.
+
+A recovered conversation waits for new messages or accepted automatic follow-ups.
+It does not repeat the original addressed request. It retains automatic-intake
+completion tracking and the inactivity deadline; expired conversations close.
+An intake decision that was not saved can be classified again.
+Background jobs and their monitors do not resume. Remote work may still finish.
+The agent must check the outcome before claiming success or failure, and another
+attempt needs a new addressed maintainer request. Existing conversations post no restart notice.
+
+This is a recovery PoC, not guaranteed delivery. A crash can lose changes since
+the last snapshot, and the inbox is not saved. Thread polling can find relevant
+replies sent while the bot was offline, but treats them as automatic follow-ups
+without delegation authority. Agent files and workflow snapshots are saved
+separately. See [Runling workflow state](../runling/docs/workflow-state.md).
+
+Runling purges completed, failed, and cancelled runs 30 days after closure. It checks
+at startup and daily while running. Runling owns and removes the conversation
+and GitHub worker transcripts with the run; ChattoBot has no cleanup callback. Open and interrupted conversations are preserved.
+The one-hour inactivity timeout still decides when an idle conversation closes.
+
+Investigations use Runling's `AgentSessionStore` because a later workflow can
+resume a saved investigation. Existing files under `.runling/subagents/investigate/`
+remain usable. The store owns exclusive session leases and removes other files
+unused for 30 days when that scope is opened. A scope that is never opened again
+is not covered by workflow-run cleanup.
 
 ## Automatic report intake
 
@@ -58,8 +98,8 @@ request reopens. Completion includes one short closing
 reply, with the numbered issue link when an existing issue covers the report.
 The bot needs permission to react; a failed reaction does not stop the conversation.
 This tool is limited to the active automatic-intake conversation. Reactions remain
-after expiry or restart, but a new conversation does not recover the original
-intake status.
+after expiry or restart. Recovered conversations retain intake status; a new
+conversation after expiry does not recover it.
 
 Mentions, replies to the bot, and direct messages bypass classification.
 Bot posts, forwarded copies, and existing history do not start intake.
@@ -99,7 +139,7 @@ Pings and direct replies still reach the conversation immediately and cancel a
 pending follow-up check. Polling stops when the workflow ends. Empty, ignored,
 and failed checks do not extend its one-hour inactivity timeout. Inactivity is
 checked on the polling tick, so expiry can wait for the next check. Classification
-failures stay silent until new messages arrive. No follow-up state survives a
+failures stay silent until new messages arrive. Saved follow-up state survives a
 process restart. If the newest thread page no longer contains a bot post, the
 check skips the thread rather than guessing which messages are new; a ping still works.
 
@@ -144,17 +184,17 @@ behavioral evaluations, not a host-enforced topic classifier.
 
 ### Available tools
 
-| Tool             | What it does                                                       |
-| ---------------- | ------------------------------------------------------------------ |
-| `fetchPage`      | Reads the Chatto documentation and the Awesome Chatto list.        |
-| `readThread`     | Reads the newest messages of the thread.                           |
-| `viewAttachment` | Looks at an image or a small text file in the thread.              |
-| `webSearch`      | Searches the web with Tavily, when configured.                     |
-| `browsePage`     | Reads a web page with Cloudflare Browser Run, when configured.     |
-| `gh`             | Runs read-only GitHub CLI commands, when GitHub is configured.     |
-| `githubWork`     | Starts a GitHub worker for a request from a maintainer.            |
-| `investigate`    | Starts or resumes a source investigation for a maintainer request. |
-| `createWorkspace` | Creates a Paseo worktree for a maintainer request, when configured. |
+| Tool                  | What it does                                                                                          |
+| --------------------- | ----------------------------------------------------------------------------------------------------- |
+| `fetchPage`           | Reads the Chatto documentation and the Awesome Chatto list.                                           |
+| `readThread`          | Reads the newest messages of the thread.                                                              |
+| `viewAttachment`      | Looks at an image or a small text file in the thread.                                                 |
+| `webSearch`           | Searches the web with Tavily, when configured.                                                        |
+| `browsePage`          | Reads a web page with Cloudflare Browser Run, when configured.                                        |
+| `gh`                  | Runs read-only GitHub CLI commands, when GitHub is configured.                                        |
+| `githubWork`          | Starts a GitHub worker for a request from a maintainer.                                               |
+| `investigate`         | Starts or resumes a source investigation for a maintainer request.                                    |
+| `createWorkspace`     | Creates a Paseo worktree for a maintainer request, when configured.                                   |
 | `startImplementation` | Starts and monitors a coding agent in a new Paseo worktree for a maintainer request, when configured. |
 
 Everyone who can address the bot can use direct read tools. GitHub changes,
@@ -379,7 +419,7 @@ the existing task. It does not automatically request another user approval.
 Invalid decisions, model errors, and cancellation prevent command execution and
 credential acquisition. The conversation's direct read tool is unchanged.
 
-Intake and command scope share `createClassifier`: one isolated, tool-free model
+Intake and command scope use Runling's `createClassifier`: one isolated, tool-free model
 turn with a validated JSON result and a 30-second deadline. Each worker write
 adds a call to the configured model provider, using low reasoning effort. The
 provider receives the resolved task, repository, and command arguments, which
@@ -445,8 +485,8 @@ where that account can.
 | `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
 | `CHATTO_SOURCE_DIRECTORY`                                                                       | A checkout of the Chatto source. Enables `investigate`. Keep it current yourself, for example with `git pull`. |
 | `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).             |
-| `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD` | Optional Paseo daemon, repository on that host, and password. Enables workspace creation. |
-| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING` | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level. |
+| `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD`                     | Optional Paseo daemon, repository on that host, and password. Enables workspace creation.                      |
+| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING`            | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level.    |
 | `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                                          |
 
 Model providers use their own settings, for example `OPENROUTER_API_KEY`, or a
@@ -504,9 +544,11 @@ Tell room members that the bot processes their posts. Classification incurs
 model costs even when the bot stays silent.
 
 The Runling run journals in `.runling/runs/` contain the messages and replies.
-The sessions in `.runling/subagents/` contain investigation questions and source
-code, and GitHub worker requests, context, and tool results.
-Keep that directory private.
+Run-owned agent files include conversation content and GitHub worker requests,
+context, and tool results. Shared sessions in `.runling/subagents/investigate/`
+contain investigation questions and source code. Keep the complete `.runling/`
+directory private. Older GitHub worker files in `.runling/subagents/github/` are
+not migrated into run-owned storage and remain outside run retention.
 
 ## Develop
 
@@ -618,7 +660,8 @@ reason, and reads that verify changes.
 
 Each case runs once, with a two-minute deadline and a limit of 16 fixture
 commands. A failed assertion or an unsupported fixture command fails the run.
-Reports and worker sessions are saved under `.runling/evaluations/`.
+Reports are saved under `.runling/evaluations/`. Worker sessions belong to the
+evaluation's Runling run and follow its retention policy.
 The report includes the model, commands, replies, state, and failure details.
 The fixture supports a small issue CLI and REST subset, not the complete
 GitHub API. A passing run is a behavioral sample, not proof of authorization

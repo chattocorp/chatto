@@ -15,7 +15,9 @@ import { SourceManager } from '../../runtime/source-manager.ts';
 import type { EventSourceContext, WebhookRouter } from 'runling/web';
 
 const directories: string[] = [];
+const stores: RunStore[] = [];
 afterEach(async () => {
+  for (const store of stores.splice(0)) store.state.stop();
   vi.unstubAllEnvs();
   for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true });
 });
@@ -27,6 +29,7 @@ async function store() {
   const directory = await mkdtemp(resolve(tmpdir(), 'runling-runs-test-'));
   directories.push(directory);
   const store = new RunStore(directory);
+  stores.push(store);
   await store.init();
   return store;
 }
@@ -214,7 +217,7 @@ test('shutdown keeps Node alive until cooperative cleanup and journal flush fini
     ],
     { timeout: 10_000 }
   );
-  const [file] = await readdir(original.directory);
+  const [file] = (await readdir(original.directory)).filter((file) => file.endsWith('.jsonl'));
   const records = (await readFile(resolve(original.directory, file!), 'utf8'))
     .trim()
     .split('\n')

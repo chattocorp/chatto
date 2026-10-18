@@ -10,10 +10,18 @@ export const IncomingMessage = Type.Object({
   /** The server-authenticated author. Never a display name. */
   authorId: Type.String(),
   body: Type.String(),
+  /** Host connection identity. Used to bind recovered workflows to the same server and bot. */
+  connection: Type.Optional(Type.String()),
   /** Host-owned provenance. Absent means an addressed message for existing callers. */
   trigger: Type.Optional(Type.Union([Type.Literal('intake'), Type.Literal('follow-up')]))
 });
 export type IncomingMessage = Static<typeof IncomingMessage>;
+
+/** Recovery opens the existing session and waits for new input; it never repeats this message. */
+export const ConversationStart = Type.Intersect([
+  IncomingMessage,
+  Type.Object({ resume: Type.Optional(Type.Boolean()) })
+]);
 
 /** Convert an addressed message from the realtime client. */
 export function incomingMessage(message: AddressedMessage): IncomingMessage {

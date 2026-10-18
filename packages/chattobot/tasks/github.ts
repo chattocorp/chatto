@@ -1,9 +1,8 @@
 /** A GitHub worker task for the local operator or an authorized caller. It returns its answer
  * to its caller and never posts to Chatto. Each invocation has its own saved agent session. */
-import { mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import {
   agent,
+  agentSessionFile,
   createAgentSession,
   defineAgentExtension,
   Type,
@@ -13,7 +12,7 @@ import {
   type TaskContext,
   type ThinkingLevel
 } from 'runling';
-import { usePrivateTempDirectory } from '../private-temp.ts';
+import { usePrivateTempDirectory } from 'runling';
 import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { createTokenSource, githubSettings } from '../github/app.ts';
 import { githubTool, type GitHubToolOptions } from '../github/tools.ts';
@@ -22,8 +21,6 @@ import { createGitHubCommandClassifier } from './classify-github-command.ts';
 export interface GitHubWorkerSettings extends GitHubToolOptions {
   model: string;
   thinkingLevel?: ThinkingLevel;
-  /** Private directory for worker session files. */
-  sessions: string;
 }
 
 /** The caller resolves authorization before invocation. Evidence cannot expand this task. */
@@ -56,7 +53,6 @@ async function workerOptions(
   input: Static<typeof GitHubWorkInput>,
   createAgent = createAgentSession
 ) {
-  await mkdir(settings.sessions, { recursive: true, mode: 0o700 });
   // Bind scope once per invocation, outside model-supplied tool arguments. Never let a
   // command substitute a new task or reuse a decision from another worker or command.
   const authorizedTask = input.task;
@@ -66,7 +62,7 @@ async function workerOptions(
     model: settings.model,
     thinkingLevel: settings.thinkingLevel,
     cwd: await usePrivateTempDirectory(),
-    sessionFile: resolve(settings.sessions, `${crypto.randomUUID()}.jsonl`),
+    sessionFile: await agentSessionFile(ctx),
     tools: ['gh'],
     extensions: [
       defineAgentExtension((pi) =>
@@ -126,8 +122,7 @@ export function githubWorkerSettings(): GitHubWorkerSettings {
     model,
     thinkingLevel: thinkingSetting('CHATTO_AGENT_THINKING', 'medium'),
     settings,
-    tokens: createTokenSource(settings),
-    sessions: resolve('.runling/subagents/github')
+    tokens: createTokenSource(settings)
   };
 }
 
