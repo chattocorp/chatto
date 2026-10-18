@@ -82,7 +82,7 @@ test.describe('Link previews', () => {
     await roomPage.messageInput.fill(messageText);
 
     // Wait for the composer preview to appear (debounced URL detection + server fetch)
-    const composerPreview = page.getByTestId('link-preview-card');
+    const composerPreview = page.getByTestId('composer-link-preview');
     await expect(composerPreview).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Now send — the preview data is included in the mutation
@@ -111,7 +111,7 @@ test.describe('Link previews', () => {
 
     // The composer debounces URL detection (500ms), then queries the server.
     // Wait for the preview card to appear above the input.
-    const previewCard = page.getByTestId('link-preview-card');
+    const previewCard = page.getByTestId('composer-link-preview');
     await expect(previewCard).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     await expect(previewCard.getByText('Test Page Title')).toBeVisible();
@@ -133,7 +133,7 @@ test.describe('Link previews', () => {
     // Type message and wait for the composer preview before sending
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(messageText);
-    await expect(page.getByTestId('link-preview-card')).toBeVisible({
+    await expect(page.getByTestId('composer-link-preview')).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
 
@@ -180,7 +180,7 @@ test.describe('Link previews', () => {
     // Type message and wait for the composer preview before sending
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(messageText);
-    await expect(page.getByTestId('link-preview-card')).toBeVisible({
+    await expect(page.getByTestId('composer-link-preview')).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
 
@@ -200,7 +200,11 @@ test.describe('Link previews', () => {
     await expect(postedMessage.getByTestId('link-preview-card')).toHaveCount(1);
   });
 
-  test('YouTube URL shows embed in composer', async ({ page, chatPage, roomPage }) => {
+  test('YouTube URL shows a compact preview without a player in composer', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -208,15 +212,12 @@ test.describe('Link previews', () => {
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill('Watch https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
-    // YouTube detection is client-side (no server fetch needed), but still debounced
-    const youtubeEmbed = page.getByTestId('youtube-embed');
-    await expect(youtubeEmbed).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // The server detects YouTube from the URL without a fetch, but input is still debounced.
+    const composerPreview = page.getByTestId('composer-link-preview');
+    await expect(composerPreview).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(composerPreview.getByText('YouTube Video')).toBeVisible();
 
-    // Verify the iframe points to the privacy-friendly embed URL
-    const iframe = youtubeEmbed.locator('iframe');
-    await expect(iframe).toHaveAttribute(
-      'src',
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ'
-    );
+    // The composer must not load the third-party player while the user types.
+    await expect(page.getByTestId('youtube-embed')).toHaveCount(0);
   });
 });
