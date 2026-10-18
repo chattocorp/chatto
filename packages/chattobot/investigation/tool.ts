@@ -4,6 +4,7 @@
 import { defineAgentExtension, log, Type, type TaskContext } from 'runling';
 import { replyTo, type IncomingMessage } from '../chatto/message.ts';
 import type { WorkOwner } from '../harness/work.ts';
+import { requireMaintainerRequest } from '../harness/authorization.ts';
 import { linkCitations } from './citations.ts';
 import type { createInvestigator } from '../tasks/investigate.ts';
 
@@ -66,20 +67,12 @@ export function investigateExtension(
         )
       }),
       async execute(_id, { requestId, question, resume }) {
-        const request = messages().find((message) => message.id === requestId);
-        if (request?.trigger) {
-          log.info(
-            `Investigation authorization denied: request=${request.id}; reason=not-addressed`
-          );
-          throw new Error('Investigation requires a maintainer message addressed to the bot.');
-        }
-        if (!request || !maintainers.has(request.authorId)) {
-          // Unknown model input must not enter authorization logs.
-          log.info(
-            `Investigation authorization denied: request=${request?.id ?? 'not-current'}; reason=${request ? 'not-maintainer' : 'no-current-message'}`
-          );
-          throw new Error('Investigation requires a message from a maintainer in this turn.');
-        }
+        const request = requireMaintainerRequest(
+          'Investigation',
+          requestId,
+          messages(),
+          maintainers
+        );
         ctx.signal.throwIfAborted();
         if (resume && [...work.pending.values()].some((job) => job.sessionId === resume))
           throw new Error(

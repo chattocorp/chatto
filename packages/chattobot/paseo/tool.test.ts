@@ -114,7 +114,9 @@ test.each(['member', 'stale', 'forged', 'intake', 'follow-up'])(
       h.messages[0]!.trigger = kind;
       requestId = 'approval';
     }
-    await expect(h.execute('call', { ...input, requestId })).rejects.toThrow('current maintainer');
+    await expect(h.execute('call', { ...input, requestId })).rejects.toThrow(
+      'maintainer in this turn'
+    );
     expect(h.factory).not.toHaveBeenCalled();
     expect(h.pending.size).toBe(0);
   }
@@ -142,7 +144,7 @@ test.each(['member', 'stale', 'forged', 'intake', 'follow-up'])(
     }
     await expect(
       h.implement('call', { ...input, requestId, task: 'Build this', evidence: '' })
-    ).rejects.toThrow('current maintainer');
+    ).rejects.toThrow('maintainer in this turn');
     expect(h.factory).not.toHaveBeenCalled();
     expect(h.pending.size).toBe(0);
   }

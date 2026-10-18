@@ -62,7 +62,7 @@ async function workerOptions(
     model: settings.model,
     thinkingLevel: settings.thinkingLevel,
     cwd: await usePrivateTempDirectory(),
-    sessionFile: await agentSessionFile(ctx, `github:${crypto.randomUUID()}`),
+    sessionFile: await agentSessionFile(ctx),
     tools: ['gh'],
     extensions: [
       defineAgentExtension((pi) =>

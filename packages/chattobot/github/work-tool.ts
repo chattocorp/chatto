@@ -3,6 +3,7 @@
 import { defineAgentExtension, log, Type, type TaskContext } from 'runling';
 import { replyTo, type IncomingMessage } from '../chatto/message.ts';
 import type { WorkOwner } from '../harness/work.ts';
+import { requireMaintainerRequest } from '../harness/authorization.ts';
 import type { createGitHubWorker } from '../tasks/github.ts';
 
 export interface GitHubWorkOptions {
@@ -39,24 +40,12 @@ export function githubWorkExtension(
         })
       }),
       async execute(_id, { requestId, task, evidence }) {
-        const request = messages().find((message) => message.id === requestId);
+        const request = requireMaintainerRequest('GitHub', requestId, messages(), maintainers);
         // Only a host-owned message ID enters the log; unknown model input can contain secrets.
         const deny = (reason: string, error: string): never => {
-          log.info(
-            `GitHub authorization denied: request=${request?.id ?? 'not-current'}; reason=${reason}`
-          );
+          log.info(`GitHub authorization denied: request=${request.id}; reason=${reason}`);
           throw new Error(error);
         };
-        if (request?.trigger)
-          return deny(
-            'not-addressed',
-            'GitHub work requires a maintainer message addressed to the bot.'
-          );
-        if (!request || !maintainers.has(request.authorId))
-          return deny(
-            request ? 'not-maintainer' : 'no-current-message',
-            'GitHub work requires a message from a maintainer in this turn.'
-          );
         ctx.signal.throwIfAborted();
         if (started.has(requestId))
           deny('already-started', 'GitHub work already started for this message.');

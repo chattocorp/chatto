@@ -20,6 +20,10 @@ test('session keys are stable, isolated by run, and private', async () => {
     ).not.toBe(file);
     if (process.platform !== 'win32') expect((await stat(dirname(file!))).mode & 0o777).toBe(0o700);
     expect(await agentSessionFile({}, 'conversation')).toBeUndefined();
+    expect(await agentSessionFile({})).toBeUndefined();
+    const fresh = await agentSessionFile({ run });
+    expect(dirname(fresh!)).toBe(resolve(run.filesDirectory, 'agents'));
+    expect(await agentSessionFile({ run })).not.toBe(fresh);
     await expect(agentSessionFile({ run }, '')).rejects.toThrow('must not be empty');
   } finally {
     await rm(directory, { recursive: true, force: true });

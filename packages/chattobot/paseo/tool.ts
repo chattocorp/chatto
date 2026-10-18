@@ -10,6 +10,7 @@ import {
 } from 'runling';
 import { replyTo, type IncomingMessage } from '../chatto/message.ts';
 import type { WorkOwner } from '../harness/work.ts';
+import { requireMaintainerRequest } from '../harness/authorization.ts';
 import { WorkspaceInput, type createWorkspaceTask } from '../tasks/create-workspace.ts';
 import {
   ImplementationInput,
@@ -41,20 +42,7 @@ export function workspaceExtension(
     input: TaskInput<T>,
     formatResult: (result: TaskOutput<T>) => string
   ) {
-    const request = messages().find((message) => message.id === requestId);
-    const reason = !request
-      ? 'no-current-message'
-      : request.trigger
-        ? 'not-addressed'
-        : !maintainers.has(request.authorId)
-          ? 'not-maintainer'
-          : undefined;
-    if (!request || reason) {
-      log.info(
-        `Paseo authorization denied: request=${request?.id ?? 'not-current'}; reason=${reason}`
-      );
-      throw new Error('Paseo work requires a current maintainer message addressed to the bot.');
-    }
+    const request = requireMaintainerRequest('Paseo', requestId, messages(), maintainers);
     ctx.signal.throwIfAborted();
     if (started.has(requestId))
       throw new Error(

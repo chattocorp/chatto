@@ -84,7 +84,9 @@ await using bot = await createAgentSession({
 });
 ```
 
-Choose a stable key unique within the run. The same key opens the same transcript
+Omit the key (`agentSessionFile(ctx)`) for a fresh transcript on each call, such as
+an independent worker invocation. Choose a stable key unique within the run to
+reuse a session. The same key opens the same transcript
 after recovery. Different run IDs have separate storage. The server and CLI provide
 `ctx.run.filesDirectory`; a custom host must provide it to use this storage.
 Without it, the helper returns `undefined` and the session stays in memory.
