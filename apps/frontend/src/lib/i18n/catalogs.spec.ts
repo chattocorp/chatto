@@ -265,7 +265,7 @@ describe('translated message catalogs', () => {
     }
   });
 
-  it.each(['ar', 'he-IL'] as const)('keeps every %s message populated', (locale) => {
+  it.each(['ar', 'he-IL', 'el'] as const)('keeps every %s message populated', (locale) => {
     for (const filename of readdirSync(join(messagesRoot, locale)).filter((name) =>
       name.endsWith('.json')
     )) {
