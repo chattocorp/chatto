@@ -1,10 +1,11 @@
 /** Recorded runs own session paths; application labels cannot escape their storage. */
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { expect, test } from 'vitest';
 import { agentSessionFile } from './agent-sessions.ts';
 
 test('session keys are stable, isolated by run, and private', async () => {
+  await mkdir(resolve('../../.context'), { recursive: true });
   const directory = await mkdtemp(resolve('../../.context/runling-sessions-'));
   try {
     const run = { id: 'one', filesDirectory: resolve(directory, 'one') };

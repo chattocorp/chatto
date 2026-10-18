@@ -1,6 +1,6 @@
 /** Retention uses terminal journal timestamps and retries partial filesystem cleanup. */
 import { afterEach, expect, test, vi } from 'vitest';
-import { mkdtemp, readFile, rm, access, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, access, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { RunStore } from './run-store.ts';
 import { createRunJournal, newRun, type RunStatus } from '../../runtime/run-journal.ts';
@@ -31,6 +31,7 @@ afterEach(async () => {
 });
 
 async function fixture() {
+  await mkdir(resolve('../../.context'), { recursive: true });
   const directory = await mkdtemp(resolve('../../.context/runling-retention-'));
   const store = new RunStore(directory);
   stores.push(store);

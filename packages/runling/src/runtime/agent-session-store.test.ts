@@ -1,4 +1,4 @@
-import { mkdtemp, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { AgentSessionStore } from './agent-session-store.ts';
@@ -10,6 +10,7 @@ afterEach(async () => {
   );
 });
 async function store() {
+  await mkdir(resolve('../../.context'), { recursive: true });
   const path = await mkdtemp(resolve('../../.context/shared-sessions-'));
   directories.push(path);
   return new AgentSessionStore(path);

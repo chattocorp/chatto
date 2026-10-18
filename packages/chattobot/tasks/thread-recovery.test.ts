@@ -1,5 +1,5 @@
 /** Exercise the bot's real root, conversation, router, and Runling disk recovery together. */
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { emptyTokenUsage, task, type AgentOptions, type RunlingAgent } from 'runling';
@@ -11,6 +11,7 @@ import { createConversation } from './conversation.ts';
 import { createThreadWorkflow } from './thread.ts';
 
 test('restores one thread, retains intake and follow-up state, and waits without replaying work', async () => {
+  await mkdir(resolve('../../.context'), { recursive: true });
   const directory = await mkdtemp(resolve('../../.context/chattobot-recovery-'));
   const stores: RunStore[] = [];
   const sessions = new Set<string>();
