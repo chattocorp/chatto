@@ -8,6 +8,8 @@ ChattoBot is a [Runling](../runling/README.md) application. Each thread in which
 someone addresses the bot, or the bot accepts a report, gets one conversation run with one agent session. The
 Runling console shows each run, its turns, and its tool calls.
 
+See [the TODO list](docs/TODO.md) for planned work and experiments.
+
 ## How it works
 
 1. The `chatto` event source connects to Chatto as the bot. It receives the
@@ -152,15 +154,17 @@ behavioral evaluations, not a host-enforced topic classifier.
 | `gh`             | Runs read-only GitHub CLI commands, when GitHub is configured.     |
 | `githubWork`     | Starts a GitHub worker for a request from a maintainer.            |
 | `investigate`    | Starts or resumes a source investigation for a maintainer request. |
+| `createWorkspace` | Creates a Paseo worktree for a maintainer request, when configured. |
+| `startImplementation` | Starts and monitors a coding agent in a new Paseo worktree for a maintainer request, when configured. |
 
-Everyone who can address the bot can use direct read tools. GitHub changes and
-source investigations are reserved for maintainers:
+Everyone who can address the bot can use direct read tools. GitHub changes,
+source investigations, and workspace creation are reserved for maintainers:
 
 - **Changes need a maintainer request.** The bot starts a GitHub worker only
   for an addressed message from a user in `CHATTO_MAINTAINER_USER_IDS` in the
   current turn. The host checks the authenticated author. Claims in message
   text and old maintainer messages do not grant access. Without configured
-  maintainers, the bot offers no GitHub worker or source investigator.
+  maintainers, the bot offers no GitHub worker, source investigator, or workspace tool.
 - **Investigations need a maintainer request.** The same current-message check
   applies to `investigate`, including resumed investigations. A non-maintainer
   can still use documentation reads and prepare a bug report in the thread.
@@ -186,14 +190,120 @@ login as part of the bot's instructions. Restart the bot after changing `.env`.
 
 ## Background jobs
 
-Long work runs in the background, like subagents in an agent harness: an
-investigation or GitHub work. The tool returns at once,
+Long work runs in the background: an investigation, GitHub work, or Paseo
+workspace creation or implementation. The tool returns at once,
 and the bot keeps talking. Its turns list the running jobs with their latest
 step, so it can answer status questions. When a job finishes, its result
 reaches the bot as a new turn, and the bot replies to the person who asked.
 
 The steps of a job are not posted to the thread yet. They will show as the bot's
 temporary status in the thread when Chatto supports it (#2787).
+
+## Paseo implementations and workspaces
+
+Maintainers can ask the bot to "start implementing", "build this", or "put this
+into Paseo". The bot sends a complete brief from the conversation, with the agreed
+scope and supporting evidence. A GitHub issue is optional. Configure the daemon
+and repository in `.env` and restart the bot:
+
+```dotenv
+CHATTO_PASEO_URL=wss://paseo.example.com/ws
+CHATTO_PASEO_PASSWORD=your-daemon-password
+CHATTO_PASEO_REPOSITORY_PATH=/absolute/path/to/chatto
+```
+
+The password is optional for daemons that do not require one. The repository path
+must be absolute **on the Paseo host**. The operator maintains that checkout and
+its `origin/main` reference. The endpoint must use `ws://` or `wss://`, end in `/ws`,
+and contain no credentials, query, or fragment. Use `wss://` for remote connections.
+With all Paseo settings absent, the capability is disabled.
+
+For a local desktop daemon, use `CHATTO_PASEO_URL=ws://127.0.0.1:6767/ws`.
+The default local listener does not use TLS; `wss://localhost:6767/ws` will fail.
+
+To enable implementation, also set `CHATTO_PASEO_AGENT_MODEL` to a `provider/model`
+available on that daemon. This is separate from the conversation model. Optionally
+set `CHATTO_PASEO_AGENT_MODE` to a permission mode supported by that provider and
+`CHATTO_PASEO_AGENT_THINKING` to a thinking level supported by the selected model.
+Omitted options use provider defaults. Chat messages cannot select these settings.
+Without a model, only explicit workspace-only requests are available, such as
+"Create a Paseo workspace for this task."
+
+Values combine the Paseo provider ID and its model ID. For example, choose one:
+
+```dotenv
+CHATTO_PASEO_AGENT_MODEL=codex/gpt-6.1-sol
+CHATTO_PASEO_AGENT_MODE=auto-review
+CHATTO_PASEO_AGENT_THINKING=high
+
+# Or, for Claude:
+# CHATTO_PASEO_AGENT_MODEL=claude/claude-opus-5-5
+# CHATTO_PASEO_AGENT_MODE=auto
+# CHATTO_PASEO_AGENT_THINKING=high
+```
+
+These are settings for the coding agent created in the workspace. Codex's
+`auto-review` routes eligible permission requests through its automatic reviewer;
+Claude's `auto` uses its permission classifier. Both can still require human
+attention. Codex's `auto` means Default Permissions, not Auto-review. Neither
+example selects Full Access or Bypass.
+
+Use `paseo provider models codex` or `paseo provider models claude` to list the
+models on your daemon. Add `--host 127.0.0.1:6767` to select that local listener.
+Use the returned `id`, prefixed by `codex/` or `claude/`. These are Paseo provider
+IDs, separate from the `openai/` or `openrouter/` prefixes of the conversation model.
+Use `--json` to see each model's `thinkingOptionIds` and select one of those values,
+such as `high` or `xhigh`. Supported levels depend on the model and daemon.
+The [SDK provider catalog](https://paseo.sh/docs/sdk/providers.md) also exposes
+`listModels` and `listModes` for the target host. ChattoBot passes the configured
+IDs to Paseo; it does not translate or silently replace unsupported values.
+Restart the bot after changing the setting. When implementation is unavailable,
+the bot explains the missing setup; it must not delegate coding to the GitHub worker.
+
+The bot accepts only a current addressed request from a configured maintainer.
+It resolves clear approval from the conversation and creates one worktree from
+`origin/main`, with a task title and new branch. Paseo controls workspace setup;
+configured setup scripts can run. For implementation, the task then starts a coding
+agent in that workspace. Both its system instructions and visible task message
+ask the agent to use the repository's Bazinga workflow:
+plan, implement, verify, review, commit, open a PR, and check CI. Narrower limits in
+the maintainer's request still apply. The agent must not merge or deploy.
+These are agent instructions, not command restrictions. An explicit workspace-only
+request starts no agent. Both operations require the maintainer check before opening
+the workspace. After creation, the bot assigns the `chattobot` workspace label.
+If labeling fails, the result retains the workspace and reports `labelApplied: false`;
+implementation can continue in that workspace.
+
+The bot acknowledges accepted work once and keeps answering messages. The Runling
+child task records startup progress and waits for the coding turn to finish, a
+permission request, an error, or a one-hour timeout. No monitoring model runs.
+The conversation agent then gives a short result, verification summary, and remaining
+questions. It distinguishes changes ready for review from a released fix. Backend,
+workspace, and branch details are included only when requested or needed for the next
+action. A completed turn alone does not prove success.
+The bot does not generate workspace links or automatically approve permissions.
+Respond to permission requests in Paseo. Monitoring ends at that point; it does
+not resume after a human response or a bot restart.
+
+Workspace creation and agent launch each have a 10-second connection deadline and
+a 60-second startup deadline.
+After a failure or interruption during creation, the workspace might still exist.
+Check Paseo before requesting another attempt. The bot makes at most one attempt
+per request message in a conversation and does not retry automatically. This is
+not a durable duplicate guard across bot restarts. Closing the SDK connection
+does not archive a workspace or stop remote setup or coding. If launch or monitoring
+fails after workspace creation, the result retains the confirmed workspace identity
+and agent ID when known. A timeout or connection loss can leave the agent running.
+
+The standalone task also accepts JSON input from the local operator:
+
+```sh
+pnpm exec runling run tasks/create-workspace.ts --input '{"title":"Investigate startup","branchName":"investigate/startup"}'
+pnpm exec runling run tasks/start-implementation.ts --input '{"title":"Keep drafts","branchName":"fix/drafts","task":"Preserve draft text when switching rooms; add a regression test.","evidence":"Drafts disappear after switching away and back. No issue exists."}'
+```
+
+Run this command from `packages/chattobot/`. It uses the configured Paseo host;
+the Chatto maintainer check belongs to the conversation tool.
 
 ## GitHub work
 
@@ -335,6 +445,8 @@ where that account can.
 | `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
 | `CHATTO_SOURCE_DIRECTORY`                                                                       | A checkout of the Chatto source. Enables `investigate`. Keep it current yourself, for example with `git pull`. |
 | `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).             |
+| `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD` | Optional Paseo daemon, repository on that host, and password. Enables workspace creation. |
+| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING` | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level. |
 | `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                                          |
 
 Model providers use their own settings, for example `OPENROUTER_API_KEY`, or a
@@ -365,6 +477,16 @@ ChattoBot sends these data to other systems:
   `fetchPage` and the bot host's IP address.
 - **GitHub** receives each `gh` command, the changes that the bot makes, and the
   bot host's IP address.
+- **The configured Paseo daemon** receives the workspace title, branch name,
+  base reference, repository path, configured password when present, and bot host's
+  IP address. The title and branch can describe the reported problem. The bot does
+  not deliberately send author identities or raw thread messages. Workspace results,
+  including the remote directory, return to the conversation model. For implementation,
+  Paseo also receives the resolved task and supporting evidence. Its coding provider
+  receives that brief and the code and tool results the agent reads, plus the Paseo
+  host's IP address. The agent report returns to the conversation model and thread.
+  Paseo's setup scripts and coding tools can contact further services under the
+  operator's configuration.
 - **Tavily** receives search queries, and **Cloudflare** receives page URLs,
   when they are configured.
 - **The model provider** of the investigator receives the questions and the
@@ -390,6 +512,17 @@ Keep that directory private.
 
 - `mise check-chattobot` checks the types.
 - `mise test-chattobot` runs the tests.
+
+### Paseo model evaluations
+
+From `packages/chattobot/`, run `pnpm eval:paseo`. It reads `.env` and uses
+`CHATTO_AGENT_MODEL` with synthetic requests. Chatto and Paseo are mocked: no
+messages, workspaces, or coding agents are created. Only the conversation model
+provider is contacted. The cases check issue-free implementation briefs, one
+acknowledgment followed by a result, permission handoff, and non-maintainer requests.
+GitHub tools remain available to test capability selection. The Bavarian-language
+case checks approval in thread context with and without a configured Paseo model.
+These cases are skipped in the normal test suite.
 
 ### Documentation model evaluations
 

@@ -248,6 +248,18 @@ describe('MessagePreviewCard', () => {
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
   });
 
+  it('shows attachments as one text line without thumbnails in compact mode', async () => {
+    messageResults.push(previewResult(testImageUrl('compact')));
+    const { container } = render(MessagePreviewCard, { props: { link: link(), compact: true } });
+
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[data-testid="message-preview-attachment-summary"]')?.textContent
+      ).toContain('Image')
+    );
+    expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
+  });
+
   it('renders an attachment-only thread reply', async () => {
     messageResults.push(previewResult(testImageUrl('thread reply')));
     const { container } = render(MessagePreviewCard, {

@@ -198,6 +198,17 @@ test.describe('App and User Preferences', () => {
       'aria-checked',
       'true'
     );
+
+    await page.getByRole('radio', { name: 'Greek', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Γλώσσα', level: 1 })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'el');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Γλώσσα', level: 1 })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Ελληνικά', exact: true })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
   });
 
   test('can set timezone and save', async ({ page }) => {

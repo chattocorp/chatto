@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Compatibilité",
       "view": "Voir la compatibilité",
-      "limited": "Prise en charge limitée",
+      "limited": "Version du serveur plus ancienne",
       "supported": "Aucun problème de compatibilité connu",
       "affected": "Fonctionnalités concernées",
       "requires": "Nécessite la version {version} ou ultérieure",

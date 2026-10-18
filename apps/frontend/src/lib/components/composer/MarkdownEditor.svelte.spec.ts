@@ -353,3 +353,50 @@ it.each([
     })
     .toBe(linked);
 });
+
+it.each([
+  { text: '[title](destination)', label: 'title' },
+  { text: '[title](https://example.com)', label: 'title' },
+  { text: '[title]()', label: 'title' },
+  { text: '[**bold** title](destination "tooltip")', label: '**bold** title' },
+  { text: '[writing in brackets]', label: '' },
+  { text: '[title](destination', label: '' },
+  { text: '[title](', label: '' },
+  { text: '`[title](destination)`', label: '' },
+  { text: '![title](destination)', label: '![title](destination)' }
+])('styles only a complete inline link label: $text', async ({ text, label }) => {
+  await renderEditor();
+  const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+  await textbox.fill(text);
+  await expect
+    .poll(() => {
+      const walker = document.createTreeWalker(textbox.element(), NodeFilter.SHOW_TEXT);
+      let styled = '';
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        let element = node.parentElement;
+        while (element && element !== textbox.element()) {
+          if (getComputedStyle(element).textDecorationLine.includes('underline')) {
+            styled += node.textContent;
+            break;
+          }
+          element = element.parentElement;
+        }
+      }
+      return styled;
+    })
+    .toBe(label);
+});
+
+it('updates link styling as a link is completed and broken', async () => {
+  await renderEditor();
+  const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+  await textbox.fill('[title](destination');
+  expect(textbox.element().querySelector('.cm-link-label')).toBeNull();
+  await userEvent.keyboard(')');
+  await expect
+    .poll(() => textbox.element().querySelector('.cm-link-label')?.textContent)
+    .toBe('title');
+  await userEvent.keyboard('{Backspace}');
+  await expect.poll(() => textbox.element().querySelector('.cm-link-label')).toBeNull();
+});

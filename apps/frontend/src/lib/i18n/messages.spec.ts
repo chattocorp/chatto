@@ -33,6 +33,24 @@ describe('regional English messages', () => {
 });
 
 describe('regional translated messages', () => {
+  it('loads Greek across public, chat, settings, and management sections', async () => {
+    await selectLocale('el');
+
+    expect(m('auth.login.title')).toBe('Σύνδεση');
+    expect(m('common.cancel')).toBe('Ακύρωση');
+    expect(m('settings.preferences.language.title')).toBe('Γλώσσα');
+    expect(m('admin.system.started')).toBe('Ξεκίνησε');
+    expect(m('room.join.prompt', { room: 'general' })).toBe(
+      'Συμμετάσχετε στο #general για να διαβάζετε και να συμμετέχετε στη συζήτηση.'
+    );
+    expect(m('room.join.member_count', { count: 0 })).toBe('0 μέλη');
+    expect(m('room.join.member_count', { count: 1 })).toBe('1 μέλος');
+    expect(m('room.join.member_count', { count: 2 })).toBe('2 μέλη');
+    expect(m('message_preview.attachments_count', { count: 1 })).toBe('1 συνημμένο');
+    expect(m('message_preview.attachments_count', { count: 2 })).toBe('2 συνημμένα');
+    expect(m('settings.account.delete_modal.confirm_placeholder')).toBe('DELETE');
+  });
+
   it('keeps Dutch and Flemish sign-in terminology distinct', async () => {
     await selectLocale('nl-NL');
     expect(m('common.sign_in')).toBe('Inloggen');

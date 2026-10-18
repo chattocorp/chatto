@@ -560,14 +560,14 @@ describe('app.html locale bootstrap', () => {
     expect(root.dir).toBe('ltr');
   });
 
-  it('uses the stored locale before browser languages', () => {
+  it.each(['fr-CA', 'el'])('uses stored %s before browser languages', (locale) => {
     const { root } = runThemeScript({
       systemDark: false,
-      storedLocale: 'fr-CA',
+      storedLocale: locale,
       browserLanguages: ['en-US']
     });
 
-    expect(root.lang).toBe('fr-CA');
+    expect(root.lang).toBe(locale);
   });
 
   it('migrates the former Paraglide storage key', () => {
@@ -645,6 +645,9 @@ describe('app.html locale bootstrap', () => {
     ['tr', 'tr-TR'],
     ['cs', 'cs-CZ'],
     ['ru', 'ru-RU'],
+    ['el', 'el'],
+    ['el-GR', 'el'],
+    ['el-CY', 'el'],
     ['ar', 'ar'],
     ['ar-EG', 'ar'],
     ['he', 'he-IL']

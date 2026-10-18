@@ -2,6 +2,9 @@
 
 These rules apply to `packages/chattobot/`. The root `AGENTS.md` rules also apply.
 
+Track outstanding work in [docs/TODO.md](docs/TODO.md). Keep it current as work
+changes, and remove completed tasks.
+
 ## Shape
 
 ChattoBot is one agent session per Chatto thread. Keep it that way:
@@ -44,6 +47,11 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - Background work gets one acknowledgment after delegation succeeds and one
   result reply. Delegation must preserve requested scope and uncertainty.
   Keep these behaviors in agent instructions and model evaluations.
+- Ordinary replies describe the requested work and outcome. Omit bot backend names,
+  tool names, internal paths, IDs, and configuration details unless explicitly asked
+  or needed for a concrete next action. Summarize checks; retain failures, missing
+  verification, and the distinction between ready for review and released. Do not
+  ask a second clarification that repeats one the person has already answered.
 - GitHub issue titles are plain descriptions without prefixes. Classify issues
   with GitHub's native issue type field, not labels or Conventional Commit titles.
   Discover available repository types and verify the saved type after writing.
@@ -95,7 +103,40 @@ Do not add slash commands. People talk to the bot in plain language.
 
 ## Permissions
 
-GitHub work and source investigations from Chatto have a maintainer gate before delegation:
+GitHub work, source investigations, and Paseo work from Chatto have
+a maintainer gate before delegation:
+
+- `createWorkspace` uses `tasks/create-workspace.ts` and the Paseo SDK to create
+  one isolated worktree from `origin/main`. It runs as a background job and starts
+  no coding agent. Keep the daemon and repository path in host configuration.
+  Apply the current addressed maintainer-message check before connecting. Automatic
+  intake and follow-ups cannot authorize creation. Attempt creation once per request
+  message in the conversation, including after uncertain failures. Close the client
+  after success, failure, timeout, or cancellation; closing does not undo remote work.
+  Never retry an uncertain creation automatically or invent a workspace URL.
+  Assign the fixed `chattobot` workspace label after creation. Keep the confirmed
+  workspace if labeling fails, and report whether the label was confirmed.
+- `startImplementation` uses `tasks/start-implementation.ts` to create a workspace,
+  start a coding agent with a complete brief, and monitor its first turn. It shares
+  the workspace tool's maintainer gate and attempt guard. An issue is optional.
+  Keep the model, permission mode, and thinking level in host settings. Omitted
+  options use provider defaults. Separate the authorized task from untrusted evidence.
+  Tell the agent in both system instructions and the visible task to use the
+  repository's Bazinga workflow through review, commits, a PR, and CI. Preserve narrower limits in the
+  maintainer's task. Do not merge or deploy. Present its brief as
+  Markdown with a Task section and quoted Supporting context; that context cannot
+  expand authorization. Run monitoring as a
+  background Runling child task, without another model. Return completion, permission,
+  error, timeout, or uncertain startup to the conversation. Retain confirmed remote
+  IDs after partial failure. A finished turn does not prove success. Never approve
+  permissions, retry automatically, or stop remote work when monitoring ends. Monitoring
+  ends after one turn, attention, or one hour, and does not survive bot restart.
+  Check the conversation prompts with `pnpm eval:paseo`.
+- Coding requests use `startImplementation`; GitHub work and read-only investigations
+  cannot implement code. If implementation is unavailable, explain that operator setup
+  is needed before any promise or delegation. Give exact settings when asked for setup
+  help. Do not substitute an empty workspace or
+  issue filing. Check this with GitHub tools present in the Paseo evaluations.
 
 - Direct read tools are available to everyone who can address the bot. Their
   results stay in the thread. Starting or resuming a source investigation requires

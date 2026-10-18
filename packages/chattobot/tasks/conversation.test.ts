@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { createPaseoClient } from '../paseo/client.ts';
 import {
   createChannel,
   emptyTokenUsage,
@@ -23,6 +24,8 @@ import { createGitHubWorker, GitHubWorkInput } from './github.ts';
 import { generateKeyPairSync } from 'node:crypto';
 import type { ThreadMessage } from '../thread.ts';
 import type { Investigation } from '../investigation/tool.ts';
+
+vi.mock('../paseo/client.ts', () => ({ createPaseoClient: vi.fn() }));
 
 const message = (id: string, body = id, authorId = 'alice'): IncomingMessage => ({
   id,
@@ -55,6 +58,7 @@ function harness({
   web,
   github,
   investigation,
+  paseo,
   turn,
   beforePost,
   afterText,
@@ -63,6 +67,7 @@ function harness({
   web?: WebSettings;
   github?: ConversationSettings['github'];
   investigation?: Investigation;
+  paseo?: ConversationSettings['paseo'];
   /** Text answers are delivered as messages; several texts are several messages in one turn. */
   answer?: (prompt: string) => string | string[] | AgentResult;
   thread?: ThreadMessage[][];
@@ -135,6 +140,7 @@ function harness({
       model: 'test/model',
       maintainers: new Set(maintainers),
       maintainerLogin,
+      paseo,
       ...(web ? { web } : {}),
       ...(github ? { github } : {}),
       ...(investigation ? { investigation } : {})
@@ -635,6 +641,152 @@ test('offers investigate with a scope for the thread when investigation is set u
   expect(await run).toMatchObject({ ok: true });
   expect(bot.options().tools).toContain('investigate');
   expect(scopes).toEqual([expect.stringMatching(/^[0-9a-f]{32}$/)]);
+});
+
+test.each([
+  { configured: false, model: false, maintainers: ['maintainer'], available: false },
+  { configured: true, model: true, maintainers: [], available: false },
+  { configured: true, model: false, maintainers: ['maintainer'], available: true },
+  { configured: true, model: true, maintainers: ['maintainer'], available: true }
+])(
+  'offers workspace creation only with Paseo and maintainers: %j',
+  async ({ configured, model, maintainers, available }) => {
+    const bot = harness({
+      maintainers,
+      maintainerLogin: 'reviewer',
+      paseo: configured
+        ? {
+            url: 'ws://host/ws',
+            repositoryPath: '/remote/chatto',
+            ...(model ? { agent: { model: 'provider/model' } } : {})
+          }
+        : undefined
+    });
+    const run = bot.start(message('one'));
+    await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+    bot.messages.close();
+    expect(await run).toMatchObject({ ok: true });
+    expect(bot.options().tools?.includes('createWorkspace')).toBe(available);
+    expect(bot.tools.has('createWorkspace')).toBe(available);
+    expect(bot.tools.has('startImplementation')).toBe(available && model);
+    expect(bot.options().tools?.includes('startImplementation')).toBe(available && model);
+    if (!available || !model) {
+      expect(bot.options().systemPrompt).toContain('Implementation is unavailable');
+      expect(bot.options().systemPrompt).toContain(
+        !maintainers.length
+          ? 'CHATTO_MAINTAINER_USER_IDS'
+          : !configured
+            ? 'CHATTO_PASEO_URL'
+            : 'CHATTO_PASEO_AGENT_MODEL'
+      );
+    }
+    if (available)
+      expect(bot.options().systemPrompt).toContain('configured maintainer contact is @reviewer');
+  }
+);
+
+test('workspace results return to the requesting conversation after its acknowledgment', async () => {
+  const release = Promise.withResolvers<{ id: string; name: string; directory: string }>();
+  const create = vi.fn(() => release.promise);
+  const close = vi.fn(async () => {});
+  vi.mocked(createPaseoClient).mockReturnValueOnce({
+    connect: async () => {},
+    close,
+    labelWorkspace: async () => true,
+    workspaces: { create }
+  } as unknown as ReturnType<typeof createPaseoClient>);
+  let turns = 0;
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    paseo: { url: 'ws://host/ws', repositoryPath: '/remote/chatto' },
+    turn: async (prompt) => {
+      if (turns++ === 0) {
+        await bot.tools.get('createWorkspace')!.execute('create', {
+          requestId: 'request',
+          title: 'Fix Chatto startup',
+          branchName: 'fix/startup'
+        });
+      } else {
+        expect(prompt).toContain('Paseo workspace created:');
+        expect(prompt).toContain('No coding agent was started');
+      }
+    },
+    answer: () =>
+      turns === 1 ? 'Creating the workspace.' : 'Created Fix Chatto startup on fix/startup.'
+  });
+  const run = bot.start(message('request', 'Create a workspace for the startup bug', 'maintainer'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  expect(bot.posts[0]!.body).toBe('Creating the workspace.');
+  release.resolve({ id: 'workspace', name: 'Fix Chatto startup', directory: '/worktrees/startup' });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  expect(bot.posts[1]!.destination.inReplyTo).toBe('request');
+  expect(close).toHaveBeenCalledOnce();
+  expect(create).toHaveBeenCalledOnce();
+  bot.messages.close();
+  expect(await run).toMatchObject({ ok: true });
+});
+
+test('implementation monitoring leaves the conversation responsive and returns to its requester', async () => {
+  const finish = Promise.withResolvers<{
+    status: 'permission';
+    final: null;
+    error: null;
+    lastMessage: string;
+  }>();
+  const wait = vi.fn(() => finish.promise);
+  const close = vi.fn(async () => {});
+  vi.mocked(createPaseoClient).mockReturnValue({
+    connect: async () => {},
+    close,
+    labelWorkspace: async () => true,
+    workspaces: {
+      create: async () => ({ id: 'workspace', name: 'Fix drafts', directory: '/worktrees/drafts' }),
+      ref: () => ({ agents: { create: async () => ({ id: 'coding-agent', waitForFinish: wait }) } })
+    }
+  } as unknown as ReturnType<typeof createPaseoClient>);
+  const bot: ReturnType<typeof harness> = harness({
+    maintainers: ['maintainer'],
+    paseo: {
+      url: 'ws://host/ws',
+      repositoryPath: '/remote/chatto',
+      agent: { model: 'provider/model' }
+    },
+    turn: async (prompt) => {
+      if (prompt.includes('Message ID: request'))
+        await bot.tools.get('startImplementation')!.execute('start', {
+          requestId: 'request',
+          title: 'Fix drafts',
+          branchName: 'fix/drafts',
+          task: 'Keep room drafts when switching rooms. Add a regression test.',
+          evidence: 'No issue exists.'
+        });
+    },
+    answer: (prompt) =>
+      prompt.includes('Paseo implementation outcome:')
+        ? 'Please approve the pending command in Paseo.'
+        : 'Working on it.'
+  });
+  const run = bot.start(message('request', 'Build this', 'maintainer'));
+  await vi.waitFor(() => expect(wait).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  await bot.messages.send(message('question', 'Are you still here?', 'member'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  expect(bot.posts[1]!.destination.inReplyTo).toBe('question');
+  finish.resolve({
+    status: 'permission',
+    final: null,
+    error: null,
+    lastMessage: 'Need permission to run tests.'
+  });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(3));
+  expect(bot.posts[2]).toMatchObject({
+    destination: { inReplyTo: 'request' },
+    body: 'Please approve the pending command in Paseo.'
+  });
+  expect(bot.prompts.at(-1)).toContain('Need permission to run tests.');
+  expect(close).toHaveBeenCalledTimes(2);
+  bot.messages.close();
+  expect(await run).toMatchObject({ ok: true });
 });
 
 test('does not offer investigations without configured maintainers', async () => {

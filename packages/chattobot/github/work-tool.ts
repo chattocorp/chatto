@@ -24,7 +24,7 @@ export function githubWorkExtension(
       name: 'githubWork',
       label: 'Delegate GitHub work',
       description:
-        'Start a GitHub worker for a maintainer request in this turn. Resolve approval from the conversation first, then give the request message ID, a self-contained authorized task, and separate supporting evidence. Never invoke it for a non-maintainer request or a bare maintainer ping. It runs in the background and its result reaches you in a later turn.',
+        'Manage GitHub issues and metadata for a maintainer request in this turn. This worker cannot edit repository files, implement features, or run tests. Never use it for coding, even when startImplementation is unavailable. Resolve approval from the conversation first, then give the request message ID, a self-contained authorized task, and separate supporting evidence. Never invoke it for a non-maintainer request or a bare maintainer ping. It runs in the background and its result reaches you in a later turn.',
       parameters: Type.Object({
         requestId: Type.String({ description: 'The message ID of the maintainer request' }),
         task: Type.String({

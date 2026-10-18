@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Kongrueco",
       "view": "Vidi kongruecon",
-      "limited": "Limigita subteno",
+      "limited": "Pli malnova servila versio",
       "supported": "Neniuj konataj kongruecaj problemoj",
       "affected": "Trafitaj funkcioj",
       "requires": "Postulas {version} aŭ pli novan version",

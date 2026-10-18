@@ -4557,7 +4557,9 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalledOnce(), {
         timeout: 1000
       });
-      await expect.element(q(container, '[data-testid="link-preview-card"]')).toBeInTheDocument();
+      await expect
+        .element(q(container, '[data-testid="composer-link-preview"]'))
+        .toBeInTheDocument();
 
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 

@@ -58,7 +58,7 @@
     "compatibility": {
       "title": "Ühilduvus",
       "view": "Vaata ühilduvust",
-      "limited": "Piiratud tugi",
+      "limited": "Vanem serveri versioon",
       "supported": "Teadaolevaid ühilduvusprobleeme pole",
       "affected": "Mõjutatud funktsioonid",
       "requires": "Nõuab versiooni {version} või uuemat",

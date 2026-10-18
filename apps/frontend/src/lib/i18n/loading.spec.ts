@@ -53,7 +53,7 @@ describe('route translation boundaries', () => {
     expect(app.m('admin.system.started')).toBe('Gestartet');
   });
 
-  it.each(['en-GB', 'de-DE', 'de-AT'] as const)(
+  it.each(['en-GB', 'de-DE', 'de-AT', 'el'] as const)(
     'defers management, including English fallback, for %s',
     async (locale) => {
       const app = await setup();
