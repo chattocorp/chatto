@@ -200,9 +200,7 @@ test.describe('Server Roles Management', () => {
     await scroller.hover();
     await page.mouse.wheel(0, 2000);
     await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(500);
-    const cell = page.locator(
-      'td[data-role="everyone"][data-permission="invite-link.manage"] button'
-    );
+    const cell = page.locator('td[data-role="everyone"][data-permission="invite.manage"] button');
     await cell.scrollIntoViewIfNeeded();
     await cell.hover();
     // Account for the browser scrolling a newly focused cell into view before

@@ -31,7 +31,7 @@ func TestInviteLinkServiceOwnershipAndPermissions(t *testing.T) {
 
 	_, err = svc.CreateInviteLink(memberCtx, connect.NewRequest(&apiv1.CreateInviteLinkRequest{}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
-	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, member.Id, core.PermInviteLinkCreate))
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, member.Id, core.PermInviteCreate))
 	_, err = svc.CreateInviteLink(memberCtx, connect.NewRequest(&apiv1.CreateInviteLinkRequest{ExpiresAt: &timestamppb.Timestamp{Seconds: 253402300800}}))
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	maxUses := uint32(3)
@@ -64,7 +64,7 @@ func TestInviteLinkServiceOwnershipAndPermissions(t *testing.T) {
 	}
 
 	// Global management does not include creation, and requires elevation.
-	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.Id, core.PermInviteLinkManage))
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.Id, core.PermInviteManage))
 	for _, ctx := range []context.Context{managerCtx, elevated} {
 		_, err = svc.CreateInviteLink(ctx, connect.NewRequest(&apiv1.CreateInviteLinkRequest{}))
 		require.Equal(t, connect.CodePermissionDenied, errorCode(err))
@@ -83,7 +83,7 @@ func TestInviteLinkServiceOwnershipAndPermissions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Losing create authority changes neither ownership nor link validity.
-	require.NoError(t, env.core.DenyUserPermission(env.ctx, core.SystemActorID, member.Id, core.PermInviteLinkCreate))
+	require.NoError(t, env.core.DenyUserPermission(env.ctx, core.SystemActorID, member.Id, core.PermInviteCreate))
 	_, err = svc.CreateInviteLink(memberCtx, connect.NewRequest(&apiv1.CreateInviteLinkRequest{}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	_, err = env.core.ValidateInviteLinkToken(env.ctx, strings.TrimPrefix(link.Link, "https://chat.example/invite/"))

@@ -14,10 +14,8 @@ beforeAll(() => loadLocaleMessages('en-GB'));
 describe('PERMISSION_METADATA', () => {
   it('groups server invites separately from server settings', () => {
     expect(
-      ['server.manage', 'invite-link.manage', 'room.manage', 'invite-link.create'].sort(
-        comparePermissionRows
-      )
-    ).toEqual(['room.manage', 'server.manage', 'invite-link.create', 'invite-link.manage']);
+      ['server.manage', 'invite.manage', 'room.manage', 'invite.create'].sort(comparePermissionRows)
+    ).toEqual(['room.manage', 'server.manage', 'invite.create', 'invite.manage']);
   });
 
   it('gives every catalogue permission localized text', () => {

@@ -93,7 +93,7 @@ describe('Invitation link copying', () => {
 
   it('offers creation to a member without global management authority', async () => {
     const fixture = createTestServerScope({
-      permissions: { canCreateInviteLinks: true },
+      permissions: { canCreateInvites: true },
       routes: (router) => router.service(InviteLinkService, invitations)
     });
     const screen = render(InviteLinksPage);
@@ -103,7 +103,7 @@ describe('Invitation link copying', () => {
       .element(screen.getByRole('heading', { name: 'Your server invites' }))
       .toBeVisible();
 
-    fixture.permissions = { ...fixture.permissions, canCreateInviteLinks: false };
+    fixture.permissions = { ...fixture.permissions, canCreateInvites: false };
     await expect.element(create).not.toBeInTheDocument();
     await expect.element(screen.getByRole('button', { name: 'Copy link' })).toBeVisible();
   });

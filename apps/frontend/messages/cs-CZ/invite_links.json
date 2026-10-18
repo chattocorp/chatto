@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Pozvat na server",
     "compatibility_title": "Pozvánky na server nejsou dostupné",
     "compatibility_description": "Tento server nepodporuje vytváření ani správu pozvánkových odkazů v této aplikaci. Stávající odkazy zůstávají platné.",
     "own": "Vaše pozvánky na server",

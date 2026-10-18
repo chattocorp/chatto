@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Inviti al servilo",
     "compatibility_title": "Servilaj invitoj ne disponeblas",
     "compatibility_description": "Ĉi tiu servilo ne subtenas kreadon aŭ administradon de invitligiloj en ĉi tiu aplikaĵo. Ekzistantaj invitligiloj restas validaj.",
     "own": "Viaj servilaj invitoj",

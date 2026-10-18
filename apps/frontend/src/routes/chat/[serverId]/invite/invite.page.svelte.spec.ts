@@ -30,7 +30,7 @@ describe('member invite creation', () => {
 
   it('creates a one-use seven-day link without global management and shows it for copying', async () => {
     createTestServerScope({
-      permissions: { canCreateInviteLinks: true },
+      permissions: { canCreateInvites: true },
       routes: (router) => router.service(InviteLinkService, invitations)
     });
     const link = 'https://chat.example/invite/member';
@@ -58,7 +58,7 @@ describe('member invite creation', () => {
 
   it('discards a late creation response after permissions change', async () => {
     const fixture = createTestServerScope({
-      permissions: { canCreateInviteLinks: true },
+      permissions: { canCreateInvites: true },
       routes: (router) => router.service(InviteLinkService, invitations)
     });
     let finish!: (value: { inviteLink: { id: string; link: string } }) => void;
@@ -71,7 +71,7 @@ describe('member invite creation', () => {
     const screen = render(InvitePage);
     await screen.getByRole('button', { name: 'Create server invite', exact: true }).click();
     await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
-    fixture.permissions = { ...fixture.permissions, canCreateInviteLinks: false };
+    fixture.permissions = { ...fixture.permissions, canCreateInvites: false };
     removeRegisteredAdminQueries(fixture.serverId);
     finish({ inviteLink: { id: 'I1', link: 'https://chat.example/invite/late' } });
     await expect.element(screen.getByText('Access Denied', { exact: true })).toBeVisible();

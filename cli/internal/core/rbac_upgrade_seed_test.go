@@ -102,8 +102,8 @@ func TestUpgradePermissionsRestoreV04Behavior(t *testing.T) {
 		{ScopeServer, "", RoleEveryone, PermBotCreate, DecisionNone},
 		{ScopeServer, "", RoleAdmin, PermBotCreate, DecisionNone},
 		{ScopeServer, "", RoleAdmin, PermBotManage, DecisionNone},
-		{ScopeServer, "", RoleAdmin, PermInviteLinkCreate, DecisionNone},
-		{ScopeServer, "", RoleAdmin, PermInviteLinkManage, DecisionNone},
+		{ScopeServer, "", RoleAdmin, PermInviteCreate, DecisionNone},
+		{ScopeServer, "", RoleAdmin, PermInviteManage, DecisionNone},
 		{ScopeServer, "", RoleAdmin, PermServerManageNeighbors, DecisionNone},
 	} {
 		require.Equal(t, want.kind, rbac.GetDecision(want.scope, want.scopeID, want.subject, want.perm), "%s %s %s %s", want.scope, want.scopeID, want.subject, want.perm)

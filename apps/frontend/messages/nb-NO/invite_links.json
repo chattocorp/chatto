@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Inviter til server",
     "compatibility_title": "Serverinvitasjoner er ikke tilgjengelige",
     "compatibility_description": "Denne serveren støtter ikke oppretting eller administrasjon av invitasjonslenker i denne appen. Eksisterende invitasjonslenker er fortsatt gyldige.",
     "own": "Dine serverinvitasjoner",

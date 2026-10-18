@@ -9,7 +9,7 @@ import { MethodKind } from "@bufbuild/protobuf";
 /**
  * Creates and manages links for invite-only account admission. Creators can
  * read and revoke their own links without a permission or privileged mode.
- * Effective invite-link.manage permits reads and revocation of any link and
+ * Effective invite.manage permits reads and revocation of any link and
  * requires privileged mode for human sessions. It does not permit creation.
  * Removing creation permission does not invalidate existing links.
  *
@@ -41,7 +41,7 @@ export const InviteLinkService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a link. Requires invite-link.create, without privileged mode.
+     * Creates a link. Requires invite.create, without privileged mode.
      *
      * @generated from rpc chatto.api.v1.InviteLinkService.CreateInviteLink
      */

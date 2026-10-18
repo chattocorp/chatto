@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Bjud in till server",
     "compatibility_title": "Serverinbjudningar är inte tillgängliga",
     "compatibility_description": "Den här servern stöder inte att skapa eller hantera inbjudningslänkar i den här appen. Befintliga inbjudningslänkar är fortfarande giltiga.",
     "own": "Dina serverinbjudningar",

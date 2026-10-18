@@ -352,14 +352,14 @@
       {/if}
     </div>
 
-    {#if serverActionsAvailable && stores.permissions.canCreateInviteLinks}
+    {#if serverActionsAvailable && stores.permissions.canCreateInvites}
       <MenuSection>
         <MenuItem
           icon="icon-[uil--envelope-share]"
           onclick={() => {
             closeContextMenu();
             void goto(resolve('/chat/[serverId]/invite', { serverId: serverSegment }));
-          }}>{m('invite_links.create')}</MenuItem
+          }}>{m('invite_links.invite_to_server')}</MenuItem
         >
       </MenuSection>
     {/if}

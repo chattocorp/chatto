@@ -49,7 +49,7 @@ proto3.util.setEnumType(InviteLinkStatus, "chatto.api.v1.InviteLinkStatus", [
 
 /**
  * An invite link visible to its creator or a caller with effective
- * invite-link.manage. The link is a bearer capability: anyone who has it can
+ * invite.manage. The link is a bearer capability: anyone who has it can
  * create an account while the link is active and admission requires an invite.
  *
  * @generated from message chatto.api.v1.InviteLink
@@ -142,7 +142,7 @@ export class InviteLink extends Message<InviteLink> {
 
 /**
  * Requests a page of owned invite links, newest first. Effective
- * invite-link.manage expands the result to all links. Counts include only
+ * invite.manage expands the result to all links. Counts include only
  * visible links. Refresh and clear cached links when authority changes.
  *
  * @generated from message chatto.api.v1.ListInviteLinksRequest

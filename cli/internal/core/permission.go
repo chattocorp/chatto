@@ -164,13 +164,6 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
-	// PermInviteLinkCreate allows creating invite links. Existing links remain
-	// valid after this permission is removed; creators retain their management.
-	PermInviteLinkCreate Permission = "invite-link.create"
-	// PermInviteLinkManage allows reading and revoking links created by anyone.
-	// It does not permit creation and requires privileged mode for humans.
-	PermInviteLinkManage Permission = "invite-link.manage"
-
 	// PermUserManageAccounts allows account lifecycle and recovery operations
 	// for other users, such as creating accounts, admin profile edits, password
 	// resets, verified-email attachment, and login-cooldown resets.
@@ -179,6 +172,15 @@ const (
 	// PermUserManagePermissions allows editing direct per-user permission
 	// overrides.
 	PermUserManagePermissions Permission = "user.manage-permissions"
+
+	// ===== Server Invite Permissions =====
+
+	// PermInviteCreate allows creating server invites. Existing invites remain
+	// valid after this permission is removed; creators retain their management.
+	PermInviteCreate Permission = "invite.create"
+	// PermInviteManage allows reading and revoking server invites created by anyone.
+	// It does not permit creation and requires privileged mode for humans.
+	PermInviteManage Permission = "invite.manage"
 
 	// ===== Bot Account Permissions =====
 
@@ -247,8 +249,8 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserDeleteSelf, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermInviteLinkCreate, Category: CategoryServerInvite, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermInviteLinkManage, Category: CategoryServerInvite, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermInviteCreate, Category: CategoryServerInvite, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermInviteManage, Category: CategoryServerInvite, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
@@ -442,8 +444,8 @@ func DefaultModeratorPermissions() []Permission {
 func DefaultAdminPermissions() []Permission {
 	return []Permission{
 		PermServerManage,
-		PermInviteLinkCreate,
-		PermInviteLinkManage,
+		PermInviteCreate,
+		PermInviteManage,
 		PermRoomCreate,
 		PermRoomJoin,
 		PermRoomList,

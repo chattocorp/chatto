@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Convidar para o servidor",
     "compatibility_title": "Os convites para o servidor não estão disponíveis",
     "compatibility_description": "Este servidor não permite criar ou gerir ligações de convite nesta aplicação. As ligações existentes continuam válidas.",
     "own": "Os seus convites para o servidor",

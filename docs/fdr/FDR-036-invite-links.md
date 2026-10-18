@@ -26,11 +26,12 @@ unchanged.
 - An invite link can have a maximum number of uses, an expiry time, both, or
   neither. A link with neither remains valid until revoked.
 - The UI calls this feature **Server invites**. Its permissions have a separate
-  section in permission matrices; their IDs remain `invite-link.create` and
-  `invite-link.manage`.
-- Members with `invite-link.create` use **Create server invite** at the top of
-  the normal server sidebar or from the **Server invites** management page.
-  Both actions open the same creation dialog outside management.
+  section in permission matrices; their IDs are `invite.create` and
+  `invite.manage`.
+- Members with `invite.create` use **Invite to server** directly below
+  **Overview** in the normal server sidebar or in the server menu. The
+  **Server invites** management page also offers **Create server invite**.
+  These actions open the same creation dialog outside management.
   The dialog defaults to one use and seven days. Creators can select other
   limits, unlimited uses, or no expiry. Creation does not require shield mode.
 - The management page labels the list **Your server invites** or **All server
@@ -38,7 +39,7 @@ unchanged.
   Without shield mode, members
   see only their own links. They can see status and use count, copy a link
   again, and revoke an active link without a permission.
-- With effective `invite-link.manage` and shield mode, members can manage all
+- With effective `invite.manage` and shield mode, members can manage all
   links and see their creators. This permission does not permit creation.
 - Removing creation permission stops new links but does not invalidate existing
   links or remove the creator's right to manage them.
@@ -76,7 +77,7 @@ hidden requirement for SSO.
 
 ### 3. Invite links remain recoverable
 
-**Decision:** Creators and callers with effective `invite-link.manage` can
+**Decision:** Creators and callers with effective `invite.manage` can
 copy an invite link again after creation.
 **Why:** Invite links are routinely shared through several channels, and a
 show-once secret creates unnecessary recovery and support friction.
@@ -119,7 +120,7 @@ write.
 
 ### 7. Existing installations do not receive a permission backfill
 
-**Decision:** Both invite-link permissions belong to the default administrator
+**Decision:** Both server-invite permissions belong to the default administrator
 role on fresh servers. Neither belongs to `everyone`. Existing roles are not
 rewritten; operators must grant the new permissions explicitly. The retired
 `user.invite` permission grants no authority and does not prevent role assignment
@@ -131,8 +132,8 @@ to grant the new permissions. Existing links and creator ownership survive.
 
 ## Permissions
 
-- `invite-link.create` — create links without shield mode.
-- `invite-link.manage` — read, copy, and revoke anyone's links with shield mode.
+- `invite.create` — create links without shield mode.
+- `invite.manage` — read, copy, and revoke anyone's links with shield mode.
 - Ownership — read, copy, and revoke your own links without either permission.
 
 ## Related

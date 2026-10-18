@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "邀請加入伺服器",
     "compatibility_title": "伺服器邀請無法使用",
     "compatibility_description": "此伺服器不支援在此應用程式中建立或管理邀請連結。現有邀請連結仍然有效。",
     "own": "你的伺服器邀請",

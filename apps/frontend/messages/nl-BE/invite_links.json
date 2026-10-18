@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Uitnodigen voor server",
     "compatibility_title": "Serveruitnodigingen zijn niet beschikbaar",
     "compatibility_description": "Deze server ondersteunt het maken of beheren van uitnodigingslinks in deze app niet. Bestaande uitnodigingslinks blijven geldig.",
     "own": "Je serveruitnodigingen",

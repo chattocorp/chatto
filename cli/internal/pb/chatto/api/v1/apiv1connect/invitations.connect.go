@@ -53,7 +53,7 @@ type InviteLinkServiceClient interface {
 	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
 	// Gets a visible link. Missing and inaccessible links both return NOT_FOUND.
 	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
-	// Creates a link. Requires invite-link.create, without privileged mode.
+	// Creates a link. Requires invite.create, without privileged mode.
 	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
 	// Permanently revokes a visible link and retains its history. Repeated calls
 	// return the revoked link. Missing and inaccessible links return NOT_FOUND.
@@ -132,7 +132,7 @@ type InviteLinkServiceHandler interface {
 	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
 	// Gets a visible link. Missing and inaccessible links both return NOT_FOUND.
 	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
-	// Creates a link. Requires invite-link.create, without privileged mode.
+	// Creates a link. Requires invite.create, without privileged mode.
 	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
 	// Permanently revokes a visible link and retains its history. Repeated calls
 	// return the revoked link. Missing and inaccessible links return NOT_FOUND.

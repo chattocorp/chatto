@@ -157,9 +157,9 @@ func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (Inv
 }
 
 // ListInvitations filters by ownership before the caller paginates or counts.
-// Effective invite-link.manage permits reads of every invitation.
+// Effective invite.manage permits reads of every invitation.
 func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]InvitationState, error) {
-	manageAll, err := c.HasServerPermission(ctx, actorID, PermInviteLinkManage)
+	manageAll, err := c.HasServerPermission(ctx, actorID, PermInviteManage)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]Inv
 // CreateInvitation checks creation authority only. Link validity is independent
 // of the creator's later permissions and session elevation.
 func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUses *uint32, expiresAt *time.Time) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermInviteLinkCreate); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermInviteCreate); err != nil {
 		return InvitationState{}, err
 	}
 	if maxUses != nil && *maxUses == 0 {
@@ -213,7 +213,7 @@ func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUs
 }
 
 // RevokeInvitation permanently revokes an owned link or a link managed through
-// invite-link.manage. Authorization is checked even for an already revoked link.
+// invite.manage. Authorization is checked even for an already revoked link.
 func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
 	agg := evtstream.InvitationAggregate(id)
 	for range 5 {
@@ -257,7 +257,7 @@ func (c *ChattoCore) requireInvitationManager(ctx context.Context, actorID strin
 	if actorID != "" && state.CreatedBy == actorID {
 		return nil
 	}
-	allowed, err := c.HasServerPermission(ctx, actorID, PermInviteLinkManage)
+	allowed, err := c.HasServerPermission(ctx, actorID, PermInviteManage)
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "サーバーに招待",
     "compatibility_title": "サーバー招待は利用できません",
     "compatibility_description": "このサーバーは、このアプリでの招待リンクの作成や管理に対応していません。既存の招待リンクは引き続き有効です。",
     "own": "自分のサーバー招待",

@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "邀请加入服务器",
     "compatibility_title": "服务器邀请不可用",
     "compatibility_description": "此服务器不支持在此应用中创建或管理邀请链接。现有邀请链接仍然有效。",
     "own": "你的服务器邀请",

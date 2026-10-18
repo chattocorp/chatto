@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Zaproś na serwer",
     "compatibility_title": "Zaproszenia na serwer są niedostępne",
     "compatibility_description": "Ten serwer nie obsługuje tworzenia linków zaproszeń ani zarządzania nimi w tej aplikacji. Istniejące linki pozostają ważne.",
     "own": "Twoje zaproszenia na serwer",

@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Kutsu serverisse",
     "compatibility_title": "Serverikutsed pole saadaval",
     "compatibility_description": "See server ei toeta selles rakenduses kutselinkide loomist ega haldamist. Olemasolevad kutselingid jäävad kehtima.",
     "own": "Teie serverikutsed",

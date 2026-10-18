@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Inviter sur le serveur",
     "compatibility_title": "Les invitations au serveur ne sont pas disponibles",
     "compatibility_description": "Ce serveur ne permet pas de créer ni de gérer des liens d’invitation dans cette application. Les liens existants restent valides.",
     "own": "Vos invitations au serveur",

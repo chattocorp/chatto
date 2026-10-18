@@ -10,7 +10,7 @@ import (
 )
 
 // InvitationState is the durable state of a link, visible to its creator and
-// callers with effective invite-link.manage authority.
+// callers with effective invite.manage authority.
 type InvitationState struct {
 	ID        string
 	CreatedBy string

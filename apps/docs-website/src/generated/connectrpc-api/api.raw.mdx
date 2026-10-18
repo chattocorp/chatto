@@ -2851,7 +2851,7 @@ permission allowlist are unchanged.
 
 Creates and manages links for invite-only account admission. Creators can
 read and revoke their own links without a permission or privileged mode.
-Effective invite-link.manage permits reads and revocation of any link and
+Effective invite.manage permits reads and revocation of any link and
 requires privileged mode for human sessions. It does not permit creation.
 Removing creation permission does not invalidate existing links.
 
@@ -2870,7 +2870,7 @@ POST /api/connect/chatto.api.v1.InviteLinkService/ListInviteLinks
 #### Input: ListInviteLinksRequest
 
 Requests a page of owned invite links, newest first. Effective
-invite-link.manage expands the result to all links. Counts include only
+invite.manage expands the result to all links. Counts include only
 visible links. Refresh and clear cached links when authority changes.
 
 | Field | Type | Description |
@@ -2926,7 +2926,7 @@ No message description provided.
 
 ### CreateInviteLink
 
-Creates a link. Requires invite-link.create, without privileged mode.
+Creates a link. Requires invite.create, without privileged mode.
 
 ```http
 POST /api/connect/chatto.api.v1.InviteLinkService/CreateInviteLink
@@ -5111,8 +5111,8 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
-- invite-link.create
-- invite-link.manage
+- invite.create
+- invite.manage
 - role.assign
 - role.view
 - role.manage
@@ -6147,7 +6147,7 @@ Safe summary of one recorded outbound webhook failure.
 ### InviteLink
 
 An invite link visible to its creator or a caller with effective
-invite-link.manage. The link is a bearer capability: anyone who has it can
+invite.manage. The link is a bearer capability: anyone who has it can
 create an account while the link is active and admission requires an invite.
 
 | Field | Type | Description |

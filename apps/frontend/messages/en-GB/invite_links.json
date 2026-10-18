@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Invite to server",
     "compatibility_title": "Server invites are unavailable",
     "compatibility_description": "This server does not support creating or managing invite links in this app. Existing invite links remain valid.",
     "own": "Your server invites",

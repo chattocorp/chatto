@@ -81,7 +81,7 @@ The initial catalog requires privileged mode for these permissions:
 - `message.manage`
 - `role.manage` and `role.assign`
 - `admin.view-users` and `admin.view-audit`
-- `invite-link.manage`, `user.delete-any`, `user.manage-accounts`, and
+- `invite.manage`, `user.delete-any`, `user.manage-accounts`, and
   `user.manage-permissions`
 - `bot.manage`
 - owner-only system diagnostics

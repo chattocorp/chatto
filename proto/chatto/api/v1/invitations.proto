@@ -16,7 +16,7 @@ enum InviteLinkStatus {
 }
 
 // An invite link visible to its creator or a caller with effective
-// invite-link.manage. The link is a bearer capability: anyone who has it can
+// invite.manage. The link is a bearer capability: anyone who has it can
 // create an account while the link is active and admission requires an invite.
 message InviteLink {
   // Identifier used to read or revoke the link.
@@ -33,7 +33,7 @@ message InviteLink {
 }
 
 // Requests a page of owned invite links, newest first. Effective
-// invite-link.manage expands the result to all links. Counts include only
+// invite.manage expands the result to all links. Counts include only
 // visible links. Refresh and clear cached links when authority changes.
 message ListInviteLinksRequest {
   // Defaults to 20 results when absent or limit is zero. Maximum: 100.
@@ -73,7 +73,7 @@ message RevokeInviteLinkResponse {
 
 // Creates and manages links for invite-only account admission. Creators can
 // read and revoke their own links without a permission or privileged mode.
-// Effective invite-link.manage permits reads and revocation of any link and
+// Effective invite.manage permits reads and revocation of any link and
 // requires privileged mode for human sessions. It does not permit creation.
 // Removing creation permission does not invalidate existing links.
 service InviteLinkService {
@@ -81,7 +81,7 @@ service InviteLinkService {
   rpc ListInviteLinks(ListInviteLinksRequest) returns (ListInviteLinksResponse);
   // Gets a visible link. Missing and inaccessible links both return NOT_FOUND.
   rpc GetInviteLink(GetInviteLinkRequest) returns (GetInviteLinkResponse);
-  // Creates a link. Requires invite-link.create, without privileged mode.
+  // Creates a link. Requires invite.create, without privileged mode.
   rpc CreateInviteLink(CreateInviteLinkRequest) returns (CreateInviteLinkResponse);
   // Permanently revokes a visible link and retains its history. Repeated calls
   // return the revoked link. Missing and inaccessible links return NOT_FOUND.

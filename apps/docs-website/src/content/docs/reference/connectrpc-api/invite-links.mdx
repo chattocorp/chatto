@@ -20,7 +20,7 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Creates and manages links for invite-only account admission. Creators can
 read and revoke their own links without a permission or privileged mode.
-Effective invite-link.manage permits reads and revocation of any link and
+Effective invite.manage permits reads and revocation of any link and
 requires privileged mode for human sessions. It does not permit creation.
 Removing creation permission does not invalidate existing links.
 
@@ -39,7 +39,7 @@ POST /api/connect/chatto.api.v1.InviteLinkService/ListInviteLinks
 #### Input: ListInviteLinksRequest
 
 Requests a page of owned invite links, newest first. Effective
-invite-link.manage expands the result to all links. Counts include only
+invite.manage expands the result to all links. Counts include only
 visible links. Refresh and clear cached links when authority changes.
 
 | Field | Type | Description |
@@ -95,7 +95,7 @@ No message description provided.
 
 ### CreateInviteLink
 
-Creates a link. Requires invite-link.create, without privileged mode.
+Creates a link. Requires invite.create, without privileged mode.
 
 ```http
 POST /api/connect/chatto.api.v1.InviteLinkService/CreateInviteLink

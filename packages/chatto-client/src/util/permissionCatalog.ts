@@ -182,11 +182,11 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     category: 'user',
     scopes: ['server']
   },
-  'invite-link.create': {
+  'invite.create': {
     category: 'server-invite',
     scopes: ['server']
   },
-  'invite-link.manage': {
+  'invite.manage': {
     category: 'server-invite',
     scopes: ['server'],
     privileged: true

@@ -46,7 +46,7 @@ Each upgrade grant has a gate that detects operator intent from history:
 
 The 0.5 set contains `server.manage-neighbors`, `room.remove-member`,
 `message.read`, `message.read-interactions`, `message.post-in-interactions`,
-`invite-link.create`, `invite-link.manage`, the retired `user.invite`,
+`invite.create`, `invite.manage`, the retired `user.invite`,
 `bot.create`, and `bot.manage`. When its gate is open, Chatto
 allows `message.read` for `everyone` at server scope. It also copies each current `room.ban-member` decision to `room.remove-member`
 with the same scope, subject, and allow or deny. The copy replays role
@@ -54,7 +54,7 @@ deletion, clears, and legacy event shapes, so it uses the same current state as
 the RBAC projection.
 
 Bots and invite links are new in 0.5, so `bot.create`, `bot.manage`,
-`invite-link.create`, and `invite-link.manage` get no upgrade grant.
+`invite.create`, and `invite.manage` get no upgrade grant.
 The retired `user.invite` grants no authority but remains in the history gate.
 These permissions stay in the gate set, because a
 decision for them still shows that 0.5 already owns the log.

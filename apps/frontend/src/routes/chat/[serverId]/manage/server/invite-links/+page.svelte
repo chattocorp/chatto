@@ -152,7 +152,7 @@
         serverSegment={serverIdToSegment(serverScope.serverId)}
       />
       {#if limitedFeatures.length === 0}
-        {#if serverScope.store.permissions.canCreateInviteLinks}
+        {#if serverScope.store.permissions.canCreateInvites}
           <div class="max-w-full self-start">
             <Button
               fullWidth

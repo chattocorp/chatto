@@ -159,11 +159,11 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
     description: () => m('permissions.descriptions.user_delete_self'),
     help: () => m('rbac.permission_help.user_delete_self')
   },
-  'invite-link.create': {
+  'invite.create': {
     description: () => m('invite_links.create_permission'),
     help: () => m('invite_links.create_help')
   },
-  'invite-link.manage': {
+  'invite.manage': {
     description: () => m('invite_links.manage_permission'),
     help: () => m('invite_links.manage_help')
   },

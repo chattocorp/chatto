@@ -147,10 +147,10 @@ test.describe('Route accessibility', () => {
 
   test('invite creation and created-link dialogs meet WCAG A and AA rules', async ({ page }) => {
     await loginAsAdmin(page);
-    await grantPermission(page, 'everyone', 'invite-link.create');
+    await grantPermission(page, 'everyone', 'invite.create');
     await createAndLoginTestUser(page);
     await page.goto('/chat/-/overview');
-    await page.getByRole('link', { name: 'Create server invite', exact: true }).click();
+    await page.getByRole('link', { name: 'Invite to server', exact: true }).click();
     await expect(
       page.getByRole('dialog', { name: 'Create server invite', exact: true })
     ).toBeVisible();

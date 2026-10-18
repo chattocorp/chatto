@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Sunucuya davet et",
     "compatibility_title": "Sunucu davetleri kullanılamıyor",
     "compatibility_description": "Bu sunucu, bu uygulamada davet bağlantısı oluşturmayı veya yönetmeyi desteklemiyor. Mevcut davet bağlantıları geçerliliğini korur.",
     "own": "Sunucu davetleriniz",

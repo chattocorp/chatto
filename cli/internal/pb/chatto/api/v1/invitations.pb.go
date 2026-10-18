@@ -80,7 +80,7 @@ func (InviteLinkStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // An invite link visible to its creator or a caller with effective
-// invite-link.manage. The link is a bearer capability: anyone who has it can
+// invite.manage. The link is a bearer capability: anyone who has it can
 // create an account while the link is active and admission requires an invite.
 type InviteLink struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -193,7 +193,7 @@ func (x *InviteLink) GetRevokedAt() *timestamppb.Timestamp {
 }
 
 // Requests a page of owned invite links, newest first. Effective
-// invite-link.manage expands the result to all links. Counts include only
+// invite.manage expands the result to all links. Counts include only
 // visible links. Refresh and clear cached links when authority changes.
 type ListInviteLinksRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`

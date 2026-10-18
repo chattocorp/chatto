@@ -18,7 +18,7 @@
   const scope = useServerScope();
   const guard = createSessionGuard(scope);
   const serverSegment = serverIdToSegment(scope.serverId);
-  const canCreate = $derived(scope.store.permissions.canCreateInviteLinks);
+  const canCreate = $derived(scope.store.permissions.canCreateInvites);
   let maxUses = $state('1');
   let unlimitedUses = $state(false);
   let expiry = $state('7d');

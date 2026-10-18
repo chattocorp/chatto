@@ -1,5 +1,6 @@
 {
   "invite_links": {
+    "invite_to_server": "Uzaicināt uz serveri",
     "compatibility_title": "Servera uzaicinājumi nav pieejami",
     "compatibility_description": "Šis serveris neatbalsta uzaicinājuma saišu izveidi vai pārvaldību šajā lietotnē. Esošās uzaicinājuma saites paliek derīgas.",
     "own": "Jūsu servera uzaicinājumi",
