@@ -11,6 +11,8 @@ preview on screen.
 - `link` — Parsed MessageLink from `$lib/chatLinks`.
 - `onDismiss` — Callback when user dismisses the preview (composer mode).
 - `showDismiss` — Whether to show the dismiss button (default: true).
+- `compact` — Limits the message body to about two lines, for the composer
+  (default: false). The composer must stay short above a software keyboard.
 -->
 <script lang="ts">
   import { formatAccountName } from '@chatto/client/timeline/accountName';
@@ -48,11 +50,13 @@ preview on screen.
   let {
     link,
     onDismiss,
-    showDismiss = true
+    showDismiss = true,
+    compact = false
   }: {
     link: MessageLink;
     onDismiss?: () => void;
     showDismiss?: boolean;
+    compact?: boolean;
   } = $props();
 
   const thumbnailRetrySalts = new SvelteMap<string, number>();
@@ -267,7 +271,7 @@ preview on screen.
           fill={false}
           fadeHeight="h-5"
           fadeColorClass="from-surface via-surface/80"
-          scrollClass="max-h-52"
+          scrollClass={compact ? 'max-h-12' : 'max-h-52'}
         >
           <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
             <MessageContent body={bodyMarkdown} viewerLogin={store?.currentUser.user?.login} />
