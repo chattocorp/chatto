@@ -153,8 +153,10 @@ Turborepo runs the pnpm workspace tasks. Every workspace package must define a
 `mise check-workspace` (`pnpm run check`) checks the complete workspace. Turbo
 caches `check` results and checks again only the packages that a change
 affects. Use `pnpm turbo run check --filter=...<package>` for one package and
-its dependents. In a package script, run Turbo with `pnpm -w turbo`, so the
-root script keeps local runs on the local cache (ADR-102).
+its dependents. The position of `...` is important: `--filter=<package>...`
+selects the package and its dependencies, not its dependents. In a package
+script, run Turbo with `pnpm -w turbo`, so the root script keeps local runs on
+the local cache (ADR-102).
 
 `mise codegen-proto` removes and generates again the TypeScript API files. Do
 not run it at the same time as `mise test-cli`, a frontend build, or another
