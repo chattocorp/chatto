@@ -118,6 +118,7 @@ when the virtualizer unmounts the row of its message. `EventList` renders it onl
     <MessageActionMenu
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
       {action}
+      selectedText={overlay?.selectedText}
       hasReactions={reactions.length > 0}
       onOpenReactionDetails={() => overlays.open(eventId, { kind: 'reactions' })}
       linkUrl={presentation === 'menu' ? overlay?.linkUrl : null}

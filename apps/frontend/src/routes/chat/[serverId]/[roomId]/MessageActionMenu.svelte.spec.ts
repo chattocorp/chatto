@@ -127,7 +127,11 @@ describe('MessageActionMenu', () => {
     const success = vi.spyOn(toast, 'success').mockImplementation(() => 'toast');
     const { container } = renderMenu({ imageUrl: 'https://example.com/image?access=ticket' });
 
-    expect(actionLabels(container)).toEqual(['Copy text', 'Copy image', 'Copy message link']);
+    expect(actionLabels(container)).toEqual([
+      'Copy message text',
+      'Copy image',
+      'Copy message link'
+    ]);
     Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
       .find((button) => button.textContent?.trim() === 'Copy image')!
       .click();
@@ -160,7 +164,11 @@ describe('MessageActionMenu', () => {
     const success = vi.spyOn(toast, 'success').mockImplementation(() => 'toast');
     const { container } = renderMenu({ linkUrl: 'https://example.com/path?q=1' });
 
-    expect(actionLabels(container)).toEqual(['Copy text', 'Copy link', 'Copy message link']);
+    expect(actionLabels(container)).toEqual([
+      'Copy message text',
+      'Copy link',
+      'Copy message link'
+    ]);
     Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
       .find((button) => button.textContent?.trim() === 'Copy link')!
       .click();
@@ -227,7 +235,7 @@ describe('MessageActionMenu', () => {
     expect(container.textContent).toContain('Reply');
     expect(container.textContent).toContain('Reply in thread');
     expect(container.textContent).toContain('Edit');
-    expect(container.textContent).toContain('Copy text');
+    expect(container.textContent).toContain('Copy message text');
     expect(container.textContent).toContain('Copy message link');
     expect(container.textContent).toContain('Delete');
     expect(
@@ -238,7 +246,7 @@ describe('MessageActionMenu', () => {
       )
     ).toEqual([
       ['Reply', 'Reply in thread', 'Edit'],
-      ['Copy text', 'Copy message link'],
+      ['Copy message text', 'Copy message link'],
       ['Delete']
     ]);
   });
@@ -260,7 +268,7 @@ describe('MessageActionMenu', () => {
     expect(actionLabels).toEqual([
       'Reply in thread',
       'Open thread',
-      'Copy text',
+      'Copy message text',
       'Copy message link'
     ]);
     const replyIcon = container.querySelector('[role="menuitem"] .iconify');
@@ -280,7 +288,7 @@ describe('MessageActionMenu', () => {
       'Reply',
       'Reply in thread',
       'Reply in room',
-      'Copy text',
+      'Copy message text',
       'Copy message link'
     ]);
   });
@@ -297,7 +305,7 @@ describe('MessageActionMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Edit', 'Copy text', 'Copy message link', 'Delete']);
+    expect(actionLabels).toEqual(['Edit', 'Copy message text', 'Copy message link', 'Delete']);
   });
 
   it('renders no empty actions section for a non-author thread reply', () => {
@@ -322,7 +330,7 @@ describe('MessageActionMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Copy text', 'Copy message link']);
+    expect(actionLabels).toEqual(['Copy message text', 'Copy message link']);
   });
 
   it('omits copy text when the message has no text body', () => {
@@ -378,7 +386,7 @@ describe('MessageActionMenu', () => {
 
     baseProps.onClose.mockClear();
     Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
-      .find((button) => button.textContent?.includes('Copy text'))!
+      .find((button) => button.textContent?.includes('Copy message text'))!
       .click();
     expect(mocks.actions.copyMessageText).toHaveBeenCalledWith(
       expect.objectContaining({ messageBody: 'Hello' })
@@ -430,7 +438,7 @@ describe('MessageActionMenu', () => {
         'Reply',
         'Reply in thread',
         'Edit',
-        'Copy text',
+        'Copy message text',
         'Copy message link',
         'Delete'
       ]);
@@ -444,7 +452,7 @@ describe('MessageActionMenu', () => {
           )
       ).toEqual([
         ['Reply', 'Reply in thread', 'Edit'],
-        ['Copy text', 'Copy message link'],
+        ['Copy message text', 'Copy message link'],
         ['Delete']
       ]);
       expect(container.querySelector('[role="menuitem"]')).toBeNull();
