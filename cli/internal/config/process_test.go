@@ -21,6 +21,8 @@ func TestReadConfigUnifiedUploadLimit(t *testing.T) {
 		{name: "new default", want: 0},
 		{name: "enabled video has no separate default", toml: "[video]\nenabled=true", want: 0, videoEnabled: true},
 		{name: "general only", generalEnv: "10MB", want: 10 * datasize.MB},
+		{name: "ENV MiB", generalEnv: "150MiB", want: 150 << 20},
+		{name: "TOML MiB", toml: "[core.assets]\nmax_upload_size='150MiB'", want: 150 << 20},
 		{name: "legacy larger", generalEnv: "10MB", videoEnv: "100MB", want: 100 * datasize.MB},
 		{name: "general larger", generalEnv: "200MB", videoEnv: "100MB", want: 200 * datasize.MB},
 		{name: "legacy with absent general", videoEnv: "100MB", want: 100 * datasize.MB},
@@ -44,14 +46,14 @@ func TestReadConfigUnifiedUploadLimit(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if cfg.Core.Assets.MaxUploadSize != tc.want {
+			if datasize.ByteSize(cfg.Core.Assets.MaxUploadSize) != tc.want {
 				t.Fatalf("upload limit = %d, want %d", cfg.Core.Assets.MaxUploadSize, tc.want)
 			}
 			if cfg.Video.Enabled != tc.videoEnabled {
 				t.Fatalf("video enabled = %v, want %v", cfg.Video.Enabled, tc.videoEnabled)
 			}
 			cfg.ApplyDefaults()
-			if cfg.Core.Assets.MaxUploadSize != tc.want {
+			if datasize.ByteSize(cfg.Core.Assets.MaxUploadSize) != tc.want {
 				t.Fatal("defaults changed the limit on a second call")
 			}
 		})

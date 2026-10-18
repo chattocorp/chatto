@@ -144,7 +144,7 @@ func writeInitialConfig(cmd *cobra.Command, opts initOptions) error {
 			SecretKey: coreSecretString,
 			Assets: config.AssetsConfig{
 				SigningSecret:  signingSecretString,
-				MaxUploadSize:  25 * datasize.MB,
+				MaxUploadSize:  config.ByteSize(25 * datasize.MB),
 				StorageBackend: config.StorageBackendNATS,
 			},
 		},

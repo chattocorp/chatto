@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/c2h5oh/datasize"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -39,7 +39,7 @@ func TestAssetUploadUsesOneLimitForAllFileTypes(t *testing.T) {
 	}
 	content := imageBytes.Bytes()
 	limit := int64(len(content))
-	core.config.Assets.MaxUploadSize = datasize.ByteSize(limit)
+	core.config.Assets.MaxUploadSize = config.ByteSize(limit)
 	sum := sha256.Sum256(content)
 	hash := hex.EncodeToString(sum[:])
 	for _, contentType := range []string{"image/gif", "video/mp4", "application/octet-stream"} {
