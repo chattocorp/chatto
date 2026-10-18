@@ -10,8 +10,6 @@ export type ServerPermissions = ViewerCapabilities & {
   loaded: boolean;
   /** Effective invite-link.create; human sessions do not need privileged mode. */
   canCreateInviteLinks: boolean;
-  /** Effective invite-link.manage; includes the human privileged-mode gate. */
-  canManageInviteLinks: boolean;
   /** Effective server-wide `server.manage`. */
   canManageServer: boolean;
   /** Effective server-wide `server.manage-neighbors`. */
@@ -30,7 +28,6 @@ export type ServerPermissions = ViewerCapabilities & {
 export const NO_SERVER_PERMISSIONS: ServerPermissions = Object.freeze({
   loaded: false,
   canCreateInviteLinks: false,
-  canManageInviteLinks: false,
   canViewAdmin: false,
   canStartDMs: false,
   canAdminViewUsers: false,
@@ -56,7 +53,6 @@ export function serverPermissionsFromViewer(viewer: ViewerState): ServerPermissi
   return {
     loaded: true,
     canCreateInviteLinks: can('invite-link.create'),
-    canManageInviteLinks: can('invite-link.manage'),
     canViewAdmin: viewer.canViewAdmin,
     canStartDMs: viewer.canStartDMs,
     canAdminViewUsers: viewer.canAdminViewUsers,

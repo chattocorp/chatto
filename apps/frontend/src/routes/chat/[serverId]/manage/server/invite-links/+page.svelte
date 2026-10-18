@@ -5,7 +5,6 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { SvelteSet } from 'svelte/reactivity';
   import { onMount } from 'svelte';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';
@@ -30,6 +29,7 @@
 
   const PAGE_SIZE = 20;
   const serverScope = useServerScope();
+  const users = serverScope.store.projection.users;
   const limitedFeatures = $derived(
     serverScope.store.serverInfo.limitedFeatures.filter((feature) => feature === 'inviteLinks')
   );
@@ -41,7 +41,7 @@
   let revokeTarget = $state<InviteLink | null>(null);
   let authorityGeneration = $state(0);
   const guard = createSessionGuard(serverScope);
-  const manageAll = $derived(serverScope.store.permissions.canManageInviteLinks);
+  const manageAll = $derived(serverScope.store.permissions.canManageInvites);
   const title = $derived(manageAll ? m('invite_links.all') : m('invite_links.own'));
 
   onMount(() =>
@@ -76,9 +76,9 @@
   const invitations = $derived(
     (invitationsQuery.data?.pages ?? []).flatMap((page) => page.inviteLinks)
   );
-  const creatorIds = $derived([...new SvelteSet(invitations.map((link) => link.createdBy))]);
-  const creatorsQuery = createQuery(() => {
-    const ids = creatorIds;
+  // Hydrate profiles through the shared owner; do not cache copies of their names.
+  createQuery(() => {
+    const ids = invitations.map((link) => link.createdBy);
     return {
       queryKey: [
         ...adminQueryKeys.invitations(serverScope.serverId, serverScope.connection),
@@ -89,18 +89,12 @@
       ],
       enabled: limitedFeatures.length === 0 && manageAll && ids.length > 0,
       queryFn: async ({ signal }) => {
-        const api = serverScope.connection.getAPI(createUserAPI);
-        const batches = [];
-        for (let offset = 0; offset < ids.length; offset += 100) {
-          batches.push(api.batchGetUsers(ids.slice(offset, offset + 100)));
-        }
-        const users = (await Promise.all(batches)).flat();
+        await serverScope.connection.getAPI(createUserAPI).batchGetUsers(ids);
         signal.throwIfAborted();
-        return users;
+        return null;
       }
     };
   });
-  const creators = $derived(new Map((creatorsQuery.data ?? []).map((user) => [user.id, user])));
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
   const hasMore = $derived(invitationsQuery.hasNextPage);
@@ -181,7 +175,7 @@
             {/snippet}
             {#snippet row(invitation)}
               {#if manageAll}
-                {@const creator = creators.get(invitation.createdBy)}
+                {@const creator = users.view(invitation.createdBy)}
                 <td class="px-4 py-3"
                   ><AccountName
                     name={creator?.displayName || creator?.login || invitation.createdBy}

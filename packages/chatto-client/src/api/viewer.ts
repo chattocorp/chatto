@@ -52,6 +52,7 @@ export type ViewerCapabilities = {
   canAdminViewSystem: boolean;
   canAdminViewAudit: boolean;
   canManageUserPermissions: boolean;
+  /** Effective invite-link.manage; includes the human privileged-mode gate. */
   canManageInvites: boolean;
 };
 

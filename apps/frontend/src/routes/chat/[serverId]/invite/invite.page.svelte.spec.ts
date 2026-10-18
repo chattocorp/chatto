@@ -50,7 +50,7 @@ describe('member invite creation', () => {
   });
 
   it('does not offer creation to a manager without create permission', async () => {
-    createTestServerScope({ permissions: { canManageInviteLinks: true } });
+    createTestServerScope({ permissions: { canManageInvites: true } });
     const screen = render(InvitePage);
     await expect.element(screen.getByText('Access Denied', { exact: true })).toBeVisible();
     expect(invitations.createInviteLink).not.toHaveBeenCalled();

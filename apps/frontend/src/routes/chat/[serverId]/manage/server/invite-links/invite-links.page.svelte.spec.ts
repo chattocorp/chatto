@@ -10,10 +10,15 @@ import { render } from 'vitest-browser-svelte';
 import { Timestamp } from '@bufbuild/protobuf';
 import { InviteLinkService } from '@chatto/api-types/api/v1/invitations_connect';
 import { queryClient } from '$lib/query/client';
-import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
+import {
+  removeRegisteredAdminQueries,
+  removeRegisteredAdminUserQueries
+} from '$lib/query/cacheRegistry';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { InviteLinkStatus } from '@chatto/api-types/api/v1/invitations_pb';
 import { limitedServerFeatures } from '@chatto/client/server/compatibility';
+import { resetUserStoresForTests } from '@chatto/client/server/users';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { mockService } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
@@ -31,6 +36,7 @@ const link = 'https://chat.example/join/test-invitation';
 
 describe('Invitation link copying', () => {
   beforeEach(() => {
+    resetUserStoresForTests();
     queryClient.clear();
     toast.clear();
     createTestServerScope({
@@ -83,7 +89,7 @@ describe('Invitation link copying', () => {
   it('explains older-server support without requesting invite links', async () => {
     createTestServerScope({
       serverInfo: { limitedFeatures: limitedServerFeatures('0.5.0-beta.17') },
-      permissions: { canManageInviteLinks: true },
+      permissions: { canManageInvites: true },
       routes: (router) => router.service(InviteLinkService, invitations)
     });
     invitations.listInviteLinks.mockClear();
@@ -95,9 +101,51 @@ describe('Invitation link copying', () => {
     expect(screen.container.querySelector('table')).toBeNull();
   });
 
+  it('removes a deleted creator name while keeping the invite manageable', async () => {
+    const fixture = createTestServerScope({
+      permissions: { canManageInvites: true },
+      routes: (router) => {
+        router.service(InviteLinkService, invitations);
+        router.service(UserService, users);
+      }
+    });
+    users.batchGetUsers.mockReturnValue({
+      users: [
+        new DirectoryMember({
+          user: { id: 'creator', login: 'creator', displayName: 'Former Creator' }
+        })
+      ]
+    });
+    invitations.listInviteLinks.mockReturnValue({
+      inviteLinks: [
+        {
+          id: 'owned-link',
+          link,
+          createdBy: 'creator',
+          status: InviteLinkStatus.ACTIVE,
+          createdAt: Timestamp.fromDate(new Date('2026-01-01'))
+        }
+      ]
+    });
+    const screen = render(InviteLinksPage);
+    await expect.element(screen.getByText('Former Creator', { exact: true })).toBeVisible();
+
+    // Mirror the user-deletion boundary: scrub the profile, then notify copied caches.
+    fixture.scope.store.projection.users.delete('creator');
+    removeRegisteredAdminUserQueries(fixture.serverId, 'creator');
+
+    await expect
+      .element(screen.getByText('Former Creator', { exact: true }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole('button', { name: 'Revoke', exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'Copy link', exact: true }))
+      .toBeVisible();
+  });
+
   it('clears a global link and its revoke dialog when shield mode ends, including late reads', async () => {
     const fixture = createTestServerScope({
-      permissions: { canManageInviteLinks: true },
+      permissions: { canManageInvites: true },
       routes: (router) => {
         router.service(InviteLinkService, invitations);
         router.service(UserService, users);
@@ -127,7 +175,7 @@ describe('Invitation link copying', () => {
     void queryClient.invalidateQueries();
     await vi.waitFor(() => expect(finishOld).toBeTypeOf('function'));
     invitations.listInviteLinks.mockReturnValue({ inviteLinks: [] });
-    fixture.permissions = { ...fixture.permissions, canManageInviteLinks: false };
+    fixture.permissions = { ...fixture.permissions, canManageInvites: false };
     removeRegisteredAdminQueries(fixture.serverId);
     await expect.element(screen.getByRole('heading', { name: 'Your invite links' })).toBeVisible();
     await vi.waitFor(() => expect(screen.container.textContent).not.toContain('other-user'));

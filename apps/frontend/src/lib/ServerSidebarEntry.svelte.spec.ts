@@ -50,7 +50,7 @@ const { mocks } = vi.hoisted(() => {
       },
       store: {
         isAuthenticated: true,
-        permissions: { canCreateInviteLinks: false, canManageInviteLinks: false },
+        permissions: { canCreateInviteLinks: false, canManageInvites: false },
         projection: { viewer: {} as object | null },
         notifications: {
           fetch: vi.fn().mockResolvedValue(undefined),
@@ -327,7 +327,7 @@ describe('ServerSidebarEntry', () => {
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
     mocks.store.isAuthenticated = true;
-    mocks.store.permissions = { canCreateInviteLinks: false, canManageInviteLinks: false };
+    mocks.store.permissions = { canCreateInviteLinks: false, canManageInvites: false };
     mocks.listRooms.mockResolvedValue([]);
     mocks.createRoomDirectoryAPI.mockReturnValue({ listRooms: mocks.listRooms });
     mocks.store.notifications.fetch.mockClear();
@@ -368,7 +368,7 @@ describe('ServerSidebarEntry', () => {
   it.each([false, true])(
     'offers invitation creation only with create permission (%s)',
     async (canCreate) => {
-      mocks.store.permissions = { canCreateInviteLinks: canCreate, canManageInviteLinks: true };
+      mocks.store.permissions = { canCreateInviteLinks: canCreate, canManageInvites: true };
       const screen = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
       openServerMenu(q(screen.container, '[data-testid="server-icon"]'));
       const invite = screen.getByRole('menuitem', { name: 'Invite people' });
