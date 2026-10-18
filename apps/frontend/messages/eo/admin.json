@@ -544,16 +544,14 @@
       "total": "{count} uzanto(j) entute"
     },
     "invitations": {
-      "title": "Invitligiloj",
-      "list_title": "Invitligiloj",
-      "empty": "Ankoraŭ neniuj invitligiloj.",
+      "empty": "Ankoraŭ neniuj servilaj invitoj.",
       "uses": "Uzoj",
       "created_at": "Kreita",
       "actions": "Agoj",
       "never": "Neniam",
       "revoke": "Revoki",
-      "revoked": "Invitligilo revokita",
-      "revoke_title": "Ĉu revoki la invitligilon?",
+      "revoked": "Servila invito nuligita",
+      "revoke_title": "Ĉu nuligi la servilan inviton?",
       "revoke_description": "Ĉi tiu ligilo tuj ĉesos akcepti novajn kontojn.",
       "status": {
         "active": "Aktiva",

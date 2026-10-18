@@ -1,13 +1,12 @@
 {
   "invite_links": {
-    "compatibility_title": "Member invite links are unavailable",
+    "compatibility_title": "Server invites are unavailable",
     "compatibility_description": "This server does not support creating or managing invite links in this app. Existing invite links remain valid.",
-    "invite_people": "Invite people",
-    "own": "Your invite links",
-    "all": "All invite links",
+    "own": "Your server invites",
+    "all": "All server invites",
     "creator": "Created by",
-    "create_permission": "Create invite links",
-    "manage_permission": "Manage all invite links",
+    "create_permission": "Create server invites",
+    "manage_permission": "Manage all server invites",
     "create_help": "Create links that admit new accounts. Removing this permission does not revoke existing links.",
     "manage_help": "View, copy, and revoke anyone's invite links. Requires shield mode; does not permit creation.",
     "max_uses": "Maximum uses",
@@ -18,9 +17,11 @@
     "expiry_7d": "7 days",
     "expiry_30d": "30 days",
     "expiry_never": "Never",
-    "create": "Create invite link",
-    "created": "Invite link created",
+    "create": "Create server invite",
+    "created": "Server invite created",
     "copy": "Copy link",
-    "copied": "Invite link copied"
+    "copied": "Server invite copied",
+    "title": "Server invites",
+    "creation_unavailable": "Creating server invites requires permission from a server administrator. You can still manage your existing invites."
   }
 }

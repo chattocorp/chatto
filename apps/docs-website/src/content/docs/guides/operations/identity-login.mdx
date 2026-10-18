@@ -192,12 +192,14 @@ email/password registration and to provider auto-provisioning. Existing users
 can still sign in and link providers. Accounts that operators create are not
 affected.
 
-Grant `invite-link.create` to the roles that may invite people. Members use
-**Invite people** in the server sidebar or server menu, without shield mode.
+Grant `invite-link.create` under **Server invites** in the permission matrix
+to the roles that may create invites. Members select **Create server invite**
+at the top of the server sidebar, without shield mode. The same action is
+available under **Settings → Server invites**.
 By default, a link has one use and expires after seven days. You can set a
 different use limit, unlimited uses, a different expiry, or no expiry.
 
-Under **Settings → Invite links**, members can copy and revoke their own
+Under **Settings → Server invites**, members can copy and revoke their own
 links without shield mode. Members with `invite-link.manage` can manage all
 links while shield mode is active. This permission does not permit creation.
 Removing creation permission does not revoke existing links or prevent their

@@ -87,7 +87,7 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
-**Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
+**Server Invite** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. This is the UI name for an **Invite Link**, the term used in the API and permission IDs. See [FDR-036](fdr/FDR-036-invite-links.md).
 
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the _primary space_). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 

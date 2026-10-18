@@ -544,16 +544,14 @@
       "total": "{count} Benutzer insgesamt"
     },
     "invitations": {
-      "title": "Einladungslinks",
-      "list_title": "Einladungslinks",
-      "empty": "Noch keine Einladungslinks.",
+      "empty": "Noch keine Server-Einladungen.",
       "uses": "Nutzungen",
       "created_at": "Erstellt",
       "actions": "Aktionen",
       "never": "Nie",
       "revoke": "Widerrufen",
-      "revoked": "Einladungslink widerrufen",
-      "revoke_title": "Einladungslink widerrufen?",
+      "revoked": "Server-Einladung widerrufen",
+      "revoke_title": "Server-Einladung widerrufen?",
       "revoke_description": "Dieser Link lässt sofort keine neuen Konten mehr zu.",
       "status": {
         "active": "Aktiv",

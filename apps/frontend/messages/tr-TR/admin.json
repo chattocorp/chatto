@@ -544,16 +544,14 @@
       "total": "Toplam {count} kullanıcı(lar)"
     },
     "invitations": {
-      "title": "Davet bağlantıları",
-      "list_title": "Davet bağlantıları",
-      "empty": "Henüz davet bağlantısı yok.",
+      "empty": "Henüz sunucu daveti yok.",
       "uses": "Kullanım",
       "created_at": "Oluşturulma",
       "actions": "İşlemler",
       "never": "Asla",
       "revoke": "İptal et",
-      "revoked": "Davet bağlantısı iptal edildi",
-      "revoke_title": "Davet bağlantısı iptal edilsin mi?",
+      "revoked": "Sunucu daveti iptal edildi",
+      "revoke_title": "Sunucu daveti iptal edilsin mi?",
       "revoke_description": "Bu bağlantı yeni hesapları hemen kabul etmeyi bırakacak.",
       "status": {
         "active": "Etkin",

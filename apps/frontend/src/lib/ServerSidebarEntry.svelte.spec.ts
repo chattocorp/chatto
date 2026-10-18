@@ -371,7 +371,7 @@ describe('ServerSidebarEntry', () => {
       mocks.store.permissions = { canCreateInviteLinks: canCreate, canManageInvites: true };
       const screen = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
       openServerMenu(q(screen.container, '[data-testid="server-icon"]'));
-      const invite = screen.getByRole('menuitem', { name: 'Invite people' });
+      const invite = screen.getByRole('menuitem', { name: 'Create server invite' });
       if (canCreate) {
         await expect.element(invite).toBeVisible();
         await invite.click();

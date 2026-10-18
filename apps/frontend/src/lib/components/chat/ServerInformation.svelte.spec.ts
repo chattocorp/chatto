@@ -77,11 +77,11 @@ describe('ServerInformation', () => {
   });
   it('explains invite-link limitations on servers with supported thread views', async () => {
     const screen = show('0.5.0-beta.17');
-    await expect.element(screen.getByText('Member invite links are unavailable')).toBeVisible();
+    await expect.element(screen.getByText('Server invites are unavailable')).toBeVisible();
     await expect
       .element(
         screen
-          .getByRole('region', { name: 'Member invite links are unavailable' })
+          .getByRole('region', { name: 'Server invites are unavailable' })
           .getByText('Requires 0.5.0-beta.18 or newer')
       )
       .toBeVisible();

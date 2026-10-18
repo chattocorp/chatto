@@ -1,13 +1,12 @@
 {
   "invite_links": {
-    "compatibility_title": "Invitasjonslenker for medlemmer er ikke tilgjengelige",
+    "compatibility_title": "Serverinvitasjoner er ikke tilgjengelige",
     "compatibility_description": "Denne serveren støtter ikke oppretting eller administrasjon av invitasjonslenker i denne appen. Eksisterende invitasjonslenker er fortsatt gyldige.",
-    "invite_people": "Inviter personer",
-    "own": "Dine invitasjonslenker",
-    "all": "Alle invitasjonslenker",
+    "own": "Dine serverinvitasjoner",
+    "all": "Alle serverinvitasjoner",
     "creator": "Opprettet av",
-    "create_permission": "Opprett invitasjonslenker",
-    "manage_permission": "Administrer alle invitasjonslenker",
+    "create_permission": "Opprett serverinvitasjoner",
+    "manage_permission": "Administrer alle serverinvitasjoner",
     "create_help": "Opprett lenker for nye kontoer. Hvis tillatelsen fjernes, blir eksisterende lenker ikke tilbakekalt.",
     "manage_help": "Vis, kopier og tilbakekall alles lenker. Krever skjoldmodus; tillater ikke opprettelse.",
     "max_uses": "Maks antall bruk",
@@ -18,9 +17,11 @@
     "expiry_7d": "7 dager",
     "expiry_30d": "30 dager",
     "expiry_never": "Aldri",
-    "create": "Opprett invitasjonslenke",
-    "created": "Invitasjonslenke opprettet",
+    "create": "Opprett serverinvitasjon",
+    "created": "Serverinvitasjon opprettet",
     "copy": "Kopier lenke",
-    "copied": "Invitasjonslenke kopiert"
+    "copied": "Serverinvitasjon kopiert",
+    "title": "Serverinvitasjoner",
+    "creation_unavailable": "Du trenger tillatelse fra en serveradministrator for å opprette serverinvitasjoner. Du kan fortsatt administrere dine eksisterende invitasjoner."
   }
 }

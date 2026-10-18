@@ -1,7 +1,7 @@
-# FDR-036: Invite Links
+# FDR-036: Server Invites
 
 **Status:** Active
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -25,10 +25,17 @@ unchanged.
   invite-link admission.
 - An invite link can have a maximum number of uses, an expiry time, both, or
   neither. A link with neither remains valid until revoked.
-- Members with `invite-link.create` use **Invite people** in the normal server
-  UI. The dialog defaults to one use and seven days. Creators can select other
+- The UI calls this feature **Server invites**. Its permissions have a separate
+  section in permission matrices; their IDs remain `invite-link.create` and
+  `invite-link.manage`.
+- Members with `invite-link.create` use **Create server invite** at the top of
+  the normal server sidebar or from the **Server invites** management page.
+  Both actions open the same creation dialog outside management.
+  The dialog defaults to one use and seven days. Creators can select other
   limits, unlimited uses, or no expiry. Creation does not require shield mode.
-- The management section lists existing links. Without shield mode, members
+- The management page labels the list **Your server invites** or **All server
+  invites**. If creation is not permitted, it explains the required permission.
+  Without shield mode, members
   see only their own links. They can see status and use count, copy a link
   again, and revoke an active link without a permission.
 - With effective `invite-link.manage` and shield mode, members can manage all

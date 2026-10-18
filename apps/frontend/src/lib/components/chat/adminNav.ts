@@ -69,7 +69,7 @@ export function getAdminNavItems({
   // Ownership permits management even without create or global manage rights.
   items.push({
     href: resolve('/chat/[serverId]/manage/server/invite-links', { serverId: serverSegment }),
-    label: m('chat.management_nav.invitations'),
+    label: m('invite_links.title'),
     icon: 'iconify icon-[uil--envelope-share]'
   });
 

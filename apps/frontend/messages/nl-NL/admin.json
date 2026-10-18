@@ -544,16 +544,14 @@
       "total": "{count} gebruiker(s) totaal"
     },
     "invitations": {
-      "title": "Uitnodigingslinks",
-      "list_title": "Uitnodigingslinks",
-      "empty": "Nog geen uitnodigingslinks.",
+      "empty": "Nog geen serveruitnodigingen.",
       "uses": "Gebruikt",
       "created_at": "Gemaakt",
       "actions": "Acties",
       "never": "Nooit",
       "revoke": "Intrekken",
-      "revoked": "Uitnodigingslink ingetrokken",
-      "revoke_title": "Uitnodigingslink intrekken?",
+      "revoked": "Serveruitnodiging ingetrokken",
+      "revoke_title": "Serveruitnodiging intrekken?",
       "revoke_description": "Met deze link kunnen vanaf nu geen nieuwe accounts meer worden aangemaakt.",
       "status": {
         "active": "Actief",

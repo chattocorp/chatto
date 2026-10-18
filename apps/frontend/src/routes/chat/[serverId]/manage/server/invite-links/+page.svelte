@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { createInviteLinkAPI, type InviteLink } from '@chatto/client/api/invitations';
   import { createUserAPI } from '@chatto/client/api/users';
@@ -42,7 +43,8 @@
   let authorityGeneration = $state(0);
   const guard = createSessionGuard(serverScope);
   const manageAll = $derived(serverScope.store.permissions.canManageInvites);
-  const title = $derived(manageAll ? m('invite_links.all') : m('invite_links.own'));
+  const title = $derived(m('invite_links.title'));
+  const listTitle = $derived(manageAll ? m('invite_links.all') : m('invite_links.own'));
 
   onMount(() =>
     registerQueryCacheRemovalListener((serverId) => {
@@ -150,7 +152,22 @@
         serverSegment={serverIdToSegment(serverScope.serverId)}
       />
       {#if limitedFeatures.length === 0}
-        <Panel title={m('admin.invitations.list_title')} noPadding>
+        {#if serverScope.store.permissions.canCreateInviteLinks}
+          <div class="max-w-full self-start">
+            <Button
+              fullWidth
+              href={resolve('/chat/[serverId]/invite', {
+                serverId: serverIdToSegment(serverScope.serverId)
+              })}
+            >
+              <span class="iconify icon-[uil--envelope-share]" aria-hidden="true"></span>
+              <span class="min-w-0 whitespace-normal">{m('invite_links.create')}</span>
+            </Button>
+          </div>
+        {:else}
+          <Hint>{m('invite_links.creation_unavailable')}</Hint>
+        {/if}
+        <Panel title={listTitle} noPadding>
           {#if invitationsQuery.error}
             <div class="p-5"><Hint tone="danger">{errorMessage(invitationsQuery.error)}</Hint></div>
           {/if}

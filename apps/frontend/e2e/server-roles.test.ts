@@ -1257,7 +1257,7 @@ test.describe('Server Permission Enforcement', () => {
       await page.waitForURL(routes.settingsAppearance);
       await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Invite links', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Server invites', exact: true })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
 

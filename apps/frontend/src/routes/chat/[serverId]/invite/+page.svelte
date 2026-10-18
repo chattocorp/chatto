@@ -80,7 +80,7 @@
   }
 </script>
 
-<PageTitle title={m('invite_links.invite_people')} />
+<PageTitle title={m('invite_links.create')} />
 
 {#if invitation}
   <Dialog visible title={m('invite_links.created')} onclose={close}>
@@ -103,7 +103,7 @@
 {:else if canCreate}
   <FormDialog
     visible
-    title={m('invite_links.invite_people')}
+    title={m('invite_links.create')}
     submitLabel={m('invite_links.create')}
     submitIcon="iconify icon-[uil--plus]"
     {loading}

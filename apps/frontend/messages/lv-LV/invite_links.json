@@ -1,13 +1,12 @@
 {
   "invite_links": {
-    "compatibility_title": "Dalībnieku uzaicinājuma saites nav pieejamas",
+    "compatibility_title": "Servera uzaicinājumi nav pieejami",
     "compatibility_description": "Šis serveris neatbalsta uzaicinājuma saišu izveidi vai pārvaldību šajā lietotnē. Esošās uzaicinājuma saites paliek derīgas.",
-    "invite_people": "Uzaicināt cilvēkus",
-    "own": "Jūsu uzaicinājumu saites",
-    "all": "Visas uzaicinājumu saites",
+    "own": "Jūsu servera uzaicinājumi",
+    "all": "Visi servera uzaicinājumi",
     "creator": "Izveidoja",
-    "create_permission": "Izveidot uzaicinājumu saites",
-    "manage_permission": "Pārvaldīt visas uzaicinājumu saites",
+    "create_permission": "Izveidot servera uzaicinājumus",
+    "manage_permission": "Pārvaldīt visus servera uzaicinājumus",
     "create_help": "Izveidojiet saites jauniem kontiem. Šīs atļaujas noņemšana neatsauc esošās saites.",
     "manage_help": "Skatiet, kopējiet un atsauciet visu lietotāju saites. Nepieciešams vairoga režīms; izveide nav atļauta.",
     "max_uses": "Maksimālais lietojumu skaits",
@@ -18,9 +17,11 @@
     "expiry_7d": "7 dienas",
     "expiry_30d": "30 dienas",
     "expiry_never": "Nekad",
-    "create": "Izveidot uzaicinājuma saiti",
-    "created": "Uzaicinājuma saite izveidota",
+    "create": "Izveidot servera uzaicinājumu",
+    "created": "Servera uzaicinājums izveidots",
     "copy": "Kopēt saiti",
-    "copied": "Uzaicinājuma saite nokopēta"
+    "copied": "Servera uzaicinājums nokopēts",
+    "title": "Servera uzaicinājumi",
+    "creation_unavailable": "Lai izveidotu servera uzaicinājumus, nepieciešama servera administratora atļauja. Jūs joprojām varat pārvaldīt savus esošos uzaicinājumus."
   }
 }

@@ -359,7 +359,7 @@
           onclick={() => {
             closeContextMenu();
             void goto(resolve('/chat/[serverId]/invite', { serverId: serverSegment }));
-          }}>{m('invite_links.invite_people')}</MenuItem
+          }}>{m('invite_links.create')}</MenuItem
         >
       </MenuSection>
     {/if}

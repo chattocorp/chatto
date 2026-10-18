@@ -533,16 +533,14 @@
       "total": "共 {count} 名用户"
     },
     "invitations": {
-      "title": "邀请链接",
-      "list_title": "邀请链接",
-      "empty": "暂无邀请链接。",
+      "empty": "暂无服务器邀请。",
       "uses": "使用次数",
       "created_at": "创建时间",
       "actions": "操作",
       "never": "永不",
       "revoke": "撤销",
-      "revoked": "已撤销邀请链接",
-      "revoke_title": "撤销邀请链接？",
+      "revoked": "已撤销服务器邀请",
+      "revoke_title": "撤销服务器邀请？",
       "revoke_description": "此链接将立即停止接纳新账户。",
       "status": {
         "active": "有效",

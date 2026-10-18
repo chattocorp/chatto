@@ -40,6 +40,7 @@ const PERMISSION_CATEGORY_LABELS: Record<PermissionCategory, () => string> = {
   role: () => m('rbac.permission_categories.role'),
   room: () => m('rbac.permission_categories.room'),
   server: () => m('rbac.permission_categories.server'),
+  'server-invite': () => m('invite_links.title'),
   user: () => m('rbac.permission_categories.user'),
   other: () => m('rbac.permission_categories.other')
 };

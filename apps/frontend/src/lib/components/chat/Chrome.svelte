@@ -7,6 +7,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
   import { LoadingDots, ScrollFader } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
@@ -218,6 +219,15 @@
         <ServerBanner url={bannerUrl} />
       {/if}
 
+      {#if activeStore.permissions.canCreateInviteLinks}
+        <div class="px-2 pt-2">
+          <Button fullWidth href={resolve('/chat/[serverId]/invite', { serverId: serverSegment })}>
+            <span class="iconify icon-[uil--envelope-share]" aria-hidden="true"></span>
+            <span class="min-w-0 whitespace-normal">{m('invite_links.create')}</span>
+          </Button>
+        </div>
+      {/if}
+
       <nav class="sidebar-nav p-2">
         <a
           href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
@@ -239,15 +249,6 @@
           </a>
         {/if}
         <MyThreadsNavItem active={isMyThreadsActive} />
-        {#if activeStore.permissions.canCreateInviteLinks}
-          <a
-            href={resolve('/chat/[serverId]/invite', { serverId: serverSegment })}
-            class="sidebar-item"
-          >
-            <span class="iconify sidebar-icon icon-[uil--envelope-share]" aria-hidden="true"></span>
-            {m('invite_links.invite_people')}
-          </a>
-        {/if}
       </nav>
 
       <hr class="border-border" />

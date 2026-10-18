@@ -111,6 +111,8 @@ describe('PERMISSION_DEFINITIONS', () => {
 
   it('uses explicit categories with a presentation-only fallback for newer IDs', () => {
     expect(getPermissionCategory('server.manage')).toBe('server');
+    expect(getPermissionCategory('invite-link.create')).toBe('server-invite');
+    expect(getPermissionCategory('invite-link.manage')).toBe('server-invite');
     expect(getPermissionCategory('room.future-capability')).toBe('room');
     expect(getPermissionCategory('future.permission')).toBe('other');
     expect(getPermissionCategory('other.permission')).toBe('other');

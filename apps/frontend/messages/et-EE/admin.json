@@ -544,16 +544,14 @@
       "total": "{count} kasutaja(t) kokku"
     },
     "invitations": {
-      "title": "Kutselingid",
-      "list_title": "Kutselingid",
-      "empty": "Kutselinke veel pole.",
+      "empty": "Serverikutseid veel pole.",
       "uses": "Kasutusi",
       "created_at": "Loodud",
       "actions": "Toimingud",
       "never": "Mitte kunagi",
       "revoke": "Tühista",
-      "revoked": "Kutselink tühistatud",
-      "revoke_title": "Kas tühistada kutselink?",
+      "revoked": "Serverikutse tühistatud",
+      "revoke_title": "Kas tühistada serverikutse?",
       "revoke_description": "Selle lingi kaudu ei saa kohe enam uusi kontosid liituda.",
       "status": {
         "active": "Aktiivne",

@@ -187,8 +187,7 @@
       "security": "الأمان",
       "event_log": "سجل الأحداث",
       "system": "النظام",
-      "back_to_server": "العودة إلى الخادم",
-      "invitations": "روابط الدعوة"
+      "back_to_server": "العودة إلى الخادم"
     }
   }
 }

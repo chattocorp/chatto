@@ -544,16 +544,14 @@
       "total": "{count} user(s) total"
     },
     "invitations": {
-      "title": "Invite links",
-      "list_title": "Invite links",
-      "empty": "No invite links yet.",
+      "empty": "No server invites yet.",
       "uses": "Uses",
       "created_at": "Created",
       "actions": "Actions",
       "never": "Never",
       "revoke": "Revoke",
-      "revoked": "Invite link revoked",
-      "revoke_title": "Revoke invite link?",
+      "revoked": "Server invite revoked",
+      "revoke_title": "Revoke server invite?",
       "revoke_description": "This link will stop admitting new accounts immediately.",
       "status": {
         "active": "Active",

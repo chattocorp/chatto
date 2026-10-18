@@ -544,16 +544,14 @@
       "total": "Total de usuarios de {count}"
     },
     "invitations": {
-      "title": "Enlaces de invitación",
-      "list_title": "Enlaces de invitación",
-      "empty": "Todavía no hay enlaces de invitación.",
+      "empty": "Aún no hay invitaciones al servidor.",
       "uses": "Usos",
       "created_at": "Creado",
       "actions": "Acciones",
       "never": "Nunca",
       "revoke": "Revocar",
-      "revoked": "Enlace de invitación revocado",
-      "revoke_title": "¿Revocar el enlace de invitación?",
+      "revoked": "Invitación al servidor revocada",
+      "revoke_title": "¿Revocar invitación al servidor?",
       "revoke_description": "Este enlace dejará de permitir la creación de cuentas nuevas de inmediato.",
       "status": {
         "active": "Activo",

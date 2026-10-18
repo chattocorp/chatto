@@ -76,14 +76,36 @@ describe('Invitation link copying', () => {
     await userEvent.click(copyButton()!);
 
     expect(writeText).toHaveBeenNthCalledWith(2, link);
-    expect(getToasts()).toMatchObject([{ tone: 'success', message: 'Invite link copied' }]);
+    expect(getToasts()).toMatchObject([{ tone: 'success', message: 'Server invite copied' }]);
   });
 
   it('shows personal management without creation or global authority', async () => {
     const screen = render(InviteLinksPage);
-    await expect.element(screen.getByRole('heading', { name: 'Your invite links' })).toBeVisible();
+    await expect
+      .element(screen.getByRole('heading', { name: 'Your server invites' }))
+      .toBeVisible();
     await expect.element(screen.getByRole('button', { name: 'Copy link' })).toBeVisible();
-    expect(screen.container.textContent).not.toContain('Create invite link');
+    expect(screen.container.textContent).not.toContain('Create server invite');
+    await expect
+      .element(screen.getByText('Creating server invites requires permission', { exact: false }))
+      .toBeVisible();
+  });
+
+  it('offers creation to a member without global management authority', async () => {
+    const fixture = createTestServerScope({
+      permissions: { canCreateInviteLinks: true },
+      routes: (router) => router.service(InviteLinkService, invitations)
+    });
+    const screen = render(InviteLinksPage);
+    const create = screen.getByRole('link', { name: 'Create server invite', exact: true });
+    await expect.element(create).toHaveAttribute('href', '/chat/-/invite');
+    await expect
+      .element(screen.getByRole('heading', { name: 'Your server invites' }))
+      .toBeVisible();
+
+    fixture.permissions = { ...fixture.permissions, canCreateInviteLinks: false };
+    await expect.element(create).not.toBeInTheDocument();
+    await expect.element(screen.getByRole('button', { name: 'Copy link' })).toBeVisible();
   });
 
   it('explains older-server support without requesting invite links', async () => {
@@ -177,7 +199,9 @@ describe('Invitation link copying', () => {
     invitations.listInviteLinks.mockReturnValue({ inviteLinks: [] });
     fixture.permissions = { ...fixture.permissions, canManageInvites: false };
     removeRegisteredAdminQueries(fixture.serverId);
-    await expect.element(screen.getByRole('heading', { name: 'Your invite links' })).toBeVisible();
+    await expect
+      .element(screen.getByRole('heading', { name: 'Your server invites' }))
+      .toBeVisible();
     await vi.waitFor(() => expect(screen.container.textContent).not.toContain('other-user'));
     await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
     finishOld({ inviteLinks: [foreign] });

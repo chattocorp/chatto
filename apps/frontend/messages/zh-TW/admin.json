@@ -533,16 +533,14 @@
       "total": "共 {count} 位使用者"
     },
     "invitations": {
-      "title": "邀請連結",
-      "list_title": "邀請連結",
-      "empty": "尚無邀請連結。",
+      "empty": "尚無伺服器邀請。",
       "uses": "使用次數",
       "created_at": "建立時間",
       "actions": "操作",
       "never": "永不",
       "revoke": "撤銷",
-      "revoked": "已撤銷邀請連結",
-      "revoke_title": "要撤銷邀請連結嗎？",
+      "revoked": "已撤銷伺服器邀請",
+      "revoke_title": "撤銷伺服器邀請？",
       "revoke_description": "此連結將立即停止接納新帳戶。",
       "status": {
         "active": "有效",

@@ -544,16 +544,14 @@
       "total": "Total de utilizadores {count}"
     },
     "invitations": {
-      "title": "Ligações de convite",
-      "list_title": "Ligações de convite",
-      "empty": "Ainda não existem ligações de convite.",
+      "empty": "Ainda não há convites para o servidor.",
       "uses": "Usos",
       "created_at": "Criado",
       "actions": "Ações",
       "never": "Nunca",
       "revoke": "Revogar",
-      "revoked": "Ligação de convite revogada",
-      "revoke_title": "Revogar ligação de convite?",
+      "revoked": "Convite para o servidor revogado",
+      "revoke_title": "Revogar convite para o servidor?",
       "revoke_description": "Esta ligação deixará de permitir a criação de novas contas imediatamente.",
       "status": {
         "active": "Ativa",

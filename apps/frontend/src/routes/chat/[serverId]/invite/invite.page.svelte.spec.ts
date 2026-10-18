@@ -37,7 +37,7 @@ describe('member invite creation', () => {
     invitations.createInviteLink.mockReturnValue({ inviteLink: { id: 'I1', link } });
     const clipboard = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     const screen = render(InvitePage);
-    await screen.getByRole('button', { name: 'Create invite link', exact: true }).click();
+    await screen.getByRole('button', { name: 'Create server invite', exact: true }).click();
     await expect.element(screen.getByText(link, { exact: true })).toBeVisible();
     const request = invitations.createInviteLink.mock.calls[0][0];
     expect(request.maxUses).toBe(1);
@@ -46,7 +46,7 @@ describe('member invite creation', () => {
     ).toBeLessThan(10_000);
     await screen.getByRole('button', { name: 'Copy link', exact: true }).click();
     expect(clipboard).toHaveBeenCalledWith(link);
-    await expect.element(screen.getByRole('link', { name: 'Your invite links' })).toBeVisible();
+    await expect.element(screen.getByRole('link', { name: 'Your server invites' })).toBeVisible();
   });
 
   it('does not offer creation to a manager without create permission', async () => {
@@ -69,7 +69,7 @@ describe('member invite creation', () => {
         })
     );
     const screen = render(InvitePage);
-    await screen.getByRole('button', { name: 'Create invite link', exact: true }).click();
+    await screen.getByRole('button', { name: 'Create server invite', exact: true }).click();
     await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
     fixture.permissions = { ...fixture.permissions, canCreateInviteLinks: false };
     removeRegisteredAdminQueries(fixture.serverId);

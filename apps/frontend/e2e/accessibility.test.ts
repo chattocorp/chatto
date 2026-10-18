@@ -149,11 +149,14 @@ test.describe('Route accessibility', () => {
     await loginAsAdmin(page);
     await grantPermission(page, 'everyone', 'invite-link.create');
     await createAndLoginTestUser(page);
-    await page.goto('/chat/-/invite');
-    await expect(page.getByRole('dialog', { name: 'Invite people', exact: true })).toBeVisible();
+    await page.goto('/chat/-/overview');
+    await page.getByRole('link', { name: 'Create server invite', exact: true }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Create server invite', exact: true })
+    ).toBeVisible();
     await expectNoAccessibilityViolations(page, 'create invite link dialog', 'dialog[open]');
 
-    await page.getByRole('button', { name: 'Create invite link', exact: true }).click();
+    await page.getByRole('button', { name: 'Create server invite', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(page, 'created invite link dialog', 'dialog[open]');
   });

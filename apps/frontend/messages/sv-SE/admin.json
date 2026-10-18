@@ -544,16 +544,14 @@
       "total": "{count} användare totalt"
     },
     "invitations": {
-      "title": "Inbjudningslänkar",
-      "list_title": "Inbjudningslänkar",
-      "empty": "Inga inbjudningslänkar än.",
+      "empty": "Inga serverinbjudningar ännu.",
       "uses": "Användningar",
       "created_at": "Skapad",
       "actions": "Åtgärder",
       "never": "Aldrig",
       "revoke": "Återkalla",
-      "revoked": "Inbjudningslänk återkallad",
-      "revoke_title": "Återkalla inbjudningslänken?",
+      "revoked": "Serverinbjudan återkallad",
+      "revoke_title": "Återkalla serverinbjudan?",
       "revoke_description": "Länken slutar genast att släppa in nya konton.",
       "status": {
         "active": "Aktiv",

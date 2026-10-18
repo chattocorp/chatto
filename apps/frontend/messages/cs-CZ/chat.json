@@ -175,8 +175,7 @@
       "security": "Bezpečnost",
       "event_log": "Protokol událostí",
       "system": "Systém",
-      "back_to_server": "Návrat na server",
-      "invitations": "Zvací odkazy"
+      "back_to_server": "Návrat na server"
     }
   }
 }

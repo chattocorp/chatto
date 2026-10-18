@@ -1,13 +1,12 @@
 {
   "invite_links": {
-    "compatibility_title": "Linki zaproszeń członków są niedostępne",
+    "compatibility_title": "Zaproszenia na serwer są niedostępne",
     "compatibility_description": "Ten serwer nie obsługuje tworzenia linków zaproszeń ani zarządzania nimi w tej aplikacji. Istniejące linki pozostają ważne.",
-    "invite_people": "Zaproś osoby",
-    "own": "Twoje linki z zaproszeniem",
-    "all": "Wszystkie linki z zaproszeniem",
+    "own": "Twoje zaproszenia na serwer",
+    "all": "Wszystkie zaproszenia na serwer",
     "creator": "Utworzony przez",
-    "create_permission": "Twórz linki z zaproszeniem",
-    "manage_permission": "Zarządzaj wszystkimi linkami z zaproszeniem",
+    "create_permission": "Twórz zaproszenia na serwer",
+    "manage_permission": "Zarządzaj wszystkimi zaproszeniami na serwer",
     "create_help": "Twórz linki dla nowych kont. Odebranie tego uprawnienia nie unieważnia istniejących linków.",
     "manage_help": "Przeglądaj, kopiuj i unieważniaj linki wszystkich osób. Wymaga trybu tarczy; nie pozwala tworzyć linków.",
     "max_uses": "Maksymalna liczba użyć",
@@ -18,9 +17,11 @@
     "expiry_7d": "7 dni",
     "expiry_30d": "30 dni",
     "expiry_never": "Nigdy",
-    "create": "Utwórz link z zaproszeniem",
-    "created": "Utworzono link z zaproszeniem",
+    "create": "Utwórz zaproszenie na serwer",
+    "created": "Utworzono zaproszenie na serwer",
     "copy": "Kopiuj link",
-    "copied": "Skopiowano link z zaproszeniem"
+    "copied": "Skopiowano zaproszenie na serwer",
+    "title": "Zaproszenia na serwer",
+    "creation_unavailable": "Tworzenie zaproszeń na serwer wymaga uprawnienia od administratora serwera. Nadal możesz zarządzać swoimi istniejącymi zaproszeniami."
   }
 }

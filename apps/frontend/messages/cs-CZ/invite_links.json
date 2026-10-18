@@ -1,13 +1,12 @@
 {
   "invite_links": {
-    "compatibility_title": "Pozvánkové odkazy členů nejsou dostupné",
+    "compatibility_title": "Pozvánky na server nejsou dostupné",
     "compatibility_description": "Tento server nepodporuje vytváření ani správu pozvánkových odkazů v této aplikaci. Stávající odkazy zůstávají platné.",
-    "invite_people": "Pozvat lidi",
-    "own": "Vaše odkazy s pozvánkou",
-    "all": "Všechny odkazy s pozvánkou",
+    "own": "Vaše pozvánky na server",
+    "all": "Všechny pozvánky na server",
     "creator": "Vytvořil",
-    "create_permission": "Vytvářet odkazy s pozvánkou",
-    "manage_permission": "Spravovat všechny odkazy s pozvánkou",
+    "create_permission": "Vytvářet pozvánky na server",
+    "manage_permission": "Spravovat všechny pozvánky na server",
     "create_help": "Vytvářejte odkazy pro nové účty. Odebrání tohoto oprávnění nezruší existující odkazy.",
     "manage_help": "Zobrazujte, kopírujte a rušte odkazy všech uživatelů. Vyžaduje režim štítu; nepovoluje vytváření.",
     "max_uses": "Maximální počet použití",
@@ -18,9 +17,11 @@
     "expiry_7d": "7 dní",
     "expiry_30d": "30 dní",
     "expiry_never": "Nikdy",
-    "create": "Vytvořit zvací odkaz",
-    "created": "Zvací odkaz vytvořen",
+    "create": "Vytvořit pozvánku na server",
+    "created": "Pozvánka na server vytvořena",
     "copy": "Kopírovat odkaz",
-    "copied": "Zvací odkaz zkopírován"
+    "copied": "Pozvánka na server zkopírována",
+    "title": "Pozvánky na server",
+    "creation_unavailable": "Vytváření pozvánek na server vyžaduje oprávnění od správce serveru. Své stávající pozvánky můžete nadále spravovat."
   }
 }

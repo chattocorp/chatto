@@ -175,8 +175,7 @@
       "security": "セキュリティ",
       "event_log": "イベントログ",
       "system": "システム",
-      "back_to_server": "サーバーに戻る",
-      "invitations": "招待リンク"
+      "back_to_server": "サーバーに戻る"
     }
   }
 }

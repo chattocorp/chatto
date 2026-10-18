@@ -566,16 +566,14 @@
       "total": "Łączna liczba użytkowników {count}"
     },
     "invitations": {
-      "title": "Linki z zaproszeniem",
-      "list_title": "Linki z zaproszeniem",
-      "empty": "Brak linków z zaproszeniem.",
+      "empty": "Nie ma jeszcze zaproszeń na serwer.",
       "uses": "Użycia",
       "created_at": "Utworzono",
       "actions": "Działania",
       "never": "Nigdy",
       "revoke": "Unieważnij",
-      "revoked": "Unieważniono link z zaproszeniem",
-      "revoke_title": "Unieważnić link z zaproszeniem?",
+      "revoked": "Unieważniono zaproszenie na serwer",
+      "revoke_title": "Unieważnić zaproszenie na serwer?",
       "revoke_description": "Ten link natychmiast przestanie wpuszczać nowe konta.",
       "status": {
         "active": "Aktywny",

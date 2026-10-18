@@ -533,16 +533,14 @@
       "total": "{count} ユーザーの合計"
     },
     "invitations": {
-      "title": "招待リンク",
-      "list_title": "招待リンク",
-      "empty": "招待リンクはまだありません。",
+      "empty": "サーバー招待はまだありません。",
       "uses": "使用回数",
       "created_at": "作成日",
       "actions": "操作",
       "never": "なし",
       "revoke": "取り消す",
-      "revoked": "招待リンクを取り消しました",
-      "revoke_title": "招待リンクを取り消しますか？",
+      "revoked": "サーバー招待を取り消しました",
+      "revoke_title": "サーバー招待を取り消しますか？",
       "revoke_description": "このリンクでは、すぐに新しいアカウントを受け入れなくなります。",
       "status": {
         "active": "有効",

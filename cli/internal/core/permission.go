@@ -23,14 +23,15 @@ const (
 type PermissionCategory string
 
 const (
-	CategoryServer  PermissionCategory = "server"
-	CategoryRoom    PermissionCategory = "room"
-	CategoryCall    PermissionCategory = "call"
-	CategoryMessage PermissionCategory = "message"
-	CategoryRole    PermissionCategory = "role"
-	CategoryAdmin   PermissionCategory = "admin"
-	CategoryUser    PermissionCategory = "user"
-	CategoryBot     PermissionCategory = "bot"
+	CategoryServer       PermissionCategory = "server"
+	CategoryServerInvite PermissionCategory = "server-invite"
+	CategoryRoom         PermissionCategory = "room"
+	CategoryCall         PermissionCategory = "call"
+	CategoryMessage      PermissionCategory = "message"
+	CategoryRole         PermissionCategory = "role"
+	CategoryAdmin        PermissionCategory = "admin"
+	CategoryUser         PermissionCategory = "user"
+	CategoryBot          PermissionCategory = "bot"
 )
 
 // Permission is an opaque, stable identifier in the permission model. Its
@@ -246,8 +247,8 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserDeleteSelf, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermInviteLinkCreate, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermInviteLinkManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermInviteLinkCreate, Category: CategoryServerInvite, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermInviteLinkManage, Category: CategoryServerInvite, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 

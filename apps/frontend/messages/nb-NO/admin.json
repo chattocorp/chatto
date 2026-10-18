@@ -544,16 +544,14 @@
       "total": "{count} bruker(e) totalt"
     },
     "invitations": {
-      "title": "Invitasjonslenker",
-      "list_title": "Invitasjonslenker",
-      "empty": "Ingen invitasjonslenker ennå.",
+      "empty": "Ingen serverinvitasjoner ennå.",
       "uses": "Bruk",
       "created_at": "Opprettet",
       "actions": "Handlinger",
       "never": "Aldri",
       "revoke": "Trekk tilbake",
-      "revoked": "Invitasjonslenke trukket tilbake",
-      "revoke_title": "Trekke tilbake invitasjonslenken?",
+      "revoked": "Serverinvitasjon tilbakekalt",
+      "revoke_title": "Tilbakekalle serverinvitasjon?",
       "revoke_description": "Denne lenken slutter umiddelbart å slippe inn nye kontoer.",
       "status": {
         "active": "Aktiv",

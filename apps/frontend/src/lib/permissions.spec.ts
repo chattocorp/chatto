@@ -12,12 +12,12 @@ import {
 beforeAll(() => loadLocaleMessages('en-GB'));
 
 describe('PERMISSION_METADATA', () => {
-  it('keeps invite links and other server permissions in one category', () => {
+  it('groups server invites separately from server settings', () => {
     expect(
       ['server.manage', 'invite-link.manage', 'room.manage', 'invite-link.create'].sort(
         comparePermissionRows
       )
-    ).toEqual(['room.manage', 'invite-link.create', 'invite-link.manage', 'server.manage']);
+    ).toEqual(['room.manage', 'server.manage', 'invite-link.create', 'invite-link.manage']);
   });
 
   it('gives every catalogue permission localized text', () => {
@@ -37,6 +37,7 @@ describe('PERMISSION_METADATA', () => {
 
   it('labels permission categories', () => {
     expect(getPermissionCategoryLabel('server')).toBe('Server');
+    expect(getPermissionCategoryLabel('server-invite')).toBe('Server invites');
     expect(getPermissionCategoryLabel('other')).toBe('Other');
   });
 });

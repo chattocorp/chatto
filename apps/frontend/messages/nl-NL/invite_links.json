@@ -1,13 +1,12 @@
 {
   "invite_links": {
-    "compatibility_title": "Uitnodigingslinks voor leden zijn niet beschikbaar",
+    "compatibility_title": "Serveruitnodigingen zijn niet beschikbaar",
     "compatibility_description": "Deze server ondersteunt het maken of beheren van uitnodigingslinks in deze app niet. Bestaande uitnodigingslinks blijven geldig.",
-    "invite_people": "Mensen uitnodigen",
-    "own": "Je uitnodigingslinks",
-    "all": "Alle uitnodigingslinks",
+    "own": "Je serveruitnodigingen",
+    "all": "Alle serveruitnodigingen",
     "creator": "Gemaakt door",
-    "create_permission": "Uitnodigingslinks maken",
-    "manage_permission": "Alle uitnodigingslinks beheren",
+    "create_permission": "Serveruitnodigingen maken",
+    "manage_permission": "Alle serveruitnodigingen beheren",
     "create_help": "Maak links voor nieuwe accounts. Het intrekken van deze toestemming trekt bestaande links niet in.",
     "manage_help": "Bekijk, kopieer en trek links van iedereen in. Vereist schildmodus; staat het maken van links niet toe.",
     "max_uses": "Maximaal aantal keer gebruiken",
@@ -18,9 +17,11 @@
     "expiry_7d": "7 dagen",
     "expiry_30d": "30 dagen",
     "expiry_never": "Nooit",
-    "create": "Uitnodigingslink maken",
-    "created": "Uitnodigingslink gemaakt",
+    "create": "Serveruitnodiging maken",
+    "created": "Serveruitnodiging gemaakt",
     "copy": "Link kopiëren",
-    "copied": "Uitnodigingslink gekopieerd"
+    "copied": "Serveruitnodiging gekopieerd",
+    "title": "Serveruitnodigingen",
+    "creation_unavailable": "Je hebt toestemming van een serverbeheerder nodig om serveruitnodigingen te maken. Je kunt je bestaande uitnodigingen nog steeds beheren."
   }
 }

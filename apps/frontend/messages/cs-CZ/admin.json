@@ -566,16 +566,14 @@
       "total": "Celkem {count} uživatelů"
     },
     "invitations": {
-      "title": "Zvací odkazy",
-      "list_title": "Zvací odkazy",
-      "empty": "Zatím žádné zvací odkazy.",
+      "empty": "Zatím žádné pozvánky na server.",
       "uses": "Použití",
       "created_at": "Vytvořeno",
       "actions": "Akce",
       "never": "Nikdy",
       "revoke": "Odvolat",
-      "revoked": "Zvací odkaz odvolán",
-      "revoke_title": "Odvolat zvací odkaz?",
+      "revoked": "Pozvánka na server zrušena",
+      "revoke_title": "Zrušit pozvánku na server?",
       "revoke_description": "Přes tento odkaz se okamžitě přestanou registrovat nové účty.",
       "status": {
         "active": "Aktivní",

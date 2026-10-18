@@ -544,16 +544,14 @@
       "total": "Nombre total d'utilisateurs {count}"
     },
     "invitations": {
-      "title": "Liens d’invitation",
-      "list_title": "Liens d’invitation",
-      "empty": "Aucun lien d’invitation pour l’instant.",
+      "empty": "Aucune invitation au serveur pour le moment.",
       "uses": "Utilisations",
       "created_at": "Créé",
       "actions": "Actions",
       "never": "Jamais",
       "revoke": "Révoquer",
-      "revoked": "Lien d’invitation révoqué",
-      "revoke_title": "Révoquer le lien d’invitation ?",
+      "revoked": "Invitation au serveur révoquée",
+      "revoke_title": "Révoquer l’invitation au serveur ?",
       "revoke_description": "Ce lien cessera immédiatement de permettre l’ouverture de nouveaux comptes.",
       "status": {
         "active": "Actif",

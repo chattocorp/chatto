@@ -555,16 +555,14 @@
       "total": "Kopā {count} lietotājs(-i)."
     },
     "invitations": {
-      "title": "Uzaicinājumu saites",
-      "list_title": "Uzaicinājumu saites",
-      "empty": "Vēl nav uzaicinājumu saišu.",
+      "empty": "Vēl nav servera uzaicinājumu.",
       "uses": "Lietojumi",
       "created_at": "Izveidota",
       "actions": "Darbības",
       "never": "Nekad",
       "revoke": "Atsaukt",
-      "revoked": "Uzaicinājuma saite atsaukta",
-      "revoke_title": "Atsaukt uzaicinājuma saiti?",
+      "revoked": "Servera uzaicinājums atsaukts",
+      "revoke_title": "Atsaukt servera uzaicinājumu?",
       "revoke_description": "Ar šo saiti uzreiz vairs nevarēs pievienoties jauni konti.",
       "status": {
         "active": "Aktīva",

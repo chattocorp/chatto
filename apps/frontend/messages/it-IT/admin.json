@@ -544,16 +544,14 @@
       "total": "{count} utenti totali"
     },
     "invitations": {
-      "title": "Link di invito",
-      "list_title": "Link di invito",
-      "empty": "Ancora nessun link di invito.",
+      "empty": "Nessun invito al server ancora.",
       "uses": "Utilizzi",
       "created_at": "Creato",
       "actions": "Azioni",
       "never": "Mai",
       "revoke": "Revoca",
-      "revoked": "Link di invito revocato",
-      "revoke_title": "Revocare il link di invito?",
+      "revoked": "Invito al server revocato",
+      "revoke_title": "Revocare l’invito al server?",
       "revoke_description": "Questo link smetterà subito di permettere la creazione di nuovi account.",
       "status": {
         "active": "Attivo",
