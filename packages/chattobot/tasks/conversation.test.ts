@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import * as checkout from '../checkout.ts';
 import { createPaseoClient } from '../paseo/client.ts';
 import type { PaseoAgentTimelineEvent } from '@getpaseo/client';
 import {
@@ -26,6 +27,12 @@ import { createGitHubWorker, GitHubWorkInput } from './github.ts';
 import { generateKeyPairSync } from 'node:crypto';
 import type { ThreadMessage } from '../thread.ts';
 import type { Investigation } from '../investigation/tool.ts';
+
+// Conversation fixtures use fake checkout paths; Git behavior has its own integration tests.
+vi.mock('../checkout.ts', async (original) => ({
+  ...(await original<typeof import('../checkout.ts')>()),
+  refreshProjectContext: vi.fn(async () => undefined)
+}));
 
 vi.mock('../paseo/client.ts', () => ({ createPaseoClient: vi.fn() }));
 
@@ -381,6 +388,27 @@ test('cannot mark handled while an authorized background job is running', async 
   expect(bot.setHandled).toHaveBeenCalledOnce();
   bot.messages.close();
   await run;
+});
+
+test('loads project context once at startup, also for a non-maintainer', async () => {
+  const refresh = vi
+    .mocked(checkout.refreshProjectContext)
+    .mockClear()
+    .mockResolvedValueOnce('Project briefing fixture');
+  const investigator = vi.fn();
+  const bot = harness({ investigation: { directory: '/reference', investigator } });
+  const run = bot.start(message('one', 'What is new?'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  await bot.messages.send(message('two', 'What about 0.5?'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  bot.messages.close();
+  expect(await run).toMatchObject({ ok: true });
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(refresh).toHaveBeenCalledWith('/reference', expect.any(AbortSignal));
+  expect(bot.options().instructions).toEqual(['Project briefing fixture']);
+  expect(bot.options().systemPrompt).not.toContain('Project briefing fixture');
+  expect(bot.tools.has('investigate')).toBe(false);
+  expect(investigator).not.toHaveBeenCalled();
 });
 
 test('answers each message in its thread with the final text and ends when the input closes', async () => {

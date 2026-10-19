@@ -212,11 +212,20 @@ async function consume(
     async onEvent(event) {
       // Disallowed senders cannot start or continue a conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await server.addressedMessage(event, { signal: ctx.signal }).catch(() => {
-        ctx.signal.throwIfAborted();
-        console.warn('ChattoBot could not verify a reply target; ignoring the message.');
-        return undefined;
-      });
+      const message = await server
+        .addressedMessage(event, {
+          signal: ctx.signal,
+          // A DM starts a conversation, but ordinary replies inside its threads use
+          // the same participation check as channel replies. Explicit addressing still wins.
+          ...(event.event.case === 'messagePosted' && event.event.value.threadRootEventId
+            ? { reasons: ['mention', 'reply'] as const }
+            : {})
+        })
+        .catch(() => {
+          ctx.signal.throwIfAborted();
+          console.warn('ChattoBot could not verify a reply target; ignoring the message.');
+          return undefined;
+        });
       if (message?.authorId === botId) return;
       try {
         if (message)

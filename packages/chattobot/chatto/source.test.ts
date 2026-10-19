@@ -1,11 +1,14 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { parseEnv } from 'node:util';
-import { RealtimeEvent } from '@chatto/client';
+import { RealtimeEvent, type MessagingRequests } from '@chatto/client';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createTaskContext, runWorkflow, task, Type } from 'runling';
 import type { EventSource, WebhookContext } from 'runling/web';
 import { IntakeDecision, IntakeInput } from '../tasks/classify-intake.ts';
 import { chattoSource, chattoWorkflow } from './source.ts';
 import { IncomingMessage } from './message.ts';
+import { fakeChatto } from './fake-chatto.ts';
 
 const mocks = vi.hoisted(() => ({
   ready: vi.fn(),
@@ -68,7 +71,21 @@ const event = (id: string, roomId = 'intake', actorId = 'human') =>
 
 async function run(
   events: RealtimeEvent[],
-  { rooms = 'intake', allowed = '', botAuthor = false, missing = false, recovered = false } = {}
+  {
+    rooms = 'intake',
+    allowed = '',
+    botAuthor = false,
+    missing = false,
+    recovered = false,
+    addressed
+  }: {
+    rooms?: string;
+    allowed?: string;
+    botAuthor?: boolean;
+    missing?: boolean;
+    recovered?: boolean;
+    addressed?: MessagingRequests['addressedMessage'];
+  } = {}
 ) {
   vi.stubEnv('CHATTO_URL', 'https://chatto.example.test');
   vi.stubEnv('CHATTO_API_KEY', 'fixture');
@@ -81,16 +98,18 @@ async function run(
   vi.stubEnv('CHATTO_GITHUB_REPOSITORY', '');
   mocks.ready.mockResolvedValue({ viewerId: 'bot' });
   mocks.classify.mockResolvedValue({ engage: true, reason: 'bug' });
-  mocks.addressedMessage.mockImplementation(async (event: RealtimeEvent) =>
-    event.id === 'ping'
-      ? {
-          id: event.id,
-          roomId: 'ordinary',
-          authorId: event.actorId,
-          body: 'Hello',
-          reasons: ['mention']
-        }
-      : undefined
+  mocks.addressedMessage.mockImplementation(
+    addressed ??
+      (async (event: RealtimeEvent) =>
+        event.id === 'ping'
+          ? {
+              id: event.id,
+              roomId: 'ordinary',
+              authorId: event.actorId,
+              body: 'Hello',
+              reasons: ['mention']
+            }
+          : undefined)
   );
   mocks.batchGetUsers.mockResolvedValue({
     users: [{ user: { id: 'human', ...(botAuthor ? { bot: {} } : {}) } }]
@@ -254,6 +273,95 @@ test('a reaction can reopen a conversation without automatic intake', async () =
       reaction: expect.objectContaining({ messageId: 'proposal' })
     })
   ]);
+  expect(mocks.classify).not.toHaveBeenCalled();
+});
+
+test.each([RoomKind.DM, RoomKind.CHANNEL])(
+  'thread addressing uses the same rules for room kind %s',
+  async (roomKind) => {
+    const { createApi } = fakeChatto({
+      viewerId: 'bot',
+      routes: (router) =>
+        router.service(MessageService, {
+          getMessage: ({ roomId, eventId }) => ({
+            message: {
+              id: eventId,
+              roomId,
+              threadRootEventId: 'root',
+              actorId: eventId === 'bot-message' ? 'bot' : 'human',
+              body: 'Previous message'
+            }
+          })
+        })
+    });
+    const api = createApi({ serverUrl: 'https://chatto.example.test', apiKey: 'fixture' });
+    const post = (id: string, inReplyTo = '', threadRootEventId = 'root') =>
+      new RealtimeEvent({
+        id,
+        actorId: 'human',
+        event: {
+          case: 'messagePosted',
+          value: {
+            roomId: 'ordinary',
+            roomKind,
+            threadRootEventId,
+            inReplyTo,
+            bodyPlaintext: 'Hello',
+            mentions: id === 'mention' ? [{ includesViewer: true }] : []
+          }
+        }
+      });
+    await run(
+      [
+        post('ordinary'),
+        post('ordinary'),
+        post('human-reply', 'human-message'),
+        post('mention'),
+        post('bot-reply', 'bot-message'),
+        post('unwatched', '', 'other')
+      ],
+      { rooms: '', recovered: true, addressed: api.addressedMessage.bind(api) }
+    );
+    expect(
+      mocks.steered.mock.calls.map(([message]) => ({ id: message.id, trigger: message.trigger }))
+    ).toEqual([
+      { id: 'ordinary', trigger: 'follow-up' },
+      { id: 'human-reply', trigger: 'follow-up' },
+      { id: 'mention', trigger: undefined },
+      { id: 'bot-reply', trigger: undefined }
+    ]);
+    expect(mocks.started).not.toHaveBeenCalled();
+  }
+);
+
+test('a new DM root still starts a direct conversation', async () => {
+  const { createApi } = fakeChatto({ viewerId: 'bot', routes: () => {} });
+  const api = createApi({ serverUrl: 'https://chatto.example.test', apiKey: 'fixture' });
+  const inputs = await run(
+    [
+      new RealtimeEvent({
+        id: 'dm-root',
+        actorId: 'human',
+        event: {
+          case: 'messagePosted',
+          value: {
+            roomId: 'ordinary',
+            roomKind: RoomKind.DM,
+            bodyPlaintext: 'Help me set up Chatto'
+          }
+        }
+      })
+    ],
+    { rooms: '', addressed: api.addressedMessage.bind(api) }
+  );
+  expect(inputs).toEqual([
+    expect.objectContaining({
+      id: 'dm-root',
+      threadRootId: 'dm-root',
+      body: 'Help me set up Chatto'
+    })
+  ]);
+  expect((inputs[0] as IncomingMessage).trigger).toBeUndefined();
   expect(mocks.classify).not.toHaveBeenCalled();
 });
 
