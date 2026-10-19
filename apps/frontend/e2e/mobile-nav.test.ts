@@ -48,6 +48,10 @@ test.describe('Mobile Navigation', () => {
     for (const colorScheme of ['dark', 'light'] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
+      await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute(
+        'content',
+        colorScheme
+      );
       await expect
         .poll(() =>
           page.evaluate(() => {

@@ -402,12 +402,16 @@ export function resolveDisplayTheme(theme: DisplayTheme): EffectiveTheme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+/** Keep the page and its early colour-scheme metadata on the resolved app theme. */
 export function applyDisplayTheme(theme: DisplayTheme): void {
   if (typeof document === 'undefined') return;
   const effective = resolveDisplayTheme(theme);
   const root = document.documentElement;
   root.dataset.theme = effective;
   root.style.colorScheme = effective;
+  document
+    .querySelector<HTMLMetaElement>('meta[name="color-scheme"]')
+    ?.setAttribute('content', effective);
   syncShellColor();
 }
 

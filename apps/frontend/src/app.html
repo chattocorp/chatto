@@ -1,7 +1,9 @@
 <!doctype html>
-<html lang="en-GB" dir="ltr" style="color-scheme: light">
+<html lang="en-GB" dir="ltr">
   <head>
     <meta charset="utf-8" />
+    <!-- Declare supported schemes before generated styles and startup code. -->
+    <meta name="color-scheme" content="light dark" />
     %sveltekit.head%
     <meta name="theme-color" content="#e5e7eb" />
     <script>
@@ -69,6 +71,7 @@
             stored === 'light' || stored === 'dark' ? stored : mq.matches ? 'dark' : 'light';
           root.dataset.theme = effective;
           root.style.colorScheme = effective;
+          document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', effective);
           syncShellColor();
         }
 

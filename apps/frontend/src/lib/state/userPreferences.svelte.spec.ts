@@ -41,7 +41,22 @@ describe('UserPreferencesState', () => {
     document.documentElement.style.removeProperty('--contrast-strong-mix');
     document.documentElement.style.backgroundColor = '';
     document.documentElement.style.colorScheme = '';
-    document.head.innerHTML = '<meta name="theme-color" content="#e5e7eb" />';
+    document.head.innerHTML =
+      '<meta name="color-scheme" content="light dark" /><meta name="theme-color" content="#e5e7eb" />';
+  });
+
+  it('keeps colour-scheme metadata aligned with display preference changes', () => {
+    mockSystemTheme('dark');
+    const state = new UserPreferencesState();
+    state.displayTheme = 'dark';
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
+    expect(meta?.content).toBe('dark');
+    state.displayTheme = 'light';
+    expect(meta?.content).toBe('light');
+    expect(document.documentElement.style.colorScheme).toBe('light');
+    state.displayTheme = 'system';
+    expect(meta?.content).toBe('dark');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
   });
 
   it('uses the product defaults when no preferences are stored', () => {

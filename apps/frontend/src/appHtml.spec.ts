@@ -117,13 +117,22 @@ function runThemeScript({
       themeColor.content = value;
     }
   };
+  const colorScheme = {
+    content: 'light dark',
+    setAttribute: (_name: string, value: string) => {
+      colorScheme.content = value;
+    }
+  };
 
   runInNewContext(themeScript, {
     location: { protocol },
     document: {
       documentElement: root,
-      querySelector: (selector: string) =>
-        selector === 'meta[name="theme-color"]' ? themeColor : null
+      querySelector: (selector: string) => {
+        if (selector === 'meta[name="theme-color"]') return themeColor;
+        if (selector === 'meta[name="color-scheme"]') return colorScheme;
+        return null;
+      }
     },
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null,
@@ -148,6 +157,7 @@ function runThemeScript({
   return {
     root,
     themeColor,
+    colorScheme,
     storedLocale: () => storage.get('chatto:locale'),
     legacyStoredLocale: () => storage.get('PARAGLIDE_LOCALE'),
     changeSystemTheme(systemTheme: 'light' | 'dark') {
@@ -192,6 +202,15 @@ describe('app.html native surface depth', () => {
 });
 
 describe('app.html metadata', () => {
+  it('declares both colour schemes before generated styles and startup code', () => {
+    const tags = metaTags('color-scheme');
+    expect(tags).toHaveLength(1);
+    expect(metaContent(tags[0])).toBe('light dark');
+    expect(appHtml.indexOf(tags[0])).toBeLessThan(appHtml.indexOf('%sveltekit.head%'));
+    expect(appHtml.indexOf(tags[0])).toBeLessThan(appHtml.indexOf('<script>'));
+    expect(appHtml.match(/<html\b[^>]*>/i)?.[0]).not.toMatch(/color-scheme:\s*light/i);
+  });
+
   it('defines one document-controlled theme color without a manifest override', () => {
     const tags = metaTags('theme-color');
 
@@ -512,6 +531,7 @@ describe('app.html theme bootstrap', () => {
     system.changeSystemTheme('dark');
     expect(system.root.dataset.theme).toBe('dark');
     expect(system.themeColor.content).toBe('#262626');
+    expect(system.colorScheme.content).toBe('dark');
 
     const explicit = runThemeScript({
       preferences: { displayTheme: 'light' },
@@ -520,7 +540,22 @@ describe('app.html theme bootstrap', () => {
     explicit.changeSystemTheme('dark');
     expect(explicit.root.dataset.theme).toBe('light');
     expect(explicit.themeColor.content).toBe('#e5e7eb');
+    expect(explicit.colorScheme.content).toBe('light');
   });
+
+  it.each([
+    ['light', true, 'light'],
+    ['dark', false, 'dark'],
+    ['system', true, 'dark'],
+    ['system', false, 'light']
+  ] as const)(
+    'sets startup colour-scheme metadata for %s with OS dark=%s',
+    (displayTheme, systemDark, expected) => {
+      const { root, colorScheme } = runThemeScript({ preferences: { displayTheme }, systemDark });
+      expect(root.style.colorScheme).toBe(expected);
+      expect(colorScheme.content).toBe(expected);
+    }
+  );
 });
 
 describe('app.html locale bootstrap', () => {
