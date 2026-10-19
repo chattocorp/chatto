@@ -18,7 +18,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 - On each launch, the app loads chat data from the server after it verifies the session. On each page load, it also deletes the `chatto-saved-views` IndexedDB database that 0.5 beta versions created.
 - On upgrade, the app removes retired offline caches and unused root registrations. It keeps a root registration while a legacy push subscription still needs it. Server-specific push registrations stay intact.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
-- The app uses the browser's bottom safe area to keep the composer and navigation controls above system navigation. The app background fills this area. The browser controls whether installed apps can draw behind its system bars.
+- The app uses the browser's bottom safe area to keep the composer and navigation controls above system navigation. This area matches the chat background in light and dark themes. The browser controls whether installed apps can draw behind its system bars.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - The small Android notification icon uses a monochrome Chatto cat face with

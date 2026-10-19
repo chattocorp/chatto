@@ -36,6 +36,37 @@ test.describe('Mobile Navigation', () => {
   // A narrow mouse window has compact chrome. These cases exercise touch chrome.
   test.use({ hasTouch: true });
 
+  test('fills the bottom safe area with the chat background in both themes', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    const client = await page.context().newCDPSession(page);
+    await client.send('Emulation.setSafeAreaInsetsOverride', {
+      insets: { top: 0, left: 0, right: 0, bottom: 34 }
+    });
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+
+    for (const colorScheme of ['dark', 'light'] as const) {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const fill = document.querySelector<HTMLElement>('[data-safari-bottom-edge]')!;
+            const frame = document.querySelector<HTMLElement>('[data-testid="app-frame"]')!;
+            const bounds = fill.getBoundingClientRect();
+            return {
+              top: bounds.top,
+              bottom: bounds.bottom,
+              matchesBackground:
+                getComputedStyle(fill).backgroundColor === getComputedStyle(frame).backgroundColor,
+              pointerEvents: getComputedStyle(fill).pointerEvents
+            };
+          })
+        )
+        .toEqual({ top: 633, bottom: 667, matchesBackground: true, pointerEvents: 'none' });
+    }
+  });
+
   test('reserves the bottom safe area once on OAuth sign-in pages', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     const client = await page.context().newCDPSession(page);
@@ -169,8 +200,10 @@ test.describe('Mobile Navigation', () => {
       content: `
         :root { --mobile-sidebar-safe-bottom: env(safe-area-inset-bottom, 0px); }
         body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+        [data-safari-bottom-edge] { display: none; }
       `
     });
+    await expect(page.locator('[data-safari-bottom-edge]')).not.toBeVisible();
     await expect
       .poll(() =>
         page.getByTestId('app-frame').evaluate((element) => element.getBoundingClientRect().bottom)

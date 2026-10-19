@@ -140,16 +140,14 @@
   </div>
 {/if}
 
-<!-- Give WebKit a fixed, opaque bottom edge to extend behind Safari's toolbar.
-     The native iOS shell hides it because it paints its own keyboard backdrop.
+<!-- Paint the browser's bottom safe area with the page background. Keep at least
+     one opaque pixel for WebKit to extend behind Safari's toolbar. The native iOS
+     shell hides this surface because it paints its own keyboard backdrop.
      This surface must not intercept input or change the app's available height. -->
 <div
   data-safari-bottom-edge
   aria-hidden="true"
-  class={[
-    'pointer-events-none fixed inset-x-0 bottom-0 hidden h-px mobile-presentation:block',
-    standaloneOAuth ? 'bg-background' : 'bg-surface'
-  ]}
+  class="pointer-events-none fixed inset-x-0 bottom-0 hidden h-[max(1px,env(safe-area-inset-bottom,0px))] bg-background mobile-presentation:block"
 ></div>
 
 {#if page.state.modal}
