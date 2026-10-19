@@ -13,6 +13,7 @@ import { createEyesReaction, createHandledReaction } from '../reaction.ts';
 import {
   ConfigurationError,
   maintainerLoginSetting,
+  intakeDecisionSettings,
   setting,
   thinkingSetting,
   autoEngageRoomIds
@@ -20,7 +21,7 @@ import {
 import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { webSettings } from '../web.ts';
 import { createInvestigator, investigatorSettings } from '../tasks/investigate.ts';
-import { incomingMessage, intakeMessage } from './message.ts';
+import { incomingMessage, intakeMessage, followUpMessage } from './message.ts';
 import { createChattoRouter, createRouterState, type RouterState } from './router.ts';
 import { createIntakeClassifier } from '../tasks/classify-intake.ts';
 import { createThreadWorkflow } from '../tasks/thread.ts';
@@ -87,6 +88,7 @@ export function sourceSettings() {
       // Match the server-authenticated actor ID, never a display name.
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
       autoEngageRooms: autoEngageRoomIds(),
+      intake: intakeDecisionSettings(),
       conversation
     };
   } catch (error) {
@@ -112,7 +114,13 @@ export const chattoSource: EventSource = async (ctx) => {
 
 /** Stable registered root. Recovery uses HTTP access without waiting for the realtime source. */
 export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
-  const { serverUrl, apiKey, allowedUserId, conversation: conversationSettings } = sourceSettings();
+  const {
+    serverUrl,
+    apiKey,
+    allowedUserId,
+    intake,
+    conversation: conversationSettings
+  } = sourceSettings();
   const api = createApi({ serverUrl, apiKey });
   // A server outage during restart must not close all recovered conversations.
   let botId: string;
@@ -140,7 +148,7 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     readAttachment: createAttachmentReader(api)
   });
   return {
-    classifier: createIntakeClassifier(conversationSettings.model),
+    classifier: createIntakeClassifier(conversationSettings.model, intake),
     conversation,
     readFollowUp: createFollowUpReader(api, allowedUserId),
     async read(message, signal) {
@@ -212,7 +220,8 @@ async function consume(
         if (message)
           await ctx.dispatch(route, { ...incomingMessage(message), connection: identity });
         else {
-          const candidate = intakeMessage(event, autoEngageRooms, botId);
+          const candidate =
+            intakeMessage(event, autoEngageRooms, botId) ?? followUpMessage(event, botId);
           if (candidate) await ctx.dispatch(route, { ...candidate, connection: identity });
         }
       } catch {

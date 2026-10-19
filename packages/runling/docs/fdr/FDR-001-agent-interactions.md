@@ -61,10 +61,23 @@ one session, gives parent messages to it, and emits its completed replies.
   it needs, consumes progress, and decides how to deliver results. It owns waiting
   and disposal; Runling does not provide a separate job tracker or child registry.
   Child work is not retried or restored after restart.
-- Classifiers run one tool-free model turn with no local instructions or saved
-  history. Malformed output, schema failures, model failures, and cancellation
-  fail the task; they never become an implicit decision. Classification policy
-  and any authorization based on it belong to the application.
+- `createNotifier` wakes a process-local loop that owns its queue or state. It
+  retains at most one notification, permits one pending waiter, and supports
+  cancellation and an optional timeout. It cleans up the wait's timer and listener.
+  This avoids repeated promise and timer plumbing in application loops; batching,
+  data, and recovery remain the caller's responsibility. See [task channels](../task-channels.md#wake-a-processing-loop).
+- Classifiers run as ordinary tasks. `createClassifier` runs one tool-free agent
+  turn with no local instructions or saved history. `createChoiceClassifier`
+  sends one typed choice question to OpenRouter's Decisions API without an agent
+  session. The caller supplies the input schema, policy, model, and named choices;
+  the choice result includes provider probabilities and confidence. Both have a
+  30-second request deadline. Malformed output, model failures, refusals, and
+  cancellation fail the task; there is no retry or automatic fallback. The choice
+  adapter records reported token usage and cost in the task context. Classification
+  logs show the model, choice, probabilities, confidence, duration, and reported
+  usage and cost under the task's run context, without input text or credentials.
+  Classification policy, thresholds, and any authorization based on it belong to
+  the application.
 - Shared agent sessions can be resumed across workflows with an explicit ID.
   Only one lease in the process can use a file at a time. Scopes have separate
   files. Opening a shared session renews its activity and removes other inactive

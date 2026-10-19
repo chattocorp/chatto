@@ -11,6 +11,7 @@ import { IncomingMessage, ConversationInput, ConversationStart } from '../chatto
 import { IntakeDecision, IntakeInput } from './classify-intake.ts';
 import { createThreadWorkflow } from './thread.ts';
 import type { FollowUpSnapshot, ReadFollowUp } from '../chatto/follow-up.ts';
+import { createFollowUpReader } from '../chatto/follow-up.ts';
 
 const message: IncomingMessage = {
   id: 'post',
@@ -28,6 +29,7 @@ function harness(
   options: {
     readFollowUp?: ReadFollowUp;
     intervalMs?: number;
+    batchMs?: number;
     idleMs?: number;
     ready?: Promise<void>;
     state?: 'waiting' | 'idle';
@@ -251,6 +253,192 @@ const snapshot = (...ids: string[]): FollowUpSnapshot => ({
     },
     attachmentTypes: []
   }))
+});
+
+test('replies received during a turn remain one batch after the bot posts its answer', async () => {
+  const ready = Promise.withResolvers<void>();
+  const thread = [
+    { id: 'question', authorId: 'bot', body: 'What browser and version?', fromViewer: true }
+  ];
+  const api = {
+    readThread: async () => ({ messages: thread, olderOmitted: false }),
+    service: () => ({ batchGetUsers: async () => ({ users: [{ user: { id: 'human' } }] }) })
+  } as unknown as Parameters<typeof createFollowUpReader>[0];
+  const h = harness(async () => true, true, {
+    ready: ready.promise,
+    readFollowUp: createFollowUpReader(api),
+    intervalMs: 60_000,
+    batchMs: 5
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  for (const [id, body] of [
+    ['one', 'Firefox'],
+    ['two', '142']
+  ] as const) {
+    thread.push({ id, body, authorId: 'human', fromViewer: false });
+    await run.steer({ ...ping, id, body: 'Untrusted event copy', trigger: 'follow-up' });
+  }
+  thread.push({ id: 'new-bot-answer', body: 'Still checking.', authorId: 'bot', fromViewer: true });
+  ready.resolve();
+  await vi.waitFor(() => expect(h.batches).toHaveLength(1));
+  expect(h.batches[0]!.map(({ id, body }) => ({ id, body }))).toEqual([
+    { id: 'one', body: 'Firefox' },
+    { id: 'two', body: '142' }
+  ]);
+  expect(h.classify).toHaveBeenCalledOnce();
+  run.closeSteering();
+  await run.result;
+});
+
+test('saved pending reply IDs are checked after recovery without another realtime event', async () => {
+  const readFollowUp = vi.fn<ReadFollowUp>(async (_message, _signal, pendingIds) =>
+    pendingIds?.includes('one') ? snapshot('one') : undefined
+  );
+  const h = harness(async () => true, true, { readFollowUp, intervalMs: 60_000, batchMs: 5 });
+  const state = {
+    first: ping,
+    delivered: [ping.id],
+    pendingFollowUps: ['one'],
+    lastActivity: Date.now()
+  };
+  const messages = createChannel<IncomingMessage>();
+  const run = runWorkflow(h.workflow, {
+    input: ping,
+    state,
+    run: { id: 'recovered', resumed: true },
+    messages
+  });
+  try {
+    await vi.waitFor(() => expect(h.batches).toHaveLength(1));
+    expect(h.received.map(({ id }) => id)).toEqual(['one']);
+    expect(state.pendingFollowUps).toEqual([]);
+    expect(state.delivered).toContain('one');
+  } finally {
+    messages.close();
+    expect((await run).ok).toBe(true);
+  }
+});
+
+test('a direct ping cancels a check without consuming the pending ordinary replies', async () => {
+  let decisions = 0;
+  const h = harness(async () => (++decisions === 1 ? new Promise<boolean>(() => {}) : true), true, {
+    readFollowUp: async (_message, _signal, pendingIds) =>
+      pendingIds?.includes('one') ? snapshot('one') : undefined,
+    intervalMs: 60_000,
+    batchMs: 5
+  });
+  await using run = h.start(ping);
+  await run.steer({ ...ping, id: 'one', trigger: 'follow-up' });
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer({ ...ping, id: 'direct' });
+  await vi.waitFor(() => expect(h.batches).toHaveLength(1));
+  expect(h.received.map(({ id }) => id)).toEqual([ping.id, 'direct', 'one']);
+  expect(h.classify).toHaveBeenCalledTimes(2);
+  run.closeSteering();
+  await run.result;
+});
+
+test('realtime replies batch promptly, use a fresh snapshot, and do not go directly to the conversation', async () => {
+  const readFollowUp = vi.fn(async () => snapshot('one', 'two'));
+  const h = harness(async () => true, true, { readFollowUp, intervalMs: 60_000, batchMs: 10 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await run.steer({ ...ping, id: 'one', body: 'unverified event body', trigger: 'follow-up' });
+  await run.steer({ ...ping, id: 'two', trigger: 'follow-up' });
+  await vi.waitFor(() => expect(h.batches).toHaveLength(1));
+  expect(readFollowUp).toHaveBeenCalledOnce();
+  expect(h.classify).toHaveBeenCalledExactlyOnceWith({
+    context: snapshot().input.context,
+    messages: [
+      { body: 'one', attachmentTypes: [] },
+      { body: 'two', attachmentTypes: [] }
+    ]
+  });
+  expect(h.batches[0]).toEqual(snapshot('one', 'two').messages.map(({ message }) => message));
+  await run.steer({ ...ping, id: 'one', trigger: 'follow-up' });
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  expect(readFollowUp).toHaveBeenCalledOnce();
+  expect(h.classify).toHaveBeenCalledOnce();
+  run.closeSteering();
+  await run.result;
+});
+
+test('forwarding an accepted batch does not cancel its completed check', async () => {
+  const aborted = vi.fn();
+  const h = harness(async () => true, true, {
+    readFollowUp: async (_message, signal) => {
+      signal.addEventListener('abort', aborted, { once: true });
+      return snapshot('one');
+    },
+    intervalMs: 60_000,
+    batchMs: 5
+  });
+  await using run = h.start(ping);
+  await run.steer({ ...ping, id: 'one', trigger: 'follow-up' });
+  await vi.waitFor(() => expect(h.batches).toHaveLength(1));
+  expect(h.stopped).toHaveBeenCalledOnce();
+  expect(aborted).not.toHaveBeenCalled();
+  run.closeSteering();
+  await run.result;
+});
+
+test('realtime replies wait for a busy conversation and then wake the check without polling', async () => {
+  const ready = Promise.withResolvers<void>();
+  const readFollowUp = vi.fn(async () => snapshot('one'));
+  const h = harness(async () => false, true, {
+    readFollowUp,
+    ready: ready.promise,
+    intervalMs: 60_000,
+    batchMs: 5
+  });
+  await using run = h.start(ping);
+  await run.steer({ ...ping, id: 'one', trigger: 'follow-up' });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(readFollowUp).not.toHaveBeenCalled();
+  ready.resolve();
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  expect(h.received).toEqual([ping]);
+  run.closeSteering();
+  await run.result;
+});
+
+test('ordinary replies cannot bypass pending intake, but an addressed request still can', async () => {
+  const h = harness(() => new Promise<boolean>(() => {}));
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer({ ...ping, id: 'ordinary', trigger: 'follow-up' });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(h.received).toEqual([]);
+  expect(h.stopped).not.toHaveBeenCalled();
+  await run.steer(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  run.closeSteering();
+  await run.result;
+});
+
+test('replies arriving during classification are reconsidered once the current check finishes', async () => {
+  let current = snapshot('one');
+  const decision = Promise.withResolvers<boolean>();
+  const readFollowUp = vi.fn(async () => current);
+  const h = harness(() => decision.promise, true, { readFollowUp, intervalMs: 60_000, batchMs: 5 });
+  await using run = h.start(ping);
+  await run.steer({ ...ping, id: 'one', trigger: 'follow-up' });
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  current = snapshot('one', 'two');
+  await run.steer({ ...ping, id: 'two', trigger: 'follow-up' });
+  decision.resolve(false);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledTimes(2));
+  expect(h.classify).toHaveBeenLastCalledWith({
+    context: current.input.context,
+    messages: [
+      { body: 'one', attachmentTypes: [] },
+      { body: 'two', attachmentTypes: [] }
+    ]
+  });
+  expect(h.received).toEqual([ping]);
+  run.closeSteering();
+  await run.result;
 });
 
 test('addressed entry bypasses intake; empty checks never call the model and stop on input close', async () => {

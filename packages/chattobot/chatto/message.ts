@@ -85,3 +85,25 @@ export function intakeMessage(
     trigger: 'intake'
   };
 }
+
+/** A realtime reply can wake an existing thread workflow. It is never a request to the
+ * conversation agent: the workflow reads and classifies the current thread first. */
+export function followUpMessage(event: RealtimeEvent, botId: string): IncomingMessage | undefined {
+  if (
+    event.event.case !== 'messagePosted' ||
+    !event.id ||
+    !event.actorId ||
+    event.actorId === botId
+  )
+    return;
+  const post = event.event.value;
+  if (!post.threadRootEventId || post.echoOfEventId || post.bodyPlaintext === undefined) return;
+  return {
+    id: event.id,
+    roomId: post.roomId,
+    threadRootId: post.threadRootEventId,
+    authorId: event.actorId,
+    body: post.bodyPlaintext,
+    trigger: 'follow-up'
+  };
+}

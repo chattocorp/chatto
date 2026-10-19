@@ -164,6 +164,27 @@ undo its side effects, so task code must use the signal.
 async iteration. Channels keep data only in memory and use no Node-specific
 imports.
 
+### Wake a processing loop
+
+Use `createNotifier()` when a loop owns its queue or state and only needs a wake-up
+signal. `notify()` wakes a pending `wait()` or retains one notification. Repeated
+notifications coalesce. Only one wait can be pending at a time.
+
+```ts
+import { createNotifier } from 'runling';
+
+const changed = createNotifier();
+changed.notify(); // For example, after adding an item to an application queue.
+const notified = await changed.wait({ signal: ctx.signal, timeoutMs: 60_000 });
+// true: a notification arrived; false: the timeout expired.
+// Inspect the application queue or state, then wait again.
+```
+
+The timeout is optional, in milliseconds; zero checks for a retained notification
+without waiting. Cancellation rejects with the signal's reason. Each wait removes
+its timer and abort listener when it ends. The helper holds no payload, persists
+nothing, and does not start or track tasks. The caller owns batching and recovery.
+
 ## Timeline and journal
 
 Runling records each message, each read, and each wait for a message in the run

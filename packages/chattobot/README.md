@@ -32,8 +32,8 @@ Open conversations recover after a bot restart. See [Recovery](#recovery) for it
 ChattoBot registers its thread root with Runling as `chattoThread`. Recovery applies
 to new runs with this registration; older unregistered runs cannot recover.
 Runling saves workflow state every 60 seconds and after cleanup at graceful shutdown. The root
-keeps the accepted first message, delivered message IDs, last classification batch,
-and inactivity timestamp in `ctx.state`. It recreates the conversation and polling
+keeps the accepted first message, delivered and pending reply IDs, last classification batch,
+and inactivity timestamp in `ctx.state`. It recreates the conversation and follow-up
 loop on restart. The source reconnects its router to those same runs.
 
 Conversation and GitHub worker sessions use Runling's `agentSessionFile` API and live
@@ -51,7 +51,7 @@ The agent must check the outcome before claiming success or failure, and another
 attempt needs a new addressed maintainer request. Existing conversations post no restart notice.
 
 This is a recovery PoC, not guaranteed delivery. A crash can lose changes since
-the last snapshot, and the inbox is not saved. Thread polling can find relevant
+the last snapshot, and the inbox is not saved. Thread reconciliation can find relevant
 replies sent while the bot was offline, but treats them as automatic follow-ups
 without delegation authority. Agent files and workflow snapshots are saved
 separately. See [Runling workflow state](../runling/docs/workflow-state.md).
@@ -75,9 +75,16 @@ For example, set it to the ID of `#bug-reports`. Use room IDs, not room names.
 Restart the bot after changing `.env`. With no value, intake is disabled.
 
 In these rooms, each new top-level post starts a thread workflow.
-The workflow verifies a human author and calls a classifier task. The classifier
-uses the conversation model with low reasoning effort, no tools, and a
-30-second model deadline. It returns a decision and a short reason. The task
+The workflow verifies a human author and calls a classifier task. By default,
+the classifier uses the conversation model with low reasoning effort and returns
+a decision and a short reason. To try a dedicated model through OpenRouter, set
+`CHATTO_INTAKE_DECISION_MODEL=typesafe/jev-1.13` or
+`CHATTO_INTAKE_DECISION_MODEL=openai/gpt-6-luna-decisions`, with
+`OPENROUTER_API_KEY`. Do not add an `openrouter/` prefix. This setting applies to
+new reports and thread follow-up checks; it does not change GitHub authorization.
+Dedicated models return a choice and probabilities instead of a written reason.
+Both modes use the same participation policy, no tools, and a 30-second deadline.
+Failures never fall back to another model. The task
 does not post, react, or show typing. Ignored posts and failed classifications
 stay silent. Users can still mention the bot to get help.
 
@@ -122,11 +129,18 @@ thread replies. This applies to conversations started by a mention or direct rep
 as well as accepted reports. Other rooms still require an addressed message to
 start a conversation.
 
-Every 90 seconds, the thread workflow checks for human messages after the bot's
-latest post. It waits while the conversation agent is answering. No new messages
+New realtime replies notify an existing thread workflow. It waits two seconds to
+collect short replies into a batch, then reads human messages after the bot's latest
+post and classifies them. If the conversation agent is answering, the check waits
+until it can answer again. Pending reply IDs remain in workflow state: a newer
+bot post cannot move these replies out of the batch. The check reads their current
+content and includes the earlier question as context. Pending IDs are included
+in Runling's periodic snapshots and recovered after restart. Ordinary replies never go directly to the conversation
+agent and cannot start a new workflow. A five-minute reconciliation check recovers
+messages missed during disconnects and checks inactivity. No new messages
 means no model call. An unchanged batch is not classified again. When another
-message arrives, the classifier considers replies since that bot post that have not
-reached the conversation. Already-delivered replies are context only. They cannot
+message arrives, the classifier considers pending replies and replies since that
+bot post that have not reached the conversation. Already-delivered replies are context only. They cannot
 trigger another check or delivery, even when a turn produces no bot post.
 The classifier sees text and attachment MIME types, not files.
 Only clear implicit replies to the bot continue the conversation: answers to its
@@ -141,9 +155,10 @@ The bot adds 👀 when it engages with a thread root. It does not add eyes react
 to later messages in the thread, including pings and accepted automatic follow-ups.
 
 Pings and direct replies still reach the conversation immediately and cancel a
-pending follow-up check. Polling stops when the workflow ends. Empty, ignored,
+pending follow-up check. Checks stop when the workflow ends. Empty, ignored,
 and failed checks do not extend its one-hour inactivity timeout. Inactivity is
-checked on the polling tick, so expiry can wait for the next check. Classification
+checked before reading the thread, so expiry can wait for the next reconciliation
+check when no new events arrive. Classification
 failures stay silent until new messages arrive. Saved follow-up state survives a
 process restart. If the newest thread page no longer contains a bot post, the
 check skips the thread rather than guessing which messages are new; a ping still works.
@@ -435,7 +450,7 @@ the existing task. It does not automatically request another user approval.
 Invalid decisions, model errors, and cancellation prevent command execution and
 credential acquisition. The conversation's direct read tool is unchanged.
 
-Intake and command scope use Runling's `createClassifier`: one isolated, tool-free model
+Command scope uses Runling's `createClassifier`: one isolated, tool-free model
 turn with a validated JSON result and a 30-second deadline. Each worker write
 adds a call to the configured model provider, using low reasoning effort. The
 provider receives the resolved task, repository, and command arguments, which
@@ -495,6 +510,7 @@ where that account can.
 | `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                      |
 | `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                          |
 | `CHATTO_AUTO_ENGAGE_ROOM_IDS`                                                                   | Optional room IDs for automatic report intake, separated by commas or spaces. Disabled by default.             |
+| `CHATTO_INTAKE_DECISION_MODEL` | Optional OpenRouter Decisions model ID for participation checks. Requires `OPENROUTER_API_KEY`; unset uses the conversation model. |
 | `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                           |
 | `CHATTO_MAINTAINER_NAME`                                                                        | Optional Chatto user login to mention for maintainer input. Grants no permissions.                             |
 | `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
@@ -555,7 +571,9 @@ ChattoBot sends these data to other systems:
 With automatic intake enabled, the model provider also receives eligible new
 posts and attachment MIME types in the configured rooms, without a mention.
 For every active bot conversation, follow-up classification can send ordinary
-human replies and a short preceding excerpt to the same provider without a ping.
+human replies and a short preceding excerpt without a ping. When
+`CHATTO_INTAKE_DECISION_MODEL` is set, these classification inputs go to OpenRouter
+and its selected decision-model provider instead of the conversation provider.
 These requests reveal the bot host's IP address, not the author's IP address.
 Tell room members that the bot processes their posts. Classification incurs
 model costs even when the bot stays silent.
@@ -620,8 +638,23 @@ Chatto or GitHub. Cases cover reports, feature requests, incomplete reports,
 German text, unrelated messages, instruction injection, and image metadata.
 Follow-up cases cover partial and batched answers, corrections, screenshots,
 resolved questions, human discussion, and requests for silence.
-Reports are saved under `.runling/evaluations/`. A passing run is a behavioral
-sample, not proof that every classification will be correct.
+Reports are saved under `.runling/evaluations/`. Each case records the expected
+decision, actual result or error, elapsed time, tokens, and reported USD cost.
+Eight additional cases are marked `held-out` for comparison with the original
+32 cases. A passing run is a behavioral sample, not proof that every
+classification will be correct.
+
+Compare backends with the same cases:
+
+```sh
+CHATTO_INTAKE_DECISION_MODEL= pnpm eval:intake all
+CHATTO_INTAKE_DECISION_MODEL=typesafe/jev-1.13 pnpm eval:intake all
+CHATTO_INTAKE_DECISION_MODEL=openai/gpt-6-luna-decisions pnpm eval:intake all
+```
+
+The evaluation exits with a failure if any case fails; the report keeps all
+results. Compare unwanted engagement and missed engagement separately from
+request errors. Missing reported cost does not mean a request was free.
 
 ### GitHub model evaluations
 

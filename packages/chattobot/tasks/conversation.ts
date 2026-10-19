@@ -10,6 +10,7 @@
 import { createHash } from 'node:crypto';
 import {
   createAgentSession,
+  createNotifier,
   type Invocation,
   agentSessionFile,
   defineAgentExtension,
@@ -212,7 +213,7 @@ class Conversation implements WorkOwner {
   /** Items for the next turn, in order of arrival. */
   private queue: Item[] = [];
   private inputEnded = false;
-  private wake?: () => void;
+  private readonly wake = createNotifier();
   readonly pending = new Map<string, PendingWork>();
   /** Only addressed messages in the active turn can authorize restricted work. */
   private currentMessages: IncomingMessage[] = [];
@@ -295,7 +296,7 @@ class Conversation implements WorkOwner {
         }
       } finally {
         this.inputEnded = true;
-        this.wake?.();
+        this.wake.notify();
       }
     })().catch(() => {});
     if (this.resumed) await this.ctx.emit('idle');
@@ -312,13 +313,13 @@ class Conversation implements WorkOwner {
 
   private push(item: Item) {
     this.queue.push(item);
-    this.wake?.();
+    this.wake.notify();
   }
 
   /** All waiting items, or undefined when nothing can arrive any more. */
   private async take(): Promise<Item[] | undefined> {
     while (!this.queue.length && (!this.inputEnded || this.pending.size))
-      await new Promise<void>((resolve) => (this.wake = resolve));
+      await this.wake.wait({ signal: this.ctx.signal });
     return this.queue.length ? this.queue.splice(0) : undefined;
   }
 

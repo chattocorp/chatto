@@ -12,26 +12,38 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - Put Runling tasks in `tasks/<task>.ts`, with their tests in the same directory
   as `<task>.test.ts` or `<task>-<scope>.test.ts`. This includes evaluation tasks.
   Keep supporting tools and fixtures in their domain directories.
-- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends each message
-  that addresses the bot, or starts report intake, to the run of its thread, or starts one.
+- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends messages to the
+  run of their thread. Addressed messages and report intake can start a run.
+  Ordinary thread replies only notify an existing run, including a recovered run.
 - In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
   later addressed messages to that child. Addressed entry starts the same workflow
-  without initial classification. Every 90 seconds, while the conversation is idle,
-  the workflow checks human replies since the bot's latest post. It classifies changed
+  without initial classification. Ordinary reply events wake a check after a
+  two-second batching delay. Keep pending reply IDs in root state while the
+  conversation is busy, including across a newer bot post or restart. Read these
+  replies together with human replies since the latest bot post, with current content
+  and author checks. Retain pending IDs when a direct turn cancels classification;
+  consume only the checked batch, not newer notifications. Event bodies never go
+  directly to the conversation. A five-minute reconciliation check recovers missed
+  events and checks inactivity.
+  The workflow classifies changed
   batches and forwards accepted replies together to the existing conversation.
   Accept clear implicit replies to the bot, not general discussion of the same topic.
   Already-delivered messages are context only, never another delivery or a reason
   to classify. Keep this true even when a turn does not post a reply.
   Empty or unchanged checks need no model call. The workflow owns the one-hour
-  inactivity timeout, checked on the polling tick; only delivered messages reset it.
-  Keep one conversation state (`busy`, `waiting`, or `idle`) for polling and expiry.
+  inactivity timeout, checked before reading the thread; only delivered messages reset it.
+  Keep one conversation state (`busy`, `waiting`, or `idle`) for checks and expiry.
   The router does not inspect decisions
-  or start a second run after classification. Keep the classifier free of tools
+  or start a second run after classification. Ordinary replies cannot bypass
+  pending intake or reopen an expired workflow. Participation can use the optional
+  `CHATTO_INTAKE_DECISION_MODEL` through Runling's `createChoiceClassifier`.
+  Keep its policy shared with the default agent classifier. This setting does
+  not change authorization classifiers. Keep the classifier free of tools
   and Chatto effects. Check model behavior with `pnpm eval:intake`.
 - Register the thread root as `chattoThread` for Runling recovery. The root owns
-  its plain `ctx.state`: accepted entry, delivered IDs, checked batch, and activity
+  its plain `ctx.state`: accepted entry, delivered IDs, pending reply IDs, checked batch, and activity
   time. Restore source routing from `ctx.runs()`, bound to the same server and bot.
   Use Runling's `agentSessionFile(ctx, 'conversation')` for the transcript. Runling
   owns its path and retention; keep filesystem cleanup out of ChattoBot.

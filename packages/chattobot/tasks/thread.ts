@@ -1,13 +1,23 @@
 /** Own a thread's conversation and decide when ordinary replies need another turn. */
 import { setTimeout as delay } from 'node:timers/promises';
-import { log, task, Type, type Static, type TaskContext, type TaskInvocation } from 'runling';
+import {
+  createNotifier,
+  log,
+  task,
+  Type,
+  type Static,
+  type TaskContext,
+  type TaskInvocation
+} from 'runling';
 import { IncomingMessage, type ConversationInput } from '../chatto/message.ts';
 import type { createConversation } from './conversation.ts';
 import type { createIntakeClassifier, ReportInput } from './classify-intake.ts';
 import type { ReadFollowUp } from '../chatto/follow-up.ts';
 
-/** Wait long enough to collect short replies into one classification and one turn. */
-export const FOLLOW_UP_INTERVAL_MS = 90_000;
+/** Reconcile messages missed during disconnects and check inactivity. Realtime replies wake sooner. */
+export const FOLLOW_UP_INTERVAL_MS = 5 * 60_000;
+/** Collect a short burst of replies before reading and classifying the thread. */
+const FOLLOW_UP_BATCH_MS = 2_000;
 /** Empty or ignored checks do not extend this lifetime. */
 export const IDLE_MS = 60 * 60_000;
 
@@ -22,6 +32,8 @@ export interface ThreadOptions {
   readFollowUp: ReadFollowUp;
   /** Injectable clock interval for lifecycle tests. */
   intervalMs?: number;
+  /** Realtime batching delay, injectable for lifecycle tests. */
+  batchMs?: number;
   idleMs?: number;
 }
 
@@ -29,6 +41,8 @@ export interface ThreadOptions {
 interface ThreadState {
   first?: IncomingMessage;
   delivered: string[];
+  /** Realtime replies awaiting consideration, even if the bot posts again before the check. */
+  pendingFollowUps: string[];
   checked?: string;
   lastActivity: number;
 }
@@ -52,13 +66,27 @@ export function createThreadWorkflow(
       const resume = !!saved.delivered || !!ctx.run?.resumed;
       const hadConversation = !!saved.first;
       saved.delivered ??= [message.id];
+      saved.pendingFollowUps ??= [];
       saved.lastActivity ??= Date.now();
       const state = saved as ThreadState;
       const options = typeof configure === 'function' ? await configure(ctx, message) : configure;
       const { classifier, conversation, read } = options;
       const reader = ctx.steering[Symbol.asyncIterator]();
+      let notify = () => {};
+      // Follow-up events are notifications, never an addressed request that can bypass intake.
+      // Keep one inbox reader, and retain a notification received before the child starts.
+      const nextAddressed = async (): Promise<IteratorResult<IncomingMessage>> => {
+        while (true) {
+          const item = await reader.next();
+          if (item.done || item.value.trigger !== 'follow-up') return item;
+          if (state.delivered.includes(item.value.id)) continue;
+          if (!state.pendingFollowUps.includes(item.value.id))
+            state.pendingFollowUps.push(item.value.id);
+          notify();
+        }
+      };
       let queued: IteratorResult<IncomingMessage> | undefined;
-      const nextMessage = reader.next().then((item) => {
+      const nextMessage = nextAddressed().then((item) => {
         queued = item;
         return item;
       });
@@ -116,14 +144,16 @@ export function createThreadWorkflow(
         ...(resumeConversation ? { resume: true } : {})
       });
       const monitor = monitorConversation(ctx, child, first, options, state);
+      notify = monitor.notify;
+      if (state.pendingFollowUps.length) notify();
       const finished = child.result.then(() => ({ done: true as const, value: undefined }));
       const forward = async () => {
-        let pending = usedNextMessage ? reader.next() : nextMessage;
+        let pending = usedNextMessage ? nextAddressed() : nextMessage;
         while (true) {
           const item = await Promise.race([pending, finished]);
           if (item.done) break;
           await monitor.send(item.value);
-          pending = reader.next();
+          pending = nextAddressed();
         }
         monitor.stop();
         child.closeSteering();
@@ -140,24 +170,35 @@ export function createThreadWorkflow(
   );
 }
 
-/** A poll has no visible effects until classification accepts a batch. One snapshot key skips
+/** A thread check has no visible effects until classification accepts a batch. One snapshot key skips
  * unchanged replies. Already-delivered messages are context only; the next check reconsiders
  * the remaining human replies since the last bot post when another reply arrives.
  * Direct input or a new turn cancels an obsolete check before it can send a duplicate batch.
- * The same polling loop expires idle conversations after an hour without delivered messages;
+ * Realtime notifications wake the loop; a periodic check recovers missed events and expires
+ * idle conversations after an hour without delivered messages;
  * active turns and background jobs can finish first. */
 function monitorConversation(
   ctx: TaskContext<IncomingMessage, unknown>,
   child: TaskInvocation<ReturnType<typeof createConversation>>,
   first: IncomingMessage,
-  { classifier, readFollowUp, intervalMs = FOLLOW_UP_INTERVAL_MS, idleMs = IDLE_MS }: ThreadOptions,
+  {
+    classifier,
+    readFollowUp,
+    intervalMs = FOLLOW_UP_INTERVAL_MS,
+    batchMs = FOLLOW_UP_BATCH_MS,
+    idleMs = IDLE_MS
+  }: ThreadOptions,
   saved: ThreadState
 ) {
   const lifetime = new AbortController();
   const signal = AbortSignal.any([ctx.signal, lifetime.signal]);
   let state: 'busy' | 'waiting' | 'idle' = 'busy';
-  // A turn can finish without a bot post. The post boundary alone cannot deduplicate delivery.
-  const delivered = new Set(saved.delivered);
+  let changed = false;
+  const wake = createNotifier();
+  const notify = () => {
+    if (!changed && state !== 'busy') wake.notify();
+    changed = true;
+  };
   let check: AbortController | undefined;
   let classification: TaskInvocation<ReturnType<typeof createIntakeClassifier>> | undefined;
   const interrupt = () => {
@@ -170,21 +211,25 @@ function monitorConversation(
     interrupt();
   };
   const send = async (message: ConversationInput) => {
+    // A turn can finish without a bot post. The persisted IDs deduplicate delivery.
     const fresh = (Array.isArray(message) ? message : [message]).filter(
-      (item) => !delivered.has(item.id)
+      (item) => !saved.delivered.includes(item.id)
     );
     if (!fresh.length) return;
     interrupt();
     await child.steer(Array.isArray(message) ? fresh : fresh[0]!);
-    for (const item of fresh) delivered.add(item.id);
-    saved.delivered = [...delivered];
+    for (const item of fresh) saved.delivered.push(item.id);
+    saved.pendingFollowUps = saved.pendingFollowUps.filter((id) => !saved.delivered.includes(id));
     saved.lastActivity = Date.now();
   };
   const updates = (async () => {
     try {
       for await (const update of child.output) {
         if (update === 'busy') interrupt();
-        else state = update;
+        else {
+          state = update;
+          if (changed) wake.notify();
+        }
       }
     } finally {
       stop();
@@ -192,32 +237,43 @@ function monitorConversation(
   })();
   const polls = (async () => {
     while (!signal.aborted) {
+      let considered: readonly string[] | undefined;
+      let key: string | undefined;
+      let accepted: IncomingMessage[] | undefined;
       try {
-        await delay(intervalMs, undefined, { signal });
+        await wake.wait({ signal, timeoutMs: intervalMs });
+        signal.throwIfAborted();
         if (state === 'busy') continue;
         if (state === 'idle' && Date.now() - saved.lastActivity >= idleMs) {
           stop();
           child.closeSteering();
           break;
         }
+        if (changed) await delay(batchMs, undefined, { signal });
+        // A direct request may have started a turn during the batching delay.
+        if (state === 'busy') continue;
+        changed = false;
         check = new AbortController();
         const checkSignal = AbortSignal.any([signal, check.signal]);
-        const snapshot = await readFollowUp(first, checkSignal);
+        const pendingIds = [...saved.pendingFollowUps];
+        const snapshot = await readFollowUp(first, checkSignal, pendingIds);
         checkSignal.throwIfAborted();
+        considered = pendingIds;
         if (!snapshot) continue;
-        const pending = snapshot.messages.filter(({ message }) => !delivered.has(message.id));
+        const pending = snapshot.messages.filter(
+          ({ message }) => !saved.delivered.includes(message.id)
+        );
         if (!pending.length) continue;
         const messages = pending.map(({ message }) => message);
-        const key = JSON.stringify([snapshot.boundary, messages.map((item) => item.id)]);
+        key = JSON.stringify([snapshot.boundary, messages.map((item) => item.id)]);
         if (key === saved.checked) continue;
-        saved.checked = key;
         {
           await using decision = ctx.start(classifier, {
             ...snapshot.input,
             context: [
               ...snapshot.input.context,
               ...snapshot.messages
-                .filter(({ message }) => delivered.has(message.id))
+                .filter(({ message }) => saved.delivered.includes(message.id))
                 .map(({ message }) => ({ role: 'human' as const, body: message.body }))
             ],
             messages: pending.map(({ message, attachmentTypes }) => ({
@@ -228,19 +284,32 @@ function monitorConversation(
           classification = decision;
           const { engage } = await decision.result;
           checkSignal.throwIfAborted();
-          if (engage) {
-            await send(messages);
-            log.info('Thread follow-up accepted');
-          } else log.info('Thread follow-up ignored');
+          if (engage) accepted = messages;
+          else log.info('Thread follow-up ignored');
         }
       } catch {
         if (!signal.aborted && !check?.signal.aborted)
           log.error('Thread follow-up check failed; no automatic reply sent');
       } finally {
+        // A completed or failed decision consumes this snapshot, not notifications that
+        // arrived during it. Cancellation by a direct turn leaves pending IDs for the next
+        // idle check. Finish this check before forwarding an accepted batch.
+        if (!signal.aborted && considered && !check?.signal.aborted) {
+          const consumed = new Set(considered);
+          saved.pendingFollowUps = saved.pendingFollowUps.filter((id) => !consumed.has(id));
+          if (key) saved.checked = key;
+        } else if (!signal.aborted && check?.signal.aborted && saved.pendingFollowUps.length) {
+          notify();
+        }
+        if (signal.aborted || check?.signal.aborted) accepted = undefined;
         classification = undefined;
         check = undefined;
       }
+      if (accepted) {
+        await send(accepted);
+        log.info('Thread follow-up accepted');
+      }
     }
   })();
-  return { send, stop, done: Promise.all([updates, polls]).then(() => {}) };
+  return { send, notify, stop, done: Promise.all([updates, polls]).then(() => {}) };
 }

@@ -59,11 +59,23 @@ import assert from "node:assert/strict";
 import * as runling from "runling";
 const { createTaskContext, createChannel, task, taskTool, awaitWithSignal, Type } = runling;
 assert.equal(await awaitWithSignal(async () => 42, new AbortController().signal), 42);
+const notifier = runling.createNotifier();
+notifier.notify();
+notifier.notify();
+assert.equal(await notifier.wait(), true);
+assert.equal(await notifier.wait({ timeoutMs: 0 }), false);
 for (const removed of ["spawn", "input", "createWorkflowContext", "isSchemaTask", "getPwd", "randomId"])
   assert.equal(removed in runling, false, removed + " must not be exported");
 await assert.rejects(import("runling/agents"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
 const echo = task({ name: "Echo", input: Type.String(), result: Type.String() }, (_ctx, input) => input);
 assert.equal(await echo(createTaskContext(), "direct"), "direct");
+const choose = runling.createChoiceClassifier({
+  name: "Choose", input: Type.String(), model: "test/decisions", apiKey: "fixture",
+  instructions: "Choose a route", choices: { accept: "Report", ignore: "Other" }
+}, async () => Response.json({ answers: { decision: {
+  type: "choice", choice: "accept", confidence: 0.9, probabilities: { accept: 0.9, ignore: 0.1 }
+} } }));
+assert.equal((await choose(createTaskContext(), "report")).choice, "accept");
 const worker = task({
   name: "Worker", input: Type.Number(), result: Type.Number(), steering: Type.Number(), output: Type.Number(),
 }, async (ctx, initial) => {
