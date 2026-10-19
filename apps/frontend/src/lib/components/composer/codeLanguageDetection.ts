@@ -19,26 +19,25 @@ function selectedCodeBlock(state: EditorState): number | null {
 export function createCodeLanguageDetectionPlugin(
   detect: (code: string) => Promise<string | null> = detectCodeLanguage
 ): Plugin<Map<number, ChangedBlock>> {
-  const attempted = new WeakSet<Node>();
+  const attempted = new WeakSet<ChangedBlock>();
   let disposed = false;
 
   function detectChangedBlocks(view: EditorView, blurred = false) {
     const selected = selectedCodeBlock(view.state);
-    for (const [position, { node, pasted }] of detectionKey.getState(view.state) ?? []) {
-      if ((!blurred && !pasted && selected === position) || attempted.has(node)) continue;
-      attempted.add(node);
+    for (const [position, entry] of detectionKey.getState(view.state) ?? []) {
+      const { node, pasted } = entry;
+      if ((!blurred && !pasted && selected === position) || attempted.has(entry)) continue;
+      attempted.add(entry);
       void detect(node.textContent).then(
         (language) => {
-          if (
-            disposed ||
-            view.isDestroyed ||
-            !language ||
-            view.state.doc.nodeAt(position) !== node ||
-            detectionKey.getState(view.state)?.get(position)?.node !== node
-          )
-            return;
+          if (disposed || view.isDestroyed || !language) return;
+          // The state retains this entry only while the same code and attributes survive.
+          const current = [...(detectionKey.getState(view.state) ?? [])].find(
+            ([, candidate]) => candidate === entry
+          );
+          if (!current) return;
           view.dispatch(
-            view.state.tr.setNodeMarkup(position, undefined, { ...node.attrs, language })
+            view.state.tr.setNodeMarkup(current[0], undefined, { ...node.attrs, language })
           );
         },
         // Detection is optional. A failed load leaves the user's code unchanged.
@@ -57,10 +56,15 @@ export function createCodeLanguageDetectionPlugin(
         if (!transaction.docChanged) return previous;
         const changed = new Map<number, ChangedBlock>();
         for (const [position, entry] of previous) {
-          const mapped = transaction.mapping.mapResult(position);
-          const node = mapped.deleted ? null : newState.doc.nodeAt(mapped.pos);
+          // Map inside the node: decoration refreshes replace its opening token.
+          const mapped = transaction.mapping.mapResult(position + 1);
+          if (mapped.deleted) continue;
+          const $mapped = newState.doc.resolve(mapped.pos);
+          if (!$mapped.depth) continue;
+          const mappedPosition = $mapped.before();
+          const node = $mapped.parent;
           if (node?.type.name === 'codeBlock' && !node.attrs.language && node.textContent.trim()) {
-            changed.set(mapped.pos, { node, pasted: entry.pasted && node === entry.node });
+            changed.set(mappedPosition, node.eq(entry.node) ? entry : { node, pasted: false });
           }
         }
         const position = selectedCodeBlock(newState);

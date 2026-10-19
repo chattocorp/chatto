@@ -118,6 +118,24 @@ describe('composer code language persistence', () => {
 });
 
 describe('code language detection', () => {
+  it.each(['moved', 'decoration refresh'])(
+    'keeps a pending guess when unchanged code is %s',
+    async (change) => {
+      const { view, detect, resolve } = setup();
+      view.dispatch(view.state.tr.insertText('const answer = 42;').setMeta('uiEvent', 'paste'));
+      if (change === 'moved') {
+        view.dispatch(view.state.tr.insert(0, schema.node('paragraph')));
+      } else {
+        view.dispatch(view.state.tr.setNodeMarkup(0, undefined, view.state.doc.firstChild!.attrs));
+      }
+      resolve('javascript');
+      await vi.waitFor(() =>
+        expect(view.state.doc.nodeAt(change === 'moved' ? 2 : 0)?.attrs.language).toBe('javascript')
+      );
+      expect(detect).toHaveBeenCalledOnce();
+    }
+  );
+
   it('saves a guess after paste without moving the selection', async () => {
     const { view, detect, resolve } = setup();
     view.dispatch(view.state.tr.insertText('const answer = 42;').setMeta('uiEvent', 'paste'));
