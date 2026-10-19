@@ -345,7 +345,7 @@ test('answers each message in its thread with the final text and ends when the i
       body: 'Answer to: And Runling?'
     }
   ]);
-  expect(bot.reactions).toEqual(['one', 'two']);
+  expect(bot.reactions).toEqual([]);
   expect(bot.createAgent).toHaveBeenCalledOnce();
   expect(bot.disposed()).toBe(true);
 });
@@ -435,18 +435,21 @@ test('a bare maintainer ping includes another author’s unaddressed answer as c
   expect(bot.createAgent).toHaveBeenCalledOnce();
 });
 
-test('a follow-up batch reaches one turn in the existing agent session', async () => {
+test('automatic intake reacts only to the root while follow-ups and addressed replies still get answers', async () => {
   const bot = harness();
-  const run = bot.start(message('one', 'Help with Chatto'));
+  const run = bot.start({ ...message('root', 'Help with Chatto'), trigger: 'intake' });
   await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
   await bot.messages.send([
     { ...message('two', '0.4.3', 'alice'), trigger: 'follow-up' },
     { ...message('three', 'Docker Compose', 'bob'), trigger: 'follow-up' }
   ]);
   await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+  await bot.messages.send(message('four', '@ChattoBot any news?'));
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(3));
   bot.messages.close();
   expect(await run).toMatchObject({ ok: true });
-  expect(bot.prompts).toHaveLength(2);
+  expect(bot.prompts).toHaveLength(3);
+  expect(bot.reactions).toEqual(['root']);
   expect(bot.prompts[1]).toContain('0.4.3');
   expect(bot.prompts[1]).toContain('Docker Compose');
   expect(bot.prompts[1]).toContain('Automatic follow-up from user alice');
@@ -981,7 +984,7 @@ test('runs investigations in the background and stays available while they run',
   });
   expect(bot.prompts[2]).toContain('finished (Investigation: Why are images gone?)');
   expect(bot.prompts[2]).toContain('The renderer drops images.');
-  expect(bot.reactions).toEqual(['one', 'two']);
+  expect(bot.reactions).toEqual([]);
 });
 
 test('a failed child reaches a later turn once, even after input closes', async () => {

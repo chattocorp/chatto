@@ -129,11 +129,16 @@ message arrives, the classifier considers replies since that bot post that have 
 reached the conversation. Already-delivered replies are context only. They cannot
 trigger another check or delivery, even when a turn produces no bot post.
 The classifier sees text and attachment MIME types, not files.
-Replies that answer questions, correct advice, or supply relevant details can
-continue the same conversation in one turn. Thanks, unrelated discussion, and
+Only clear implicit replies to the bot continue the conversation: answers to its
+questions, requested details, corrections to its advice, or requests for it to help
+further. Discussion of the same topic, human-to-human questions, brainstorming,
+and status updates do not qualify on their own. Uncertain cases, thanks, and
 requests to leave the conversation to humans should stay silent.
 For automatic-intake conversations, clear resolutions and report withdrawals also
 reach the conversation agent so it can update the checkmark; plain thanks stay silent.
+
+The bot adds 👀 when it engages with a thread root. It does not add eyes reactions
+to later messages in the thread, including pings and accepted automatic follow-ups.
 
 Pings and direct replies still reach the conversation immediately and cancel a
 pending follow-up check. Polling stops when the workflow ends. Empty, ignored,
