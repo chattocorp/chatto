@@ -9,7 +9,7 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "browser"],
-  "background_color": "#f3f4f6",
+  "background_color": "#767676",
   "color_scheme_dark": {
     "background_color": "#171717"
   },
