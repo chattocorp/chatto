@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "exclude": ["src/**/*.svelte.ts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/testing/**"]
+}

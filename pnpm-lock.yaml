@@ -286,6 +286,9 @@ importers:
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.13
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -348,9 +351,12 @@ importers:
       '@types/node':
         specifier: ^22
         version: 22.20.4
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.13
       typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
+        specifier: ^6.0.3
+        version: 6.0.3
 
   packages/api-types:
     dependencies:
@@ -457,8 +463,8 @@ importers:
         specifier: ^22
         version: 22.20.1
       typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
+        specifier: ^6.0.3
+        version: 6.0.3
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(happy-dom@20.14.5)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(tsx@4.23.13)(yaml@2.9.0)

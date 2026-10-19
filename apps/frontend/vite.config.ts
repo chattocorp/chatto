@@ -3,13 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import {
-  defaultClientConditions,
-  defaultServerConditions,
-  defineConfig,
-  type Plugin,
-  type UserConfig
-} from 'vite';
+import { defineConfig, type Plugin, type UserConfig } from 'vite';
 
 import { catalogSections, catalogBoundary } from './src/lib/i18n/catalogSections.js';
 
@@ -220,10 +214,6 @@ export default defineConfig(async ({ command }) => {
       }
     },
     resolve: {
-      // Workspace packages expose their TypeScript source under this
-      // condition, so the frontend builds and hot-reloads them without a
-      // separate package build.
-      conditions: ['@chatto/source', ...defaultClientConditions],
       alias: {
         // The lowlight package root re-exports `all`, which imports every
         // highlight.js grammar. We only need createLowlight, so point bundling
@@ -232,7 +222,6 @@ export default defineConfig(async ({ command }) => {
       }
     },
     ssr: {
-      resolve: { conditions: ['@chatto/source', ...defaultServerConditions] },
       // TipTap is browser-only but imported in Svelte components that are
       // compiled for SSR. Bundle them into the SSR output to avoid
       // "could not be resolved" warnings (the code paths are guarded by

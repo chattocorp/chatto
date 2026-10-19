@@ -7,31 +7,17 @@
   "sideEffects": false,
   "exports": {
     "./package.json": "./package.json",
-    "./admin/*": {
-      "types": "./dist/chatto/admin/*.d.ts",
-      "import": "./dist/chatto/admin/*.js"
-    },
-    "./api/*": {
-      "types": "./dist/chatto/api/*.d.ts",
-      "import": "./dist/chatto/api/*.js"
-    },
-    "./chatto/*": {
-      "types": "./dist/chatto/*.d.ts",
-      "import": "./dist/chatto/*.js"
-    },
-    "./realtime/*": {
-      "types": "./dist/chatto/realtime/*.d.ts",
-      "import": "./dist/chatto/realtime/*.js"
-    }
+    "./admin/*": "./src/chatto/admin/*.ts",
+    "./api/*": "./src/chatto/api/*.ts",
+    "./chatto/*": "./src/chatto/*.ts",
+    "./realtime/*": "./src/chatto/realtime/*.ts"
   },
   "files": [
-    "dist",
     "src"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "clean": "rm -rf dist src/chatto",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "clean": "rm -rf src/chatto",
+    "check": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@bufbuild/protobuf": "1.10.1"

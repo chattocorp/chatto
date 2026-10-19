@@ -30,7 +30,7 @@
     "@bufbuild/protobuf": "^1.10.1",
     "@connectrpc/connect": "^1.7.0",
     "@types/node": "^22",
-    "typescript": "~5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^3.2.0"
   }
 }

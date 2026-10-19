@@ -48,7 +48,7 @@ states:
           - Bundled frontend: mise lint-frontend and mise test-frontend;
             use browser verification and relevant mise test-e2e coverage for UI changes.
           - TypeScript packages: mise check-workspace, or use mise x -- pnpm
-            turbo run check --filter=<package>... for the package and dependents;
+            turbo run check --filter=...<package> for the package and dependents;
             run the affected package tests through Turbo.
           - Runling: mise check-runling and mise test-runling; use
             mise test-runling-package for package or release changes.
@@ -60,7 +60,7 @@ states:
           for new files or license changes. Validate workflow edits with
           workflow_validate and fix all errors.
           Do not run mise codegen-proto concurrently with tasks that read
-          packages/api-types/dist. Use mise dev or mise dev-full for browser
+          packages/api-types. Use mise dev or mise dev-full for browser
           checks, and stop the stack before handing control back to the user.
           If Questlog is available, keep the existing scope current and mark
           only verified work complete. Report failed or unavailable checks.
