@@ -20,6 +20,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
 - The app uses the browser's bottom safe area to keep the composer and navigation controls above system navigation. This area matches the chat background in light and dark themes. The browser controls whether installed apps can draw behind its system bars.
 - Before startup, the page tells the browser that it supports light and dark modes. The selected app theme then controls the page colour scheme, including when it differs from the system theme.
+- The manifest supplies separate light and dark launch backgrounds. Browsers that do not support the dark override use the light background in both modes. On the affected Android device, Chrome 155 also uses this installed background for the bottom navigation area.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - The small Android notification icon uses a monochrome Chatto cat face with

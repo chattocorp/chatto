@@ -18,6 +18,8 @@ const directionFunction = themeScript?.match(
 
 type WebAppManifest = {
   icons?: Array<{ src?: string; sizes?: string; type?: string; purpose?: string }>;
+  background_color?: string;
+  color_scheme_dark?: { background_color?: string; theme_color?: string };
   theme_color?: string;
 };
 
@@ -211,13 +213,16 @@ describe('app.html metadata', () => {
     expect(appHtml.match(/<html\b[^>]*>/i)?.[0]).not.toMatch(/color-scheme:\s*light/i);
   });
 
-  it('defines one document-controlled theme color without a manifest override', () => {
+  it('provides light/dark manifest backgrounds and one document-controlled theme colour', () => {
     const tags = metaTags('theme-color');
 
     expect(tags).toHaveLength(1);
     expect(metaContent(tags[0])).toBe('#e5e7eb');
     expect(tags[0]).not.toMatch(/\bmedia=/i);
     expect(manifest.theme_color).toBeUndefined();
+    expect(manifest.background_color).toBe('#f3f4f6');
+    expect(manifest.color_scheme_dark?.background_color).toBe('#171717');
+    expect(manifest.color_scheme_dark?.theme_color).toBeUndefined();
   });
 
   it('declares the Safari apple touch icon with an explicit size', () => {
