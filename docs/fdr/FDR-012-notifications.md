@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-10-19
 
 ## Overview
 
@@ -91,7 +91,10 @@ targets, unread counts, read state, or deletion semantics.
   before or during the action. If a page fails to load, the action reports an
   error and does not start deletion. Both deletion actions update the UI
   optimistically and then reconcile with the server.
-- Every occurrence leaves application-visible state exactly 90 days after its
+- Read occurrences are automatically deleted seven days after they first become
+  Read. The server checks once per minute and retries failed cleanup. An
+  occurrence created as Read uses its creation time for this deadline.
+- Every remaining occurrence leaves application-visible state 90 days after its
   source activity. Reading or deleting it does not extend that lifetime.
   Physical cleanup may continue during ADR-076's 24-hour grace period without
   extending user-visible retention.
@@ -132,12 +135,15 @@ all members are Read.
 
 **Decision:** Reading is monotonic: an occurrence may move from Unread to Read
 but not back to Unread. Read occurrences remain in the list until the user
-deletes them or the 90-day retention window expires. Deletion is idempotent and
+deletes them, automatic cleanup deletes them after seven days, or the original
+90-day retention window expires. Deletion is idempotent and
 privacy-oriented rather than a synonym for reading.
 
 **Why:** Read state answers whether attention is outstanding; deletion answers
 whether the item should remain in personal history. Combining them would make
-it impossible to dismiss without handling or to retain handled activity.
+it impossible to dismiss without handling or to retain recent handled activity.
+The seven-day limit keeps recent history while reducing retained read payloads
+and list state.
 
 **Tradeoff:** The server must preserve bounded triage and deletion history so a
 replay cannot recreate a deleted item.

@@ -145,7 +145,8 @@ message NotificationSignal {
   }
 }
 
-// One exact Notifications 2.0 source occurrence.
+// One exact Notifications 2.0 source occurrence. Read occurrences are deleted
+// automatically after seven days by server maintenance, checked once per minute.
 message NotificationOccurrence {
   // Stable occurrence ID.
   string id = 1;
@@ -157,7 +158,8 @@ message NotificationOccurrence {
   NotificationSignal signal = 4;
   // Whether this occurrence still contributes unread attention.
   bool unread = 5;
-  // Absolute expiry, 90 days after the source activity.
+  // Absolute expiry, 90 days after the source activity. Read occurrences can be
+  // deleted earlier by automatic cleanup.
   google.protobuf.Timestamp expires_at = 6;
   // Source-time visual importance of this occurrence.
   NotificationAttentionLevel attention_level = 7;

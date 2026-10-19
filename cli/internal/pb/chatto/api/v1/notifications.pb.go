@@ -1027,7 +1027,8 @@ func (*NotificationSignal_ReactionReceived) isNotificationSignal_Kind() {}
 
 func (*NotificationSignal_RoomMessageReceived) isNotificationSignal_Kind() {}
 
-// One exact Notifications 2.0 source occurrence.
+// One exact Notifications 2.0 source occurrence. Read occurrences are deleted
+// automatically after seven days by server maintenance, checked once per minute.
 type NotificationOccurrence struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable occurrence ID.
@@ -1040,7 +1041,8 @@ type NotificationOccurrence struct {
 	Signal *NotificationSignal `protobuf:"bytes,4,opt,name=signal,proto3" json:"signal,omitempty"`
 	// Whether this occurrence still contributes unread attention.
 	Unread bool `protobuf:"varint,5,opt,name=unread,proto3" json:"unread,omitempty"`
-	// Absolute expiry, 90 days after the source activity.
+	// Absolute expiry, 90 days after the source activity. Read occurrences can be
+	// deleted earlier by automatic cleanup.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Source-time visual importance of this occurrence.
 	AttentionLevel NotificationAttentionLevel `protobuf:"varint,7,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.api.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`

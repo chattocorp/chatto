@@ -1254,8 +1254,12 @@ type NotificationOccurrence struct {
 	// Terminal alert result. Absence means Pending when alert_expires_at is
 	// present and the occurrence is unread; false means Suppressed.
 	AlertDelivered *bool `protobuf:"varint,13,opt,name=alert_delivered,json=alertDelivered,proto3,oneof" json:"alert_delivered,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Time of the first projected transition to Read, including an initially-read
+	// signal. Derived from existing lifecycle timestamps and retained in snapshots
+	// so maintenance can delete read occurrences without extending their lifetime.
+	ReadAt        *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=read_at,json=readAt,proto3" json:"read_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationOccurrence) Reset() {
@@ -1377,6 +1381,13 @@ func (x *NotificationOccurrence) GetAlertDelivered() bool {
 		return *x.AlertDelivered
 	}
 	return false
+}
+
+func (x *NotificationOccurrence) GetReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReadAt
+	}
+	return nil
 }
 
 // NotificationSignalled is the immutable materialized fact from which the
@@ -1840,7 +1851,7 @@ const file_chatto_core_notification_v1_notification_proto_rawDesc = "" +
 	"\x11reaction_received\x18\t \x01(\v2-.chatto.core.notification.v1.ReactionReceivedH\x00R\x10reactionReceived\x12f\n" +
 	"\x15room_message_received\x18\n" +
 	" \x01(\v20.chatto.core.notification.v1.RoomMessageReceivedH\x00R\x13roomMessageReceivedB\x06\n" +
-	"\x04kind\"\xd0\x05\n" +
+	"\x04kind\"\x85\x06\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12&\n" +
@@ -1856,7 +1867,8 @@ const file_chatto_core_notification_v1_notification_proto_rawDesc = "" +
 	" \x01(\x0e27.chatto.core.notification.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
 	"\x10alert_expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\x12@\n" +
 	"\x1cnotification_stream_sequence\x18\f \x01(\x04R\x1anotificationStreamSequence\x12,\n" +
-	"\x0falert_delivered\x18\r \x01(\bH\x00R\x0ealertDelivered\x88\x01\x01B\x12\n" +
+	"\x0falert_delivered\x18\r \x01(\bH\x00R\x0ealertDelivered\x88\x01\x01\x123\n" +
+	"\aread_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\x06readAtB\x12\n" +
 	"\x10_alert_delivered\"\xf0\x03\n" +
 	"\x15NotificationSignalled\x12&\n" +
 	"\x0fsource_event_id\x18\x01 \x01(\tR\rsourceEventId\x12F\n" +
@@ -1963,21 +1975,22 @@ var file_chatto_core_notification_v1_notification_proto_depIdxs = []int32{
 	24, // 27: chatto.core.notification.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 28: chatto.core.notification.v1.NotificationOccurrence.attention_level:type_name -> chatto.core.notification.v1.NotificationAttentionLevel
 	24, // 29: chatto.core.notification.v1.NotificationOccurrence.alert_expires_at:type_name -> google.protobuf.Timestamp
-	24, // 30: chatto.core.notification.v1.NotificationSignalled.source_created_at:type_name -> google.protobuf.Timestamp
-	17, // 31: chatto.core.notification.v1.NotificationSignalled.signal:type_name -> chatto.core.notification.v1.NotificationSignal
-	0,  // 32: chatto.core.notification.v1.NotificationSignalled.attention_level:type_name -> chatto.core.notification.v1.NotificationAttentionLevel
-	24, // 33: chatto.core.notification.v1.NotificationSignalled.alert_expires_at:type_name -> google.protobuf.Timestamp
-	24, // 34: chatto.core.notification.v1.NotificationEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	24, // 35: chatto.core.notification.v1.NotificationEvent.expires_at:type_name -> google.protobuf.Timestamp
-	19, // 36: chatto.core.notification.v1.NotificationEvent.signalled:type_name -> chatto.core.notification.v1.NotificationSignalled
-	20, // 37: chatto.core.notification.v1.NotificationEvent.read:type_name -> chatto.core.notification.v1.NotificationRead
-	21, // 38: chatto.core.notification.v1.NotificationEvent.removed:type_name -> chatto.core.notification.v1.NotificationRemoved
-	22, // 39: chatto.core.notification.v1.NotificationEvent.alert_resolved:type_name -> chatto.core.notification.v1.NotificationAlertResolved
-	40, // [40:40] is the sub-list for method output_type
-	40, // [40:40] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	24, // 30: chatto.core.notification.v1.NotificationOccurrence.read_at:type_name -> google.protobuf.Timestamp
+	24, // 31: chatto.core.notification.v1.NotificationSignalled.source_created_at:type_name -> google.protobuf.Timestamp
+	17, // 32: chatto.core.notification.v1.NotificationSignalled.signal:type_name -> chatto.core.notification.v1.NotificationSignal
+	0,  // 33: chatto.core.notification.v1.NotificationSignalled.attention_level:type_name -> chatto.core.notification.v1.NotificationAttentionLevel
+	24, // 34: chatto.core.notification.v1.NotificationSignalled.alert_expires_at:type_name -> google.protobuf.Timestamp
+	24, // 35: chatto.core.notification.v1.NotificationEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	24, // 36: chatto.core.notification.v1.NotificationEvent.expires_at:type_name -> google.protobuf.Timestamp
+	19, // 37: chatto.core.notification.v1.NotificationEvent.signalled:type_name -> chatto.core.notification.v1.NotificationSignalled
+	20, // 38: chatto.core.notification.v1.NotificationEvent.read:type_name -> chatto.core.notification.v1.NotificationRead
+	21, // 39: chatto.core.notification.v1.NotificationEvent.removed:type_name -> chatto.core.notification.v1.NotificationRemoved
+	22, // 40: chatto.core.notification.v1.NotificationEvent.alert_resolved:type_name -> chatto.core.notification.v1.NotificationAlertResolved
+	41, // [41:41] is the sub-list for method output_type
+	41, // [41:41] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_notification_v1_notification_proto_init() }

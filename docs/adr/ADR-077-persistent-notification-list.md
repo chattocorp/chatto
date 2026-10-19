@@ -26,8 +26,9 @@ Unread occurrence contributes one to the exact unread count. Its independent
 source-time attention level is **Ambient** for reactions and **Important** for
 every other current cause. Ambient unread activity uses a neutral treatment;
 Important unread activity uses Chatto's semantic notification orange. Read
-occurrences remain in the same chronological list until deletion or the
-90-day expiry. There is no Done view and no Mark Unread operation.
+occurrences remain in the same chronological list until manual deletion,
+automatic deletion seven days after the first read, or the original 90-day
+expiry. There is no Done view and no Mark Unread operation.
 
 Opening an unread occurrence navigates to its exact room, thread, and event;
 the existing target-display handshake marks it read only after successful
