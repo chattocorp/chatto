@@ -76,6 +76,7 @@ Request to create a new passwordless account from a pending provider identity.
 | `token` | `string` | Raw pending create token from the provider callback redirect. |
 | `login` | `string` | Desired username. |
 | `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the requested username. |
+| `invitation_code` | `string` | Required on invite-only servers when the pending flow has no invitation. Supplying a code does not consume it until account creation succeeds. |
 
 
 <a id="chatto-auth-v1-CreateExternalIdentityAccountResponse"></a>

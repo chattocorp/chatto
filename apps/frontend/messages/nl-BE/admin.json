@@ -544,37 +544,34 @@
       "total": "{count} gebruiker(s) totaal"
     },
     "invitations": {
-      "title": "Uitnodigingslinks",
-      "subtitle": "Maak en beheer links waarmee nieuwe accounts kunnen worden aangemaakt.",
-      "create_title": "Uitnodigingslink maken",
-      "max_uses": "Maximaal aantal keer gebruiken",
-      "max_uses_error": "Voer een geheel getal van minstens 1 in.",
-      "unlimited_uses": "Onbeperkt gebruik toestaan",
+      "title": "Uitnodigingscodes",
+      "subtitle": "Maak en beheer codes. Elke code geeft toegang voor één nieuw account.",
+      "create_title": "Code maken",
       "expiry": "Verloopt",
       "expiry_1d": "1 dag",
       "expiry_7d": "7 dagen",
       "expiry_30d": "30 dagen",
       "expiry_never": "Nooit",
-      "create": "Uitnodigingslink maken",
-      "created": "Uitnodigingslink gemaakt",
-      "list_title": "Uitnodigingslinks",
-      "empty": "Nog geen uitnodigingslinks.",
-      "uses": "Gebruikt",
+      "create": "Code maken",
+      "created": "Uitnodigingscode gemaakt",
+      "list_title": "Uitnodigingscodes",
+      "empty": "Nog geen uitnodigingscodes.",
       "created_at": "Gemaakt",
       "actions": "Acties",
       "never": "Nooit",
-      "copy": "Link kopiëren",
-      "copied": "Uitnodigingslink gekopieerd",
+      "copy": "Code kopiëren",
+      "copied": "Uitnodigingscode gekopieerd",
       "revoke": "Intrekken",
-      "revoked": "Uitnodigingslink ingetrokken",
-      "revoke_title": "Uitnodigingslink intrekken?",
-      "revoke_description": "Met deze link kunnen vanaf nu geen nieuwe accounts meer worden aangemaakt.",
+      "revoked": "Uitnodigingscode ingetrokken",
+      "revoke_title": "Code intrekken?",
+      "revoke_description": "Deze code geeft onmiddellijk geen toegang meer voor nieuwe accounts.",
       "status": {
         "active": "Actief",
         "expired": "Verlopen",
-        "exhausted": "Opgebruikt",
-        "revoked": "Ingetrokken"
-      }
+        "revoked": "Ingetrokken",
+        "used": "Gebruikt"
+      },
+      "copy_failed": "Code kopiëren mislukt"
     }
   }
 }

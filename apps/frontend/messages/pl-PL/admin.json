@@ -566,37 +566,34 @@
       "total": "Łączna liczba użytkowników {count}"
     },
     "invitations": {
-      "title": "Linki z zaproszeniem",
-      "subtitle": "Twórz linki, przez które mogą dołączać nowe konta, i zarządzaj nimi.",
-      "create_title": "Utwórz link z zaproszeniem",
-      "max_uses": "Maksymalna liczba użyć",
-      "max_uses_error": "Wpisz liczbę całkowitą równą co najmniej 1.",
-      "unlimited_uses": "Zezwalaj na nieograniczoną liczbę użyć",
+      "title": "Kody zaproszeń",
+      "subtitle": "Twórz kody i zarządzaj nimi. Każdy kod pozwala utworzyć jedno konto.",
+      "create_title": "Utwórz kod",
       "expiry": "Wygaśnięcie",
       "expiry_1d": "1 dzień",
       "expiry_7d": "7 dni",
       "expiry_30d": "30 dni",
       "expiry_never": "Nigdy",
-      "create": "Utwórz link z zaproszeniem",
-      "created": "Utworzono link z zaproszeniem",
-      "list_title": "Linki z zaproszeniem",
-      "empty": "Brak linków z zaproszeniem.",
-      "uses": "Użycia",
+      "create": "Utwórz kod",
+      "created": "Utworzono kod zaproszenia",
+      "list_title": "Kody zaproszeń",
+      "empty": "Nie ma jeszcze kodów zaproszeń.",
       "created_at": "Utworzono",
       "actions": "Działania",
       "never": "Nigdy",
-      "copy": "Kopiuj link",
-      "copied": "Skopiowano link z zaproszeniem",
+      "copy": "Kopiuj kod",
+      "copied": "Skopiowano kod zaproszenia",
       "revoke": "Unieważnij",
-      "revoked": "Unieważniono link z zaproszeniem",
-      "revoke_title": "Unieważnić link z zaproszeniem?",
-      "revoke_description": "Ten link natychmiast przestanie wpuszczać nowe konta.",
+      "revoked": "Unieważniono kod zaproszenia",
+      "revoke_title": "Unieważnić kod?",
+      "revoke_description": "Ten kod natychmiast przestanie umożliwiać tworzenie kont.",
       "status": {
         "active": "Aktywny",
         "expired": "Wygasły",
-        "exhausted": "Wyczerpany",
-        "revoked": "Unieważniony"
-      }
+        "revoked": "Unieważniony",
+        "used": "Użyty"
+      },
+      "copy_failed": "Nie udało się skopiować kodu"
     }
   }
 }

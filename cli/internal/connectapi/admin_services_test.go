@@ -143,6 +143,40 @@ func TestExternalIdentityAccountCreationRechecksCurrentInvitationPolicy(t *testi
 	requireConnectCode(t, err, connect.CodeInvalidArgument)
 }
 
+func TestExternalIdentityAccountCreationAcceptsCodeAndReportsGate(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	env.api.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatal(err)
+	}
+	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID: "oidc-main", ProviderType: config.AuthProviderTypeOpenIDConnect,
+		Issuer: "https://id.example", Subject: "needs-code",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := env.externalAuth.GetPendingExternalIdentity(env.ctx, connect.NewRequest(&authv1.GetPendingExternalIdentityRequest{Token: token}))
+	if err != nil || !pending.Msg.GetPending().GetInvitationRequired() {
+		t.Fatalf("missing code gate: %v", err)
+	}
+	_, err = env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+		Token: token, Login: "with-code", InvitationCode: env.core.InvitationCode(invitation.ID),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := env.core.GetInvitation(env.ctx, env.viewer.Id, invitation.ID)
+	if err != nil || state.UseCount != 1 {
+		t.Fatalf("SSO did not consume code: %v", err)
+	}
+}
+
 func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *testing.T) {
 	t.Parallel()
 
@@ -150,8 +184,7 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	maxUses := uint32(1)
-	invitation, err := env.core.CreateInvitation(env.ctx, env.viewer.Id, &maxUses, nil)
+	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil)
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}

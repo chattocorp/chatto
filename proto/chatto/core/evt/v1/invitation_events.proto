@@ -12,6 +12,9 @@ message InvitationCreatedEvent {
   string invitation_id = 1;
   optional uint32 max_uses = 2;
   google.protobuf.Timestamp expires_at = 3;
+  // Identifies the single-use registration-code contract. Older invite links
+  // have zero here and keep their historical constraints during replay.
+  uint32 code_version = 4;
 }
 
 // InvitationRedeemedEvent records the account admitted by an invitation.

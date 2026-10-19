@@ -23,7 +23,7 @@
     const neighborsBase = serverBase + '/neighbors';
     const botsBase = serverBase + '/bots';
     const membersBase = serverBase + '/members';
-    const invitationsBase = serverBase + '/invite-links';
+    const invitationsBase = serverBase + '/invitation-codes';
     const roomsBase = resolve('/chat/[serverId]/manage/rooms', params);
     const roomGroupsBase = manageBase + '/room-groups';
     const moderationBase = serverBase + '/moderation';

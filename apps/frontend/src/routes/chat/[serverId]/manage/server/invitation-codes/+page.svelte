@@ -1,6 +1,6 @@
 <script lang="ts">
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createInviteLinkAPI, type InviteLink } from '$lib/api/invitations';
+  import { createInvitationCodeAPI, type InvitationCode } from '$lib/api/invitations';
   import {
     Panel,
     DataTable,
@@ -16,7 +16,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { Button, Checkbox, Select, TextInput } from '$lib/ui/form';
+  import { Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
@@ -27,10 +27,8 @@
   );
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
-  let maxUses = $state('1');
-  let unlimitedUses = $state(false);
   let expiry = $state('7d');
-  let revokeTarget = $state<InviteLink | null>(null);
+  let revokeTarget = $state<InvitationCode | null>(null);
 
   const invitationsQuery = createInfiniteQuery(() => {
     const serverId = serverScope.serverId;
@@ -38,30 +36,25 @@
     return {
       queryKey: adminQueryKeys.invitations(serverId, connection),
       queryFn: ({ pageParam, signal }) =>
-        connection.getAPI(createInviteLinkAPI).list(pageParam, PAGE_SIZE, { signal }),
+        connection.getAPI(createInvitationCodeAPI).list(pageParam, PAGE_SIZE, { signal }),
       initialPageParam: 0,
       getNextPageParam: (lastPage, _pages, lastPageParam) =>
-        lastPage.hasMore && lastPage.inviteLinks.length > 0
-          ? lastPageParam + lastPage.inviteLinks.length
+        lastPage.hasMore && lastPage.invitationCodes.length > 0
+          ? lastPageParam + lastPage.invitationCodes.length
           : undefined
     };
   });
 
   const invitations = $derived(
-    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.inviteLinks)
+    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.invitationCodes)
   );
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
   const hasMore = $derived(invitationsQuery.hasNextPage);
-  const maxUsesValue = $derived(unlimitedUses ? null : Number.parseInt(maxUses, 10));
-  const maxUsesInvalid = $derived(
-    !unlimitedUses && (!Number.isInteger(maxUsesValue) || (maxUsesValue ?? 0) < 1)
-  );
 
   const createInvitationMutation = createMutation(() => ({
     mutationFn: () =>
-      serverScope.connection.getAPI(createInviteLinkAPI).create({
-        maxUses: maxUsesValue,
+      serverScope.connection.getAPI(createInvitationCodeAPI).create({
         expiresAt: expiryDate(expiry)
       }),
     onSuccess: async () => {
@@ -74,8 +67,8 @@
   }));
 
   const revokeMutation = createMutation(() => ({
-    mutationFn: (invitation: InviteLink) =>
-      serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id),
+    mutationFn: (invitation: InvitationCode) =>
+      serverScope.connection.getAPI(createInvitationCodeAPI).revoke(invitation.id),
     onSuccess: async () => {
       revokeTarget = null;
       await queryClient.invalidateQueries({
@@ -91,12 +84,12 @@
     return days === 0 ? null : new Date(Date.now() + days * 86_400_000).toISOString();
   }
 
-  async function copyInvitation(invitation: InviteLink) {
+  async function copyInvitation(invitation: InvitationCode) {
     try {
-      await navigator.clipboard.writeText(invitation.link);
+      await navigator.clipboard.writeText(invitation.code);
       toast.success(m('admin.invitations.copied'));
     } catch {
-      toastError(undefined, m('room.message.actions.copy_link_failed'));
+      toastError(undefined, m('admin.invitations.copy_failed'));
     }
   }
 
@@ -108,7 +101,7 @@
     if (!loading && !loadingMore && hasMore) await invitationsQuery.fetchNextPage();
   }
 
-  function statusTone(status: InviteLink['status']): 'success' | 'danger' | 'muted' {
+  function statusTone(status: InvitationCode['status']): 'success' | 'danger' | 'muted' {
     return status === 'active' ? 'success' : status === 'revoked' ? 'danger' : 'muted';
   }
 </script>
@@ -127,17 +120,10 @@
           class="flex flex-col gap-4"
           onsubmit={(event) => {
             event.preventDefault();
-            if (!maxUsesInvalid) createInvitationMutation.mutate();
+            createInvitationMutation.mutate();
           }}
         >
           <div class="grid gap-4 sm:grid-cols-2">
-            <TextInput
-              id="invitation-max-uses"
-              label={m('admin.invitations.max_uses')}
-              bind:value={maxUses}
-              disabled={unlimitedUses || createInvitationMutation.isPending}
-              error={maxUsesInvalid ? m('admin.invitations.max_uses_error') : undefined}
-            />
             <Select
               id="invitation-expiry"
               label={m('admin.invitations.expiry')}
@@ -151,18 +137,8 @@
               ]}
             />
           </div>
-          <Checkbox
-            id="invitation-unlimited-uses"
-            bind:checked={unlimitedUses}
-            label={m('admin.invitations.unlimited_uses')}
-            disabled={createInvitationMutation.isPending}
-          />
           <div>
-            <Button
-              type="submit"
-              loading={createInvitationMutation.isPending}
-              disabled={maxUsesInvalid}
-            >
+            <Button type="submit" loading={createInvitationMutation.isPending}>
               <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
               {m('admin.invitations.create')}
             </Button>
@@ -187,7 +163,7 @@
         >
           {#snippet header()}
             <th class="table-header-cell">{m('admin.common.status')}</th>
-            <th class="table-header-cell">{m('admin.invitations.uses')}</th>
+            <th class="table-header-cell">{m('auth.register.invitation.label')}</th>
             <th class="table-header-cell">{m('admin.common.expires')}</th>
             <th class="table-header-cell">{m('admin.invitations.created_at')}</th>
             <th class="table-header-cell text-end">{m('admin.invitations.actions')}</th>
@@ -198,9 +174,7 @@
                 >{m(`admin.invitations.status.${invitation.status}`)}</Pill
               ></td
             >
-            <td class="px-4 py-3 whitespace-nowrap"
-              >{invitation.useCount} / {invitation.maxUses ?? '∞'}</td
-            >
+            <td class="px-4 py-3 font-mono whitespace-nowrap">{invitation.code}</td>
             <td class="px-4 py-3 text-muted"
               >{invitation.expiresAt
                 ? formatTimestamp(invitation.expiresAt)

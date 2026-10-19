@@ -544,37 +544,34 @@
       "total": "{count} utenti totali"
     },
     "invitations": {
-      "title": "Link di invito",
-      "subtitle": "Crea e gestisci i link che permettono di creare nuovi account.",
-      "create_title": "Crea link di invito",
-      "max_uses": "Utilizzi massimi",
-      "max_uses_error": "Inserisci un numero intero pari ad almeno 1.",
-      "unlimited_uses": "Consenti utilizzi illimitati",
+      "title": "Codici di invito",
+      "subtitle": "Crea e gestisci i codici. Ogni codice consente un nuovo account.",
+      "create_title": "Crea codice",
       "expiry": "Scadenza",
       "expiry_1d": "1 giorno",
       "expiry_7d": "7 giorni",
       "expiry_30d": "30 giorni",
       "expiry_never": "Mai",
-      "create": "Crea link di invito",
-      "created": "Link di invito creato",
-      "list_title": "Link di invito",
-      "empty": "Ancora nessun link di invito.",
-      "uses": "Utilizzi",
+      "create": "Crea codice",
+      "created": "Codice di invito creato",
+      "list_title": "Codici di invito",
+      "empty": "Nessun codice di invito ancora.",
       "created_at": "Creato",
       "actions": "Azioni",
       "never": "Mai",
-      "copy": "Copia link",
-      "copied": "Link di invito copiato",
+      "copy": "Copia codice",
+      "copied": "Codice di invito copiato",
       "revoke": "Revoca",
-      "revoked": "Link di invito revocato",
-      "revoke_title": "Revocare il link di invito?",
-      "revoke_description": "Questo link smetterà subito di permettere la creazione di nuovi account.",
+      "revoked": "Codice di invito revocato",
+      "revoke_title": "Revocare il codice?",
+      "revoke_description": "Questo codice smetterà immediatamente di consentire nuovi account.",
       "status": {
         "active": "Attivo",
         "expired": "Scaduto",
-        "exhausted": "Esaurito",
-        "revoked": "Revocato"
-      }
+        "revoked": "Revocato",
+        "used": "Usato"
+      },
+      "copy_failed": "Impossibile copiare il codice"
     }
   }
 }

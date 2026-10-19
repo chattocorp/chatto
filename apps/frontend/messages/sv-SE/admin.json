@@ -544,37 +544,34 @@
       "total": "{count} användare totalt"
     },
     "invitations": {
-      "title": "Inbjudningslänkar",
-      "subtitle": "Skapa och hantera länkar som släpper in nya konton.",
-      "create_title": "Skapa inbjudningslänk",
-      "max_uses": "Max antal användningar",
-      "max_uses_error": "Ange ett heltal på minst 1.",
-      "unlimited_uses": "Tillåt obegränsat antal användningar",
+      "title": "Inbjudningskoder",
+      "subtitle": "Skapa och hantera koder. Varje kod tillåter ett nytt konto.",
+      "create_title": "Skapa kod",
       "expiry": "Giltighetstid",
       "expiry_1d": "1 dag",
       "expiry_7d": "7 dagar",
       "expiry_30d": "30 dagar",
       "expiry_never": "Aldrig",
-      "create": "Skapa inbjudningslänk",
-      "created": "Inbjudningslänk skapad",
-      "list_title": "Inbjudningslänkar",
-      "empty": "Inga inbjudningslänkar än.",
-      "uses": "Användningar",
+      "create": "Skapa kod",
+      "created": "Inbjudningskod skapad",
+      "list_title": "Inbjudningskoder",
+      "empty": "Inga inbjudningskoder ännu.",
       "created_at": "Skapad",
       "actions": "Åtgärder",
       "never": "Aldrig",
-      "copy": "Kopiera länk",
-      "copied": "Inbjudningslänk kopierad",
+      "copy": "Kopiera kod",
+      "copied": "Inbjudningskod kopierad",
       "revoke": "Återkalla",
-      "revoked": "Inbjudningslänk återkallad",
-      "revoke_title": "Återkalla inbjudningslänken?",
-      "revoke_description": "Länken slutar genast att släppa in nya konton.",
+      "revoked": "Inbjudningskod återkallad",
+      "revoke_title": "Återkalla kod?",
+      "revoke_description": "Den här koden slutar omedelbart att tillåta nya konton.",
       "status": {
         "active": "Aktiv",
         "expired": "Utgången",
-        "exhausted": "Förbrukad",
-        "revoked": "Återkallad"
-      }
+        "revoked": "Återkallad",
+        "used": "Använd"
+      },
+      "copy_failed": "Kunde inte kopiera koden"
     }
   }
 }

@@ -70,7 +70,7 @@ different node. For other authentication methods, see
   All server processes must use the same `webserver.cookie_signing_secret`,
   `webserver.cookie_encryption_secret` (when you set it), `core.secret_key`,
   and `core.assets.signing_secret`. If the values are different, cookies,
-  sessions, invite links, and asset URLs from one replica fail on a different
+  sessions, invitation codes, and asset URLs from one replica fail on a different
   replica.
 </Aside>
 
@@ -83,7 +83,7 @@ different node. For other authentication methods, see
 | `webserver.url` | Yes | Absolute links |
 | `webserver.cookie_signing_secret` | Yes | Browser-flow cookies and CSRF proofs |
 | `webserver.cookie_encryption_secret` | Yes, when set | Browser-flow cookie encryption |
-| `core.secret_key` | Yes | Sessions, tokens, OAuth codes, account flows, and invite links |
+| `core.secret_key` | Yes | Sessions, tokens, OAuth codes, account flows, and invitation codes |
 | `core.assets.signing_secret` | Yes | Asset URLs |
 | `livekit.server_id` | Yes, in one Chatto server | LiveKit room names |
 

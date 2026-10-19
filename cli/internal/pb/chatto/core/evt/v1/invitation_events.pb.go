@@ -25,10 +25,13 @@ const (
 // InvitationCreatedEvent establishes one server invitation and its immutable
 // admission constraints. The shareable signed code is deliberately not stored.
 type InvitationCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	InvitationId  string                 `protobuf:"bytes,1,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
-	MaxUses       *uint32                `protobuf:"varint,2,opt,name=max_uses,json=maxUses,proto3,oneof" json:"max_uses,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	InvitationId string                 `protobuf:"bytes,1,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	MaxUses      *uint32                `protobuf:"varint,2,opt,name=max_uses,json=maxUses,proto3,oneof" json:"max_uses,omitempty"`
+	ExpiresAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Identifies the single-use registration-code contract. Older invite links
+	// have zero here and keep their historical constraints during replay.
+	CodeVersion   uint32 `protobuf:"varint,4,opt,name=code_version,json=codeVersion,proto3" json:"code_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -82,6 +85,13 @@ func (x *InvitationCreatedEvent) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
+}
+
+func (x *InvitationCreatedEvent) GetCodeVersion() uint32 {
+	if x != nil {
+		return x.CodeVersion
+	}
+	return 0
 }
 
 // InvitationRedeemedEvent records the account admitted by an invitation.
@@ -186,12 +196,13 @@ var File_chatto_core_evt_v1_invitation_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_invitation_events_proto_rawDesc = "" +
 	"\n" +
-	"*chatto/core/evt/v1/invitation_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa5\x01\n" +
+	"*chatto/core/evt/v1/invitation_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\x01\n" +
 	"\x16InvitationCreatedEvent\x12#\n" +
 	"\rinvitation_id\x18\x01 \x01(\tR\finvitationId\x12\x1e\n" +
 	"\bmax_uses\x18\x02 \x01(\rH\x00R\amaxUses\x88\x01\x01\x129\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAtB\v\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12!\n" +
+	"\fcode_version\x18\x04 \x01(\rR\vcodeVersionB\v\n" +
 	"\t_max_uses\"W\n" +
 	"\x17InvitationRedeemedEvent\x12#\n" +
 	"\rinvitation_id\x18\x01 \x01(\tR\finvitationId\x12\x17\n" +

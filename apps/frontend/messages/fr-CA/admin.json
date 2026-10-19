@@ -544,37 +544,34 @@
       "total": "Nombre total d'utilisateurs {count}"
     },
     "invitations": {
-      "title": "Liens d’invitation",
-      "subtitle": "Créez et gérez les liens qui permettent d’ouvrir de nouveaux comptes.",
-      "create_title": "Créer un lien d’invitation",
-      "max_uses": "Nombre maximal d’utilisations",
-      "max_uses_error": "Saisissez un nombre entier supérieur ou égal à 1.",
-      "unlimited_uses": "Autoriser un nombre illimité d’utilisations",
+      "title": "Codes d’invitation",
+      "subtitle": "Créez et gérez des codes. Chaque code autorise un nouveau compte.",
+      "create_title": "Créer un code",
       "expiry": "Expiration",
       "expiry_1d": "1 jour",
       "expiry_7d": "7 jours",
       "expiry_30d": "30 jours",
       "expiry_never": "Jamais",
-      "create": "Créer un lien d’invitation",
-      "created": "Lien d’invitation créé",
-      "list_title": "Liens d’invitation",
-      "empty": "Aucun lien d’invitation pour l’instant.",
-      "uses": "Utilisations",
+      "create": "Créer un code",
+      "created": "Code d’invitation créé",
+      "list_title": "Codes d’invitation",
+      "empty": "Aucun code d’invitation pour le moment.",
       "created_at": "Créé",
       "actions": "Actions",
       "never": "Jamais",
-      "copy": "Copier le lien",
-      "copied": "Lien d’invitation copié",
+      "copy": "Copier le code",
+      "copied": "Code d’invitation copié",
       "revoke": "Révoquer",
-      "revoked": "Lien d’invitation révoqué",
-      "revoke_title": "Révoquer le lien d’invitation ?",
-      "revoke_description": "Ce lien cessera immédiatement de permettre l’ouverture de nouveaux comptes.",
+      "revoked": "Code d’invitation révoqué",
+      "revoke_title": "Révoquer le code ?",
+      "revoke_description": "Ce code ne permettra plus de créer de nouveaux comptes, immédiatement.",
       "status": {
         "active": "Actif",
         "expired": "Expiré",
-        "exhausted": "Épuisé",
-        "revoked": "Révoqué"
-      }
+        "revoked": "Révoqué",
+        "used": "Utilisé"
+      },
+      "copy_failed": "Impossible de copier le code"
     }
   }
 }

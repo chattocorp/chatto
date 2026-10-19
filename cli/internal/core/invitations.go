@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/base32"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,14 +17,66 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const (
-	inviteLinkTokenBytes  = 12
-	inviteLinkTokenLength = 16 // 16 unpadded base64url characters encode 96 bits.
-)
+// InvitationCode reconstructs a single-use registration capability. The raw
+// code is never persisted. Spaces, hyphens, and letter case are presentation.
+func (c *ChattoCore) InvitationCode(id string) string {
+	return c.invitationModel.code(id)
+}
+
+func (m *InvitationModel) code(id string) string {
+	mac := hmac.New(sha256.New, m.signingKey)
+	_, _ = mac.Write([]byte("registration-code/v1\x00" + id))
+	raw := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(mac.Sum(nil)[:12])
+	var groups []string
+	for start := 0; start < len(raw); start += 4 {
+		groups = append(groups, raw[start:min(start+4, len(raw))])
+	}
+	return strings.Join(groups, "-")
+}
+
+// ValidateInvitationCode checks a code without reserving or consuming it.
+// Final account creation must validate its durable invitation again under OCC.
+func (c *ChattoCore) ValidateInvitationCode(ctx context.Context, code string) (string, error) {
+	if len(code) > 128 {
+		return "", ErrInvitationInvalid
+	}
+	code = strings.ToUpper(strings.Join(strings.Fields(strings.ReplaceAll(code, "-", "")), ""))
+	if len(code) != 20 {
+		return "", ErrInvitationInvalid
+	}
+	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
+		return "", err
+	}
+	id, err := c.invitationModel.resolveCode(code)
+	if err != nil {
+		return "", err
+	}
+	if _, err := c.invitationModel.validateIDAt(id, time.Now()); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// ValidateInvitationAdmission rechecks remembered admission, including retirement,
+// expiry, revocation, and consumption. It does not consume the code.
+func (c *ChattoCore) ValidateInvitationAdmission(ctx context.Context, id string) error {
+	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
+		return err
+	}
+	_, err := c.invitationModel.validateIDAt(id, time.Now())
+	return err
+}
+
+// CreateInvitationCode grants admission for exactly one new account. Expiry is
+// optional; all callers must have user.invite permission.
+func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time) (InvitationState, error) {
+	maxUses := uint32(1)
+	return c.createInvitation(ctx, actorID, &maxUses, expiresAt, 1)
+}
 
 var (
 	ErrInvitationInvalid                = errors.New("invitation is invalid")
-	errInviteLinkTokenCollision         = errors.New("invite-link token collision")
+	errInvitationCodeCollision          = errors.New("invitation code collision")
 	errInvitationMutationRetryExhausted = errors.New("invitation mutation OCC retry exhausted")
 )
 
@@ -47,7 +100,7 @@ type InvitationModel struct {
 
 func newInvitationModel(publisher *evtstream.Publisher, projection events.ProjectionHandle[*InvitationProjection], secretKey string) *InvitationModel {
 	keyMAC := hmac.New(sha256.New, []byte(secretKey))
-	_, _ = keyMAC.Write([]byte("chatto/invite-link/v2\x00"))
+	_, _ = keyMAC.Write([]byte("chatto/invitation-code/v1\x00"))
 	return &InvitationModel{
 		publisher:  publisher,
 		projection: projection,
@@ -56,21 +109,7 @@ func newInvitationModel(publisher *evtstream.Publisher, projection events.Projec
 	}
 }
 
-func (m *InvitationModel) LinkToken(id string) string {
-	mac := hmac.New(sha256.New, m.signingKey)
-	_, _ = mac.Write([]byte(id))
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:inviteLinkTokenBytes])
-}
-
-func (m *InvitationModel) resolveLinkToken(token string) (string, error) {
-	if len(token) != inviteLinkTokenLength {
-		return "", ErrInvitationInvalid
-	}
-	decoded, err := base64.RawURLEncoding.DecodeString(token)
-	if err != nil || len(decoded) != inviteLinkTokenBytes || base64.RawURLEncoding.EncodeToString(decoded) != token {
-		return "", ErrInvitationInvalid
-	}
-
+func (m *InvitationModel) resolveCode(token string) (string, error) {
 	// Invitation identities are append-only durable facts, so the number of
 	// projected IDs is enough to tell whether this derived index is stale.
 	m.tokenIndexMu.Lock()
@@ -79,9 +118,9 @@ func (m *InvitationModel) resolveLinkToken(token string) (string, error) {
 		ids := m.projection.Projection().ids()
 		index := make(map[string]string, len(ids))
 		for _, id := range ids {
-			derived := m.LinkToken(id)
+			derived := strings.ReplaceAll(m.code(id), "-", "")
 			if existing, ok := index[derived]; ok && existing != id {
-				return "", errInviteLinkTokenCollision
+				return "", errInvitationCodeCollision
 			}
 			index[derived] = id
 		}
@@ -99,45 +138,21 @@ func InvitationStatusAt(state InvitationState, now time.Time) InvitationStatus {
 	if state.RevokedAt != nil {
 		return InvitationStatusRevoked
 	}
-	if state.ExpiresAt != nil && !now.Before(*state.ExpiresAt) {
-		return InvitationStatusExpired
-	}
 	if state.MaxUses != nil && state.UseCount >= *state.MaxUses {
 		return InvitationStatusExhausted
+	}
+	if state.ExpiresAt != nil && !now.Before(*state.ExpiresAt) {
+		return InvitationStatusExpired
 	}
 	return InvitationStatusActive
 }
 
-func (m *InvitationModel) validateLinkTokenAt(token string, now time.Time) (InvitationState, error) {
-	id, err := m.resolveLinkToken(token)
-	if err != nil {
-		return InvitationState{}, err
-	}
-	return m.validateIDAt(id, now)
-}
-
 func (m *InvitationModel) validateIDAt(id string, now time.Time) (InvitationState, error) {
 	state, ok := m.projection.Projection().get(id)
-	if !ok || InvitationStatusAt(state, now) != InvitationStatusActive {
+	if !ok || state.CodeVersion != 1 || state.MaxUses == nil || *state.MaxUses != 1 || state.UseCount != 0 || InvitationStatusAt(state, now) != InvitationStatusActive {
 		return InvitationState{}, ErrInvitationInvalid
 	}
 	return state, nil
-}
-
-func (c *ChattoCore) ValidateInviteLinkToken(ctx context.Context, token string) (string, error) {
-	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
-		return "", err
-	}
-	state, err := c.invitationModel.validateLinkTokenAt(token, time.Now())
-	if err != nil {
-		return "", err
-	}
-	return state.ID, nil
-}
-
-// InvitationLinkPath deterministically reconstructs the shareable path for an invitation ID.
-func (c *ChattoCore) InvitationLinkPath(id string) string {
-	return "/invite/" + c.invitationModel.LinkToken(id)
 }
 
 func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
@@ -164,7 +179,7 @@ func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]Inv
 	return c.invitationModel.projection.Projection().all(), nil
 }
 
-func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUses *uint32, expiresAt *time.Time) (InvitationState, error) {
+func (c *ChattoCore) createInvitation(ctx context.Context, actorID string, maxUses *uint32, expiresAt *time.Time, codeVersion uint32) (InvitationState, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return InvitationState{}, err
 	}
@@ -175,7 +190,7 @@ func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUs
 		return InvitationState{}, ErrInvalidArgument
 	}
 	id := NewInvitationID()
-	payload := &evtv1.InvitationCreatedEvent{InvitationId: id, MaxUses: maxUses}
+	payload := &evtv1.InvitationCreatedEvent{InvitationId: id, MaxUses: maxUses, CodeVersion: codeVersion}
 	if expiresAt != nil {
 		payload.ExpiresAt = timestamppb.New(*expiresAt)
 	}
