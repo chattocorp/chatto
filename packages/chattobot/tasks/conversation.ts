@@ -182,7 +182,7 @@ export function createConversation(
       const options = await conversation.agentOptions();
       options.sessionFile = await agentSessionFile(ctx, 'conversation');
       await using bot = await createAgent(options);
-      await conversation.run(bot, first);
+      await conversation.run(bot, first.messages ?? [first]);
       return null;
     }
   );
@@ -286,7 +286,7 @@ class Conversation implements WorkOwner {
 
   /** Answer the first message, then everything that arrives, until the input ended and no
    * background job can deliver a result any more. */
-  async run(bot: RunlingAgent, first: IncomingMessage) {
+  async run(bot: RunlingAgent, first: IncomingMessage[]) {
     void (async () => {
       try {
         for await (const item of this.ctx.steering) {
@@ -302,7 +302,7 @@ class Conversation implements WorkOwner {
     if (this.resumed) await this.ctx.emit('idle');
     let items: Item[] | undefined = this.resumed
       ? await this.take()
-      : [{ kind: 'message', message: first }];
+      : first.map((message) => ({ kind: 'message', message }));
     while (items) {
       await this.ctx.emit('busy');
       await this.turn(bot, items);

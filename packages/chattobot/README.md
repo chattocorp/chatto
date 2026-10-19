@@ -129,9 +129,17 @@ thread replies. This applies to conversations started by a mention or direct rep
 as well as accepted reports. Other rooms still require an addressed message to
 start a conversation.
 
-New realtime replies notify an existing thread workflow. It waits two seconds to
-collect short replies into a batch, then reads human messages after the bot's latest
-post and classifies them. If the conversation agent is answering, the check waits
+All incoming messages use a fixed three-second batching window, including the
+first post, pings, and direct replies. The first queued message starts the window;
+later messages join it without extending it. This lets people finish a short
+sequence of messages before the bot answers. Addressed messages in the same window
+reach one conversation turn, with each author's identity and authorization context
+kept separate. The window runs while the agent is busy, so it adds no further wait
+when the agent becomes available after the window has ended.
+
+Ordinary realtime replies notify an existing thread workflow after that same
+window. It reads human messages after the bot's latest post and classifies them,
+without another batching delay. If the conversation agent is answering, the check waits
 until it can answer again. Pending reply IDs remain in workflow state: a newer
 bot post cannot move these replies out of the batch. The check reads their current
 content and includes the earlier question as context. Pending IDs are included
@@ -154,8 +162,8 @@ reach the conversation agent so it can update the checkmark; plain thanks stay s
 The bot adds 👀 when it engages with a thread root. It does not add eyes reactions
 to later messages in the thread, including pings and accepted automatic follow-ups.
 
-Pings and direct replies still reach the conversation immediately and cancel a
-pending follow-up check. Checks stop when the workflow ends. Empty, ignored,
+Pings and direct replies bypass classification and cancel a pending follow-up
+check when their batch is delivered. Checks stop when the workflow ends. Empty, ignored,
 and failed checks do not extend its one-hour inactivity timeout. Inactivity is
 checked before reading the thread, so expiry can wait for the next reconciliation
 check when no new events arrive. Classification

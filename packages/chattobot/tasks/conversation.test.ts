@@ -371,6 +371,24 @@ test('answers messages that arrive during a turn together in the next turn', asy
   expect(bot.posts[1]!.destination.inReplyTo).toBe('three');
 });
 
+test('the initial addressed batch produces one turn with separate author identities', async () => {
+  const first = message('one', 'Start here', 'alice');
+  const second = message('two', 'More details', 'bob');
+  const bot = harness({ maintainers: ['alice'] });
+  const run = bot.start({ ...first, messages: [first, second] });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  expect(bot.prompts).toHaveLength(1);
+  expect(bot.prompts[0]).toContain('Message ID: one');
+  expect(bot.prompts[0]).toContain('Message ID: two');
+  expect(bot.prompts[0]).toContain('Start here');
+  expect(bot.prompts[0]).toContain('More details');
+  expect(bot.prompts[0]).toContain('Message to you from user alice, a maintainer:');
+  expect(bot.prompts[0]).toContain('Message to you from user bob:');
+  expect(bot.posts[0]!.destination.inReplyTo).toBe('two');
+  bot.messages.close();
+  await run;
+});
+
 test('shows other thread messages as context and reads only newer ones later', async () => {
   const bot = harness({
     thread: [

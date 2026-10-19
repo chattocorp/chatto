@@ -1,5 +1,4 @@
 /** Own a thread's conversation and decide when ordinary replies need another turn. */
-import { setTimeout as delay } from 'node:timers/promises';
 import {
   createNotifier,
   log,
@@ -13,11 +12,10 @@ import { IncomingMessage, type ConversationInput } from '../chatto/message.ts';
 import type { createConversation } from './conversation.ts';
 import type { createIntakeClassifier, ReportInput } from './classify-intake.ts';
 import type { ReadFollowUp } from '../chatto/follow-up.ts';
+import { messageBatches } from '../harness/message-batches.ts';
 
 /** Reconcile messages missed during disconnects and check inactivity. Realtime replies wake sooner. */
 export const FOLLOW_UP_INTERVAL_MS = 5 * 60_000;
-/** Collect a short burst of replies before reading and classifying the thread. */
-const FOLLOW_UP_BATCH_MS = 2_000;
 /** Empty or ignored checks do not extend this lifetime. */
 export const IDLE_MS = 60 * 60_000;
 
@@ -32,7 +30,7 @@ export interface ThreadOptions {
   readFollowUp: ReadFollowUp;
   /** Injectable clock interval for lifecycle tests. */
   intervalMs?: number;
-  /** Realtime batching delay, injectable for lifecycle tests. */
+  /** Fixed inbox window for all incoming messages, injectable for lifecycle tests. */
   batchMs?: number;
   idleMs?: number;
 }
@@ -71,21 +69,40 @@ export function createThreadWorkflow(
       const state = saved as ThreadState;
       const options = typeof configure === 'function' ? await configure(ctx, message) : configure;
       const { classifier, conversation, read } = options;
-      const reader = ctx.steering[Symbol.asyncIterator]();
+      const inboxLifetime = new AbortController();
+      using inboxScope = { [Symbol.dispose]: () => inboxLifetime.abort() };
+      const inbox = messageBatches(
+        ctx.steering,
+        AbortSignal.any([ctx.signal, inboxLifetime.signal]),
+        hadConversation ? [] : [message],
+        options.batchMs
+      );
+      const reader = inbox.batches;
       let notify = () => {};
+      const consider = (batch: IncomingMessage[]) => {
+        let followUp = false;
+        for (const item of batch) {
+          if (item.trigger !== 'follow-up' || state.delivered.includes(item.id)) continue;
+          if (!state.pendingFollowUps.includes(item.id)) state.pendingFollowUps.push(item.id);
+          followUp = true;
+        }
+        if (followUp) notify();
+        return batch.filter((item) => !item.trigger);
+      };
+      // The first turn uses the same window as all later turns. Recovery never
+      // queues the saved first message as a new request.
+      let opening = hadConversation ? [] : consider((await reader.next()).value ?? []);
       // Follow-up events are notifications, never an addressed request that can bypass intake.
       // Keep one inbox reader, and retain a notification received before the child starts.
-      const nextAddressed = async (): Promise<IteratorResult<IncomingMessage>> => {
+      const nextAddressed = async (): Promise<IteratorResult<IncomingMessage[]>> => {
         while (true) {
           const item = await reader.next();
-          if (item.done || item.value.trigger !== 'follow-up') return item;
-          if (state.delivered.includes(item.value.id)) continue;
-          if (!state.pendingFollowUps.includes(item.value.id))
-            state.pendingFollowUps.push(item.value.id);
-          notify();
+          if (item.done) return item;
+          const addressed = consider(item.value);
+          if (addressed.length) return { done: false, value: addressed };
         }
       };
-      let queued: IteratorResult<IncomingMessage> | undefined;
+      let queued: IteratorResult<IncomingMessage[]> | undefined;
       const nextMessage = nextAddressed().then((item) => {
         queued = item;
         return item;
@@ -93,7 +110,7 @@ export function createThreadWorkflow(
       // Cancellation can fail the inbox while metadata is still being read.
       void nextMessage.catch(() => {});
       let first: IncomingMessage | undefined =
-        saved.first ?? (message.trigger === 'intake' ? undefined : message);
+        saved.first ?? opening[0] ?? (message.trigger === 'intake' ? undefined : message);
       let usedNextMessage = false;
       if (!first) {
         const input = await read(message, ctx.signal).catch(() => {
@@ -101,8 +118,10 @@ export function createThreadWorkflow(
           log.error('Report intake could not read the post; no automatic reply sent');
           return undefined;
         });
+        if (inbox.addressedArrived && !queued) queued = await nextMessage;
         if (queued && !queued.done) {
-          first = queued.value;
+          opening = queued.value;
+          first = opening[0];
           usedNextMessage = true;
         } else {
           await using classification = input ? ctx.start(classifier, input) : undefined;
@@ -113,15 +132,22 @@ export function createThreadWorkflow(
               return { kind: 'decision' as const, engage: false, failed: true };
             }
           );
-          const outcome = await Promise.race([
+          let outcome = await Promise.race([
             nextMessage.then(async (item) =>
               item.done ? await decision : { kind: 'addressed' as const, message: item.value }
             ),
             decision
           ]);
           ctx.signal.throwIfAborted();
+          // An intake decision must not close the workflow while an addressed
+          // request already waits in its batching window.
+          if (outcome.kind === 'decision' && inbox.addressedArrived) {
+            const item = await nextMessage;
+            if (!item.done) outcome = { kind: 'addressed', message: item.value };
+          }
           if (outcome.kind === 'addressed') {
-            first = outcome.message;
+            opening = outcome.message;
+            first = opening[0];
             usedNextMessage = true;
           } else {
             if (outcome.failed) log.error('Report intake failed; no automatic reply sent');
@@ -137,13 +163,16 @@ export function createThreadWorkflow(
       // Omit absent optional fields so the snapshot contains JSON values only.
       state.first = JSON.parse(JSON.stringify(first)) as IncomingMessage;
       if (!state.delivered.includes(first.id)) state.delivered.push(first.id);
+      for (const item of opening)
+        if (!state.delivered.includes(item.id)) state.delivered.push(item.id);
       const resumeConversation =
         resume && !usedNextMessage && (hadConversation || message.trigger !== 'intake');
       await using child = ctx.start(conversation, {
         ...first,
+        ...(opening.length > 1 ? { messages: opening } : {}),
         ...(resumeConversation ? { resume: true } : {})
       });
-      const monitor = monitorConversation(ctx, child, first, options, state);
+      const monitor = monitorConversation(ctx, child, first, options, state, () => inbox.pending);
       notify = monitor.notify;
       if (state.pendingFollowUps.length) notify();
       const finished = child.result.then(() => ({ done: true as const, value: undefined }));
@@ -152,7 +181,7 @@ export function createThreadWorkflow(
         while (true) {
           const item = await Promise.race([pending, finished]);
           if (item.done) break;
-          await monitor.send(item.value);
+          await monitor.send(item.value.length === 1 ? item.value[0]! : item.value);
           pending = nextAddressed();
         }
         monitor.stop();
@@ -181,14 +210,9 @@ function monitorConversation(
   ctx: TaskContext<IncomingMessage, unknown>,
   child: TaskInvocation<ReturnType<typeof createConversation>>,
   first: IncomingMessage,
-  {
-    classifier,
-    readFollowUp,
-    intervalMs = FOLLOW_UP_INTERVAL_MS,
-    batchMs = FOLLOW_UP_BATCH_MS,
-    idleMs = IDLE_MS
-  }: ThreadOptions,
-  saved: ThreadState
+  { classifier, readFollowUp, intervalMs = FOLLOW_UP_INTERVAL_MS, idleMs = IDLE_MS }: ThreadOptions,
+  saved: ThreadState,
+  hasPendingInput: () => boolean
 ) {
   const lifetime = new AbortController();
   const signal = AbortSignal.any([ctx.signal, lifetime.signal]);
@@ -196,8 +220,8 @@ function monitorConversation(
   let changed = false;
   const wake = createNotifier();
   const notify = () => {
-    if (!changed && state !== 'busy') wake.notify();
     changed = true;
+    if (state !== 'busy') wake.notify();
   };
   let check: AbortController | undefined;
   let classification: TaskInvocation<ReturnType<typeof createIntakeClassifier>> | undefined;
@@ -243,21 +267,24 @@ function monitorConversation(
       try {
         await wake.wait({ signal, timeoutMs: intervalMs });
         signal.throwIfAborted();
-        if (state === 'busy') continue;
+        if (state === 'busy' || hasPendingInput()) continue;
         if (state === 'idle' && Date.now() - saved.lastActivity >= idleMs) {
           stop();
           child.closeSteering();
           break;
         }
-        if (changed) await delay(batchMs, undefined, { signal });
-        // A direct request may have started a turn during the batching delay.
-        if (state === 'busy') continue;
         changed = false;
         check = new AbortController();
         const checkSignal = AbortSignal.any([signal, check.signal]);
         const pendingIds = [...saved.pendingFollowUps];
         const snapshot = await readFollowUp(first, checkSignal, pendingIds);
         checkSignal.throwIfAborted();
+        // A reply can arrive while the read is in flight. Do not classify it
+        // through reconciliation before its inbox window has ended.
+        if (hasPendingInput()) {
+          changed = true;
+          continue;
+        }
         considered = pendingIds;
         if (!snapshot) continue;
         const pending = snapshot.messages.filter(

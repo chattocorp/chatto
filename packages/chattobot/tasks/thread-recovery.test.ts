@@ -88,7 +88,8 @@ test('restores one thread, retains intake and follow-up state, and waits without
       input: { context: [{ role: 'bot', body: 'What browser?' }] },
       messages: [{ message: reply, attachmentTypes: [] }]
     }),
-    intervalMs: 5
+    intervalMs: 5,
+    batchMs: 0
   });
   const open = async () => {
     const store = new RunStore(directory);
