@@ -46,6 +46,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
       typing: async () => {},
       acknowledge: async () => {},
       setHandled: async () => {},
+      react: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('unused');

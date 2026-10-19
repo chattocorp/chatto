@@ -14,13 +14,14 @@ See [the TODO list](docs/TODO.md) for planned work and experiments.
 
 1. The `chatto` event source connects to Chatto as the bot. It receives the
    messages that address the bot: direct messages, mentions, and replies to
-   the bot.
+   the bot, plus added emoji reactions to the bot's messages.
 2. The router sends each message to the conversation run of its thread. When a
    thread has no run, the router starts one.
 3. The conversation answers the messages in turns. A turn includes all messages
    that arrived since the previous turn, and the other new messages in the
    thread as context. The first turn includes the thread so far.
-4. The agent's final text is posted to the thread as the reply.
+4. The agent's final text is posted to the thread as the reply. It can instead
+   add an emoji reaction when a short acknowledgment is sufficient.
 
 A conversation ends after one hour without an addressed message or an accepted
 automatic follow-up, once its current turn and background jobs finish. The next
@@ -130,7 +131,7 @@ as well as accepted reports. Other rooms still require an addressed message to
 start a conversation.
 
 All incoming messages use a fixed three-second batching window, including the
-first post, pings, and direct replies. The first queued message starts the window;
+first post, pings, direct replies, and reactions to bot messages. The first queued message starts the window;
 later messages join it without extending it. This lets people finish a short
 sequence of messages before the bot answers. Addressed messages in the same window
 reach one conversation turn, with each author's identity and authorization context
@@ -153,8 +154,11 @@ trigger another check or delivery, even when a turn produces no bot post.
 The classifier sees text and attachment MIME types, not files.
 Only clear implicit replies to the bot continue the conversation: answers to its
 questions, requested details, corrections to its advice, or requests for it to help
-further. Discussion of the same topic, human-to-human questions, brainstorming,
-and status updates do not qualify on their own. Uncertain cases, thanks, and
+further. Questions about the current report's progress, missing information, or
+next steps also qualify. One clear reply to the bot is sufficient for a batch;
+earlier vague remarks do not outweigh it. Discussion of the same topic,
+human-to-human questions, brainstorming, and status updates do not qualify on
+their own. Uncertain cases, thanks, and
 requests to leave the conversation to humans should stay silent.
 For automatic-intake conversations, clear resolutions and report withdrawals also
 reach the conversation agent so it can update the checkmark; plain thanks stay silent.
@@ -217,6 +221,7 @@ behavioral evaluations, not a host-enforced topic classifier.
 | `fetchPage`           | Reads the Chatto documentation and the Awesome Chatto list.                                           |
 | `readThread`          | Reads the newest messages of the thread.                                                              |
 | `viewAttachment`      | Looks at an image or a small text file in the thread.                                                 |
+| `react`               | Adds an emoji reaction to a message seen in the current thread.                                      |
 | `webSearch`           | Searches the web with Tavily, when configured.                                                        |
 | `browsePage`          | Reads a web page with Cloudflare Browser Run, when configured.                                        |
 | `gh`                  | Runs read-only GitHub CLI commands, when GitHub is configured.                                        |
@@ -255,6 +260,26 @@ authorize work, and the maintainer must address the bot in their reply. The
 contact must be a member of the room for the mention to be delivered; their
 notification settings still apply. The model provider receives the configured
 login as part of the bot's instructions. Restart the bot after changing `.env`.
+
+## Emoji reactions
+
+An added reaction to a ChattoBot message addresses the bot directly, including
+in a thread whose earlier conversation has ended. The bot reads the target message
+from Chatto and passes its text, the emoji, and the reacting user's identity to
+the conversation model. Its own reactions, reactions to other people's messages,
+and reaction removals do not start a turn. Removing a reaction does not cancel work.
+
+A maintainer can approve a clear proposal by adding 👍 to that proposal's message.
+The same user-ID check applies as for a direct reply. Approval covers the proposal
+that received the reaction, not a different or newer action. The agent asks for
+clarification when the scope is unclear. Appreciation and reactions to completed
+work must not start another job. Non-maintainers can react in normal conversation,
+but cannot authorize restricted work.
+
+ChattoBot can use `react` to acknowledge a message without an extra text reply.
+It can target only messages it has seen in the current thread. Delegation and
+result summaries still use text, and automatic report completion still uses
+`setHandled` for the root ✅.
 
 ## Background jobs
 

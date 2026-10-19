@@ -45,6 +45,63 @@ const cases = [
 /** These fixtures exercise participation in an existing thread, without an explicit ping. */
 const followUps = [
   {
+    name: 'follow-up-report-recap',
+    bot: 'Does the login error appear when you open the screen, or after you submit your login details?',
+    replies: ['what did we do here?'],
+    engage: true
+  },
+  {
+    name: 'follow-up-report-missing-information',
+    bot: 'Does the login error appear when you open the screen, or after you submit your login details?',
+    replies: ['do you need any additional information from me to open the issue?'],
+    engage: true
+  },
+  {
+    name: 'follow-up-report-continuation-batch',
+    bot: 'Thanks—that narrows it down: the login screen shows “404 BORKED.” Does it appear as soon as you open the login screen, or only after you submit your login details? Please don’t share your password.',
+    replies: [
+      'hey does this work',
+      'what did we do here?',
+      'do you need any additional information from me to open the issue?'
+    ],
+    trackHandled: true,
+    engage: true
+  },
+  {
+    name: 'follow-up-report-next-step',
+    bot: 'The report is ready for a maintainer to review.',
+    replies: ['What happens next with my report?'],
+    engage: true
+  },
+  {
+    name: 'follow-up-report-human-recap',
+    bot: 'Does the login error appear before or after submitting your login details?',
+    replies: ['@alex what did we do here?'],
+    engage: false
+  },
+  {
+    name: 'follow-up-report-human-filing',
+    bot: 'The report is ready for a maintainer to review.',
+    replies: ['@alex do you need any additional information from me to open the issue?'],
+    engage: false
+  },
+  {
+    name: 'follow-up-report-mixed-batch',
+    bot: 'You can check the server log for the startup error.',
+    replies: [
+      '@alex I can check your setup tomorrow.',
+      'Thanks!',
+      'Can you explain how I find that log?'
+    ],
+    engage: true
+  },
+  {
+    name: 'follow-up-report-human-only-batch',
+    bot: 'The report is ready for a maintainer to review.',
+    replies: ['@alex what happens next?', '@sam I will file it tomorrow.', 'Thanks!'],
+    engage: false
+  },
+  {
     name: 'follow-up-related-human-question',
     bot: 'Which browser version are you using?',
     replies: ['@alex which browser version are you using?'],

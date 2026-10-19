@@ -21,7 +21,7 @@ import {
 import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { webSettings } from '../web.ts';
 import { createInvestigator, investigatorSettings } from '../tasks/investigate.ts';
-import { incomingMessage, intakeMessage, followUpMessage } from './message.ts';
+import { incomingMessage, intakeMessage, followUpMessage, reactionMessage } from './message.ts';
 import { createChattoRouter, createRouterState, type RouterState } from './router.ts';
 import { createIntakeClassifier } from '../tasks/classify-intake.ts';
 import { createThreadWorkflow } from '../tasks/thread.ts';
@@ -144,6 +144,8 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     acknowledge: createEyesReaction(api),
     setHandled: createHandledReaction(api),
+    react: (messageId, emoji, signal) =>
+      api.addReaction({ roomId: message.roomId, messageId }, emoji, { signal }),
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
@@ -221,7 +223,9 @@ async function consume(
           await ctx.dispatch(route, { ...incomingMessage(message), connection: identity });
         else {
           const candidate =
-            intakeMessage(event, autoEngageRooms, botId) ?? followUpMessage(event, botId);
+            intakeMessage(event, autoEngageRooms, botId) ??
+            followUpMessage(event, botId) ??
+            (await reactionMessage(event, botId, server, ctx.signal));
           if (candidate) await ctx.dispatch(route, { ...candidate, connection: identity });
         }
       } catch {

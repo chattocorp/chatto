@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   ready: vi.fn(),
   consumeEvents: vi.fn(),
   addressedMessage: vi.fn(),
+  getMessage: vi.fn(),
   close: vi.fn(),
   batchGetUsers: vi.fn(),
   readThread: vi.fn(),
@@ -188,6 +189,72 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
     body: '',
     attachmentTypes: ['image/png']
   });
+});
+
+test('reactions on bot messages reach recovered threads once with the reacting identity', async () => {
+  mocks.getMessage.mockResolvedValue({
+    id: 'proposal',
+    roomId: 'ordinary',
+    threadRootId: 'root',
+    authorId: 'bot',
+    body: 'Shall I file the issue?'
+  });
+  const reaction = (id: string, actorId = 'human') =>
+    new RealtimeEvent({
+      id,
+      actorId,
+      event: {
+        case: 'reactionAdded',
+        value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
+      }
+    });
+  await run(
+    [
+      reaction('approval'),
+      reaction('approval'),
+      reaction('own', 'bot'),
+      reaction('blocked', 'other')
+    ],
+    { recovered: true, allowed: 'human' }
+  );
+  expect(mocks.steered).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      id: 'approval',
+      authorId: 'human',
+      threadRootId: 'root',
+      reaction: { emoji: '+1', messageId: 'proposal', body: 'Shall I file the issue?' }
+    })
+  );
+  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.started).not.toHaveBeenCalled();
+});
+
+test('a reaction can reopen a conversation without automatic intake', async () => {
+  mocks.getMessage.mockResolvedValue({
+    id: 'proposal',
+    roomId: 'ordinary',
+    threadRootId: 'root',
+    authorId: 'bot',
+    body: 'Shall I file the issue?'
+  });
+  const inputs = await run([
+    new RealtimeEvent({
+      id: 'approval',
+      actorId: 'human',
+      event: {
+        case: 'reactionAdded',
+        value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
+      }
+    })
+  ]);
+  expect(inputs).toEqual([
+    expect.objectContaining({
+      id: 'approval',
+      authorId: 'human',
+      reaction: expect.objectContaining({ messageId: 'proposal' })
+    })
+  ]);
+  expect(mocks.classify).not.toHaveBeenCalled();
 });
 
 test('realtime replies in ordinary rooms wake recovered active threads without starting runs', async () => {

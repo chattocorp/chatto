@@ -1,6 +1,12 @@
 /** An addressed Chatto message or accepted report, as the conversation task receives it. */
 import { Type, type Static } from 'runling';
-import type { AddressedMessage, Destination, ThreadLocation, RealtimeEvent } from '@chatto/client';
+import type {
+  AddressedMessage,
+  Destination,
+  ThreadLocation,
+  RealtimeEvent,
+  MessagingRequests
+} from '@chatto/client';
 
 export const IncomingMessage = Type.Object({
   id: Type.String(),
@@ -10,6 +16,14 @@ export const IncomingMessage = Type.Object({
   /** The server-authenticated author. Never a display name. */
   authorId: Type.String(),
   body: Type.String(),
+  /** A verified reaction to this bot's message. The input ID identifies the reaction event. */
+  reaction: Type.Optional(
+    Type.Object({
+      emoji: Type.String(),
+      messageId: Type.String(),
+      body: Type.String()
+    })
+  ),
   /** Host connection identity. Used to bind recovered workflows to the same server and bot. */
   connection: Type.Optional(Type.String()),
   /** Host-owned provenance. Absent means an addressed message for existing callers. */
@@ -47,8 +61,37 @@ export const threadOf = (message: IncomingMessage): ThreadLocation => ({
 /** A reply in the message's thread that references the message. */
 export const replyTo = (message: IncomingMessage): Destination => ({
   ...threadOf(message),
-  inReplyTo: message.id
+  inReplyTo: message.reaction?.messageId ?? message.id
 });
+
+/** Treat added reactions on the bot's visible messages as direct input. Removals and the
+ * bot's own reactions never start a turn. Resolve the thread and target from the server. */
+export async function reactionMessage(
+  event: RealtimeEvent,
+  botId: string,
+  client: Pick<MessagingRequests, 'getMessage'>,
+  signal: AbortSignal
+): Promise<IncomingMessage | undefined> {
+  if (
+    event.event.case !== 'reactionAdded' ||
+    !event.id ||
+    !event.actorId ||
+    event.actorId === botId
+  )
+    return;
+  const { roomId, messageEventId, emoji } = event.event.value;
+  if (!roomId || !messageEventId || !emoji) return;
+  const target = await client.getMessage({ roomId, messageId: messageEventId }, { signal });
+  if (!target || target.authorId !== botId || target.body === undefined) return;
+  return {
+    id: event.id,
+    roomId,
+    threadRootId: target.threadRootId ?? target.id,
+    authorId: event.actorId,
+    body: emoji,
+    reaction: { emoji, messageId: target.id, body: target.body }
+  };
+}
 
 /** What the parent sends to a conversation: one message or a batch of addressed or accepted replies.
  * Each message retains its authenticated author and host-owned provenance. */

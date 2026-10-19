@@ -20,7 +20,7 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   exits silently or runs the conversation as a child in the same run. It forwards
   later addressed messages to that child. Addressed entry starts the same workflow
   without initial classification. Batch all incoming messages, including the first
-  post, pings, and direct replies, in a fixed three-second window. The first queued
+  post, pings, direct replies, and reactions to bot messages, in a fixed three-second window. The first queued
   message starts it; later arrivals do not extend it. The window elapses while the
   conversation is busy. Send addressed batches directly; ordinary reply batches
   wake a classification check without a second delay. Preserve each message's
@@ -36,6 +36,9 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   The workflow classifies changed
   batches and forwards accepted replies together to the existing conversation.
   Accept clear implicit replies to the bot, not general discussion of the same topic.
+  Include recap, missing-information, and next-step questions about the current report.
+  One clear reply is enough to accept a batch; vague remarks must not outweigh it.
+  Questions explicitly addressed to other people remain human discussion.
   Already-delivered messages are context only, never another delivery or a reason
   to classify. Keep this true even when a turn does not post a reply.
   Empty or unchanged checks need no model call. The workflow owns the one-hour
@@ -58,7 +61,14 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Preserve intake status and the inactivity deadline. See [Recovery](README.md#recovery).
 - `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
   each turn, and the only posts to the thread. The agent's final text is the
-  reply.
+  reply. A successful `react` call can replace a text reply. Limit its targets to
+  message IDs seen in the current thread. Keep the automatic root checkmark under
+  `setHandled`, including its pending-work and closing-reply rules.
+- Added reactions to this bot's messages are addressed input. Read the target from
+  Chatto to verify its author and thread. Preserve the server-authenticated reaction
+  author, event ID, emoji, target ID, and target text. Use the reaction event ID for
+  delivery and authorization; use the target message ID for replies. Ignore own
+  reactions and removals. A removal does not cancel delegated work.
 - Add a capability as a tool of that agent. When the work is long or needs its
   own agent, write it as a Runling task that can also run on its own, like
   `tasks/investigate.ts`, and give it to the agent as a tool. A task
@@ -208,7 +218,11 @@ a maintainer gate before delegation:
 - The host gate checks identity. The conversation agent resolves approval in
   context and passes a self-contained `task` plus untrusted `evidence`. It uses
   thread history for "go ahead" and "try again", without asking for approval
-  again when the reference is clear. A ping grants no authority. Retries specify
+  again when the reference is clear. A current maintainer's thumbs-up on a specific
+  proposal can approve that proposal. Resolve its scope from the exact reaction
+  target, not the newest proposal. Reactions to completed work or expressions of
+  appreciation do not start more work. Do not repeat work already started or completed.
+  Non-maintainer reactions grant no authority. A ping grants no authority. Retries specify
   only unfinished work. Bulk changes need an explicit operation and affected set.
   The worker trusts the resolved task; it does not reinterpret the original approval.
 - Every worker `gh` call passes static command policy. Writes also pass a tool-free

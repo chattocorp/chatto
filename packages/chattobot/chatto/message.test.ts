@@ -1,7 +1,71 @@
-import { expect, test } from 'vitest';
-import { incomingMessage, replyTo } from './message.ts';
+import { expect, test, vi } from 'vitest';
+import { incomingMessage, replyTo, reactionMessage } from './message.ts';
 import { intakeMessage, followUpMessage } from './message.ts';
 import { RealtimeEvent } from '@chatto/client';
+
+test('reactions preserve the actor, event identity, exact target, and server-resolved thread', async () => {
+  const event = new RealtimeEvent({
+    id: 'reaction',
+    actorId: 'maintainer',
+    event: {
+      case: 'reactionAdded',
+      value: { roomId: 'room', messageEventId: 'proposal', emoji: '+1' }
+    }
+  });
+  const getMessage = vi.fn().mockResolvedValue({
+    id: 'proposal',
+    authorId: 'bot',
+    threadRootId: 'root',
+    body: 'Shall I file this bug?'
+  });
+  const input = await reactionMessage(event, 'bot', { getMessage }, new AbortController().signal);
+  expect(input).toEqual({
+    id: 'reaction',
+    authorId: 'maintainer',
+    roomId: 'room',
+    threadRootId: 'root',
+    body: '+1',
+    reaction: { emoji: '+1', messageId: 'proposal', body: 'Shall I file this bug?' }
+  });
+  expect(replyTo(input!)).toEqual({ roomId: 'room', threadRootId: 'root', inReplyTo: 'proposal' });
+  getMessage.mockResolvedValue({ id: 'proposal', authorId: 'bot', body: 'Root proposal' });
+  expect(
+    await reactionMessage(event, 'bot', { getMessage }, new AbortController().signal)
+  ).toMatchObject({ threadRootId: 'proposal' });
+});
+
+test('own reactions, removals, missing targets, and reactions to other people do not become input', async () => {
+  const getMessage = vi.fn();
+  const signal = new AbortController().signal;
+  const event = new RealtimeEvent({
+    id: 'reaction',
+    actorId: 'bot',
+    event: {
+      case: 'reactionAdded',
+      value: { roomId: 'room', messageEventId: 'proposal', emoji: 'heart' }
+    }
+  });
+  expect(await reactionMessage(event, 'bot', { getMessage }, signal)).toBeUndefined();
+  const removed = new RealtimeEvent({
+    id: 'removed',
+    actorId: 'human',
+    event: {
+      case: 'reactionRemoved',
+      value: { roomId: 'room', messageEventId: 'proposal', emoji: 'heart' }
+    }
+  });
+  expect(await reactionMessage(removed, 'bot', { getMessage }, signal)).toBeUndefined();
+  expect(getMessage).not.toHaveBeenCalled();
+  event.actorId = 'human';
+  for (const target of [
+    undefined,
+    { id: 'proposal', authorId: 'human', body: 'Please approve' },
+    { id: 'proposal', authorId: 'bot' }
+  ]) {
+    getMessage.mockResolvedValue(target);
+    expect(await reactionMessage(event, 'bot', { getMessage }, signal)).toBeUndefined();
+  }
+});
 
 test('a message at the room level starts its own thread, and a reply references the message', () => {
   const root = incomingMessage({
