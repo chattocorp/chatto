@@ -131,8 +131,8 @@ test('open input does not prevent completion and active steering is delivered on
   const worker = agent({ name: 'Steered', ...settings }, async () => instance);
   await using invocation = createTaskContext().start(worker, 'Start');
   await entered.promise;
-  await expect(invocation.send(12 as never)).rejects.toThrow('message is invalid');
-  await invocation.send('Also check closed issues');
+  await expect(invocation.steer(12 as never)).rejects.toThrow('steering is invalid');
+  await invocation.steer('Also check closed issues');
   expect(await invocation.result).toBe('Done');
   expect(instance.steer).toHaveBeenCalledExactlyOnceWith('Also check closed issues');
   expect(instance.runOutcome).toHaveBeenCalledTimes(1);
@@ -158,7 +158,7 @@ test('undelivered steering becomes a new turn before the session is disposed', a
   const worker = agent({ name: 'Late steering', ...settings }, async () => instance);
   await using invocation = createTaskContext().start(worker, 'Start');
   await entered.promise;
-  await invocation.send('Follow up');
+  await invocation.steer('Follow up');
   await received.promise;
   finish.resolve();
   expect(await invocation.result).toBe('Follow up');
@@ -193,9 +193,9 @@ test('steering queued during setup is retained when the initial turn finishes im
   );
   await using invocation = createTaskContext().start(worker, 'Start');
   await entered.promise;
-  await invocation.send('One');
-  await invocation.send('Two');
-  await invocation.send('Three');
+  await invocation.steer('One');
+  await invocation.steer('Two');
+  await invocation.steer('Three');
   ready.resolve();
   expect(await invocation.result).toBe('Three');
   expect(vi.mocked(instance.runOutcome).mock.calls.map(([, prompt]) => prompt)).toEqual([

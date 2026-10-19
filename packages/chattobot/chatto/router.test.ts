@@ -8,8 +8,8 @@ const conversation = task(
   {
     name: 'Conversation',
     input: IncomingMessage,
-    output: Type.Null(),
-    receives: IncomingMessage
+    result: Type.Null(),
+    steering: IncomingMessage
   },
   async () => null
 );
@@ -23,7 +23,7 @@ const message = (id: string, body = id, threadRootId = 'root'): IncomingMessage 
 });
 
 /** A router with fake runs that record their messages. */
-function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) {
+function harness({ steer }: { steer?: (message: unknown) => Promise<void> } = {}) {
   const runs: {
     workflow: string;
     input: unknown;
@@ -43,11 +43,11 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
     runs.push(run);
     const handle: RunHandle = {
       id: `run-${runs.length}`,
-      send: async (value) => {
-        await send?.(value);
+      steer: async (value) => {
+        await steer?.(value);
         run.sent.push(value);
       },
-      closeInput: () => void (run.closed = true),
+      closeSteering: () => void (run.closed = true),
       cancel: () => {},
       finished: finished.promise
     };
@@ -113,7 +113,7 @@ test('starts intake once and forwards later pings to that workflow', async () =>
 test('starts a new run when the thread run no longer accepts messages', async () => {
   let accept = true;
   const router = harness({
-    send: async () => {
+    steer: async () => {
       if (!accept) throw new Error('This run is not running.');
     }
   });

@@ -113,7 +113,7 @@ test('reports its tool calls and reasoning steps as updates', async () => {
   const { directory, investigate } = await setup(['See src/a.ts:1.']);
   const investigation = createTaskContext().start(investigate, { directory, question: 'Q?' });
   const updates: unknown[] = [];
-  for await (const update of investigation.updates) updates.push(update);
+  for await (const update of investigation.output) updates.push(update);
   await investigation.result;
   expect(updates).toEqual(['Reading src/a.ts']);
 });

@@ -16,6 +16,6 @@ Planned behavior belongs in open questions. See the [documentation index](../REA
 | FDR-007 | [Authorization classifier](FDR-007-authorization-classifier.md)             | Retired      | 2026-10-14    |
 | FDR-008 | [Codemode](FDR-008-codemode.md)                                             | Experimental | 2026-10-18    |
 | FDR-009 | [Parent-owned approvals](FDR-009-parent-owned-approvals.md)                 | Retired      | 2026-10-14    |
-| FDR-010 | [Messages between hosts, tasks, and runs](FDR-010-host-messages.md)         | Experimental | 2026-10-15    |
+| FDR-010 | [Messages between hosts, tasks, and runs](FDR-010-host-messages.md)         | Experimental | 2026-10-18    |
 | FDR-011 | [CLI run details and final output](FDR-011-cli-output.md)                   | Experimental | 2026-10-15    |
 | FDR-012 | [Workflow state and restart recovery](FDR-012-workflow-state.md)            | Experimental | 2026-10-18    |

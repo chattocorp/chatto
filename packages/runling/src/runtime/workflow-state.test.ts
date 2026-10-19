@@ -112,14 +112,14 @@ test('malformed or unsupported snapshots fail startup without overwriting the fi
 test('only the root receives workflow state; a parent can pass an ordinary sub-object', async () => {
   const state = { private: 'root only', child: { count: 0 } };
   const child = task(
-    { name: 'Child', input: Type.Object({ count: Type.Number() }), output: Type.Null() },
+    { name: 'Child', input: Type.Object({ count: Type.Number() }), result: Type.Null() },
     (ctx, input) => {
       expect(ctx.state).toEqual({});
       input.count++;
       return null;
     }
   );
-  const root = task({ name: 'Root', input: Type.Null(), output: Type.Null() }, async (ctx) => {
+  const root = task({ name: 'Root', input: Type.Null(), result: Type.Null() }, async (ctx) => {
     expect(ctx.state).toBe(state);
     await child(ctx, state.child);
     return null;

@@ -57,7 +57,7 @@ test.each([
   const h = harness(output);
   await expect(
     h.classifier(createTaskContext(), { body: 'hello', attachmentTypes: [] })
-  ).rejects.toThrow(/Invalid classification decision|output is invalid/);
+  ).rejects.toThrow(/Invalid classification decision|result is invalid/);
   expect(h.run).toHaveBeenCalledOnce();
   expect(h.dispose).toHaveBeenCalledOnce();
 });

@@ -177,7 +177,7 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
         }),
       () =>
         task(
-          { name: 'Fixture GitHub worker', input: GitHubWorkInput, output: Type.String() },
+          { name: 'Fixture GitHub worker', input: GitHubWorkInput, result: Type.String() },
           githubWorker
         )
     );

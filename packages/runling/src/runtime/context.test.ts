@@ -97,7 +97,7 @@ test('supplies a default abort reason and retains usage', () => {
 test('a context without a parent has an empty inbox, no run, and discards messages', async () => {
   const ctx = createTaskContext();
   const messages: unknown[] = [];
-  for await (const message of ctx.inbox) messages.push(message);
+  for await (const message of ctx.steering) messages.push(message);
   expect(messages).toEqual([]);
   // There is no parent to read updates, so emitting never fills a buffer.
   for (let i = 0; i < 100; i++) await ctx.emit(i);

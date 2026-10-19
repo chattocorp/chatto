@@ -1774,7 +1774,7 @@ test.each(['root', 'child', 'report'])(
     export default ${
       kind === 'root'
         ? `agent(${options})`
-        : `task({ name: 'Root', input: Type.String(), output: Type.String() }, async (ctx, input) => {
+        : `task({ name: 'Root', input: Type.String(), result: Type.String() }, async (ctx, input) => {
       ${kind === 'child' ? `await agent(${options})(ctx, input);` : `await using session = await createAgentSession(${options}); await session.runOutcome(ctx, input);`}
       return ${JSON.stringify(markdown)};
     })`

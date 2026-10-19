@@ -4,15 +4,15 @@ For an agent task, use `ctx.start` and send text through the invocation:
 
 ```ts
 await using work = ctx.start(planner, 'Investigate this change');
-await work.send('Keep the existing public API');
-for await (const reply of work.updates) console.log(reply);
+await work.steer('Keep the existing public API');
+for await (const reply of work.output) console.log(reply);
 const result = await work.result;
 ```
 
 Runling forwards messages to the session while it runs. If a message that it
 read cannot enter the current turn, it starts another turn with that message.
-Input closes when the task finishes. The task does not wait for more work after
-its current work ends. A successful `send` means queued, not processed.
+Steering closes when the task finishes. The task does not wait for more work after
+its current work ends. A successful `steer` means queued, not processed.
 
 ## Explicit session steering
 
@@ -50,9 +50,9 @@ the journal and prints only the root task's final output.
 ## Steer from a task inbox
 
 The `agent()` task handles this forwarding. For a custom session loop, read
-`ctx.inbox` while the turn runs, and call `steer()` for each message. Keep each
+`ctx.steering` while the turn runs, and call `steer()` for each message. Keep each
 message for which `steer()` resolves to `false`, and use it in the next turn.
-`ctx.inbox` has one reader only, so the same code must read the inbox for all
+`ctx.steering` has one reader only, so the same code must read the inbox for all
 turns. A failed or cancelled task makes the inbox reader reject; handle that
 rejection. See [agents](agents.md) and
 [task invocations and messages](task-channels.md).

@@ -78,7 +78,7 @@ export function createChattoRouter({
 
     if (thread) {
       try {
-        await thread.run.send(message);
+        await thread.run.steer(message);
         return;
       } catch {
         // The run has finished or no longer accepts messages: start a new one.

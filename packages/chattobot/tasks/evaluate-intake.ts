@@ -136,7 +136,7 @@ export default task(
   {
     name: 'Evaluate report intake',
     input: Type.String(),
-    output: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
+    result: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
   },
   async (ctx, filter) => {
     const model = setting('CHATTO_AGENT_MODEL');

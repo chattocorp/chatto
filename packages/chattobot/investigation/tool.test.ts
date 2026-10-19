@@ -12,7 +12,7 @@ async function tool({ repository, fail }: { repository?: string; fail?: boolean 
   const scopes: string[] = [];
   const release = Promise.withResolvers<void>();
   const investigate = task(
-    { name: 'Investigate', input: Type.Any(), output: Type.Any(), emits: Type.String() },
+    { name: 'Investigate', input: Type.Any(), result: Type.Any(), output: Type.String() },
     async (ctx, input) => {
       inputs.push(input);
       await ctx.emit('Reading src/a.ts');
@@ -129,7 +129,7 @@ test(`refuses more than ${MAX_RUNNING} running investigations`, async () => {
   const bot = await tool();
   const forever = new Promise<string>(() => {});
   const pending = task(
-    { name: 'Pending', input: Type.Null(), output: Type.String() },
+    { name: 'Pending', input: Type.Null(), result: Type.String() },
     () => forever
   );
   for (const id of ['a', 'b', 'c'])
@@ -150,7 +150,7 @@ test(`refuses more than ${MAX_RUNNING} running investigations`, async () => {
 
 test('authorization rejects members, forged and stale IDs before resume and concurrency checks', async () => {
   const bot = await tool();
-  const pending = task({ name: 'Pending', input: Type.Null(), output: Type.String() }, async () => {
+  const pending = task({ name: 'Pending', input: Type.Null(), result: Type.String() }, async () => {
     await new Promise<void>((done) => setTimeout(done, 50));
     return 'done';
   });

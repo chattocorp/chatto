@@ -36,7 +36,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
   };
   const classify = vi.fn(async () => ({ engage: true, reason: 'relevant' }));
   const classifier = task(
-    { name: 'Classifier', input: IntakeInput, output: IntakeDecision },
+    { name: 'Classifier', input: IntakeInput, result: IntakeDecision },
     classify
   );
   const conversation = createConversation(

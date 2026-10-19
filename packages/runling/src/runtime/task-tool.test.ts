@@ -15,8 +15,8 @@ const greet = task(
   {
     name: 'Greet',
     input: Name,
-    output: Type.String(),
-    emits: Type.Object({ progress: Type.Number() })
+    result: Type.String(),
+    output: Type.Object({ progress: Type.Number() })
   },
   async (ctx, { name }) => {
     await ctx.emit({ progress: 50 });
@@ -49,7 +49,7 @@ test('returns text as it is and reports updates as partial results', async () =>
 
 test('returns other outputs as JSON', async () => {
   const count = task(
-    { name: 'Count', input: Name, output: Type.Object({ length: Type.Number() }) },
+    { name: 'Count', input: Name, result: Type.Object({ length: Type.Number() }) },
     (_ctx, { name }) => ({ length: name.length })
   );
   const tool = taskTool(createTaskContext(), count, { name: 'count', description: 'Count' });
@@ -66,10 +66,10 @@ test('returns other outputs as JSON', async () => {
 test('starts the task as a child with a closed input', async () => {
   const events: RunlingEvent[] = [];
   const drain = task(
-    { name: 'Drain', input: Type.Object({}), output: Type.Number() },
+    { name: 'Drain', input: Type.Object({}), result: Type.Number() },
     async (ctx) => {
       let count = 0;
-      for await (const _ of ctx.inbox) count++;
+      for await (const _ of ctx.steering) count++;
       return count;
     }
   );
@@ -89,7 +89,7 @@ test('starts the task as a child with a closed input', async () => {
 
 test('validates the input and propagates task errors', async () => {
   const error = new Error('failed');
-  const failing = task({ name: 'Fail', input: Name, output: Type.String() }, () => {
+  const failing = task({ name: 'Fail', input: Name, result: Type.String() }, () => {
     throw error;
   });
   const ctx = createTaskContext();
@@ -119,7 +119,7 @@ test('cancelling the tool call cancels the task but not the parent or other call
   const signals: AbortSignal[] = [];
   const release = Promise.withResolvers<void>();
   const slow = task(
-    { name: 'Slow', input: Name, output: Type.String() },
+    { name: 'Slow', input: Name, result: Type.String() },
     async (child, { name }) => {
       signals.push(child.signal);
       if (signals.length === 2) started.resolve();
@@ -152,7 +152,7 @@ test('cancelling the tool call cancels the task but not the parent or other call
 
 test('rejects a pre-cancelled tool call before the task runs', async () => {
   const run = vi.fn(() => 'unused');
-  const unused = task({ name: 'Unused', input: Name, output: Type.String() }, run);
+  const unused = task({ name: 'Unused', input: Name, result: Type.String() }, run);
   const tool = taskTool(createTaskContext(), unused, { name: 'unused', description: 'Unused' });
   const reason = new Error('cancelled');
   await expect(
@@ -163,7 +163,7 @@ test('rejects a pre-cancelled tool call before the task runs', async () => {
 
 test('requires a TypeBox input schema', () => {
   const standard = task(
-    { name: 'Standard', input: z.object({ name: z.string() }), output: z.string() },
+    { name: 'Standard', input: z.object({ name: z.string() }), result: z.string() },
     (_ctx, { name }) => name
   );
   expect(() =>

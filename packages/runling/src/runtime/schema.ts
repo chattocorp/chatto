@@ -116,7 +116,7 @@ export function toJsonSchema(
  * the value is returned as it is. */
 export async function parseBoundary(
   name: string,
-  boundary: 'input' | 'output' | 'message' | 'update',
+  boundary: 'input' | 'result' | 'steering' | 'output' | 'message' | 'update',
   schema: WorkflowSchema | undefined,
   value: unknown
 ): Promise<unknown> {

@@ -34,7 +34,21 @@ async function harness(implementation = false) {
     error: null;
     lastMessage: string;
   }>();
-  const launch = vi.fn(async () => ({ id: 'agent', waitForFinish: () => finish.promise }));
+  const launch = vi.fn(async () => ({
+    id: 'agent',
+    send: async () => {},
+    timeline: {
+      append: vi.fn(),
+      refetch: vi.fn(),
+      subscribe: () =>
+        Object.assign(() => {}, {
+          ready: Promise.resolve(),
+          subscriptionId: 'test',
+          release: async () => {}
+        })
+    },
+    waitForFinish: () => finish.promise
+  }));
   const factory = vi.fn(() => ({
     connect: async () => {},
     close: async () => {},
@@ -156,7 +170,7 @@ test('implementation shares the attempt guard, retains progress, and delivers on
   await expect(h.execute('duplicate', input)).rejects.toThrow('already attempted');
   h.release.resolve({ id: 'workspace', name: input.title, directory: '/worktree' });
   await vi.waitFor(
-    () => expect([...h.pending.values()][0]?.latest).toContain('Paseo implementation started'),
+    () => expect([...h.pending.values()][0]?.output.at(-1)).toContain('Implementation started'),
     { timeout: 2000 }
   );
   expect([...h.pending.values()][0]?.replyTo.inReplyTo).toBe('approval');

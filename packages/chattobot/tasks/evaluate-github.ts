@@ -60,8 +60,8 @@ async function supervisor(
             {
               name: 'Fixture investigation',
               input: Type.Any(),
-              output: Type.Any(),
-              emits: Type.String()
+              result: Type.Any(),
+              output: Type.String()
             },
             async (_ctx, input) => {
               investigations.push(input.question);
@@ -137,7 +137,7 @@ async function supervisor(
         {
           name: 'Fixture GitHub worker',
           input: GitHubWorkInput,
-          output: Type.String()
+          result: Type.String()
         },
         async (workerContext, input) => {
           delegated.push(input);
@@ -171,10 +171,10 @@ async function supervisor(
       throw new Error('Conversation ended before evaluation');
     })
   ]);
-  for (const message of scenario.messages) await invocation.send({ ...location, ...message });
+  for (const message of scenario.messages) await invocation.steer({ ...location, ...message });
   // Let the conversation's inbox reader queue the complete batch before releasing its turn.
   await new Promise<void>((done) => setImmediate(done));
-  invocation.closeInput();
+  invocation.closeSteering();
   release.resolve();
   await invocation.result;
   return {
@@ -193,7 +193,7 @@ export default task(
   {
     name: 'Evaluate GitHub behavior',
     input: Type.String(),
-    output: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
+    result: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
   },
   async (ctx, filter) => {
     const model = setting('CHATTO_AGENT_MODEL');

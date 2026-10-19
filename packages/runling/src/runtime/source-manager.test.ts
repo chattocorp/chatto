@@ -12,15 +12,15 @@ import {
 /** A registered run that accepts and records messages. */
 const runHandle = (id: string, sent: unknown[] = []): RunHandle => ({
   id,
-  send: async (message) => {
+  steer: async (message) => {
     sent.push(message);
   },
-  closeInput: () => {},
+  closeSteering: () => {},
   cancel: () => {},
   finished: Promise.resolve()
 });
 
-const noop = task({ name: 'Noop', input: Type.Null(), output: Type.Null() }, () => null);
+const noop = task({ name: 'Noop', input: Type.Null(), result: Type.Null() }, () => null);
 
 const untilAbort = (signal: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -133,7 +133,7 @@ test('removing a source discards its state before the name is reused', async () 
 test('a router can keep a run handle and send the run later messages', async () => {
   const sent: unknown[] = [];
   const conversation = task(
-    { name: 'Conversation', input: Type.String(), output: Type.Null(), receives: Type.String() },
+    { name: 'Conversation', input: Type.String(), result: Type.Null(), steering: Type.String() },
     () => null
   );
   const manager = new SourceManager(() => async () => runHandle('chat', sent));
@@ -154,7 +154,7 @@ test('a router can keep a run handle and send the run later messages', async () 
   }, undefined);
   expect(runs).toEqual([{ id: 'chat' }]);
   // The handle outlives the delivery that started the run.
-  await handle?.send('Next message');
+  await handle?.steer('Next message');
   expect(sent).toEqual(['Next message']);
   await manager.close();
 });

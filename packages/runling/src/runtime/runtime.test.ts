@@ -10,9 +10,9 @@ describe('execution services', () => {
   test('isolates concurrent host messages, logs, and verbosity', async () => {
     const events: RunlingEvent[][] = [[], []];
     const answer = task(
-      { name: 'Answer', input: Type.String(), output: Type.String(), receives: Type.String() },
+      { name: 'Answer', input: Type.String(), result: Type.String(), steering: Type.String() },
       async (ctx) => {
-        for await (const answer of ctx.inbox) {
+        for await (const answer of ctx.steering) {
           log.debug(`debug:${answer}`);
           log.info(answer);
           return answer;

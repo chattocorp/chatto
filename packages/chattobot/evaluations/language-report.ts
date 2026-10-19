@@ -181,11 +181,11 @@ export async function languageReport(
   void ended.catch(() => {});
   try {
     for (let index = 0; index < messages.length; index++) {
-      if (index) await invocation.send(message(index));
+      if (index) await invocation.steer(message(index));
       for (let turn = 0; turn < (index < 3 ? 1 : 2); turn++)
         await Promise.race([reader.next(), ended]);
     }
-    invocation.closeInput();
+    invocation.closeSteering();
     await invocation.result;
     checkLanguageReport(record);
   } finally {

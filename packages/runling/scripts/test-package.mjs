@@ -61,23 +61,23 @@ const { createTaskContext, createChannel, task, taskTool, Type } = runling;
 for (const removed of ["spawn", "input", "createWorkflowContext", "isSchemaTask", "getPwd", "randomId"])
   assert.equal(removed in runling, false, removed + " must not be exported");
 await assert.rejects(import("runling/agents"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
-const echo = task({ name: "Echo", input: Type.String(), output: Type.String() }, (_ctx, input) => input);
+const echo = task({ name: "Echo", input: Type.String(), result: Type.String() }, (_ctx, input) => input);
 assert.equal(await echo(createTaskContext(), "direct"), "direct");
 const worker = task({
-  name: "Worker", input: Type.Number(), output: Type.Number(), receives: Type.Number(), emits: Type.Number(),
+  name: "Worker", input: Type.Number(), result: Type.Number(), steering: Type.Number(), output: Type.Number(),
 }, async (ctx, initial) => {
   let total = initial;
-  for await (const value of ctx.inbox) { total += value; await ctx.emit(total); }
+  for await (const value of ctx.steering) { total += value; await ctx.emit(total); }
   return total;
 });
 const child = createTaskContext().start(worker, 0);
 assert.equal(child.status, "running");
-await child.send(2);
-await child.send(3);
-await assert.rejects(child.send("four"), { name: "TypeError" });
-child.closeInput();
+await child.steer(2);
+await child.steer(3);
+await assert.rejects(child.steer("four"), { name: "TypeError" });
+child.closeSteering();
 const updates = [];
-for await (const update of child.updates) updates.push(update);
+for await (const update of child.output) updates.push(update);
 assert.deepEqual(updates, [2, 5]);
 assert.equal(await child.result, 5);
 assert.equal(child.status, "completed");
@@ -118,7 +118,7 @@ import * as git from "runling/git";
 import { createTrustExtension } from "runling/extensions/trust";
 if ([agent, createAgentSession, runAgent, defineAgentExtension, taskTool, createTrustExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
 if (!isTask(agent({ name: "Consumer agent", model: "test/model", cwd: "." }))) throw new Error("An agent must be a task");
-export default task({ name: "CLI echo", input: Type.String(), output: Type.String() }, async (ctx, input) => {
+export default task({ name: "CLI echo", input: Type.String(), result: Type.String() }, async (ctx, input) => {
   if (typeof git.getPwd !== "function" || typeof git.workingTreeHash !== "function" || typeof git.WorkingDirectory.create !== "function") throw new Error("Git helpers were not exported");
   if (process.env.RUNLING_PACKAGE_TEST_ENV !== "loaded") throw new Error("Project .env was not loaded");
   if (createTaskContext().usage.input !== 0 || "cwd" in ctx) throw new Error("Invalid task context");
@@ -475,7 +475,7 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
     `
     import { task, Type } from "runling";
     import { defineWebConfig } from "runling/web";
-    const work = task({ name: "Example", input: Type.Any(), output: Type.Any() }, async (ctx, input) => {
+    const work = task({ name: "Example", input: Type.Any(), result: Type.Any() }, async (ctx, input) => {
       if (!input.wait) return input.message;
       await new Promise(resolve => ctx.signal.addEventListener("abort", resolve, { once: true }));
       return null;

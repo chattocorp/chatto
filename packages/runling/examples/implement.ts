@@ -37,7 +37,7 @@ export const implement = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ description: 'The requested code change' })
     }),
-    output: Type.String({ description: 'A summary of the implementation' })
+    result: Type.String({ description: 'A summary of the implementation' })
   },
   async (ctx, { directory, prompt: input }): Promise<string> => {
     const pwd = await git.getPwd(directory);

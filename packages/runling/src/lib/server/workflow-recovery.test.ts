@@ -28,12 +28,12 @@ test('shutdown saves cleanup mutations; restart re-enters the same root and acce
   const first = await create();
   const ready = Promise.withResolvers<void>();
   const root = task(
-    { name: 'Conversation', input: Type.String(), output: Type.Unknown() },
+    { name: 'Conversation', input: Type.String(), result: Type.Unknown() },
     async (ctx, input) => {
       ctx.state.input = input;
       try {
         ready.resolve();
-        for await (const _ of ctx.inbox);
+        for await (const _ of ctx.steering);
       } finally {
         ctx.state.cleanup = true;
       }
@@ -47,12 +47,12 @@ test('shutdown saves cleanup mutations; restart re-enters the same root and acce
   stores.splice(stores.indexOf(first), 1);
   const second = await create(first.directory);
   const resumed = task(
-    { name: 'Conversation', input: Type.String(), output: Type.Unknown() },
+    { name: 'Conversation', input: Type.String(), result: Type.Unknown() },
     async (ctx, input) => {
       expect(input).toBe('original input');
       expect(ctx.run?.resumed).toBe(true);
       expect(ctx.state).toEqual({ input, cleanup: true });
-      for await (const message of ctx.inbox) return message;
+      for await (const message of ctx.steering) return message;
     }
   );
   await second.restore({ conversation: resumed });
@@ -63,7 +63,7 @@ test('shutdown saves cleanup mutations; restart re-enters the same root and acce
     input: 'original input'
   });
   expect(second.sourceRuns('another-source')).toEqual([]);
-  await recovered!.send('after restart');
+  await recovered!.steer('after restart');
   await recovered!.finished;
   expect(await second.get(handle.id)).toMatchObject({
     reference,
@@ -76,11 +76,11 @@ test('recovery and source routing preserve an undefined original input', async (
   const first = await create();
   let entered = Promise.withResolvers<void>();
   const root = task(
-    { name: 'No input', input: Type.Unknown(), output: Type.Unknown() },
+    { name: 'No input', input: Type.Unknown(), result: Type.Unknown() },
     async (ctx, input) => {
       expect(input).toBeUndefined();
       entered.resolve();
-      for await (const _ of ctx.inbox);
+      for await (const _ of ctx.steering);
     }
   );
   await first.restore({ noInput: root });
@@ -100,9 +100,9 @@ test.each(['completed', 'cancelled', 'failed'] as const)(
   async (status) => {
     const first = await create();
     const ready = Promise.withResolvers<void>();
-    const root = task({ name: 'Work', input: Type.Null(), output: Type.Unknown() }, async (ctx) => {
+    const root = task({ name: 'Work', input: Type.Null(), result: Type.Unknown() }, async (ctx) => {
       ready.resolve();
-      for await (const _ of ctx.inbox) {
+      for await (const _ of ctx.steering) {
         if (status === 'failed') throw new Error('expected');
         return 'done';
       }
@@ -113,13 +113,13 @@ test.each(['completed', 'cancelled', 'failed'] as const)(
     await first.state.save();
     const stale = await readFile(first.state.path, 'utf8');
     if (status === 'cancelled') run.cancel();
-    else await run.send('finish');
+    else await run.steer('finish');
     await run.finished;
     await first.close();
     stores.splice(stores.indexOf(first), 1);
     await writeFile(first.state.path, stale);
     const second = await create(first.directory);
-    const forbidden = task({ name: 'Work', input: Type.Null(), output: Type.Null() }, () => {
+    const forbidden = task({ name: 'Work', input: Type.Null(), result: Type.Null() }, () => {
       throw new Error('must not execute');
     });
     await second.restore({ work: forbidden });
@@ -130,9 +130,9 @@ test.each(['completed', 'cancelled', 'failed'] as const)(
 
 test('a missing registry key preserves state without running a different task', async () => {
   const first = await create();
-  const root = task({ name: 'Wait', input: Type.Null(), output: Type.Unknown() }, async (ctx) => {
+  const root = task({ name: 'Wait', input: Type.Null(), result: Type.Unknown() }, async (ctx) => {
     ctx.state.marker = 'saved';
-    for await (const _ of ctx.inbox);
+    for await (const _ of ctx.steering);
   });
   await first.restore({ wait: root });
   const run = await first.start('wait', root, null, 'web');
@@ -154,11 +154,11 @@ test('a killed process recovers the last snapshot, not later unsaved mutations',
     await store.init();
     let state;
     const ready = Promise.withResolvers();
-    const root = task({ name: 'Counter', input: Type.Null(), output: Type.Unknown() }, async ctx => {
+    const root = task({ name: 'Counter', input: Type.Null(), result: Type.Unknown() }, async ctx => {
       state = ctx.state;
       state.count = 1;
       ready.resolve();
-      for await (const _ of ctx.inbox);
+      for await (const _ of ctx.steering);
     });
     await store.restore({ counter: root });
     await store.start('counter', root, null, 'source');
@@ -186,7 +186,7 @@ test('a killed process recovers the last snapshot, not later unsaved mutations',
   stores.splice(stores.indexOf(original), 1);
   const restarted = await create(original.directory);
   const seen = Promise.withResolvers<unknown>();
-  const root = task({ name: 'Counter', input: Type.Null(), output: Type.Unknown() }, (ctx) => {
+  const root = task({ name: 'Counter', input: Type.Null(), result: Type.Unknown() }, (ctx) => {
     seen.resolve(ctx.state.count);
     return ctx.state.count;
   });

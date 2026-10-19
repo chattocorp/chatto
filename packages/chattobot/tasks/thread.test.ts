@@ -42,7 +42,7 @@ function harness(
   );
   const stopped = vi.fn();
   const classifier = task(
-    { name: 'Fixture classifier', input: IntakeInput, output: IntakeDecision },
+    { name: 'Fixture classifier', input: IntakeInput, result: IntakeDecision },
     async (ctx, input) => {
       runIds.push(ctx.run?.id);
       const aborted = new Promise<never>((_resolve, reject) =>
@@ -59,16 +59,16 @@ function harness(
     {
       name: 'Fixture conversation',
       input: ConversationStart,
-      output: Type.Null(),
-      receives: ConversationInput,
-      emits: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
+      result: Type.Null(),
+      steering: ConversationInput,
+      output: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
     },
     async (ctx, first) => {
       runIds.push(ctx.run?.id);
       if (!first.resume) received.push(first);
       await options.ready;
       await ctx.emit(options.state ?? 'idle');
-      for await (const next of ctx.inbox) {
+      for await (const next of ctx.steering) {
         if (Array.isArray(next)) batches.push(next);
         received.push(...(Array.isArray(next) ? next : [next]));
         await ctx.emit(options.state ?? 'idle');
@@ -171,9 +171,9 @@ test('a ping queued during metadata lookup is answered even if the report is gon
   const reading = Promise.withResolvers<undefined>();
   h.read.mockImplementation(() => reading.promise);
   await using run = h.start();
-  await run.send(ping);
+  await run.steer(ping);
   reading.resolve(undefined);
-  run.closeInput();
+  run.closeSteering();
   await run.result;
   expect(h.received).toEqual([ping]);
   expect(h.classify).not.toHaveBeenCalled();
@@ -184,8 +184,8 @@ test('accepted intake owns a child conversation and forwards later addressed mes
   await using run = h.start();
   await vi.waitFor(() => expect(h.received).toHaveLength(1));
   expect(h.received[0]).toEqual({ ...message, body: 'Current report' });
-  await run.send(ping);
-  run.closeInput();
+  await run.steer(ping);
+  run.closeSteering();
   await expect(run.result).resolves.toBeNull();
   expect(h.received).toEqual([{ ...message, body: 'Current report' }, ping]);
 });
@@ -209,12 +209,12 @@ test('a ping during classification cancels the classifier and starts the same wo
   const h = harness(() => new Promise<boolean>(() => {}));
   await using run = h.start();
   await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
-  await run.send(ping);
+  await run.steer(ping);
   await vi.waitFor(() => expect(h.received).toEqual([ping]));
   expect(h.stopped).toHaveBeenCalledOnce();
   const reply = { ...ping, id: 'reply' };
-  await run.send(reply);
-  run.closeInput();
+  await run.steer(reply);
+  run.closeSteering();
   await run.result;
   expect(h.received).toEqual([ping, reply]);
 });
@@ -260,7 +260,7 @@ test('addressed entry bypasses intake; empty checks never call the model and sto
   await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(1));
   expect(h.read).not.toHaveBeenCalled();
   expect(h.classify).not.toHaveBeenCalled();
-  run.closeInput();
+  run.closeSteering();
   await run.result;
   const reads = readFollowUp.mock.calls.length;
   await new Promise((resolve) => setTimeout(resolve, 25));
@@ -288,7 +288,7 @@ test('unchanged replies are checked once; new replies reconsider the full batch 
   await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(reads + 1));
   expect(h.batches).toHaveLength(1);
   expect(h.classify).toHaveBeenCalledTimes(2);
-  run.closeInput();
+  run.closeSteering();
   await run.result;
 });
 
@@ -299,7 +299,7 @@ test('a directly delivered resolution is not polled again; a new reply can reope
   await using run = h.start(ping);
   await vi.waitFor(() => expect(h.received).toEqual([ping]));
   const resolution = { ...ping, id: 'resolved', body: 'That issue covers it, thanks' };
-  await run.send(resolution);
+  await run.steer(resolution);
   await vi.waitFor(() => expect(h.received).toEqual([ping, resolution]));
   // No new bot post: this is the reaction-only completion from seven-bats-3145.
   current = snapshot('resolved');
@@ -318,7 +318,7 @@ test('a directly delivered resolution is not polled again; a new reply can reope
   current = snapshot('resolved', 'reopened', 'more');
   await vi.waitFor(() => expect(h.batches).toHaveLength(2));
   expect(h.batches[1]).toEqual([current.messages[2]!.message]);
-  run.closeInput();
+  run.closeSteering();
   await run.result;
 });
 
@@ -332,7 +332,7 @@ test('no polling occurs while the conversation is answering', async () => {
   expect(readFollowUp).not.toHaveBeenCalled();
   ready.resolve();
   await vi.waitFor(() => expect(readFollowUp).toHaveBeenCalled());
-  run.closeInput();
+  run.closeSteering();
   await run.result;
 });
 
@@ -344,11 +344,11 @@ test('a ping cancels an in-flight follow-up classification and reaches the same 
   await using run = h.start(ping);
   await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
   const direct = { ...ping, id: 'direct', authorId: 'maintainer' };
-  await run.send(direct);
+  await run.steer(direct);
   await vi.waitFor(() => expect(h.received).toEqual([ping, direct]));
   expect(h.stopped).toHaveBeenCalledOnce();
   expect(h.batches).toEqual([]);
-  run.closeInput();
+  run.closeSteering();
   await run.result;
 });
 
@@ -365,7 +365,7 @@ test('failed follow-up classification stays silent and is not retried for unchan
   await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(2));
   expect(h.classify).toHaveBeenCalledOnce();
   expect(h.received).toEqual([ping]);
-  run.closeInput();
+  run.closeSteering();
   await run.result;
 });
 
@@ -409,9 +409,9 @@ test('waiting for a background job permits follow-ups but prevents inactivity ex
   expect(run.status).toBe('running');
   expect(h.batches).toEqual([snapshot('one').messages.map(({ message }) => message)]);
   const direct = { ...ping, id: 'direct' };
-  await run.send(direct);
+  await run.steer(direct);
   await vi.waitFor(() => expect(h.received.at(-1)).toEqual(direct));
-  run.closeInput();
+  run.closeSteering();
   await run.result;
 });
 
@@ -453,9 +453,9 @@ test('an inactivity deadline does not close delivery while the child is still wo
   await new Promise((resolve) => setTimeout(resolve, 60));
   expect(run.status).toBe('running');
   const reply = { ...ping, id: 'while-working' };
-  await run.send(reply);
+  await run.steer(reply);
   ready.resolve();
   await vi.waitFor(() => expect(h.received).toEqual([ping, reply]));
-  run.closeInput();
+  run.closeSteering();
   await run.result;
 });

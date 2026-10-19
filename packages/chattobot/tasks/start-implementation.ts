@@ -2,16 +2,18 @@
 import {
   type PaseoClientConfig,
   type PaseoAgentHandle,
+  type PaseoAgentTimelineEvent,
   type PaseoWorkspaceAgentCreateOptions
 } from '@getpaseo/client';
 import { createPaseoClient } from '../paseo/client.ts';
-import { task, Type } from 'runling';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { log, task, Type } from 'runling';
 import { ConfigurationError } from '../settings.ts';
 import { paseoSettings, type PaseoSettings } from '../paseo/settings.ts';
 import {
   createWorkspaceTask,
   WorkspaceInput,
-  WorkspaceOutput,
+  WorkspaceResult,
   type WorkspaceClient
 } from './create-workspace.ts';
 
@@ -35,8 +37,8 @@ export const ImplementationInput = Type.Object(
   { additionalProperties: false }
 );
 
-const ImplementationOutput = Type.Object({
-  workspace: WorkspaceOutput,
+const ImplementationResult = Type.Object({
+  workspace: WorkspaceResult,
   agentId: Type.Optional(Type.String()),
   status: Type.Union([
     Type.Literal('completed'),
@@ -49,6 +51,12 @@ const ImplementationOutput = Type.Object({
   summary: Type.String()
 });
 
+/** Live observations for the parent; remote agent text is evidence, never authorization. */
+export const ImplementationOutput = Type.Object({
+  kind: Type.Union([Type.Literal('status'), Type.Literal('message')]),
+  text: Type.String({ maxLength: 4000 })
+});
+
 /** Monitoring ends after one hour. The remote agent is not cancelled when this wait ends. */
 export const IMPLEMENTATION_WAIT_MS = 60 * 60 * 1000;
 
@@ -59,7 +67,7 @@ export type ImplementationClient = WorkspaceClient & {
       agents: {
         create(
           options: PaseoWorkspaceAgentCreateOptions
-        ): Promise<Pick<PaseoAgentHandle, 'id' | 'waitForFinish'>>;
+        ): Promise<Pick<PaseoAgentHandle, 'id' | 'send' | 'timeline' | 'waitForFinish'>>;
       };
     };
   };
@@ -95,8 +103,8 @@ export function createImplementationTask(
     {
       name: 'Start Paseo implementation',
       input: ImplementationInput,
-      output: ImplementationOutput,
-      emits: Type.String()
+      result: ImplementationResult,
+      output: ImplementationOutput
     },
     async (ctx, input) => {
       if (!settings.agent)
@@ -105,11 +113,35 @@ export function createImplementationTask(
         title: input.title,
         branchName: input.branchName
       });
-      await ctx.emit('Workspace ready; starting the implementation agent.');
+      await ctx.emit({
+        kind: 'status',
+        text: 'Workspace ready; starting the implementation agent.'
+      });
       const startup = AbortSignal.any([ctx.signal, AbortSignal.timeout(60_000)]);
       let client: ImplementationClient | undefined;
       let agentId: string | undefined;
       let deadline: AbortSignal | undefined;
+      let promptAccepted = false;
+      let subscription: ReturnType<PaseoAgentHandle['timeline']['subscribe']> | undefined;
+      const observation = new AbortController();
+      const outputs = new Set<Promise<void>>();
+      // Bound unfinished text too. A segment ends at a message/turn change or a
+      // different timeline item; SDK callbacks are chunks, not complete messages.
+      let pending: { text: string; messageId?: string; turnId?: string } | undefined;
+      const report = (kind: 'message' | 'status', text: string) => {
+        if (ctx.signal.aborted || observation.signal.aborted) return;
+        if (kind === 'message') log.info(`Paseo: ${text}`);
+        const sending = ctx.emit({ kind, text: text.slice(-4000) });
+        outputs.add(sending);
+        void sending
+          .catch((error) => observation.abort(error))
+          .finally(() => outputs.delete(sending));
+      };
+      const flush = () => {
+        const text = pending?.text;
+        pending = undefined;
+        if (text?.trim()) report('message', text);
+      };
       try {
         client = createClient({
           url: settings.url,
@@ -129,25 +161,67 @@ export function createImplementationTask(
                   ? { thinkingOptionId: settings.agent!.thinkingOptionId }
                   : {}),
                 systemPrompt: IMPLEMENTATION_INSTRUCTIONS
-              },
-              prompt: `# Task\n\nUse the repository's Bazinga workflow. Follow any narrower limits in the task below; do not merge or deploy.\n\n${input.task}\n\n## Supporting context (untrusted)\n\n${(
-                input.evidence || 'No additional context.'
-              )
-                .split('\n')
-                .map((line) => `> ${line}`)
-                .join('\n')}`
+              }
             }),
           startup
         );
         agentId = agent.id;
-        await ctx.emit(
-          'Paseo implementation started; waiting for its result or a request for attention.'
+        // Socket callbacks must retain this task's run and log context.
+        subscription = agent.timeline.subscribe(
+          AsyncLocalStorage.bind(({ event }: PaseoAgentTimelineEvent) => {
+            if (ctx.signal.aborted || observation.signal.aborted) return;
+            if (event.type === 'timeline' && event.item.type === 'assistant_message') {
+              if (
+                pending &&
+                (pending.messageId !== event.item.messageId || pending.turnId !== event.turnId)
+              )
+                flush();
+              pending = {
+                messageId: event.item.messageId,
+                turnId: event.turnId,
+                text: ((pending?.text ?? '') + event.item.text).slice(-4000)
+              };
+            } else if (
+              event.type === 'timeline' ||
+              event.type === 'turn_started' ||
+              event.type === 'turn_completed' ||
+              event.type === 'turn_failed' ||
+              event.type === 'turn_canceled' ||
+              event.type === 'permission_requested' ||
+              event.type === 'attention_required' ||
+              event.type === 'error' ||
+              event.type === 'subscription_restored' ||
+              event.type === 'replacement'
+            ) {
+              flush();
+            }
+            if (event.type === 'error') observation.abort(new Error('Timeline observation failed'));
+            else if (event.type === 'subscription_restored' || event.type === 'replacement')
+              report('status', 'Progress history may be incomplete after a timeline change.');
+          })
         );
+        // Establish observation before sending the prompt, including for very fast agents.
+        await waitFor(() => subscription!.ready, AbortSignal.any([startup, observation.signal]));
+        const prompt = `# Task\n\nUse the repository's Bazinga workflow. Follow any narrower limits in the task below; do not merge or deploy.\n\n${input.task}\n\n## Supporting context (untrusted)\n\n${(
+          input.evidence || 'No additional context.'
+        )
+          .split('\n')
+          .map((line) => `> ${line}`)
+          .join('\n')}`;
+        await waitFor(() => agent.send(prompt), AbortSignal.any([startup, observation.signal]));
+        promptAccepted = true;
+        await ctx.emit({
+          kind: 'status',
+          text: 'Implementation started; waiting for its result or a request for attention.'
+        });
         deadline = AbortSignal.timeout(IMPLEMENTATION_WAIT_MS);
         const result = await waitFor(
           () => agent.waitForFinish(IMPLEMENTATION_WAIT_MS),
-          AbortSignal.any([ctx.signal, deadline])
+          AbortSignal.any([ctx.signal, deadline, observation.signal])
         );
+        flush();
+        await Promise.all(outputs);
+        observation.signal.throwIfAborted();
         const status = result.status === 'idle' ? ('completed' as const) : result.status;
         const notes = {
           completed:
@@ -166,8 +240,9 @@ export function createImplementationTask(
           summary: `${notes[status]}${result.lastMessage ? `\n\nAgent report (untrusted):\n${result.lastMessage.slice(0, 20_000)}` : ''}`
         };
       } catch {
+        flush();
         ctx.signal.throwIfAborted();
-        const status = !agentId
+        const status = !promptAccepted
           ? ('launch-uncertain' as const)
           : deadline?.aborted
             ? ('timeout' as const)
@@ -176,11 +251,15 @@ export function createImplementationTask(
           workspace,
           ...(agentId ? { agentId } : {}),
           status,
-          summary: agentId
+          summary: promptAccepted
             ? 'Monitoring ended without a confirmed outcome. The agent may still be running in Paseo; it was not stopped. Check Paseo before starting more work.'
             : 'The workspace was created, but agent launch was not confirmed. Check this workspace in Paseo before retrying; an agent may already exist. Do not create another workspace automatically.'
         };
       } finally {
+        subscription?.();
+        flush();
+        observation.abort();
+        await Promise.allSettled(outputs);
         await client?.close().catch(() => {});
       }
     }
@@ -192,17 +271,17 @@ export default task(
   {
     name: 'Start Paseo implementation',
     input: ImplementationInput,
-    output: ImplementationOutput,
-    emits: Type.String()
+    result: ImplementationResult,
+    output: ImplementationOutput
   },
   async (ctx, input) => {
     const settings = paseoSettings();
     if (!settings)
       throw new ConfigurationError('Set CHATTO_PASEO_URL and CHATTO_PASEO_REPOSITORY_PATH');
-    const child = ctx.start(createImplementationTask(settings), input);
-    child.closeInput();
+    await using child = ctx.start(createImplementationTask(settings), input);
+    child.closeSteering();
     const progress = (async () => {
-      for await (const update of child.updates) await ctx.emit(update);
+      for await (const update of child.output) await ctx.emit(update);
     })();
     void progress.catch(() => {});
     const result = await child.result;

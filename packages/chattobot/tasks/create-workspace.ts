@@ -19,7 +19,7 @@ export const WorkspaceInput = Type.Object(
 );
 
 /** Confirmed remote workspace identity, retained if subsequent agent launch fails. */
-export const WorkspaceOutput = Type.Object({
+export const WorkspaceResult = Type.Object({
   id: Type.String(),
   name: Type.Union([Type.String(), Type.Null()]),
   directory: Type.Union([Type.String(), Type.Null()]),
@@ -49,7 +49,7 @@ export function createWorkspaceTask(
   createClient: (config: PaseoClientConfig) => WorkspaceClient = createPaseoClient
 ) {
   return task(
-    { name: 'Create Paseo workspace', input: WorkspaceInput, output: WorkspaceOutput },
+    { name: 'Create Paseo workspace', input: WorkspaceInput, result: WorkspaceResult },
     async (ctx, input) => {
       ctx.signal.throwIfAborted();
       const signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(60_000)]);
@@ -114,7 +114,7 @@ export function createWorkspaceTask(
 
 /** Local operators can invoke this task with JSON input using their configured Paseo host. */
 export default task(
-  { name: 'Create Paseo workspace', input: WorkspaceInput, output: WorkspaceOutput },
+  { name: 'Create Paseo workspace', input: WorkspaceInput, result: WorkspaceResult },
   (ctx, input) => {
     const settings = paseoSettings();
     if (!settings)

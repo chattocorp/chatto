@@ -20,7 +20,7 @@ const request = (body = '"hello"') =>
     body
   });
 const echo = task(
-  { name: 'Echo', input: Type.String(), output: Type.String() },
+  { name: 'Echo', input: Type.String(), result: Type.String() },
   (_ctx, input) => input
 );
 const config = defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
@@ -28,8 +28,8 @@ const config = defineWebConfig({ webhooks: { echo: startWorkflow(echo) } });
 /** A registered run that does not accept messages. */
 const handle = (id: string, finished: Promise<unknown> = Promise.resolve()): RunHandle => ({
   id,
-  send: async () => {},
-  closeInput: () => {},
+  steer: async () => {},
+  closeSteering: () => {},
   cancel: () => {},
   finished: finished.then(
     () => {},
@@ -82,7 +82,7 @@ test('accepts schema-free routing functions and preserves webhook names', async 
 test('a router can select tasks, map input, and fan out sequentially or concurrently', async () => {
   const h = host();
   const number = task(
-    { name: 'Number', input: Type.Number(), output: Type.Number() },
+    { name: 'Number', input: Type.Number(), result: Type.Number() },
     (_ctx, input) => input * 2
   );
   const custom = defineWebConfig({
@@ -112,7 +112,7 @@ test('keeps schema transforms in the task and publishes the correct schema sides
     {
       name: 'Transform',
       input: z.object({ count: z.string().default('3').transform(Number) }),
-      output: z.object({ count: z.number().default(2) })
+      result: z.object({ count: z.number().default(2) })
     },
     (_ctx, input) => input
   );
@@ -129,7 +129,7 @@ test('keeps schema transforms in the task and publishes the correct schema sides
 
 test('accepts Valibot schema exports', async () => {
   const schema = toStandardJsonSchema(v.string());
-  const root = task({ name: 'Valibot', input: schema, output: schema }, (_ctx, input) => input);
+  const root = task({ name: 'Valibot', input: schema, result: schema }, (_ctx, input) => input);
   const config = defineWebConfig({ webhooks: { echo: startWorkflow(root) } });
   const h = host();
   await handleWebhook('echo', request(), { config, start: h.start });
@@ -151,7 +151,7 @@ test.each([
   { schema: Type.Number(), value: 0, invalid: '0' },
   { schema: Type.Null(), value: null, invalid: {} }
 ])('validates $schema.type before starting a run', async ({ schema, value, invalid }) => {
-  const root = task({ name: 'Typed', input: schema, output: schema }, (_ctx, input) => input);
+  const root = task({ name: 'Typed', input: schema, result: schema }, (_ctx, input) => input);
   const config = defineWebConfig({ webhooks: { typed: startWorkflow(root) } });
   const h = host();
   expect(
@@ -218,7 +218,7 @@ test('rejects invalid schema metadata and unexportable schema tasks', () => {
   const bad = Object.assign(async () => {}, { input: { type: 'invalid' } });
   expect(isWebConfig({ webhooks: { bad } })).toBe(false);
   const local = task(
-    { name: 'Local', input: v.string(), output: v.string() },
+    { name: 'Local', input: v.string(), result: v.string() },
     (_ctx, input) => input
   );
   expect(isWebConfig({ webhooks: { local: startWorkflow(local) } })).toBe(false);

@@ -14,7 +14,8 @@ export interface PendingWork extends WorkDetails {
   /** The actual Runling invocation ID. */
   id: string;
   startedAt: number;
-  latest?: string;
+  /** Most recent output, bounded by the conversation; never treated as instructions. */
+  output: string[];
   child: Invocation<unknown, unknown, unknown>;
   /** Settles after result delivery and cooperative child cleanup. */
   done: Promise<void>;

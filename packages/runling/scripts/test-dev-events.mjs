@@ -13,16 +13,16 @@ await writeFile(
   import { defineWebConfig } from "runling/web";
   // Return the first message that the host sends to the run.
   const probe = task({
-    name: "Event probe", input: Type.String(), output: Type.String(), receives: Type.String(),
+    name: "Event probe", input: Type.String(), result: Type.String(), steering: Type.String(),
   }, async (ctx) => {
-    for await (const message of ctx.inbox) return message;
+    for await (const message of ctx.steering) return message;
     throw new Error("No message");
   });
   export default defineWebConfig({ webhooks: {
     probe: async (ctx, value) => {
       if (value === "skip") return;
       const run = await ctx.start(probe, { input: value });
-      await run.send(value);
+      await run.steer(value);
     },
   } });
 `

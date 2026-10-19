@@ -50,7 +50,7 @@ one session, gives parent messages to it, and emits its completed replies.
 - Abort signals and disposal cancel pending work. Cancellation cannot undo a
   tool's external effects or stop uncooperative code.
 - An application can give a task to an agent as a tool. The model gets the
-  output of the task as text and its updates as partial results. Cancellation
+  final result of the task as text and its streamed output as partial results. Cancellation
   of the tool call cancels the task.
 - Background child tasks let a parent continue to answer messages while work
   runs. These are ordinary invocations. The parent keeps the handles or promises

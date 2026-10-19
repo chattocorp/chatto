@@ -31,7 +31,7 @@ vi.mock('../tasks/classify-intake.ts', async (original) => ({
   ...(await original<typeof import('../tasks/classify-intake.ts')>()),
   createIntakeClassifier: () =>
     task(
-      { name: 'Fixture classifier', input: IntakeInput, output: IntakeDecision },
+      { name: 'Fixture classifier', input: IntakeInput, result: IntakeDecision },
       async (_ctx, input) => mocks.classify(input)
     )
 }));
@@ -41,9 +41,9 @@ vi.mock('../tasks/conversation.ts', () => ({
       {
         name: 'Chatto conversation',
         input: IncomingMessage,
-        output: Type.Null(),
-        receives: IncomingMessage,
-        emits: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
+        result: Type.Null(),
+        steering: IncomingMessage,
+        output: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
       },
       async (_ctx, input) => {
         mocks.conversation(input);
@@ -113,7 +113,7 @@ async function run(
   const start: WebhookContext['start'] = async (root, { input }) => {
     mocks.started(root.name);
     const invocation = createTaskContext().start(root, input);
-    invocation.closeInput();
+    invocation.closeSteering();
     const finished = invocation.result.then(
       () => {},
       () => {}
@@ -121,8 +121,8 @@ async function run(
     pending.push(finished);
     return {
       id: 'intake',
-      send: invocation.send,
-      closeInput: invocation.closeInput,
+      steer: invocation.steer,
+      closeSteering: invocation.closeSteering,
       cancel: () => invocation.cancel(),
       finished
     };
