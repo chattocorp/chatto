@@ -2518,8 +2518,8 @@
        short by safe-area-inset-top due to WebKit bug 237961.
        Keyboard sizing is handled via JS in useVisualViewport.svelte.ts
        because Safari does not support interactive-widget=resizes-content.
-       The root layout reserves the top safe area. Keep app content above
-       bottom system navigation; html paints the surface colour below it.
+       The root layout reserves the top safe area and paints the mobile
+       bottom safe area. Keep app content above bottom system navigation.
        The native iOS host already reserves its supplied bottom inset with
        body padding, so subtract it here to avoid a second reservation. */
     position: fixed;
