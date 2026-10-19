@@ -259,6 +259,37 @@ const snapshot = (...ids: string[]): FollowUpSnapshot => ({
   }))
 });
 
+test.each([false, true])(
+  'a ping followed by no bot text still classifies ordinary replies (engage=%s)',
+  async (engage) => {
+    const thread = [{ id: ping.id, authorId: 'human', body: ping.body, fromViewer: false }];
+    const api = {
+      readThread: async () => ({ messages: thread, olderOmitted: false }),
+      service: () => ({ batchGetUsers: async () => ({ users: [{ user: { id: 'human' } }] }) })
+    } as unknown as Parameters<typeof createFollowUpReader>[0];
+    const h = harness(async () => engage, true, {
+      readFollowUp: createFollowUpReader(api),
+      intervalMs: 60_000,
+      batchMs: 5
+    });
+    await using run = h.start(ping);
+    await vi.waitFor(() => expect(h.received).toEqual([ping]));
+    thread.push({ id: 'cool', authorId: 'human', body: 'cool :D', fromViewer: false });
+    await run.steer({ ...ping, id: 'cool', body: 'Untrusted event copy', trigger: 'follow-up' });
+    await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+    expect(h.classify.mock.calls[0]![0]).toMatchObject({
+      context: [{ role: 'human', body: ping.body }],
+      messages: [{ body: 'cool :D', attachmentTypes: [] }]
+    });
+    if (engage) {
+      await vi.waitFor(() => expect(h.received).toHaveLength(2));
+      expect(h.received[1]).toMatchObject({ id: 'cool', body: 'cool :D', trigger: 'follow-up' });
+    } else expect(h.received).toEqual([ping]);
+    run.closeSteering();
+    await run.result;
+  }
+);
+
 test('replies received during a turn remain one batch after the bot posts its answer', async () => {
   const ready = Promise.withResolvers<void>();
   const thread = [

@@ -6,7 +6,7 @@ import type { FollowUpInput } from '../tasks/classify-intake.ts';
 import { threadOf, type IncomingMessage } from './message.ts';
 
 export interface FollowUpSnapshot {
-  /** Latest bot post for reconciliation. Observed pending replies can predate it.
+  /** Latest bot post or conversation entry for reconciliation. Pending replies can predate it.
    * Message IDs are opaque, never sorted. */
   boundary: string;
   input: Omit<Static<typeof FollowUpInput>, 'messages'>;
@@ -22,14 +22,19 @@ export type ReadFollowUp = (
 ) => Promise<FollowUpSnapshot | undefined>;
 
 /** Read only as the bot. Unknown, deleted, other-bot, and disallowed authors cannot engage it.
- * If the latest page has no bot post, do not guess a boundary across omitted history. */
+ * Use the conversation entry until the bot posts text, including after reaction-only turns.
+ * Do not guess a boundary across omitted history. */
 export function createFollowUpReader(
   api: Pick<ReturnType<typeof createApi>, 'readThread' | 'service'>,
   allowedUserId?: string
 ): ReadFollowUp {
   return async (message, signal, pendingIds = []) => {
     const thread = await api.readThread(threadOf(message), { signal });
-    const boundaryIndex = thread.messages.findLastIndex((item) => item.fromViewer);
+    const entryId = message.reaction?.messageId ?? message.id;
+    const boundaryIndex = Math.max(
+      thread.messages.findLastIndex((item) => item.fromViewer),
+      thread.messages.findIndex((item) => item.id === entryId)
+    );
     const boundary = thread.messages[boundaryIndex];
     if (!boundary || (boundaryIndex === 0 && thread.olderOmitted)) return;
     const pending = new Set(pendingIds);

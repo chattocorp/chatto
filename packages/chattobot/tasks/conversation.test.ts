@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import * as checkout from '../checkout.ts';
 import { createPaseoClient } from '../paseo/client.ts';
 import type { PaseoAgentTimelineEvent } from '@getpaseo/client';
 import {
@@ -60,6 +61,7 @@ function harness({
   web,
   github,
   investigation,
+  sourceDirectory,
   paseo,
   turn,
   beforePost,
@@ -69,6 +71,7 @@ function harness({
   web?: WebSettings;
   github?: ConversationSettings['github'];
   investigation?: Investigation;
+  sourceDirectory?: string;
   paseo?: ConversationSettings['paseo'];
   /** Text answers are delivered as messages; several texts are several messages in one turn. */
   answer?: (prompt: string) => string | string[] | AgentResult;
@@ -144,6 +147,7 @@ function harness({
       model: 'test/model',
       maintainers: new Set(maintainers),
       maintainerLogin,
+      sourceDirectory,
       paseo,
       ...(web ? { web } : {}),
       ...(github ? { github } : {}),
@@ -381,6 +385,26 @@ test('cannot mark handled while an authorized background job is running', async 
   expect(bot.setHandled).toHaveBeenCalledOnce();
   bot.messages.close();
   await run;
+});
+
+test('loads project context once at startup, also for a non-maintainer', async () => {
+  const refresh = vi
+    .spyOn(checkout, 'refreshProjectContext')
+    .mockResolvedValue('Project briefing fixture');
+  try {
+    const bot = harness({ sourceDirectory: '/reference' });
+    const run = bot.start(message('one', 'What is new?'));
+    await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+    await bot.messages.send(message('two', 'What about 0.5?'));
+    await vi.waitFor(() => expect(bot.posts).toHaveLength(2));
+    bot.messages.close();
+    expect(await run).toMatchObject({ ok: true });
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(bot.options().systemPrompt).toContain('Project briefing fixture');
+    expect(bot.tools.has('investigate')).toBe(false);
+  } finally {
+    refresh.mockRestore();
+  }
 });
 
 test('answers each message in its thread with the final text and ends when the input closes', async () => {

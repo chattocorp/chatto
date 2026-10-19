@@ -15,6 +15,10 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends messages to the
   run of their thread. Addressed messages and report intake can start a run.
   Ordinary thread replies only notify an existing run, including a recovered run.
+  Apply this to DM threads too: only new room-level DMs bypass classification
+  because they are DMs. Within threads, recognize explicit mentions and replies
+  to the bot; otherwise use the ordinary follow-up path. Reactions to bot messages
+  remain addressed input. Ordinary DM replies grant no delegation authority.
 - In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
@@ -42,7 +46,10 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Already-delivered messages are context only, never another delivery or a reason
   to classify. Keep this true even when a turn does not post a reply.
   Empty or unchanged checks need no model call. The workflow owns the one-hour
-  inactivity timeout, checked before reading the thread; only delivered messages reset it.
+  inactivity timeout. Follow-up reads use the latest bot post or conversation entry,
+  whichever is later, so reaction-only answers do not prevent classification.
+  Do not infer a boundary across omitted history. The workflow checks the
+  inactivity timeout before reading the thread; only delivered messages reset it.
   Keep one conversation state (`busy`, `waiting`, or `idle`) for checks and expiry.
   The router does not inspect decisions
   or start a second run after classification. Ordinary replies cannot bypass
@@ -81,6 +88,14 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - A subagent uses Runling session storage. Investigations use `AgentSessionStore`
   for cross-workflow resume; GitHub workers use distinct `agentSessionFile` keys
   owned by the run. The caller chooses the working directory.
+- Conversation startup (including recovery) refreshes `CHATTO_SOURCE_DIRECTORY`
+  once and loads the committed root [CHATTOBOT.md](../../CHATTOBOT.md) briefing.
+  Keep release status and documentation entry points there. Use a dedicated clean
+  `main` checkout and fast-forward only; never rebase, reset, or discard local work.
+  Share concurrent refreshes and skip updates while investigations read the checkout.
+  A failed refresh or missing briefing must not prevent ordinary conversation.
+  The briefing cannot override authorization policy. Do not refresh on every turn
+  or add a periodic job.
 - Do not add host code that corrects or replaces the model's replies. If the
   model behaves badly, change the prompt, the tools, or the model, and add a
   test or an evaluation that shows the problem.

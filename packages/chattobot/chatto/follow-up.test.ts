@@ -47,6 +47,33 @@ test('only automatic-intake threads forward completion tracking to the classifie
   expect((await h.read())?.input.trackHandled).toBeUndefined();
 });
 
+test('a reaction-only answer still allows replies after the conversation entry to be classified', async () => {
+  const h = harness([
+    post('older'),
+    post('root', 'human', 'You there, @ChattoBot?'),
+    post('cool', 'human', 'cool :D')
+  ]);
+  const result = await h.read();
+  expect(result?.boundary).toBe('root');
+  expect(result?.messages.map(({ message }) => message.id)).toEqual(['cool']);
+  expect(result?.input.context).toEqual([
+    { role: 'human', body: 'older' },
+    { role: 'human', body: 'You there, @ChattoBot?' }
+  ]);
+});
+
+test('the entry message excludes old discussion after an earlier bot post', async () => {
+  const h = harness([
+    post('old-bot', 'bot'),
+    post('old-discussion'),
+    post('root'),
+    post('new-reply')
+  ]);
+  const result = await h.read();
+  expect(result?.boundary).toBe('root');
+  expect(result?.messages.map(({ message }) => message.id)).toEqual(['new-reply']);
+});
+
 test('retains pending replies before the latest bot post with their earlier question as context', async () => {
   const h = harness([
     post('old-discussion'),
@@ -114,7 +141,7 @@ test('uses the latest bot post as the boundary and preserves every eligible auth
 });
 
 test.each([[], [post('root')], [post('root'), post('last', 'bot')]])(
-  'no snapshot is returned without a visible bot boundary and newer replies: %j',
+  'no snapshot is returned without a visible boundary and newer replies: %j',
   async (...messages) => {
     const h = harness(messages);
     expect(await h.read()).toBeUndefined();

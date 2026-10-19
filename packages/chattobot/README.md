@@ -13,7 +13,7 @@ See [the TODO list](docs/TODO.md) for planned work and experiments.
 ## How it works
 
 1. The `chatto` event source connects to Chatto as the bot. It receives the
-   messages that address the bot: direct messages, mentions, and replies to
+   messages that address the bot: new room-level DMs, mentions, and replies to
    the bot, plus added emoji reactions to the bot's messages.
 2. The router sends each message to the conversation run of its thread. When a
    thread has no run, the router starts one.
@@ -138,8 +138,15 @@ reach one conversation turn, with each author's identity and authorization conte
 kept separate. The window runs while the agent is busy, so it adds no further wait
 when the agent becomes available after the window has ended.
 
+DM threads use the same participation rules as channel threads. A new room-level
+DM starts a direct conversation. Inside its thread, ordinary messages go through
+classification; explicit mentions, replies to the bot, and reactions to its messages
+go directly to the conversation. Ordinary DM replies cannot authorize restricted
+work or reopen an expired conversation.
+
 Ordinary realtime replies notify an existing thread workflow after that same
-window. It reads human messages after the bot's latest post and classifies them,
+window. It reads human messages after the bot's latest post (or the conversation's
+entry message if the bot has not posted since then) and classifies them,
 without another batching delay. If the conversation agent is answering, the check waits
 until it can answer again. Pending reply IDs remain in workflow state: a newer
 bot post cannot move these replies out of the batch. The check reads their current
@@ -506,6 +513,28 @@ login. Local execution does not need `CHATTO_URL`, `CHATTO_API_KEY`, or
 `CHATTO_MAINTAINER_USER_IDS`. The maintainer check applies when a Chatto
 conversation delegates work; a local invocation uses the operator's authority.
 
+## Project context and checkout updates
+
+Set `CHATTO_SOURCE_DIRECTORY` to a dedicated checkout on `main`, with `origin`
+pointing to the trusted Chatto repository. Each conversation startup, including
+recovery, attempts a fetch and a fast-forward-only update from `origin/main`.
+There is no timer and no update on later messages in that conversation.
+Concurrent starts share an update. Active investigations prevent updates until
+a later conversation starts. Do not use a working checkout or update it from
+another process while the bot uses it.
+
+Dirty checkouts, other branches, local commits, and failed fetches keep their
+existing contents. The bot logs the skipped or failed update and continues.
+Git commands have timeouts and cannot ask for credentials; configure access on
+the bot host if the remote requires authentication.
+
+The conversation reads the committed root `CHATTOBOT.md` as a project briefing,
+with its source commit and refresh status. This gives all users project status
+and documentation links without granting code-investigation access. Keep the
+briefing short and update it when release status changes. It cannot override
+authorization policy. Missing or oversized briefings do not stop the bot.
+Each conversation keeps the briefing it loaded at startup.
+
 ## Investigations
 
 For a current maintainer request, `investigate` gives a question to an investigator agent, which reads the
@@ -548,7 +577,7 @@ where that account can.
 | `CHATTO_MAINTAINER_NAME`                                                                        | Optional Chatto user login to mention for maintainer input. Grants no permissions.                             |
 | `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
 | `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
-| `CHATTO_SOURCE_DIRECTORY`                                                                       | A checkout of the Chatto source. Enables `investigate`. Keep it current yourself, for example with `git pull`. |
+| `CHATTO_SOURCE_DIRECTORY`                                                                       | Dedicated Chatto checkout on `main`. Startup refresh loads `CHATTOBOT.md`; also enables maintainer investigations. |
 | `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).             |
 | `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD`                     | Optional Paseo daemon, repository on that host, and password. Enables workspace creation.                      |
 | `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING`            | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level.    |
@@ -582,6 +611,9 @@ ChattoBot sends these data to other systems:
   `fetchPage` and the bot host's IP address.
 - **GitHub** receives each `gh` command, the changes that the bot makes, and the
   bot host's IP address.
+- **The source checkout's Git remote** receives fetch requests and the bot host's
+  IP address at conversation startup. The conversation model receives the committed
+  `CHATTOBOT.md` briefing and commit ID. No chat messages are sent to the Git remote.
 - **The configured Paseo daemon** receives the workspace title, branch name,
   base reference, repository path, configured password when present, and bot host's
   IP address. The title and branch can describe the reported problem. The bot does

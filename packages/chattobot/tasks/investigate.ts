@@ -23,6 +23,7 @@ import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { checkCitations, findCitations } from '../investigation/citations.ts';
 import { confineExtension } from '../investigation/confine.ts';
 import { GIT_TOOLS, gitExtension, runGit } from '../investigation/git.ts';
+import { readCheckout } from '../checkout.ts';
 
 export interface InvestigatorSettings {
   model: string;
@@ -87,6 +88,7 @@ export function createInvestigator(
       const directory = resolve(input.directory);
       if (!(await stat(directory).catch(() => undefined))?.isDirectory())
         throw new Error('The directory to investigate does not exist');
+      using checkout = await readCheckout(directory, ctx.signal);
       if (input.session && input.id)
         throw new Error('Give either the ID of an earlier investigation or a new ID, not both');
       await using saved = await settings.sessions.open({
