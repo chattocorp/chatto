@@ -101,7 +101,7 @@ await assert.rejects(channel.send(1), { name: "ChannelClosedError" });
     `import { task, exec, step, log } from "runling";
 import { z } from "zod";
 import { suffix } from "./helper.ts";
-export default task({ name: "Consumer echo", input: z.object({ topic: z.string(), directory: z.string() }), output: z.string() }, async (ctx, input) => {
+export default task({ name: "Consumer echo", input: z.object({ topic: z.string(), directory: z.string() }), result: z.string() }, async (ctx, input) => {
   return step("Echo input", async () => {
     await new Promise(resolve => setTimeout(resolve, input.topic === "slow" ? 2000 : 250));
     const cwd = await exec\`node -e \${"process.stdout.write(require('node:fs').readFileSync('message.txt', 'utf8'))"}\`.cwd(input.directory).text();
