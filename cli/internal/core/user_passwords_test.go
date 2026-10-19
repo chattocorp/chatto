@@ -463,8 +463,7 @@ func TestChattoCore_CreateUser_TooLongPassword(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// bcrypt silently truncates above 72 bytes, so passwords over MaxPasswordLength
-	// must be rejected outright to avoid surprising hash collisions on shared prefixes.
+	// Reject unsupported lengths before calling bcrypt.
 	tooLong := strings.Repeat("a", MaxPasswordLength+1)
 	_, err := core.CreateUser(ctx, "system", "testuser", "testuser", tooLong)
 	if !errors.Is(err, ErrPasswordTooLong) {
@@ -487,5 +486,72 @@ func TestChattoCore_SetPasswordHash_TooLongPassword(t *testing.T) {
 	err = core.SetPasswordHash(ctx, user.Id, tooLong)
 	if !errors.Is(err, ErrPasswordTooLong) {
 		t.Errorf("Expected ErrPasswordTooLong, got: %v", err)
+	}
+}
+
+func TestPasswordByteLimits(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, password string
+		want           error
+	}{
+		{"ascii_7", strings.Repeat("a", 7), ErrPasswordTooShort},
+		{"ascii_8", strings.Repeat("a", 8), nil},
+		{"ascii_72", strings.Repeat("a", 72), nil},
+		{"ascii_73", strings.Repeat("a", 73), ErrPasswordTooLong},
+		{"ascii_128", strings.Repeat("a", 128), ErrPasswordTooLong},
+		{"multibyte_8", strings.Repeat("😀", 2), nil},
+		{"multibyte_72", strings.Repeat("😀", 18), nil},
+		{"multibyte_73", strings.Repeat("😀", 18) + "a", ErrPasswordTooLong},
+		{"multibyte_128", strings.Repeat("😀", 32), ErrPasswordTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidatePassword(tc.password); !errors.Is(err, tc.want) {
+				t.Fatalf("ValidatePassword = %v, want %v", err, tc.want)
+			}
+			for _, path := range []string{"create", "initial", "own", "operator", "setup"} {
+				t.Run(path, func(t *testing.T) {
+					c, _ := setupTestCore(t)
+					ctx := testContext(t)
+					var err error
+					switch path {
+					case "create":
+						_, err = c.CreateUser(ctx, SystemActorID, "newuser", "New user", tc.password)
+					case "setup":
+						c.config.SkipSetupWizard = false
+						input := setupInput("newuser")
+						input.Password = tc.password
+						err = c.CompleteServerSetup(ctx, input)
+					default:
+						initial := "oldpassword"
+						if path == "initial" {
+							initial = ""
+						}
+						user, createErr := c.CreateUser(ctx, SystemActorID, "newuser", "New user", initial)
+						if createErr != nil {
+							t.Fatal(createErr)
+						}
+						if path == "operator" {
+							err = c.SetPasswordHashAs(ctx, SystemActorID, user.Id, tc.password)
+						} else {
+							err = c.SetOwnPassword(ctx, user.Id, initial, tc.password)
+						}
+						if tc.want != nil && initial != "" {
+							if _, verifyErr := c.VerifyPassword(ctx, "newuser", initial); verifyErr != nil {
+								t.Fatal(verifyErr)
+							}
+						}
+					}
+					if !errors.Is(err, tc.want) {
+						t.Fatalf("password operation = %v, want %v", err, tc.want)
+					}
+					if tc.want == nil {
+						if _, err := c.VerifyPassword(ctx, "newuser", tc.password); err != nil {
+							t.Fatal(err)
+						}
+					}
+				})
+			}
+		})
 	}
 }

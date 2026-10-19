@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Button, Form, FormError, TextInput, validate, z } from '$lib/ui/form';
+  import { Button, Form, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { untrack } from 'svelte';
@@ -67,9 +68,8 @@
   );
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const cooldownActive = $derived(cooldownRemaining > 0);
-  const passwordSchema = z.string().min(8, m('common.validation.password_min'));
   const adminPasswordValidationError = $derived(
-    adminPassword ? validate(passwordSchema, adminPassword) : undefined
+    adminPassword ? validateNewPassword(adminPassword) : undefined
   );
   const adminConfirmPasswordError = $derived(
     adminConfirmPassword && adminPassword !== adminConfirmPassword
@@ -278,7 +278,7 @@
           label={m('common.new_password')}
           type="password"
           bind:value={adminPassword}
-          placeholder={m('common.password_min_placeholder')}
+          placeholder={m('common.password_bytes_placeholder')}
           disabled={settingPassword}
           autocomplete="new-password"
           error={adminPasswordValidationError}

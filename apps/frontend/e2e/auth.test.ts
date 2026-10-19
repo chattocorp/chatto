@@ -312,7 +312,7 @@ test.describe('Authentication', () => {
       await authPage.completeUsernameInput.focus();
 
       // Should show validation error
-      await authPage.expectError(/at least 8 characters/i);
+      await authPage.expectError(/at least 8 UTF-8 bytes/i);
     });
 
     test('shows validation error for password mismatch', async ({ authPage }) => {
