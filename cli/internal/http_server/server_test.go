@@ -4159,3 +4159,87 @@ func TestAuthRoutes_RegisterComplete_ReturnsToken(t *testing.T) {
 		}
 	}
 }
+
+func TestAuthRoutes_PasswordByteLimits(t *testing.T) {
+	for _, path := range []string{"/auth/register/complete", "/auth/browser/register/complete", "/auth/reset-password"} {
+		t.Run(path, func(t *testing.T) {
+			ts, client, c, _ := setupTestHTTPServerWithMailer(t)
+			ctx := testContext(t)
+			for i, password := range []string{strings.Repeat("a", 72), strings.Repeat("a", 73), strings.Repeat("a", 128), strings.Repeat("😀", 18), strings.Repeat("😀", 18) + "a", strings.Repeat("😀", 32), "😀😀"} {
+				t.Run(fmt.Sprint(i), func(t *testing.T) {
+					login := fmt.Sprintf("boundary%d", i)
+					email := login + "@example.com"
+					var token string
+					var err error
+					if path == "/auth/reset-password" {
+						_, err = c.CreateVerifiedUser(ctx, core.SystemActorID, login, login, "oldpassword", email)
+						if err != nil {
+							t.Fatal(err)
+						}
+						token, err = c.CreatePasswordResetToken(ctx, email)
+					} else {
+						token, err = c.CreateRegistrationToken(ctx, email)
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					submit := func(value string) int {
+						t.Helper()
+						body, err := json.Marshal(map[string]string{"token": token, "login": login, "password": value, "passwordConfirmation": value})
+						if err != nil {
+							t.Fatal(err)
+						}
+						var response *http.Response
+						if strings.Contains(path, "/browser/") {
+							response, err = postBrowserAuthentication(client, ts.URL+path, body)
+						} else {
+							response, err = client.Post(ts.URL+path, "application/json", bytes.NewReader(body))
+						}
+						if err != nil {
+							t.Fatal(err)
+						}
+						defer response.Body.Close()
+						if len(value) > 72 {
+							var result struct {
+								Error string `json:"error"`
+							}
+							if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+								t.Fatal(err)
+							}
+							if result.Error != core.ErrPasswordTooLong.Error() {
+								t.Fatalf("error = %q", result.Error)
+							}
+						}
+						return response.StatusCode
+					}
+					if len(password) > 72 {
+						if status := submit(password); status != http.StatusBadRequest {
+							t.Fatalf("status = %d", status)
+						}
+						// A rejected password must not consume the completion/reset token.
+						password = strings.Repeat("a", 72)
+					}
+					if status := submit(password); status != http.StatusOK {
+						t.Fatalf("status = %d", status)
+					}
+					if _, err := c.VerifyPassword(ctx, login, password); err != nil {
+						t.Fatal(err)
+					}
+				})
+			}
+			// Invalid tokens must not turn unsupported password lengths into a 500.
+			body, err := json.Marshal(map[string]string{"token": "invalid", "login": "another", "password": strings.Repeat("a", 73), "passwordConfirmation": strings.Repeat("a", 73)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			response, err := client.Post(ts.URL+"/auth/reset-password", "application/json", bytes.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			if response.StatusCode != http.StatusBadRequest {
+				t.Fatalf("invalid token status = %d", response.StatusCode)
+			}
+		})
+	}
+}

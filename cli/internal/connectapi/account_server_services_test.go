@@ -399,6 +399,11 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 	})); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ChangePassword code = %v, want unauthenticated", errorCode(err))
 	}
+	for _, password := range []string{strings.Repeat("a", 73), strings.Repeat("a", 128), strings.Repeat("😀", 18) + "a", strings.Repeat("😀", 32)} {
+		if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{Password: password})); errorCode(err) != connect.CodeInvalidArgument || !errors.Is(err, core.ErrPasswordTooLong) {
+			t.Fatalf("overlength ChangePassword = %v", err)
+		}
+	}
 	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty ChangePassword code = %v, want invalid_argument", errorCode(err))
 	}
@@ -917,6 +922,19 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 		UserId: target.Id,
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty UpdateUserProfile code = %v, want invalid_argument", errorCode(err))
+	}
+	for _, password := range []string{strings.Repeat("a", 72), strings.Repeat("😀", 18)} {
+		if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{UserId: target.Id, Password: password})); err != nil {
+			t.Fatalf("72-byte ChangeUserPassword = %v", err)
+		}
+		if err := env.core.VerifyUserPassword(env.ctx, target.Id, password); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, password := range []string{strings.Repeat("a", 73), strings.Repeat("a", 128), strings.Repeat("😀", 18) + "a", strings.Repeat("😀", 32)} {
+		if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{UserId: target.Id, Password: password})); errorCode(err) != connect.CodeInvalidArgument || !errors.Is(err, core.ErrPasswordTooLong) {
+			t.Fatalf("overlength ChangeUserPassword = %v", err)
+		}
 	}
 	if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId: target.Id,

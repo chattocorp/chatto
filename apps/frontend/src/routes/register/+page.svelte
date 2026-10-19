@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -54,13 +55,12 @@
     .regex(/^[a-zA-Z0-9._-]+$/, m('common.validation.username_charset'))
     .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
     .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
-  const passwordSchema = z.string().min(8, m('common.validation.password_min'));
 
   const normalizedEmail = $derived(email.trim().toLowerCase());
   const emailError = $derived(email ? validate(emailSchema, email) : undefined);
   const codeComplete = $derived(code.length === 6);
   const loginError = $derived(login ? validate(loginSchema, login) : undefined);
-  const passwordError = $derived(password ? validate(passwordSchema, password) : undefined);
+  const passwordError = $derived(password ? validateNewPassword(password) : undefined);
   const confirmError = $derived(
     confirmPassword && password !== confirmPassword
       ? m('common.validation.passwords_match')
@@ -361,10 +361,9 @@
         label={m('common.password')}
         type="password"
         bind:value={password}
-        placeholder={m('common.password_min_placeholder')}
+        placeholder={m('common.password_bytes_placeholder')}
         disabled={isLoading}
         required
-        minlength={8}
         autocomplete="new-password"
         error={passwordError}
       />
