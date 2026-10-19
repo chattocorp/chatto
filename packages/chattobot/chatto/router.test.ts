@@ -131,3 +131,30 @@ test('forgets a finished run', async () => {
   await router.route(message('two'));
   expect(router.runs).toHaveLength(2);
 });
+
+test('ordinary replies only wake active workflows and never create or reopen a run', async () => {
+  const router = harness();
+  const reply = (id: string) => ({ ...message(id), trigger: 'follow-up' as const });
+  await router.route(reply('before'));
+  expect(router.runs).toHaveLength(0);
+  expect(router.state.accepted.size).toBe(0);
+  await router.route(message('ping'));
+  await router.route(reply('during'));
+  await router.route(reply('during'));
+  expect(router.runs[0]!.sent).toEqual([reply('during')]);
+  router.runs[0]!.finish();
+  await new Promise((resolve) => setTimeout(resolve));
+  await router.route(reply('after'));
+  expect(router.runs).toHaveLength(1);
+});
+
+test('a reply racing a closed workflow does not start another one', async () => {
+  const router = harness({
+    steer: async () => {
+      throw new Error('Closed');
+    }
+  });
+  await router.route(message('ping'));
+  await router.route({ ...message('reply'), trigger: 'follow-up' });
+  expect(router.runs).toHaveLength(1);
+});

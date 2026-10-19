@@ -12,26 +12,47 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - Put Runling tasks in `tasks/<task>.ts`, with their tests in the same directory
   as `<task>.test.ts` or `<task>-<scope>.test.ts`. This includes evaluation tasks.
   Keep supporting tools and fixtures in their domain directories.
-- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends each message
-  that addresses the bot, or starts report intake, to the run of its thread, or starts one.
+- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends messages to the
+  run of their thread. Addressed messages and report intake can start a run.
+  Ordinary thread replies only notify an existing run, including a recovered run.
 - In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
   later addressed messages to that child. Addressed entry starts the same workflow
-  without initial classification. Every 90 seconds, while the conversation is idle,
-  the workflow checks human replies since the bot's latest post. It classifies changed
+  without initial classification. Batch all incoming messages, including the first
+  post, pings, direct replies, and reactions to bot messages, in a fixed three-second window. The first queued
+  message starts it; later arrivals do not extend it. The window elapses while the
+  conversation is busy. Send addressed batches directly; ordinary reply batches
+  wake a classification check without a second delay. Preserve each message's
+  author and trigger, including in the first conversation turn. Pending intake
+  must not discard a ping that has already arrived in an unfinished window.
+  Keep pending reply IDs in root state while the
+  conversation is busy, including across a newer bot post or restart. Read these
+  replies together with human replies since the latest bot post, with current content
+  and author checks. Retain pending IDs when a direct turn cancels classification;
+  consume only the checked batch, not newer notifications. Event bodies never go
+  directly to the conversation. A five-minute reconciliation check recovers missed
+  events and checks inactivity.
+  The workflow classifies changed
   batches and forwards accepted replies together to the existing conversation.
   Accept clear implicit replies to the bot, not general discussion of the same topic.
+  Include recap, missing-information, and next-step questions about the current report.
+  One clear reply is enough to accept a batch; vague remarks must not outweigh it.
+  Questions explicitly addressed to other people remain human discussion.
   Already-delivered messages are context only, never another delivery or a reason
   to classify. Keep this true even when a turn does not post a reply.
   Empty or unchanged checks need no model call. The workflow owns the one-hour
-  inactivity timeout, checked on the polling tick; only delivered messages reset it.
-  Keep one conversation state (`busy`, `waiting`, or `idle`) for polling and expiry.
+  inactivity timeout, checked before reading the thread; only delivered messages reset it.
+  Keep one conversation state (`busy`, `waiting`, or `idle`) for checks and expiry.
   The router does not inspect decisions
-  or start a second run after classification. Keep the classifier free of tools
+  or start a second run after classification. Ordinary replies cannot bypass
+  pending intake or reopen an expired workflow. Participation can use the optional
+  `CHATTO_INTAKE_DECISION_MODEL` through Runling's `createChoiceClassifier`.
+  Keep its policy shared with the default agent classifier. This setting does
+  not change authorization classifiers. Keep the classifier free of tools
   and Chatto effects. Check model behavior with `pnpm eval:intake`.
 - Register the thread root as `chattoThread` for Runling recovery. The root owns
-  its plain `ctx.state`: accepted entry, delivered IDs, checked batch, and activity
+  its plain `ctx.state`: accepted entry, delivered IDs, pending reply IDs, checked batch, and activity
   time. Restore source routing from `ctx.runs()`, bound to the same server and bot.
   Use Runling's `agentSessionFile(ctx, 'conversation')` for the transcript. Runling
   owns its path and retention; keep filesystem cleanup out of ChattoBot.
@@ -40,7 +61,14 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Preserve intake status and the inactivity deadline. See [Recovery](README.md#recovery).
 - `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
   each turn, and the only posts to the thread. The agent's final text is the
-  reply.
+  reply. A successful `react` call can replace a text reply. Limit its targets to
+  message IDs seen in the current thread. Keep the automatic root checkmark under
+  `setHandled`, including its pending-work and closing-reply rules.
+- Added reactions to this bot's messages are addressed input. Read the target from
+  Chatto to verify its author and thread. Preserve the server-authenticated reaction
+  author, event ID, emoji, target ID, and target text. Use the reaction event ID for
+  delivery and authorization; use the target message ID for replies. Ignore own
+  reactions and removals. A removal does not cancel delegated work.
 - Add a capability as a tool of that agent. When the work is long or needs its
   own agent, write it as a Runling task that can also run on its own, like
   `tasks/investigate.ts`, and give it to the agent as a tool. A task
@@ -190,7 +218,11 @@ a maintainer gate before delegation:
 - The host gate checks identity. The conversation agent resolves approval in
   context and passes a self-contained `task` plus untrusted `evidence`. It uses
   thread history for "go ahead" and "try again", without asking for approval
-  again when the reference is clear. A ping grants no authority. Retries specify
+  again when the reference is clear. A current maintainer's thumbs-up on a specific
+  proposal can approve that proposal. Resolve its scope from the exact reaction
+  target, not the newest proposal. Reactions to completed work or expressions of
+  appreciation do not start more work. Do not repeat work already started or completed.
+  Non-maintainer reactions grant no authority. A ping grants no authority. Retries specify
   only unfinished work. Bulk changes need an explicit operation and affected set.
   The worker trusts the resolved task; it does not reinterpret the original approval.
 - Every worker `gh` call passes static command policy. Writes also pass a tool-free

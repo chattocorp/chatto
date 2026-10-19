@@ -1,4 +1,5 @@
 export { createChannel, ChannelClosedError, ChannelFullError, type Channel } from './channel.ts';
+export { createNotifier, type Notifier } from './notifier.ts';
 export { TimeoutError, validateTimeout } from './timeout.ts';
 export { awaitWithSignal } from './await-with-signal.ts';
 export {
@@ -27,6 +28,7 @@ export { type Invocation } from './invocation.ts';
 export { agentSessionFile } from './agent-sessions.ts';
 export { AgentSessionStore, type AgentSessionLease } from './agent-session-store.ts';
 export { createClassifier } from './classifier.ts';
+export { createChoiceClassifier } from './choice-classifier.ts';
 export { usePrivateTempDirectory } from './private-temp.ts';
 export { taskTool, type TaskToolOptions } from './task-tool.ts';
 export {

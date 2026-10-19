@@ -11,12 +11,14 @@ const mocks = vi.hoisted(() => ({
   ready: vi.fn(),
   consumeEvents: vi.fn(),
   addressedMessage: vi.fn(),
+  getMessage: vi.fn(),
   close: vi.fn(),
   batchGetUsers: vi.fn(),
   readThread: vi.fn(),
   classify: vi.fn(),
   conversation: vi.fn(),
-  started: vi.fn()
+  started: vi.fn(),
+  steered: vi.fn()
 }));
 vi.mock('@chatto/client', async (original) => ({
   ...(await original<typeof import('@chatto/client')>()),
@@ -66,7 +68,7 @@ const event = (id: string, roomId = 'intake', actorId = 'human') =>
 
 async function run(
   events: RealtimeEvent[],
-  { rooms = 'intake', allowed = '', botAuthor = false, missing = false } = {}
+  { rooms = 'intake', allowed = '', botAuthor = false, missing = false, recovered = false } = {}
 ) {
   vi.stubEnv('CHATTO_URL', 'https://chatto.example.test');
   vi.stubEnv('CHATTO_API_KEY', 'fixture');
@@ -136,7 +138,27 @@ async function run(
   const ctx: Parameters<EventSource>[0] = {
     signal: new AbortController().signal,
     state: new Map(),
-    runs: () => [],
+    runs: () =>
+      recovered
+        ? [
+            {
+              id: 'existing',
+              workflow: 'chattoThread',
+              input: {
+                id: 'root',
+                roomId: 'ordinary',
+                threadRootId: 'root',
+                connection: JSON.stringify(['https://chatto.example.test', 'bot'])
+              },
+              steer: async (message) => {
+                mocks.steered(message);
+              },
+              closeSteering: () => {},
+              cancel: () => {},
+              finished: new Promise<void>(() => {})
+            }
+          ]
+        : [],
     dispatch: async (route, input) => {
       await route({ start }, input);
       return [];
@@ -167,6 +189,106 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
     body: '',
     attachmentTypes: ['image/png']
   });
+});
+
+test('reactions on bot messages reach recovered threads once with the reacting identity', async () => {
+  mocks.getMessage.mockResolvedValue({
+    id: 'proposal',
+    roomId: 'ordinary',
+    threadRootId: 'root',
+    authorId: 'bot',
+    body: 'Shall I file the issue?'
+  });
+  const reaction = (id: string, actorId = 'human') =>
+    new RealtimeEvent({
+      id,
+      actorId,
+      event: {
+        case: 'reactionAdded',
+        value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
+      }
+    });
+  await run(
+    [
+      reaction('approval'),
+      reaction('approval'),
+      reaction('own', 'bot'),
+      reaction('blocked', 'other')
+    ],
+    { recovered: true, allowed: 'human' }
+  );
+  expect(mocks.steered).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      id: 'approval',
+      authorId: 'human',
+      threadRootId: 'root',
+      reaction: { emoji: '+1', messageId: 'proposal', body: 'Shall I file the issue?' }
+    })
+  );
+  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.started).not.toHaveBeenCalled();
+});
+
+test('a reaction can reopen a conversation without automatic intake', async () => {
+  mocks.getMessage.mockResolvedValue({
+    id: 'proposal',
+    roomId: 'ordinary',
+    threadRootId: 'root',
+    authorId: 'bot',
+    body: 'Shall I file the issue?'
+  });
+  const inputs = await run([
+    new RealtimeEvent({
+      id: 'approval',
+      actorId: 'human',
+      event: {
+        case: 'reactionAdded',
+        value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
+      }
+    })
+  ]);
+  expect(inputs).toEqual([
+    expect.objectContaining({
+      id: 'approval',
+      authorId: 'human',
+      reaction: expect.objectContaining({ messageId: 'proposal' })
+    })
+  ]);
+  expect(mocks.classify).not.toHaveBeenCalled();
+});
+
+test('realtime replies in ordinary rooms wake recovered active threads without starting runs', async () => {
+  const reply = (id: string, threadRootEventId = 'root', actorId = 'human') =>
+    new RealtimeEvent({
+      id,
+      actorId,
+      event: {
+        case: 'messagePosted',
+        value: { roomId: 'ordinary', threadRootEventId, bodyPlaintext: '0.5' }
+      }
+    });
+  await run(
+    [reply('one'), reply('one'), reply('unwatched', 'other'), reply('own', 'root', 'bot')],
+    { rooms: '', recovered: true }
+  );
+  expect(mocks.steered).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ id: 'one', threadRootId: 'root', trigger: 'follow-up' })
+  );
+  expect(mocks.started).not.toHaveBeenCalled();
+  expect(mocks.classify).not.toHaveBeenCalled();
+});
+
+test('the allowed-user restriction also excludes realtime follow-up notifications', async () => {
+  const reply = new RealtimeEvent({
+    id: 'reply',
+    actorId: 'human',
+    event: {
+      case: 'messagePosted',
+      value: { roomId: 'ordinary', threadRootEventId: 'root', bodyPlaintext: '0.5' }
+    }
+  });
+  await run([reply], { recovered: true, allowed: 'someone-else' });
+  expect(mocks.steered).not.toHaveBeenCalled();
 });
 
 test('a recovered thread cannot use a different configured server or bot identity', async () => {

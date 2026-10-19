@@ -67,11 +67,13 @@ export function createChattoRouter({
   }
 
   const deliver: WebhookRouter<IncomingMessage> = async (ctx, message) => {
+    const key = JSON.stringify([botId, message.roomId, message.threadRootId]);
+    const thread = threads.get(key);
+    // Do not retain delivery IDs for ordinary traffic in threads the bot does not watch.
+    if (!thread && message.trigger === 'follow-up') return;
     const delivery = JSON.stringify([botId, message.id]);
     if (deliveries.has(delivery)) return;
     deliveries.accept(delivery);
-    const key = JSON.stringify([botId, message.roomId, message.threadRootId]);
-    const thread = threads.get(key);
 
     // An existing workflow already owns the thread, including any pending classification.
     if (thread && message.trigger === 'intake') return;
@@ -85,6 +87,10 @@ export function createChattoRouter({
         forget(key, thread.run);
       }
     }
+
+    // Ordinary replies only wake existing workflows, including recovered workflows.
+    // They cannot start a conversation or reopen one that has finished.
+    if (message.trigger === 'follow-up') return;
 
     const run = await ctx.start(workflow, { input: message });
     threads.set(key, { run });

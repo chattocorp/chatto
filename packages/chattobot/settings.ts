@@ -32,6 +32,16 @@ export function setting(name: string): string | undefined {
   return process.env[name]?.trim() || undefined;
 }
 
+/** Optional dedicated participation classifier. The conversation and authorization models
+ * do not use this setting. The API key stays outside task input and persisted state. */
+export function intakeDecisionSettings(): { model?: string; apiKey?: string } {
+  const model = setting('CHATTO_INTAKE_DECISION_MODEL');
+  if (!model) return {};
+  const apiKey = setting('OPENROUTER_API_KEY');
+  if (!apiKey) throw new ConfigurationError('Set OPENROUTER_API_KEY');
+  return { model, apiKey };
+}
+
 /** Stable room IDs whose new top-level posts can start report intake. Empty by default. */
 export function autoEngageRoomIds(): Set<string> {
   const ids = (setting('CHATTO_AUTO_ENGAGE_ROOM_IDS') ?? '').split(/[\s,]+/).filter(Boolean);

@@ -84,6 +84,7 @@ function harness({
   const posts: { destination: Destination; body: string }[] = [];
   const reactions: string[] = [];
   const setHandled = vi.fn<ChattoAccess['setHandled']>().mockResolvedValue(undefined);
+  const react = vi.fn<ChattoAccess['react']>().mockResolvedValue(undefined);
   const reads: (string | undefined)[] = [];
   const tools = new Map<string, Tool>();
   let options!: AgentOptions;
@@ -97,6 +98,7 @@ function harness({
     typing: async () => {},
     acknowledge: async (incoming) => void reactions.push(incoming.id),
     setHandled,
+    react,
     readThread: async (_thread, _signal, after) => {
       reads.push(after);
       return { messages: thread.shift() ?? [], cursor: `c${reads.length}`, olderOmitted: false };
@@ -168,6 +170,7 @@ function harness({
     posts,
     reactions,
     setHandled,
+    react,
     reads,
     tools,
     options: () => options,
@@ -175,6 +178,61 @@ function harness({
     createAgent
   };
 }
+
+test('a reaction turn includes its actor and target, and replies reference the target message', async () => {
+  const bot = harness({ maintainers: ['alice'] });
+  bot.messages.close();
+  expect(
+    await bot.start({
+      ...message('reaction', '+1'),
+      reaction: { emoji: '+1', messageId: 'proposal', body: 'Shall I file this bug?' }
+    })
+  ).toMatchObject({ ok: true });
+  expect(bot.prompts[0]).toContain('Message ID: reaction');
+  expect(bot.prompts[0]).toContain('user alice, a maintainer');
+  expect(bot.prompts[0]).toContain('Reaction target message ID: proposal');
+  expect(bot.prompts[0]).toContain('Shall I file this bug?');
+  expect(bot.posts[0]?.destination.inReplyTo).toBe('proposal');
+  expect(bot.reactions).toEqual([]);
+});
+
+test('the agent can react instead of posting text, but cannot target unseen messages or bypass handled tracking', async () => {
+  const bot = harness({
+    thread: [[threadMessage('older', 'Thanks!')]],
+    answer: () => [],
+    turn: async () => {
+      const react = bot.tools.get('react')!;
+      await expect(
+        react.execute('wrong', { messageId: 'elsewhere', emoji: 'heart' })
+      ).rejects.toThrow('this thread');
+      await expect(
+        react.execute('handled', { messageId: 'root', emoji: 'white_check_mark' })
+      ).rejects.toThrow('setHandled');
+      expect(await react.execute('ok', { messageId: 'older', emoji: 'heart' })).toMatchObject({
+        terminate: true
+      });
+    }
+  });
+  bot.messages.close();
+  expect(await bot.start({ ...message('root'), trigger: 'intake' })).toMatchObject({ ok: true });
+  expect(bot.react).toHaveBeenCalledExactlyOnceWith('older', 'heart', expect.any(AbortSignal));
+  expect(bot.posts).toEqual([]);
+  expect(bot.options().allowEmptyText).toBe(true);
+});
+
+test('reaction failures remain visible to the agent for a text reply', async () => {
+  const bot = harness({
+    turn: async () => {
+      await expect(
+        bot.tools.get('react')!.execute('call', { messageId: 'one', emoji: 'heart' })
+      ).rejects.toThrow('permission');
+    }
+  });
+  bot.react.mockRejectedValue(new Error('permission'));
+  bot.messages.close();
+  expect(await bot.start(message('one'))).toMatchObject({ ok: true });
+  expect(bot.posts).toHaveLength(1);
+});
 
 test('automatic intake can mark and reopen only its host-selected root across later turns', async () => {
   const bot = harness();
@@ -371,6 +429,24 @@ test('answers messages that arrive during a turn together in the next turn', asy
   expect(bot.posts[1]!.destination.inReplyTo).toBe('three');
 });
 
+test('the initial addressed batch produces one turn with separate author identities', async () => {
+  const first = message('one', 'Start here', 'alice');
+  const second = message('two', 'More details', 'bob');
+  const bot = harness({ maintainers: ['alice'] });
+  const run = bot.start({ ...first, messages: [first, second] });
+  await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
+  expect(bot.prompts).toHaveLength(1);
+  expect(bot.prompts[0]).toContain('Message ID: one');
+  expect(bot.prompts[0]).toContain('Message ID: two');
+  expect(bot.prompts[0]).toContain('Start here');
+  expect(bot.prompts[0]).toContain('More details');
+  expect(bot.prompts[0]).toContain('Message to you from user alice, a maintainer:');
+  expect(bot.prompts[0]).toContain('Message to you from user bob:');
+  expect(bot.posts[0]!.destination.inReplyTo).toBe('two');
+  bot.messages.close();
+  await run;
+});
+
 test('shows other thread messages as context and reads only newer ones later', async () => {
   const bot = harness({
     thread: [
@@ -553,10 +629,16 @@ test('gives the agent only Chatto tools, in a private empty directory', async ()
   await run;
   expect(bot.options()).toMatchObject({
     output: 'text',
-    tools: ['fetchPage', 'readThread', 'viewAttachment'],
+    allowEmptyText: false,
+    tools: ['react', 'fetchPage', 'readThread', 'viewAttachment'],
     resources: { extensions: false, contextFiles: false }
   });
-  expect([...bot.tools.keys()].sort()).toEqual(['fetchPage', 'readThread', 'viewAttachment']);
+  expect([...bot.tools.keys()].sort()).toEqual([
+    'fetchPage',
+    'react',
+    'readThread',
+    'viewAttachment'
+  ]);
 });
 
 test('readThread lists message IDs for proposal references and the bot as "You"', async () => {
@@ -595,6 +677,7 @@ test('cancellation stops the conversation without a notice', async () => {
       typing: async () => {},
       acknowledge: async () => {},
       setHandled: async () => {},
+      react: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('unused');

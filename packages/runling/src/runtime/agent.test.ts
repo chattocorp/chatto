@@ -2141,6 +2141,78 @@ test.each(['error', 'aborted', 'empty'])(
   }
 );
 
+test.each([
+  { name: 'one terminating tool', results: [true], completed: true },
+  { name: 'all tools terminate', results: [true, true], completed: true },
+  { name: 'mixed batch', results: [true, false], completed: false },
+  { name: 'mixed batch in reverse order', results: [false, true], completed: false },
+  { name: 'failed terminating tool', results: [true], toolError: true, completed: false },
+  { name: 'provider failure', results: [true], providerError: true, completed: false },
+  { name: 'later empty turn', results: [true], laterTurn: true, completed: false },
+  { name: 'nested result alone', results: [true], nested: true, completed: false }
+])('text mode handles $name without allowing arbitrary silence', async (scenario) => {
+  promptImplementation = async () => {
+    eventHandler?.({ type: 'turn_start' });
+    eventHandler?.({
+      type: 'message_end',
+      message: { role: 'assistant', content: [], usage: emptyUsage, stopReason: 'toolUse' }
+    });
+    scenario.results.forEach((terminate, index) =>
+      eventHandler?.({
+        type: 'tool_execution_end',
+        toolCallId: `tool-${index}`,
+        toolName: 'finish',
+        result: { terminate },
+        isError: scenario.toolError ?? false,
+        ...(scenario.nested ? { parentToolCallId: 'parent' } : {})
+      })
+    );
+    if (scenario.laterTurn) eventHandler?.({ type: 'turn_start' });
+    if (scenario.providerError)
+      eventHandler?.({
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [],
+          usage: emptyUsage,
+          stopReason: 'error',
+          errorMessage: 'Provider failed'
+        }
+      });
+  };
+  const result = await runAgent(createTaskContext(), 'Complete through a tool', {
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
+  expect(result.outcome).toBe(scenario.completed ? 'completed' : 'failed');
+  if (scenario.completed) expect(result.summary).toBe('');
+});
+
+test('tool completion does not carry into the next interaction of a session', async () => {
+  const bot = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
+  try {
+    promptImplementation = async () => {
+      eventHandler?.({
+        type: 'tool_execution_end',
+        toolCallId: 'finish',
+        toolName: 'finish',
+        result: { terminate: true },
+        isError: false
+      });
+    };
+    expect((await bot.runOutcome(createTaskContext(), 'Finish')).outcome).toBe('completed');
+    promptImplementation = async () => {};
+    expect((await bot.runOutcome(createTaskContext(), 'Another request')).outcome).toBe('failed');
+  } finally {
+    bot.dispose();
+  }
+});
+
 test.each(['stop', 'error', 'aborted'])(
   'allowEmptyText accepts silence but preserves provider failures: %s',
   async (stopReason) => {
