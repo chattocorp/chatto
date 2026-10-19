@@ -146,6 +146,15 @@ test('missing cost is recorded as incomplete, not free', async () => {
   expect(ctx.usage.costIncomplete).toBe(true);
 });
 
+test('an answer without usage cannot make a partially priced run look fully accounted for', async () => {
+  const ctx = createTaskContext();
+  await createChoiceClassifier(options, transport())(ctx, 'priced request');
+  const request = vi.fn<typeof fetch>(async () => Response.json({ answers: { decision: answer } }));
+  await createChoiceClassifier(options, request)(ctx, 'unpriced request');
+  expect(ctx.usage.cost).toBe(0.001);
+  expect(ctx.usage.costIncomplete).toBe(true);
+});
+
 test('cancellation before the request sends nothing', async () => {
   const request = transport();
   const ctx = { ...createTaskContext(), signal: AbortSignal.abort(new Error('Cancelled')) };

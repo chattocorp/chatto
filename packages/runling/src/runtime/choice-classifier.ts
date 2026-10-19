@@ -99,6 +99,9 @@ export function createChoiceClassifier<Input extends WorkflowSchema, Choice exte
       log.info(
         `Token usage: ${formatTokenUsage(usage)}${usage.cost === undefined ? '' : ` · $${usage.cost.toFixed(8)}`}`
       );
+    } else {
+      // A valid answer can omit usage. Keep any earlier cost visibly incomplete.
+      ctx.recordUsage({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, costIncomplete: true });
     }
     const answer = data.answers.decision;
     // Validate here to keep invalid provider content out of task validation errors.
