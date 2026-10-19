@@ -9,7 +9,7 @@ export const research = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ minLength: 1, description: 'The topic to research' })
     }),
-    output: Type.String({ description: 'The research report in Markdown' })
+    result: Type.String({ description: 'The research report in Markdown' })
   },
   async (ctx, { directory, prompt: topic }) => {
     const report = await step('Researching topic', () =>

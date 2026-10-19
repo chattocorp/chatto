@@ -37,9 +37,9 @@ export function taskTool(
     async execute(_id, input, signal, onUpdate) {
       const toolCtx = signal ? { ...ctx, signal: AbortSignal.any([ctx.signal, signal]) } : ctx;
       const invocation = toolCtx.start(task, input);
-      invocation.closeInput();
+      invocation.closeSteering();
       const updates = (async () => {
-        for await (const update of invocation.updates) onUpdate?.(textResult(update));
+        for await (const update of invocation.output) onUpdate?.(textResult(update));
       })();
       // A failed task also fails its updates; its result reports the failure.
       void updates.catch(() => {});

@@ -1,5 +1,6 @@
 export { createChannel, ChannelClosedError, ChannelFullError, type Channel } from './channel.ts';
 export { TimeoutError, validateTimeout } from './timeout.ts';
+export { awaitWithSignal } from './await-with-signal.ts';
 export {
   createTaskContext,
   WorkflowAbortError,
@@ -15,12 +16,12 @@ export {
   type MessageOutput,
   type Task,
   type TaskDefinition,
-  type TaskEmits,
+  type TaskOutput,
   type TaskImplementation,
   type TaskInput,
   type TaskInvocation,
-  type TaskOutput,
-  type TaskReceives
+  type TaskResult,
+  type TaskSteering
 } from './task.ts';
 export { type Invocation } from './invocation.ts';
 export { agentSessionFile } from './agent-sessions.ts';

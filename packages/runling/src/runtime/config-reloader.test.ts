@@ -118,7 +118,7 @@ test('runling imports share the host runtime across config reloads', async () =>
       import { agent, task, taskTool, Type } from "runling";
       import { startWorkflow } from "runling/web";
       export default { webhooks: {
-        probe: startWorkflow(task({ name: "Probe", input: Type.Null(), output: Type.Any() },
+        probe: startWorkflow(task({ name: "Probe", input: Type.Null(), result: Type.Any() },
           () => ({ agent, taskTool })))
       }};
     `
@@ -131,8 +131,8 @@ test('runling imports share the host runtime across config reloads', async () =>
             result = await task(createTaskContext(), input);
             return {
               id: 'probe',
-              send: async () => {},
-              closeInput: () => {},
+              steer: async () => {},
+              closeSteering: () => {},
               cancel: () => {},
               finished: Promise.resolve()
             };

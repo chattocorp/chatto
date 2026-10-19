@@ -78,7 +78,7 @@ const makePullRequest = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ description: 'The requested code change' })
     }),
-    output: Type.Object({
+    result: Type.Object({
       branchName: Type.String(),
       pullRequestUrl: Type.String()
     })

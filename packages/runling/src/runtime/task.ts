@@ -8,21 +8,23 @@ import {
   type WorkflowSchema
 } from './schema.ts';
 
-/** The contract of a task: its name, its input and output, and the messages that it exchanges
+/** The contract of a task: its name, its input and result, and the messages that it exchanges
  * with its parent while it runs. Without a message schema, a task accepts any message. */
 export interface TaskDefinition<
   Input extends WorkflowSchema = WorkflowSchema,
-  Output extends WorkflowSchema = WorkflowSchema,
-  Receives extends WorkflowSchema | undefined = WorkflowSchema | undefined,
-  Emits extends WorkflowSchema | undefined = WorkflowSchema | undefined
+  Result extends WorkflowSchema = WorkflowSchema,
+  Steering extends WorkflowSchema | undefined = WorkflowSchema | undefined,
+  Output extends WorkflowSchema | undefined = WorkflowSchema | undefined
 > {
   name: string;
+  /** Initial argument, validated before the implementation starts. */
   input: Input;
-  output: Output;
-  /** Messages from the parent, read from `ctx.inbox`. */
-  receives?: Receives;
+  /** Final return value, separate from streamed output. */
+  result: Result;
+  /** Messages from the parent, read from `ctx.steering`. */
+  steering?: Steering;
   /** Messages to the parent, sent with `ctx.emit`. */
-  emits?: Emits;
+  output?: Output;
 }
 
 /** A value of a message schema before validation; `unknown` without a schema. */
@@ -30,16 +32,16 @@ export type MessageInput<S> = S extends WorkflowSchema ? SchemaInput<S> : unknow
 /** A value of a message schema after validation; `unknown` without a schema. */
 export type MessageOutput<S> = S extends WorkflowSchema ? SchemaOutput<S> : unknown;
 
-/** A task's implementation. It reads messages and emits messages through `ctx`. */
+/** A task implementation consumes steering, emits output, and returns its final result. */
 export type TaskImplementation<
   Input extends WorkflowSchema,
-  Output extends WorkflowSchema,
-  Receives extends WorkflowSchema | undefined,
-  Emits extends WorkflowSchema | undefined
+  Result extends WorkflowSchema,
+  Steering extends WorkflowSchema | undefined,
+  Output extends WorkflowSchema | undefined
 > = (
-  ctx: TaskContext<MessageOutput<Receives>, MessageInput<Emits>>,
+  ctx: TaskContext<MessageOutput<Steering>, MessageInput<Output>>,
   input: SchemaOutput<Input>
-) => SchemaInput<Output> | Promise<SchemaInput<Output>>;
+) => SchemaInput<Result> | Promise<SchemaInput<Result>>;
 
 /**
  * A function with schemas. Calling it starts the task and waits for its result; use
@@ -47,11 +49,11 @@ export type TaskImplementation<
  */
 export type Task<
   Input extends WorkflowSchema = WorkflowSchema,
-  Output extends WorkflowSchema = WorkflowSchema,
-  Receives extends WorkflowSchema | undefined = WorkflowSchema | undefined,
-  Emits extends WorkflowSchema | undefined = WorkflowSchema | undefined
-> = ((ctx: TaskContext<any, any>, input: SchemaInput<Input>) => Promise<SchemaOutput<Output>>) &
-  Readonly<TaskDefinition<Input, Output, Receives, Emits>> & {
+  Result extends WorkflowSchema = WorkflowSchema,
+  Steering extends WorkflowSchema | undefined = WorkflowSchema | undefined,
+  Output extends WorkflowSchema | undefined = WorkflowSchema | undefined
+> = ((ctx: TaskContext<any, any>, input: SchemaInput<Input>) => Promise<SchemaOutput<Result>>) &
+  Readonly<TaskDefinition<Input, Result, Steering, Output>> & {
     /** Internal: validate and run the implementation in a child context. */
     readonly [implementation]: (ctx: TaskContext<any, any>, input: unknown) => Promise<unknown>;
   };
@@ -59,42 +61,42 @@ export type Task<
 /** Any task, for APIs that accept every task. */
 export type AnyTask = Task<any, any, any, any>;
 export type TaskInput<T extends AnyTask> = SchemaInput<T['input']>;
-export type TaskOutput<T extends AnyTask> = SchemaOutput<T['output']>;
+export type TaskResult<T extends AnyTask> = SchemaOutput<T['result']>;
 /** A message schema of a task definition without the `undefined` of its optional property.
  * It is `never` when the task has no message schema. */
 type DefinedSchema<S> = Exclude<S, undefined>;
-/** What a parent sends to a task. `unknown` when the task has no `receives` schema. */
-export type TaskReceives<T extends AnyTask> = [DefinedSchema<T['receives']>] extends [never]
+/** What a parent sends to a task. `unknown` when the task has no `steering` schema. */
+export type TaskSteering<T extends AnyTask> = [DefinedSchema<T['steering']>] extends [never]
   ? unknown
-  : MessageInput<DefinedSchema<T['receives']>>;
-/** What a parent receives from a task. `unknown` when the task has no `emits` schema. */
-export type TaskEmits<T extends AnyTask> = [DefinedSchema<T['emits']>] extends [never]
+  : MessageInput<DefinedSchema<T['steering']>>;
+/** Streamed output seen by the parent; `unknown` without an output schema. */
+export type TaskOutput<T extends AnyTask> = [DefinedSchema<T['output']>] extends [never]
   ? unknown
-  : MessageOutput<DefinedSchema<T['emits']>>;
+  : MessageOutput<DefinedSchema<T['output']>>;
 /** The handle of a started task. */
 export type TaskInvocation<T extends AnyTask> = Invocation<
-  TaskReceives<T>,
-  TaskEmits<T>,
-  TaskOutput<T>
+  TaskSteering<T>,
+  TaskOutput<T>,
+  TaskResult<T>
 >;
 
-/** Define a task: a named function with input and output schemas, and optional message schemas. */
+/** Define a task: a named function with input and result schemas, and optional message schemas. */
 export function task<
   const Input extends WorkflowSchema,
-  const Output extends WorkflowSchema,
-  const Receives extends WorkflowSchema | undefined = undefined,
-  const Emits extends WorkflowSchema | undefined = undefined
+  const Result extends WorkflowSchema,
+  const Steering extends WorkflowSchema | undefined = undefined,
+  const Output extends WorkflowSchema | undefined = undefined
 >(
-  definition: TaskDefinition<Input, Output, Receives, Emits>,
-  run: TaskImplementation<Input, Output, Receives, Emits>
-): Task<Input, Output, Receives, Emits> {
+  definition: TaskDefinition<Input, Result, Steering, Output>,
+  run: TaskImplementation<Input, Result, Steering, Output>
+): Task<Input, Result, Steering, Output> {
   const { name } = definition;
   if (typeof name !== 'string' || name.trim() === '') {
     throw new TypeError('Task name must be a non-empty string');
   }
-  for (const boundary of ['input', 'output', 'receives', 'emits'] as const) {
+  for (const boundary of ['input', 'result', 'steering', 'output'] as const) {
     const schema = definition[boundary];
-    if (schema === undefined && (boundary === 'receives' || boundary === 'emits')) continue;
+    if (schema === undefined && (boundary === 'steering' || boundary === 'output')) continue;
     if (!isWorkflowSchema(schema)) {
       throw new TypeError(`Task ${JSON.stringify(name)} ${boundary} schema is invalid`);
     }
@@ -103,8 +105,8 @@ export function task<
   const execute = async (ctx: TaskContext<any, any>, value: unknown) => {
     const input = await parseBoundary(name, 'input', definition.input, value);
     ctx.signal.throwIfAborted();
-    const output = await run(ctx, input as SchemaOutput<Input>);
-    return parseBoundary(name, 'output', definition.output, output);
+    const result = await run(ctx, input as SchemaOutput<Input>);
+    return parseBoundary(name, 'result', definition.result, result);
   };
 
   const defined = (ctx: TaskContext<any, any>, input: unknown) =>
@@ -113,16 +115,16 @@ export function task<
   Object.defineProperties(defined, {
     name: { value: name },
     input: { value: definition.input, enumerable: true },
-    output: { value: definition.output, enumerable: true },
-    ...(definition.receives === undefined
+    result: { value: definition.result, enumerable: true },
+    ...(definition.steering === undefined
       ? {}
-      : { receives: { value: definition.receives, enumerable: true } }),
-    ...(definition.emits === undefined
+      : { steering: { value: definition.steering, enumerable: true } }),
+    ...(definition.output === undefined
       ? {}
-      : { emits: { value: definition.emits, enumerable: true } }),
+      : { output: { value: definition.output, enumerable: true } }),
     [implementation]: { value: execute }
   });
-  return defined as unknown as Task<Input, Output, Receives, Emits>;
+  return defined as unknown as Task<Input, Result, Steering, Output>;
 }
 
 /** Check whether a value was defined with `task()`. */

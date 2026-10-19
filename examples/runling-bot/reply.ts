@@ -58,7 +58,7 @@ export function createReplyWorkflow(
     {
       name: 'Reply to Chatto',
       input: webhookInput,
-      output: Type.Object({
+      result: Type.Object({
         deliveryId: Type.String(),
         status: Type.Union([Type.Literal('replied'), Type.Literal('skipped')]),
         replyId: Type.Optional(Type.String())

@@ -44,8 +44,8 @@ export function createThreadWorkflow(
     {
       name: 'Chatto thread',
       input: IncomingMessage,
-      output: Type.Null(),
-      receives: IncomingMessage
+      result: Type.Null(),
+      steering: IncomingMessage
     },
     async (ctx, message) => {
       const saved = ctx.state as Partial<ThreadState>;
@@ -56,7 +56,7 @@ export function createThreadWorkflow(
       const state = saved as ThreadState;
       const options = typeof configure === 'function' ? await configure(ctx, message) : configure;
       const { classifier, conversation, read } = options;
-      const reader = ctx.inbox[Symbol.asyncIterator]();
+      const reader = ctx.steering[Symbol.asyncIterator]();
       let queued: IteratorResult<IncomingMessage> | undefined;
       const nextMessage = reader.next().then((item) => {
         queued = item;
@@ -126,7 +126,7 @@ export function createThreadWorkflow(
           pending = reader.next();
         }
         monitor.stop();
-        child.closeInput();
+        child.closeSteering();
       };
       try {
         await Promise.all([child.result, forward(), monitor.done]);
@@ -175,14 +175,14 @@ function monitorConversation(
     );
     if (!fresh.length) return;
     interrupt();
-    await child.send(Array.isArray(message) ? fresh : fresh[0]!);
+    await child.steer(Array.isArray(message) ? fresh : fresh[0]!);
     for (const item of fresh) delivered.add(item.id);
     saved.delivered = [...delivered];
     saved.lastActivity = Date.now();
   };
   const updates = (async () => {
     try {
-      for await (const update of child.updates) {
+      for await (const update of child.output) {
         if (update === 'busy') interrupt();
         else state = update;
       }
@@ -197,7 +197,7 @@ function monitorConversation(
         if (state === 'busy') continue;
         if (state === 'idle' && Date.now() - saved.lastActivity >= idleMs) {
           stop();
-          child.closeInput();
+          child.closeSteering();
           break;
         }
         check = new AbortController();

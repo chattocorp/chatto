@@ -9,19 +9,21 @@ export function recordWork(onFinish?: (outcome: WorkOutcome) => void) {
   const owner: WorkOwner = {
     pending,
     track(child, details, formatResult) {
-      child.closeInput();
+      child.closeSteering();
       const job: PendingWork = {
         ...details,
         id: child.id,
         startedAt: Date.now(),
+        output: [],
         child,
         done: Promise.resolve()
       };
       pending.set(job.id, job);
       const updates = (async () => {
-        for await (const update of child.updates) {
-          job.latest = String(update);
-          progress.push([job.id, job.latest]);
+        for await (const update of child.output) {
+          const text = typeof update === 'string' ? update : JSON.stringify(update);
+          job.output.push(text);
+          progress.push([job.id, text]);
         }
       })();
       job.done = Promise.all([child.result, updates])

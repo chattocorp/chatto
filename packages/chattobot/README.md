@@ -315,15 +315,26 @@ If labeling fails, the result retains the workspace and reports `labelApplied: f
 implementation can continue in that workspace.
 
 The bot acknowledges accepted work once and keeps answering messages. The Runling
-child task records startup progress and waits for the coding turn to finish, a
-permission request, an error, or a one-hour timeout. No monitoring model runs.
+child task subscribes before sending the brief, streams assistant messages back,
+and waits for the coding turn to finish, a permission request, an error, or a
+one-hour timeout. It joins live text fragments and emits each segment at the next
+message, timeline, or turn boundary. It also flushes remaining text when monitoring
+ends. Each emitted segment appears in the Runling log with a `Paseo:` label and
+the usual run and task prefix. Unfinished text stays buffered, so progress answers
+can use only segments already emitted. No monitoring model runs. The conversation keeps the last 20
+output entries, with up to 2,000 characters each, and uses them in its next turn.
+You can ask how the implementation is going. Progress does not trigger a model
+turn or chat post by itself. The buffer contains recent excerpts, not a complete
+log; it excludes reasoning and tool logs. Remote text is supporting evidence,
+not authorization or proof of success.
 The conversation agent then gives a short result, verification summary, and remaining
 questions. It distinguishes changes ready for review from a released fix. Backend,
 workspace, and branch details are included only when requested or needed for the next
 action. A completed turn alone does not prove success.
 The bot does not generate workspace links or automatically approve permissions.
 Respond to permission requests in Paseo. Monitoring ends at that point; it does
-not resume after a human response or a bot restart.
+not resume after a human response or a bot restart. Live output is not saved for
+recovery, and this monitor does not send follow-up instructions to the remote agent.
 
 Workspace creation and agent launch each have a 10-second connection deadline and
 a 60-second startup deadline.
@@ -524,7 +535,8 @@ ChattoBot sends these data to other systems:
   including the remote directory, return to the conversation model. For implementation,
   Paseo also receives the resolved task and supporting evidence. Its coding provider
   receives that brief and the code and tool results the agent reads, plus the Paseo
-  host's IP address. The agent report returns to the conversation model and thread.
+  host's IP address. Recent assistant messages and the final agent report return
+  to the conversation model. Its progress answers and final summary go to the thread.
   Paseo's setup scripts and coding tools can contact further services under the
   operator's configuration.
 - **Tavily** receives search queries, and **Cloudflare** receives page URLs,

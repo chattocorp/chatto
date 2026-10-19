@@ -2,14 +2,15 @@
 
 The host is the parent of the top-level task of a workflow run. The host can
 send messages to the task while it runs, and it receives the messages that the
-task emits. The task uses the same `ctx.inbox` and `ctx.emit()` as for a parent
+task emits. The task uses the same `ctx.steering` and `ctx.emit()` as for a parent
 task. See [task invocations and messages](task-channels.md).
 
 ## Output
 
-The result of a run is the output of its top-level task. Runling validates the
-output with the output schema of the task. It does not change the shape of the
-output.
+The result of a run is the final return value of its top-level task. Runling
+validates it with the task's `result` schema. Streamed `output` is separate.
+The run journal, HTTP API, and `runWorkflow()` response keep their existing
+`output` field for the final result.
 
 - `runling run` prints only the root task's output, once at the end, without
   a log prefix or task indentation, with a blank line before it.
@@ -48,8 +49,8 @@ it appears once after the run details.
 
 ## Send messages to a run
 
-Each message must agree with the `receives` schema of the top-level task. If
-the task has no `receives` schema, it accepts any message.
+Each message must agree with the `steering` schema of the top-level task. If
+the task has no `steering` schema, it accepts any message.
 
 - **CLI.** On an interactive terminal, `runling run` sends each line that you
   type as a string message. If the task cannot accept a message, Runling shows
@@ -110,4 +111,4 @@ When the `messages` iterable ends, the input of the task closes. Without
 process state.
 
 See the [planning example](../examples/plan.ts). It emits each question and
-reads the answer from `ctx.inbox`.
+reads the answer from `ctx.steering`.

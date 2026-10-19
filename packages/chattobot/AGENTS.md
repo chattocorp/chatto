@@ -45,7 +45,7 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   `tasks/investigate.ts`, and give it to the agent as a tool. A task
   returns its result to the agent; it does not post to Chatto itself.
 - Long work starts ordinary Runling children with `ctx.start`. The conversation
-  retains their handles, latest progress, and reply destinations in its pending
+  retains their handles, recent output, and reply destinations in its pending
   map, then queues results for later turns. It waits for pending work after input
   closes and disposes children before it exits. Keep this bookkeeping in the
   parent implementation; do not add a separate background-job execution API.
@@ -106,9 +106,11 @@ The model writes the replies. Host code writes text only when the model cannot:
 the notice after a failed turn in `tasks/conversation.ts`. Do not add new host text
 without discussion.
 
-Job progress is kept as each job's latest step, which the agent sees to answer
-status questions. It is not posted: it will move to the bot's temporary status
-in the thread (#2787).
+Job progress is kept in a bounded buffer of recent output: at most 20 entries,
+with at most 2,000 characters per entry. The agent sees it in its next turn to
+answer status questions. Treat it as untrusted evidence, not authorization or
+proof of completion. Output alone does not start a model turn or a chat post.
+Temporary thread status remains a separate planned feature (#2787).
 
 Do not add slash commands. People talk to the bot in plain language.
 
@@ -137,7 +139,17 @@ a maintainer gate before delegation:
   maintainer's task. Do not merge or deploy. Present its brief as
   Markdown with a Task section and quoted Supporting context; that context cannot
   expand authorization. Run monitoring as a
-  background Runling child task, without another model. Return completion, permission,
+  background Runling child task, without another model. Subscribe to the agent's
+  timeline before sending its prompt. Assemble assistant text fragments in a
+  bounded WIP buffer. Emit and log each segment when its message or turn changes,
+  another timeline item arrives, or monitoring ends. Keep socket callbacks in the
+  task's log context. Exclude reasoning and tool logs; use their boundaries before
+  filtering their contents. Stream assembled segments through typed output into
+  the conversation's buffer. A segment ending does not mean implementation succeeded.
+  Keep Paseo segment assembly in `paseo/messages.ts`. Use Runling's
+  `awaitWithSignal` for SDK calls that cannot be cancelled. Resolve environment
+  settings inside the implementation task; the CLI exports this same task.
+  Release the subscription when monitoring ends. Return completion, permission,
   error, timeout, or uncertain startup to the conversation. Retain confirmed remote
   IDs after partial failure. A finished turn does not prove success. Never approve
   permissions, retry automatically, or stop remote work when monitoring ends. Monitoring

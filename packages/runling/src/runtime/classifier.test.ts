@@ -14,7 +14,7 @@ const options = {
   model: 'test/model',
   systemPrompt: 'Classify the input.',
   input: Type.String(),
-  output: Type.Object({ accept: Type.Boolean() }, { additionalProperties: false })
+  result: Type.Object({ accept: Type.Boolean() }, { additionalProperties: false })
 };
 function session(reply: string) {
   const run = vi.fn<RunlingAgent['run']>(async () => ({
@@ -71,7 +71,7 @@ test('Standard Schema output transformations run once', async () => {
   const transform = vi.fn((value: string) => value.length);
   const h = session('"answer"');
   const classify = createClassifier(
-    { ...options, output: z.string().transform(transform) },
+    { ...options, result: z.string().transform(transform) },
     h.create
   );
   expect(await classify(createTaskContext(), 'question')).toBe(6);

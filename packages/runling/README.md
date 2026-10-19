@@ -8,15 +8,15 @@ decisions (ADRs), and feature records (FDRs).
 ## Tasks, runs, and messages
 
 A **task** is a function with schemas. It has a name, an input schema, and an
-output schema. It can also have a `receives` schema for messages from its parent
-and an `emits` schema for messages to its parent. If a task has no message
+result schema. It can also have a `steering` schema for messages from its parent
+and an `output` schema for messages to its parent. If a task has no message
 schema, it accepts any message. A task always returns a promise.
 
 ```ts
 import { task, Type } from 'runling';
 
 const greet = task(
-  { name: 'Greet', input: Type.String(), output: Type.String() },
+  { name: 'Greet', input: Type.String(), result: Type.String() },
   async (_ctx, name) => `Hello, ${name}`
 );
 ```
@@ -29,13 +29,13 @@ task. Runling does not change the shape of the output.
 A task can invoke other tasks in two ways:
 
 - A direct call, `await greet(ctx, 'Ada')`, starts the task and waits for its
-  output. The child cannot receive messages. Runling records its updates in the
-  journal and then discards them.
+  result. The child cannot receive steering. Runling records its streamed output in the
+  journal and then discards it.
 - `ctx.start(task, input)` starts the task and returns an invocation handle.
-  Use `send()` and `closeInput()` to send messages to the child, `updates` to
-  read its messages, `result` to get its output, and `cancel()` to stop it.
+  Use `steer()` and `closeSteering()` to send messages to the child, `output` to
+  read its messages, `result` to get its final value, and `cancel()` to stop it.
 
-Inside a task, read messages from the parent with `ctx.inbox` and send messages
+Inside a task, read messages from the parent with `ctx.steering` and send messages
 to the parent with `ctx.emit()`. `ctx.signal` tells the task when to stop.
 
 ```ts
@@ -43,25 +43,25 @@ const counter = task(
   {
     name: 'Counter',
     input: Type.Number(),
-    output: Type.Number(),
-    receives: Type.Number(),
-    emits: Type.Number()
+    result: Type.Number(),
+    steering: Type.Number(),
+    output: Type.Number()
   },
   async (ctx, total) => {
-    for await (const amount of ctx.inbox) await ctx.emit((total += amount));
+    for await (const amount of ctx.steering) await ctx.emit((total += amount));
     return total;
   }
 );
 
 // In the parent task:
 await using child = ctx.start(counter, 0);
-await child.send(5);
-child.closeInput();
-for await (const total of child.updates) log.info(`Total: ${total}`);
+await child.steer(5);
+child.closeSteering();
+for await (const total of child.output) log.info(`Total: ${total}`);
 return await child.result;
 ```
 
-Messages are buffered and in order. `send()` puts a message in the queue. It
+Messages are buffered and in order. `steer()` puts a message in the queue. It
 does not tell you that the child used the message. Disposal cancels unfinished
 work and waits for cleanup. See [task invocations and messages](docs/task-channels.md)
 for the complete contract.
@@ -75,13 +75,14 @@ The host can send messages to a running workflow, and it shows the messages
 that the top-level task emits:
 
 - `runling run` on an interactive terminal: each line that you type is a
-  message to the top-level task. The log shows each update from the task.
+  steering message to the top-level task. The journal records its streamed output;
+  the terminal prints only the final root result after the live run details.
 - Web console: a running run has a message composer below its log. Text that
   is valid JSON is sent as a JSON value. Other text is sent as a string.
 - HTTP: `POST /api/runs/:id/messages` with the body `{ "message": <json> }`.
-- Routers: keep the handle that `ctx.start` returns and call `send()` later.
+- Routers: keep the handle that `ctx.start` returns and call `steer()` later.
 
-The message must agree with the `receives` schema of the top-level task. When a
+The message must agree with the `steering` schema of the top-level task. When a
 task waits for a message, the console shows "Waiting for a message". See
 [workflow messages](docs/workflow-messages.md).
 
@@ -89,7 +90,7 @@ task waits for a message, the console shows "Waiting for a message". See
 
 - Runs single workflows from the terminal and prints their final output
 - Listens to webhooks (and other triggers) to execute workflows
-- Workflows are TypeScript functions with input and output schemas
+- Workflows are TypeScript functions with input and result schemas
 - Embeds the Pi SDK for easy peasy agent/LLM integration
 - Automatic monitoring of token usage and cost
 
@@ -139,7 +140,7 @@ Create `workflows/echo.ts`:
 import { task } from 'runling';
 import { z } from 'zod';
 
-export default task({ name: 'Echo', input: z.string(), output: z.string() }, (ctx, input) => input);
+export default task({ name: 'Echo', input: z.string(), result: z.string() }, (ctx, input) => input);
 ```
 
 Run it with `pnpm runling run workflows/echo.ts "hello"`. The command shows the
@@ -228,11 +229,11 @@ Tasks receive a task context as their first argument. Call
 
 ## Task schemas
 
-Each task needs an input schema and an output schema. The message schemas
-`receives` and `emits` are optional. Tasks accept
+Each task needs an input schema and a result schema. The message schemas
+`steering` and `output` are optional. Tasks accept
 [Standard Schema](https://standardschema.dev/schema) validators, such as Zod and
 Valibot, and TypeBox schemas from `Type`. Runling validates the input, the
-output, and each message at runtime and gives the task the parsed values.
+result, and each stream item at runtime and gives the task the parsed values.
 
 Webhooks and agent tools need a JSON Schema of the input. Zod and TypeBox
 support this directly. For Valibot, wrap schemas with `toStandardJsonSchema` from

@@ -12,12 +12,12 @@ export const plan = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ minLength: 1, description: 'The change to plan' })
     }),
-    output: Type.String({ description: 'The implementation plan in Markdown' }),
-    receives: Type.String({ description: 'An answer to the latest question' }),
-    emits: Type.String({ description: 'A question for the human' })
+    result: Type.String({ description: 'The implementation plan in Markdown' }),
+    steering: Type.String({ description: 'An answer to the latest question' }),
+    output: Type.String({ description: 'A question for the human' })
   },
   async (ctx, { directory, prompt: request }) => {
-    const answers = ctx.inbox[Symbol.asyncIterator]();
+    const answers = ctx.steering[Symbol.asyncIterator]();
 
     await using planner = await createAgentSession({
       cwd: directory,

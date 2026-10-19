@@ -1,4 +1,4 @@
-import { isTask, type AnyTask, type Task, type TaskInput, type TaskReceives } from './task.ts';
+import { isTask, type AnyTask, type Task, type TaskInput, type TaskSteering } from './task.ts';
 import { toJsonSchema, isWorkflowSchema, type WorkflowSchema } from './schema.ts';
 
 /** The ID of a run that a delivery started. */
@@ -8,12 +8,12 @@ export interface StartedRun {
 
 /** A run that a router started. The router can keep it and send it more messages later, for
  * example the next message of a chat conversation. */
-export interface RunHandle<Receives = unknown> extends StartedRun {
+export interface RunHandle<Steering = unknown> extends StartedRun {
   /** Validate a message and queue it for the run's top-level task. Rejects when the run has
    * finished or the message is invalid. */
-  send(message: Receives): Promise<void>;
+  steer(message: Steering): Promise<void>;
   /** Tell the top-level task that no more messages come. */
-  closeInput(): void;
+  closeSteering(): void;
   /** Cancel the run. Its tasks receive the abort signal and finish their cleanup. */
   cancel(): void;
   /** Resolves when the run has finished, whatever its result. */
@@ -25,7 +25,7 @@ export interface WebhookContext {
   start<T extends AnyTask>(
     task: T,
     options: { input: TaskInput<T> }
-  ): Promise<RunHandle<TaskReceives<T>>>;
+  ): Promise<RunHandle<TaskSteering<T>>>;
 }
 
 /** A route may start any number of workflows or handle the delivery itself. */
@@ -45,7 +45,7 @@ export function startWorkflow<T extends AnyTask>(rootTask: T): WebhookRouter<Tas
 
   route.label = rootTask.name;
   route.input = rootTask.input;
-  route.output = rootTask.output;
+  route.output = rootTask.result;
   return route;
 }
 
@@ -151,10 +151,10 @@ export function describeRouterSchemas(route: WebhookRouter<any>) {
 }
 
 /** Get JSON Schema descriptions for a task. */
-export function describeTaskSchemas(task: Pick<Task, 'input' | 'output'>) {
+export function describeTaskSchemas(task: Pick<Task, 'input' | 'result'>) {
   return {
     input: toJsonSchema(task.input, 'input'),
-    output: toJsonSchema(task.output, 'output')
+    output: toJsonSchema(task.result, 'output')
   };
 }
 

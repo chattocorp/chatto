@@ -282,12 +282,12 @@ export class RunStore {
     const inbox = this.inboxes.get(id);
     // A cancelled run's inbox fails with the cancellation reason; report the run state instead.
     if (!inbox || this.controllers.get(id)?.signal.aborted) throw new RunNotActiveError();
-    await parseBoundary(inbox.task.name, 'message', inbox.task.receives, message);
+    await parseBoundary(inbox.task.name, 'message', inbox.task.steering, message);
     await inbox.channel.send(message);
   }
 
   /** Tell an active run's top-level task that no more messages come. */
-  closeInput(id: string): void {
+  closeSteering(id: string): void {
     this.inboxes.get(id)?.channel.close();
   }
 
@@ -449,8 +449,8 @@ export class RunStore {
     const handle = {
       id,
       completion,
-      send: (message: unknown) => this.send(id, message),
-      closeInput: () => this.closeInput(id),
+      steer: (message: unknown) => this.send(id, message),
+      closeSteering: () => this.closeSteering(id),
       cancel: () => void this.cancel(id),
       finished: completion.then(
         () => {},

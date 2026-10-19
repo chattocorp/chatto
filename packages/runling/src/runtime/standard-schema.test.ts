@@ -15,7 +15,7 @@ describe('Standard Schema tasks', () => {
       {
         name: 'Length',
         input: z.string().transform((value) => value.length),
-        output: z.number().transform((value) => ({ length: value }))
+        result: z.number().transform((value) => ({ length: value }))
       },
       (ctx, input) => {
         expectTypeOf(input).toEqualTypeOf<number>();
@@ -38,7 +38,7 @@ describe('Standard Schema tasks', () => {
           v.string(),
           v.transform((value) => value.length)
         ),
-        output: v.number()
+        result: v.number()
       },
       (ctx, value) => {
         expectTypeOf(value).toEqualTypeOf<number>();
@@ -55,11 +55,11 @@ describe('Standard Schema tasks', () => {
 
   test('supports mixed Standard Schema and TypeBox boundaries', async () => {
     const first = task(
-      { name: 'First', input: z.string(), output: Type.String() },
+      { name: 'First', input: z.string(), result: Type.String() },
       (ctx, value) => value
     );
     const second = task(
-      { name: 'Second', input: Type.String(), output: z.string() },
+      { name: 'Second', input: Type.String(), result: z.string() },
       (ctx, value) => value
     );
     expectTypeOf<ReturnType<typeof first>>().toEqualTypeOf<Promise<string>>();
@@ -75,7 +75,7 @@ describe('Standard Schema tasks', () => {
       {
         name: 'Async',
         input: z.string().refine(async (value) => value === 'ok', 'Expected ok'),
-        output: z.string()
+        result: z.string()
       },
       (ctx, value) => {
         calls++;
@@ -103,7 +103,7 @@ describe('Standard Schema tasks', () => {
       {
         name: 'Async output',
         input: z.string(),
-        output: z.string().refine(async () => false, 'Output rejected')
+        result: z.string().refine(async () => false, 'Output rejected')
       },
       async (ctx, value) => value
     );
@@ -111,7 +111,7 @@ describe('Standard Schema tasks', () => {
       (event) => events.push(event),
       async () => {
         await expect(echo(createTaskContext(), 'hello')).rejects.toThrow(
-          'Task "Async output" output is invalid'
+          'Task "Async output" result is invalid'
         );
       }
     );
@@ -122,7 +122,7 @@ describe('Standard Schema tasks', () => {
 
   test('preserves implementation errors', async () => {
     const error = new Error('failed');
-    const echo = task({ name: 'Echo', input: z.string(), output: z.string() }, (ctx, value) => {
+    const echo = task({ name: 'Echo', input: z.string(), result: z.string() }, (ctx, value) => {
       if (value === 'fail') throw error;
       return value;
     });
@@ -154,7 +154,7 @@ describe('Standard Schema tasks', () => {
 
   test('requires the implementation result to match the output schema input', () => {
     // @ts-expect-error The implementation must return a string for the output parser.
-    task({ name: 'Invalid', input: z.string(), output: z.string() }, (ctx) => 42);
+    task({ name: 'Invalid', input: z.string(), result: z.string() }, (ctx) => 42);
   });
 });
 
@@ -172,7 +172,7 @@ test('does not call a task aborted during asynchronous schema validation', async
         await release.promise;
         return true;
       }),
-      output: z.string()
+      result: z.string()
     },
     (_ctx, input) => {
       called = true;

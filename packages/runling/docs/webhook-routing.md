@@ -9,7 +9,7 @@ import { defineWebConfig, startWorkflow } from 'runling/web';
 import { task, Type } from 'runling';
 
 const echo = task(
-  { name: 'Echo', input: Type.String(), output: Type.String() },
+  { name: 'Echo', input: Type.String(), result: Type.String() },
   async (_ctx, message) => message
 );
 
@@ -38,7 +38,7 @@ const echo = task(
   {
     name: 'Echo',
     input: Type.String(),
-    output: Type.String()
+    result: Type.String()
   },
   async (_ctx, value) => value
 );
@@ -70,10 +70,10 @@ automatically.
 The run handle has these members:
 
 - `id`: the ID of the run.
-- `send(message)`: validate a message with the `receives` schema of the
+- `steer(message)`: validate a message with the `steering` schema of the
   top-level task and put it in the queue of the task. It rejects when the run is
   not running, does not accept more messages, or has too many unread messages.
-- `closeInput()`: tell the top-level task that no more messages come.
+- `closeSteering()`: tell the top-level task that no more messages come.
 - `cancel()`: cancel the run. Its tasks get the abort signal and do their
   cleanup.
 - `finished`: a promise that resolves when the run finishes. It also resolves
@@ -85,14 +85,14 @@ thread. The router owns this state:
 ```ts
 import type { RunHandle, WebhookRouter } from 'runling/web';
 
-// `conversation` is a task with `receives: ChatMessage`.
+// `conversation` is a task with `steering: ChatMessage`.
 const threads = new Map<string, RunHandle<ChatMessage>>();
 
 const route: WebhookRouter<ChatMessage> = async (ctx, message) => {
   const run = threads.get(message.threadId);
   if (run) {
     try {
-      return await run.send(message);
+      return await run.steer(message);
     } catch {
       // The run has finished. Start a new one.
     }

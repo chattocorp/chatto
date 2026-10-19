@@ -218,7 +218,7 @@ export default task(
   {
     name: 'Evaluate documentation behavior',
     input: Type.String(),
-    output: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
+    result: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
   },
   async (ctx, filter) => {
     const model = setting('CHATTO_AGENT_MODEL');
@@ -374,7 +374,7 @@ export default task(
                 throw new Error('Conversation ended before follow-up');
               })
             ]);
-            await invocation.send({
+            await invocation.steer({
               id: `${scenario.name}-followup`,
               authorId: scenario.nudge
                 ? scenario.nudge.maintainer
@@ -386,7 +386,7 @@ export default task(
               body: scenario.followup
             });
           }
-          invocation.closeInput();
+          invocation.closeSteering();
           await invocation.result;
         } finally {
           clearTimeout(deadline);

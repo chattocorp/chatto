@@ -1,7 +1,7 @@
 # Agents
 
 `agent(options)` defines a task. It does not create a live session until the
-task runs. The default input is a string prompt. The output is the final text
+task runs. The default input is a string prompt. The result is the final text
 of the agent.
 
 ```ts
@@ -26,8 +26,8 @@ An agent task works with the same APIs as any other task:
 ```ts
 const answer = await assistant(ctx, 'Explain this repository');
 await using work = ctx.start(assistant, 'Investigate a failure');
-await work.send('Also check the integration tests');
-for await (const reply of work.updates) console.log(reply);
+await work.steer('Also check the integration tests');
+for await (const reply of work.output) console.log(reply);
 const result = await work.result;
 ```
 
@@ -38,9 +38,9 @@ An unsuccessful outcome throws `AgentOutcomeError`.
 
 Messages sent to an active invocation steer its session. A message that Runling
 has read but that cannot enter the active turn becomes a subsequent turn in the
-same session. The task finishes when its work ends; an open input does not keep
-it alive. Closing input does not cancel an active turn. See
-[agent steering](agent-steering.md). As with other tasks, a successful `send`
+same session. The task finishes when its work ends; open steering does not keep
+it alive. Closing steering does not cancel an active turn. See
+[agent steering](agent-steering.md). As with other tasks, a successful `steer`
 means queued, not processed; do not send more work after the task completes.
 
 ## Typed input and invocation setup
@@ -122,7 +122,7 @@ leases only; it does not recover execution or authorize new work.
 
 ## Classifiers
 
-`createClassifier({ name, label, model, input, output, systemPrompt })` defines an
+`createClassifier({ name, label, model, input, result, systemPrompt })` defines an
 ordinary task. It performs one model turn, parses JSON, and validates the output
 through the task schema. Standard Schema transformations run once. The task has
 no tools, local resources, or saved agent history. Its default thinking level is
@@ -196,13 +196,13 @@ export default task(
   {
     name: 'Chat',
     input: Type.String(),
-    output: Type.String(),
-    receives: Type.String(),
-    emits: Type.String()
+    result: Type.String(),
+    steering: Type.String(),
+    output: Type.String()
   },
   async (ctx, message) => {
     await using bot = await createAgentSession({ cwd: '.', model, output: 'text' });
-    const inbox = ctx.inbox[Symbol.asyncIterator]();
+    const inbox = ctx.steering[Symbol.asyncIterator]();
     while (true) {
       const { summary } = await bot.run(ctx, message);
       await ctx.emit(summary);
@@ -308,7 +308,7 @@ task that owns an explicit session, so it uses the context of that invocation:
 import { agent, defineAgentExtension, task, taskTool, Type } from 'runling';
 
 const greet = task(
-  { name: 'Greet', input: Type.Object({ name: Type.String() }), output: Type.String() },
+  { name: 'Greet', input: Type.Object({ name: Type.String() }), result: Type.String() },
   async (_ctx, { name }) => `Hello, ${name}`
 );
 
@@ -328,13 +328,13 @@ export default agent({
 
 - The tool parameters are the input schema of the task. The input schema must
   be a TypeBox schema. Else `taskTool` throws a `TypeError`.
-- Each call starts the task as a child of `ctx`, closes its input, and waits for
-  its output. The model gets the output as text: a string as it is, other values
+- Each call starts the task as a child of `ctx`, closes steering, and waits for
+  its result. The model gets the result as text: a string as it is, other values
   as JSON.
-- The updates of the task are partial tool results.
+- The streamed output of the task becomes partial tool results.
 - Cancellation of the tool call cancels the task. Cancellation of `ctx` also
   cancels it.
-- The task validates its input and output. An error of the task is the error of
+- The task validates its input, streamed output, and result. An error of the task is the error of
   the tool call.
 - `label` is a short name for logs. The default is the task name.
 
