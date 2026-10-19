@@ -19,6 +19,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import { lowlight } from '$lib/codeHighlighting';
+import { createCodeLanguageDetectionPlugin } from './codeLanguageDetection';
 import { isDefaultEmptyDocument, isHttpMarkdownAutolink } from './markdown';
 import { FootnoteDefinition, FootnoteReference } from './footnotes';
 
@@ -28,7 +29,16 @@ const codeFenceLineRegex = /^```([\w-]+)?$/;
 const markdownBulletListLineRegex = /^[ \t]{0,3}[-+*]\s(.*)$/;
 const markdownOrderedListLineRegex = /^[ \t]{0,3}(\d{1,9})[.)]\s(.*)$/;
 
+/** Tiptap must only decorate saved languages, never guess during rendering. */
+const editorCodeHighlighting = {
+  ...lowlight,
+  highlightAuto: () => ({ type: 'root' as const, children: [] })
+};
+
 export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
+  addProseMirrorPlugins() {
+    return [...(this.parent?.() ?? []), createCodeLanguageDetectionPlugin()];
+  },
   renderHTML({ node, HTMLAttributes }) {
     const language = node.attrs.language || 'text';
 
@@ -541,7 +551,7 @@ export function createComposerExtensions(placeholder: string) {
     UnsupportedLinkProtocol.configure(),
     FootnoteReference.configure(),
     FootnoteDefinition.configure(),
-    ComposerCodeBlockLowlight.configure({ lowlight }),
+    ComposerCodeBlockLowlight.configure({ lowlight: editorCodeHighlighting }),
     SelectedTextInlineCodeShortcut.configure(),
     MarkdownLinkInputRule.configure(),
     MarkdownAutolinkInputRule.configure(),
