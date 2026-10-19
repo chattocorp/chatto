@@ -21,6 +21,7 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   without initial classification. Every 90 seconds, while the conversation is idle,
   the workflow checks human replies since the bot's latest post. It classifies changed
   batches and forwards accepted replies together to the existing conversation.
+  Accept clear implicit replies to the bot, not general discussion of the same topic.
   Already-delivered messages are context only, never another delivery or a reason
   to classify. Keep this true even when a turn does not post a reply.
   Empty or unchanged checks need no model call. The workflow owns the one-hour
@@ -87,10 +88,15 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   then ask for authorization. Include only gaps that affect that decision.
   Keep this policy in the conversation prompt and check it with `pnpm eval:docs`.
 - Search existing issues early and confirm candidate coverage before further intake.
+  When a successful search finds no match, describe the request as apparently new
+  or ask a useful clarification. Do not lead with the search process or claim that
+  no issue exists.
   Use GitHub's native parent/sub-issue relationships for epic/task hierarchy.
   Check discovery with `pnpm eval:github issue-discovery`.
 - Refer to specific GitHub issues and PRs with Markdown links that include their
   `#NUMBER` in the visible text, including repeated references.
+- Add the eyes reaction only when engaging with a thread root. Continue answering
+  accepted thread replies without adding eyes to those messages.
 - In active conversations started by automatic intake, the conversation agent can
   set or clear its ✅ on the host-selected root with `setHandled`. Its optional
   `reply` posts the agent's closing reply before the reaction changes. Completion

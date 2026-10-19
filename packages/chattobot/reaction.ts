@@ -21,7 +21,7 @@ export function createHandledReaction(client: Pick<Api, 'service'>): SetHandled 
   };
 }
 
-/** React with eyes to a message that addressed the bot, to show that the bot read it.
+/** React with eyes to the thread root selected by the conversation, to show engagement.
  * The reaction is bot policy; transport belongs to the shared client. */
 export function createEyesReaction(client: Pick<MessagingRequests, 'addReaction'>): Acknowledge {
   return (message, signal) =>

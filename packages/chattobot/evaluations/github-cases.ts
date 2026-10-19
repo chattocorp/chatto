@@ -641,10 +641,10 @@ export const supervisorCases: readonly SupervisorCase[] = [
         'Search before clarification'
       );
       const answer = posts.at(-1)!;
-      assert.match(
+      assert.doesNotMatch(
         answer,
-        /(?:didn.t|couldn.t|did not|could not|no)\b[^.!\n]*(?:find|match|issue)|(?:search|found)[^.!\n]*(?:no|nothing)/i,
-        'Report the search result without inventing a match'
+        /^\s*(?:I\s+)?(?:couldn.t|didn.t|could not|did not|can.t|cannot)\s+find|^\s*(?:I\s+)?found no|^\s*no (?:matching|existing) issues?/i,
+        'Do not lead with the empty issue search'
       );
       assert.doesNotMatch(
         answer,

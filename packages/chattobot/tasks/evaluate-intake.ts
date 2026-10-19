@@ -45,6 +45,52 @@ const cases = [
 /** These fixtures exercise participation in an existing thread, without an explicit ping. */
 const followUps = [
   {
+    name: 'follow-up-related-human-question',
+    bot: 'Which browser version are you using?',
+    replies: ['@alex which browser version are you using?'],
+    engage: false
+  },
+  {
+    name: 'follow-up-human-answer',
+    bot: 'Which browser version are you using?',
+    replies: ['@alex which browser version are you using?', '@sam Firefox 142, same as you.'],
+    engage: false
+  },
+  {
+    name: 'follow-up-feature-brainstorm',
+    bot: 'This appears to be a new feature request. A maintainer can decide whether to file it.',
+    replies: [
+      'It would also be cool to have custom emoji categories.',
+      'Yes, and animated emojis!'
+    ],
+    engage: false
+  },
+  {
+    name: 'follow-up-related-status',
+    bot: 'The report is ready for a maintainer to review.',
+    replies: ['I see the same problem on my laptop too.'],
+    engage: false
+  },
+  {
+    name: 'follow-up-human-plan',
+    bot: 'The existing issue covers this report. Thanks for confirming.',
+    replies: ['@alex can you look at the implementation tomorrow?', 'Sure, I have time.'],
+    trackHandled: true,
+    engage: false
+  },
+  {
+    name: 'follow-up-implicit-answer',
+    bot: 'Do you mean a translation of the Chatto interface?',
+    replies: ['Yes, the interface please.'],
+    engage: true
+  },
+  {
+    name: 'follow-up-request-help',
+    bot: 'You can check the server log for the startup error.',
+    replies: ['Can you explain how I find that log?'],
+    engage: true
+  },
+  {
     name: 'handled-already-delivered',
     bot: 'Does the linked issue cover your report?',
     delivered: 'Yes, that issue covers it. Thanks!',
