@@ -185,7 +185,8 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
           name: 'storybook',
           browser: {
             enabled: true,
-            provider: playwright(),
+            // Avoid measuring text contrast during motion-aware entrance transitions.
+            provider: playwright({ contextOptions: { reducedMotion: 'reduce' } }),
             headless: !process.env.SHOW_BROWSER,
             instances: [{ browser: 'chromium' }]
           }
