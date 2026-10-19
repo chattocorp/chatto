@@ -1,5 +1,6 @@
 export { createChannel, ChannelClosedError, ChannelFullError, type Channel } from './channel.ts';
 export { TimeoutError, validateTimeout } from './timeout.ts';
+export { awaitWithSignal } from './await-with-signal.ts';
 export {
   createTaskContext,
   WorkflowAbortError,

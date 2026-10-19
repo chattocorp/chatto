@@ -146,6 +146,9 @@ a maintainer gate before delegation:
   task's log context. Exclude reasoning and tool logs; use their boundaries before
   filtering their contents. Stream assembled segments through typed output into
   the conversation's buffer. A segment ending does not mean implementation succeeded.
+  Keep Paseo segment assembly in `paseo/messages.ts`. Use Runling's
+  `awaitWithSignal` for SDK calls that cannot be cancelled. Resolve environment
+  settings inside the implementation task; the CLI exports this same task.
   Release the subscription when monitoring ends. Return completion, permission,
   error, timeout, or uncertain startup to the conversation. Retain confirmed remote
   IDs after partial failure. A finished turn does not prove success. Never approve

@@ -57,7 +57,8 @@ try {
     `
 import assert from "node:assert/strict";
 import * as runling from "runling";
-const { createTaskContext, createChannel, task, taskTool, Type } = runling;
+const { createTaskContext, createChannel, task, taskTool, awaitWithSignal, Type } = runling;
+assert.equal(await awaitWithSignal(async () => 42, new AbortController().signal), 42);
 for (const removed of ["spawn", "input", "createWorkflowContext", "isSchemaTask", "getPwd", "randomId"])
   assert.equal(removed in runling, false, removed + " must not be exported");
 await assert.rejects(import("runling/agents"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });

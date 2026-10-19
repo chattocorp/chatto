@@ -1,7 +1,7 @@
 # FDR-001: Agent interactions and steering
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-18
+**Last reviewed:** 2026-10-19
 
 ## Overview
 
@@ -49,6 +49,10 @@ one session, gives parent messages to it, and emits its completed replies.
   agent in memory.
 - Abort signals and disposal cancel pending work. Cancellation cannot undo a
   tool's external effects or stop uncooperative code.
+- `awaitWithSignal` lets tasks stop waiting for an external operation that has
+  no cancellation API. It checks the signal before starting work and removes
+  its listener when the wait ends. It cannot stop the external operation; the
+  application owns cleanup and the decision to retry uncertain writes.
 - An application can give a task to an agent as a tool. The model gets the
   final result of the task as text and its streamed output as partial results. Cancellation
   of the tool call cancels the task.

@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { createTaskContext } from 'runling';
+import { createTaskContext, runWorkflow, type RunlingEvent } from 'runling';
 import type {
   PaseoAgentRunResult,
   PaseoWorkspaceAgentCreateOptions,
@@ -7,7 +7,10 @@ import type {
 } from '@getpaseo/client';
 import type { Static } from 'runling';
 import { ImplementationOutput } from './start-implementation.ts';
-import { createImplementationTask, IMPLEMENTATION_WAIT_MS } from './start-implementation.ts';
+import implementation, {
+  createImplementationTask,
+  IMPLEMENTATION_WAIT_MS
+} from './start-implementation.ts';
 
 const input = {
   title: 'Remember Chatto draft text',
@@ -354,4 +357,43 @@ test('missing model configuration cannot create an empty workspace by accident',
   );
   await expect(task(createTaskContext(), input)).rejects.toThrow('CHATTO_PASEO_AGENT_MODEL');
   expect(h.factory).not.toHaveBeenCalled();
+});
+
+test('resolves settings per invocation and streams from the implementation root without a wrapper', async () => {
+  const h = harness();
+  const configure = vi.fn(() => h.settings);
+  const task = createImplementationTask(configure, h.factory);
+  expect(configure).not.toHaveBeenCalled();
+  for (const model of ['test/one', 'test/two']) {
+    h.settings.agent.model = model;
+    const events: RunlingEvent[] = [];
+    const output: unknown[] = [];
+    const result = await runWorkflow(task, {
+      input,
+      onEvent: (event) => events.push(event),
+      onUpdate: (value) => {
+        output.push(value);
+      }
+    });
+    expect(result.ok).toBe(true);
+    expect(h.launch.mock.calls.at(-1)?.[0].config.provider).toBe(model);
+    const starts = events.filter((event) => event.type === 'step.started');
+    expect(starts.map((event) => event.label)).toEqual([
+      'Start Paseo implementation',
+      'Create Paseo workspace'
+    ]);
+    expect(output).toHaveLength(2);
+  }
+  expect(configure).toHaveBeenCalledTimes(2);
+});
+
+test('the default CLI task reads environment settings only when invoked', async () => {
+  // The task was imported before these values were changed.
+  vi.stubEnv('CHATTO_PASEO_URL', '');
+  vi.stubEnv('CHATTO_PASEO_REPOSITORY_PATH', '');
+  try {
+    await expect(implementation(createTaskContext(), input)).rejects.toThrow('CHATTO_PASEO_URL');
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
