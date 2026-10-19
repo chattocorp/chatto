@@ -70,7 +70,6 @@ export function sourceSettings() {
       github: github && { settings: github, tokens: createTokenSource(github) },
       ...(source
         ? {
-            sourceDirectory: resolve(source),
             investigation: {
               directory: resolve(source),
               investigator: (scope: string) =>

@@ -28,6 +28,12 @@ import { generateKeyPairSync } from 'node:crypto';
 import type { ThreadMessage } from '../thread.ts';
 import type { Investigation } from '../investigation/tool.ts';
 
+// Conversation fixtures use fake checkout paths; Git behavior has its own integration tests.
+vi.mock('../checkout.ts', async (original) => ({
+  ...(await original<typeof import('../checkout.ts')>()),
+  refreshProjectContext: vi.fn(async () => undefined)
+}));
+
 vi.mock('../paseo/client.ts', () => ({ createPaseoClient: vi.fn() }));
 
 const message = (id: string, body = id, authorId = 'alice'): IncomingMessage => ({
@@ -61,7 +67,6 @@ function harness({
   web,
   github,
   investigation,
-  sourceDirectory,
   paseo,
   turn,
   beforePost,
@@ -71,7 +76,6 @@ function harness({
   web?: WebSettings;
   github?: ConversationSettings['github'];
   investigation?: Investigation;
-  sourceDirectory?: string;
   paseo?: ConversationSettings['paseo'];
   /** Text answers are delivered as messages; several texts are several messages in one turn. */
   answer?: (prompt: string) => string | string[] | AgentResult;
@@ -147,7 +151,6 @@ function harness({
       model: 'test/model',
       maintainers: new Set(maintainers),
       maintainerLogin,
-      sourceDirectory,
       paseo,
       ...(web ? { web } : {}),
       ...(github ? { github } : {}),
@@ -392,7 +395,8 @@ test('loads project context once at startup, also for a non-maintainer', async (
     .spyOn(checkout, 'refreshProjectContext')
     .mockResolvedValue('Project briefing fixture');
   try {
-    const bot = harness({ sourceDirectory: '/reference' });
+    const investigator = vi.fn();
+    const bot = harness({ investigation: { directory: '/reference', investigator } });
     const run = bot.start(message('one', 'What is new?'));
     await vi.waitFor(() => expect(bot.posts).toHaveLength(1));
     await bot.messages.send(message('two', 'What about 0.5?'));
@@ -400,8 +404,11 @@ test('loads project context once at startup, also for a non-maintainer', async (
     bot.messages.close();
     expect(await run).toMatchObject({ ok: true });
     expect(refresh).toHaveBeenCalledOnce();
-    expect(bot.options().systemPrompt).toContain('Project briefing fixture');
+    expect(refresh).toHaveBeenCalledWith('/reference', expect.any(AbortSignal));
+    expect(bot.options().instructions).toEqual(['Project briefing fixture']);
+    expect(bot.options().systemPrompt).not.toContain('Project briefing fixture');
     expect(bot.tools.has('investigate')).toBe(false);
+    expect(investigator).not.toHaveBeenCalled();
   } finally {
     refresh.mockRestore();
   }
