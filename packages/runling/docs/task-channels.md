@@ -160,7 +160,7 @@ undo its side effects, so task code must use the signal.
 
 ## Channels without tasks
 
-`createChannel<T>({ capacity, signal })` gives `steer`, `close`, `fail`, and
+`createChannel<T>({ capacity, signal })` gives `send`, `close`, `fail`, and
 async iteration. Channels keep data only in memory and use no Node-specific
 imports.
 

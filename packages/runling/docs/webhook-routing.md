@@ -70,7 +70,7 @@ automatically.
 The run handle has these members:
 
 - `id`: the ID of the run.
-- `send(message)`: validate a message with the `steering` schema of the
+- `steer(message)`: validate a message with the `steering` schema of the
   top-level task and put it in the queue of the task. It rejects when the run is
   not running, does not accept more messages, or has too many unread messages.
 - `closeSteering()`: tell the top-level task that no more messages come.

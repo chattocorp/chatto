@@ -30,7 +30,7 @@ A task can invoke other tasks in two ways:
 
 - A direct call, `await greet(ctx, 'Ada')`, starts the task and waits for its
   result. The child cannot receive steering. Runling records its streamed output in the
-  journal and then discards them.
+  journal and then discards it.
 - `ctx.start(task, input)` starts the task and returns an invocation handle.
   Use `steer()` and `closeSteering()` to send messages to the child, `output` to
   read its messages, `result` to get its final value, and `cancel()` to stop it.
