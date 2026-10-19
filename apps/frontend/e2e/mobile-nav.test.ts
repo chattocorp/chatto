@@ -35,6 +35,26 @@ async function touchDrag(
 test.describe('Mobile Navigation', () => {
   // A narrow mouse window has compact chrome. These cases exercise touch chrome.
   test.use({ hasTouch: true });
+
+  test('reserves the bottom safe area once on OAuth sign-in pages', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    const client = await page.context().newCDPSession(page);
+    await client.send('Emulation.setSafeAreaInsetsOverride', {
+      insets: { top: 0, left: 0, right: 0, bottom: 34 }
+    });
+    await page.goto('/login?redirect=%2Foauth%2Fauthorize');
+    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(page.getByTestId('app-frame')).not.toBeAttached();
+    await expect
+      .poll(() =>
+        page.getByTestId('oauth-page').evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return bounds.bottom - Number.parseFloat(getComputedStyle(element).paddingBottom);
+        })
+      )
+      .toBe(633);
+  });
+
   test('hamburger menu toggles sidebar on mobile', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -46,8 +66,8 @@ test.describe('Mobile Navigation', () => {
     // Resize to mobile viewport (below md breakpoint of 768px)
     await page.setViewportSize({ width: 375, height: 667 });
 
-    // Browser/PWA content reaches the viewport bottom even when the device
-    // reports a home-indicator safe area. Only the native host reserves it.
+    // Drawer backgrounds reach the viewport edge. Their controls and the
+    // app content must stay above the gesture-navigation safe area.
     const client = await page.context().newCDPSession(page);
     await client.send('Emulation.setSafeAreaInsetsOverride', {
       insets: { top: 0, left: 0, right: 0, bottom: 34 }
@@ -87,12 +107,87 @@ test.describe('Mobile Navigation', () => {
         )
         .toEqual({ top: 56, bottom: 667 });
     }
+    for (const control of [
+      page.getByTestId('current-user-presence-menu'),
+      page.getByTestId('mobile-sidebar-panel').getByRole('link', { name: 'Add Server' })
+    ]) {
+      await expect(control).toBeVisible();
+      const bounds = await control.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(633);
+    }
 
     // Click hamburger again to close sidebar
     await hamburger.click();
 
     // Sidebar should be hidden again
     await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('keeps the composer above bottom system navigation as the viewport changes', async ({
+    page,
+    chatPage
+  }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.name));
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    const client = await page.context().newCDPSession(page);
+
+    // Include a landscape inset, a reduced keyboard-sized viewport with no
+    // navigation inset, and restoration. This does not emulate a real Android IME.
+    for (const { width, height, bottom } of [
+      { width: 375, height: 667, bottom: 34 },
+      { width: 667, height: 375, bottom: 24 },
+      { width: 375, height: 400, bottom: 0 },
+      { width: 375, height: 667, bottom: 34 }
+    ]) {
+      await page.setViewportSize({ width, height });
+      await client.send('Emulation.setSafeAreaInsetsOverride', {
+        insets: { top: 0, left: 0, right: 0, bottom }
+      });
+      await expect
+        .poll(() =>
+          page
+            .getByTestId('app-frame')
+            .evaluate((element) => element.getBoundingClientRect().bottom)
+        )
+        .toBe(height - bottom);
+      for (const control of [roomPage.messageInput, roomPage.sendButton]) {
+        await expect(control).toBeVisible();
+        const bounds = await control.boundingBox();
+        expect(bounds).not.toBeNull();
+        expect(bounds!.y).toBeGreaterThanOrEqual(0);
+        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(height - bottom);
+      }
+    }
+
+    // The native iOS host already reserves the inset through body padding and
+    // positions drawers above it. Do not reserve the same space a second time.
+    await page.addStyleTag({
+      content: `
+        :root { --mobile-sidebar-safe-bottom: env(safe-area-inset-bottom, 0px); }
+        body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+      `
+    });
+    await expect
+      .poll(() =>
+        page.getByTestId('app-frame').evaluate((element) => element.getBoundingClientRect().bottom)
+      )
+      .toBe(633);
+    await page.locator('button[title="Toggle sidebar"]').click();
+    await expect(page.locator('.room-list')).toBeVisible();
+    for (const testId of ['mobile-sidebar-panel', 'server-sidebar']) {
+      const panel = page.getByTestId(testId);
+      await expect
+        .poll(() => panel.evaluate((element) => element.getBoundingClientRect().bottom))
+        .toBe(633);
+      expect(await panel.evaluate((element) => getComputedStyle(element).paddingBottom)).toBe(
+        '0px'
+      );
+    }
+    expect(pageErrors).toEqual([]);
   });
 
   test('sidebar closes when navigating to a room on mobile', async ({ page, chatPage }) => {

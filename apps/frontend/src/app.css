@@ -2448,14 +2448,18 @@
   @apply mt-0.5;
 }
 
-/* Fixed mobile drawers cover the browser content down to the viewport edge.
-   Embedded hosts can supply a bottom inset to match their content padding. */
+/* Drawer backgrounds reach the viewport edge; controls stay above system
+   navigation. Embedded hosts already reserve their supplied bottom inset. */
 @utility mobile-sidebar-insets {
   top: var(
     --sidebar-overlay-top,
     calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)))
   );
   bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
+
+  @variant mobile-presentation {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) - var(--mobile-sidebar-safe-bottom, 0px));
+  }
 }
 
 @layer base {
@@ -2514,11 +2518,13 @@
        short by safe-area-inset-top due to WebKit bug 237961.
        Keyboard sizing is handled via JS in useVisualViewport.svelte.ts
        because Safari does not support interactive-widget=resizes-content.
-       Safe-area padding is on the root layout div, not here — body is a
-       plain viewport-filling container so children can extend backgrounds
-       into safe areas while keeping content inset. */
+       The root layout reserves the top safe area. Keep app content above
+       bottom system navigation; html paints the surface colour below it.
+       The native iOS host already reserves its supplied bottom inset with
+       body padding, so subtract it here to avoid a second reservation. */
     position: fixed;
     inset: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) - var(--mobile-sidebar-safe-bottom, 0px));
     overflow: hidden;
 
     /* Mirror html's touch-action so the effective value for any touch

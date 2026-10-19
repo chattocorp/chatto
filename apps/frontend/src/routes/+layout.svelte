@@ -118,8 +118,9 @@
 
 {#if standaloneOAuth}
   <div
+    data-testid="oauth-page"
     {@attach initialPageReveal}
-    class="flex h-full w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+    class="flex h-full w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]"
   >
     {@render children?.()}
   </div>
