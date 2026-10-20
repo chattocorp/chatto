@@ -30,6 +30,9 @@
     "server_actions": "Toimingud: {server}",
     "room_actions": "Toimingud: #{room}",
     "open_group_settings": "Avage rühma seaded",
-    "open_room_settings": "Avage ruumi seaded"
+    "open_room_settings": "Avage ruumi seaded",
+    "older_conversations": "Vanemad vestlused",
+    "show_older_conversations": "Kuva vanemad vestlused ({count})",
+    "show_fewer_conversations": "Kuva vähem"
   }
 }

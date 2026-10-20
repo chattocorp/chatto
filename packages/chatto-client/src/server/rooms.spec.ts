@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Timestamp } from '@bufbuild/protobuf';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import {
@@ -55,6 +56,24 @@ function projectedRoom(
 }
 
 describe('RoomListView', () => {
+  it('exposes authoritative DM activity and keeps unknown activity absent', () => {
+    const projection = new ServerProjectionStore();
+    const room = projectedRoom('dm', { kind: RoomKind.DM });
+    room.lastMessageAt = Timestamp.fromDate(new Date('2026-10-20T12:00:00Z'));
+    room.lastRootMessageAt = Timestamp.fromDate(new Date('2026-10-10T12:00:00Z'));
+    projection.rooms.set('dm', room);
+    projection.rooms.set('legacy', projectedRoom('legacy', { kind: RoomKind.DM }));
+    const { roomList } = roomListFor(projection);
+    expect(roomList.rooms).toMatchObject([
+      {
+        id: 'dm',
+        lastMessageAt: '2026-10-20T12:00:00.000Z',
+        lastRootMessageAt: '2026-10-10T12:00:00.000Z'
+      },
+      { id: 'legacy', lastMessageAt: null, lastRootMessageAt: null }
+    ]);
+  });
+
   it('resolves a deleted DM participant to a deleted placeholder', () => {
     const projection = new ServerProjectionStore();
     projection.viewer = new GetViewerResponse({

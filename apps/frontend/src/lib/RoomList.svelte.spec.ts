@@ -391,6 +391,94 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
+  it('hides old DMs, reveals them on request, and keeps unknown activity visible', async () => {
+    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (entry) => entry.id === 'dm-with-participants'
+    )!;
+    room.lastMessageAt = new Date(Date.now() - 8 * 86400000).toISOString();
+    const { container } = render(RoomList);
+    expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull();
+    await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
+    const toggle = browserPage.getByRole('button', { name: 'Older conversations', exact: true });
+    await expect.element(toggle).toHaveTextContent('Show older conversations (1)');
+    await toggle.click();
+    await expect.element(q(container, '[href="/chat/-/dm-with-participants"]')).toBeInTheDocument();
+    await expect.element(toggle).toHaveTextContent('Show fewer');
+    await toggle.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()
+    );
+  });
+
+  it.each(['recent', 'unread', 'notification', 'current', 'call', 'invalid'])(
+    'keeps a DM visible with %s activity or attention',
+    async (reason) => {
+      const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+        (entry) => entry.id === 'dm-with-participants'
+      )!;
+      room.lastMessageAt = new Date(
+        Date.now() - (reason === 'recent' ? 6 : 8) * 86400000
+      ).toISOString();
+      if (reason === 'unread') mocks.unreadRoomIds.add(room.id);
+      if (reason === 'notification') room.viewerNotificationCount = 1;
+      if (reason === 'current') mocks.activeRoomId = room.id;
+      if (reason === 'call') mocks.activeCallRoomIds.add(room.id);
+      if (reason === 'invalid') room.lastMessageAt = 'invalid';
+      const { container } = render(RoomList);
+      await expect
+        .element(q(container, '[href="/chat/-/dm-with-participants"]'))
+        .toBeInTheDocument();
+    }
+  );
+
+  it('keeps older-conversation controls out of the collapsed section', async () => {
+    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (entry) => entry.id === 'dm-with-participants'
+    )!;
+    room.lastMessageAt = new Date(Date.now() - 8 * 86400000).toISOString();
+    const { container } = render(RoomList);
+    await browserPage.getByRole('button', { name: 'Direct Messages', exact: true }).click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="older-conversations"]')).toBeNull()
+    );
+    // Restore the reactive persisted preference as well as browser storage.
+    await browserPage.getByRole('button', { name: 'Direct Messages', exact: true }).click();
+  });
+
+  it('ages DMs while mounted and clears its interval when removed', async () => {
+    const now = Date.now();
+    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (entry) => entry.id === 'dm-with-participants'
+    )!;
+    room.lastMessageAt = new Date(now - 7 * 86400000 + 60000).toISOString();
+    const intervals = vi.spyOn(window, 'setInterval');
+    const clearInterval = vi.spyOn(window, 'clearInterval');
+    const { container, unmount } = render(RoomList);
+    try {
+      await expect
+        .element(q(container, '[href="/chat/-/dm-with-participants"]'))
+        .toBeInTheDocument();
+      const timerIndex = intervals.mock.calls.findIndex((args) => args[1] === 60000);
+      expect(timerIndex).toBeGreaterThanOrEqual(0);
+      const timer = intervals.mock.calls[timerIndex][0] as () => void;
+      const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now + 120000);
+      try {
+        timer();
+      } finally {
+        dateNow.mockRestore();
+      }
+      await vi.waitFor(() =>
+        expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()
+      );
+      const timerId = intervals.mock.results[timerIndex].value;
+      await unmount();
+      expect(clearInterval).toHaveBeenCalledWith(timerId);
+    } finally {
+      intervals.mockRestore();
+      clearInterval.mockRestore();
+    }
+  });
+
   it('hides only DMs explicitly projected without message history', async () => {
     const empty = mocks.store.navigation.rooms.find(
       (room: { id: string }) => room.id === 'dm-with-participants'

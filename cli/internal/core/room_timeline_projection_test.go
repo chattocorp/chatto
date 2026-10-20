@@ -1450,3 +1450,55 @@ func TestRoomTimeline_KeyShreddingDoesNotAllocatePerRow(t *testing.T) {
 		t.Fatal("another author's post was tombstoned")
 	}
 }
+
+func TestRoomTimeline_LastPostedMessageTimes(t *testing.T) {
+	t.Parallel()
+	p := NewRoomTimelineProjection()
+	assertTimes := func(p *RoomTimelineProjection, message, root time.Time) {
+		t.Helper()
+		gotMessage, gotRoot := p.LastPostedMessageTimes("R1")
+		if !gotMessage.Equal(message) || !gotRoot.Equal(root) {
+			t.Fatalf("posting times = %v / %v, want %v / %v", gotMessage, gotRoot, message, root)
+		}
+	}
+	assertTimes(p, time.Time{}, time.Time{})
+	applyAll(t, p, []*evtv1.Event{
+		postedEvent(postedOpts{envelopeID: "root", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "reply", roomID: "R1", actorID: "U2", inThread: "root", at: 2}),
+	})
+	assertTimes(p, fixedTime(2), fixedTime(1))
+	imported := postedEvent(postedOpts{envelopeID: "import", roomID: "R1", actorID: "U1", at: 5})
+	imported.GetMessagePosted().HistoricalImport = true
+	for i, event := range []*evtv1.Event{
+		editedEvent("edit", "reply", "R1", "U2", "edited", 3),
+		retractedEvent("retract", "reply", "R1", "U2", "", 4),
+		imported,
+	} {
+		if err := p.Apply(event, uint64(i+3)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	assertTimes(p, fixedTime(2), fixedTime(1))
+	for i, event := range []*evtv1.Event{
+		postedEvent(postedOpts{envelopeID: "echo", roomID: "R1", actorID: "U2", echoOfEventID: "reply", echoFromThreadRootEventID: "root", at: 6}),
+		retractedEvent("hide-echo", "echo", "R1", "U2", "", 7),
+	} {
+		if err := p.Apply(event, uint64(i+6)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	assertTimes(p, fixedTime(6), fixedTime(6))
+	data, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(data); err != nil {
+		t.Fatal(err)
+	}
+	assertTimes(restored, fixedTime(6), fixedTime(6))
+	if err := restored.Apply(postedEvent(postedOpts{envelopeID: "tail", roomID: "R1", actorID: "U1", inThread: "root", at: 8}), 8); err != nil {
+		t.Fatal(err)
+	}
+	assertTimes(restored, fixedTime(8), fixedTime(6))
+}

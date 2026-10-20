@@ -189,7 +189,10 @@ paginated resources. The client reads those resources through ConnectRPC when
 it needs them.
 
 The room family includes joined DMs that do not yet contain a message. Each DM
-summary says whether it has root-message history. Current `message.read`
+summary says whether it has root-message history and gives the latest message
+and root-message posting times. The room directory read model derives these
+times from retained timeline facts, including replies, without a new event or
+persisted marker. Current `message.read`
 authority protects this message-derived value. The bundled client retains an
 empty DM for routing but omits it from navigation until it contains a root
 message.

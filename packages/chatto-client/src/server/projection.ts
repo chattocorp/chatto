@@ -7,6 +7,8 @@ import type { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
+import type { Timestamp } from '@bufbuild/protobuf';
+import { RoomKind } from '../api/roomDirectory.js';
 
 /** Authenticated server resources assembled from two canonical responses. */
 export type ProjectedServerState = {
@@ -114,8 +116,12 @@ export class ServerProjectionStore {
     }
 
     const semantic = update.event?.event;
-    if (semantic?.case === 'messagePosted' && !semantic.value.threadRootEventId) {
-      this.activateRoom(semantic.value.roomId);
+    if (semantic?.case === 'messagePosted') {
+      this.applyRoomPost(
+        semantic.value.roomId,
+        !semantic.value.threadRootEventId,
+        update.event?.createdAt
+      );
     }
   }
 
@@ -178,11 +184,31 @@ export class ServerProjectionStore {
     });
   }
 
-  private activateRoom(roomId: string): void {
+  /**
+   * Posts activate root history and advance DM activity without a resource read.
+   * Interaction-only delivery must not expose broad room activity. Older or
+   * repeated facts must not move a known activity timestamp backwards.
+   */
+  private applyRoomPost(roomId: string, root: boolean, createdAt?: Timestamp): void {
     const current = this.rooms.get(roomId);
     if (!current) return;
     const room = current.clone();
-    room.hasMessageHistory = true;
+    if (root) room.hasMessageHistory = true;
+    if (
+      createdAt &&
+      room.room?.kind === RoomKind.DM &&
+      room.viewerState?.isMember &&
+      room.viewerState.permissions.some(
+        (grant) => grant.permission === 'message.read' && grant.granted
+      )
+    ) {
+      const later = (previous?: Timestamp) =>
+        !previous ||
+        createdAt.seconds > previous.seconds ||
+        (createdAt.seconds === previous.seconds && createdAt.nanos > previous.nanos);
+      if (later(room.lastMessageAt)) room.lastMessageAt = createdAt.clone();
+      if (root && later(room.lastRootMessageAt)) room.lastRootMessageAt = createdAt.clone();
+    }
     const remaining = [...this.rooms.entries()].filter(([id]) => id !== roomId);
     this.rooms.clear();
     this.rooms.set(roomId, room);

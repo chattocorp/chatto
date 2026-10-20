@@ -30,6 +30,9 @@
     "server_actions": "Acciones para {server}",
     "room_actions": "Acciones para #{room}",
     "open_group_settings": "Abrir configuración del grupo",
-    "open_room_settings": "Abrir configuración de la sala"
+    "open_room_settings": "Abrir configuración de la sala",
+    "older_conversations": "Conversaciones anteriores",
+    "show_older_conversations": "Mostrar conversaciones anteriores ({count})",
+    "show_fewer_conversations": "Mostrar menos"
   }
 }

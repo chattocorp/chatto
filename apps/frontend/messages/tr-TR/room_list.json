@@ -30,6 +30,9 @@
     "server_actions": "{server} için eylemler",
     "room_actions": "#{room} için eylemler",
     "open_group_settings": "Grup ayarlarını açın",
-    "open_room_settings": "Oda ayarlarını açın"
+    "open_room_settings": "Oda ayarlarını açın",
+    "older_conversations": "Eski konuşmalar",
+    "show_older_conversations": "Eski konuşmaları gösterin ({count})",
+    "show_fewer_conversations": "Daha az gösterin"
   }
 }

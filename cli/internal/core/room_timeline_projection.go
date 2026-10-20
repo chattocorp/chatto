@@ -913,6 +913,30 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 	return nil, false
 }
 
+// LastPostedMessageTimes returns the creation times of the latest ordinary
+// message and root message in commit order. It reads retained posting facts:
+// edits, retractions, and hidden echoes do not change activity. Historical
+// imports are excluded. Zero means no qualifying post.
+func (p *RoomTimelineProjection) LastPostedMessageTimes(roomID string) (lastMessage, lastRoot time.Time) {
+	p.RLock()
+	defer p.RUnlock()
+	for _, index := range slices.Backward(p.messagePostsByRoom[roomID]) {
+		entry := p.entryAtLocked(int(index))
+		if !entry.HistoricalImport {
+			lastMessage = entry.CreatedAt
+			break
+		}
+	}
+	for _, index := range slices.Backward(p.byRoom[roomID]) {
+		entry := p.entryAtLocked(int(index))
+		if entry.IsMessagePost() && !entry.HistoricalImport {
+			lastRoot = entry.CreatedAt
+			break
+		}
+	}
+	return
+}
+
 // LatestRootPostAt returns the latest committed non-echo root message time for
 // one actor in one room. The timestamp remains authoritative after edits or
 // retractions so those actions cannot evade slow mode.

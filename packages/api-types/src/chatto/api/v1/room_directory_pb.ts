@@ -197,6 +197,24 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
    */
   hasMessageHistory?: boolean;
 
+  /**
+   * Creation time of the latest ordinary DM message, including thread replies.
+   * Edits and retractions do not change this value; historical imports are excluded.
+   * Absent for other room kinds, no ordinary messages, or no message.read permission.
+   * Older servers can omit this field. Absence does not prove inactivity.
+   *
+   * @generated from field: google.protobuf.Timestamp last_message_at = 17;
+   */
+  lastMessageAt?: Timestamp;
+
+  /**
+   * Creation time of the latest ordinary DM root message, excluding thread replies.
+   * Uses the same visibility, import, and absence rules as last_message_at.
+   *
+   * @generated from field: google.protobuf.Timestamp last_root_message_at = 18;
+   */
+  lastRootMessageAt?: Timestamp;
+
   constructor(data?: PartialMessage<RoomWithViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -209,6 +227,8 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
     { no: 14, name: "viewer_state", kind: "message", T: RoomViewerState },
     { no: 15, name: "member_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 16, name: "has_message_history", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 17, name: "last_message_at", kind: "message", T: Timestamp },
+    { no: 18, name: "last_root_message_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomWithViewerState {

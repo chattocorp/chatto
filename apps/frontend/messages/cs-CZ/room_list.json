@@ -30,6 +30,9 @@
     "server_actions": "Akce pro {server}",
     "room_actions": "Akce pro #{room}",
     "open_group_settings": "Otevřít nastavení skupiny",
-    "open_room_settings": "Otevřít nastavení místnosti"
+    "open_room_settings": "Otevřít nastavení místnosti",
+    "older_conversations": "Starší konverzace",
+    "show_older_conversations": "Zobrazit starší konverzace ({count})",
+    "show_fewer_conversations": "Zobrazit méně"
   }
 }
