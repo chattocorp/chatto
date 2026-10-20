@@ -29,8 +29,8 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   days. Thread replies count. Unread conversations, conversations with
   notifications that need attention, the current conversation, and conversations
   with active calls stay visible regardless of age.
-- **Show older conversations (N)** shows the remaining conversations.
-  **Show fewer** restores the seven-day filter. This display choice is local to
+- **Show more (N)** shows the remaining conversations.
+  **Show less** restores the seven-day filter. This display choice is local to
   the sidebar and does not archive conversations. The Quick Switcher still
   includes older conversations. The collapsed section keeps its attention rules.
 - A conversation with an unknown activity time stays visible. Edits, reactions,

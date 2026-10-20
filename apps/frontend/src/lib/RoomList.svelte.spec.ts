@@ -400,10 +400,10 @@ describe('RoomList', () => {
     expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull();
     await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
     const toggle = browserPage.getByRole('button', { name: 'Older conversations', exact: true });
-    await expect.element(toggle).toHaveTextContent('Show older conversations (1)');
+    await expect.element(toggle).toHaveTextContent('Show more (1)');
     await toggle.click();
     await expect.element(q(container, '[href="/chat/-/dm-with-participants"]')).toBeInTheDocument();
-    await expect.element(toggle).toHaveTextContent('Show fewer');
+    await expect.element(toggle).toHaveTextContent('Show less');
     await toggle.click();
     await vi.waitFor(() =>
       expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()

@@ -32,7 +32,7 @@
     "open_group_settings": "Otevřít nastavení skupiny",
     "open_room_settings": "Otevřít nastavení místnosti",
     "older_conversations": "Starší konverzace",
-    "show_older_conversations": "Zobrazit starší konverzace ({count})",
+    "show_older_conversations": "Zobrazit více ({count})",
     "show_fewer_conversations": "Zobrazit méně"
   }
 }
