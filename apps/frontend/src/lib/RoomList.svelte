@@ -1195,20 +1195,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet olderConversations()}
   {#if olderDMCount > 0 || showOlderDMs}
+    {@const label = showOlderDMs
+      ? m('room_list.show_fewer_conversations')
+      : m('room_list.show_older_conversations', { count: olderDMCount })}
     <button
       type="button"
       class="sidebar-item w-full cursor-pointer text-start"
       aria-expanded={showOlderDMs}
       aria-label={m('room_list.older_conversations')}
       data-testid="older-conversations"
+      title={label}
       onclick={() => (showOlderDMs = !showOlderDMs)}
     >
       <span class="sidebar-icon" aria-hidden="true">{showOlderDMs ? '−' : '+'}</span>
-      <span
-        >{showOlderDMs
-          ? m('room_list.show_fewer_conversations')
-          : m('room_list.show_older_conversations', { count: olderDMCount })}</span
-      >
+      <span class="min-w-0 flex-1 truncate">{label}</span>
     </button>
   {/if}
 {/snippet}
