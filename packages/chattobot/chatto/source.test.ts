@@ -92,6 +92,7 @@ async function run(
   vi.stubEnv('CHATTO_AGENT_MODEL', 'test/model');
   vi.stubEnv('CHATTO_AUTO_ENGAGE_ROOM_IDS', rooms);
   vi.stubEnv('CHATTO_ALLOWED_USER_ID', allowed);
+  vi.stubEnv('CHATTO_MAINTAINER_USER_IDS', 'maintainer');
   vi.stubEnv('CHATTO_SOURCE_DIRECTORY', '');
   vi.stubEnv('CHATTO_GITHUB_APP_CLIENT_ID', '');
   vi.stubEnv('CHATTO_GITHUB_APP_PRIVATE_KEY_FILE', '');
@@ -208,6 +209,16 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
     body: '',
     attachmentTypes: ['image/png']
   });
+});
+
+test('maintainer roots skip automatic intake while direct mentions still engage', async () => {
+  const inputs = await run([
+    event('maintainer-report', 'intake', 'maintainer'),
+    event('ping', 'intake', 'maintainer')
+  ]);
+  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(inputs).toHaveLength(1);
+  expect(inputs[0]).toMatchObject({ id: 'ping' });
 });
 
 test('reactions on bot messages reach recovered threads once with the reacting identity', async () => {

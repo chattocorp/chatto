@@ -181,7 +181,7 @@ const connectionIdentity = (serverUrl: string, botId: string) =>
 async function consume(
   ctx: Parameters<EventSource>[0],
   server: Server,
-  { serverUrl, allowedUserId, autoEngageRooms }: ReturnType<typeof sourceSettings>
+  { serverUrl, allowedUserId, autoEngageRooms, conversation }: ReturnType<typeof sourceSettings>
 ) {
   const { viewerId: botId } = await server.ready({ signal: ctx.signal });
   const identity = connectionIdentity(serverUrl, botId);
@@ -232,7 +232,10 @@ async function consume(
           await ctx.dispatch(route, { ...incomingMessage(message), connection: identity });
         else {
           const candidate =
-            intakeMessage(event, autoEngageRooms, botId) ??
+            // Maintainers can address the bot explicitly, but their posts do not start intake.
+            (event.actorId && conversation.maintainers.has(event.actorId)
+              ? undefined
+              : intakeMessage(event, autoEngageRooms, botId)) ??
             followUpMessage(event, botId) ??
             (await reactionMessage(event, botId, server, ctx.signal));
           if (candidate) await ctx.dispatch(route, { ...candidate, connection: identity });
