@@ -391,6 +391,114 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
+  it.each([
+    [0, '0min'],
+    [59, '59min'],
+    [60, '1h'],
+    [1439, '23h'],
+    [1440, '1d'],
+    [90 * 1440, '90d'],
+    [-1, '0min']
+  ])('shows %s elapsed minutes as %s, including older expanded DMs', async (minutes, age) => {
+    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (r) => r.id === 'dm-with-participants'
+    )!;
+    room.lastMessageAt = new Date(Date.now() - Number(minutes) * 60000).toISOString();
+    room.lastRootMessageAt = new Date(Date.now() - 120 * 86400000).toISOString();
+    const { container } = render(RoomList);
+    if (Number(minutes) > 7 * 1440) {
+      await browserPage.getByRole('button', { name: 'Show more (1)', exact: true }).click();
+    }
+    const time = container.querySelector<HTMLTimeElement>(
+      '[href="/chat/-/dm-with-participants"] time'
+    )!;
+    await expect.element(time).toHaveTextContent(String(age));
+    expect(time.getAttribute('datetime')).toBe(room.lastMessageAt);
+    expect(time.getAttribute('title')).toBeTruthy();
+    expect(time.getAttribute('dir')).toBe('ltr');
+  });
+
+  it('refreshes a visible age on the minute tick without replacing the room', async () => {
+    const now = Date.now();
+    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (r) => r.id === 'dm-with-participants'
+    )!;
+    room.lastMessageAt = new Date(now - 59 * 60000).toISOString();
+    const intervals = vi.spyOn(window, 'setInterval');
+    const { container, unmount } = render(RoomList);
+    try {
+      const time = container.querySelector<HTMLTimeElement>(
+        '[href="/chat/-/dm-with-participants"] time'
+      )!;
+      await expect.element(time).toHaveTextContent('59min');
+      const interval = intervals.mock.calls.find((args) => args[1] === 60000)![0] as () => void;
+      const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now + 120000);
+      try {
+        interval();
+      } finally {
+        dateNow.mockRestore();
+      }
+      await expect.element(time).toHaveTextContent('1h');
+      expect((mocks.store.navigation.rooms as RoomsListItem[]).find((r) => r.id === room.id)).toBe(
+        room
+      );
+    } finally {
+      await unmount();
+      intervals.mockRestore();
+    }
+  });
+
+  it.each([undefined, null, 'invalid'])('omits unknown or invalid activity %s', (timestamp) => {
+    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (r) => r.id === 'dm-with-participants'
+    )!;
+    room.lastMessageAt = timestamp;
+    const { container } = render(RoomList);
+    expect(container.querySelector('[data-testid="dm-activity-age"]')).toBeNull();
+  });
+
+  it.each([0, 1])(
+    'gives notification badges priority over age with %s important occurrences',
+    async (important) => {
+      const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+        (r) => r.id === 'dm-with-participants'
+      )!;
+      room.lastMessageAt = new Date(Date.now() - 3 * 86400000).toISOString();
+      room.viewerNotificationCount = 1;
+      room.viewerImportantNotificationCount = important;
+      const { container } = render(RoomList);
+      expect(container.querySelector('[data-testid="dm-activity-age"]')).toBeNull();
+      await expect
+        .element(
+          q(
+            container,
+            important
+              ? '[data-testid="dm-notification-badge"]'
+              : '[data-testid="dm-ambient-notification-badge"]'
+          )
+        )
+        .toBeInTheDocument();
+    }
+  );
+
+  it('keeps the unread dot and call icon beside DM activity while channels have no age', async () => {
+    const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+    for (const room of rooms)
+      room.lastMessageAt = new Date(Date.now() - 3 * 86400000).toISOString();
+    mocks.unreadRoomIds.add('dm-with-participants');
+    mocks.activeCallRoomIds.add('dm-with-participants');
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]')!;
+    await expect
+      .element(row.querySelector<HTMLElement>('[data-testid="dm-unread-dot"]'))
+      .toBeInTheDocument();
+    await expect
+      .element(row.querySelector<HTMLElement>('[data-testid="room-call-icon"]'))
+      .toBeInTheDocument();
+    await expect.element(row.querySelector('time')).toHaveTextContent('3d');
+    expect(container.querySelector('[href="/chat/-/channel-1"] time')).toBeNull();
+  });
+
   it('hides old DMs, reveals them on request, and keeps unknown activity visible', async () => {
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (entry) => entry.id === 'dm-with-participants'
@@ -459,6 +567,11 @@ describe('RoomList', () => {
       await expect
         .element(q(container, '[href="/chat/-/dm-with-participants"]'))
         .toBeInTheDocument();
+      await expect
+        .element(
+          container.querySelector<HTMLTimeElement>('[href="/chat/-/dm-with-participants"] time')
+        )
+        .toHaveTextContent('6d');
       const timerIndex = intervals.mock.calls.findIndex((args) => args[1] === 60000);
       expect(timerIndex).toBeGreaterThanOrEqual(0);
       const timer = intervals.mock.calls[timerIndex][0] as () => void;
@@ -471,6 +584,12 @@ describe('RoomList', () => {
       await vi.waitFor(() =>
         expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()
       );
+      await browserPage.getByRole('button', { name: 'Show more (1)', exact: true }).click();
+      await expect
+        .element(
+          container.querySelector<HTMLTimeElement>('[href="/chat/-/dm-with-participants"] time')
+        )
+        .toHaveTextContent('7d');
       const timerId = intervals.mock.results[timerIndex].value;
       await unmount();
       expect(clearInterval).toHaveBeenCalledWith(timerId);

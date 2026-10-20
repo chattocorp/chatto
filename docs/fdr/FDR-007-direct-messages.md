@@ -33,6 +33,10 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   **Show less** restores the seven-day filter. This display choice is local to
   the sidebar and does not archive conversations. The Quick Switcher still
   includes older conversations. The collapsed section keeps its attention rules.
+- When a DM has no notification badge, its row shows the elapsed time since
+  the latest message, including replies: `min`, `h`, or `d`. The unread dot
+  and active call indicator remain visible. Unknown activity times have no age.
+  The full date and time appear on hover.
 - A conversation with an unknown activity time stays visible. Edits, reactions,
   reads, and retractions do not change its posting activity.
 - Right-click or touch long-press on a one-to-one DM sidebar row opens the

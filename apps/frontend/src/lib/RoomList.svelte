@@ -5,6 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import { errorMessage } from '$lib/utils/errorMessage';
@@ -587,6 +588,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     })
   );
   const olderDMCount = $derived(dmRooms.length - recentDMs.length);
+  const timeSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
+
+  /** Compact elapsed posting time for sidebar metadata; unknown times stay absent. */
+  function dmActivityAge(timestamp: string | null | undefined): string | null {
+    if (!timestamp) return null;
+    const milliseconds = Date.parse(timestamp);
+    if (!Number.isFinite(milliseconds)) return null;
+    const minutes = Math.floor(Math.max(0, activityNow - milliseconds) / 60000);
+    if (minutes < 60) return `${minutes}min`;
+    if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
+    return `${Math.floor(minutes / 1440)}d`;
+  }
 
   let roomMap = $derived(new Map(navigation.rooms.map((r) => [r.id, r])));
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
@@ -1095,9 +1108,21 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               )}
             {/if}
           </div>
-        {:else if showUnread}
-          <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
-          <span class="sr-only">{m('room_list.unread_messages')}</span>
+        {:else}
+          {#if showUnread}
+            <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
+            <span class="sr-only">{m('room_list.unread_messages')}</span>
+          {/if}
+          {@const activityAge = isDM ? dmActivityAge(room.lastMessageAt) : null}
+          {#if activityAge && room.lastMessageAt}
+            <time
+              datetime={room.lastMessageAt}
+              title={formatDateTime(room.lastMessageAt, timeSettings)}
+              dir="ltr"
+              class="shrink-0 text-xs text-muted tabular-nums"
+              data-testid="dm-activity-age">{activityAge}</time
+            >
+          {/if}
         {/if}
       </div>
     </div>
