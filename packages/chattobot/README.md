@@ -75,7 +75,9 @@ help with new bug reports and feature requests, separated by commas or spaces.
 For example, set it to the ID of `#bug-reports`. Use room IDs, not room names.
 Restart the bot after changing `.env`. With no value, intake is disabled.
 
-In these rooms, each new top-level post starts a thread workflow.
+In these rooms, each new top-level post starts a thread workflow, except for
+posts from user IDs in `CHATTO_MAINTAINER_USER_IDS`. Maintainers can still
+address the bot directly.
 The workflow verifies a human author and calls a classifier task. By default,
 the classifier uses the conversation model with low reasoning effort and returns
 a decision and a short reason. To try a dedicated model through OpenRouter, set
@@ -91,7 +93,11 @@ stay silent. Users can still mention the bot to get help.
 
 For accepted reports, the workflow runs the normal conversation task as a child
 in the same run. It forwards later addressed messages to that child. The bot asks questions
-to help prepare a useful report. The classifier receives the post text and
+to help prepare a useful report. Its first reply starts with a friendly greeting
+and an offer to help. It asks which Chatto version the question is about. For
+a frontend issue, it also asks for the browser name and version, operating
+system, and type of device. It uses details already supplied and accepts unknown
+values. Browser details do not apply to clients without a browser. The classifier receives the post text and
 attachment MIME types. Image-only posts are accepted for the conversation
 agent to inspect. Clearly unrelated text with an image can still be ignored.
 
