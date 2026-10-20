@@ -399,12 +399,13 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull();
     await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
-    const toggle = browserPage.getByRole('button', { name: 'Older conversations', exact: true });
+    const toggle = browserPage.getByRole('button', { name: 'Show more (1)', exact: true });
     await expect.element(toggle).toHaveTextContent('Show more (1)');
     await toggle.click();
     await expect.element(q(container, '[href="/chat/-/dm-with-participants"]')).toBeInTheDocument();
-    await expect.element(toggle).toHaveTextContent('Show less');
-    await toggle.click();
+    const showLess = browserPage.getByRole('button', { name: 'Show less', exact: true });
+    await expect.element(showLess).toHaveAttribute('aria-expanded', 'true');
+    await showLess.click();
     await vi.waitFor(() =>
       expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()
     );

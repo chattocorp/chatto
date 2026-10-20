@@ -1202,7 +1202,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       type="button"
       class="sidebar-item w-full cursor-pointer text-start"
       aria-expanded={showOlderDMs}
-      aria-label={m('room_list.older_conversations')}
       data-testid="older-conversations"
       title={label}
       onclick={() => (showOlderDMs = !showOlderDMs)}
