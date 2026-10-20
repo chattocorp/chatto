@@ -36,7 +36,8 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - When a DM has no notification badge, its row shows the elapsed time since
   the latest message, including replies: `min`, `h`, or `d`. The unread dot
   and active call indicator remain visible. Unknown activity times have no age.
-  The full date and time appear on hover.
+  The full date and time appear on hover. Narrow sidebar rows hide ages to
+  leave more space for names; notification badges stay visible.
 - A conversation with an unknown activity time stays visible. Edits, reactions,
   reads, and retractions do not change its posting activity.
 - Right-click or touch long-press on a one-to-one DM sidebar row opens the

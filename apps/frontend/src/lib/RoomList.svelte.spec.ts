@@ -391,6 +391,37 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
+  it('hides ages in narrow rows while notification badges stay visible', async () => {
+    const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+    const room = rooms.find((entry) => entry.id === 'dm-with-participants')!;
+    room.lastMessageAt = new Date(Date.now() - 3 * 86400000).toISOString();
+    const badgeRoom = rooms.find((entry) => entry.id === 'dm-phone-only')!;
+    badgeRoom.viewerNotificationCount = 1;
+    badgeRoom.viewerImportantNotificationCount = 1;
+    const { container } = render(RoomList);
+    const row = container.querySelector<HTMLAnchorElement>(
+      '[href="/chat/-/dm-with-participants"]'
+    )!;
+    const age = row.querySelector('time')!;
+    const name = row.querySelector<HTMLElement>('.min-w-0.flex-1')!;
+    const badge = q(container, '[data-testid="dm-notification-badge"]')!;
+    const nameWidths: number[] = [];
+    for (const [width, visible] of [
+      [220, false],
+      [400, true],
+      [220, false]
+    ] as const) {
+      container.style.width = `${width}px`;
+      await vi.waitFor(() => expect(getComputedStyle(age).display !== 'none').toBe(visible));
+      await expect.element(badge).toBeVisible();
+      nameWidths.push(name.getBoundingClientRect().width);
+    }
+    expect(nameWidths[2]).toBe(nameWidths[0]);
+    // At the same narrow width, the hidden age takes no space from the name.
+    age.style.display = 'inline';
+    expect(name.getBoundingClientRect().width).toBeLessThan(nameWidths[2]);
+  });
+
   it.each([
     [0, '0min'],
     [59, '59min'],
