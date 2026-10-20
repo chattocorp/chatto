@@ -192,20 +192,23 @@ export class ServerProjectionStore {
   private applyRoomPost(roomId: string, root: boolean, createdAt?: Timestamp): void {
     const current = this.rooms.get(roomId);
     if (!current) return;
+    const tracksDMActivity =
+      createdAt &&
+      current.room?.kind === RoomKind.DM &&
+      current.viewerState?.isMember &&
+      current.viewerState.permissions.some(
+        (grant) => grant.permission === 'message.read' && grant.granted
+      );
+    // Channel replies and interaction-only events do not change this directory.
+    if (!root && !tracksDMActivity) return;
     const room = current.clone();
     if (root) room.hasMessageHistory = true;
-    if (
-      createdAt &&
-      room.room?.kind === RoomKind.DM &&
-      room.viewerState?.isMember &&
-      room.viewerState.permissions.some(
-        (grant) => grant.permission === 'message.read' && grant.granted
-      )
-    ) {
+    if (tracksDMActivity) {
       const later = (previous?: Timestamp) =>
         !previous ||
         createdAt.seconds > previous.seconds ||
         (createdAt.seconds === previous.seconds && createdAt.nanos > previous.nanos);
+      if (!root && !later(room.lastMessageAt)) return;
       if (later(room.lastMessageAt)) room.lastMessageAt = createdAt.clone();
       if (root && later(room.lastRootMessageAt)) room.lastRootMessageAt = createdAt.clone();
     }

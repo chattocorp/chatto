@@ -186,6 +186,28 @@ describe('ServerProjectionStore', () => {
     expect(store.rooms.get('dm')?.lastRootMessageAt).toBeUndefined();
   });
 
+  it('does not replace or reorder the room directory for a channel reply', () => {
+    const store = new ServerProjectionStore();
+    const channel = new RoomWithViewerState({
+      room: new Room({ id: 'channel', kind: RoomKind.CHANNEL })
+    });
+    store.rooms.set('first', new RoomWithViewerState({ room: new Room({ id: 'first' }) }));
+    store.rooms.set('channel', channel);
+    store.apply(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          createdAt: Timestamp.now(),
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'channel', threadRootEventId: 'root' })
+          }
+        })
+      })
+    );
+    expect([...store.rooms.keys()]).toEqual(['first', 'channel']);
+    expect(store.rooms.get('channel')).toBe(channel);
+  });
+
   describe('active calls', () => {
     const call = (roomId: string, userIds: string[]) =>
       new ActiveCall({
