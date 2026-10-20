@@ -32,7 +32,7 @@
     "open_group_settings": "打开群组设置",
     "open_room_settings": "打开聊天室设置",
     "older_conversations": "较早的对话",
-    "show_older_conversations": "显示更多（{count}）",
+    "show_older_conversations": "显示较早的对话（{count}）",
     "show_fewer_conversations": "收起"
   }
 }

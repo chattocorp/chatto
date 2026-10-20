@@ -32,7 +32,7 @@
     "open_group_settings": "Open group settings",
     "open_room_settings": "Open room settings",
     "older_conversations": "Older conversations",
-    "show_older_conversations": "Show more ({count})",
+    "show_older_conversations": "Show older ({count})",
     "show_fewer_conversations": "Show less"
   }
 }

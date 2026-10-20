@@ -32,7 +32,7 @@
     "open_group_settings": "Άνοιγμα ρυθμίσεων ομάδας",
     "open_room_settings": "Άνοιγμα ρυθμίσεων δωματίου",
     "older_conversations": "Παλαιότερες συνομιλίες",
-    "show_older_conversations": "Εμφάνιση περισσότερων ({count})",
+    "show_older_conversations": "Εμφάνιση παλαιότερων ({count})",
     "show_fewer_conversations": "Εμφάνιση λιγότερων"
   }
 }

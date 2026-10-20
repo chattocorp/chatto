@@ -407,7 +407,7 @@ describe('RoomList', () => {
     room.lastRootMessageAt = new Date(Date.now() - 120 * 86400000).toISOString();
     const { container } = render(RoomList);
     if (Number(minutes) > 7 * 1440) {
-      await browserPage.getByRole('button', { name: 'Show more (1)', exact: true }).click();
+      await browserPage.getByRole('button', { name: 'Show older (1)', exact: true }).click();
     }
     const time = container.querySelector<HTMLTimeElement>(
       '[href="/chat/-/dm-with-participants"] time'
@@ -507,8 +507,8 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull();
     await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
-    const toggle = browserPage.getByRole('button', { name: 'Show more (1)', exact: true });
-    await expect.element(toggle).toHaveTextContent('Show more (1)');
+    const toggle = browserPage.getByRole('button', { name: 'Show older (1)', exact: true });
+    await expect.element(toggle).toHaveTextContent('Show older (1)');
     await toggle.click();
     await expect.element(q(container, '[href="/chat/-/dm-with-participants"]')).toBeInTheDocument();
     const showLess = browserPage.getByRole('button', { name: 'Show less', exact: true });
@@ -584,7 +584,7 @@ describe('RoomList', () => {
       await vi.waitFor(() =>
         expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()
       );
-      await browserPage.getByRole('button', { name: 'Show more (1)', exact: true }).click();
+      await browserPage.getByRole('button', { name: 'Show older (1)', exact: true }).click();
       await expect
         .element(
           container.querySelector<HTMLTimeElement>('[href="/chat/-/dm-with-participants"] time')

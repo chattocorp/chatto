@@ -1119,7 +1119,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               datetime={room.lastMessageAt}
               title={formatDateTime(room.lastMessageAt, timeSettings)}
               dir="ltr"
-              class="shrink-0 text-xs text-muted tabular-nums"
+              class={[
+                'shrink-0 text-xs tabular-nums group-focus-within/room:text-muted group-hover/room:text-muted',
+                isCurrentRoom ? 'text-muted' : 'text-muted/70'
+              ]}
               data-testid="dm-activity-age">{activityAge}</time
             >
           {/if}
