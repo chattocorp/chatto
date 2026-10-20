@@ -408,6 +408,7 @@ describe('RoomList', () => {
     const nameWidths: number[] = [];
     for (const [width, visible] of [
       [220, false],
+      [280, true],
       [400, true],
       [220, false]
     ] as const) {
@@ -416,10 +417,10 @@ describe('RoomList', () => {
       await expect.element(badge).toBeVisible();
       nameWidths.push(name.getBoundingClientRect().width);
     }
-    expect(nameWidths[2]).toBe(nameWidths[0]);
+    expect(nameWidths.at(-1)).toBe(nameWidths[0]);
     // At the same narrow width, the hidden age takes no space from the name.
     age.style.display = 'inline';
-    expect(name.getBoundingClientRect().width).toBeLessThan(nameWidths[2]);
+    expect(name.getBoundingClientRect().width).toBeLessThan(nameWidths.at(-1)!);
   });
 
   it.each([
