@@ -30,6 +30,9 @@
     "server_actions": "إجراءات {server}",
     "room_actions": "إجراءات #{room}",
     "open_group_settings": "فتح إعدادات المجموعة",
-    "open_room_settings": "فتح إعدادات الغرفة"
+    "open_room_settings": "فتح إعدادات الغرفة",
+    "older_conversations": "المحادثات الأقدم",
+    "show_older_conversations": "أظهر الأقدم ({count})",
+    "show_fewer_conversations": "أظهر أقل"
   }
 }

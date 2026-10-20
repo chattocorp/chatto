@@ -110,8 +110,8 @@ export class Room extends Message<Room> {
   slowModeSeconds = 0;
 
   /**
-   * Threading policy for this channel room. Direct-message rooms report
-   * UNSPECIFIED because they do not support threads.
+   * Effective threading policy for this room. Direct-message rooms always
+   * report ENABLED.
    *
    * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 9;
    */

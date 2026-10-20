@@ -24,6 +24,10 @@ export type RoomListItem = {
   viewerCanManageRoom: boolean;
   /** For a direct message: whether it has messages. Null for other rooms. */
   hasMessageHistory?: boolean | null;
+  /** Latest ordinary DM post, including replies; null when unavailable. */
+  lastMessageAt?: string | null;
+  /** Latest ordinary DM root post; null when unavailable. */
+  lastRootMessageAt?: string | null;
   /** DM participants, with a deleted placeholder for each deleted account. */
   members: UserAvatarUserView[];
 };
@@ -105,6 +109,8 @@ export class RoomListView {
           viewerCanJoinRoom: room.canJoinRoom,
           viewerCanManageRoom: room.canManageRoom,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,
+          lastMessageAt: room.lastMessageAt,
+          lastRootMessageAt: room.lastRootMessageAt,
           members
         }
       ];

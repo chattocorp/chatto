@@ -30,6 +30,9 @@
     "server_actions": "Дії для {server}",
     "room_actions": "Дії для #{room}",
     "open_group_settings": "Відкрити налаштування групи",
-    "open_room_settings": "Відкрити налаштування кімнати"
+    "open_room_settings": "Відкрити налаштування кімнати",
+    "older_conversations": "Старі розмови",
+    "show_older_conversations": "Показати старі ({count})",
+    "show_fewer_conversations": "Показати менше"
   }
 }
