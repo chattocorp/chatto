@@ -184,7 +184,7 @@
     {#if multiple}
       {#each selectedItems as selected (getValue(selected))}
         <span
-          class="inline-flex h-7 max-w-full min-w-0 items-center gap-1 rounded-md border border-border bg-surface ps-1.5 pe-0.5"
+          class="inline-flex h-7 max-w-full min-w-0 items-center gap-1 rounded-md border border-input-border bg-surface selection-indicator ps-1.5 pe-0.5"
           data-testid="combobox-selection"
         >
           <bdi class="min-w-0 truncate">{getLabel(selected)}</bdi>
