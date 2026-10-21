@@ -18,7 +18,8 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Apply this to DM threads too: only new room-level DMs bypass classification
   because they are DMs. Within threads, recognize explicit mentions and replies
   to the bot; otherwise use the ordinary follow-up path. Reactions to bot messages
-  remain addressed input. Ordinary DM replies grant no delegation authority.
+  pass the participation classifier before they become addressed input. Ordinary
+  DM replies grant no delegation authority.
 - In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
@@ -26,8 +27,9 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   without initial classification. Batch all incoming messages, including the first
   post, pings, direct replies, and reactions to bot messages, in a fixed three-second window. The first queued
   message starts it; later arrivals do not extend it. The window elapses while the
-  conversation is busy. Send addressed batches directly; ordinary reply batches
-  wake a classification check without a second delay. Preserve each message's
+  conversation is busy. Send explicit text messages directly. Check each reaction
+  with the participation classifier and forward only accepted reactions. Ordinary
+  reply batches wake a classification check without a second delay. Preserve each message's
   author and trigger, including in the first conversation turn. Pending intake
   must not discard a ping that has already arrived in an unfinished window.
   Keep pending reply IDs in root state while the
@@ -71,9 +73,14 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   reply. A successful `react` call can replace a text reply. Limit its targets to
   message IDs seen in the current thread. Keep the automatic root checkmark under
   `setHandled`, including its pending-work and closing-reply rules.
-- Added reactions to this bot's messages are addressed input. Read the target from
-  Chatto to verify its author and thread. Preserve the server-authenticated reaction
-  author, event ID, emoji, target ID, and target text. Use the reaction event ID for
+- Added reactions to this bot's messages need a participation check. Read the target
+  from Chatto to verify its author and thread. Preserve the server-authenticated reaction
+  author, event ID, emoji, target ID, and target text. Give the classifier the exact
+  target and recent thread context. Ignore appreciation on completed answers;
+  accept clear answers or approval of pending proposals. Check reactions separately
+  so an accepted reaction cannot forward unrelated reactions in its batch. A failed
+  check sends no reaction response. Retain checked event IDs across recovery.
+  Classification grants no authority. Use the reaction event ID for
   delivery and authorization; use the target message ID for replies. Ignore own
   reactions and removals. A removal does not cancel delegated work.
 - Add a capability as a tool of that agent. When the work is long or needs its

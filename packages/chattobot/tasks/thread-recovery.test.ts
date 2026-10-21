@@ -84,6 +84,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
     classifier,
     conversation,
     read: async () => ({ body: first.body, attachmentTypes: [] }),
+    readReactionContext: async () => [],
     readFollowUp: async () => ({
       boundary: 'bot-post',
       input: { context: [{ role: 'bot', body: 'What browser?' }] },

@@ -153,6 +153,16 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     classifier: createIntakeClassifier(conversationSettings.model, intake),
     conversation,
     readFollowUp: createFollowUpReader(api, allowedUserId),
+    async readReactionContext(message, signal) {
+      const thread = await api.readThread(
+        { roomId: message.roomId, threadRootId: message.threadRootId },
+        { signal, limit: 20 }
+      );
+      return thread.messages.map((item) => ({
+        role: item.fromViewer ? ('bot' as const) : ('human' as const),
+        body: item.body
+      }));
+    },
     async read(message, signal) {
       const { users } = await api
         .service(UserService)

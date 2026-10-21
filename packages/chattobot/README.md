@@ -87,6 +87,7 @@ a decision and a short reason. To try a dedicated model through OpenRouter, set
 new reports and thread follow-up checks; it does not change GitHub authorization.
 Dedicated models return a choice and probabilities instead of a written reason.
 Both modes use the same participation policy, no tools, and a 30-second deadline.
+They also check reactions before a reaction can start a conversation turn.
 Failures never fall back to another model. The task
 does not post, react, or show typing. Ignored posts and failed classifications
 stay silent. Users can still mention the bot to get help.
@@ -146,9 +147,9 @@ when the agent becomes available after the window has ended.
 
 DM threads use the same participation rules as channel threads. A new room-level
 DM starts a direct conversation. Inside its thread, ordinary messages go through
-classification; explicit mentions, replies to the bot, and reactions to its messages
-go directly to the conversation. Ordinary DM replies cannot authorize restricted
-work or reopen an expired conversation.
+classification. Explicit mentions and replies to the bot go directly to the
+conversation. Reactions to its messages pass a participation check first.
+Ordinary DM replies cannot authorize restricted work or reopen an expired conversation.
 
 Ordinary realtime replies notify an existing thread workflow after that same
 window. It reads human messages after the bot's latest post (or the conversation's
@@ -276,11 +277,18 @@ login as part of the bot's instructions. Restart the bot after changing `.env`.
 
 ## Emoji reactions
 
-An added reaction to a ChattoBot message addresses the bot directly, including
-in a thread whose earlier conversation has ended. The bot reads the target message
-from Chatto and passes its text, the emoji, and the reacting user's identity to
-the conversation model. Its own reactions, reactions to other people's messages,
-and reaction removals do not start a turn. Removing a reaction does not cancel work.
+An added reaction to a ChattoBot message first passes a participation check,
+including in a thread whose earlier conversation has ended. The bot reads the target
+message from Chatto. The existing participation classifier receives its exact text,
+the emoji, and up to 20 recent thread messages. Target text is context, not a new
+request. Appreciation on completed answers normally requires no response. Clear
+answers to pending questions and approval of pending proposals can start a turn.
+The classifier checks each reaction separately, including in batches with direct
+messages. A failed check sends no reaction-driven response. Direct messages still
+reach the conversation. Checked reaction event IDs are retained across recovery.
+Accepted reactions retain the reacting user's identity, event ID, and exact target
+for the conversation model and its authorization checks. Its own reactions,
+reactions to other people's messages, and reaction removals do not start a turn. Removing a reaction does not cancel work.
 
 A maintainer can approve a clear proposal by adding 👍 to that proposal's message.
 The same user-ID check applies as for a direct reply. Approval covers the proposal

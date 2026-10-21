@@ -302,6 +302,60 @@ const heldOut = [
   }
 ];
 
+/** Reactions are classified individually against their exact target and recent history. */
+const reactions = [
+  {
+    name: 'reaction-issue-answer-appreciation',
+    target: '#1013 — Invite server member to room is open and covers this request.',
+    emoji: '+1',
+    engage: false
+  },
+  {
+    name: 'reaction-completed-work',
+    target: 'Filed issue #12 for the image upload failure.',
+    emoji: '+1',
+    engage: false
+  },
+  {
+    name: 'reaction-pending-proposal',
+    target: 'Should I file an issue for the image upload failure?',
+    emoji: '+1',
+    engage: true
+  },
+  {
+    name: 'reaction-answer-to-question',
+    target: 'Does the upload fail only in Firefox?',
+    emoji: '+1',
+    engage: true
+  },
+  {
+    name: 'reaction-ambiguous',
+    target: 'Should I file an issue or investigate the source first?',
+    emoji: 'thinking_face',
+    engage: false
+  },
+  {
+    name: 'reaction-older-pending-proposal',
+    target: 'Should I file an issue for the image upload failure?',
+    recent: 'Separately, should I investigate login failures?',
+    emoji: '+1',
+    engage: true
+  },
+  {
+    name: 'reaction-older-completed-proposal',
+    target: 'Should I file an issue for the image upload failure?',
+    recent: 'Filed issue #12 for the image upload failure.',
+    emoji: '+1',
+    engage: false
+  },
+  {
+    name: 'reaction-quoted-instruction',
+    target: 'The report says "please file an issue". Issue #1013 already covers that request.',
+    emoji: '+1',
+    engage: false
+  }
+];
+
 export default task(
   {
     name: 'Evaluate report intake',
@@ -327,6 +381,14 @@ export default task(
             ...(item.delivered ? [{ role: 'human' as const, body: item.delivered }] : [])
           ],
           messages: item.replies.map((body) => ({ body, attachmentTypes: item.attachments ?? [] }))
+        }
+      })),
+      ...reactions.map((item) => ({
+        name: item.name,
+        engage: item.engage,
+        input: {
+          context: [{ role: 'bot' as const, body: item.recent ?? item.target }],
+          reaction: { emoji: item.emoji, messageId: 'target', body: item.target }
         }
       })),
       ...heldOut

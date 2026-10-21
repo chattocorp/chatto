@@ -10,7 +10,7 @@ import {
 } from 'runling';
 import { IncomingMessage, type ConversationInput } from '../chatto/message.ts';
 import type { createConversation } from './conversation.ts';
-import type { createIntakeClassifier, ReportInput } from './classify-intake.ts';
+import type { createIntakeClassifier, ReactionInput, ReportInput } from './classify-intake.ts';
 import type { ReadFollowUp } from '../chatto/follow-up.ts';
 import { messageBatches } from '../harness/message-batches.ts';
 
@@ -28,6 +28,11 @@ export interface ThreadOptions {
     signal: AbortSignal
   ) => Promise<Static<typeof ReportInput> | undefined>;
   readFollowUp: ReadFollowUp;
+  /** Recent thread history for reaction decisions, read with the bot's permissions. */
+  readReactionContext: (
+    message: IncomingMessage,
+    signal: AbortSignal
+  ) => Promise<Static<typeof ReactionInput>['context']>;
   /** Injectable clock interval for lifecycle tests. */
   intervalMs?: number;
   /** Fixed inbox window for all incoming messages, injectable for lifecycle tests. */
@@ -39,6 +44,8 @@ export interface ThreadOptions {
 interface ThreadState {
   first?: IncomingMessage;
   delivered: string[];
+  /** Accepted, ignored, and failed reaction checks must not run again after recovery. */
+  checkedReactions: string[];
   /** Realtime replies awaiting consideration, even if the bot posts again before the check. */
   pendingFollowUps: string[];
   checked?: string;
@@ -65,10 +72,44 @@ export function createThreadWorkflow(
       const hadConversation = !!saved.first;
       saved.delivered ??= [message.id];
       saved.pendingFollowUps ??= [];
+      saved.checkedReactions ??= [];
       saved.lastActivity ??= Date.now();
       const state = saved as ThreadState;
       const options = typeof configure === 'function' ? await configure(ctx, message) : configure;
       const { classifier, conversation, read } = options;
+      let checkingReactions = false;
+      // Keep reaction decisions separate: accepting one must not forward unrelated reactions.
+      // Explicit messages still pass if a context read or classifier fails.
+      const acceptReactions = async (batch: IncomingMessage[]) => {
+        const accepted: IncomingMessage[] = [];
+        checkingReactions = true;
+        try {
+          for (const item of batch) {
+            if (!item.reaction) {
+              accepted.push(item);
+              continue;
+            }
+            if (
+              state.checkedReactions.includes(item.id) ||
+              (hadConversation && state.delivered.includes(item.id))
+            )
+              continue;
+            try {
+              const context = await options.readReactionContext(item, ctx.signal);
+              const decision = await classifier(ctx, { context, reaction: item.reaction });
+              if (decision.engage) accepted.push(item);
+              else log.info('Thread reaction ignored');
+            } catch {
+              ctx.signal.throwIfAborted();
+              log.error('Thread reaction check failed; no reaction response sent');
+            }
+            state.checkedReactions.push(item.id);
+          }
+          return accepted;
+        } finally {
+          checkingReactions = false;
+        }
+      };
       const inboxLifetime = new AbortController();
       using inboxScope = { [Symbol.dispose]: () => inboxLifetime.abort() };
       const inbox = messageBatches(
@@ -158,6 +199,37 @@ export function createThreadWorkflow(
           // Disposing the classifier cancels it if an addressed message won the race.
         }
       }
+      if (first && (!resume || usedNextMessage)) {
+        opening = await acceptReactions(opening.length ? opening : [first]);
+        first = opening[0];
+        // Preserve input received while the opening reaction was being checked.
+        while (!first) {
+          let next: IteratorResult<IncomingMessage[]>;
+          if (!usedNextMessage && inbox.addressedArrived) {
+            next = queued ?? (await nextMessage);
+            usedNextMessage = true;
+          } else if (usedNextMessage && inbox.pending) {
+            // The first pending reader is consumed. Read any later window directly,
+            // including ordinary replies, so an ignored reaction cannot strand a ping.
+            const batch = await reader.next();
+            next = batch.done ? batch : { done: false, value: consider(batch.value) };
+          } else break;
+          if (next.done) break;
+          opening = await acceptReactions(next.value);
+          first = opening[0];
+        }
+        // An ignored reaction must not suppress a report whose intake it interrupted.
+        if (!first && message.trigger === 'intake') {
+          try {
+            const input = await read(message, ctx.signal);
+            if (input && (await classifier(ctx, input)).engage)
+              first = { ...message, body: input.body, trigger: 'intake' };
+          } catch {
+            ctx.signal.throwIfAborted();
+            log.error('Report intake failed; no automatic reply sent');
+          }
+        }
+      }
       if (!first) return null;
 
       // Omit absent optional fields so the snapshot contains JSON values only.
@@ -172,7 +244,14 @@ export function createThreadWorkflow(
         ...(opening.length > 1 ? { messages: opening } : {}),
         ...(resumeConversation ? { resume: true } : {})
       });
-      const monitor = monitorConversation(ctx, child, first, options, state, () => inbox.pending);
+      const monitor = monitorConversation(
+        ctx,
+        child,
+        first,
+        options,
+        state,
+        () => inbox.pending || checkingReactions
+      );
       notify = monitor.notify;
       if (state.pendingFollowUps.length) notify();
       const finished = child.result.then(() => ({ done: true as const, value: undefined }));
@@ -181,7 +260,8 @@ export function createThreadWorkflow(
         while (true) {
           const item = await Promise.race([pending, finished]);
           if (item.done) break;
-          await monitor.send(item.value.length === 1 ? item.value[0]! : item.value);
+          const accepted = await acceptReactions(item.value);
+          if (accepted.length) await monitor.send(accepted.length === 1 ? accepted[0]! : accepted);
           pending = nextAddressed();
         }
         monitor.stop();
