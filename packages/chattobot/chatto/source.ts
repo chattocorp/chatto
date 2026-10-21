@@ -3,6 +3,7 @@ import { statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createApi, createClient, type Server } from '@chatto/client';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { log } from 'runling';
@@ -175,15 +176,24 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
       const author = users.find((row) => row.user?.id === message.authorId)?.user;
       if (!author || author.bot || author.deleted) return;
       if (allowedUserId && message.authorId !== allowedUserId) return;
-      const thread = await api.readThread(
-        { roomId: message.roomId, threadRootId: message.threadRootId },
-        { signal }
-      );
-      const root = thread.messages.find((item) => item.id === message.id);
-      if (!root || root.authorId !== message.authorId) return;
+      // Fetch the target itself: a recent thread page can omit a valid queued reply.
+      // The service response also includes the MIME metadata needed for classification.
+      const { message: current } = await api
+        .service(MessageService)
+        .getMessage({ roomId: message.roomId, eventId: message.id }, { signal, timeoutMs: 10_000 });
+      if (
+        !current ||
+        current.id !== message.id ||
+        current.roomId !== message.roomId ||
+        (current.threadRootEventId || current.id) !== message.threadRootId ||
+        current.actorId !== message.authorId ||
+        current.deletedAt ||
+        (!current.body && !current.attachments.length)
+      )
+        return;
       return {
-        body: root.body,
-        attachmentTypes: (root.attachments ?? []).map((item) => item.contentType)
+        body: current.body ?? '',
+        attachmentTypes: current.attachments.map((item) => item.contentType)
       };
     }
   };
