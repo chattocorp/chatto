@@ -1,6 +1,5 @@
 {
   "name": "@chatto/translatto",
-  "private": true,
   "version": "0.1.0",
   "description": "Small, framework-neutral internationalisation runtime for JSON catalogs",
   "license": "Apache-2.0",
@@ -11,17 +10,40 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "src",
-    "README.md"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "check": "tsc -p tsconfig.json",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\" && tsc -p tsconfig.build.json",
+    "prepack": "pnpm run build",
+    "test:package": "node scripts/test-package.mjs",
+    "check:release": "node scripts/check-release.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "@vitest/coverage-v8": "^4.1.10",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chattocorp/chatto.git",
+    "directory": "packages/translatto"
+  },
+  "homepage": "https://github.com/chattocorp/chatto/tree/main/packages/translatto#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./package.json": "./package.json"
+    }
   }
 }

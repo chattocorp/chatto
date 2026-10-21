@@ -27,7 +27,8 @@
         "pkg/events",
         "pkg/jetstreamutil",
         "pkg/natsruntime",
-        ".agents/skills"
+        ".agents/skills",
+        "packages/translatto"
       ],
       "extra-files": [
         {
@@ -139,6 +140,25 @@
       "draft": false,
       "include-component-in-tag": true,
       "tag-separator": "/"
+    },
+    "packages/translatto": {
+      "release-type": "simple",
+      "package-name": "translatto",
+      "component": "translatto",
+      "versioning": "default",
+      "prerelease": false,
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "package.json",
+          "jsonpath": "$.version"
+        }
+      ],
+      "initial-version": "0.1.1"
     }
   }
 }
