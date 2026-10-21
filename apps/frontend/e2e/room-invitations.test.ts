@@ -35,6 +35,7 @@ for (const answer of ['accept', 'decline'] as const) {
         const id = await createRoomViaConnect(admin, 'Private invitation project', group.id);
         for (const [userId, permission, decision] of [
           [sender.id, 'room.invite', 'PERMISSION_DECISION_ALLOW'],
+          [sender.id, 'room.remove-member', 'PERMISSION_DECISION_ALLOW'],
           [recipient.id, 'room.list', 'PERMISSION_DECISION_DENY'],
           [recipient.id, 'room.join', 'PERMISSION_DECISION_DENY']
         ]) {
@@ -104,6 +105,46 @@ for (const answer of ['accept', 'decline'] as const) {
         await recipientPage.reload();
         await expect(new RoomPage(recipientPage).messageInput).toBeVisible();
         await expect(recipientPage.getByTestId('room-invitation-preview')).not.toBeVisible();
+
+        await recipientPage.goto(routes.serverOverview);
+        await expect(
+          recipientPage.getByRole('heading', { name: 'Overview', exact: true })
+        ).toBeVisible();
+
+        // Cache an empty search while the recipient is still a room member.
+        await senderRoom.click({ button: 'right' });
+        await senderPage.getByRole('menuitem', { name: 'Invite member', exact: true }).click();
+        await dialog.getByRole('combobox', { name: 'Invite member' }).fill(recipient.login);
+        await expect(dialog).toContainText('No users found');
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+        await expect(dialog).not.toBeVisible();
+
+        await senderPage.getByTestId('privileged-mode-toggle').click();
+        await senderPage
+          .getByRole('dialog', { name: 'Enable privileged mode' })
+          .getByRole('button', { name: 'Enable privileged mode' })
+          .click();
+        await expect(
+          senderPage.getByRole('button', { name: 'Disable privileged mode' })
+        ).toBeEnabled();
+        await connectPost(senderPage, 'chatto.api.v1.RoomService/RemoveUser', {
+          roomId,
+          userId: recipient.id,
+          reason: 'Invitation regression test'
+        });
+        await senderPage.getByRole('button', { name: 'Disable privileged mode' }).click();
+        await expect(
+          senderPage.getByRole('button', { name: 'Enable privileged mode' })
+        ).toBeEnabled();
+
+        // The same query must find the removed member without reloading the sender.
+        await senderRoom.click({ button: 'right' });
+        await senderPage.getByRole('menuitem', { name: 'Invite member', exact: true }).click();
+        await dialog.getByRole('combobox', { name: 'Invite member' }).fill(recipient.login);
+        await expect(dialog.getByRole('option')).toBeVisible();
+        await dialog.getByRole('option').click();
+        await dialog.getByRole('button', { name: 'Invite member', exact: true }).click();
+        await expect(dialog).not.toBeVisible();
       } else {
         await expect(recipientRoom).not.toBeAttached();
         await recipientPage.setViewportSize({ width: 1280, height: 900 });

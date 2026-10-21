@@ -222,7 +222,23 @@ function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): vo
     );
 }
 
+/** Cancel reads from before a membership change, then refresh mounted pickers.
+ * Inactive search results become stale so reopening a dialog reads current membership.
+ */
+async function refreshRoomMemberQueriesAcrossSessions(
+  serverId: string,
+  roomId: string
+): Promise<void> {
+  const filters = {
+    predicate: (query: { queryKey: QueryKey }) =>
+      isRoomMemberQuery(query.queryKey, serverId, roomId)
+  };
+  await queryClient.cancelQueries(filters);
+  await queryClient.invalidateQueries(filters);
+}
+
 queryCaches.roomMembers = {
+  refreshRoom: refreshRoomMemberQueriesAcrossSessions,
   purgeRoom: purgeRoomMemberQueriesAcrossSessions,
   scrubUser: scrubRoomMemberUserAcrossSessions
 };
