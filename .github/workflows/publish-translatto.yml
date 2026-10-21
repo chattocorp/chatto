@@ -26,7 +26,10 @@ jobs:
         with:
           turbo-remote-cache: 'false'
           install-cli-deps: 'false'
-      - name: Check release version and registry history
+      - name: Check package identity
+        run: mise x -- pnpm --filter @chatto/translatto check:release --verify-only
+      - name: Check release tag and registry history
+        if: github.event_name == 'push'
         env:
           RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
         run: mise x -- pnpm --filter @chatto/translatto check:release

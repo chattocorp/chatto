@@ -1,6 +1,6 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { assertRelease, assertUnusedVersion } from '../scripts/check-release.mjs';
+import { assertRelease, assertUnusedVersion, checkRelease } from '../scripts/check-release.mjs';
 
 const manifest = { name: '@chatto/translatto', version: '0.1.0' };
 
@@ -51,7 +51,7 @@ test('keeps the release independent and the workspace exports on source', async 
   const pkg = await readJson('../package.json');
   expect(config.packages['packages/translatto']).toMatchObject({
     component: 'translatto',
-    'initial-version': '0.1.0',
+    'initial-version': '0.1.1',
     versioning: 'default',
     prerelease: false,
     draft: false,
@@ -65,5 +65,23 @@ test('keeps the release independent and the workspace exports on source', async 
   );
   expect((await readFile(new URL('../version.txt', import.meta.url), 'utf8')).trim()).toBe(
     pkg.version
+  );
+});
+
+test('verification does not query the registry for an already published package', async () => {
+  const request = vi.fn<typeof fetch>(async () => {
+    throw new Error('Registry must not be needed');
+  });
+  await expect(checkRelease(manifest, { verifyOnly: true }, request)).resolves.toBeUndefined();
+  expect(request).not.toHaveBeenCalled();
+  await expect(
+    checkRelease(manifest, { verifyOnly: true, tag: 'translatto/v0.2.0' }, request)
+  ).rejects.toThrow('Tag must match');
+});
+
+test('publication still rejects an already published version', async () => {
+  const request: typeof fetch = async () => Response.json({ versions: { '0.1.0': {} }, time: {} });
+  await expect(checkRelease(manifest, { tag: 'translatto/v0.1.0' }, request)).rejects.toThrow(
+    'already been published'
   );
 });

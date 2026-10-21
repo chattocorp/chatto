@@ -15,7 +15,8 @@ exports and type declarations. `prepack` runs `build` automatically.
 
 Run `mise x -- pnpm --filter @chatto/translatto check:release` to check the
 package identity and npm version history. Set `RELEASE_TAG` to also check
-that a release tag matches the package version.
+that a release tag matches the package version. Add `--verify-only` to check
+package identity without requiring an unpublished version.
 
 To build and publish Translatto, run these commands from the repository root
 with pnpm available through mise:
@@ -45,9 +46,13 @@ publishes that exact artifact with npm.
 Translatto has independent release-please releases. A `translatto/v<VERSION>`
 tag starts `publish-translatto.yml`. The workflow checks the version, tests
 the tarball, and publishes that artifact. A manual workflow run only tests
-and saves the artifact. Version `0.1.0` was published manually. Use a new
-version for each later release. The current manual workflow also checks npm
-version history, so it rejects a version that is already published.
+and saves the artifact, including for an already published version. PR CI also
+uploads the tested tarball as `translatto-package`. Download this artifact to
+inspect it before merge.
+
+Version `0.1.0` was published manually without a GitHub release. The first
+release-please release starts at `0.1.1` to avoid reusing that version. Later
+releases use conventional commits to select the next version.
 
 Before the next automated release, configure the npm trusted publisher for repository
 `chattocorp/chatto`, workflow `publish-translatto.yml`, and GitHub environment

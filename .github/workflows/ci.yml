@@ -120,6 +120,13 @@ jobs:
       - run: mise x -- pnpm --filter @chatto/translatto check
       - run: mise x -- pnpm --filter @chatto/translatto test
       - run: mise x -- pnpm --filter @chatto/translatto test:package
+        env:
+          TRANSLATTO_RELEASE_DIR: ${{ runner.temp }}/translatto-release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: translatto-package
+          path: ${{ runner.temp }}/translatto-release/*.tgz
+          if-no-files-found: error
 
   test-runling:
     needs: changes

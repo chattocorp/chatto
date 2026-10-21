@@ -36,9 +36,27 @@ export async function assertUnusedVersion(version, request = fetch) {
   }
 }
 
+/** Check identity in every mode; only publication requires an unused version.
+ * @param {{name: string, version: string}} manifest
+ * @param {{tag?: string, verifyOnly?: boolean}} options
+ * @param {typeof fetch} request
+ */
+export async function checkRelease(
+  manifest,
+  { tag = '', verifyOnly = false } = {},
+  request = fetch
+) {
+  assertRelease(manifest, tag);
+  if (!verifyOnly) await assertUnusedVersion(manifest.version, request);
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-  assertRelease(manifest, process.env.RELEASE_TAG);
-  await assertUnusedVersion(manifest.version);
-  console.log(`@chatto/translatto@${manifest.version} is available for publication.`);
+  const verifyOnly = process.argv.includes('--verify-only');
+  await checkRelease(manifest, { tag: process.env.RELEASE_TAG, verifyOnly });
+  console.log(
+    verifyOnly
+      ? `Verified ${manifest.name}@${manifest.version} release identity.`
+      : `${manifest.name}@${manifest.version} is available for publication.`
+  );
 }
