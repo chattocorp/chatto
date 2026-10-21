@@ -129,7 +129,6 @@
     padding-block: 0.35em;
     padding-inline-start: 0.9em;
     color: var(--prose-quote-text);
-    font-style: italic;
   }
 
   & blockquote > * {

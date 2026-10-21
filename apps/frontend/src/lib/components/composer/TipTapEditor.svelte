@@ -802,7 +802,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     padding-block: 0.35em;
     padding-inline-start: 0.9em;
     color: var(--composer-quote-text);
-    font-style: italic;
   }
 
   :global(.tiptap-editor .ProseMirror blockquote > *) {
