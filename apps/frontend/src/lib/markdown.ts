@@ -349,7 +349,7 @@ function renderCodeFence(code: string, rawLanguage: string): string {
   const lineHtml = lines.map((line) => `<span class="line">${line}</span>`).join('');
 
   // Copy the parser's code content before display-only newline and tab changes.
-  return `<pre class="hljs markdown-code" data-language="${escapeAttribute(displayLanguage)}" data-copy-source="${escapeAttribute(code)}"><code class="language-${escapeAttribute(displayLanguage)}">${lineHtml}</code>${renderCodeActions(displayLanguage)}</pre>`;
+  return `<pre class="hljs markdown-code" data-language="${escapeAttribute(displayLanguage)}" data-copy-source="${escapeAttribute(code)}"><code class="language-${escapeAttribute(displayLanguage)}" tabindex="0">${lineHtml}</code>${renderCodeActions(displayLanguage)}</pre>`;
 }
 
 function normalizeCodeLanguage(language: string | null | undefined): string {
@@ -495,7 +495,7 @@ function initialize(): void {
   md.renderer.rules.paragraph_close = renderParagraphClose;
   md.renderer.rules.code_block = (tokens, idx) => {
     const code = tokens[idx].content;
-    return `<pre class="markdown-code" data-copy-source="${escapeAttribute(code)}"><code>${escapeHtml(code)}</code>${renderCodeActions()}</pre>\n`;
+    return `<pre class="markdown-code" data-copy-source="${escapeAttribute(code)}"><code tabindex="0">${escapeHtml(code)}</code>${renderCodeActions()}</pre>\n`;
   };
 
   // Customize link rendering for security

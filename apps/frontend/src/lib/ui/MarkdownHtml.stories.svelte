@@ -25,7 +25,9 @@
   const orderedListHtml = renderMarkdown(
     `Short list\n\n${shortOrderedList}\n\nLong list\n\n${longOrderedList}`
   );
-  const codeHtml = renderMarkdown('```js\nconst answer = 42;\n```\n\n    Indented code');
+  const codeHtml = renderMarkdown(
+    '```js\nconst answer = 42;\n\nconsole.log("A long line of code stays inside its block and scrolls horizontally", answer);\n```\n\n    Indented code'
+  );
   const footnoteHtml =
     renderMarkdown(`The release is ready[^checks]. Read the deployment note[^deploy]. The checks are complete[^checks].
 
