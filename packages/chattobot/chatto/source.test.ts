@@ -327,8 +327,9 @@ test.each([true, false])(
 );
 
 test.each([RoomKind.DM, RoomKind.CHANNEL])(
-  'thread addressing uses the same rules for room kind %s',
+  'thread addressing preserves DM requests and channel follow-ups for room kind %s',
   async (roomKind) => {
+    const trigger = roomKind === RoomKind.DM ? undefined : 'follow-up';
     const { createApi } = fakeChatto({
       viewerId: 'bot',
       routes: (router) =>
@@ -368,15 +369,15 @@ test.each([RoomKind.DM, RoomKind.CHANNEL])(
         post('human-reply', 'human-message'),
         post('mention'),
         post('bot-reply', 'bot-message'),
-        post('unwatched', '', 'other')
+        ...(roomKind === RoomKind.CHANNEL ? [post('unwatched', '', 'other')] : [])
       ],
       { rooms: '', recovered: true, addressed: api.addressedMessage.bind(api) }
     );
     expect(
       mocks.steered.mock.calls.map(([message]) => ({ id: message.id, trigger: message.trigger }))
     ).toEqual([
-      { id: 'ordinary', trigger: 'follow-up' },
-      { id: 'human-reply', trigger: 'follow-up' },
+      { id: 'ordinary', trigger },
+      { id: 'human-reply', trigger },
       { id: 'mention', trigger: undefined },
       { id: 'bot-reply', trigger: undefined }
     ]);
