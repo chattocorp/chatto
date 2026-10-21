@@ -175,7 +175,8 @@
   <div
     class={[
       'relative',
-      multiple && 'flex input flex-wrap items-center gap-1.5 pe-16 focus-within:border-action',
+      multiple &&
+        'flex input flex-wrap items-center gap-1.5 p-1 pe-16 text-base leading-6 focus-within:border-action',
       multiple && disabled && 'opacity-60',
       className
     ]}
@@ -183,7 +184,7 @@
     {#if multiple}
       {#each selectedItems as selected (getValue(selected))}
         <span
-          class="meta-badge max-w-full min-w-0 gap-1 border-border py-0.5 ps-2 pe-0.5 text-sm"
+          class="inline-flex h-7 max-w-full min-w-0 items-center gap-1 rounded-md border border-border bg-surface ps-1.5 pe-0.5"
           data-testid="combobox-selection"
         >
           <bdi class="min-w-0 truncate">{getLabel(selected)}</bdi>
@@ -200,7 +201,7 @@
               }
             }}
           >
-            <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
+            <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
           </button>
         </span>
       {/each}
@@ -229,7 +230,7 @@
         .filter(Boolean)
         .join(' ') || undefined}
       class={multiple
-        ? 'min-h-7 min-w-20 flex-1 bg-transparent text-text outline-none placeholder:text-muted/70'
+        ? 'h-7 min-w-20 flex-1 bg-transparent px-1.5 py-0 text-base leading-6 text-text outline-none placeholder:text-muted/70'
         : ['input pe-16', loading && 'pe-20', selectionAdornment && value && 'pe-28']}
       onfocus={openMenu}
       oninput={handleInput}
