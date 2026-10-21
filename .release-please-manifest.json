@@ -7,5 +7,6 @@
   "pkg/datacrypto": "0.0.0",
   "pkg/events": "0.1.0",
   "pkg/jetstreamutil": "0.0.0",
-  "pkg/natsruntime": "0.0.0"
+  "pkg/natsruntime": "0.0.0",
+  "packages/translatto": "0.1.0"
 }

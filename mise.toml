@@ -937,14 +937,9 @@ dir = "pkg/natsruntime"
 tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
-[tasks.lint-translatto]
-description = "Type-check the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm turbo run check --filter=@chatto/translatto"
-
 [tasks.lint]
 description = "Run linters"
-run = [{ task = "lint-*" }]
+run = [{ task = "lint-*" }, { task = "check-workspace" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
@@ -972,11 +967,6 @@ run = "bash tools/test-chatto-build.sh"
 description = "Run selected frontend Vitest specs"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend:focused"
-
-[tasks.test-translatto]
-description = "Test the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm run test:translatto"
 
 [tasks.check-workspace]
 description = "Type-check every pnpm workspace package"

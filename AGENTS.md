@@ -162,10 +162,11 @@ the local cache (ADR-102).
 not run it at the same time as `mise test-cli`, a frontend build, or another
 task that reads `packages/api-types`.
 
-The internal TypeScript packages `@chatto/api-types`, `@chatto/translatto`, and
-`@chatto/client` export their source and have no build (ADR-116). Load them
-through a compiling tool, such as Vite, Vitest, tsx, or jiti. Plain Node
-cannot load them.
+The workspace packages `@chatto/api-types`, `@chatto/translatto`, and
+`@chatto/client` export their source (ADR-116). Load workspace imports through
+a compiling tool, such as Vite, Vitest, tsx, or jiti. Plain Node cannot load
+them. Translatto has a `build` script for npm releases. Its
+published package exports compiled JavaScript and type declarations.
 
 Put scratch files, such as PR bodies, commit messages, logs, and file backups,
 in the gitignored `.context/` directory of the worktree. Do not use fixed paths

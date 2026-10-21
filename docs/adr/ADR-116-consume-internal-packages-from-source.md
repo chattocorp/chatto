@@ -13,18 +13,17 @@ command, such as `vitest` in `apps/frontend`, did not build them. In a new
 worktree, these commands failed until a different task built the packages.
 When package source changed, the same commands used stale output.
 
-We do not publish these packages. All of their consumers are in this
-repository: the bundled frontend, ChattoBot, the Runling bot example, and the
+At the time of this decision, we did not publish these packages. All consumers
+were in this repository: the bundled frontend, ChattoBot, the Runling bot example, and the
 package tests. Each consumer already runs through a tool that compiles
 TypeScript: Vite and Vitest, svelte-check, `tsc`, jiti through Runling, or tsx.
 
 ## Decision
 
-The three packages export their TypeScript source. Their `exports` entries
-point to `src/` and have no `dist/` alternative. The packages have no build
-script. Their `check` scripts type-check the source without emitting files.
-Consumers read the source directly. No export condition, build task, or setup
-step is necessary.
+In the workspace, the three packages export their TypeScript source. Their
+`exports` entries point to `src/` and have no `dist/` alternative. Their
+`check` scripts type-check the source without emitting files. Consumers read
+the source directly. No export condition or compiled output is necessary.
 
 Every consumer must load TypeScript through a compiling tool. Plain Node cannot
 load this source: generated protobuf code contains TypeScript enums, and the
@@ -44,24 +43,28 @@ same TypeScript major version as the packages.
 
 Runling is not in scope. It is published to npm and keeps its build.
 
-When we publish a package, add a build at that time. Use `publishConfig` to
-replace `exports` with the compiled output in the published manifest, and add
-a test that installs the packed package in a host outside the workspace.
+Translatto uses
+`build` to emit JavaScript and type declarations. pnpm `pack` applies
+`publishConfig` to replace the source exports in the published manifest. A
+package test installs the tarball outside the workspace and checks Node ESM
+imports and TypeScript declarations. Workspace consumers still use source.
+The current Turbo `^build` dependencies also run this build before dependent
+package tasks. Removing these unnecessary builds is a follow-up task.
 
 ## Consequences
 
 A new worktree can run any frontend, client, or bot command after
 `mise setup`. Changes to package source take effect immediately, also in
-direct Vitest and svelte-check runs. The API types, Translatto, and client build
-tasks are removed from Turbo, mise, and the root scripts. `mise codegen-proto`
-only generates source.
+direct Vitest and svelte-check runs. The API types and client have no build
+task. Translatto has a build for npm publication. `mise codegen-proto` only
+generates source.
 
 Consumer type checks include the source of the packages that they import. This
 makes those checks slightly slower. A change to package code can fail a
 consumer check that the package check accepts, when the consumer uses stricter
 settings.
 
-No test covers compiled package output, because no consumer uses it. The
+The Translatto package test covers its compiled npm output. The
 end-to-end bot test runs the client in a Node host through tsx. It does not
 show that a compiled package works for third-party bots. Add that test with
-the first published build.
+the first published client build.
