@@ -3,6 +3,28 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.19](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.18...v0.5.0-beta.19) (2026-10-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* **runling:** type task steering and stream Paseo progress ([#3076](https://github.com/chattocorp/chatto/issues/3076))
+
+### Features
+
+* **frontend:** keep recent and unread DMs in the sidebar ([#3087](https://github.com/chattocorp/chatto/issues/3087)) ([1d8b197](https://github.com/chattocorp/chatto/commit/1d8b1977fdb8de95f57af42eee90b16dfaf4ef1f))
+* **runling:** type task steering and stream Paseo progress ([#3076](https://github.com/chattocorp/chatto/issues/3076)) ([b50c6b6](https://github.com/chattocorp/chatto/commit/b50c6b6a041281dbf6323c2eb75291a9e88538b5))
+
+
+### Bug Fixes
+
+* **auth:** align password validation with bcrypt byte limits ([#3079](https://github.com/chattocorp/chatto/issues/3079)) ([33e31ef](https://github.com/chattocorp/chatto/commit/33e31ef0cf29b4c40e665968a24c55de20e0eb76))
+* **chattobot:** classify thread replies and refresh project context ([#3083](https://github.com/chattocorp/chatto/issues/3083)) ([f265f16](https://github.com/chattocorp/chatto/commit/f265f167b9a92b8886903f438691e19dfe1bca7a))
+* **frontend:** preserve code block highlighting after sending ([#3084](https://github.com/chattocorp/chatto/issues/3084)) ([8794262](https://github.com/chattocorp/chatto/commit/8794262ed3d43136feb28663e7cf132095a123e7))
+* **frontend:** prevent iOS quick finder focus zoom ([#3099](https://github.com/chattocorp/chatto/issues/3099)) ([c807b29](https://github.com/chattocorp/chatto/commit/c807b29e8e55503471c78b398868f7a7ce1a49ff))
+* **frontend:** show at least three DM conversations ([#3097](https://github.com/chattocorp/chatto/issues/3097)) ([82666f5](https://github.com/chattocorp/chatto/commit/82666f5804511459d6b856255950e3b95d57ba4b))
+* **frontend:** stabilize Storybook accessibility scans ([#3073](https://github.com/chattocorp/chatto/issues/3073)) ([b7169cb](https://github.com/chattocorp/chatto/commit/b7169cb850d99ab2cc633eadf4a988db1c031e80))
+
 ## [0.5.0-beta.18](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.17...v0.5.0-beta.18) (2026-10-18)
 
 
