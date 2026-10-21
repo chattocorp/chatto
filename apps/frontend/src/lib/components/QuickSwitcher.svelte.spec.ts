@@ -1,3 +1,4 @@
+import '../../app.css';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -360,6 +361,14 @@ afterAll(() => {
 });
 
 describe('QuickSwitcher', () => {
+  it('focuses the search input with text large enough to avoid iOS focus zoom', async () => {
+    const { container } = await renderOpenSwitcher();
+    const search = input(container);
+
+    await expect.element(search).toHaveFocus();
+    expect(Number.parseFloat(getComputedStyle(search).fontSize)).toBeGreaterThanOrEqual(16);
+  });
+
   it('opens with server, destination, room, and DM results from mocked data', async () => {
     const { container } = await renderOpenSwitcher();
 
