@@ -942,3 +942,45 @@ test('an ignored reaction cannot suppress the report whose intake it interrupted
   run.closeSteering();
   await run.result;
 });
+
+test('a ping during retried intake after an ignored reaction is not discarded', async () => {
+  const retry = Promise.withResolvers<boolean>();
+  let calls = 0;
+  const h = harness(async () => {
+    calls++;
+    if (calls === 1) return new Promise<boolean>(() => {});
+    if (calls === 2) return false;
+    return retry.promise;
+  });
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer(appreciation);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledTimes(3));
+  await run.steer(ping);
+  retry.resolve(false);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  run.closeSteering();
+  await run.result;
+});
+
+test('an ignored reaction resumes a pending ordinary reply check without waiting for reconciliation', async () => {
+  const reactionDecision = Promise.withResolvers<boolean>();
+  const reading = Promise.withResolvers<FollowUpSnapshot>();
+  let calls = 0;
+  const h = harness(async () => (++calls === 1 ? reactionDecision.promise : true), true, {
+    readFollowUp: async () => reading.promise,
+    batchMs: 10,
+    intervalMs: 60_000
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await run.steer(appreciation);
+  await run.steer(snapshot('one').messages[0]!.message);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  reading.resolve(snapshot('one'));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  reactionDecision.resolve(false);
+  await vi.waitFor(() => expect(h.received.map((item) => item.id)).toEqual(['ping', 'one']));
+  run.closeSteering();
+  await run.result;
+});

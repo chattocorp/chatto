@@ -135,100 +135,92 @@ export function createThreadWorkflow(
       let opening = hadConversation ? [] : consider((await reader.next()).value ?? []);
       // Follow-up events are notifications, never an addressed request that can bypass intake.
       // Keep one inbox reader, and retain a notification received before the child starts.
+      let queued: IteratorResult<IncomingMessage[]> | undefined;
       const nextAddressed = async (): Promise<IteratorResult<IncomingMessage[]>> => {
         while (true) {
           const item = await reader.next();
-          if (item.done) return item;
+          if (item.done) return (queued = item);
           const addressed = consider(item.value);
-          if (addressed.length) return { done: false, value: addressed };
+          if (addressed.length) return (queued = { done: false, value: addressed });
         }
       };
-      let queued: IteratorResult<IncomingMessage[]> | undefined;
-      const nextMessage = nextAddressed().then((item) => {
-        queued = item;
-        return item;
-      });
+      let nextMessage = nextAddressed();
       // Cancellation can fail the inbox while metadata is still being read.
       void nextMessage.catch(() => {});
       let first: IncomingMessage | undefined =
         saved.first ?? opening[0] ?? (message.trigger === 'intake' ? undefined : message);
       let usedNextMessage = false;
-      if (!first) {
-        const input = await read(message, ctx.signal).catch(() => {
-          ctx.signal.throwIfAborted();
-          log.error('Report intake could not read the post; no automatic reply sent');
-          return undefined;
-        });
-        if (inbox.addressedArrived && !queued) queued = await nextMessage;
-        if (queued && !queued.done) {
-          opening = queued.value;
-          first = opening[0];
-          usedNextMessage = true;
-        } else {
-          await using classification = input ? ctx.start(classifier, input) : undefined;
-          const decision = (classification?.result ?? Promise.resolve({ engage: false })).then(
-            (value) => ({ kind: 'decision' as const, engage: value.engage, failed: false }),
-            () => {
-              ctx.signal.throwIfAborted();
-              return { kind: 'decision' as const, engage: false, failed: true };
-            }
-          );
-          let outcome = await Promise.race([
-            nextMessage.then(async (item) =>
-              item.done ? await decision : { kind: 'addressed' as const, message: item.value }
-            ),
-            decision
-          ]);
-          ctx.signal.throwIfAborted();
-          // An intake decision must not close the workflow while an addressed
-          // request already waits in its batching window.
-          if (outcome.kind === 'decision' && inbox.addressedArrived) {
-            const item = await nextMessage;
-            if (!item.done) outcome = { kind: 'addressed', message: item.value };
-          }
-          if (outcome.kind === 'addressed') {
-            opening = outcome.message;
+      const advance = () => {
+        queued = undefined;
+        usedNextMessage = false;
+        nextMessage = nextAddressed();
+        void nextMessage.catch(() => {});
+      };
+      const addressedPending = () => inbox.addressedPending || (queued && !queued.done);
+      // Each retry uses the same race with addressed input. Ignoring a reaction must
+      // neither suppress the original report nor strand a ping during its next check.
+      while (true) {
+        if (!first) {
+          const input = await read(message, ctx.signal).catch(() => {
+            ctx.signal.throwIfAborted();
+            log.error('Report intake could not read the post; no automatic reply sent');
+            return undefined;
+          });
+          if (addressedPending() && !queued) queued = await nextMessage;
+          if (queued && !queued.done) {
+            opening = queued.value;
             first = opening[0];
             usedNextMessage = true;
           } else {
-            if (outcome.failed) log.error('Report intake failed; no automatic reply sent');
-            else log.info(outcome.engage ? 'Report intake accepted' : 'Report intake ignored');
-            if (outcome.engage && input)
-              first = { ...message, body: input.body, trigger: 'intake' };
+            await using classification = input ? ctx.start(classifier, input) : undefined;
+            const decision = (classification?.result ?? Promise.resolve({ engage: false })).then(
+              (value) => ({ kind: 'decision' as const, engage: value.engage, failed: false }),
+              () => {
+                ctx.signal.throwIfAborted();
+                return { kind: 'decision' as const, engage: false, failed: true };
+              }
+            );
+            let outcome = await Promise.race([
+              nextMessage.then(async (item) =>
+                item.done ? await decision : { kind: 'addressed' as const, message: item.value }
+              ),
+              decision
+            ]);
+            ctx.signal.throwIfAborted();
+            // A negative decision must wait for an addressed message's unfinished window.
+            if (outcome.kind === 'decision' && addressedPending()) {
+              const item = await nextMessage;
+              if (!item.done) outcome = { kind: 'addressed', message: item.value };
+            }
+            if (outcome.kind === 'addressed') {
+              opening = outcome.message;
+              first = opening[0];
+              usedNextMessage = true;
+            } else {
+              if (outcome.failed) log.error('Report intake failed; no automatic reply sent');
+              else log.info(outcome.engage ? 'Report intake accepted' : 'Report intake ignored');
+              if (outcome.engage && input)
+                first = { ...message, body: input.body, trigger: 'intake' };
+            }
+            // Disposing the classifier cancels it if addressed input won the race.
           }
-          // Disposing the classifier cancels it if an addressed message won the race.
         }
-      }
-      if (first && (!resume || usedNextMessage)) {
+        if (!first || (resume && !usedNextMessage)) break;
         opening = await acceptReactions(opening.length ? opening : [first]);
         first = opening[0];
-        // Preserve input received while the opening reaction was being checked.
+        // Consume any later addressed windows before allowing a rejected opening to exit.
         while (!first) {
-          let next: IteratorResult<IncomingMessage[]>;
-          if (!usedNextMessage && inbox.addressedArrived) {
-            next = queued ?? (await nextMessage);
-            usedNextMessage = true;
-          } else if (usedNextMessage && inbox.pending) {
-            // The first pending reader is consumed. Read any later window directly,
-            // including ordinary replies, so an ignored reaction cannot strand a ping.
-            const batch = await reader.next();
-            next = batch.done ? batch : { done: false, value: consider(batch.value) };
-          } else break;
+          if (usedNextMessage) advance();
+          if (!addressedPending()) break;
+          const next = await nextMessage;
+          usedNextMessage = true;
           if (next.done) break;
           opening = await acceptReactions(next.value);
           first = opening[0];
         }
-        // An ignored reaction must not suppress a report whose intake it interrupted.
-        if (!first && message.trigger === 'intake') {
-          try {
-            const input = await read(message, ctx.signal);
-            if (input && (await classifier(ctx, input)).engage)
-              first = { ...message, body: input.body, trigger: 'intake' };
-          } catch {
-            ctx.signal.throwIfAborted();
-            log.error('Report intake failed; no automatic reply sent');
-          }
-        }
+        if (first || message.trigger !== 'intake') break;
+        // The opening contained only ignored reactions. Retry intake without a second
+        // batching delay, while the same reader keeps listening for explicit messages.
       }
       if (!first) return null;
 
@@ -262,6 +254,7 @@ export function createThreadWorkflow(
           if (item.done) break;
           const accepted = await acceptReactions(item.value);
           if (accepted.length) await monitor.send(accepted.length === 1 ? accepted[0]! : accepted);
+          else if (state.pendingFollowUps.length) notify();
           pending = nextAddressed();
         }
         monitor.stop();

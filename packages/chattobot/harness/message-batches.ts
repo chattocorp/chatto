@@ -18,12 +18,10 @@ export function messageBatches(
   let ended = false;
   let failed = false;
   let failure: unknown;
-  let addressedArrived = false;
   const changed = createNotifier();
   void (async () => {
     try {
       for await (const message of input) {
-        if (!message.trigger) addressedArrived = true;
         if (!queue.length) deadline = Date.now() + windowMs;
         queue.push(message);
         changed.notify();
@@ -42,8 +40,8 @@ export function messageBatches(
       return queue.length > 0;
     },
     /** Intake must not discard an addressed request that arrived during classification. */
-    get addressedArrived() {
-      return addressedArrived;
+    get addressedPending() {
+      return queue.some((message) => !message.trigger);
     },
     batches: (async function* (): AsyncGenerator<IncomingMessage[]> {
       while (true) {
