@@ -579,15 +579,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // This display preference belongs to the mounted sidebar, not the room directory.
   let showOlderDMs = $state(false);
   let activityNow = $state(Date.now());
-  const recentDMs = $derived(
-    dmRooms.filter((room) => {
+  const defaultDMs = $derived.by(() => {
+    const visible = dmRooms.filter((room) => {
       if (isHighlighted(room) || !room.lastMessageAt) return true;
       const lastMessageAt = Date.parse(room.lastMessageAt);
       // Unknown metadata must not hide a conversation on an older server.
       return !Number.isFinite(lastMessageAt) || lastMessageAt >= activityNow - 7 * 86400000;
-    })
-  );
-  const olderDMCount = $derived(dmRooms.length - recentDMs.length);
+    });
+    if (visible.length >= 3) return visible;
+
+    // Fill the minimum with the newest older conversations, then keep navigation order.
+    const older = dmRooms
+      .filter((room) => !visible.includes(room))
+      .sort((a, b) => Date.parse(b.lastMessageAt!) - Date.parse(a.lastMessageAt!));
+    visible.push(...older.slice(0, 3 - visible.length));
+    return dmRooms.filter((room) => visible.includes(room));
+  });
+  const olderDMCount = $derived(dmRooms.length - defaultDMs.length);
   const timeSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
 
   /** Compact elapsed posting time for sidebar metadata; unknown times stay absent. */
@@ -708,7 +716,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       sections.push({
         id: 'direct-messages',
         label: m('room_list.direct_messages'),
-        items: roomItems(showOlderDMs ? dmRooms : recentDMs),
+        items: roomItems(showOlderDMs ? dmRooms : defaultDMs),
         persistKey: serverStorageKey(activeServerId, 'collapsible:dms'),
         keepVisibleWhenCollapsed: isGroupItemHighlighted
       });

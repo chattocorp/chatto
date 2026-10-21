@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-10-20
+**Last reviewed:** 2026-10-21
 
 ## Overview
 
@@ -29,8 +29,12 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   days. Thread replies count. Unread conversations, conversations with
   notifications that need attention, the current conversation, and conversations
   with active calls stay visible regardless of age.
-- **Show older (N)** shows the remaining conversations.
-  **Show less** restores the seven-day filter. This display choice is local to
+- If these rules show fewer than three conversations, the section adds the
+  most recently active older conversations until three are visible. If fewer
+  than three conversations have message history, it shows all of them.
+- **Show older (N)** appears only when more conversations are hidden and shows
+  those conversations. **Show less** restores the seven-day filter with the
+  minimum of three conversations. This display choice is local to
   the sidebar and does not archive conversations. The Quick Switcher still
   includes older conversations. The collapsed section keeps its attention rules.
 - When a DM has no notification badge, its row shows the elapsed time since
@@ -187,11 +191,13 @@ writable; a read-only DM state is not part of this decision.
 
 ### 10. Derive sidebar visibility from activity
 
-**Decision:** Use a fixed seven-day window and existing attention state.
+**Decision:** Use a fixed seven-day window and existing attention state, with
+a minimum of three conversations when available.
 Keep the complete conversation directory available to navigation and search.
 **Why:** This reduces long sidebar lists without a per-conversation archive
 choice that must be stored and shared across clients. Seven days includes a
-normal working week.
+normal working week. The minimum keeps recent contacts available when no
+conversation has activity in that window.
 **Tradeoff:** Old unread conversations remain visible. The cutoff is not
 configurable.
 
