@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Mitglied einladen",
       "invited": "Du wurdest eingeladen",
-      "sent": "Einladung gesendet",
+      "sent": "Einladungen gesendet",
       "sender": "Eingeladen von {name}",
       "expires": "Läuft am {date} ab",
       "unavailable": "Du kannst diese Einladung derzeit nicht annehmen. Du kannst sie weiterhin ablehnen.",
       "accept": "Einladung annehmen",
-      "decline": "Ablehnen"
+      "decline": "Ablehnen",
+      "title": "Mitglieder in #{room} einladen",
+      "description": "Wähle aus, wen du einladen möchtest. Die Mitglieder sehen den Raum in ihrer Seitenleiste und haben sieben Tage Zeit, die Einladung anzunehmen oder abzulehnen.",
+      "members": "Mitglieder",
+      "send": "Einladungen senden",
+      "failed": "{name} konnte nicht eingeladen werden: {error}"
     }
   }
 }

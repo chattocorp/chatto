@@ -66,6 +66,71 @@ describe('Combobox', () => {
     expect(field.value).toBe('UserJoinedRoomEvent');
   });
 
+  it('selects multiple values without duplicates and removes pills with the keyboard', async () => {
+    const onselect = vi.fn();
+    const { container, getByRole } = render(Combobox<(typeof items)[number]>, {
+      props: {
+        id: 'multiple-events',
+        label: 'Events',
+        items,
+        multiple: true,
+        getValue: (item) => item.value,
+        getLabel: (item) => item.label,
+        onselect
+      }
+    });
+    const field = input(container);
+    field.focus();
+    await getByRole('option', { name: items[0].label }).click();
+    expect(field.value).toBe('');
+    await expect.element(getByRole('button', { name: `Remove ${items[0].label}` })).toBeVisible();
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    flushSync();
+    await expect.element(getByRole('option', { name: items[0].label })).not.toBeInTheDocument();
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    field.dispatchEvent(enter);
+    flushSync();
+    expect(enter.defaultPrevented).toBe(true);
+    expect(onselect).toHaveBeenCalledTimes(2);
+    expect(field.value).toBe('');
+    expect(container.querySelectorAll('[data-testid="combobox-selection"]')).toHaveLength(2);
+    field.value = 'query';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+    flushSync();
+    expect(container.querySelectorAll('[data-testid="combobox-selection"]')).toHaveLength(2);
+    field.value = '';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+    flushSync();
+    expect(container.querySelectorAll('[data-testid="combobox-selection"]')).toHaveLength(1);
+    await getByRole('button', { name: `Remove ${items[0].label}` }).click();
+    expect(document.activeElement).toBe(field);
+    expect(container.querySelectorAll('[data-testid="combobox-selection"]')).toHaveLength(0);
+  });
+
+  it('wraps and truncates long selected labels inside a narrow input', async () => {
+    const choices = [
+      { value: 'long', label: 'A very long member name that must not widen the dialog' },
+      ...items
+    ];
+    const { container } = render(Combobox<(typeof items)[number]>, {
+      props: {
+        id: 'narrow-multiple',
+        label: 'Members',
+        items: choices,
+        multiple: true,
+        selectedItems: choices,
+        getValue: (item) => item.value,
+        getLabel: (item) => item.label
+      }
+    });
+    container.style.width = '240px';
+    const frame = input(container).parentElement!;
+    await vi.waitFor(() => expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth));
+    expect(container.querySelectorAll('[data-testid="combobox-selection"]')).toHaveLength(3);
+  });
+
   it('scrolls a long list inside the section so the menu frame stays whole', async () => {
     const many = Array.from({ length: 30 }, (_, i) => ({ value: `v${i}`, label: `Option ${i}` }));
     const { container } = render(Combobox<(typeof many)[number]>, {

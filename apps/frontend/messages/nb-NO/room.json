@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Inviter medlem",
       "invited": "Du har blitt invitert",
-      "sent": "Invitasjon sendt",
+      "sent": "Invitasjoner sendt",
       "sender": "Invitert av {name}",
       "expires": "Utløper {date}",
       "unavailable": "Du kan ikke godta denne invitasjonen nå. Du kan fortsatt avslå den.",
       "accept": "Godta invitasjon",
-      "decline": "Avslå"
+      "decline": "Avslå",
+      "title": "Inviter medlemmer til #{room}",
+      "description": "Velg hvem du vil invitere. De ser rommet i sidefeltet og har sju dager på seg til å godta eller avslå.",
+      "members": "Medlemmer",
+      "send": "Send invitasjoner",
+      "failed": "Kunne ikke invitere {name}: {error}"
     }
   }
 }

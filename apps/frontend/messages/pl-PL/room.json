@@ -324,12 +324,17 @@
     "invitation": {
       "invite": "Zaproś członka",
       "invited": "Masz zaproszenie",
-      "sent": "Zaproszenie wysłane",
+      "sent": "Zaproszenia wysłane",
       "sender": "Zaproszenie od {name}",
       "expires": "Wygasa {date}",
       "unavailable": "Nie możesz teraz przyjąć tego zaproszenia. Nadal możesz je odrzucić.",
       "accept": "Przyjmij zaproszenie",
-      "decline": "Odrzuć"
+      "decline": "Odrzuć",
+      "title": "Zaproś członków do #{room}",
+      "description": "Wybierz osoby, które chcesz zaprosić. Zobaczą pokój na pasku bocznym i będą mieć siedem dni na przyjęcie lub odrzucenie zaproszenia.",
+      "members": "Członkowie",
+      "send": "Wyślij zaproszenia",
+      "failed": "Nie udało się zaprosić {name}: {error}"
     }
   }
 }

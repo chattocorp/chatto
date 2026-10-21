@@ -8,6 +8,8 @@
     the footer action pattern, loading state, disabled state, and top-level form error treatment.
     Below 768 px, touch-capable windows use a bottom sheet with full-width submit and Cancel actions.
     Mouse windows retain the centred dialog.
+    The optional oncloserequest callback runs at dismissal start. Use it to cancel pending
+    work; onclose runs after the closing animation, or immediately for the Cancel action.
   `.trim();
 
   const { Story } = defineMeta({

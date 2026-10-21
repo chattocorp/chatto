@@ -11,6 +11,8 @@
     testid,
     label,
     value = $bindable(''),
+    multiple = false,
+    selectedItems = $bindable<T[]>([]),
     text = $bindable(''),
     items,
     getValue,
@@ -36,6 +38,10 @@
     testid?: string;
     label: string;
     value?: string;
+    /** Render removable selections inside the input; selection clears the search text. */
+    multiple?: boolean;
+    /** Selected objects remain available when asynchronous search results change. */
+    selectedItems?: T[];
     text?: string;
     items: T[];
     getValue: (item: T) => string;
@@ -69,7 +75,11 @@
   let selectedIndex = $state(0);
   let anchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
-  const showPopover = $derived(open && !disabled && (loading || items.length > 0 || text !== ''));
+  const selectedValues = $derived(new Set(selectedItems.map(getValue)));
+  const options = $derived(
+    multiple ? items.filter((option) => !selectedValues.has(getValue(option))) : items
+  );
+  const showPopover = $derived(open && !disabled && (loading || options.length > 0 || text !== ''));
 
   function updateAnchor() {
     const rect = inputEl?.getBoundingClientRect();
@@ -86,7 +96,7 @@
   function handleInput(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     text = input.value;
-    value = allowFreeform ? text : '';
+    if (!multiple) value = allowFreeform ? text : '';
     selectedIndex = 0;
     open = true;
     updateAnchor();
@@ -94,10 +104,27 @@
   }
 
   function selectOption(option: T) {
-    value = getValue(option);
-    text = getLabel(option);
-    open = false;
+    if (multiple) {
+      if (selectedValues.has(getValue(option))) return;
+      selectedItems = [...selectedItems, option];
+      text = '';
+      selectedIndex = 0;
+      open = false;
+      ontextchange?.('');
+      inputEl?.focus();
+    } else {
+      value = getValue(option);
+      text = getLabel(option);
+      open = false;
+    }
     onselect?.(option);
+  }
+
+  /** Keep keyboard focus in the search after a pill is removed. */
+  function removeSelection(option: T) {
+    if (disabled) return;
+    selectedItems = selectedItems.filter((selected) => getValue(selected) !== getValue(option));
+    inputEl?.focus();
   }
 
   function clear() {
@@ -119,19 +146,22 @@
         openMenu();
         return;
       }
-      if (items.length > 0) {
-        selectedIndex = (selectedIndex + 1) % items.length;
+      if (options.length > 0) {
+        selectedIndex = (selectedIndex + 1) % options.length;
       }
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      if (items.length > 0) {
-        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+      if (options.length > 0) {
+        selectedIndex = (selectedIndex - 1 + options.length) % options.length;
       }
     } else if (event.key === 'Enter') {
-      if (open && items[selectedIndex]) {
+      if (open && options[selectedIndex]) {
         event.preventDefault();
-        selectOption(items[selectedIndex]);
+        selectOption(options[selectedIndex]);
       }
+    } else if (event.key === 'Backspace' && multiple && !text && selectedItems.length > 0) {
+      event.preventDefault();
+      removeSelection(selectedItems[selectedItems.length - 1]);
     } else if (event.key === 'Escape') {
       if (open) {
         event.preventDefault();
@@ -142,7 +172,39 @@
 </script>
 
 <FormField {id} {label} {error} {description} {labelHidden}>
-  <div class={['relative', className]}>
+  <div
+    class={[
+      'relative',
+      multiple && 'flex input flex-wrap items-center gap-1.5 pe-16 focus-within:border-action',
+      multiple && disabled && 'opacity-60',
+      className
+    ]}
+  >
+    {#if multiple}
+      {#each selectedItems as selected (getValue(selected))}
+        <span
+          class="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full bg-surface-emphasized py-0.5 ps-2 pe-0.5 text-sm"
+          data-testid="combobox-selection"
+        >
+          <bdi class="min-w-0 truncate">{getLabel(selected)}</bdi>
+          <button
+            type="button"
+            class="inline-flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-surface focus-visible:outline-2 focus-visible:outline-action"
+            aria-label={m('ui.combobox.remove', { label: getLabel(selected) })}
+            {disabled}
+            onclick={() => removeSelection(selected)}
+            onkeydown={(event) => {
+              if (event.key === 'Backspace' || event.key === 'Delete') {
+                event.preventDefault();
+                removeSelection(selected);
+              }
+            }}
+          >
+            <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
+          </button>
+        </span>
+      {/each}
+    {/if}
     <input
       bind:this={inputEl}
       {id}
@@ -156,6 +218,9 @@
       aria-expanded={showPopover}
       aria-autocomplete="list"
       aria-controls={`${id}-listbox`}
+      aria-activedescendant={showPopover && options[selectedIndex]
+        ? `${id}-option-${selectedIndex}`
+        : undefined}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={[
         error ? `${id}-error` : description ? `${id}-description` : undefined,
@@ -163,7 +228,9 @@
       ]
         .filter(Boolean)
         .join(' ') || undefined}
-      class={['input pe-16', loading && 'pe-20', selectionAdornment && value && 'pe-28']}
+      class={multiple
+        ? 'min-h-7 min-w-20 flex-1 bg-transparent text-text outline-none placeholder:text-muted/70'
+        : ['input pe-16', loading && 'pe-20', selectionAdornment && value && 'pe-28']}
       onfocus={openMenu}
       oninput={handleInput}
       onkeydown={handleKeydown}
@@ -207,11 +274,12 @@
 >
   <!-- Scroll inside the section so the frame's inset and border stay visible. -->
   <div class="max-h-72 overflow-y-auto menu-section">
-    {#if items.length > 0}
-      {#each items as option, index (getValue(option))}
+    {#if options.length > 0}
+      {#each options as option, index (getValue(option))}
         <button
           type="button"
           role="option"
+          id={`${id}-option-${index}`}
           aria-selected={index === selectedIndex}
           class={['menu-item w-full text-start', index === selectedIndex && 'menu-item-active']}
           onpointerenter={() => (selectedIndex = index)}

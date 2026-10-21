@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "A carregar...",
       "empty": "Sem correspondência",
-      "clear": "Limpar"
+      "clear": "Limpar",
+      "remove": "Remover {label}"
     },
     "expiry": {
       "24h": "24 horas",

@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Lid uitnodigen",
       "invited": "Je bent uitgenodigd",
-      "sent": "Uitnodiging verzonden",
+      "sent": "Uitnodigingen verzonden",
       "sender": "Uitgenodigd door {name}",
       "expires": "Verloopt op {date}",
       "unavailable": "Je kunt deze uitnodiging momenteel niet accepteren. Je kunt deze nog wel weigeren.",
       "accept": "Uitnodiging accepteren",
-      "decline": "Weigeren"
+      "decline": "Weigeren",
+      "title": "Leden uitnodigen voor #{room}",
+      "description": "Kies wie je wilt uitnodigen. Zij zien de ruimte in hun zijbalk en hebben zeven dagen om de uitnodiging te accepteren of te weigeren.",
+      "members": "Leden",
+      "send": "Uitnodigingen verzenden",
+      "failed": "Kan {name} niet uitnodigen: {error}"
     }
   }
 }

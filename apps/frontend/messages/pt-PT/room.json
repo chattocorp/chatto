@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Convidar membro",
       "invited": "Recebeu um convite",
-      "sent": "Convite enviado",
+      "sent": "Convites enviados",
       "sender": "Convite de {name}",
       "expires": "Expira em {date}",
       "unavailable": "Não é possível aceitar este convite de momento. Ainda o pode recusar.",
       "accept": "Aceitar convite",
-      "decline": "Recusar"
+      "decline": "Recusar",
+      "title": "Convidar membros para #{room}",
+      "description": "Escolha quem pretende convidar. Os membros verão a sala na barra lateral e terão sete dias para aceitar ou recusar.",
+      "members": "Membros",
+      "send": "Enviar convites",
+      "failed": "Não foi possível convidar {name}: {error}"
     }
   }
 }

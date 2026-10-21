@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+import { getToasts, toast } from '$lib/ui/toast';
+import { ConnectError, Code } from '@connectrpc/connect';
 import { RoomInvitationService } from '@chatto/api-types/api/v1/room_invitations_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
@@ -33,6 +35,7 @@ const room: RoomsListItem = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  toast.clear();
   createTestServerScope({
     routes: (router) => {
       router.service(RoomInvitationService, invitations);
@@ -52,9 +55,9 @@ describe('Invite room member dialog', () => {
   it('searches existing members and submits the selected recipient', async () => {
     const onclose = vi.fn();
     render(InviteRoomMemberDialog, { room, onclose });
-    const submit = page.getByRole('button', { name: 'Invite member', exact: true });
+    const submit = page.getByRole('button', { name: 'Send invitations', exact: true });
     await expect.element(submit).toBeDisabled();
-    await page.getByRole('combobox', { name: 'Invite member' }).fill('bob');
+    await page.getByRole('combobox', { name: 'Members' }).fill('bob');
     await page.getByRole('option').click();
     await submit.click();
     await vi.waitFor(() => expect(invitations.createRoomInvitation).toHaveBeenCalledOnce());
@@ -63,5 +66,85 @@ describe('Invite room member dialog', () => {
       recipientId: 'recipient-1'
     });
     expect(onclose).toHaveBeenCalledOnce();
+  });
+  it('keeps failed recipients selected and retries only them', async () => {
+    const onclose = vi.fn();
+    users.listUsers.mockReturnValue({
+      users: [
+        { user: { id: 'bob', login: 'bob', displayName: 'Bob' } },
+        { user: { id: 'carol', login: 'carol', displayName: 'Carol' } }
+      ],
+      page: { hasMore: false, totalCount: 2n }
+    });
+    invitations.createRoomInvitation.mockImplementation((request) => {
+      if (request.recipientId === 'carol')
+        throw new ConnectError('Please try again', Code.Unavailable);
+      return { invitation: { id: 'invite-bob' } };
+    });
+    render(InviteRoomMemberDialog, { room, onclose });
+    await expect
+      .element(page.getByRole('dialog', { name: 'Invite members to #Project' }))
+      .toBeVisible();
+    await expect
+      .element(page.getByText('They will see the room in their sidebar', { exact: false }))
+      .toBeVisible();
+    const search = page.getByRole('combobox', { name: 'Members' });
+    await search.fill('b');
+    await page.getByRole('option', { name: 'Bob', exact: false }).click();
+    await search.fill('c');
+    await page.getByRole('option', { name: 'Carol', exact: false }).click();
+    await page.getByRole('button', { name: 'Send invitations' }).click();
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Could not invite Carol');
+    await expect.element(page.getByRole('button', { name: 'Remove Bob' })).not.toBeInTheDocument();
+    await expect.element(page.getByRole('button', { name: 'Remove Carol' })).toBeVisible();
+    expect(onclose).not.toHaveBeenCalled();
+    expect(
+      invitations.createRoomInvitation.mock.calls.map(([request]) => request.recipientId)
+    ).toEqual(['bob', 'carol']);
+    invitations.createRoomInvitation.mockReturnValue({ invitation: { id: 'invite-carol' } });
+    await page.getByRole('button', { name: 'Send invitations' }).click();
+    await vi.waitFor(() => expect(onclose).toHaveBeenCalledOnce());
+    expect(
+      invitations.createRoomInvitation.mock.calls.map(([request]) => request.recipientId)
+    ).toEqual(['bob', 'carol', 'carol']);
+  });
+  it('stops the batch when the dialog closes during its first request', async () => {
+    const onclose = vi.fn();
+    users.listUsers.mockReturnValue({
+      users: [
+        { user: { id: 'bob', login: 'bob', displayName: 'Bob' } },
+        { user: { id: 'carol', login: 'carol', displayName: 'Carol' } }
+      ],
+      page: { hasMore: false, totalCount: 2n }
+    });
+    let finish!: () => void;
+    invitations.createRoomInvitation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ invitation: { id: 'invite-bob' } });
+        })
+    );
+    render(InviteRoomMemberDialog, { room, onclose });
+    const search = page.getByRole('combobox', { name: 'Members' });
+    await search.fill('b');
+    await page.getByRole('option', { name: 'Bob', exact: false }).click();
+    await search.fill('c');
+    await page.getByRole('option', { name: 'Carol', exact: false }).click();
+    await page.getByRole('button', { name: 'Send invitations' }).click();
+    await vi.waitFor(() => expect(invitations.createRoomInvitation).toHaveBeenCalledOnce());
+    await expect.element(search).toBeDisabled();
+    (
+      page.getByRole('button', { name: 'Close', exact: true }).element() as HTMLButtonElement
+    ).click();
+    expect(onclose).not.toHaveBeenCalled();
+    finish();
+    await vi.waitFor(() =>
+      expect(invitations.createRoomInvitation.mock.settledResults[0]?.type).toBe('fulfilled')
+    );
+    // Let the browser flush the remaining Connect response and render microtasks.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(invitations.createRoomInvitation).toHaveBeenCalledOnce();
+    expect(getToasts()).toEqual([]);
+    await vi.waitFor(() => expect(onclose).toHaveBeenCalledOnce());
   });
 });

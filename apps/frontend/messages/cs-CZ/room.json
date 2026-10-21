@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Pozvat člena",
       "invited": "Máte pozvánku",
-      "sent": "Pozvánka odeslána",
+      "sent": "Pozvánky odeslány",
       "sender": "Pozvání od {name}",
       "expires": "Platí do {date}",
       "unavailable": "Tuto pozvánku nyní nemůžete přijmout. Stále ji můžete odmítnout.",
       "accept": "Přijmout pozvánku",
-      "decline": "Odmítnout"
+      "decline": "Odmítnout",
+      "title": "Pozvat členy do #{room}",
+      "description": "Vyberte, koho chcete pozvat. Místnost uvidí v postranním panelu a budou mít sedm dní na přijetí nebo odmítnutí pozvánky.",
+      "members": "Členové",
+      "send": "Odeslat pozvánky",
+      "failed": "Nepodařilo se pozvat {name}: {error}"
     }
   }
 }

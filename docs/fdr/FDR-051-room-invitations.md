@@ -10,6 +10,10 @@ channel room. The recipient accepts or declines in the room welcome screen.
 
 ## Behavior
 
+- The invitation dialog names the room and explains the seven-day response
+  period. Senders can select several members as removable pills before sending.
+  If some invitations fail, successful recipients leave the selection and
+  failed recipients remain available for retry.
 - Invitations expire after seven days. A room and recipient can have one
   pending invitation. Sending it again does not extend its expiry.
 - The sender must be a room member with `room.invite`. Acceptance checks that

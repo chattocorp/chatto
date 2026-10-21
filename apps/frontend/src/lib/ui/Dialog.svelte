@@ -47,6 +47,7 @@ and cannot be combined with semantic actions.
     titleContent,
     size = 'md',
     describedBy,
+    oncloserequest,
     onclose
   }: {
     visible?: boolean;
@@ -65,6 +66,8 @@ and cannot be combined with semantic actions.
     mediaViewer?: boolean;
     /** Image-first viewer uses a larger desktop stage. */
     imageViewer?: boolean;
+    /** Runs when dismissal starts, before the closing animation. */
+    oncloserequest?: () => void;
     onclose?: () => void;
   } & ActionContent = $props();
   const narrowTouch = new MediaQuery(NARROW_TOUCH_QUERY, false);
@@ -172,6 +175,7 @@ and cannot be combined with semantic actions.
   {sheet}
   labelledBy={title ? titleId : undefined}
   {describedBy}
+  {oncloserequest}
   {onclose}
   autofocusContent
   onkeydown={handleKeydown}

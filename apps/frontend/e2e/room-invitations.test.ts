@@ -26,6 +26,11 @@ for (const answer of ['accept', 'decline'] as const) {
         });
       }
       const recipient = await createAndLoginTestUser(recipientPage);
+      const additionalContext = await browser.newContext({ baseURL: serverURL });
+      const additional = await createAndLoginTestUser(await additionalContext.newPage(), {
+        loginPrefix: 'additional'
+      });
+      await additionalContext.close();
       const roomId = await withBootstrapAdminRequest(serverURL, async (admin) => {
         const { group } = await connectPost<{ group: { id: string } }>(
           admin,
@@ -63,11 +68,49 @@ for (const answer of ['accept', 'decline'] as const) {
       const senderRoom = senderPage.locator(`a[href="${routes.room(roomId)}"]`);
       await senderRoom.click({ button: 'right' });
       await senderPage.getByRole('menuitem', { name: 'Invite member', exact: true }).click();
-      const dialog = senderPage.getByRole('dialog', { name: 'Invite member' });
-      await dialog.getByRole('combobox', { name: 'Invite member' }).fill(recipient.login);
+      const dialog = senderPage.getByRole('dialog', {
+        name: 'Invite members to #Private invitation project'
+      });
+      await dialog.getByRole('combobox', { name: 'Members' }).fill(recipient.login);
       await dialog.getByRole('option').click();
-      await dialog.getByRole('button', { name: 'Invite member', exact: true }).click();
+      await expect(
+        dialog.getByRole('button', { name: `Remove ${recipient.displayName}`, exact: true })
+      ).toBeVisible();
+      await dialog.getByRole('combobox', { name: 'Members' }).fill(additional.login);
+      await dialog.getByRole('option').click();
+      await expect(dialog.getByTestId('combobox-selection')).toHaveCount(2);
+      if (answer === 'accept') {
+        await senderPage.screenshot({
+          animations: 'disabled',
+          path: test.info().outputPath('invite-members-desktop.png')
+        });
+        await senderPage.emulateMedia({ colorScheme: 'dark' });
+        await expect(senderPage.locator('html')).toHaveAttribute('data-theme', 'dark');
+        await senderPage.screenshot({
+          animations: 'disabled',
+          path: test.info().outputPath('invite-members-dark.png')
+        });
+        await senderPage.setViewportSize({ width: 390, height: 844 });
+        await expect(
+          dialog.getByRole('button', { name: 'Send invitations', exact: true })
+        ).toBeInViewport();
+        await expect(dialog.getByRole('combobox', { name: 'Members' })).toBeInViewport();
+        await senderPage.screenshot({
+          animations: 'disabled',
+          path: test.info().outputPath('invite-members-mobile.png')
+        });
+        await senderPage.setViewportSize({ width: 1280, height: 900 });
+      }
+      await dialog.getByRole('button', { name: 'Send invitations', exact: true }).click();
       await expect(dialog).not.toBeVisible();
+      const sent = await connectPost<{ invitations: { recipientId: string }[] }>(
+        senderPage,
+        'chatto.api.v1.RoomInvitationService/ListRoomInvitations',
+        { sent: true, pendingOnly: true }
+      );
+      expect(sent.invitations.map((invitation) => invitation.recipientId)).toEqual(
+        expect.arrayContaining([recipient.id, additional.id])
+      );
 
       await expect(recipientRoom).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(recipientRoom.getByRole('img', { name: 'You have been invited' })).toBeVisible();
@@ -114,8 +157,9 @@ for (const answer of ['accept', 'decline'] as const) {
         // Cache an empty search while the recipient is still a room member.
         await senderRoom.click({ button: 'right' });
         await senderPage.getByRole('menuitem', { name: 'Invite member', exact: true }).click();
-        await dialog.getByRole('combobox', { name: 'Invite member' }).fill(recipient.login);
+        await dialog.getByRole('combobox', { name: 'Members' }).fill(recipient.login);
         await expect(dialog).toContainText('No users found');
+        await dialog.getByRole('combobox', { name: 'Members' }).press('Escape');
         await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(dialog).not.toBeVisible();
 
@@ -140,10 +184,10 @@ for (const answer of ['accept', 'decline'] as const) {
         // The same query must find the removed member without reloading the sender.
         await senderRoom.click({ button: 'right' });
         await senderPage.getByRole('menuitem', { name: 'Invite member', exact: true }).click();
-        await dialog.getByRole('combobox', { name: 'Invite member' }).fill(recipient.login);
+        await dialog.getByRole('combobox', { name: 'Members' }).fill(recipient.login);
         await expect(dialog.getByRole('option')).toBeVisible();
         await dialog.getByRole('option').click();
-        await dialog.getByRole('button', { name: 'Invite member', exact: true }).click();
+        await dialog.getByRole('button', { name: 'Send invitations', exact: true }).click();
         await expect(dialog).not.toBeVisible();
       } else {
         await expect(recipientRoom).not.toBeAttached();

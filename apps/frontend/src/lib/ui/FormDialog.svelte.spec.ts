@@ -5,6 +5,20 @@ import FormDialog from './FormDialog.svelte';
 import { page, userEvent } from 'vitest/browser';
 
 describe('FormDialog', () => {
+  it('announces cancellation before invoking the close callback', async () => {
+    const calls: string[] = [];
+    render(FormDialog, {
+      visible: true,
+      title: 'Cancel test',
+      children: testSnippet('<input />'),
+      onsubmit: vi.fn(),
+      oncloserequest: () => calls.push('request'),
+      onclose: () => calls.push('closed')
+    });
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    expect(calls).toEqual(['request', 'closed']);
+  });
+
   it('renders secondary actions in the footer without submitting the form', async () => {
     const onsubmit = vi.fn();
     const { container } = render(FormDialog, {

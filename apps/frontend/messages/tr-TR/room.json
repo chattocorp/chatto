@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Üye davet et",
       "invited": "Davet edildiniz",
-      "sent": "Davet gönderildi",
+      "sent": "Davetler gönderildi",
       "sender": "Davet eden: {name}",
       "expires": "Son tarih: {date}",
       "unavailable": "Bu daveti şu anda kabul edemezsiniz. Yine de reddedebilirsiniz.",
       "accept": "Daveti kabul et",
-      "decline": "Reddet"
+      "decline": "Reddet",
+      "title": "#{room} odasına üyeleri davet et",
+      "description": "Davet etmek istediğiniz kişileri seçin. Odayı kenar çubuklarında görecekler ve kabul etmek veya reddetmek için yedi günleri olacak.",
+      "members": "Üyeler",
+      "send": "Davetleri gönder",
+      "failed": "{name} davet edilemedi: {error}"
     }
   }
 }

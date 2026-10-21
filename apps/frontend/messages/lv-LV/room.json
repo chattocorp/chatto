@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Uzaicināt dalībnieku",
       "invited": "Jūs esat uzaicināts",
-      "sent": "Uzaicinājums nosūtīts",
+      "sent": "Uzaicinājumi nosūtīti",
       "sender": "Uzaicināja {name}",
       "expires": "Derīgs līdz {date}",
       "unavailable": "Pašlaik jūs nevarat pieņemt šo uzaicinājumu. Jūs joprojām varat to noraidīt.",
       "accept": "Pieņemt uzaicinājumu",
-      "decline": "Noraidīt"
+      "decline": "Noraidīt",
+      "title": "Uzaicināt dalībniekus uz #{room}",
+      "description": "Izvēlieties, ko vēlaties uzaicināt. Viņi redzēs istabu sānjoslā un varēs pieņemt vai noraidīt uzaicinājumu septiņu dienu laikā.",
+      "members": "Dalībnieki",
+      "send": "Sūtīt uzaicinājumus",
+      "failed": "Neizdevās uzaicināt {name}: {error}"
     }
   }
 }

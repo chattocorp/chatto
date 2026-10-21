@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Invite member",
       "invited": "You have been invited",
-      "sent": "Invitation sent",
+      "sent": "Invitations sent",
       "sender": "Invited by {name}",
       "expires": "Expires on {date}",
       "unavailable": "This invitation cannot be accepted at present. You can still decline it.",
       "accept": "Accept invitation",
-      "decline": "Decline"
+      "decline": "Decline",
+      "title": "Invite members to #{room}",
+      "description": "Choose who you would like to invite. They will see the room in their sidebar and have seven days to accept or decline.",
+      "members": "Members",
+      "send": "Send invitations",
+      "failed": "Could not invite {name}: {error}"
     }
   }
 }

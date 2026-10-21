@@ -53,6 +53,7 @@ The submit button's color follows `submitTone` (`action` by default; use
     disabled = false,
     error,
     onsubmit,
+    oncloserequest,
     onclose
   }: {
     children: Snippet;
@@ -94,8 +95,15 @@ The submit button's color follows `submitTone` (`action` by default; use
     /** Submission error to render below the form fields. */
     error?: string | null;
     onsubmit: (e: SubmitEvent) => void;
+    /** Runs when dismissal starts, before the closing animation. */
+    oncloserequest?: () => void;
     onclose: () => void;
   } = $props();
+
+  function cancel(): void {
+    oncloserequest?.();
+    onclose();
+  }
 
   function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -123,6 +131,7 @@ The submit button's color follows `submitTone` (`action` by default; use
   {size}
   {secondaryActions}
   describedBy={description ? descriptionId : undefined}
+  {oncloserequest}
   {onclose}
 >
   <form id={formId} onsubmit={handleSubmit} class="flex flex-col gap-5">
@@ -141,7 +150,7 @@ The submit button's color follows `submitTone` (`action` by default; use
   {@render overlays?.()}
 
   {#snippet dismissAction()}
-    <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>
+    <Button type="button" variant="secondary" onclick={cancel} disabled={loading}>
       {#if cancelIcon}<span aria-hidden="true" class={cancelIcon}></span>{/if}
       {cancelLabel}
     </Button>

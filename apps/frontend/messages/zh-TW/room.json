@@ -322,7 +322,12 @@
       "expires": "到期時間：{date}",
       "unavailable": "你目前無法接受此邀請，但仍可拒絕。",
       "accept": "接受邀請",
-      "decline": "拒絕"
+      "decline": "拒絕",
+      "title": "邀請成員加入 #{room}",
+      "description": "選擇你想邀請的成員。他們會在側邊欄看到聊天室，並有七天時間接受或拒絕邀請。",
+      "members": "成員",
+      "send": "傳送邀請",
+      "failed": "無法邀請 {name}：{error}"
     }
   }
 }

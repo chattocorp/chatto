@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Inviter un membre",
       "invited": "Vous avez reçu une invitation",
-      "sent": "Invitation envoyée",
+      "sent": "Invitations envoyées",
       "sender": "Invitation de {name}",
       "expires": "Expire le {date}",
       "unavailable": "Vous ne pouvez pas accepter cette invitation pour le moment. Vous pouvez toujours la refuser.",
       "accept": "Accepter l’invitation",
-      "decline": "Refuser"
+      "decline": "Refuser",
+      "title": "Inviter des membres dans #{room}",
+      "description": "Choisissez les personnes à inviter. Elles verront le salon dans leur barre latérale et auront sept jours pour accepter ou refuser.",
+      "members": "Membres",
+      "send": "Envoyer les invitations",
+      "failed": "Impossible d’inviter {name} : {error}"
     }
   }
 }

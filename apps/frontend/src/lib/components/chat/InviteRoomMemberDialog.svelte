@@ -1,6 +1,9 @@
-<!-- @component Selects a server member and sends one room invitation. -->
+<!-- @component Selects server members and sends independent room invitations. -->
 <script lang="ts">
-  import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
+  import {
+    createMemberDirectoryAPI,
+    type DirectoryMember
+  } from '@chatto/client/api/memberDirectory';
   import { createRoomInvitationAPI } from '@chatto/client/api/roomInvitations';
   import { isBotAccount } from '@chatto/client/timeline/accountName';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -20,7 +23,7 @@
   let { room, onclose }: { room: RoomsListItem; onclose: () => void } = $props();
   const scope = useServerScope();
   const session = createSessionGuard(scope);
-  let selectedId = $state('');
+  let selected = $state<DirectoryMember[]>([]);
   let search = $state('');
   let sending = $state(false);
   let error = $state<string | null>(null);
@@ -52,48 +55,76 @@
   });
   const candidates = $derived(query.data ?? []);
 
+  /** Invalidate pending sends before the parent clears the dialog's room target. */
+  function close(): void {
+    session.invalidate();
+    onclose();
+  }
+
   async function send(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!selectedId || sending) return;
+    if (!selected.length || sending) return;
     const snapshot = session.snapshot();
     const targetRoom = room.id;
+    const recipients = [...selected];
+    const failures: string[] = [];
     sending = true;
     error = null;
-    let sent = false;
     try {
-      await scope.connection
-        .getAPI(createRoomInvitationAPI)
-        .createInvitation(targetRoom, selectedId);
-      if (!session.isCurrent(snapshot) || targetRoom !== room.id) return;
-      toast.success(m('room.invitation.sent'));
-      sent = true;
-    } catch (cause) {
-      if (session.isCurrent(snapshot) && targetRoom === room.id) error = errorMessage(cause);
+      // Keep at most one request in flight. Completed recipients leave the draft,
+      // so a partial failure can be retried without sending successful invites again.
+      for (const recipient of recipients) {
+        if (!session.isCurrent(snapshot) || targetRoom !== room.id) return;
+        try {
+          await scope.connection
+            .getAPI(createRoomInvitationAPI)
+            .createInvitation(targetRoom, recipient.id);
+          if (!session.isCurrent(snapshot) || targetRoom !== room.id) return;
+          selected = selected.filter((user) => user.id !== recipient.id);
+        } catch (cause) {
+          if (!session.isCurrent(snapshot) || targetRoom !== room.id) return;
+          failures.push(
+            m('room.invitation.failed', {
+              name: recipient.displayName || recipient.login,
+              error: errorMessage(cause)
+            })
+          );
+        }
+      }
+      error = failures.length ? failures.join(' ') : null;
     } finally {
       if (session.isCurrent(snapshot) && targetRoom === room.id) sending = false;
     }
-    // Closing clears the parent target immediately. Do not read room props afterwards.
-    if (sent) onclose();
+    if (!session.isCurrent(snapshot) || targetRoom !== room.id) return;
+    if (!selected.length) {
+      toast.success(m('room.invitation.sent'));
+      close();
+    }
   }
 </script>
 
 <FormDialog
   visible
-  title={m('room.invitation.invite')}
-  submitLabel={m('room.invitation.invite')}
+  title={m('room.invitation.title', { room: room.name })}
+  submitLabel={m('room.invitation.send')}
   submitIcon="iconify icon-[uil--user-plus]"
   loading={sending}
-  disabled={!selectedId}
+  disabled={!selected.length}
   {error}
   onsubmit={send}
-  {onclose}
+  oncloserequest={() => session.invalidate()}
+  onclose={close}
 >
-  <p class="mb-4"><bdi>#{room.name}</bdi></p>
+  {#snippet description()}
+    {m('room.invitation.description')}
+  {/snippet}
   <Combobox
     id="room-invitation-recipient"
-    label={m('room.invitation.invite')}
+    label={m('room.invitation.members')}
     placeholder={m('common.user_search_placeholder')}
-    bind:value={selectedId}
+    multiple
+    bind:selectedItems={selected}
+    disabled={sending}
     bind:text={search}
     items={candidates}
     getValue={(user) => user.id}

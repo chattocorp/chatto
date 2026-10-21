@@ -317,12 +317,17 @@
     "invitation": {
       "invite": "Bjud in medlem",
       "invited": "Du har blivit inbjuden",
-      "sent": "Inbjudan skickad",
+      "sent": "Inbjudningar skickade",
       "sender": "Inbjuden av {name}",
       "expires": "Upphör {date}",
       "unavailable": "Du kan inte acceptera denna inbjudan just nu. Du kan fortfarande avböja den.",
       "accept": "Acceptera inbjudan",
-      "decline": "Avböj"
+      "decline": "Avböj",
+      "title": "Bjud in medlemmar till #{room}",
+      "description": "Välj vilka du vill bjuda in. De ser rummet i sidofältet och har sju dagar på sig att acceptera eller avböja.",
+      "members": "Medlemmar",
+      "send": "Skicka inbjudningar",
+      "failed": "Kunde inte bjuda in {name}: {error}"
     }
   }
 }
