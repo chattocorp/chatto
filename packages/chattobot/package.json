@@ -17,6 +17,7 @@
     "eval:github": "runling run tasks/evaluate-github.ts",
     "eval:docs": "runling run tasks/evaluate-docs.ts",
     "eval:intake": "runling run tasks/evaluate-intake.ts",
+    "eval:style": "CHATTO_EVAL_STYLE=1 node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run tasks/conversation-style-eval.test.ts",
     "eval:paseo": "CHATTO_EVAL_PASEO=1 node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run tasks/paseo-eval.test.ts"
   },
   "dependencies": {

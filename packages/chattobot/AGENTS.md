@@ -15,8 +15,9 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends messages to the
   run of their thread. Addressed messages and report intake can start a run.
   Ordinary thread replies only notify an existing run, including a recovered run.
-  All DM messages, including thread replies, are addressed input and pass the
-  participation classifier. A current maintainer's accepted DM can authorize
+  All DM messages, including thread replies, are addressed input. Verified
+  pings, replies to the bot, and DMs always reach the conversation without a
+  participation check. A current maintainer's DM can authorize
   delegation without a mention. Channel thread replies require an explicit
   mention or a verified reply to the bot for delegation. Reactions to bot
   messages pass a separate participation check before they become addressed input.
@@ -24,10 +25,10 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
   later addressed messages to that child. Addressed entry starts the same workflow
-  and passes the participation classifier. Batch all incoming messages, including the first
+  without initial classification. Batch all incoming messages, including the first
   post, pings, direct replies, and reactions to bot messages, in a fixed three-second window. The first queued
   message starts it; later arrivals do not extend it. The window elapses while the
-  conversation is busy. Classify explicit text batches before forwarding them. Check each reaction
+  conversation is busy. Forward verified addressed text batches directly. Check each reaction
   with the participation classifier and forward only accepted reactions. Ordinary
   reply batches wake a classification check without a second delay. Preserve each message's
   author and trigger, including in the first conversation turn. Pending intake
@@ -60,8 +61,8 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Keep its policy shared with the default agent classifier. This setting does
   not change authorization classifiers. Keep the classifier free of tools
   and Chatto effects. It chooses ignore, engage, or a bounded emoji acknowledgment.
-  The workflow owns the reaction write and its consumed message IDs. A classifier
-  or context failure forwards verified explicit text; other failures stay silent.
+  The workflow owns the reaction write and its consumed message IDs. Failed
+  automatic intake, ordinary reply, and reaction checks stay silent.
   Check model behavior with `pnpm eval:intake`.
 - Register the thread root as `chattoThread` for Runling recovery. The root owns
   its plain `ctx.state`: accepted entry, delivered IDs, pending reply IDs, checked batch, and activity
@@ -74,7 +75,8 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
   each turn, and the only posts to the thread. The agent's final text is the
   reply. The conversation has no general reaction tool. Emoji-only acknowledgments
-  belong to the participation classifier and workflow. Keep the automatic root checkmark under
+  for ordinary unaddressed replies belong to the participation classifier and
+  workflow. Keep the automatic root checkmark under
   `setHandled`, including its pending-work and closing-reply rules.
 - Added reactions to this bot's messages need a participation check. Read the target
   from Chatto to verify its author and thread. Preserve the server-authenticated reaction

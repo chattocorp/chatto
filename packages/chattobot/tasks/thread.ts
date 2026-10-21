@@ -63,7 +63,7 @@ interface ThreadState {
 }
 
 /** The router only starts this workflow and delivers messages. Classification, silence, and
- * the child conversation belong here. Addressed input interrupts an obsolete check and receives its own classification. */
+ * the child conversation belong here. Addressed text interrupts an obsolete check and always reaches the conversation. */
 export function createThreadWorkflow(
   configure:
     | ThreadOptions
@@ -111,8 +111,8 @@ export function createThreadWorkflow(
         }
         return [];
       };
-      // Explicit text and incoming reactions share one gate. Reactions stay separate so
-      // approval of one proposal cannot admit an unrelated reaction in the same window.
+      // Verified addressed text always reaches the conversation. Reactions stay separate
+      // so approval of one proposal cannot admit an unrelated reaction in the same window.
       const accept = async (batch: IncomingMessage[]) => {
         checkingInput = true;
         try {
@@ -123,41 +123,13 @@ export function createThreadWorkflow(
               !state.delivered.includes(item.id)
           );
           const accepted = fresh.filter((item) => item.trigger === 'intake');
-          const text = fresh.filter((item) => !item.reaction && !item.trigger);
-          if (text.length) {
-            const verified: IncomingMessage[] = [];
-            try {
-              const inputs = [];
-              for (const item of text) {
-                // A failed read belongs to this message, not the rest of its batch.
-                const input = await read(item, ctx.signal).catch(() => {
-                  ctx.signal.throwIfAborted();
-                  log.error('Addressed message could not be verified; skipping this message');
-                  return undefined;
-                });
-                if (input) {
-                  verified.push({ ...item, body: input.body });
-                  inputs.push(input);
-                }
-              }
-              if (verified.length) {
-                const context = await options.readContext(verified, ctx.signal);
-                const decision = await classifier(ctx, {
-                  addressed: true,
-                  trackHandled: state.first?.trigger === 'intake',
-                  context,
-                  messages: inputs
-                });
-                if (decision.action === 'ignore')
-                  state.consumed.push(...verified.map((item) => item.id));
-                accepted.push(...(await applyDecision(decision, verified, ctx.signal)));
-              }
-            } catch {
+          for (const item of fresh.filter((item) => !item.reaction && !item.trigger)) {
+            const input = await read(item, ctx.signal).catch(() => {
               ctx.signal.throwIfAborted();
-              // A model/context outage must not swallow verified explicit requests.
-              log.error('Addressed participation check failed; forwarding verified messages');
-              accepted.push(...verified);
-            }
+              log.error('Addressed message could not be verified; skipping this message');
+              return undefined;
+            });
+            if (input) accepted.push({ ...item, body: input.body });
           }
           for (const item of fresh.filter((item) => item.reaction)) {
             try {
