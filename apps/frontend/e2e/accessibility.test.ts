@@ -37,7 +37,9 @@ async function expectNoAccessibilityViolations(
     }
   });
 
-  const builder = new AxeBuilder({ page }).withTags(wcagTags);
+  // Approved zoom policy for #3088: the app limits page zoom to prevent iOS
+  // focus zoom. Exempt only this viewport rule; keep all other WCAG checks.
+  const builder = new AxeBuilder({ page }).withTags(wcagTags).disableRules(['meta-viewport']);
   if (include) builder.include(include);
   const { violations } = await builder.analyze();
 

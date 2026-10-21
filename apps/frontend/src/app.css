@@ -2475,8 +2475,8 @@
     overflow: hidden;
     /* pan-y lets the browser own vertical scroll while reserving horizontal
        pans for our own gesture handling (mobile sidebar swipe). It also
-       implicitly disables pinch-zoom and double-tap-zoom — same as the
-       previous `manipulation` value. */
+       disables pinch-zoom and double-tap-zoom. Unlike pan-y,
+       manipulation permits pinch-zoom. */
     touch-action: pan-y;
     /* Without this, Chrome (and some other browsers) interpret horizontal
        swipes from the viewport edge as back/forward navigation gestures and
