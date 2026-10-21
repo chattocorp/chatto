@@ -1,6 +1,7 @@
 version: v2
 plugins:
-  - local: ["go", "tool", "protoc-gen-go"]
+  # mise codegen-proto builds the pinned generator and adds it to PATH.
+  - local: protoc-gen-go
     out: internal/pb
     opt:
       - paths=source_relative
