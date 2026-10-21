@@ -10,7 +10,8 @@ import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import type { RoomsListItem } from '$lib/state/server/navigation';
 import RoomInvitationScreen from './RoomInvitationScreen.svelte';
 
-const { goto } = vi.hoisted(() => ({ goto: vi.fn() }));
+const { goto, startDMWith } = vi.hoisted(() => ({ goto: vi.fn(), startDMWith: vi.fn() }));
+vi.mock('$lib/dm/startDM', () => ({ startDMWith }));
 vi.mock('$app/navigation', () => ({
   goto,
   pushState: vi.fn(),
@@ -22,6 +23,16 @@ vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
+// The route normally supplies live-profile context; these menu tests use the fetched sender snapshot.
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_id: string, fallback: string | null) => fallback,
+  getLiveBio: (_id: string, fallback: string | null) => fallback,
+  getLiveTimezone: (_id: string, fallback: string | null) => fallback,
+  getLiveDisplayName: (_id: string, fallback: string) => fallback,
+  getLiveLogin: (_id: string, fallback: string) => fallback,
+  getLiveAvatarUrl: (_id: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_id: string, fallback: unknown) => fallback
+}));
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 const invitations = mockService(RoomInvitationService);
 const users = mockService(UserService);
@@ -89,11 +100,40 @@ describe('Room invitation welcome screen', () => {
       await expect
         .element(dialog)
         .toHaveTextContent(
-          canJoin ? 'You can join this room later.' : 'You will need a new invitation to join this room.'
+          canJoin
+            ? 'You can join this room later.'
+            : 'You will need a new invitation to join this room.'
         );
       await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
       await expect.element(dialog).not.toBeInTheDocument();
       expect(invitations.declineRoomInvitation).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([false, true])(
+    'offers inviter conversation only when permitted=%s',
+    async (canStartDMs) => {
+      createTestServerScope({
+        serverId: 'invitation-server',
+        permissions: { canStartDMs },
+        routes: (router) => {
+          router.service(RoomInvitationService, invitations);
+          router.service(UserService, users);
+        }
+      });
+      render(RoomInvitationScreen, { room: room(), serverSegment: '-' });
+      await page.getByTestId('user-identity').click();
+      await expect
+        .element(page.getByRole('button', { name: 'View profile', exact: true }))
+        .toBeVisible();
+      const conversation = page.getByRole('button', { name: 'Open conversation', exact: true });
+      if (canStartDMs) {
+        await conversation.click();
+        expect(startDMWith).toHaveBeenCalledWith('invitation-server', 'sender-1');
+      } else {
+        await expect.element(conversation).not.toBeInTheDocument();
+        expect(startDMWith).not.toHaveBeenCalled();
+      }
     }
   );
 

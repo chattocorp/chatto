@@ -125,7 +125,21 @@ for (const answer of ['accept', 'decline'] as const) {
       await expect(welcome).toContainText(sender.displayName);
       await welcome.getByTestId('user-identity').click();
       await expect(recipientPage.getByRole('dialog')).toContainText(sender.displayName);
+      await recipientPage.getByRole('button', { name: 'View profile', exact: true }).click();
+      const profile = recipientPage.getByRole('dialog', { name: 'View profile', exact: true });
+      await expect(profile.getByTestId('profile-user-card')).toContainText(sender.displayName);
+      await recipientPage.screenshot({
+        animations: 'disabled',
+        path: test.info().outputPath('inviter-profile.png')
+      });
       await recipientPage.keyboard.press('Escape');
+      await expect(profile).not.toBeVisible();
+      await welcome.getByTestId('user-identity').click();
+      await recipientPage.getByRole('button', { name: 'Open conversation', exact: true }).click();
+      await expect(recipientPage).toHaveURL(new RegExp(`/user/${sender.id}$`));
+      await expect(new RoomPage(recipientPage).messageInput).toBeVisible();
+      await recipientPage.goto(routes.room(roomId));
+      await expect(welcome).toBeVisible();
       await expect(welcome).toContainText('Expires on');
       await recipientPage.reload();
       await expect(welcome).toBeVisible();
@@ -230,9 +244,9 @@ for (const answer of ['accept', 'decline'] as const) {
           recipientPage.getByRole('button', { name: 'Invitation project', exact: true })
         ).not.toBeVisible();
         await recipientPage.reload();
-        await expect(
-          recipientPage.getByRole('heading', { name: 'Overview', exact: true })
-        ).toBeVisible();
+        // Opening the inviter's conversation establishes the last-room destination.
+        await expect(recipientPage).toHaveURL(new RegExp(`/user/${sender.id}$`));
+        await expect(new RoomPage(recipientPage).messageInput).toBeVisible();
         await expect(recipientRoom).not.toBeAttached();
       }
       expect(errors).toEqual([]);

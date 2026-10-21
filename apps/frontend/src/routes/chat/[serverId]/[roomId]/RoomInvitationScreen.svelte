@@ -9,7 +9,9 @@
   import type { RoomsListItem } from '$lib/state/server/navigation';
   import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
-  import { PageTitle, ConfirmDialog } from '$lib/ui';
+  import { PageTitle, ConfirmDialog, Dialog } from '$lib/ui';
+  import { startDMWith } from '$lib/dm/startDM';
+  import RoomSidebarProfile from './RoomSidebarProfile.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { Button, FormError } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
@@ -21,6 +23,15 @@
   const session = createSessionGuard(scope);
   const invitation = $derived(room.viewerInvitation);
   let answering = $state(false);
+  let profileUserId = $state<string | null>(null);
+  const canStartDMs = $derived(scope.store.permissions.canStartDMs);
+
+  function openConversation(userId: string): void {
+    if (!scope.isCurrent() || !canStartDMs) return;
+    profileUserId = null;
+    void startDMWith(scope.serverId, userId);
+  }
+
   let declineInvitationId = $state<string | null>(null);
   const confirmingDecline = $derived(!!invitation && declineInvitationId === invitation.id);
   let error = $state<string | null>(null);
@@ -75,7 +86,14 @@
     <div class="mt-4 flex flex-wrap items-center justify-center gap-x-2 text-text">
       <span>{m('room.invitation.invited_by')}</span>
       {#if sender.data}
-        <UserIdentity user={sender.data} size="xs" openOnClick />
+        <UserIdentity
+          user={sender.data}
+          size="xs"
+          openOnClick
+          viewerSettings={scope.store.currentUser.user?.settings}
+          onSendMessage={canStartDMs ? openConversation : undefined}
+          onOpenProfile={(userId) => (profileUserId = userId)}
+        />
       {:else if !sender.isPending}
         <span>{m('common.unknown_user')}</span>
       {/if}
@@ -127,4 +145,19 @@
     </p>
     <FormError {error} />
   </ConfirmDialog>
+{/if}
+
+{#if profileUserId}
+  <Dialog
+    visible
+    title={m('chat.user_menu.view_profile')}
+    size="sm"
+    onclose={() => (profileUserId = null)}
+  >
+    <RoomSidebarProfile
+      userId={profileUserId}
+      onSendMessage={canStartDMs ? openConversation : undefined}
+      onOpenProfile={(userId) => (profileUserId = userId)}
+    />
+  </Dialog>
 {/if}
