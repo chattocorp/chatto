@@ -572,11 +572,15 @@ describe('RoomList', () => {
     }
   });
 
-  it.each([1, 2, 3, 4])('fills the minimum around %s recent DMs', (recentCount) => {
+  it.each([
+    { ages: [12, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 1 },
+    { ages: [12, 1, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 2 },
+    { ages: [12, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 3 },
+    { ages: [12, 1, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3, 4], hiddenCount: 3 }
+  ])('fills the minimum for DM ages $ages', ({ ages, visibleIds, hiddenCount }) => {
     const template = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (room) => room.type === RoomKind.DM
     )!;
-    const ages = [12, ...Array.from({ length: recentCount }, () => 1), 8, 10];
     mocks.store.navigation.rooms = ages.map((days, index) => ({
       ...template,
       id: `dm-mixed-${index}`,
@@ -586,15 +590,9 @@ describe('RoomList', () => {
     const visible = Array.from(container.querySelectorAll('a[href^="/chat/-/dm-mixed-"]'), (link) =>
       link.getAttribute('href')
     );
-    const expected = Array.from(
-      { length: recentCount },
-      (_, index) => `/chat/-/dm-mixed-${index + 1}`
-    );
-    if (recentCount < 3) expected.push(`/chat/-/dm-mixed-${recentCount + 1}`);
-    if (recentCount < 2) expected.push(`/chat/-/dm-mixed-${recentCount + 2}`);
-    expect(visible).toEqual(expected);
+    expect(visible).toEqual(visibleIds.map((id) => `/chat/-/dm-mixed-${id}`));
     expect(container.querySelector('[data-testid="older-conversations"]')).toHaveTextContent(
-      `Show older (${ages.length - expected.length})`
+      `Show older (${hiddenCount})`
     );
   });
 

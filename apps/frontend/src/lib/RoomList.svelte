@@ -589,12 +589,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (visible.length >= 3) return visible;
 
     // Fill the minimum with the newest older conversations, then keep navigation order.
-    const visibleIds = visible.map((room) => room.id);
     const older = dmRooms
-      .filter((room) => !visibleIds.includes(room.id))
+      .filter((room) => !visible.includes(room))
       .sort((a, b) => Date.parse(b.lastMessageAt!) - Date.parse(a.lastMessageAt!));
-    for (const room of older.slice(0, 3 - visible.length)) visibleIds.push(room.id);
-    return dmRooms.filter((room) => visibleIds.includes(room.id));
+    visible.push(...older.slice(0, 3 - visible.length));
+    return dmRooms.filter((room) => visible.includes(room));
   });
   const olderDMCount = $derived(dmRooms.length - defaultDMs.length);
   const timeSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
