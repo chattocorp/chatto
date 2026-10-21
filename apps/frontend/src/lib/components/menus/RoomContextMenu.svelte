@@ -2,7 +2,7 @@
 @component
 
 Actions shown when a room row is right-clicked or long-pressed.
-Room actions precede copy actions, with archive and leave actions at the bottom.
+Room actions precede copy actions, with settings, archive, and leave at the bottom.
 The parent owns all action behavior so this component stays presentation-only.
 -->
 <script lang="ts">
@@ -60,11 +60,6 @@ The parent owns all action behavior so this component stays presentation-only.
       {m('room_list.mark_as_read')}
     </MenuItem>
   {/if}
-  {#if canConfigure && onConfigure}
-    <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
-      {m('room_list.open_room_settings')}
-    </MenuItem>
-  {/if}
 </MenuSection>
 
 <MenuSection>
@@ -79,6 +74,11 @@ The parent owns all action behavior so this component stays presentation-only.
 {#if canConfigure || (isRoomMember && canLeave)}
   <MenuSection>
     {#if canConfigure}
+      {#if onConfigure}
+        <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
+          {m('room_list.open_room_settings')}
+        </MenuItem>
+      {/if}
       <MenuItem icon="icon-[uil--archive]" onclick={onArchive}>
         {m('room.management.archive_room')}
       </MenuItem>

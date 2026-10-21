@@ -900,9 +900,9 @@ describe('RoomList', () => {
           )
         )
       ).toEqual([
-        ['Invite member', 'Mark as read', 'Open room settings'],
+        ['Invite member', 'Mark as read'],
         ['Copy room link', 'Copy room ID'],
-        ['Archive room', ...(isUniversal ? [] : ['Leave room'])]
+        ['Open room settings', 'Archive room', ...(isUniversal ? [] : ['Leave room'])]
       ]);
 
       copyRoomId.click();
@@ -1006,7 +1006,7 @@ describe('RoomList', () => {
     await expect.element(join ?? null).toBeEnabled();
     await expect.element(settings ?? null).toBeInTheDocument();
 
-    expect(join?.closest('.menu-section')).toBe(settings?.closest('.menu-section'));
+    expect(join?.closest('.menu-section')).not.toBe(settings?.closest('.menu-section'));
 
     settings!.click();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/joinable-channel');
