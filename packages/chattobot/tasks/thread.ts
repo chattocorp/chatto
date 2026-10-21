@@ -129,7 +129,12 @@ export function createThreadWorkflow(
             try {
               const inputs = [];
               for (const item of text) {
-                const input = await read(item, ctx.signal);
+                // A failed read belongs to this message, not the rest of its batch.
+                const input = await read(item, ctx.signal).catch(() => {
+                  ctx.signal.throwIfAborted();
+                  log.error('Addressed message could not be verified; skipping this message');
+                  return undefined;
+                });
                 if (input) {
                   verified.push({ ...item, body: input.body });
                   inputs.push(input);

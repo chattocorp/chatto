@@ -42,7 +42,7 @@ function harness(
   const batches: IncomingMessage[][] = [];
   const runIds: (string | undefined)[] = [];
   const classify = vi.fn((_input: unknown) => decide());
-  const read = vi.fn(async (item: IncomingMessage) =>
+  const read = vi.fn(async (item: IncomingMessage, _signal: AbortSignal) =>
     readable
       ? {
           body: item.trigger === 'intake' ? 'Current report' : item.body,
@@ -1159,4 +1159,42 @@ test('a completed follow-up decision waits for an unfinished direct window witho
   expect(h.classify).toHaveBeenCalledTimes(2);
   run.closeSteering();
   await run.result;
+});
+
+test.each(['first', 'middle'])(
+  'a %s metadata read failure does not discard later addressed messages',
+  async (position) => {
+    const h = harness(async () => true, true, { batchMs: 5 });
+    h.read.mockImplementation(async (item) => {
+      if (item.id === 'failed') throw new Error('transient read failure');
+      return { body: item.body, attachmentTypes: [] };
+    });
+    const before = { ...ping, id: 'before' };
+    const after = { ...ping, id: 'after' };
+    const failed = { ...ping, id: 'failed' };
+    const batch = position === 'first' ? [failed, after] : [before, failed, after];
+    const run = h.start(batch[0]!);
+    for (const item of batch.slice(1)) await run.steer(item);
+    run.closeSteering();
+    await run.result;
+    expect(h.read.mock.calls.map(([item]) => item.id)).toEqual(batch.map((item) => item.id));
+    expect(h.received).toEqual(batch.filter((item) => item.id !== 'failed'));
+  }
+);
+
+test('cancellation during message verification stops the rest of the batch', async () => {
+  const h = harness(async () => true, true, { batchMs: 5 });
+  h.read.mockImplementation(
+    async (_item, signal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      })
+  );
+  const run = h.start(ping);
+  await run.steer({ ...ping, id: 'next' });
+  await vi.waitFor(() => expect(h.read).toHaveBeenCalledOnce());
+  run.cancel();
+  await expect(run.result).rejects.toThrow();
+  expect(h.read).toHaveBeenCalledOnce();
+  expect(h.received).toEqual([]);
 });
