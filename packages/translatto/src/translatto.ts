@@ -5,13 +5,13 @@ import {
   validateTranslationOverlay
 } from './catalog.js';
 import { asLocalizedHtml, isCountTranslationKey, isHtmlTranslationKey } from './conventions.js';
-import { InterpolationError, LinguaError, TranslationKindError } from './errors.js';
+import { InterpolationError, TranslattoError, TranslationKindError } from './errors.js';
 import { formatTranslation } from './format.js';
 import type {
   HtmlTranslationKey,
   InterpolationValues,
-  LinguaOptions,
-  LinguaSnapshot,
+  TranslattoOptions,
+  TranslattoSnapshot,
   LoaderRegistry,
   LocaleName,
   LocalizedHtml,
@@ -22,7 +22,7 @@ import type {
 } from './types.js';
 
 type Listener<Locale extends string, Section extends string> = (
-  snapshot: LinguaSnapshot<Locale, Section>
+  snapshot: TranslattoSnapshot<Locale, Section>
 ) => void;
 
 interface ResolvedTranslation {
@@ -31,10 +31,10 @@ interface ResolvedTranslation {
 }
 
 /** Stateful loader and synchronous translator for sectioned JSON catalogs. */
-export class Lingua<Registry extends LoaderRegistry> {
+export class Translatto<Registry extends LoaderRegistry> {
   readonly #baseLocale: LocaleName<Registry>;
   readonly #loaders: Registry;
-  readonly #onMissingTranslation: NonNullable<LinguaOptions<Registry>['onMissingTranslation']>;
+  readonly #onMissingTranslation: NonNullable<TranslattoOptions<Registry>['onMissingTranslation']>;
   readonly #fallbackLocales: Readonly<Partial<Record<string, string>>>;
   readonly #knownLocales: ReadonlySet<string>;
   readonly #fallbackChains = new Map<string, readonly string[]>();
@@ -53,7 +53,7 @@ export class Lingua<Registry extends LoaderRegistry> {
   /** Pending setters compose against this target until it succeeds or fails. */
   #target?: { locale: LocaleName<Registry>; sections: readonly SectionName<Registry>[] };
 
-  constructor(options: LinguaOptions<Registry>) {
+  constructor(options: TranslattoOptions<Registry>) {
     this.#baseLocale = options.baseLocale;
     this.#locale = options.initialLocale ?? options.baseLocale;
     this.#loaders = options.loaders;
@@ -67,38 +67,38 @@ export class Lingua<Registry extends LoaderRegistry> {
       try {
         Intl.getCanonicalLocales(locale);
       } catch {
-        throw new LinguaError(`Invalid locale identifier "${locale}"`);
+        throw new TranslattoError(`Invalid locale identifier "${locale}"`);
       }
     }
 
     if (!this.#knownLocales.has(this.#baseLocale)) {
-      throw new LinguaError(`Unknown base locale "${this.#baseLocale}"`);
+      throw new TranslattoError(`Unknown base locale "${this.#baseLocale}"`);
     }
     if (!this.#knownLocales.has(this.#locale)) {
-      throw new LinguaError(`Unknown initial locale "${this.#locale}"`);
+      throw new TranslattoError(`Unknown initial locale "${this.#locale}"`);
     }
     for (const [locale, fallback] of Object.entries(this.#fallbackLocales) as [string, string][]) {
       if (!this.#knownLocales.has(locale)) {
-        throw new LinguaError(`Unknown fallback locale "${locale}"`);
+        throw new TranslattoError(`Unknown fallback locale "${locale}"`);
       }
       if (!this.#knownLocales.has(fallback)) {
-        throw new LinguaError(`Unknown fallback target "${fallback}"`);
+        throw new TranslattoError(`Unknown fallback target "${fallback}"`);
       }
       if (locale === fallback) {
-        throw new LinguaError(`Locale "${locale}" cannot fall back to itself`);
+        throw new TranslattoError(`Locale "${locale}" cannot fall back to itself`);
       }
     }
     for (const locale of this.#knownLocales) this.#fallbackChain(locale);
     for (const [section, locales] of Object.entries(options.loaders)) {
       if (!(this.#baseLocale in locales)) {
-        throw new LinguaError(
+        throw new TranslattoError(
           `Section "${section}" does not define the base locale "${this.#baseLocale}"`
         );
       }
     }
     for (const [section, catalog] of Object.entries(options.initialBaseCatalogs ?? {})) {
       if (!(section in options.loaders) || !catalog) {
-        throw new LinguaError(`Unknown initial catalog section "${section}"`);
+        throw new TranslattoError(`Unknown initial catalog section "${section}"`);
       }
       const key = this.#cacheKey(section, this.#baseLocale);
       const value = extractSection(catalog, section);
@@ -108,7 +108,7 @@ export class Lingua<Registry extends LoaderRegistry> {
   }
 
   /** The last completely loaded and committed runtime state. */
-  get snapshot(): LinguaSnapshot<LocaleName<Registry>, SectionName<Registry>> {
+  get snapshot(): TranslattoSnapshot<LocaleName<Registry>, SectionName<Registry>> {
     return Object.freeze({
       locale: this.#locale,
       activeSections: this.#activeSections,
@@ -215,7 +215,7 @@ export class Lingua<Registry extends LoaderRegistry> {
   #translate(key: string, values: InterpolationValues | undefined, html: boolean): string {
     const [section, ...path] = key.split('.');
     if (!section || path.length === 0) {
-      throw new LinguaError(`Translation key "${key}" must include a section and message path`);
+      throw new TranslattoError(`Translation key "${key}" must include a section and message path`);
     }
     const resolved = this.#resolve(section, path);
     if (!resolved) {
@@ -278,7 +278,7 @@ export class Lingua<Registry extends LoaderRegistry> {
     const unique = [...new Set(sections)];
     for (const section of unique) {
       if (!(section in this.#loaders)) {
-        throw new LinguaError(`Unknown translation section "${section}"`);
+        throw new TranslattoError(`Unknown translation section "${section}"`);
       }
     }
     return Object.freeze(unique);
@@ -286,7 +286,7 @@ export class Lingua<Registry extends LoaderRegistry> {
 
   #assertLocale(locale: string): void {
     if (!this.#knownLocales.has(locale)) {
-      throw new LinguaError(`Unknown locale "${locale}"`);
+      throw new TranslattoError(`Unknown locale "${locale}"`);
     }
   }
 
@@ -300,7 +300,7 @@ export class Lingua<Registry extends LoaderRegistry> {
     while (current !== this.#baseLocale) {
       const fallback = this.#fallbackLocales[current] ?? this.#baseLocale;
       if (seen.has(fallback)) {
-        throw new LinguaError(`Locale fallback cycle includes "${fallback}"`);
+        throw new TranslattoError(`Locale fallback cycle includes "${fallback}"`);
       }
       chain.push(fallback);
       seen.add(fallback);
@@ -327,7 +327,7 @@ export class Lingua<Registry extends LoaderRegistry> {
     const loader = this.#loaders[section]?.[locale];
     if (!loader) {
       return Promise.reject(
-        new LinguaError(`No loader for section "${section}" and locale "${locale}"`)
+        new TranslattoError(`No loader for section "${section}" and locale "${locale}"`)
       );
     }
 
@@ -359,8 +359,8 @@ export class Lingua<Registry extends LoaderRegistry> {
 }
 
 /** Creates a framework-neutral JSON translation runtime. */
-export function createLingua<const Registry extends LoaderRegistry>(
-  options: LinguaOptions<Registry>
-): Lingua<Registry> {
-  return new Lingua(options);
+export function createTranslatto<const Registry extends LoaderRegistry>(
+  options: TranslattoOptions<Registry>
+): Translatto<Registry> {
+  return new Translatto(options);
 }

@@ -1,18 +1,18 @@
 export {
   CatalogValidationError,
   InterpolationError,
-  LinguaError,
+  TranslattoError,
   TranslationKindError
 } from './errors.js';
-export { createLingua, Lingua } from './lingua.js';
+export { createTranslatto, Translatto } from './translatto.js';
 export {
   pluralCategories,
   type CountTranslationKey,
   type HtmlTranslationKey,
   type InterpolationValue,
   type InterpolationValues,
-  type LinguaOptions,
-  type LinguaSnapshot,
+  type TranslattoOptions,
+  type TranslattoSnapshot,
   type LoaderRegistry,
   type LocaleName,
   type LocalizedHtml,

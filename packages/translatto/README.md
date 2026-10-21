@@ -1,11 +1,18 @@
-# `@chatto/lingua`
+# `@chatto/translatto`
 
-`@chatto/lingua` is a small, framework-neutral internationalisation runtime for
+`@chatto/translatto` is a small, framework-neutral internationalisation runtime for
 JSON catalogs. It loads catalogs by locale and section, performs synchronous
 lookups after loading, supports locale fallback and CLDR plurals, and does not
 compile or generate translation modules.
 
 The package is licensed under Apache-2.0.
+
+## Rename migration
+
+Replace the `@chatto/lingua` dependency and imports with `@chatto/translatto`.
+Replace `createLingua`, `Lingua`, `LinguaError`, `LinguaOptions`, and
+`LinguaSnapshot` with `createTranslatto`, `Translatto`, `TranslattoError`,
+`TranslattoOptions`, and `TranslattoSnapshot`, respectively.
 
 ## Catalogs
 
@@ -35,13 +42,13 @@ still selecting the correct form for languages that distinguish them.
 
 ## Usage
 
-Provide ordinary dynamic imports. Lingua does not depend on Vite; any loader
+Provide ordinary dynamic imports. Translatto does not depend on Vite; any loader
 that returns a JSON-like document works.
 
 ```ts
-import { createLingua } from '@chatto/lingua';
+import { createTranslatto } from '@chatto/translatto';
 
-const lingua = createLingua({
+const translatto = createTranslatto({
   baseLocale: 'en-GB',
   initialLocale: 'de-DE',
   fallbackLocales: {
@@ -59,10 +66,10 @@ const lingua = createLingua({
   }
 });
 
-await lingua.setActiveSections(['room']);
+await translatto.setActiveSections(['room']);
 
-lingua.t('room.title');
-lingua.t('room.member_count', { count: 12 });
+translatto.t('room.title');
+translatto.t('room.member_count', { count: 12 });
 ```
 
 Static translation keys are intentionally not generated or catalog-typed.
@@ -79,7 +86,7 @@ loaders, just like translated sections.
 subscribers never observe a partially loaded language. Loaded sections and
 in-flight requests are cached. `fallbackLocales` can define a chain of
 regional overlays, such as `de-AT` falling back to `de-DE`; the base locale is
-always the final fallback. When a translated section loads, Lingua also rejects
+always the final fallback. When a translated section loads, Translatto also rejects
 unknown keys, changed value kinds, and placeholders that differ from the base
 catalog.
 
@@ -101,10 +108,10 @@ the next setter starts from the last committed locale and active sections.
 markup:
 
 ```ts
-const markup = lingua.html('room.rules_html');
+const markup = translatto.html('room.rules_html');
 ```
 
-Lingua HTML-escapes interpolated values, but it deliberately does not sanitize
+Translatto HTML-escapes interpolated values, but it deliberately does not sanitize
 the translated template. The rendering application must sanitize the complete
 result against a strict element, attribute, and URL allowlist before inserting
 it as HTML. Ordinary `t()` calls reject HTML-designated keys.
@@ -114,4 +121,4 @@ it as HTML. Ordinary `t()` calls reject HTML-designated keys.
 `subscribe()` immediately receives the current locale, active sections, and
 revision, then receives another immutable snapshot after every committed
 transition. Framework adapters can use this to invalidate their own reactive
-state without adding a framework dependency to Lingua.
+state without adding a framework dependency to Translatto.

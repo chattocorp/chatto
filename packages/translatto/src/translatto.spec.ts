@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   CatalogValidationError,
   InterpolationError,
-  LinguaError,
+  TranslattoError,
   TranslationKindError,
-  createLingua
+  createTranslatto
 } from './index.js';
 
 function deferred<T>() {
@@ -22,7 +22,7 @@ function common(values: Record<string, unknown>) {
   return { default: { common: values } };
 }
 
-describe('Lingua', () => {
+describe('Translatto', () => {
   it('loads active sections, caches them, and falls back by message', async () => {
     const loadBase = vi.fn(async () =>
       common({
@@ -32,27 +32,27 @@ describe('Lingua', () => {
       })
     );
     const loadGerman = vi.fn(async () => common({ close: 'Schließen' }));
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       initialLocale: 'de-DE',
       loaders: { common: { 'en-GB': loadBase, 'de-DE': loadGerman } }
     });
 
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
-    expect(lingua.t('common.close')).toBe('Schließen');
-    expect(lingua.t('common.welcome', { name: 'Ada' })).toBe('Welcome, Ada!');
-    expect(lingua.t('common.base_only')).toBe('Base only');
+    expect(translatto.t('common.close')).toBe('Schließen');
+    expect(translatto.t('common.welcome', { name: 'Ada' })).toBe('Welcome, Ada!');
+    expect(translatto.t('common.base_only')).toBe('Base only');
     expect(loadBase).toHaveBeenCalledOnce();
     expect(loadGerman).toHaveBeenCalledOnce();
 
-    await lingua.preload('de-DE', ['common']);
+    await translatto.preload('de-DE', ['common']);
     expect(loadBase).toHaveBeenCalledOnce();
     expect(loadGerman).toHaveBeenCalledOnce();
   });
 
   it('layers regional overlays through their configured fallback chain', async () => {
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       initialLocale: 'de-AT',
       fallbackLocales: { 'de-AT': 'de-DE' },
@@ -70,15 +70,15 @@ describe('Lingua', () => {
       }
     });
 
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
-    expect(lingua.t('common.close')).toBe('Schließen');
-    expect(lingua.t('common.parent_only')).toBe('Nur im Elternkatalog');
-    expect(lingua.t('common.base_only')).toBe('Base only');
+    expect(translatto.t('common.close')).toBe('Schließen');
+    expect(translatto.t('common.parent_only')).toBe('Nur im Elternkatalog');
+    expect(translatto.t('common.base_only')).toBe('Base only');
   });
 
   it('validates translated keys and placeholders against the base locale', async () => {
-    const unknownKey = createLingua({
+    const unknownKey = createTranslatto({
       baseLocale: 'en-GB',
       initialLocale: 'de-DE',
       loaders: {
@@ -92,7 +92,7 @@ describe('Lingua', () => {
       'does not exist in the base locale'
     );
 
-    const changedPlaceholder = createLingua({
+    const changedPlaceholder = createTranslatto({
       baseLocale: 'en-GB',
       initialLocale: 'de-DE',
       loaders: {
@@ -108,7 +108,7 @@ describe('Lingua', () => {
   });
 
   it('uses locale plural rules and locale-aware count formatting', async () => {
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       initialLocale: 'pl',
       loaders: {
@@ -129,17 +129,17 @@ describe('Lingua', () => {
         }
       }
     });
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
-    expect(lingua.t('common.member_count', { count: 1 })).toBe('1 członek');
-    expect(lingua.t('common.member_count', { count: 2 })).toBe('2 członków');
-    expect(lingua.t('common.member_count', { count: 5 })).toBe('5 członków');
-    expect(lingua.t('common.member_count', { count: 1.5 })).toBe('1,5 członka');
+    expect(translatto.t('common.member_count', { count: 1 })).toBe('1 członek');
+    expect(translatto.t('common.member_count', { count: 2 })).toBe('2 członków');
+    expect(translatto.t('common.member_count', { count: 5 })).toBe('5 członków');
+    expect(translatto.t('common.member_count', { count: 1.5 })).toBe('1,5 członka');
   });
 
   it('keeps locale changes atomic and ignores a stale transition', async () => {
     const german = deferred<ReturnType<typeof common>>();
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: {
         common: {
@@ -149,23 +149,23 @@ describe('Lingua', () => {
         }
       }
     });
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
-    const germanTransition = lingua.setLocale('de-DE');
-    const frenchTransition = lingua.setLocale('fr');
+    const germanTransition = translatto.setLocale('de-DE');
+    const frenchTransition = translatto.setLocale('fr');
     await frenchTransition;
 
-    expect(lingua.snapshot.locale).toBe('fr');
-    expect(lingua.t('common.close')).toBe('Fermer');
+    expect(translatto.snapshot.locale).toBe('fr');
+    expect(translatto.t('common.close')).toBe('Fermer');
 
     german.resolve(common({ close: 'Schließen' }));
     await germanTransition;
-    expect(lingua.snapshot.locale).toBe('fr');
-    expect(lingua.t('common.close')).toBe('Fermer');
+    expect(translatto.snapshot.locale).toBe('fr');
+    expect(translatto.t('common.close')).toBe('Fermer');
   });
 
   it('does not publish a section transition that fails to load', async () => {
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: {
         common: { 'en-GB': async () => common({ close: 'Close' }) },
@@ -176,12 +176,14 @@ describe('Lingua', () => {
         }
       }
     });
-    await lingua.setActiveSections(['common']);
-    const before = lingua.snapshot;
+    await translatto.setActiveSections(['common']);
+    const before = translatto.snapshot;
 
-    await expect(lingua.setActiveSections(['common', 'room'])).rejects.toThrow('network failure');
-    expect(lingua.snapshot).toEqual(before);
-    expect(lingua.t('room.title')).toBe('⟦room.title⟧');
+    await expect(translatto.setActiveSections(['common', 'room'])).rejects.toThrow(
+      'network failure'
+    );
+    expect(translatto.snapshot).toEqual(before);
+    expect(translatto.t('room.title')).toBe('⟦room.title⟧');
   });
 
   it('deduplicates concurrent loader requests and retries failures', async () => {
@@ -190,33 +192,33 @@ describe('Lingua', () => {
       .fn<() => Promise<ReturnType<typeof common>>>()
       .mockImplementationOnce(() => first.promise)
       .mockResolvedValue(common({ close: 'Close' }));
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: { common: { 'en-GB': loader } }
     });
 
-    const firstPreload = lingua.preload('en-GB', ['common']);
-    const concurrentPreload = lingua.preload('en-GB', ['common']);
+    const firstPreload = translatto.preload('en-GB', ['common']);
+    const concurrentPreload = translatto.preload('en-GB', ['common']);
     first.reject(new Error('temporary failure'));
     await expect(firstPreload).rejects.toThrow('temporary failure');
     await expect(concurrentPreload).rejects.toThrow('temporary failure');
 
-    await lingua.preload('en-GB', ['common']);
+    await translatto.preload('en-GB', ['common']);
     expect(loader).toHaveBeenCalledTimes(2);
   });
 
   it('notifies subscribers only after committed transitions', async () => {
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: { common: { 'en-GB': async () => common({ close: 'Close' }) } }
     });
     const listener = vi.fn();
-    const unsubscribe = lingua.subscribe(listener);
+    const unsubscribe = translatto.subscribe(listener);
 
-    await lingua.preload('en-GB', ['common']);
+    await translatto.preload('en-GB', ['common']);
     expect(listener).toHaveBeenCalledOnce();
 
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
     expect(listener).toHaveBeenCalledTimes(2);
     expect(listener.mock.lastCall?.[0]).toEqual({
       locale: 'en-GB',
@@ -225,12 +227,12 @@ describe('Lingua', () => {
     });
 
     unsubscribe();
-    await lingua.setActiveSections([]);
+    await translatto.setActiveSections([]);
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it('keeps HTML on its explicit path and escapes interpolated values', async () => {
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: {
         common: {
@@ -246,26 +248,26 @@ describe('Lingua', () => {
         }
       }
     });
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
-    expect(lingua.html('common.warning_html', { message: `&<>"'` })).toBe(
+    expect(translatto.html('common.warning_html', { message: `&<>"'` })).toBe(
       '<strong>&amp;&lt;&gt;&quot;&#39;</strong>'
     );
-    expect(lingua.html('common.legal.html', { message: 'Safe' })).toBe('<em>Safe</em>');
-    expect(lingua.html('common.member_count_html', { count: 2 })).toBe(
+    expect(translatto.html('common.legal.html', { message: 'Safe' })).toBe('<em>Safe</em>');
+    expect(translatto.html('common.member_count_html', { count: 2 })).toBe(
       '<strong>2</strong> members'
     );
-    expect(() => (lingua.t as (key: string) => string)('common.warning_html')).toThrow(
+    expect(() => (translatto.t as (key: string) => string)('common.warning_html')).toThrow(
       TranslationKindError
     );
-    expect(() => (lingua.html as (key: string) => string)('common.legal')).toThrow(
+    expect(() => (translatto.html as (key: string) => string)('common.legal')).toThrow(
       TranslationKindError
     );
   });
 
   it('reports missing translations and interpolation values clearly', async () => {
     const onMissingTranslation = vi.fn(({ key }: { key: string }) => `missing:${key}`);
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: {
         common: {
@@ -274,15 +276,15 @@ describe('Lingua', () => {
       },
       onMissingTranslation
     });
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
-    expect(lingua.t('common.unknown')).toBe('missing:common.unknown');
+    expect(translatto.t('common.unknown')).toBe('missing:common.unknown');
     expect(onMissingTranslation).toHaveBeenCalledWith({
       key: 'common.unknown',
       locale: 'en-GB'
     });
-    expect(() => lingua.t('common.welcome')).toThrow(InterpolationError);
-    expect(lingua.t('unknown.title')).toBe('missing:unknown.title');
+    expect(() => translatto.t('common.welcome')).toThrow(InterpolationError);
+    expect(translatto.t('unknown.title')).toBe('missing:unknown.title');
   });
 
   it.each([
@@ -308,35 +310,35 @@ describe('Lingua', () => {
       'must use the same placeholders in every category'
     ]
   ])('rejects an invalid catalog: %s', async (_name, document, message) => {
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: { common: { 'en-GB': async () => document } }
     });
 
-    await expect(lingua.setActiveSections(['common'])).rejects.toThrow(CatalogValidationError);
-    await expect(lingua.setActiveSections(['common'])).rejects.toThrow(message);
+    await expect(translatto.setActiveSections(['common'])).rejects.toThrow(CatalogValidationError);
+    await expect(translatto.setActiveSections(['common'])).rejects.toThrow(message);
   });
 
   it('validates base locales and section documents', async () => {
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'de-DE' as never,
         loaders: {
           common: { 'en-GB': async () => common({ close: 'Close' }) }
         }
       })
-    ).toThrow(LinguaError);
+    ).toThrow(TranslattoError);
 
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: { common: { 'en-GB': async () => ({ other: {} }) } }
     });
-    await expect(lingua.setActiveSections(['common'])).rejects.toThrow(
+    await expect(translatto.setActiveSections(['common'])).rejects.toThrow(
       'must contain a top-level "common" object'
     );
 
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'not_a_locale',
         loaders: {
           common: { not_a_locale: async () => common({ close: 'Close' }) }
@@ -347,7 +349,7 @@ describe('Lingua', () => {
 
   it('rejects invalid constructor configuration', () => {
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'en-GB',
         initialLocale: 'fr' as never,
         loaders: {
@@ -357,7 +359,7 @@ describe('Lingua', () => {
     ).toThrow('Unknown initial locale "fr"');
 
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'en-GB',
         loaders: {
           common: { 'en-GB': async () => common({ close: 'Close' }) },
@@ -367,7 +369,7 @@ describe('Lingua', () => {
     ).toThrow('Section "room" does not define the base locale "en-GB"');
 
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'en-GB',
         initialBaseCatalogs: { room: common({ title: 'Unknown' }) } as never,
         loaders: {
@@ -377,7 +379,7 @@ describe('Lingua', () => {
     ).toThrow('Unknown initial catalog section "room"');
 
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'en-GB',
         fallbackLocales: { fr: 'en-GB' } as never,
         loaders: { common: { 'en-GB': async () => common({ close: 'Close' }) } }
@@ -385,7 +387,7 @@ describe('Lingua', () => {
     ).toThrow('Unknown fallback locale "fr"');
 
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'en-GB',
         fallbackLocales: { 'de-DE': 'fr' } as never,
         loaders: {
@@ -398,7 +400,7 @@ describe('Lingua', () => {
     ).toThrow('Unknown fallback target "fr"');
 
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'en-GB',
         fallbackLocales: { 'de-DE': 'de-DE' },
         loaders: {
@@ -411,7 +413,7 @@ describe('Lingua', () => {
     ).toThrow('cannot fall back to itself');
 
     expect(() =>
-      createLingua({
+      createTranslatto({
         baseLocale: 'en-GB',
         fallbackLocales: { 'de-DE': 'de-AT', 'de-AT': 'de-DE' },
         loaders: {
@@ -426,7 +428,7 @@ describe('Lingua', () => {
   });
 
   it('rejects runtime misuse from untyped callers', async () => {
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: {
         common: {
@@ -439,31 +441,31 @@ describe('Lingua', () => {
         }
       }
     });
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
-    expect(() => (lingua.t as (key: string) => string)('common')).toThrow(
+    expect(() => (translatto.t as (key: string) => string)('common')).toThrow(
       'must include a section and message path'
     );
-    expect((lingua.t as (key: string) => string)('common.nested')).toBe('⟦common.nested⟧');
+    expect((translatto.t as (key: string) => string)('common.nested')).toBe('⟦common.nested⟧');
     expect(() =>
-      (lingua.t as (key: string, values?: { count?: number }) => string)('common.member_count')
+      (translatto.t as (key: string, values?: { count?: number }) => string)('common.member_count')
     ).toThrow('requires a finite count');
     expect(() =>
-      (lingua.t as (key: string, values: { count: number }) => string)('common.member_count', {
+      (translatto.t as (key: string, values: { count: number }) => string)('common.member_count', {
         count: Number.POSITIVE_INFINITY
       })
     ).toThrow('requires a finite count');
-    await expect((lingua.setLocale as (locale: string) => Promise<void>)('fr')).rejects.toThrow(
+    await expect((translatto.setLocale as (locale: string) => Promise<void>)('fr')).rejects.toThrow(
       'Unknown locale "fr"'
     );
     await expect(
-      (lingua.setActiveSections as (sections: readonly string[]) => Promise<void>)(['room'])
+      (translatto.setActiveSections as (sections: readonly string[]) => Promise<void>)(['room'])
     ).rejects.toThrow('Unknown translation section "room"');
   });
 
   it('falls back when a known locale has no loader for an active section', async () => {
     const loadRoom = vi.fn(async () => ({ room: { title: 'Room' } }));
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       initialLocale: 'de-DE',
       loaders: {
@@ -475,9 +477,9 @@ describe('Lingua', () => {
       }
     });
 
-    await lingua.setActiveSections(['common', 'room', 'room']);
-    expect(lingua.snapshot.activeSections).toEqual(['common', 'room']);
-    expect(lingua.t('room.title')).toBe('Room');
+    await translatto.setActiveSections(['common', 'room', 'room']);
+    expect(translatto.snapshot.activeSections).toEqual(['common', 'room']);
+    expect(translatto.t('room.title')).toBe('Room');
     expect(loadRoom).toHaveBeenCalledOnce();
   });
 
@@ -486,21 +488,21 @@ describe('Lingua', () => {
       close: 'Close',
       member_count: { one: '{count} member', other: '{count} members' }
     };
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       loaders: { common: { 'en-GB': async () => common(values) } }
     });
-    await lingua.setActiveSections(['common']);
+    await translatto.setActiveSections(['common']);
 
     values.member_count = 'mutated into text';
     expect(() =>
-      (lingua.t as (key: string, values: { count: number }) => string)('common.member_count', {
+      (translatto.t as (key: string, values: { count: number }) => string)('common.member_count', {
         count: 2
       })
     ).toThrow('Plural translation "common.member_count" is not a plural object');
 
     values.close = { one: 'mutated', other: 'mutated' };
-    expect(() => lingua.t('common.close')).toThrow(
+    expect(() => translatto.t('common.close')).toThrow(
       'Translation "common.close" is unexpectedly plural'
     );
   });
@@ -509,10 +511,10 @@ describe('Lingua', () => {
     const loaders = {
       common: { 'en-GB': async () => common({ close: 'Close' }) }
     };
-    const lingua = createLingua({ baseLocale: 'en-GB', loaders });
+    const translatto = createTranslatto({ baseLocale: 'en-GB', loaders });
     delete (loaders.common as Partial<typeof loaders.common>)['en-GB'];
 
-    await expect(lingua.preload('en-GB', ['common'])).rejects.toThrow(
+    await expect(translatto.preload('en-GB', ['common'])).rejects.toThrow(
       'No loader for section "common" and locale "en-GB"'
     );
   });
@@ -520,13 +522,13 @@ describe('Lingua', () => {
   it('makes eager base catalogs available before asynchronous section activation', () => {
     const base = common({ close: 'Close' });
     const loader = vi.fn(async () => base);
-    const lingua = createLingua({
+    const translatto = createTranslatto({
       baseLocale: 'en-GB',
       initialBaseCatalogs: { common: base },
       loaders: { common: { 'en-GB': loader } }
     });
 
-    expect(lingua.t('common.close')).toBe('Close');
+    expect(translatto.t('common.close')).toBe('Close');
     expect(loader).not.toHaveBeenCalled();
   });
 });

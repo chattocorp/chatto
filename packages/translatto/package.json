@@ -1,5 +1,5 @@
 {
-  "name": "@chatto/lingua",
+  "name": "@chatto/translatto",
   "private": true,
   "version": "0.1.0",
   "description": "Small, framework-neutral internationalisation runtime for JSON catalogs",

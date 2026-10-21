@@ -13,7 +13,7 @@ Apache-2.0 exceptions are used where permissive reuse is intentional. These
 include the independently versioned `pkg/events`, `pkg/jetstreamutil`,
 `pkg/natsruntime`, `pkg/datacrypto`, and `pkg/appconfig` shared framework
 modules, the
-framework-neutral `packages/lingua` internationalisation runtime, the
+framework-neutral `packages/translatto` internationalisation runtime, the
 standalone frontend source and image, public protocol/API definitions,
 generated TypeScript API client/types, documentation, and deployment examples.
 The shared modules remain explicitly pre-1.0; their permissive license does not

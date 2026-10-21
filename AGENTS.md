@@ -162,7 +162,7 @@ the local cache (ADR-102).
 not run it at the same time as `mise test-cli`, a frontend build, or another
 task that reads `packages/api-types`.
 
-The internal TypeScript packages `@chatto/api-types`, `@chatto/lingua`, and
+The internal TypeScript packages `@chatto/api-types`, `@chatto/translatto`, and
 `@chatto/client` export their source and have no build (ADR-116). Load them
 through a compiling tool, such as Vite, Vitest, tsx, or jiti. Plain Node
 cannot load them.
@@ -229,7 +229,7 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`,
   `pkg/datacrypto/`, and `pkg/appconfig/`, the framework-neutral
-  `packages/lingua` runtime, plus explicit integration and documentation
+  `packages/translatto` runtime, plus explicit integration and documentation
   surfaces such as the standalone frontend source and image, public
   protocol/API definitions, generated TypeScript API clients, documentation,
   and examples.
