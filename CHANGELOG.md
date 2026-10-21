@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.26](https://github.com/chattocorp/chatto/compare/v0.4.25...v0.4.26) (2026-10-21)
+
+
+### Bug Fixes
+
+* **build:** update Go to 1.26.10 on release-0.4 ([#3095](https://github.com/chattocorp/chatto/issues/3095)) ([ab1078d](https://github.com/chattocorp/chatto/commit/ab1078ddaba1721fd228c237c073985a2a04e40b))
+
 ## [0.4.25](https://github.com/chattocorp/chatto/compare/v0.4.24...v0.4.25) (2026-10-07)
 
 
