@@ -207,24 +207,19 @@ description = "Check Chatto protobuf naming and schema conventions"
 dir = "proto"
 run = "buf lint"
 
+[tasks.build-proto-generators]
+description = "Build the pinned protobuf generators before Buf runs"
+depends = ["setup-cli"]
+dir = "cli"
+run = "go build -o bin/proto/ google.golang.org/protobuf/cmd/protoc-gen-go connectrpc.com/connect/cmd/protoc-gen-connect-go github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
+
 [tasks.codegen-proto]
 description = "Generate Go and frontend code from protobuf schemas"
-depends = ["setup-cli", "setup-frontend"]
+depends = ["build-proto-generators", "setup-frontend"]
 dir = "proto"
 run = [
     "pnpm --dir ../packages/api-types run clean",
-    '''
-    set -eu
-    # Build the pinned tools before Buf starts concurrent plugin processes.
-    # Each run owns its binaries, so no process executes a Go cache file.
-    proto_tools=$(mktemp -d)
-    trap 'rm -rf "$proto_tools"' EXIT
-    go -C ../cli build -o "$proto_tools/" \
-        google.golang.org/protobuf/cmd/protoc-gen-go \
-        connectrpc.com/connect/cmd/protoc-gen-connect-go \
-        github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-    PATH="$proto_tools:$PATH" buf generate
-    ''',
+    "buf generate",
     "node ../tools/split-connectrpc-docs.mjs",
     "node ../tools/trim-proto-codegen-output.mjs",
     "node ../packages/chatto-client/scripts/generate-types.mjs",

@@ -36,18 +36,15 @@ depends = ["deps-go", "deps-playwright"]
 description = "Install all Authling dependencies"
 depends = ["deps-go", "deps-web"]
 
+[tasks.build-proto-generators]
+description = "Build the pinned protobuf generator before Buf runs"
+depends = ["deps-go"]
+run = "GOWORK=off go build -o bin/proto/ google.golang.org/protobuf/cmd/protoc-gen-go"
+
 [tasks.codegen-proto]
 description = "Generate Authling Go code from protobuf schemas"
-depends = ["deps-go"]
-run = '''
-set -eu
-# Build the pinned tool before Buf starts concurrent plugin processes.
-# Keep the binary private to this run and independent of the Go tool cache.
-proto_tools=$(mktemp -d)
-trap 'rm -rf "$proto_tools"' EXIT
-GOWORK=off go build -o "$proto_tools/" google.golang.org/protobuf/cmd/protoc-gen-go
-PATH="$proto_tools:$PATH" GOWORK=off buf generate
-'''
+depends = ["build-proto-generators"]
+run = "GOWORK=off buf generate"
 
 [tasks.codegen-templates]
 description = "Generate templ renderers"
