@@ -1,11 +1,12 @@
 package connectapi
 
 import (
+	"testing"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestRoomInvitationServicePrivacyAndDecline(t *testing.T) {
