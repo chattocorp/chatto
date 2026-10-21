@@ -324,10 +324,11 @@
       "accept": "Přijmout pozvánku",
       "decline": "Odmítnout",
       "title": "Pozvat členy do #{room}",
-      "description": "Vyberte, koho chcete pozvat. Místnost uvidí v postranním panelu a budou mít sedm dní na přijetí nebo odmítnutí pozvánky.",
+      "description": "Vyberte, koho chcete pozvat. Pozvaní uživatelé obdrží pozvánku a budou mít sedm dní na její přijetí nebo odmítnutí.",
       "members": "Členové",
       "send": "Odeslat pozvánky",
-      "failed": "Nepodařilo se pozvat {name}: {error}"
+      "failed": "Nepodařilo se pozvat {name}: {error}",
+      "already_member": "Již je v této místnosti"
     }
   }
 }

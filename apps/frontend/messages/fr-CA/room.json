@@ -324,10 +324,11 @@
       "accept": "Accepter l’invitation",
       "decline": "Refuser",
       "title": "Inviter des membres dans #{room}",
-      "description": "Choisissez les personnes à inviter. Elles verront le salon dans leur barre latérale et auront sept jours pour accepter ou refuser.",
+      "description": "Choisissez qui vous souhaitez inviter. Les utilisateurs invités recevront une invitation et auront sept jours pour l’accepter ou la refuser.",
       "members": "Membres",
       "send": "Envoyer les invitations",
-      "failed": "Impossible d’inviter {name} : {error}"
+      "failed": "Impossible d’inviter {name} : {error}",
+      "already_member": "Déjà dans ce salon"
     }
   }
 }

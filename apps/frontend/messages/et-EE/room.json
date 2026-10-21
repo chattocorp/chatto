@@ -324,10 +324,11 @@
       "accept": "Võta kutse vastu",
       "decline": "Keeldu",
       "title": "Kutsu liikmeid tuppa #{room}",
-      "description": "Valige, keda soovite kutsuda. Nad näevad tuba külgribal ja neil on seitse päeva kutse vastuvõtmiseks või sellest keeldumiseks.",
+      "description": "Vali, keda soovid kutsuda. Kutsutud kasutajad saavad kutse ning neil on seitse päeva selle vastuvõtmiseks või tagasilükkamiseks.",
       "members": "Liikmed",
       "send": "Saada kutsed",
-      "failed": "Liikme {name} kutsumine nurjus: {error}"
+      "failed": "Liikme {name} kutsumine nurjus: {error}",
+      "already_member": "Juba selles ruumis"
     }
   }
 }

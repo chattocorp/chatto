@@ -331,10 +331,11 @@
       "accept": "Przyjmij zaproszenie",
       "decline": "Odrzuć",
       "title": "Zaproś członków do #{room}",
-      "description": "Wybierz osoby, które chcesz zaprosić. Zobaczą pokój na pasku bocznym i będą mieć siedem dni na przyjęcie lub odrzucenie zaproszenia.",
+      "description": "Wybierz, kogo chcesz zaprosić. Zaproszeni użytkownicy otrzymają zaproszenie i będą mieli siedem dni na jego przyjęcie lub odrzucenie.",
       "members": "Członkowie",
       "send": "Wyślij zaproszenia",
-      "failed": "Nie udało się zaprosić {name}: {error}"
+      "failed": "Nie udało się zaprosić {name}: {error}",
+      "already_member": "Już jest w tym pokoju"
     }
   }
 }

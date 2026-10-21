@@ -324,10 +324,11 @@
       "accept": "Akcepti inviton",
       "decline": "Malakcepti",
       "title": "Inviti membrojn al #{room}",
-      "description": "Elektu, kiujn vi volas inviti. Ili vidos la ĉambron en sia flanka breto kaj havos sep tagojn por akcepti aŭ malakcepti.",
+      "description": "Elektu, kiun vi volas inviti. La invititaj uzantoj ricevos inviton kaj havos sep tagojn por akcepti aŭ malakcepti ĝin.",
       "members": "Membroj",
       "send": "Sendi invitojn",
-      "failed": "Ne eblis inviti {name}: {error}"
+      "failed": "Ne eblis inviti {name}: {error}",
+      "already_member": "Jam en ĉi tiu ĉambro"
     }
   }
 }

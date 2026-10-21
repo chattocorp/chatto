@@ -324,10 +324,11 @@
       "accept": "Uitnodiging accepteren",
       "decline": "Weigeren",
       "title": "Leden uitnodigen voor #{room}",
-      "description": "Kies wie je wilt uitnodigen. Zij zien de ruimte in hun zijbalk en hebben zeven dagen om de uitnodiging te accepteren of te weigeren.",
+      "description": "Kies wie je wilt uitnodigen. De uitgenodigde gebruikers ontvangen een uitnodiging en hebben zeven dagen om deze te accepteren of af te wijzen.",
       "members": "Leden",
       "send": "Uitnodigingen verzenden",
-      "failed": "Kan {name} niet uitnodigen: {error}"
+      "failed": "Kan {name} niet uitnodigen: {error}",
+      "already_member": "Al in deze kamer"
     }
   }
 }

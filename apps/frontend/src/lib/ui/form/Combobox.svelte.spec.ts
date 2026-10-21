@@ -66,6 +66,60 @@ describe('Combobox', () => {
     expect(field.value).toBe('UserJoinedRoomEvent');
   });
 
+  it('skips disabled options in both directions and rejects mouse selection', () => {
+    const onselect = vi.fn();
+    const choices = [items[0], { value: 'disabled', label: 'Unavailable' }, items[1]];
+    const { container } = render(Combobox<(typeof items)[number]>, {
+      props: {
+        id: 'disabled-options',
+        label: 'Choice',
+        items: choices,
+        getValue: (item) => item.value,
+        getLabel: (item) => item.label,
+        getOptionDisabled: (item) => item.value === 'disabled',
+        onselect
+      }
+    });
+    const field = input(container);
+    field.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+    flushSync();
+    const unavailable = document.querySelector('#disabled-options-option-1') as HTMLButtonElement;
+    expect(unavailable.getAttribute('aria-disabled')).toBe('true');
+    unavailable.click();
+    expect(onselect).not.toHaveBeenCalled();
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    flushSync();
+    expect(field.getAttribute('aria-activedescendant')).toBe('disabled-options-option-2');
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(onselect).toHaveBeenCalledWith(items[0]);
+  });
+
+  it('does not select or submit when every result is disabled', () => {
+    const onselect = vi.fn();
+    const { container } = render(Combobox<(typeof items)[number]>, {
+      props: {
+        id: 'all-disabled',
+        label: 'Choice',
+        items,
+        getValue: (item) => item.value,
+        getLabel: (item) => item.label,
+        getOptionDisabled: () => true,
+        onselect
+      }
+    });
+    const field = input(container);
+    field.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true, bubbles: true });
+    field.dispatchEvent(enter);
+    flushSync();
+    expect(enter.defaultPrevented).toBe(true);
+    expect(field.hasAttribute('aria-activedescendant')).toBe(false);
+    expect(onselect).not.toHaveBeenCalled();
+  });
+
   it('selects multiple values without duplicates and removes pills with the keyboard', async () => {
     const onselect = vi.fn();
     const { container, getByRole } = render(Combobox<(typeof items)[number]>, {

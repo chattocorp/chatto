@@ -1,9 +1,6 @@
 <!-- @component Selects server members and sends independent room invitations. -->
 <script lang="ts">
-  import {
-    createMemberDirectoryAPI,
-    type DirectoryMember
-  } from '@chatto/client/api/memberDirectory';
+  import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
   import { createRoomInvitationAPI } from '@chatto/client/api/roomInvitations';
   import { isBotAccount } from '@chatto/client/timeline/accountName';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -11,7 +8,11 @@
   import type { RoomsListItem } from '$lib/state/server/navigation';
   import { createQuery } from '$lib/query/client';
   import { directoryQueryKeys } from '$lib/query/directory';
-  import { listEligibleRoomMembers, ELIGIBLE_ROOM_MEMBER_LIMIT } from '$lib/query/roomMembers';
+  import {
+    listRoomMemberCandidates,
+    ELIGIBLE_ROOM_MEMBER_LIMIT,
+    type RoomMemberCandidate
+  } from '$lib/query/roomMembers';
   import { FormDialog } from '$lib/ui';
   import { Combobox } from '$lib/ui/form';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -23,7 +24,7 @@
   let { room, onclose }: { room: RoomsListItem; onclose: () => void } = $props();
   const scope = useServerScope();
   const session = createSessionGuard(scope);
-  let selected = $state<DirectoryMember[]>([]);
+  let selected = $state<RoomMemberCandidate[]>([]);
   let search = $state('');
   let sending = $state(false);
   let error = $state<string | null>(null);
@@ -42,13 +43,13 @@
         'human-invitations'
       ],
       queryFn: ({ signal }) =>
-        listEligibleRoomMembers(
+        listRoomMemberCandidates(
           scope.connection.getAPI(createMemberDirectoryAPI),
           targetRoomId,
           querySearch,
           ELIGIBLE_ROOM_MEMBER_LIMIT,
           signal,
-          (user) => !isBotAccount(user) && user.id !== scope.store.viewerId
+          (user) => !isBotAccount(user)
         ),
       enabled: querySearch.length > 0
     };
@@ -127,6 +128,7 @@
     disabled={sending}
     bind:text={search}
     items={candidates}
+    getOptionDisabled={(user) => user.alreadyMember}
     getValue={(user) => user.id}
     getLabel={(user) => user.displayName || user.login}
     loading={query.isFetching}
@@ -137,8 +139,14 @@
   >
     {#snippet item({ item: user })}
       <UserAvatar {user} size="sm" useLiveProfile={false} />
-      <AccountName name={user.displayName || user.login} identity={user} />
-      <bdi class="min-w-0 truncate text-muted">@{user.login}</bdi>
+      <span class="flex min-w-0 flex-1 flex-col items-start">
+        <AccountName name={user.displayName || user.login} identity={user} />
+        {#if user.alreadyMember}
+          <span class="text-xs text-muted">{m('room.invitation.already_member')}</span>
+        {:else}
+          <bdi class="max-w-full truncate text-xs text-muted">@{user.login}</bdi>
+        {/if}
+      </span>
     {/snippet}
   </Combobox>
 </FormDialog>

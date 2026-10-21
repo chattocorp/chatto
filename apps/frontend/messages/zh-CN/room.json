@@ -324,10 +324,11 @@
       "accept": "接受邀请",
       "decline": "拒绝",
       "title": "邀请成员加入 #{room}",
-      "description": "选择你想邀请的成员。他们会在侧边栏看到聊天室，并有七天时间接受或拒绝邀请。",
+      "description": "选择你想邀请的用户。受邀用户将收到邀请，并可在七天内接受或拒绝。",
       "members": "成员",
       "send": "发送邀请",
-      "failed": "无法邀请 {name}：{error}"
+      "failed": "无法邀请 {name}：{error}",
+      "already_member": "已在此房间中"
     }
   }
 }

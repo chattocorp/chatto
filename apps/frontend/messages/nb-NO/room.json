@@ -324,10 +324,11 @@
       "accept": "Godta invitasjon",
       "decline": "Avslå",
       "title": "Inviter medlemmer til #{room}",
-      "description": "Velg hvem du vil invitere. De ser rommet i sidefeltet og har sju dager på seg til å godta eller avslå.",
+      "description": "Velg hvem du vil invitere. De inviterte brukerne får en invitasjon og har sju dager på å godta eller avslå den.",
       "members": "Medlemmer",
       "send": "Send invitasjoner",
-      "failed": "Kunne ikke invitere {name}: {error}"
+      "failed": "Kunne ikke invitere {name}: {error}",
+      "already_member": "Allerede i dette rommet"
     }
   }
 }

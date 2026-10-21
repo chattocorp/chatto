@@ -97,11 +97,12 @@
     <Combobox
       id="multiple-timezones"
       label="Timezones"
-      description="Select several timezones. Use Backspace in the empty input to remove the last choice."
+      description="Select several timezones. Tokyo is unavailable. Use Backspace in the empty input to remove the last choice."
       multiple
       bind:selectedItems={selectedTimezones}
       bind:text={multipleSearch}
       items={multipleResults}
+      getOptionDisabled={(timezone) => timezone.id === 'Asia/Tokyo'}
       getValue={(timezone) => timezone.id}
       getLabel={(timezone) => timezone.label}
       placeholder="Search timezones"

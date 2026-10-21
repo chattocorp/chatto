@@ -12,6 +12,8 @@ channel room. The recipient accepts or declines in the room welcome screen.
 
 - The invitation dialog names the room and explains the seven-day response
   period. Senders can select several members as removable pills before sending.
+  Search results include existing room members as disabled choices with an
+  explanation, so senders can see why they cannot select them.
   If some invitations fail, successful recipients leave the selection and
   failed recipients remain available for retry.
 - Invitations expire after seven days. A room and recipient can have one

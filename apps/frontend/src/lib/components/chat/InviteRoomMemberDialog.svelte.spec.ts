@@ -67,6 +67,19 @@ describe('Invite room member dialog', () => {
     });
     expect(onclose).toHaveBeenCalledOnce();
   });
+  it('shows current room members as unavailable with an explanation', async () => {
+    rooms.batchGetMembers.mockReturnValue({
+      members: [{ user: { id: 'recipient-1', login: 'bob', displayName: 'Bob' } }]
+    });
+    render(InviteRoomMemberDialog, { room, onclose: vi.fn() });
+    await page.getByRole('combobox', { name: 'Members' }).fill('bob');
+    const option = page.getByRole('option');
+    await expect.element(option).toBeDisabled();
+    await expect.element(option).toHaveTextContent('Already in this room');
+    await expect.element(page.getByRole('button', { name: 'Send invitations' })).toBeDisabled();
+    expect(invitations.createRoomInvitation).not.toHaveBeenCalled();
+  });
+
   it('keeps failed recipients selected and retries only them', async () => {
     const onclose = vi.fn();
     users.listUsers.mockReturnValue({
@@ -86,7 +99,7 @@ describe('Invite room member dialog', () => {
       .element(page.getByRole('dialog', { name: 'Invite members to #Project' }))
       .toBeVisible();
     await expect
-      .element(page.getByText('They will see the room in their sidebar', { exact: false }))
+      .element(page.getByText('Invited users will receive an invitation', { exact: false }))
       .toBeVisible();
     const search = page.getByRole('combobox', { name: 'Members' });
     await search.fill('b');

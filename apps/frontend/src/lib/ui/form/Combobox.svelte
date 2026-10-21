@@ -17,6 +17,7 @@
     items,
     getValue,
     getLabel,
+    getOptionDisabled = () => false,
     placeholder,
     description,
     error,
@@ -46,6 +47,8 @@
     items: T[];
     getValue: (item: T) => string;
     getLabel: (item: T) => string;
+    /** Keep unavailable results visible while excluding them from selection and navigation. */
+    getOptionDisabled?: (item: T) => boolean;
     placeholder?: string;
     description?: string;
     error?: string;
@@ -79,6 +82,11 @@
   const options = $derived(
     multiple ? items.filter((option) => !selectedValues.has(getValue(option))) : items
   );
+  const activeIndex = $derived(
+    options[selectedIndex] && !getOptionDisabled(options[selectedIndex])
+      ? selectedIndex
+      : options.findIndex((option) => !getOptionDisabled(option))
+  );
   const showPopover = $derived(open && !disabled && (loading || options.length > 0 || text !== ''));
 
   function updateAnchor() {
@@ -104,6 +112,7 @@
   }
 
   function selectOption(option: T) {
+    if (disabled || getOptionDisabled(option)) return;
     if (multiple) {
       if (selectedValues.has(getValue(option))) return;
       selectedItems = [...selectedItems, option];
@@ -137,6 +146,18 @@
     inputEl?.focus();
   }
 
+  /** Traverse at most one full result page, including pages with no selectable results. */
+  function moveSelection(direction: number): void {
+    if (activeIndex < 0) return;
+    for (let step = 1; step <= options.length; step++) {
+      const index = (activeIndex + direction * step + options.length) % options.length;
+      if (!getOptionDisabled(options[index])) {
+        selectedIndex = index;
+        return;
+      }
+    }
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (disabled) return;
 
@@ -147,17 +168,17 @@
         return;
       }
       if (options.length > 0) {
-        selectedIndex = (selectedIndex + 1) % options.length;
+        moveSelection(1);
       }
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       if (options.length > 0) {
-        selectedIndex = (selectedIndex - 1 + options.length) % options.length;
+        moveSelection(-1);
       }
     } else if (event.key === 'Enter') {
-      if (open && options[selectedIndex]) {
+      if (open && options.length > 0) {
         event.preventDefault();
-        selectOption(options[selectedIndex]);
+        if (options[activeIndex]) selectOption(options[activeIndex]);
       }
     } else if (event.key === 'Backspace' && multiple && !text && selectedItems.length > 0) {
       event.preventDefault();
@@ -219,8 +240,8 @@
       aria-expanded={showPopover}
       aria-autocomplete="list"
       aria-controls={`${id}-listbox`}
-      aria-activedescendant={showPopover && options[selectedIndex]
-        ? `${id}-option-${selectedIndex}`
+      aria-activedescendant={showPopover && options[activeIndex]
+        ? `${id}-option-${activeIndex}`
         : undefined}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={[
@@ -281,13 +302,20 @@
           type="button"
           role="option"
           id={`${id}-option-${index}`}
-          aria-selected={index === selectedIndex}
-          class={['menu-item w-full text-start', index === selectedIndex && 'menu-item-active']}
-          onpointerenter={() => (selectedIndex = index)}
+          aria-selected={index === activeIndex}
+          aria-disabled={getOptionDisabled(option)}
+          disabled={getOptionDisabled(option)}
+          class={[
+            'menu-item w-full text-start disabled:cursor-default disabled:opacity-50',
+            index === activeIndex && 'menu-item-active'
+          ]}
+          onpointerenter={() => {
+            if (!getOptionDisabled(option)) selectedIndex = index;
+          }}
           onclick={() => selectOption(option)}
         >
           {#if item}
-            {@render item({ item: option, selected: index === selectedIndex })}
+            {@render item({ item: option, selected: index === activeIndex })}
           {:else}
             <span class="min-w-0 truncate">{getLabel(option)}</span>
           {/if}

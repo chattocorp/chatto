@@ -154,11 +154,16 @@ for (const answer of ['accept', 'decline'] as const) {
           recipientPage.getByRole('heading', { name: 'Overview', exact: true })
         ).toBeVisible();
 
-        // Cache an empty search while the recipient is still a room member.
+        // Cache the disabled result while the recipient is still a room member.
         await senderRoom.click({ button: 'right' });
         await senderPage.getByRole('menuitem', { name: 'Invite member', exact: true }).click();
         await dialog.getByRole('combobox', { name: 'Members' }).fill(recipient.login);
-        await expect(dialog).toContainText('No users found');
+        await expect(dialog.getByRole('option')).toBeDisabled();
+        await expect(dialog.getByRole('option')).toContainText('Already in this room');
+        await senderPage.screenshot({
+          animations: 'disabled',
+          path: test.info().outputPath('invite-existing-member.png')
+        });
         await dialog.getByRole('combobox', { name: 'Members' }).press('Escape');
         await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(dialog).not.toBeVisible();

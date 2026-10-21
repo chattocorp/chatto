@@ -324,10 +324,11 @@
       "accept": "Aceitar convite",
       "decline": "Recusar",
       "title": "Convidar membros para #{room}",
-      "description": "Escolha quem você quer convidar. Eles verão a sala na barra lateral e terão sete dias para aceitar ou recusar.",
+      "description": "Escolha quem você quer convidar. Os usuários convidados receberão um convite e terão sete dias para aceitar ou recusar.",
       "members": "Membros",
       "send": "Enviar convites",
-      "failed": "Não foi possível convidar {name}: {error}"
+      "failed": "Não foi possível convidar {name}: {error}",
+      "already_member": "Já está nesta sala"
     }
   }
 }

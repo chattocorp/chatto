@@ -324,10 +324,11 @@
       "accept": "Daveti kabul et",
       "decline": "Reddet",
       "title": "#{room} odasına üyeleri davet et",
-      "description": "Davet etmek istediğiniz kişileri seçin. Odayı kenar çubuklarında görecekler ve kabul etmek veya reddetmek için yedi günleri olacak.",
+      "description": "Kimi davet etmek istediğinizi seçin. Davet edilen kullanıcılar bir davet alacak ve kabul etmek veya reddetmek için yedi günleri olacak.",
       "members": "Üyeler",
       "send": "Davetleri gönder",
-      "failed": "{name} davet edilemedi: {error}"
+      "failed": "{name} davet edilemedi: {error}",
+      "already_member": "Zaten bu odada"
     }
   }
 }
