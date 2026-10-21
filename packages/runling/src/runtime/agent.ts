@@ -413,7 +413,17 @@ async function createRunlingAgent(
   const agentDir = options.resources?.agentDir ?? getAgentDir();
   const modelRuntime = await ModelRuntime.create();
   const modelReference = parseModelReference(options.model);
-  const model = modelRuntime.getModel(modelReference.provider, modelReference.id);
+  let model = modelRuntime.getModel(modelReference.provider, modelReference.id);
+  // Refresh only the missing model's provider. Known models need no network lookup.
+  if (model === undefined && process.env.PI_OFFLINE === undefined) {
+    await modelRuntime.refresh({
+      providers: [modelReference.provider],
+      allowNetwork: true,
+      force: true,
+      signal: AbortSignal.timeout(5_000)
+    });
+    model = modelRuntime.getModel(modelReference.provider, modelReference.id);
+  }
 
   if (model === undefined) {
     throw new Error(`Model ${options.model} is unavailable`);
