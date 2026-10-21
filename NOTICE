@@ -121,6 +121,7 @@ Frontend, Examples, and Documentation Components:
 - TypeScript (https://www.typescriptlang.org/) - Apache License 2.0
 - TypeScript ESLint (https://typescript-eslint.io/) - MIT License
 - Vidstack (https://www.vidstack.io/) - MIT License
+  Includes a local patch to stop HLS library callbacks after provider disposal.
 - Virtua (https://github.com/inokawa/virtua) - MIT License
   Includes a local patch to keep retained Svelte rows mounted during pagination.
 - Vite and Vitest (https://vite.dev/, https://vitest.dev/) - MIT License

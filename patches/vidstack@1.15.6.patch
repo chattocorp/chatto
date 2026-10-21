@@ -1,0 +1,106 @@
+diff --git a/dev/providers/vidstack-hls.js b/dev/providers/vidstack-hls.js
+index 4bad3453b0e7644a407c11982732e3a45b0e3952..89734a7998a32d85d7101104a3a1471ec4b3c8e5 100644
+--- a/dev/providers/vidstack-hls.js
++++ b/dev/providers/vidstack-hls.js
+@@ -1,4 +1,4 @@
+-import { DOMEvent, camelToKebabCase, effect, isFunction, isString, isUndefined, listenEvent, peek } from "../chunks/vidstack-BwClSYSC.js";
++import { DOMEvent, camelToKebabCase, effect, isFunction, isString, isUndefined, listenEvent, onDispose, peek } from "../chunks/vidstack-BwClSYSC.js";
+ import { ListSymbol, RAFLoop } from "../chunks/vidstack-BzoKHzuo.js";
+ import { IS_CHROME, isHLSSupported } from "../chunks/vidstack-gDipnrck.js";
+ import { loadScript, preconnect } from "../chunks/vidstack-CgNu5UhN.js";
+@@ -207,10 +207,13 @@ var HLSLibLoader = class {
+ 	#lib;
+ 	#ctx;
+ 	#callback;
++	#disposed = false;
+ 	constructor(lib, ctx, callback) {
+ 		this.#lib = lib;
+ 		this.#ctx = ctx;
+ 		this.#callback = callback;
++		// A library import can finish after the provider scope is disposed.
++		onDispose(() => { this.#disposed = true; });
+ 		this.#startLoading();
+ 	}
+ 	async #startLoading() {
+@@ -221,8 +224,9 @@ var HLSLibLoader = class {
+ 			onLoadError: this.#onLoadError.bind(this)
+ 		};
+ 		let ctor = await loadHLSScript(this.#lib, callbacks);
++		if (this.#disposed) return null;
+ 		if (isUndefined(ctor) && !isString(this.#lib)) ctor = await importHLS(this.#lib, callbacks);
+-		if (!ctor) return null;
++		if (this.#disposed || !ctor) return null;
+ 		if (!ctor.isSupported()) {
+ 			const message = "[vidstack] `hls.js` is not supported in this environment";
+ 			this.#ctx.logger?.error(message);
+@@ -236,15 +240,18 @@ var HLSLibLoader = class {
+ 		return ctor;
+ 	}
+ 	#onLoadStart() {
++		if (this.#disposed) return;
+ 		this.#ctx.logger?.infoGroup("Starting to load `hls.js`").labelledLog("URL", this.#lib).dispatch();
+ 		this.#ctx.player.dispatch(new DOMEvent("hls-lib-load-start"));
+ 	}
+ 	#onLoaded(ctor) {
++		if (this.#disposed) return;
+ 		this.#ctx.logger?.infoGroup("Loaded `hls.js`").labelledLog("Library", this.#lib).labelledLog("Constructor", ctor).dispatch();
+ 		this.#ctx.player.dispatch(new DOMEvent("hls-lib-loaded", { detail: ctor }));
+ 		this.#callback(ctor);
+ 	}
+ 	#onLoadError(e) {
++		if (this.#disposed) return;
+ 		const error = coerceToError(e);
+ 		this.#ctx.logger?.errorGroup("[vidstack] Failed to load `hls.js`").labelledLog("Library", this.#lib).labelledLog("Error", e).dispatch();
+ 		this.#ctx.player.dispatch(new DOMEvent("hls-lib-load-error", { detail: error }));
+diff --git a/prod/providers/vidstack-hls.js b/prod/providers/vidstack-hls.js
+index 58608425badcff0e372ffb0db7bc5d6b5ad5e1d0..2481e51a2882608d2869338b6761dfbfaa54f836 100644
+--- a/prod/providers/vidstack-hls.js
++++ b/prod/providers/vidstack-hls.js
+@@ -1,4 +1,4 @@
+-import { DOMEvent, camelToKebabCase, effect, isFunction, isString, isUndefined, listenEvent, peek } from "../chunks/vidstack-D9mvYVIz.js";
++import { DOMEvent, camelToKebabCase, effect, isFunction, isString, isUndefined, listenEvent, onDispose, peek } from "../chunks/vidstack-D9mvYVIz.js";
+ import { ListSymbol, RAFLoop } from "../chunks/vidstack-ijoHbXQB.js";
+ import { IS_CHROME, isHLSSupported } from "../chunks/vidstack-Dtnbh_MF.js";
+ import { loadScript, preconnect } from "../chunks/vidstack-mvRkf9tF.js";
+@@ -205,10 +205,13 @@ var HLSLibLoader = class {
+ 	#lib;
+ 	#ctx;
+ 	#callback;
++	#disposed = false;
+ 	constructor(lib, ctx, callback) {
+ 		this.#lib = lib;
+ 		this.#ctx = ctx;
+ 		this.#callback = callback;
++		// A library import can finish after the provider scope is disposed.
++		onDispose(() => { this.#disposed = true; });
+ 		this.#startLoading();
+ 	}
+ 	async #startLoading() {
+@@ -218,8 +221,9 @@ var HLSLibLoader = class {
+ 			onLoadError: this.#onLoadError.bind(this)
+ 		};
+ 		let ctor = await loadHLSScript(this.#lib, callbacks);
++		if (this.#disposed) return null;
+ 		if (isUndefined(ctor) && !isString(this.#lib)) ctor = await importHLS(this.#lib, callbacks);
+-		if (!ctor) return null;
++		if (this.#disposed || !ctor) return null;
+ 		if (!ctor.isSupported()) {
+ 			const message = "[vidstack] `hls.js` is not supported in this environment";
+ 			this.#ctx.player.dispatch(new DOMEvent("hls-unsupported"));
+@@ -232,13 +236,16 @@ var HLSLibLoader = class {
+ 		return ctor;
+ 	}
+ 	#onLoadStart() {
++		if (this.#disposed) return;
+ 		this.#ctx.player.dispatch(new DOMEvent("hls-lib-load-start"));
+ 	}
+ 	#onLoaded(ctor) {
++		if (this.#disposed) return;
+ 		this.#ctx.player.dispatch(new DOMEvent("hls-lib-loaded", { detail: ctor }));
+ 		this.#callback(ctor);
+ 	}
+ 	#onLoadError(e) {
++		if (this.#disposed) return;
+ 		const error = coerceToError(e);
+ 		this.#ctx.player.dispatch(new DOMEvent("hls-lib-load-error", { detail: error }));
+ 		this.#ctx.notify("error", {
