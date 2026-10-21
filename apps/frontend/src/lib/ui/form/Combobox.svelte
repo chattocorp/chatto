@@ -183,13 +183,13 @@
     {#if multiple}
       {#each selectedItems as selected (getValue(selected))}
         <span
-          class="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full bg-surface-emphasized py-0.5 ps-2 pe-0.5 text-sm"
+          class="meta-badge max-w-full min-w-0 gap-1 border-border py-0.5 ps-2 pe-0.5 text-sm"
           data-testid="combobox-selection"
         >
           <bdi class="min-w-0 truncate">{getLabel(selected)}</bdi>
           <button
             type="button"
-            class="inline-flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-surface focus-visible:outline-2 focus-visible:outline-action"
+            class="mini-icon-action size-6 items-center justify-center hover:bg-surface-emphasized"
             aria-label={m('ui.combobox.remove', { label: getLabel(selected) })}
             {disabled}
             onclick={() => removeSelection(selected)}
