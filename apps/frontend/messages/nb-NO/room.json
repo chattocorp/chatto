@@ -313,6 +313,16 @@
       "indefinite": "Ubestemt",
       "remove_title": "Fjern {user} fra rommet",
       "suspension_period": "Varighet for utestengelse"
+    },
+    "invitation": {
+      "invite": "Inviter medlem",
+      "invited": "Du har blitt invitert",
+      "sent": "Invitasjon sendt",
+      "sender": "Invitert av {name}",
+      "expires": "Utløper {date}",
+      "unavailable": "Du kan ikke godta denne invitasjonen nå. Du kan fortsatt avslå den.",
+      "accept": "Godta invitasjon",
+      "decline": "Avslå"
     }
   }
 }

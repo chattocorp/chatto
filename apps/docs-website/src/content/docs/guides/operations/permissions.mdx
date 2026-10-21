@@ -268,3 +268,15 @@ Make these changes on an upgraded server:
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
+
+## Room invitations
+
+Grant `room.invite` to let members invite other human server members to their
+rooms. You can grant it for the server, a room group, or one room. Fresh servers
+grant it to the admin role only. On an existing server, grant it explicitly.
+
+The recipient sees the invited room in its sidebar group. Opening the room
+shows who sent the invitation and when it expires. The recipient has seven days
+to accept or decline. Acceptance bypasses `room.join`, but does not grant
+message or call permissions. The sender must still be a member with
+`room.invite` when the recipient accepts.

@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package chatto.core.evt.v1;
+import "google/protobuf/timestamp.proto";
 
 import "chatto/core/evt/v1/models.proto";
 
@@ -178,4 +179,26 @@ message CallEndedEvent {
   string room_id = 1;
   string call_id = 2;
   CallParticipantEventSource source = 3;
+}
+
+// A member invited a human account to this room. The envelope records sender and time.
+message RoomInvitationCreatedEvent {
+  string room_id = 1;
+  string invitation_id = 2;
+  string recipient_id = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+// The recipient accepted; the membership fact commits in the same batch.
+message RoomInvitationAcceptedEvent {
+  string room_id = 1;
+  string invitation_id = 2;
+  string recipient_id = 3;
+  string sender_id = 4;
+}
+// The recipient declined. Notification deletion does not produce this fact.
+message RoomInvitationDeclinedEvent {
+  string room_id = 1;
+  string invitation_id = 2;
+  string recipient_id = 3;
+  string sender_id = 4;
 }

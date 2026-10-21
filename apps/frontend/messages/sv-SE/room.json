@@ -313,6 +313,16 @@
       "indefinite": "Tills vidare",
       "remove_title": "Ta bort {user} från rummet",
       "suspension_period": "Avstängningens längd"
+    },
+    "invitation": {
+      "invite": "Bjud in medlem",
+      "invited": "Du har blivit inbjuden",
+      "sent": "Inbjudan skickad",
+      "sender": "Inbjuden av {name}",
+      "expires": "Upphör {date}",
+      "unavailable": "Du kan inte acceptera denna inbjudan just nu. Du kan fortfarande avböja den.",
+      "accept": "Acceptera inbjudan",
+      "decline": "Avböj"
     }
   }
 }

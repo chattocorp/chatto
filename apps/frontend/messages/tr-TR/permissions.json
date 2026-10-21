@@ -34,7 +34,8 @@
       "call_join": "Devam eden bir aramaya katılma",
       "call_voice": "Aramalarda mikrofonu kullanma",
       "call_camera": "Aramalarda kamerayı kullanma",
-      "call_screenshare": "Yakalanan ses dahil ekran veya uygulama paylaşma"
+      "call_screenshare": "Yakalanan ses dahil ekran veya uygulama paylaşma",
+      "room_invite": "Sunucu üyelerini katıldığınız odalara davet edin"
     }
   }
 }

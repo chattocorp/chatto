@@ -313,6 +313,16 @@
       "indefinite": "Na neurčito",
       "remove_title": "Odebrat {user} z místnosti",
       "suspension_period": "Doba pozastavení"
+    },
+    "invitation": {
+      "invite": "Pozvat člena",
+      "invited": "Máte pozvánku",
+      "sent": "Pozvánka odeslána",
+      "sender": "Pozvání od {name}",
+      "expires": "Platí do {date}",
+      "unavailable": "Tuto pozvánku nyní nemůžete přijmout. Stále ji můžete odmítnout.",
+      "accept": "Přijmout pozvánku",
+      "decline": "Odmítnout"
     }
   }
 }

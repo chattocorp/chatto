@@ -313,6 +313,16 @@
       "indefinite": "Senfine",
       "remove_title": "Forigi {user} el ĉambro",
       "suspension_period": "Daŭro de suspendo"
+    },
+    "invitation": {
+      "invite": "Inviti membron",
+      "invited": "Vi estas invitita",
+      "sent": "Invito sendita",
+      "sender": "Invito de {name}",
+      "expires": "Eksvalidiĝas je {date}",
+      "unavailable": "Vi ne povas akcepti ĉi tiun inviton nun. Vi ankoraŭ povas malakcepti ĝin.",
+      "accept": "Akcepti inviton",
+      "decline": "Malakcepti"
     }
   }
 }

@@ -34,7 +34,8 @@
       "call_join": "Připojit se k probíhajícímu hovoru",
       "call_voice": "Používat mikrofon v hovorech",
       "call_camera": "Používat kameru v hovorech",
-      "call_screenshare": "Sdílet obrazovku nebo aplikaci včetně zachyceného zvuku"
+      "call_screenshare": "Sdílet obrazovku nebo aplikaci včetně zachyceného zvuku",
+      "room_invite": "Pozvěte členy serveru do místností, do kterých jste se připojili"
     }
   }
 }

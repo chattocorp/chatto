@@ -179,7 +179,8 @@
       "call_join": "允許帳戶加入進行中的通話，也可以只作為聆聽者加入。傳送音訊或視訊需要 call.voice、call.camera 或 call.screenshare。",
       "call_voice": "允許帳戶在通話中傳送麥克風音訊。沒有此權限時，帳戶仍可聆聽。",
       "call_camera": "允許帳戶在通話中傳送攝影機視訊。",
-      "call_screenshare": "允許帳戶在通話中分享螢幕、視窗、分頁或應用程式及其音訊。不允許傳送麥克風音訊；這需要 call.voice。"
+      "call_screenshare": "允許帳戶在通話中分享螢幕、視窗、分頁或應用程式及其音訊。不允許傳送麥克風音訊；這需要 call.voice。",
+      "room_invite": "邀請伺服器成員加入你已加入的聊天室."
     }
   }
 }

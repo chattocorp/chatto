@@ -50,14 +50,16 @@ export function flattenRoomMembers(data: RoomMembersData | undefined): Directory
 /**
  * Fill the room-member picker from directory pages, excluding users who are
  * already in the room. A page containing only existing members must not stop
- * the search before an eligible result on a later page.
+ * the search before an eligible result on a later page. The optional `include`
+ * predicate applies before the result limit, for pickers with narrower choices.
  */
 export async function listEligibleRoomMembers(
   api: Pick<MemberDirectoryAPI, 'listUsers' | 'batchGetRoomMembers'>,
   roomId: string,
   search: string,
   limit = ELIGIBLE_ROOM_MEMBER_LIMIT,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  include: (member: DirectoryMember) => boolean = () => true
 ): Promise<DirectoryMember[]> {
   const eligible: DirectoryMember[] = [];
   const seenIds = new Set<string>();
@@ -66,7 +68,9 @@ export async function listEligibleRoomMembers(
 
   while (hasMore && eligible.length < limit) {
     const page = await api.listUsers(search, limit, offset, { signal });
-    const candidates = page.members.filter((member) => !member.deleted && !seenIds.has(member.id));
+    const candidates = page.members.filter(
+      (member) => !member.deleted && !seenIds.has(member.id) && include(member)
+    );
     for (const candidate of candidates) seenIds.add(candidate.id);
 
     const existing = candidates.length

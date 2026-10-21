@@ -320,6 +320,16 @@
       "indefinite": "Bezterminowo",
       "remove_title": "Usuń {user} z pokoju",
       "suspension_period": "Okres zawieszenia"
+    },
+    "invitation": {
+      "invite": "Zaproś członka",
+      "invited": "Masz zaproszenie",
+      "sent": "Zaproszenie wysłane",
+      "sender": "Zaproszenie od {name}",
+      "expires": "Wygasa {date}",
+      "unavailable": "Nie możesz teraz przyjąć tego zaproszenia. Nadal możesz je odrzucić.",
+      "accept": "Przyjmij zaproszenie",
+      "decline": "Odrzuć"
     }
   }
 }

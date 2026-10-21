@@ -313,6 +313,16 @@
       "indefinite": "無期限",
       "remove_title": "{user}をルームから退出させる",
       "suspension_period": "参加停止期間"
+    },
+    "invitation": {
+      "invite": "メンバーを招待",
+      "invited": "招待されています",
+      "sent": "招待を送信しました",
+      "sender": "{name}さんからの招待",
+      "expires": "有効期限：{date}",
+      "unavailable": "現在この招待を承諾できません。辞退することはできます。",
+      "accept": "招待を承諾",
+      "decline": "辞退"
     }
   }
 }

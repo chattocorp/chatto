@@ -329,6 +329,16 @@
       "indefinite": "غير محدد المدة",
       "remove_title": "إزالة {user} من الغرفة",
       "suspension_period": "مدة التعليق"
+    },
+    "invitation": {
+      "invite": "دعوة عضو",
+      "invited": "لقد تمت دعوتك",
+      "sent": "تم إرسال الدعوة",
+      "sender": "دعوة من {name}",
+      "expires": "تنتهي في {date}",
+      "unavailable": "لا يمكنك قبول هذه الدعوة حاليًا. لا يزال بإمكانك رفضها.",
+      "accept": "اقبل الدعوة",
+      "decline": "ارفض"
     }
   }
 }

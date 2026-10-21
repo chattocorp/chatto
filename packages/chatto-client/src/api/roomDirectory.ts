@@ -12,7 +12,17 @@ import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '../util/roomThreading.js';
 
+/** Pending invitation metadata does not grant room-content access. */
+export type ViewerRoomInvitation = {
+  id: string;
+  senderId: string;
+  expiresAt: Date;
+  viewerCanAccept: boolean;
+};
+
 export type DirectoryRoomSummary = {
+  invitation?: ViewerRoomInvitation;
+  canInvite?: boolean;
   id: string;
   name: string;
   description: string | null;
@@ -187,6 +197,17 @@ export function mapDirectoryRoomDetails(
 export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
   if (!entry.room) return null;
   return {
+    invitation: entry.viewerState?.invitation?.expiresAt
+      ? {
+          id: entry.viewerState.invitation.id,
+          senderId: entry.viewerState.invitation.senderId,
+          expiresAt: entry.viewerState.invitation.expiresAt.toDate(),
+          viewerCanAccept: entry.viewerState.invitation.canAccept
+        }
+      : undefined,
+    canInvite:
+      entry.viewerState?.permissions.some((p) => p.permission === 'room.invite' && p.granted) ??
+      false,
     id: entry.room.id,
     name: entry.room.name,
     description: entry.room.description || null,

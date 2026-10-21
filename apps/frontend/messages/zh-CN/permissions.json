@@ -34,7 +34,8 @@
       "call_join": "加入正在进行的通话",
       "call_voice": "在通话中使用麦克风",
       "call_camera": "在通话中使用摄像头",
-      "call_screenshare": "共享屏幕或应用程序，包括捕获的音频"
+      "call_screenshare": "共享屏幕或应用程序，包括捕获的音频",
+      "room_invite": "邀请服务器成员加入你已加入的聊天室"
     }
   }
 }

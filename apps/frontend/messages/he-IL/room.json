@@ -317,6 +317,16 @@
       "indefinite": "ללא הגבלת זמן",
       "remove_title": "הסרת {user} מהחדר",
       "suspension_period": "משך ההשעיה"
+    },
+    "invitation": {
+      "invite": "הזמן חבר",
+      "invited": "הוזמנת לחדר",
+      "sent": "ההזמנה נשלחה",
+      "sender": "הזמנה מאת {name}",
+      "expires": "בתוקף עד {date}",
+      "unavailable": "לא ניתן לקבל את ההזמנה כרגע. עדיין ניתן לדחות אותה.",
+      "accept": "קבל הזמנה",
+      "decline": "דחה"
     }
   }
 }

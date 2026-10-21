@@ -9,6 +9,7 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -938,11 +939,218 @@ func (x *CallEndedEvent) GetSource() CallParticipantEventSource {
 	return CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
 }
 
+// A member invited a human account to this room. The envelope records sender and time.
+type RoomInvitationCreatedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	RecipientId   string                 `protobuf:"bytes,3,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomInvitationCreatedEvent) Reset() {
+	*x = RoomInvitationCreatedEvent{}
+	mi := &file_chatto_core_evt_v1_room_events_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomInvitationCreatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomInvitationCreatedEvent) ProtoMessage() {}
+
+func (x *RoomInvitationCreatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_room_events_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomInvitationCreatedEvent.ProtoReflect.Descriptor instead.
+func (*RoomInvitationCreatedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_room_events_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RoomInvitationCreatedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomInvitationCreatedEvent) GetInvitationId() string {
+	if x != nil {
+		return x.InvitationId
+	}
+	return ""
+}
+
+func (x *RoomInvitationCreatedEvent) GetRecipientId() string {
+	if x != nil {
+		return x.RecipientId
+	}
+	return ""
+}
+
+func (x *RoomInvitationCreatedEvent) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// The recipient accepted; the membership fact commits in the same batch.
+type RoomInvitationAcceptedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	RecipientId   string                 `protobuf:"bytes,3,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	SenderId      string                 `protobuf:"bytes,4,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomInvitationAcceptedEvent) Reset() {
+	*x = RoomInvitationAcceptedEvent{}
+	mi := &file_chatto_core_evt_v1_room_events_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomInvitationAcceptedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomInvitationAcceptedEvent) ProtoMessage() {}
+
+func (x *RoomInvitationAcceptedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_room_events_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomInvitationAcceptedEvent.ProtoReflect.Descriptor instead.
+func (*RoomInvitationAcceptedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_room_events_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *RoomInvitationAcceptedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomInvitationAcceptedEvent) GetInvitationId() string {
+	if x != nil {
+		return x.InvitationId
+	}
+	return ""
+}
+
+func (x *RoomInvitationAcceptedEvent) GetRecipientId() string {
+	if x != nil {
+		return x.RecipientId
+	}
+	return ""
+}
+
+func (x *RoomInvitationAcceptedEvent) GetSenderId() string {
+	if x != nil {
+		return x.SenderId
+	}
+	return ""
+}
+
+// The recipient declined. Notification deletion does not produce this fact.
+type RoomInvitationDeclinedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	RecipientId   string                 `protobuf:"bytes,3,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	SenderId      string                 `protobuf:"bytes,4,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomInvitationDeclinedEvent) Reset() {
+	*x = RoomInvitationDeclinedEvent{}
+	mi := &file_chatto_core_evt_v1_room_events_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomInvitationDeclinedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomInvitationDeclinedEvent) ProtoMessage() {}
+
+func (x *RoomInvitationDeclinedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_room_events_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomInvitationDeclinedEvent.ProtoReflect.Descriptor instead.
+func (*RoomInvitationDeclinedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_room_events_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *RoomInvitationDeclinedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomInvitationDeclinedEvent) GetInvitationId() string {
+	if x != nil {
+		return x.InvitationId
+	}
+	return ""
+}
+
+func (x *RoomInvitationDeclinedEvent) GetRecipientId() string {
+	if x != nil {
+		return x.RecipientId
+	}
+	return ""
+}
+
+func (x *RoomInvitationDeclinedEvent) GetSenderId() string {
+	if x != nil {
+		return x.SenderId
+	}
+	return ""
+}
+
 var File_chatto_core_evt_v1_room_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\x8f\x02\n" +
+	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/evt/v1/models.proto\"\x8f\x02\n" +
 	"\x10RoomCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -994,7 +1202,23 @@ const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	"\x0eCallEndedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
 	"\acall_id\x18\x02 \x01(\tR\x06callId\x12F\n" +
-	"\x06source\x18\x03 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source*\xd0\x01\n" +
+	"\x06source\x18\x03 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source\"\xb8\x01\n" +
+	"\x1aRoomInvitationCreatedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\x12!\n" +
+	"\frecipient_id\x18\x03 \x01(\tR\vrecipientId\x129\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x9b\x01\n" +
+	"\x1bRoomInvitationAcceptedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\x12!\n" +
+	"\frecipient_id\x18\x03 \x01(\tR\vrecipientId\x12\x1b\n" +
+	"\tsender_id\x18\x04 \x01(\tR\bsenderId\"\x9b\x01\n" +
+	"\x1bRoomInvitationDeclinedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\x12!\n" +
+	"\frecipient_id\x18\x03 \x01(\tR\vrecipientId\x12\x1b\n" +
+	"\tsender_id\x18\x04 \x01(\tR\bsenderId*\xd0\x01\n" +
 	"\x1aCallParticipantEventSource\x12-\n" +
 	")CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"CALL_PARTICIPANT_EVENT_SOURCE_USER\x10\x01\x12)\n" +
@@ -1015,7 +1239,7 @@ func file_chatto_core_evt_v1_room_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_evt_v1_room_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_evt_v1_room_events_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_chatto_core_evt_v1_room_events_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_chatto_core_evt_v1_room_events_proto_goTypes = []any{
 	(CallParticipantEventSource)(0),       // 0: chatto.core.evt.v1.CallParticipantEventSource
 	(*RoomCreatedEvent)(nil),              // 1: chatto.core.evt.v1.RoomCreatedEvent
@@ -1033,22 +1257,27 @@ var file_chatto_core_evt_v1_room_events_proto_goTypes = []any{
 	(*CallParticipantLeftEvent)(nil),      // 13: chatto.core.evt.v1.CallParticipantLeftEvent
 	(*CallStartedEvent)(nil),              // 14: chatto.core.evt.v1.CallStartedEvent
 	(*CallEndedEvent)(nil),                // 15: chatto.core.evt.v1.CallEndedEvent
-	(RoomKind)(0),                         // 16: chatto.core.evt.v1.RoomKind
-	(RoomThreadingMode)(0),                // 17: chatto.core.evt.v1.RoomThreadingMode
+	(*RoomInvitationCreatedEvent)(nil),    // 16: chatto.core.evt.v1.RoomInvitationCreatedEvent
+	(*RoomInvitationAcceptedEvent)(nil),   // 17: chatto.core.evt.v1.RoomInvitationAcceptedEvent
+	(*RoomInvitationDeclinedEvent)(nil),   // 18: chatto.core.evt.v1.RoomInvitationDeclinedEvent
+	(RoomKind)(0),                         // 19: chatto.core.evt.v1.RoomKind
+	(RoomThreadingMode)(0),                // 20: chatto.core.evt.v1.RoomThreadingMode
+	(*timestamppb.Timestamp)(nil),         // 21: google.protobuf.Timestamp
 }
 var file_chatto_core_evt_v1_room_events_proto_depIdxs = []int32{
-	16, // 0: chatto.core.evt.v1.RoomCreatedEvent.kind:type_name -> chatto.core.evt.v1.RoomKind
-	17, // 1: chatto.core.evt.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.core.evt.v1.RoomThreadingMode
-	17, // 2: chatto.core.evt.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.core.evt.v1.RoomThreadingMode
+	19, // 0: chatto.core.evt.v1.RoomCreatedEvent.kind:type_name -> chatto.core.evt.v1.RoomKind
+	20, // 1: chatto.core.evt.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.core.evt.v1.RoomThreadingMode
+	20, // 2: chatto.core.evt.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.core.evt.v1.RoomThreadingMode
 	0,  // 3: chatto.core.evt.v1.CallParticipantJoinedEvent.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
 	0,  // 4: chatto.core.evt.v1.CallParticipantLeftEvent.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
 	0,  // 5: chatto.core.evt.v1.CallStartedEvent.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
 	0,  // 6: chatto.core.evt.v1.CallEndedEvent.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	21, // 7: chatto.core.evt.v1.RoomInvitationCreatedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_room_events_proto_init() }
@@ -1064,7 +1293,7 @@ func file_chatto_core_evt_v1_room_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_room_events_proto_rawDesc), len(file_chatto_core_evt_v1_room_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

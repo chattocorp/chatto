@@ -526,3 +526,9 @@ call also requires `call.start`. Tokens encode `call.voice`, `call.camera`, and
 `call.screenshare`. Member-only observer reads and leaving do not require these
 permissions. Room viewer-state permission rows expose the five actions through
 existing room reads and realtime reconciliation.
+
+## RoomInvitationService
+
+The authenticated public `chatto.api.v1.RoomInvitationService` provides create,
+get, batch-get, list, accept, and decline operations. Only the sender and
+recipient can read an invitation. Only the recipient can respond.

@@ -41,6 +41,7 @@ type ChattoCore struct {
 	roomModel                 *RoomModel
 	authorization             *AuthorizationModel
 	roomMemberships           *RoomMembershipModel
+	roomInvitations           *RoomInvitationModel
 	roomLayout                *RoomLayoutModel
 	roomCommands              *RoomCommandModel
 	roomDirectoryReads        *RoomDirectoryReadModel

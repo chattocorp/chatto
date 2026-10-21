@@ -12,6 +12,9 @@ action behavior so this component stays presentation-only.
   let {
     isRoomMember = true,
     canJoin = false,
+    joinLabel = m('room.join.action'),
+    canInvite = false,
+    onInvite,
     canMarkRead,
     canConfigure = false,
     canLeave = true,
@@ -25,6 +28,9 @@ action behavior so this component stays presentation-only.
   }: {
     isRoomMember?: boolean;
     canJoin?: boolean;
+    joinLabel?: string;
+    canInvite?: boolean;
+    onInvite?: () => void;
     canMarkRead: boolean;
     canConfigure?: boolean;
     canLeave?: boolean;
@@ -41,11 +47,17 @@ action behavior so this component stays presentation-only.
 <MenuSection>
   {#if !isRoomMember}
     <MenuItem icon="icon-[uil--sign-in-alt]" mirrorIconInRtl onclick={onJoin} disabled={!canJoin}>
-      {m('room.join.action')}
+      {joinLabel}
     </MenuItem>
   {:else}
     <MenuItem icon="icon-[uil--check-circle]" onclick={onMarkRead} disabled={!canMarkRead}>
       {m('room_list.mark_as_read')}
+    </MenuItem>
+  {/if}
+
+  {#if canInvite && onInvite}
+    <MenuItem icon="icon-[uil--user-plus]" onclick={onInvite}>
+      {m('room.invitation.invite')}
     </MenuItem>
   {/if}
 

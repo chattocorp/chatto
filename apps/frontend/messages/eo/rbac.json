@@ -179,7 +179,8 @@
       "call_join": "Permesas al konto aliĝi al aktiva voko, ankaŭ nur kiel aŭskultanto. Por sendi sonon aŭ videon necesas call.voice, call.camera aŭ call.screenshare.",
       "call_voice": "Permesas al konto sendi mikrofonan sonon en vokoj. Sen ĝi, la konto tamen povas aŭskulti.",
       "call_camera": "Permesas al konto sendi kameraan videon en vokoj.",
-      "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice."
+      "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice.",
+      "room_invite": "Invitu servilanojn al ĉambroj, kiujn vi aliĝis."
     }
   }
 }

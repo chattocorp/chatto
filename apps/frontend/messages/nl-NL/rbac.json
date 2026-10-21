@@ -179,7 +179,8 @@
       "call_join": "Staat een account toe deel te nemen aan een actief gesprek, ook alleen als luisteraar. Om audio of video te versturen zijn call.voice, call.camera of call.screenshare nodig.",
       "call_voice": "Staat een account toe microfoongeluid te versturen in gesprekken. Zonder dit recht kan het account nog steeds luisteren.",
       "call_camera": "Staat een account toe camerabeeld te versturen in gesprekken.",
-      "call_screenshare": "Staat een account toe een scherm, venster, tabblad of toepassing te delen in gesprekken, inclusief geluid. Het staat geen microfoongeluid toe; daarvoor is call.voice nodig."
+      "call_screenshare": "Staat een account toe een scherm, venster, tabblad of toepassing te delen in gesprekken, inclusief geluid. Het staat geen microfoongeluid toe; daarvoor is call.voice nodig.",
+      "room_invite": "Serverleden uitnodigen voor ruimtes waarvan je lid bent."
     }
   }
 }

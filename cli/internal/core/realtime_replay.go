@@ -247,7 +247,9 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				// it removes state that the client could have retained before the
 				// gap. Other visibility changes need a new snapshot because current
 				// state cannot prove that this viewer saw the earlier room.
-				if eventClosesUserRoomVisibility(&event, userID) {
+				if sender, recipient, invitation := roomInvitationParticipants(&event); invitation && (sender == userID || recipient == userID) {
+					// Invitation facts are participant-scoped, not membership-scoped.
+				} else if eventClosesUserRoomVisibility(&event, userID) {
 					// Continue and deliver the closing fact.
 				} else if eventChangesRoomVisibility(&event) || isRoomDirectoryProjectionEvent(&event) {
 					plan.Reset = true

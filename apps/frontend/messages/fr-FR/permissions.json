@@ -34,7 +34,8 @@
       "call_join": "Rejoindre un appel en cours",
       "call_voice": "Utiliser le microphone pendant les appels",
       "call_camera": "Utiliser la caméra pendant les appels",
-      "call_screenshare": "Partager un écran ou une application, y compris le son capturé"
+      "call_screenshare": "Partager un écran ou une application, y compris le son capturé",
+      "room_invite": "Inviter des membres du serveur dans les salons que vous avez rejoints"
     }
   }
 }

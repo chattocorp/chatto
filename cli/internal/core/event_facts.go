@@ -59,6 +59,12 @@ func roomIDOfEvent(event *evtv1.Event) string {
 		return e.RoomMemberBanned.GetRoomId()
 	case *evtv1.Event_RoomMemberUnbanned:
 		return e.RoomMemberUnbanned.GetRoomId()
+	case *evtv1.Event_RoomInvitationCreated:
+		return e.RoomInvitationCreated.GetRoomId()
+	case *evtv1.Event_RoomInvitationAccepted:
+		return e.RoomInvitationAccepted.GetRoomId()
+	case *evtv1.Event_RoomInvitationDeclined:
+		return e.RoomInvitationDeclined.GetRoomId()
 	case *evtv1.Event_RoomMemberAdded:
 		return e.RoomMemberAdded.GetRoomId()
 	case *evtv1.Event_RoomMemberRemoved:
@@ -406,7 +412,7 @@ func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
 
 func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 	switch eventType {
-	case evtstream.EventRoomCreated,
+	case evtstream.EventRoomInvitationCreated, evtstream.EventRoomInvitationAccepted, evtstream.EventRoomInvitationDeclined, evtstream.EventRoomCreated,
 		evtstream.EventRoomUpdated,
 		evtstream.EventRoomDeleted,
 		evtstream.EventRoomArchived,

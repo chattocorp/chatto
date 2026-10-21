@@ -32,6 +32,7 @@ describe('PERMISSION_DEFINITIONS', () => {
       'role.assign',
       'role.manage',
       'room.create',
+      'room.invite',
       'room.join',
       'room.list',
       'room.manage',

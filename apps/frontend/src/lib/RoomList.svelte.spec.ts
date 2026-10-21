@@ -910,6 +910,43 @@ describe('RoomList', () => {
     }
   );
 
+  it('keeps an invited non-member room visible and opens its invitation instead of joining', async () => {
+    const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+    const invited = rooms.find((room) => room.id === 'restricted-channel')!;
+    invited.viewerInvitation = {
+      id: 'invitation-1',
+      senderId: 'sender-1',
+      expiresAt: new Date('2099-01-01'),
+      viewerCanAccept: true
+    };
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
+    await expect.element(row).toBeVisible();
+    expect(row.classList.contains('opacity-60')).toBe(false);
+    await expect
+      .element(row.querySelector<HTMLElement>('[aria-label="You have been invited"]'))
+      .toBeVisible();
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await browserPage.getByRole('menuitem', { name: 'You have been invited' }).click();
+    expect(mocks.store.roomDirectory.joinRoom).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/restricted-channel');
+  });
+
+  it.each([true, false])(
+    'shows Invite member only with room invitation authority (%s)',
+    async (allowed) => {
+      const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+      rooms.find((room) => room.id === 'channel-1')!.viewerCanInvite = allowed;
+      const { container } = render(RoomList);
+      const row = q(container, '[href="/chat/-/channel-1"]')!;
+      row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      await expect.element(browserPage.getByTestId('copy-room-id')).toBeVisible();
+      const invite = browserPage.getByRole('menuitem', { name: 'Invite member' });
+      if (allowed) await expect.element(invite).toBeVisible();
+      else await expect.element(invite).not.toBeInTheDocument();
+    }
+  );
+
   it('offers a join action for a visible non-member room', async () => {
     const { container } = render(RoomList);
     q(container, '[data-testid="room-group-more"]')?.click();

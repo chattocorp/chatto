@@ -477,3 +477,9 @@ grants guarded by the complete RBAC subject tail. The same startup step also
 applies the 0.5 upgrade grants (ADR-113). It reads historical decisions so a
 cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
+
+## Room invitations
+
+`RoomInvitationModel` owns participant reads and invitation commands. It uses
+the room aggregate for creation and responses. Acceptance commits membership
+in the same atomic batch. See [FDR-051](../fdr/FDR-051-room-invitations.md).

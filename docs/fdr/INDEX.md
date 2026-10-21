@@ -60,3 +60,5 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-048](FDR-048-chatto-mobile.md)                         | Chatto Mobile                         | Experimental | 2026-09-25    |
 | [FDR-049](FDR-049-server-gutter.md)                         | Server Gutter                         | Active       | 2026-10-09    |
 | [FDR-050](FDR-050-provider-group-roles.md)                  | Provider Group Roles                  | Active       | 2026-10-14    |
+
+| [FDR-051](FDR-051-room-invitations.md) | Room Invitations | Experimental | 2026-10-21 |

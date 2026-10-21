@@ -313,6 +313,16 @@
       "indefinite": "無期限",
       "remove_title": "將 {user} 移出聊天室",
       "suspension_period": "暫停期限"
+    },
+    "invitation": {
+      "invite": "邀請成員",
+      "invited": "你已收到邀請",
+      "sent": "邀請已傳送",
+      "sender": "{name} 邀請了你",
+      "expires": "到期時間：{date}",
+      "unavailable": "你目前無法接受此邀請，但仍可拒絕。",
+      "accept": "接受邀請",
+      "decline": "拒絕"
     }
   }
 }

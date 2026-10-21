@@ -48,6 +48,15 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		return projectRealtimePermissionChange(target, viewerID, e.RbacPermissionDenied.GetSubject())
 	case *evtv1.Event_RbacPermissionCleared:
 		return projectRealtimePermissionChange(target, viewerID, e.RbacPermissionCleared.GetSubject())
+	case *evtv1.Event_RoomInvitationCreated:
+		v := e.RoomInvitationCreated
+		target.Event = &realtimev1.RealtimeEvent_RoomInvitationCreated{RoomInvitationCreated: &realtimev1.RoomInvitationCreatedEvent{RoomId: v.GetRoomId(), InvitationId: v.GetInvitationId()}}
+	case *evtv1.Event_RoomInvitationAccepted:
+		v := e.RoomInvitationAccepted
+		target.Event = &realtimev1.RealtimeEvent_RoomInvitationAccepted{RoomInvitationAccepted: &realtimev1.RoomInvitationAcceptedEvent{RoomId: v.GetRoomId(), InvitationId: v.GetInvitationId()}}
+	case *evtv1.Event_RoomInvitationDeclined:
+		v := e.RoomInvitationDeclined
+		target.Event = &realtimev1.RealtimeEvent_RoomInvitationDeclined{RoomInvitationDeclined: &realtimev1.RoomInvitationDeclinedEvent{RoomId: v.GetRoomId(), InvitationId: v.GetInvitationId()}}
 	case *evtv1.Event_RoomCreated:
 		v := e.RoomCreated
 		target.Event = &realtimev1.RealtimeEvent_RoomCreated{RoomCreated: &realtimev1.RoomCreatedEvent{RoomId: v.GetRoomId(), Name: v.GetName(), Description: v.GetDescription(), Kind: realtimeRoomKind(v.GetKind()), Universal: v.GetUniversal(), ThreadingMode: realtimeRoomThreadingMode(v.GetThreadingMode())}}

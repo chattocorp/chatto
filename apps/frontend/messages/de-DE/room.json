@@ -313,6 +313,16 @@
       "indefinite": "Unbefristet",
       "remove_title": "{user} aus dem Raum entfernen",
       "suspension_period": "Dauer der Sperre"
+    },
+    "invitation": {
+      "invite": "Mitglied einladen",
+      "invited": "Du wurdest eingeladen",
+      "sent": "Einladung gesendet",
+      "sender": "Eingeladen von {name}",
+      "expires": "Läuft am {date} ab",
+      "unavailable": "Du kannst diese Einladung derzeit nicht annehmen. Du kannst sie weiterhin ablehnen.",
+      "accept": "Einladung annehmen",
+      "decline": "Ablehnen"
     }
   }
 }

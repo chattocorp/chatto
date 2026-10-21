@@ -12,6 +12,10 @@ type ProjectionReadiness = {
 
 /** A room of the projection with the viewer's membership and permissions. */
 export type RoomListItem = {
+  /** Pending invitation; membership and content permissions remain independent. */
+  viewerInvitation?: import('../api/roomDirectory.js').ViewerRoomInvitation;
+  /** Whether this member can invite human accounts. */
+  viewerCanInvite?: boolean;
   id: string;
   name: string;
   description?: string | null;
@@ -107,6 +111,8 @@ export class RoomListView {
           viewerIsMember: room.isMember,
           viewerCanReadMessages: room.canReadMessages,
           viewerCanJoinRoom: room.canJoinRoom,
+          viewerInvitation: room.invitation,
+          viewerCanInvite: room.canInvite,
           viewerCanManageRoom: room.canManageRoom,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,
           lastMessageAt: room.lastMessageAt,

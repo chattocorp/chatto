@@ -313,6 +313,16 @@
       "indefinite": "Indefinita",
       "remove_title": "Rimuovi {user} dalla stanza",
       "suspension_period": "Durata della sospensione"
+    },
+    "invitation": {
+      "invite": "Invita membro",
+      "invited": "Hai ricevuto un invito",
+      "sent": "Invito inviato",
+      "sender": "Invito da {name}",
+      "expires": "Scade il {date}",
+      "unavailable": "Al momento non puoi accettare questo invito. Puoi ancora rifiutarlo.",
+      "accept": "Accetta l’invito",
+      "decline": "Rifiuta"
     }
   }
 }

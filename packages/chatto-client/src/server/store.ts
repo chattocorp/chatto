@@ -140,6 +140,7 @@ export class ServerStateStore {
   #privacyCleanupFailed = false;
   /** Set by {@link dispose}; the store then reads no session. */
   #disposed = false;
+  #invitationExpiryTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #realtime: EventBusManager;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
@@ -854,6 +855,7 @@ export class ServerStateStore {
           break;
         }
         case 'rooms':
+          this.scheduleInvitationExpiry();
           for (const [roomId, room] of this.projection.rooms) {
             if (room.viewerState?.isMember === false) this.clearRoomAccess(roomId);
             else if (room.viewerState?.isMember === true) this.restoreRoomAccess(roomId);
@@ -1037,6 +1039,29 @@ export class ServerStateStore {
         );
       }
     }
+  }
+
+  /** Refresh invitation visibility at its deadline, including while the room is idle. */
+  private scheduleInvitationExpiry(): void {
+    clearTimeout(this.#invitationExpiryTimer);
+    this.#invitationExpiryTimer = undefined;
+    if (this.#disposed) return;
+    let deadline = Infinity;
+    for (const room of this.projection.rooms.values()) {
+      const expiry = room.viewerState?.invitation?.expiresAt?.toDate().getTime();
+      if (expiry !== undefined) deadline = Math.min(deadline, expiry);
+    }
+    if (!Number.isFinite(deadline)) return;
+    const generation = this.#realtimeProjectionGeneration;
+    this.#invitationExpiryTimer = setTimeout(
+      () => {
+        this.#invitationExpiryTimer = undefined;
+        if (this.#disposed || generation !== this.#realtimeProjectionGeneration) return;
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+      },
+      Math.min(2_147_483_647, Math.max(1000, deadline - Date.now() + 50))
+    );
   }
 
   /** Fail closed at the failed resource, without discarding unrelated state. */
@@ -1349,6 +1374,9 @@ export class ServerStateStore {
           this.refreshRealtimeResource('rooms');
         }
         return;
+      case 'roomInvitationCreated':
+      case 'roomInvitationAccepted':
+      case 'roomInvitationDeclined':
       case 'roomCreated':
       case 'roomUpdated':
       case 'roomArchived':
@@ -1534,6 +1562,7 @@ export class ServerStateStore {
     // does not stop the privacy cleanup below.
     this.#events.dispose.emit();
     this.#disposed = true;
+    clearTimeout(this.#invitationExpiryTimer);
     this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();

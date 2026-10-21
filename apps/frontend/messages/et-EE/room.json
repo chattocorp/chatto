@@ -313,6 +313,16 @@
       "indefinite": "Tähtajatult",
       "remove_title": "Eemalda {user} toast",
       "suspension_period": "Peatamise kestus"
+    },
+    "invitation": {
+      "invite": "Kutsu liige",
+      "invited": "Teid on kutsutud",
+      "sent": "Kutse saadetud",
+      "sender": "Kutsuja: {name}",
+      "expires": "Aegub {date}",
+      "unavailable": "Te ei saa praegu seda kutset vastu võtta. Saate sellest endiselt keelduda.",
+      "accept": "Võta kutse vastu",
+      "decline": "Keeldu"
     }
   }
 }

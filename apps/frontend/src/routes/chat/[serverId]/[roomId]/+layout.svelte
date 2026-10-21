@@ -7,6 +7,7 @@
   import { roomRouteAccess } from '$lib/navigation/roomLinkAccess';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import Room from './Room.svelte';
+  import RoomInvitationScreen from './RoomInvitationScreen.svelte';
   import RoomJoinScreen from './RoomJoinScreen.svelte';
   import { PageTitle } from '$lib/ui';
 
@@ -54,7 +55,11 @@
   <PageTitle />
 {:else if ready && roomId && roomAccess.kind === 'nonmember'}
   {#key roomAccess.room.id}
-    <RoomJoinScreen room={roomAccess.room} serverSegment={data.serverSegment} />
+    {#if roomAccess.room.viewerInvitation}
+      <RoomInvitationScreen room={roomAccess.room} serverSegment={data.serverSegment} />
+    {:else}
+      <RoomJoinScreen room={roomAccess.room} serverSegment={data.serverSegment} />
+    {/if}
   {/key}
 {:else if canRenderRoom && roomId}
   {#if isMessageLinkMode}

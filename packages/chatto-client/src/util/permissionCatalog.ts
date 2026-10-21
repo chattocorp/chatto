@@ -65,6 +65,10 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     category: 'room',
     scopes: ['server', 'group', 'room']
   },
+  'room.invite': {
+    category: 'room',
+    scopes: ['server', 'group', 'room']
+  },
   'room.list': {
     category: 'room',
     scopes: ['server', 'group', 'room']

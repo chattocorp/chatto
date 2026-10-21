@@ -313,6 +313,16 @@
       "indefinite": "Indéfinie",
       "remove_title": "Retirer {user} du salon",
       "suspension_period": "Durée de la suspension"
+    },
+    "invitation": {
+      "invite": "Inviter un membre",
+      "invited": "Vous avez reçu une invitation",
+      "sent": "Invitation envoyée",
+      "sender": "Invitation de {name}",
+      "expires": "Expire le {date}",
+      "unavailable": "Vous ne pouvez pas accepter cette invitation pour le moment. Vous pouvez toujours la refuser.",
+      "accept": "Accepter l’invitation",
+      "decline": "Refuser"
     }
   }
 }

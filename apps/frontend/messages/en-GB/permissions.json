@@ -34,7 +34,8 @@
       "call_join": "Join an active call",
       "call_voice": "Use the microphone in calls",
       "call_camera": "Use the camera in calls",
-      "call_screenshare": "Share a screen or application, including captured audio"
+      "call_screenshare": "Share a screen or application, including captured audio",
+      "room_invite": "Invite server members to rooms that you have joined"
     }
   }
 }

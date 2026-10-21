@@ -102,6 +102,29 @@ describe('room member queries', () => {
     );
   });
 
+  it('continues paging past excluded invitation recipients', async () => {
+    const bot = member('bot', { isBot: true });
+    const human = member('human');
+    const listUsers = vi
+      .fn()
+      .mockImplementation((_search, _limit, offset) =>
+        Promise.resolve(offset === 0 ? page([bot], 2, true) : page([human], 2, false))
+      );
+    const batchGetRoomMembers = vi.fn().mockResolvedValue([]);
+    await expect(
+      listEligibleRoomMembers(
+        { listUsers, batchGetRoomMembers },
+        'room-1',
+        '',
+        1,
+        undefined,
+        (user) => !user.isBot
+      )
+    ).resolves.toEqual([human]);
+    expect(listUsers).toHaveBeenCalledTimes(2);
+    expect(batchGetRoomMembers).toHaveBeenCalledOnce();
+  });
+
   it('clears a removed room before its authorization is revalidated', async () => {
     const connection = { queryScope: 'session-1' };
     const queryKey = directoryQueryKeys.roomMembers('server-1', connection, 'room-1');

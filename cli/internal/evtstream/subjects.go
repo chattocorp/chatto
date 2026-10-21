@@ -84,6 +84,9 @@ const (
 	EventRoomMemberBanned         = "room_member_banned"
 	EventRoomMemberUnbanned       = "room_member_unbanned"
 	EventRoomMemberAdded          = "room_member_added"
+	EventRoomInvitationCreated    = "room_invitation_created"
+	EventRoomInvitationAccepted   = "room_invitation_accepted"
+	EventRoomInvitationDeclined   = "room_invitation_declined"
 	EventRoomMemberRemoved        = "room_member_removed"
 
 	// Messages (also under the room aggregate — every message event for
@@ -285,6 +288,12 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventRoomMemberBanned
 	case *evtv1.Event_RoomMemberUnbanned:
 		return EventRoomMemberUnbanned
+	case *evtv1.Event_RoomInvitationCreated:
+		return EventRoomInvitationCreated
+	case *evtv1.Event_RoomInvitationAccepted:
+		return EventRoomInvitationAccepted
+	case *evtv1.Event_RoomInvitationDeclined:
+		return EventRoomInvitationDeclined
 	case *evtv1.Event_RoomMemberAdded:
 		return EventRoomMemberAdded
 	case *evtv1.Event_RoomMemberRemoved:

@@ -313,6 +313,16 @@
       "indefinite": "Indefinite",
       "remove_title": "Remove {user} from room",
       "suspension_period": "Suspension period"
+    },
+    "invitation": {
+      "invite": "Invite member",
+      "invited": "You have been invited",
+      "sent": "Invitation sent",
+      "sender": "Invited by {name}",
+      "expires": "Expires on {date}",
+      "unavailable": "This invitation cannot be accepted at present. You can still decline it.",
+      "accept": "Accept invitation",
+      "decline": "Decline"
     }
   }
 }

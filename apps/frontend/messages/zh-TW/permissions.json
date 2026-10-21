@@ -34,7 +34,8 @@
       "call_join": "加入進行中的通話",
       "call_voice": "在通話中使用麥克風",
       "call_camera": "在通話中使用攝影機",
-      "call_screenshare": "分享螢幕或應用程式，包括擷取的音訊"
+      "call_screenshare": "分享螢幕或應用程式，包括擷取的音訊",
+      "room_invite": "邀請伺服器成員加入你已加入的聊天室"
     }
   }
 }

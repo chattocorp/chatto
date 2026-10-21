@@ -397,6 +397,24 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(ctx context.Context, user
 
 	_, isMember := memberRooms[roomID]
 	switch e := event.Event.(type) {
+	case *evtv1.Event_RoomInvitationCreated:
+		v := e.RoomInvitationCreated
+		if v.RecipientId != userID && event.ActorId != userID {
+			return nil, false
+		}
+		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+	case *evtv1.Event_RoomInvitationAccepted:
+		v := e.RoomInvitationAccepted
+		if v.RecipientId != userID && v.SenderId != userID {
+			return nil, false
+		}
+		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+	case *evtv1.Event_RoomInvitationDeclined:
+		v := e.RoomInvitationDeclined
+		if v.RecipientId != userID && v.SenderId != userID {
+			return nil, false
+		}
+		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 	case *evtv1.Event_RoomCreated:
 		if e.RoomCreated.GetUniversal() {
 			if isEffective, err := s.core.RoomMembershipExists(ctx, KindChannel, userID, roomID); err == nil && isEffective {
@@ -490,6 +508,11 @@ func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(ctx context.Context, use
 
 func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *evtv1.Event, seq uint64) error {
 	pos := events.SubjectPosition(subject, seq)
+	if event.GetRoomInvitationCreated() != nil || event.GetRoomInvitationAccepted() != nil || event.GetRoomInvitationDeclined() != nil {
+		if err := s.core.roomInvitations.projection.Projector().WaitFor(ctx, pos); err != nil {
+			return err
+		}
+	}
 	if err := s.core.roomModel.waitForLiveEVTEvent(ctx, pos, event); err != nil {
 		return err
 	}

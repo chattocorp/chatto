@@ -1,3 +1,4 @@
+import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { resetUserStoresForTests } from './users.js';
 import { userProfileFixture } from '../testing/userProfile.js';
@@ -649,6 +650,38 @@ describe('ServerStateStore disposal', () => {
     expect(() => store.dispose()).not.toThrow();
     expect(reset).toHaveBeenCalled();
     expect(logged).toHaveBeenCalled();
+  });
+});
+
+describe('ServerStateStore invitation expiry', () => {
+  it('refreshes room and group visibility when an idle invitation expires', async () => {
+    vi.useFakeTimers();
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        resource: roomResource([
+          new RoomWithViewerState({
+            room: { id: 'invited' },
+            viewerState: {
+              isMember: false,
+              invitation: {
+                id: 'invitation',
+                expiresAt: Timestamp.fromDate(new Date(Date.now() + 5000))
+              }
+            }
+          })
+        ])
+      })
+    );
+    apiMocks.readRealtimeResource.mockClear();
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(101);
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
+      'rooms',
+      'roomGroups'
+    ]);
+    store.dispose();
   });
 });
 
@@ -4379,6 +4412,9 @@ describe('ServerStateStore realtime resource hints', () => {
     ['voiceCallEnded', { roomId: 'R1' }, ['activeCalls']],
     ['roomCreated', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups', 'activeCalls']],
+    ['roomInvitationCreated', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
+    ['roomInvitationAccepted', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
+    ['roomInvitationDeclined', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
     ['roomThreadingModeChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomDeleted', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomLayoutChanged', {}, ['roomGroups']],

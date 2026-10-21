@@ -313,6 +313,16 @@
       "indefinite": "Indefinida",
       "remove_title": "Remover {user} da sala",
       "suspension_period": "Período de suspensão"
+    },
+    "invitation": {
+      "invite": "Convidar membro",
+      "invited": "Recebeu um convite",
+      "sent": "Convite enviado",
+      "sender": "Convite de {name}",
+      "expires": "Expira em {date}",
+      "unavailable": "Não é possível aceitar este convite de momento. Ainda o pode recusar.",
+      "accept": "Aceitar convite",
+      "decline": "Recusar"
     }
   }
 }

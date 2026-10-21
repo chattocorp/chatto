@@ -313,6 +313,16 @@
       "indefinite": "Bez termiņa",
       "remove_title": "Noņemt {user} no telpas",
       "suspension_period": "Apturējuma ilgums"
+    },
+    "invitation": {
+      "invite": "Uzaicināt dalībnieku",
+      "invited": "Jūs esat uzaicināts",
+      "sent": "Uzaicinājums nosūtīts",
+      "sender": "Uzaicināja {name}",
+      "expires": "Derīgs līdz {date}",
+      "unavailable": "Pašlaik jūs nevarat pieņemt šo uzaicinājumu. Jūs joprojām varat to noraidīt.",
+      "accept": "Pieņemt uzaicinājumu",
+      "decline": "Noraidīt"
     }
   }
 }

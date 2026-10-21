@@ -179,7 +179,8 @@
       "call_join": "Erlaubt einem Konto, einem laufenden Anruf beizutreten, auch nur zum Zuhören. Um Audio oder Video zu senden, braucht es call.voice, call.camera oder call.screenshare.",
       "call_voice": "Erlaubt einem Konto, in Anrufen Mikrofonaudio zu senden. Ohne sie kann das Konto trotzdem zuhören.",
       "call_camera": "Erlaubt einem Konto, in Anrufen Kameravideo zu senden.",
-      "call_screenshare": "Erlaubt einem Konto, in Anrufen einen Bildschirm, ein Fenster, einen Tab oder eine Anwendung samt Audio zu teilen. Mikrofonaudio erlaubt sie nicht; dafür ist call.voice nötig."
+      "call_screenshare": "Erlaubt einem Konto, in Anrufen einen Bildschirm, ein Fenster, einen Tab oder eine Anwendung samt Audio zu teilen. Mikrofonaudio erlaubt sie nicht; dafür ist call.voice nötig.",
+      "room_invite": "Servermitglieder in Räume einladen, denen du beigetreten bist."
     }
   }
 }

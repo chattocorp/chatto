@@ -179,7 +179,8 @@
       "call_join": "Lar en konto bli med i en pågående samtale, også bare som lytter. For å sende lyd eller video kreves call.voice, call.camera eller call.screenshare.",
       "call_voice": "Lar en konto sende mikrofonlyd i samtaler. Uten den kan kontoen fortsatt lytte.",
       "call_camera": "Lar en konto sende kameravideo i samtaler.",
-      "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice."
+      "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice.",
+      "room_invite": "Inviter servermedlemmer til rom du har blitt med i."
     }
   }
 }

@@ -136,6 +136,8 @@ describe('createRoomDirectoryAPI', () => {
         isMember: true,
         hasUnread: true,
         canReadMessages: null,
+        canInvite: false,
+        invitation: undefined,
         canJoinRoom: false,
         canManageRoom: false
       },
@@ -154,6 +156,8 @@ describe('createRoomDirectoryAPI', () => {
         isMember: true,
         hasUnread: false,
         canReadMessages: null,
+        canInvite: false,
+        invitation: undefined,
         canJoinRoom: true,
         canManageRoom: false
       }
@@ -208,6 +212,8 @@ describe('createRoomDirectoryAPI', () => {
       isMember: true,
       hasUnread: true,
       canReadMessages: true,
+      canInvite: false,
+      invitation: undefined,
       canJoinRoom: false,
       canPostMessage: true,
       canPostInThread: true,

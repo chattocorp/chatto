@@ -179,7 +179,8 @@
       "call_join": "Låter ett konto gå med i ett pågående samtal, även bara som lyssnare. För att skicka ljud eller video krävs call.voice, call.camera eller call.screenshare.",
       "call_voice": "Låter ett konto skicka mikrofonljud i samtal. Utan den kan kontot ändå lyssna.",
       "call_camera": "Låter ett konto skicka kameravideo i samtal.",
-      "call_screenshare": "Låter ett konto dela en skärm, ett fönster, en flik eller ett program i samtal, med dess ljud. Den tillåter inte mikrofonljud; det kräver call.voice."
+      "call_screenshare": "Låter ett konto dela en skärm, ett fönster, en flik eller ett program i samtal, med dess ljud. Den tillåter inte mikrofonljud; det kräver call.voice.",
+      "room_invite": "Bjud in servermedlemmar till rum som du har gått med i."
     }
   }
 }

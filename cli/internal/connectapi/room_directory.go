@@ -165,6 +165,7 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 
 			permissionGrant(core.PermRoomList, state.CanListRoom),
 			permissionGrant(core.PermRoomJoin, state.CanJoinRoom),
+			permissionGrant(core.PermRoomInvite, state.CanInvite),
 			permissionGrant(core.PermMessageRead, state.CanReadMessages),
 			permissionGrant(core.PermMessageReadInteractions, state.CanReadInteractions),
 			permissionGrant(core.PermMessagePost, state.CanPostMessage),
@@ -178,6 +179,9 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 			permissionGrant(core.PermRoomManage, state.CanManageRoom),
 			permissionGrant(core.PermRoomMemberRemove, state.CanBanRoomMembers),
 		),
+	}
+	if state.Invitation != nil {
+		viewerState.Invitation = apiRoomInvitation(*state.Invitation, state.CanAcceptInvitation)
 	}
 	if !state.SlowModeNextPostAt.IsZero() {
 		viewerState.SlowModeNextPostAt = timestamppb.New(state.SlowModeNextPostAt)
