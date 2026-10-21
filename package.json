@@ -6,9 +6,6 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "turbo": "node tools/turbo.mjs",
-    "build:api-types": "pnpm turbo run build --filter=@chatto/api-types",
-    "build:lingua": "pnpm turbo run build --filter=@chatto/lingua",
-    "build:chatto-client": "pnpm turbo run build --filter=@chatto/client",
     "build:docs": "pnpm turbo run build --filter=docs-website",
     "build:frontend": "pnpm turbo run build --filter=chatto-frontend",
     "build:storybook": "pnpm turbo run build-storybook --filter=chatto-frontend",

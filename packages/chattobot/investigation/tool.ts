@@ -10,7 +10,7 @@ import type { createInvestigator } from '../tasks/investigate.ts';
 
 /** What the conversation needs for code investigations. */
 export interface Investigation {
-  /** The checkout to investigate. The operator keeps it current. */
+  /** The checkout to investigate. Conversation starts refresh the configured reference copy. */
   directory: string;
   /** The investigator for one conversation scope, such as a thread. An investigation can be
    * resumed only in the scope that started it, so its questions stay in that thread. */

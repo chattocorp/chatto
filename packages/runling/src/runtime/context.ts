@@ -30,10 +30,10 @@ export interface RunIdentity {
 }
 
 /**
- * What a running task can do. `Receives` is the type of messages from the parent and `Emits`
- * is the type of messages to the parent. The host is the parent of a workflow's top-level task.
+ * What a running task can do. `Steering` comes from the parent; `Output` streams back to it.
+ * The host is the parent of a workflow's top-level task.
  */
-export interface TaskContext<Receives = unknown, Emits = unknown> {
+export interface TaskContext<Steering = unknown, Output = unknown> {
   /** Mutable JSON data. The server snapshots the root task's object.
    * Children get a fresh, unsaved object; pass selected sub-objects as input to share state. */
   readonly state: WorkflowState;
@@ -41,12 +41,12 @@ export interface TaskContext<Receives = unknown, Emits = unknown> {
    * A direct call, `await task(ctx, input)`, starts the task and waits for its result. */
   start<T extends AnyTask>(task: T, input: TaskInput<T>): TaskInvocation<T>;
 
-  /** Messages from the parent. One consumer only. It ends when the parent closes the input. */
-  readonly inbox: AsyncIterable<Receives>;
+  /** Steering from the parent. One consumer only. Ends when the parent closes steering. */
+  readonly steering: AsyncIterable<Steering>;
 
   /** Send a message to the parent. Rejects when the message does not match the task's
-   * `emits` schema, or when the parent does not read its updates and the buffer is full. */
-  emit(message: Emits): Promise<void>;
+   * `output` schema, or when the parent does not read its output and the buffer is full. */
+  emit(message: Output): Promise<void>;
 
   /** Signals cancellation to agents and other cooperative work. */
   readonly signal: AbortSignal;
@@ -73,7 +73,7 @@ export function createTaskContext(): TaskContext<never, unknown> {
   return createRootContext();
 }
 
-/** Internal: the host context of a run. Its inbox is empty and its updates are discarded. */
+/** Internal: the host context of a run. Its steering is empty and its updates are discarded. */
 export function createRootContext(
   onUsage?: (usage: TokenUsage) => void,
   cancellation?: AbortSignal,
@@ -112,7 +112,7 @@ export function createRootContext(
     start(task, input) {
       return invoke(this, task, input) as TaskInvocation<typeof task>;
     },
-    inbox: { async *[Symbol.asyncIterator]() {} },
+    steering: { async *[Symbol.asyncIterator]() {} },
     async emit() {},
     signal,
     ...(run ? { run } : {}),

@@ -102,8 +102,8 @@ func ValidateLogin(login string) error {
 }
 
 // ValidatePassword validates that a password meets length requirements.
-// Length is measured in bytes (len), not Unicode characters, so the upper bound
-// also bounds the work done by bcrypt and storage cost.
+// Length is measured in UTF-8 bytes, not Unicode characters. The upper bound
+// matches the maximum input length accepted by Go bcrypt.
 func ValidatePassword(password string) error {
 	if len(password) < MinPasswordLength {
 		return ErrPasswordTooShort

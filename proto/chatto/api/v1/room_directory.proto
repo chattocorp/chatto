@@ -62,6 +62,14 @@ message RoomWithViewerState {
   repeated string member_user_ids = 15;
   // Whether this DM has received a root message. Absent for channel rooms.
   optional bool has_message_history = 16;
+  // Creation time of the latest ordinary DM message, including thread replies.
+  // Edits and retractions do not change this value; historical imports are excluded.
+  // Absent for other room kinds, no ordinary messages, or no message.read permission.
+  // Older servers can omit this field. Absence does not prove inactivity.
+  google.protobuf.Timestamp last_message_at = 17;
+  // Creation time of the latest ordinary DM root message, excluding thread replies.
+  // Uses the same visibility, import, and absence rules as last_message_at.
+  google.protobuf.Timestamp last_root_message_at = 18;
 }
 
 // Sidebar link metadata for room group navigation.

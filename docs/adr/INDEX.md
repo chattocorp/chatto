@@ -129,4 +129,5 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-112](ADR-112-keep-the-server-catalogue-in-the-frontend.md)          | Keep the Server Catalogue in the Frontend                        | Accepted             | 2026-10-02 |
 | [ADR-113](ADR-113-grant-new-permissions-once-on-upgrade.md)              | Grant New Permissions Once on Upgrade                            | Accepted             | 2026-09-28 |
 | [ADR-114](ADR-114-jetstream-storage-conventions.md)                      | JetStream Storage Conventions                                    | Accepted             | 2026-10-08 |
-| [ADR-115](ADR-115-in-process-domain-services.md) | In-Process Domain Services | Accepted | 2026-10-12 |
+| [ADR-115](ADR-115-in-process-domain-services.md)                         | In-Process Domain Services                                       | Accepted             | 2026-10-12 |
+| [ADR-116](ADR-116-consume-internal-packages-from-source.md)              | Consume Internal TypeScript Packages from Source                 | Accepted             | 2026-10-18 |

@@ -406,6 +406,13 @@ describe('renderMarkdown', () => {
   });
 
   describe('code blocks', () => {
+    it.each(['```js\nconst x = 1;\n```', '    indented code'])(
+      'makes the code scroller keyboard focusable: %s',
+      async (source) => {
+        expect(await renderMarkdown(source)).toMatch(/<code[^>]* tabindex="0">/);
+      }
+    );
+
     it('renders fenced code blocks with lowlight classes', async () => {
       const html = await renderMarkdown('```js\nconst x = 1;\n```');
       expect(html).toContain('<pre class="hljs markdown-code" data-language="js"');

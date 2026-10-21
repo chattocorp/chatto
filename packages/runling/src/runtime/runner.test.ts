@@ -65,7 +65,7 @@ async function runCli(
 }
 
 const done = (body: string) =>
-  `export default task({ name: 'Demo', input: Type.String(), output: Type.Unknown() }, async (ctx, input) => {\n${body}\n});`;
+  `export default task({ name: 'Demo', input: Type.String(), result: Type.Unknown() }, async (ctx, input) => {\n${body}\n});`;
 
 describe('runRunling', () => {
   test('loads an agent task directly as the default export', async () => {
@@ -121,13 +121,13 @@ describe('runRunling', () => {
     async (verbose) => {
       const { stdout, stderr, records } = await runCli(
         `
-      const child = task({ name: 'Child', input: Type.String(), output: Type.String() }, async (ctx) => {
+      const child = task({ name: 'Child', input: Type.String(), result: Type.String() }, async (ctx) => {
         log.info('Child progress');
         log.debug('Child debug');
         await ctx.emit('Child update');
         return 'Child answer';
       });
-      export default task({ name: 'Root', input: Type.String(), output: Type.String() }, async (ctx) => {
+      export default task({ name: 'Root', input: Type.String(), result: Type.String() }, async (ctx) => {
         const answer = await child(ctx, 'Start');
         await ctx.emit(answer);
         return 'Root answer';
@@ -192,7 +192,7 @@ describe('runRunling', () => {
   });
 
   test('passes the prompt or JSON input to the task', async () => {
-    const workflow = `export default task({ name: 'Echo', input: Type.Unknown(), output: Type.Unknown() }, (ctx, input) => ({ input }));`;
+    const workflow = `export default task({ name: 'Echo', input: Type.Unknown(), result: Type.Unknown() }, (ctx, input) => ({ input }));`;
     const prompt = await runCli(workflow, { prompt: 'hello', json: true });
     expect(JSON.parse(prompt.stdout[0]!).output).toEqual({ input: 'hello' });
     const structured = await runCli(workflow, { input: '{"a":1}', json: true });
@@ -309,7 +309,7 @@ describe('runRunling', () => {
 describe('runWorkflow', () => {
   test("preserves the task's output type", async () => {
     const done = task(
-      { name: 'Done', input: Type.String(), output: Type.Literal('done') },
+      { name: 'Done', input: Type.String(), result: Type.Literal('done') },
       () => 'done' as const
     );
     const execution = await runWorkflow(done, { input: 'input' });
@@ -321,7 +321,7 @@ describe('runWorkflow', () => {
   test('does not use the removed prompt option as workflow input', async () => {
     let started = false;
     const echo = task(
-      { name: 'Echo', input: Type.String(), output: Type.String() },
+      { name: 'Echo', input: Type.String(), result: Type.String() },
       (ctx, input) => {
         started = true;
         return input;
@@ -338,7 +338,7 @@ describe('runWorkflow', () => {
   test('captures failures without changing the process exit code', async () => {
     const exitCode = process.exitCode;
     const failing = task(
-      { name: 'Fail', input: Type.String(), output: Type.String() },
+      { name: 'Fail', input: Type.String(), result: Type.String() },
       async () => {
         throw new Error('Nope');
       }
@@ -354,13 +354,13 @@ describe('runWorkflow', () => {
       {
         name: 'Chat',
         input: Type.Null(),
-        output: Type.Number(),
-        receives: Type.String(),
-        emits: Type.String()
+        result: Type.Number(),
+        steering: Type.String(),
+        output: Type.String()
       },
       async (ctx) => {
         let count = 0;
-        for await (const message of ctx.inbox) {
+        for await (const message of ctx.steering) {
           count++;
           await ctx.emit(`Reply to ${message}`);
         }
@@ -393,17 +393,17 @@ describe('runWorkflow', () => {
       expect.objectContaining({
         type: 'log',
         level: 'error',
-        message: expect.stringContaining('Message not delivered: Task "Chat" message is invalid')
+        message: expect.stringContaining('Message not delivered: Task "Chat" steering is invalid')
       })
     );
   });
 
   test('closes the input of the top-level task without host messages', async () => {
     const drain = task(
-      { name: 'Drain', input: Type.Null(), output: Type.Number() },
+      { name: 'Drain', input: Type.Null(), result: Type.Number() },
       async (ctx) => {
         let count = 0;
-        for await (const _ of ctx.inbox) count++;
+        for await (const _ of ctx.steering) count++;
         // Nobody reads these updates, so they must not fill a buffer.
         for (let i = 0; i < 100; i++) await ctx.emit(i);
         return count;
@@ -413,7 +413,7 @@ describe('runWorkflow', () => {
   });
 
   test('fails the run when the update handler fails', async () => {
-    const emit = task({ name: 'Emit', input: Type.Null(), output: Type.Null() }, async (ctx) => {
+    const emit = task({ name: 'Emit', input: Type.Null(), result: Type.Null() }, async (ctx) => {
       await ctx.emit('update');
       return null;
     });
@@ -496,7 +496,7 @@ test('isolates workflow contexts and usage events across concurrent executions',
   const seen: unknown[] = [];
   const events: RunlingEvent[][] = [[], []];
   const run = task(
-    { name: 'Count', input: Type.Number(), output: Type.Number() },
+    { name: 'Count', input: Type.Number(), result: Type.Number() },
     async (ctx, count) => {
       seen.push(ctx);
       await Promise.all(
@@ -524,7 +524,7 @@ test('isolates workflow contexts and usage events across concurrent executions',
   ]);
 });
 
-const Nothing = { input: Type.Null(), output: Type.Unknown() };
+const Nothing = { input: Type.Null(), result: Type.Unknown() };
 
 test('a new host run does not inherit the dispatching run event listeners or activity', async () => {
   const outer: RunlingEvent[] = [];

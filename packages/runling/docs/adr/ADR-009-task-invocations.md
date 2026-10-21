@@ -30,21 +30,21 @@ difficult to explain these concepts and difficult to change them.
 Runling has five primitives.
 
 1. **A task is a function with schemas.** A task has a name, an input schema,
-   and an output schema. A task can also have a `receives` schema for messages
-   from its parent and an `emits` schema for messages to its parent. If a
+   and a final `result` schema. A task can also have a `steering` schema for messages
+   from its parent and an `output` schema for messages to its parent. If a
    message schema is not given, the task accepts any message. A task always
    returns a promise.
 2. **A workflow run is one top-level task invocation.** A run has one identity
    and one journal. The result of a run is the output of its task. Runling does
    not change the shape of the output.
 3. **A task can invoke other tasks.** `ctx.start(task, input)` returns an
-   invocation handle. The handle has `send`, `updates`, `result`, and `cancel`.
+   invocation handle. The handle has `steer`, `output`, `result`, and `cancel`.
    A direct call, `await task(ctx, input)`, starts the task and waits for its
    result. Runling records the updates of a direct call in the journal.
-4. **A parent and a child exchange messages while the child runs.** The parent
-   sends messages to the child with `send`. The child reads them from
-   `ctx.inbox`. The child sends messages to the parent with `ctx.emit`. The
-   parent reads them from `updates`. Use this for agent steering, for agent
+4. **A parent steers a child; the child streams output.** The parent
+   sends steering to the child with `steer`. The child reads it from
+   `ctx.steering`. The child streams output to the parent with `ctx.emit`. The
+   parent reads them from `output`. Use this for agent steering, for agent
    turns and messages, and for progress of tasks that are not agents.
 5. **Routers start workflow runs.** Event sources and webhook routes are
    routers. A task cannot start a workflow run. If a task must cause a different
@@ -62,6 +62,12 @@ the journal records the wait, and the console shows it.
 
 An agent is a task. It receives steering messages and emits its turns and
 messages. `taskTool` makes a task available as a tool of an agent.
+
+The directional names distinguish steering, streamed output, and the final
+result. Schemas infer TypeScript types and validate values at both stream
+boundaries. A parent can consume, buffer, forward, or ignore output. Runling
+does not make output into a new model turn. Async iterables and `ctx.emit` use
+the existing bounded channels; no generator or second execution model is needed.
 
 `agent()` defines that task without starting a model session. Each invocation
 creates one session and owns its cancellation and disposal. Agent tasks return

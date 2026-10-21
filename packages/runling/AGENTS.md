@@ -22,7 +22,8 @@ such as who can request a GitHub change, belong to the application.
 - Parents retain the promises or invocation handles of their pending children and
   own result handling and cleanup. Do not add a background-job abstraction or a
   public child registry. Keep permissions and reply routing in the application. Use
-  `createClassifier` for isolated schema-validated decisions, `agentSessionFile`
+  `createClassifier` for isolated schema-validated agent decisions, or
+  `createChoiceClassifier` for typed OpenRouter decisions. Use `agentSessionFile`
   for run-owned transcripts, and `AgentSessionStore` only for cross-run sessions.
   Private runtime temporary storage belongs to Runling, not its applications.
 - For terminal output, read [FDR-011](docs/fdr/FDR-011-cli-output.md).

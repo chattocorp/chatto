@@ -7,19 +7,19 @@ import { usePrivateTempDirectory } from './private-temp.ts';
 
 /** Define one model turn with a strict JSON result. Errors and cancellation never become
  * decisions. Each invocation has no tools, local instructions, or saved session history. */
-export function createClassifier<Input extends WorkflowSchema, Output extends WorkflowSchema>(
+export function createClassifier<Input extends WorkflowSchema, Result extends WorkflowSchema>(
   options: {
     name: string;
     label: string;
     model: string;
     input: Input;
-    output: Output;
+    result: Result;
     systemPrompt: string;
   },
   createAgent: AgentSessionFactory = createAgentSession
 ) {
   return task(
-    { name: options.name, input: options.input, output: options.output },
+    { name: options.name, input: options.input, result: options.result },
     async (ctx, input) => {
       const signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(30_000)]);
       signal.throwIfAborted();
@@ -49,7 +49,7 @@ export function createClassifier<Input extends WorkflowSchema, Output extends Wo
         throw new Error('Invalid classification decision');
       }
       // The ordinary task boundary validates once, including Standard Schema transforms.
-      return decision as SchemaInput<Output>;
+      return decision as SchemaInput<Result>;
     }
   );
 }

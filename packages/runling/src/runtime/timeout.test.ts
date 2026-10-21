@@ -12,9 +12,9 @@ afterEach(() => vi.useRealTimers());
 
 /** Return the first message from the host. */
 const firstMessage = task(
-  { name: 'First message', input: Type.Null(), output: Type.Unknown() },
+  { name: 'First message', input: Type.Null(), result: Type.Unknown() },
   async (ctx) => {
-    for await (const message of ctx.inbox) return message;
+    for await (const message of ctx.steering) return message;
     throw new Error('No message');
   }
 );
@@ -24,11 +24,11 @@ test('workflow timeout includes message waits and preserves usage and its first 
   let ctx!: TaskContext;
   const events: RunlingEvent[] = [];
   const run = runWorkflow(
-    task({ name: 'Wait', input: Type.Null(), output: Type.Null() }, async (context) => {
+    task({ name: 'Wait', input: Type.Null(), result: Type.Null() }, async (context) => {
       ctx = context;
       ctx.recordUsage({ input: 5, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.1 });
       try {
-        for await (const _ of ctx.inbox) break;
+        for await (const _ of ctx.steering) break;
       } finally {
         expect(() => ctx.abort('later reason')).toThrow(TimeoutError);
       }
@@ -56,7 +56,7 @@ test.each(['success', 'failure'])('workflow %s disposes its deadline', async (ki
   vi.useFakeTimers();
   let ctx!: TaskContext;
   await runWorkflow(
-    task({ name: 'Finish', input: Type.Null(), output: Type.Number() }, (context) => {
+    task({ name: 'Finish', input: Type.Null(), result: Type.Number() }, (context) => {
       ctx = context;
       if (kind === 'failure') throw new Error('failed');
       return 1;
@@ -85,7 +85,7 @@ test('concurrent workflow deadlines are isolated', async () => {
 
 test('zero timeout skips user work', async () => {
   const work = vi.fn(() => null);
-  const run = task({ name: 'Never', input: Type.Null(), output: Type.Null() }, work);
+  const run = task({ name: 'Never', input: Type.Null(), result: Type.Null() }, work);
   expect(await runWorkflow(run, { input: null, timeout: 0 })).toMatchObject({
     ok: false,
     error: 'Workflow timed out after 0 seconds'
@@ -97,7 +97,7 @@ test.each([-1, NaN, Infinity, 2_147_483.648])(
   'invalid timeout %s rejects before user work',
   async (timeout) => {
     const work = vi.fn(() => null);
-    const run = task({ name: 'Never', input: Type.Null(), output: Type.Null() }, work);
+    const run = task({ name: 'Never', input: Type.Null(), result: Type.Null() }, work);
     await expect(runWorkflow(run, { input: null, timeout })).rejects.toThrow(RangeError);
     expect(work).not.toHaveBeenCalled();
   }

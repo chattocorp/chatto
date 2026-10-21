@@ -8,10 +8,10 @@ import { task, Type } from 'runling';
 import { defineWebConfig, startWorkflow } from 'runling/web';
 
 const counter = task(
-  { name: 'Counter', input: Type.Null(), output: Type.Number(), receives: Type.Number() },
+  { name: 'Counter', input: Type.Null(), result: Type.Number(), steering: Type.Number() },
   async (ctx) => {
     ctx.state.count ??= 0;
-    for await (const amount of ctx.inbox) {
+    for await (const amount of ctx.steering) {
       if (typeof ctx.state.count !== 'number') throw new Error('Invalid saved count');
       ctx.state.count += amount;
     }

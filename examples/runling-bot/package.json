@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "node --test *.test.ts"
+    "test": "node --import tsx --test *.test.ts"
   },
   "dependencies": {
     "@chatto/api-types": "workspace:*",
@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "^22",
-    "typescript": "~5.9.3"
+    "tsx": "^4.20.0",
+    "typescript": "^6.0.3"
   }
 }

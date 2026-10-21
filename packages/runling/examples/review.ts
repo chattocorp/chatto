@@ -25,7 +25,7 @@ export const review = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ description: 'Optional review focus' })
     }),
-    output: Type.String({ description: 'The review in Markdown' })
+    result: Type.String({ description: 'The review in Markdown' })
   },
   async (ctx, { directory, prompt: input }) => {
     const status = await exec`git status --short`.cwd(directory).text();

@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import { Hint, PageTitle } from '$lib/ui';
-  import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
+  import { TextInput, FormError, Button } from '$lib/ui/form';
 
   let { data } = $props();
 
@@ -17,8 +18,7 @@
   let isLoading = $state(false);
 
   // Validation
-  const passwordSchema = z.string().min(8, m('common.validation.password_min'));
-  const passwordError = $derived(password ? validate(passwordSchema, password) : undefined);
+  const passwordError = $derived(password ? validateNewPassword(password) : undefined);
   const confirmError = $derived(
     confirmPassword && password !== confirmPassword
       ? m('common.validation.passwords_match')
@@ -86,10 +86,9 @@
         label={m('common.new_password')}
         type="password"
         bind:value={password}
-        placeholder={m('common.password_min_placeholder')}
+        placeholder={m('common.password_bytes_placeholder')}
         disabled={isLoading}
         required
-        minlength={8}
         autocomplete="new-password"
         error={passwordError}
       />

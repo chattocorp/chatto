@@ -152,13 +152,20 @@ Turborepo runs the pnpm workspace tasks. Every workspace package must define a
 `check` script that type-checks all of its source, tests, and examples, so
 `mise check-workspace` (`pnpm run check`) checks the complete workspace. Turbo
 caches `check` results and checks again only the packages that a change
-affects. Use `pnpm turbo run check --filter=<package>...` for one package and
-its dependents. In a package script, run Turbo with `pnpm -w turbo`, so the
-root script keeps local runs on the local cache (ADR-102).
+affects. Use `pnpm turbo run check --filter=...<package>` for one package and
+its dependents. The position of `...` is important: `--filter=<package>...`
+selects the package and its dependencies, not its dependents. In a package
+script, run Turbo with `pnpm -w turbo`, so the root script keeps local runs on
+the local cache (ADR-102).
 
-`mise codegen-proto` removes and rebuilds generated TypeScript API files. Do
+`mise codegen-proto` removes and generates again the TypeScript API files. Do
 not run it at the same time as `mise test-cli`, a frontend build, or another
-task that reads `packages/api-types/dist`.
+task that reads `packages/api-types`.
+
+The internal TypeScript packages `@chatto/api-types`, `@chatto/lingua`, and
+`@chatto/client` export their source and have no build (ADR-116). Load them
+through a compiling tool, such as Vite, Vitest, tsx, or jiti. Plain Node
+cannot load them.
 
 Put scratch files, such as PR bodies, commit messages, logs, and file backups,
 in the gitignored `.context/` directory of the worktree. Do not use fixed paths

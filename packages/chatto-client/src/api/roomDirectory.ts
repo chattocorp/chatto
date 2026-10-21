@@ -26,6 +26,10 @@ export type DirectoryRoomSummary = {
   slowModeNextPostAt: string | null;
   isMember: boolean;
   hasUnread: boolean;
+  /** Latest ordinary DM post, including replies; null when unavailable. */
+  lastMessageAt?: string | null;
+  /** Latest ordinary DM root post; null when unavailable. */
+  lastRootMessageAt?: string | null;
   canReadMessages: boolean | null;
   canJoinRoom: boolean;
   canManageRoom: boolean;
@@ -195,6 +199,8 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
+    lastMessageAt: entry.lastMessageAt?.toDate().toISOString() ?? null,
+    lastRootMessageAt: entry.lastRootMessageAt?.toDate().toISOString() ?? null,
     canReadMessages: anyRoomPermissionDecision(entry.viewerState, [
       RoomPermission.ReadMessages,
       RoomPermission.ReadInteractions

@@ -45,8 +45,9 @@ export class ServerCatalog {
 
   update(id: string, data: ServerRegistrationMetadataPatch): boolean {
     const index = this.registrations.findIndex((registration) => registration.id === id);
-    if (index === -1) return false;
-    this.registrations = this.registrations.with(index, { ...this.registrations[index], ...data });
+    const current = this.registrations[index];
+    if (!current) return false;
+    this.registrations = this.registrations.with(index, { ...current, ...data });
     return true;
   }
 

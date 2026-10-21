@@ -72,9 +72,9 @@ describe('plan workflow', () => {
       prompt: 'Add deployment support'
     });
     const questions: string[] = [];
-    for await (const question of interview.updates) {
+    for await (const question of interview.output) {
       questions.push(question);
-      await interview.send(answers.shift()!);
+      await interview.steer(answers.shift()!);
     }
 
     await expect(interview.result).resolves.toBe(

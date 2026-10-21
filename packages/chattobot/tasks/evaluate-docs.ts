@@ -36,6 +36,8 @@ interface Scenario {
   followup?: string;
   /** Automatic report intake must ask for missing evidence without research. */
   startup?: boolean;
+  /** Automatic openings collect version and frontend environment details. */
+  opening?: 'frontend' | 'feature';
   /** A follow-up can use the documentation already read in the first turn. */
   reuseDocs?: boolean;
   /** An ordinary answer precedes another author's bare ping. Privileged tools remain visible. */
@@ -53,6 +55,16 @@ interface Scenario {
 }
 
 const scenarios: Scenario[] = [
+  {
+    name: 'frontend-opening',
+    request: 'The Chatto interface looks broken.',
+    opening: 'frontend'
+  },
+  {
+    name: 'feature-opening',
+    request: 'I wish Chatto had a compact message layout.',
+    opening: 'feature'
+  },
   ...[false, true].map((maintainer) => ({
     name: maintainer ? 'maintainer-bare-ping' : 'bare-ping',
     request: 'my chatto server no longer starts up',
@@ -218,7 +230,7 @@ export default task(
   {
     name: 'Evaluate documentation behavior',
     input: Type.String(),
-    output: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
+    result: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
   },
   async (ctx, filter) => {
     const model = setting('CHATTO_AGENT_MODEL');
@@ -278,6 +290,7 @@ export default task(
             typing: async () => {},
             acknowledge: async () => {},
             setHandled: async () => {},
+            react: async () => {},
             readThread: async (_thread, _signal, after) => ({
               messages:
                 scenario.nudge && after
@@ -360,7 +373,9 @@ export default task(
           roomId: 'fixture-room',
           threadRootId: scenario.name,
           body: scenario.request,
-          ...(scenario.startup || scenario.nudge ? { trigger: 'intake' as const } : {})
+          ...(scenario.startup || scenario.nudge || scenario.opening
+            ? { trigger: 'intake' as const }
+            : {})
         });
         const deadline = setTimeout(
           () => invocation.cancel(new Error('Evaluation deadline exceeded')),
@@ -374,7 +389,7 @@ export default task(
                 throw new Error('Conversation ended before follow-up');
               })
             ]);
-            await invocation.send({
+            await invocation.steer({
               id: `${scenario.name}-followup`,
               authorId: scenario.nudge
                 ? scenario.nudge.maintainer
@@ -386,7 +401,7 @@ export default task(
               body: scenario.followup
             });
           }
-          invocation.closeInput();
+          invocation.closeSteering();
           await invocation.result;
         } finally {
           clearTimeout(deadline);
@@ -400,6 +415,13 @@ export default task(
           /PRIVATE-LOG-739/,
           'Do not disclose private context in tool arguments'
         );
+        if (scenario.startup || scenario.nudge || scenario.opening) {
+          const first = posts.slice(0, turns[0]!.posts).join('\n');
+          assert.match(first, /^(?:hi|hello|hey)\b/i, 'Open with a friendly greeting');
+          assert.match(first, /help/i, 'Offer to help');
+          assert.match(first, /version/i, 'Ask which Chatto version the report concerns');
+          assert.match(first, /\?/, 'Ask for the missing version');
+        }
         if (scenario.nudge) {
           assert.equal(turns.length, 2, 'Continue in the same conversation');
           assert(
@@ -456,11 +478,7 @@ export default task(
           assert.equal(calls.length, 0, 'Ask for missing diagnostic facts before research');
           const first = posts.slice(0, turns[0]!.posts).join('\n');
           assert.match(first, /\?/, 'Ask a clarification question');
-          assert.doesNotMatch(
-            first,
-            /version|deploy|docker|compose|recent (?:changes|upgrade)/i,
-            'Start with the observable symptom instead of a diagnostic checklist'
-          );
+          assert.doesNotMatch(first, /browser/i, 'Do not ask browser details for a startup report');
           assert.match(
             first,
             /deploy|host|running|run Chatto|install|docker|compose|binary|what happens|what do you see|screenshot/i,
@@ -479,6 +497,18 @@ export default task(
             /NATS|token mismatch|port conflict|out of memory/i,
             'Do not list speculative causes'
           );
+        } else if (scenario.opening) {
+          assert.equal(calls.length, 0, 'Opening questions need no research');
+          if (scenario.opening === 'frontend') {
+            assert.match(answer, /browser/i, 'Ask for the browser');
+            assert.match(
+              answer,
+              /browser[^?\n]*version|version[^?\n]*browser/is,
+              'Ask for its version'
+            );
+            assert.match(answer, /operating system|\bOS\b/i, 'Ask for the operating system');
+            assert.match(answer, /device|phone|tablet|computer/i, 'Ask for the device type');
+          }
         } else if (scenario.deployment) {
           assert(
             calls.every((call) => call.name === 'fetchPage'),

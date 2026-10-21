@@ -80,9 +80,9 @@ function defineAgentTask<Input extends WorkflowSchema>(
     {
       name: options.name,
       input: options.input,
-      output: Type.String(),
-      receives: Type.String(),
-      emits: Type.String()
+      result: Type.String(),
+      steering: Type.String(),
+      output: Type.String()
     },
     async (ctx, input) => {
       const settings = options.setup ? await options.setup(ctx, input) : options;
@@ -102,7 +102,7 @@ function defineAgentTask<Input extends WorkflowSchema>(
 async function converse(ctx: TaskContext<string, string>, session: RunlingAgent, prompt: string) {
   const controller = new AbortController();
   const signal = AbortSignal.any([ctx.signal, controller.signal]);
-  const reader = ctx.inbox[Symbol.asyncIterator]();
+  const reader = ctx.steering[Symbol.asyncIterator]();
   const stop = Promise.withResolvers<void>();
   const pending: string[] = [];
   const steering: { text: string; delivered: Promise<boolean> }[] = [];

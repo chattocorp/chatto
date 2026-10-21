@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import type { Static } from 'runling';
 import type { GitHubWorkInput } from '../tasks/github.ts';
 import type { ThreadMessage } from '../thread.ts';
+import type { IncomingMessage } from '../chatto/message.ts';
 import { FakeGitHub, issueUrl, type Issue } from './fake-github.ts';
 
 const original = 'Existing notes: keep the keyboard workaround.\n\nEnvironment: Linux.';
@@ -352,7 +353,8 @@ export interface SupervisorCase {
   fixture?: () => FakeGitHub;
   /** Synthetic configured contact; naming it does not add an authorized user ID. */
   maintainerLogin?: string;
-  messages: { id: string; authorId: string; body: string; trigger?: 'intake' | 'follow-up' }[];
+  messages: Omit<IncomingMessage, 'roomId' | 'threadRootId'>[];
+  expectedReactions?: { messageId: string; emoji: string }[];
   /** Host-owned thread context, also returned by readThread for proposal references. */
   thread?: ThreadMessage[];
   expectedRequest?: string;
@@ -367,6 +369,68 @@ export interface SupervisorCase {
 }
 
 export const supervisorCases: readonly SupervisorCase[] = [
+  ...['maintainer', 'member'].map((authorId): SupervisorCase => ({
+    name: `reaction-approval-${authorId}`,
+    messages: [
+      {
+        id: 'reaction',
+        authorId,
+        body: '+1',
+        reaction: {
+          emoji: '+1',
+          messageId: 'proposal',
+          body: 'Should I create a bug issue for uploaded Chatto images failing to load?'
+        }
+      }
+    ],
+    expectedRequest: authorId === 'maintainer' ? 'reaction' : undefined,
+    thread: [
+      {
+        id: 'newer-proposal',
+        role: 'bot',
+        body: 'Separately, should I investigate Chatto login failures?'
+      }
+    ],
+    check(_posts, _commands, delegated) {
+      if (authorId === 'maintainer') {
+        assert.match(delegated[0]?.task ?? '', /image/i);
+        assert.doesNotMatch(
+          delegated[0]?.task ?? '',
+          /login/i,
+          'Approval belongs to the reacted proposal'
+        );
+      }
+    }
+  })),
+  {
+    name: 'reaction-completed-work',
+    messages: [
+      {
+        id: 'reaction',
+        authorId: 'maintainer',
+        body: '+1',
+        reaction: {
+          emoji: '+1',
+          messageId: 'done',
+          body: `Filed [#12 — ${title}](${issueUrl(12)}).`
+        }
+      }
+    ]
+  },
+  {
+    name: 'reaction-only-response',
+    messages: [
+      {
+        id: 'thanks',
+        authorId: 'member',
+        body: 'Thanks for helping with Chatto! A heart reaction is plenty, no need to reply.'
+      }
+    ],
+    expectedReactions: [{ messageId: 'thanks', emoji: 'heart' }],
+    check(posts) {
+      assert.equal(posts.length, 0, 'Do not add a redundant text reply');
+    }
+  },
   {
     name: 'retry-handoff',
     realWorker: true,
@@ -641,10 +705,10 @@ export const supervisorCases: readonly SupervisorCase[] = [
         'Search before clarification'
       );
       const answer = posts.at(-1)!;
-      assert.match(
+      assert.doesNotMatch(
         answer,
-        /(?:didn.t|couldn.t|did not|could not|no)\b[^.!\n]*(?:find|match|issue)|(?:search|found)[^.!\n]*(?:no|nothing)/i,
-        'Report the search result without inventing a match'
+        /^\s*(?:I\s+)?(?:couldn.t|didn.t|could not|did not|can.t|cannot)\s+find|^\s*(?:I\s+)?found no|^\s*no (?:matching|existing) issues?/i,
+        'Do not lead with the empty issue search'
       );
       assert.doesNotMatch(
         answer,

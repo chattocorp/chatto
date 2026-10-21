@@ -182,10 +182,17 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 	if !state.SlowModeNextPostAt.IsZero() {
 		viewerState.SlowModeNextPostAt = timestamppb.New(state.SlowModeNextPostAt)
 	}
-	return &apiv1.RoomWithViewerState{
+	result := &apiv1.RoomWithViewerState{
 		Room:        apiRoom(room.Room),
 		ViewerState: viewerState,
 	}
+	if !room.LastMessageAt.IsZero() {
+		result.LastMessageAt = timestamppb.New(room.LastMessageAt)
+	}
+	if !room.LastRootMessageAt.IsZero() {
+		result.LastRootMessageAt = timestamppb.New(room.LastRootMessageAt)
+	}
+	return result
 }
 
 // apiRoomWithViewerState returns the canonical public room resource. DM
@@ -197,14 +204,12 @@ func (a *API) apiRoomWithViewerState(ctx context.Context, userID string, room *c
 		return result, nil
 	}
 
-	_, _, exists, err := a.core.GetRoomLastEvent(ctx, core.KindDM, room.Room.GetId())
-	if err != nil {
-		return nil, err
-	}
+	exists := !room.LastRootMessageAt.IsZero()
 	result.HasMessageHistory = &exists
 
 	// DM participants include deleted accounts; clients show them as deleted
 	// users.
+	var err error
 	result.MemberUserIds, err = a.core.RoomMemberships().ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
 	if err != nil {
 		return nil, err

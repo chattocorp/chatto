@@ -143,6 +143,14 @@ this event as a durable bot trigger.
 
 ## Apply the exact snapshot at `E`
 
+DM room resources can include `last_message_at` and `last_root_message_at`.
+The first includes thread replies; the second includes only root posts.
+Both require broad `message.read` permission. After a snapshot, use
+`MessagePostedEvent` and its envelope `created_at` to update these values.
+Do not derive broad activity from events delivered with interaction-only
+access. Edits and retractions do not change posting activity. An absent
+timestamp does not prove inactivity; older servers can omit these fields.
+
 When the server sends `snapshot`, clear the state that it replaces. The frame
 contains these complete resource families:
 

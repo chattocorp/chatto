@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '@chatto/client/api/account';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
   import { Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { Button, FormError, TextInput, validate, z } from '$lib/ui/form';
+  import { Button, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   let {
@@ -23,10 +24,7 @@
   let passwordSubmitting = $state(false);
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
-  const passwordSchema = z.string().min(8, m('common.validation.password_min'));
-  const passwordValidationError = $derived(
-    password ? validate(passwordSchema, password) : undefined
-  );
+  const passwordValidationError = $derived(password ? validateNewPassword(password) : undefined);
   const currentPasswordError = $derived(
     hasPassword && password && !currentPassword
       ? m('settings.account.password.current_required')
@@ -114,7 +112,7 @@
       label={m('common.new_password')}
       type="password"
       bind:value={password}
-      placeholder={m('common.password_min_placeholder')}
+      placeholder={m('common.password_bytes_placeholder')}
       disabled={passwordSubmitting}
       autocomplete="new-password"
       error={passwordValidationError}

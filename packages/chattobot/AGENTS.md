@@ -12,25 +12,56 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - Put Runling tasks in `tasks/<task>.ts`, with their tests in the same directory
   as `<task>.test.ts` or `<task>-<scope>.test.ts`. This includes evaluation tasks.
   Keep supporting tools and fixtures in their domain directories.
-- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends each message
-  that addresses the bot, or starts report intake, to the run of its thread, or starts one.
+- `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends messages to the
+  run of their thread. Addressed messages and report intake can start a run.
+  Ordinary thread replies only notify an existing run, including a recovered run.
+  Apply this to DM threads too: only new room-level DMs bypass classification
+  because they are DMs. Within threads, recognize explicit mentions and replies
+  to the bot; otherwise use the ordinary follow-up path. Reactions to bot messages
+  pass the participation classifier before they become addressed input. Ordinary
+  DM replies grant no delegation authority.
 - In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
   later addressed messages to that child. Addressed entry starts the same workflow
-  without initial classification. Every 90 seconds, while the conversation is idle,
-  the workflow checks human replies since the bot's latest post. It classifies changed
+  without initial classification. Batch all incoming messages, including the first
+  post, pings, direct replies, and reactions to bot messages, in a fixed three-second window. The first queued
+  message starts it; later arrivals do not extend it. The window elapses while the
+  conversation is busy. Send explicit text messages directly. Check each reaction
+  with the participation classifier and forward only accepted reactions. Ordinary
+  reply batches wake a classification check without a second delay. Preserve each message's
+  author and trigger, including in the first conversation turn. Pending intake
+  must not discard a ping that has already arrived in an unfinished window.
+  Keep pending reply IDs in root state while the
+  conversation is busy, including across a newer bot post or restart. Read these
+  replies together with human replies since the latest bot post, with current content
+  and author checks. Retain pending IDs when a direct turn cancels classification;
+  consume only the checked batch, not newer notifications. Event bodies never go
+  directly to the conversation. A five-minute reconciliation check recovers missed
+  events and checks inactivity.
+  The workflow classifies changed
   batches and forwards accepted replies together to the existing conversation.
+  Accept clear implicit replies to the bot, not general discussion of the same topic.
+  Include recap, missing-information, and next-step questions about the current report.
+  One clear reply is enough to accept a batch; vague remarks must not outweigh it.
+  Questions explicitly addressed to other people remain human discussion.
   Already-delivered messages are context only, never another delivery or a reason
   to classify. Keep this true even when a turn does not post a reply.
   Empty or unchanged checks need no model call. The workflow owns the one-hour
-  inactivity timeout, checked on the polling tick; only delivered messages reset it.
-  Keep one conversation state (`busy`, `waiting`, or `idle`) for polling and expiry.
+  inactivity timeout. Follow-up reads use the latest bot post or conversation entry,
+  whichever is later, so reaction-only answers do not prevent classification.
+  Do not infer a boundary across omitted history. The workflow checks the
+  inactivity timeout before reading the thread; only delivered messages reset it.
+  Keep one conversation state (`busy`, `waiting`, or `idle`) for checks and expiry.
   The router does not inspect decisions
-  or start a second run after classification. Keep the classifier free of tools
+  or start a second run after classification. Ordinary replies cannot bypass
+  pending intake or reopen an expired workflow. Participation can use the optional
+  `CHATTO_INTAKE_DECISION_MODEL` through Runling's `createChoiceClassifier`.
+  Keep its policy shared with the default agent classifier. This setting does
+  not change authorization classifiers. Keep the classifier free of tools
   and Chatto effects. Check model behavior with `pnpm eval:intake`.
 - Register the thread root as `chattoThread` for Runling recovery. The root owns
-  its plain `ctx.state`: accepted entry, delivered IDs, checked batch, and activity
+  its plain `ctx.state`: accepted entry, delivered IDs, pending reply IDs, checked batch, and activity
   time. Restore source routing from `ctx.runs()`, bound to the same server and bot.
   Use Runling's `agentSessionFile(ctx, 'conversation')` for the transcript. Runling
   owns its path and retention; keep filesystem cleanup out of ChattoBot.
@@ -39,19 +70,39 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   Preserve intake status and the inactivity deadline. See [Recovery](README.md#recovery).
 - `tasks/conversation.ts` is the conversation task. It owns the agent, the prompt of
   each turn, and the only posts to the thread. The agent's final text is the
-  reply.
+  reply. A successful `react` call can replace a text reply. Limit its targets to
+  message IDs seen in the current thread. Keep the automatic root checkmark under
+  `setHandled`, including its pending-work and closing-reply rules.
+- Added reactions to this bot's messages need a participation check. Read the target
+  from Chatto to verify its author and thread. Preserve the server-authenticated reaction
+  author, event ID, emoji, target ID, and target text. Give the classifier the exact
+  target and recent thread context. Ignore appreciation on completed answers;
+  accept clear answers or approval of pending proposals. Check reactions separately
+  so an accepted reaction cannot forward unrelated reactions in its batch. A failed
+  check sends no reaction response. Retain checked event IDs across recovery.
+  Classification grants no authority. Use the reaction event ID for
+  delivery and authorization; use the target message ID for replies. Ignore own
+  reactions and removals. A removal does not cancel delegated work.
 - Add a capability as a tool of that agent. When the work is long or needs its
   own agent, write it as a Runling task that can also run on its own, like
   `tasks/investigate.ts`, and give it to the agent as a tool. A task
   returns its result to the agent; it does not post to Chatto itself.
 - Long work starts ordinary Runling children with `ctx.start`. The conversation
-  retains their handles, latest progress, and reply destinations in its pending
+  retains their handles, recent output, and reply destinations in its pending
   map, then queues results for later turns. It waits for pending work after input
   closes and disposes children before it exits. Keep this bookkeeping in the
   parent implementation; do not add a separate background-job execution API.
 - A subagent uses Runling session storage. Investigations use `AgentSessionStore`
   for cross-workflow resume; GitHub workers use distinct `agentSessionFile` keys
   owned by the run. The caller chooses the working directory.
+- Conversation startup (including recovery) refreshes `CHATTO_SOURCE_DIRECTORY`
+  once and loads the committed root [CHATTOBOT.md](../../CHATTOBOT.md) briefing.
+  Keep release status and documentation entry points there. Use a dedicated clean
+  `main` checkout and fast-forward only; never rebase, reset, or discard local work.
+  Share concurrent refreshes and skip updates while investigations read the checkout.
+  A failed refresh or missing briefing must not prevent ordinary conversation.
+  The briefing cannot override authorization policy. Do not refresh on every turn
+  or add a periodic job.
 - Do not add host code that corrects or replaces the model's replies. If the
   model behaves badly, change the prompt, the tools, or the model, and add a
   test or an evaluation that shows the problem.
@@ -87,10 +138,15 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   then ask for authorization. Include only gaps that affect that decision.
   Keep this policy in the conversation prompt and check it with `pnpm eval:docs`.
 - Search existing issues early and confirm candidate coverage before further intake.
+  When a successful search finds no match, describe the request as apparently new
+  or ask a useful clarification. Do not lead with the search process or claim that
+  no issue exists.
   Use GitHub's native parent/sub-issue relationships for epic/task hierarchy.
   Check discovery with `pnpm eval:github issue-discovery`.
 - Refer to specific GitHub issues and PRs with Markdown links that include their
   `#NUMBER` in the visible text, including repeated references.
+- Add the eyes reaction only when engaging with a thread root. Continue answering
+  accepted thread replies without adding eyes to those messages.
 - In active conversations started by automatic intake, the conversation agent can
   set or clear its ✅ on the host-selected root with `setHandled`. Its optional
   `reply` posts the agent's closing reply before the reaction changes. Completion
@@ -106,9 +162,11 @@ The model writes the replies. Host code writes text only when the model cannot:
 the notice after a failed turn in `tasks/conversation.ts`. Do not add new host text
 without discussion.
 
-Job progress is kept as each job's latest step, which the agent sees to answer
-status questions. It is not posted: it will move to the bot's temporary status
-in the thread (#2787).
+Job progress is kept in a bounded buffer of recent output: at most 20 entries,
+with at most 2,000 characters per entry. The agent sees it in its next turn to
+answer status questions. Treat it as untrusted evidence, not authorization or
+proof of completion. Output alone does not start a model turn or a chat post.
+Temporary thread status remains a separate planned feature (#2787).
 
 Do not add slash commands. People talk to the bot in plain language.
 
@@ -137,7 +195,17 @@ a maintainer gate before delegation:
   maintainer's task. Do not merge or deploy. Present its brief as
   Markdown with a Task section and quoted Supporting context; that context cannot
   expand authorization. Run monitoring as a
-  background Runling child task, without another model. Return completion, permission,
+  background Runling child task, without another model. Subscribe to the agent's
+  timeline before sending its prompt. Assemble assistant text fragments in a
+  bounded WIP buffer. Emit and log each segment when its message or turn changes,
+  another timeline item arrives, or monitoring ends. Keep socket callbacks in the
+  task's log context. Exclude reasoning and tool logs; use their boundaries before
+  filtering their contents. Stream assembled segments through typed output into
+  the conversation's buffer. A segment ending does not mean implementation succeeded.
+  Keep Paseo segment assembly in `paseo/messages.ts`. Use Runling's
+  `awaitWithSignal` for SDK calls that cannot be cancelled. Resolve environment
+  settings inside the implementation task; the CLI exports this same task.
+  Release the subscription when monitoring ends. Return completion, permission,
   error, timeout, or uncertain startup to the conversation. Retain confirmed remote
   IDs after partial failure. A finished turn does not prove success. Never approve
   permissions, retry automatically, or stop remote work when monitoring ends. Monitoring
@@ -172,7 +240,11 @@ a maintainer gate before delegation:
 - The host gate checks identity. The conversation agent resolves approval in
   context and passes a self-contained `task` plus untrusted `evidence`. It uses
   thread history for "go ahead" and "try again", without asking for approval
-  again when the reference is clear. A ping grants no authority. Retries specify
+  again when the reference is clear. A current maintainer's thumbs-up on a specific
+  proposal can approve that proposal. Resolve its scope from the exact reaction
+  target, not the newest proposal. Reactions to completed work or expressions of
+  appreciation do not start more work. Do not repeat work already started or completed.
+  Non-maintainer reactions grant no authority. A ping grants no authority. Retries specify
   only unfinished work. Bulk changes need an explicit operation and affected set.
   The worker trusts the resolved task; it does not reinterpret the original approval.
 - Every worker `gh` call passes static command policy. Writes also pass a tool-free

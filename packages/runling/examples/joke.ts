@@ -9,7 +9,7 @@ export const joke = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ minLength: 1, description: 'The subject of the joke' })
     }),
-    output: Type.String({ description: 'The generated joke in Markdown' })
+    result: Type.String({ description: 'The generated joke in Markdown' })
   },
   async (ctx, { directory, prompt: topic }) => {
     const result = await step('Write joke', () =>

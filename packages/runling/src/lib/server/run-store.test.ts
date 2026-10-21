@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 /** A task without input or output constraints. */
 const work = (run: (ctx: TaskContext<unknown, unknown>) => unknown, name = 'Test') =>
-  task({ name, input: Type.Unknown(), output: Type.Unknown() }, run);
+  task({ name, input: Type.Unknown(), result: Type.Unknown() }, run);
 
 async function store() {
   const directory = await mkdtemp(resolve(tmpdir(), 'runling-runs-test-'));
@@ -206,7 +206,7 @@ test('shutdown keeps Node alive until cooperative cleanup and journal flush fini
     import { setTimeout as delay } from "node:timers/promises";
     const store = new RunStore(process.argv[1]);
     await store.init();
-    const cleanup = task({ name: "Cleanup", input: Type.Unknown(), output: Type.Unknown() }, async ctx => {
+    const cleanup = task({ name: "Cleanup", input: Type.Unknown(), result: Type.Unknown() }, async ctx => {
       await new Promise(resolve => ctx.signal.addEventListener("abort", resolve, { once: true }));
       await delay(50, undefined, { ref: false });
     });
@@ -262,14 +262,14 @@ test('streams ordered nested events and restores the completed run', async () =>
   const records: RunRecord[] = [];
   const unsubscribe = original.subscribe((_id, record) => records.push(record));
   const nested = task(
-    { name: 'Nested', input: Type.String(), output: Type.String() },
+    { name: 'Nested', input: Type.String(), result: Type.String() },
     async (_ctx, input) => {
       log.info('Inside nested workflow');
       return input.toUpperCase();
     }
   );
   const parent = task(
-    { name: 'Parent', input: Type.String(), output: Type.String() },
+    { name: 'Parent', input: Type.String(), result: Type.String() },
     (ctx, input) => nested(ctx, input)
   );
   const run = await original.start('test', parent, 'hello', 'web');
@@ -301,12 +301,12 @@ test('sends host messages to an active run and closes its input', async () => {
     {
       name: 'Chat',
       input: Type.Unknown(),
-      output: Type.Array(Type.String()),
-      receives: Type.String()
+      result: Type.Array(Type.String()),
+      steering: Type.String()
     },
     async (ctx) => {
       const received: string[] = [];
-      for await (const message of ctx.inbox) received.push(message);
+      for await (const message of ctx.steering) received.push(message);
       return received;
     }
   );
@@ -318,9 +318,9 @@ test('sends host messages to an active run and closes its input', async () => {
       waits: 1
     });
     await history.send(run.id, 'first');
-    await run.send('second');
+    await run.steer('second');
     await expect(history.send(run.id, 42)).rejects.toThrow(TypeError);
-    history.closeInput(run.id);
+    history.closeSteering(run.id);
     await run.finished;
   } finally {
     unsubscribe();
@@ -343,7 +343,7 @@ test('rejects messages to a cancelled run', async () => {
   const run = await history.start(
     'cancel',
     work(async (ctx) => {
-      for await (const _ of ctx.inbox);
+      for await (const _ of ctx.steering);
     }),
     undefined,
     'web'
@@ -357,14 +357,14 @@ test('records failures and keeps concurrent token totals separate', async () => 
   const history = await store();
   const ready = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
-  const slow = task({ name: 'Slow', input: Type.String(), output: Type.String() }, async (ctx) => {
+  const slow = task({ name: 'Slow', input: Type.String(), result: Type.String() }, async (ctx) => {
     ctx.recordUsage({ input: 10, output: 1, cacheRead: 0, cacheWrite: 0 });
     ready.resolve();
     await release.promise;
     ctx.recordUsage({ input: 20, output: 2, cacheRead: 0, cacheWrite: 0 });
     return 'Slow done';
   });
-  const fast = task({ name: 'Fast', input: Type.String(), output: Type.String() }, (ctx) => {
+  const fast = task({ name: 'Fast', input: Type.String(), result: Type.String() }, (ctx) => {
     ctx.recordUsage({ input: 100, output: 5, cacheRead: 0, cacheWrite: 0 });
     throw new Error('Expected failure');
   });
@@ -382,7 +382,7 @@ test('records failures and keeps concurrent token totals separate', async () => 
 
 test('recovers a truncated journal as interrupted and saves the recovery', async () => {
   const history = await store();
-  const quick = task({ name: 'Quick', input: Type.String(), output: Type.String() }, () => 'done');
+  const quick = task({ name: 'Quick', input: Type.String(), result: Type.String() }, () => 'done');
   const run = await history.start('quick', quick, '', 'web');
   await run.completion;
   const path = resolve(history.directory, `${run.id}.jsonl`);
@@ -423,7 +423,7 @@ test('keeps a running journal of another live process, and interrupts one whose 
 test('loads completed details on demand without retaining event arrays', async () => {
   const history = await store();
   const workflow = task(
-    { name: 'Logs', input: Type.String(), output: Type.String() },
+    { name: 'Logs', input: Type.String(), result: Type.String() },
     (ctx, input) => {
       log.info('A retained journal event');
       return input;
@@ -452,7 +452,7 @@ test('cancels only the selected run, keeps cleanup and usage, and restores cance
   const ready = Promise.withResolvers<void>();
   let cleaned = false;
   const workflow = task(
-    { name: 'Cancellable', input: Type.String(), output: Type.String() },
+    { name: 'Cancellable', input: Type.String(), result: Type.String() },
     async (ctx) => {
       ctx.recordUsage({ input: 10, output: 1, cacheRead: 0, cacheWrite: 0 });
       try {
@@ -470,7 +470,7 @@ test('cancels only the selected run, keeps cleanup and usage, and restores cance
   await ready.promise;
   const other = await history.start(
     'other',
-    task({ name: 'Other', input: Type.String(), output: Type.String() }, (ctx) => {
+    task({ name: 'Other', input: Type.String(), result: Type.String() }, (ctx) => {
       expect(ctx.signal.aborted).toBe(false);
       return 'done';
     }),

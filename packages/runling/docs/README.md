@@ -30,7 +30,7 @@ questions are not promises of future behavior.
 
 - [Package README](../README.md): setup, CLI, tasks, run references, and releases.
 - [Task invocations and messages](task-channels.md): `ctx.start`, message
-  schemas, `ctx.inbox`, `ctx.emit`, background children, and cancellation.
+  schemas, `ctx.steering`, `ctx.emit`, background children, and cancellation.
 - [Workflow state](workflow-state.md): mutable root state, periodic snapshots,
   configuration keys, and root-owned restart recovery.
 - [Workflow messages and output](workflow-messages.md): messages between the

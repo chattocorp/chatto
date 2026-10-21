@@ -23,6 +23,7 @@ import { ConfigurationError, setting, thinkingSetting } from '../settings.ts';
 import { checkCitations, findCitations } from '../investigation/citations.ts';
 import { confineExtension } from '../investigation/confine.ts';
 import { GIT_TOOLS, gitExtension, runGit } from '../investigation/git.ts';
+import { readCheckout } from '../checkout.ts';
 
 export interface InvestigatorSettings {
   model: string;
@@ -82,11 +83,12 @@ export function createInvestigator(
   createAgent: (options: AgentOptions) => Promise<RunlingAgent> = createAgentSession
 ) {
   return task(
-    { name: 'Investigate', input: Input, output: Output, emits: Update },
+    { name: 'Investigate', input: Input, result: Output, output: Update },
     async (ctx, input) => {
       const directory = resolve(input.directory);
       if (!(await stat(directory).catch(() => undefined))?.isDirectory())
         throw new Error('The directory to investigate does not exist');
+      using checkout = await readCheckout(directory, ctx.signal);
       if (input.session && input.id)
         throw new Error('Give either the ID of an earlier investigation or a new ID, not both');
       await using saved = await settings.sessions.open({
@@ -160,10 +162,10 @@ export function investigatorSettings(): InvestigatorSettings {
 
 /** The investigator with settings from the environment, for `runling run`. */
 export default task(
-  { name: 'Investigate code', input: Input, output: Output, emits: Update },
+  { name: 'Investigate code', input: Input, result: Output, output: Update },
   async (ctx, input) => {
     const investigation = ctx.start(createInvestigator(investigatorSettings()), input);
-    for await (const update of investigation.updates) await ctx.emit(update);
+    for await (const update of investigation.output) await ctx.emit(update);
     return investigation.result;
   }
 );

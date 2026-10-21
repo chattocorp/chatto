@@ -1,19 +1,23 @@
-# Task invocations and messages
+# Task steering, output, and results
 
-A task can start other tasks as children. A parent and a child can exchange
-messages while the child runs. This guide describes the contract.
+A task can start other tasks as children. The parent steers the child, and the
+child streams output to the parent. The child returns one final result. Each
+direction has a distinct purpose; the parent decides how to use the output.
+
+The task's `input` schema describes its initial argument, and `result` describes
+its final return value. Neither is a message stream.
 
 ## Message schemas
 
 A task definition can have two optional message schemas:
 
-- `receives` validates the messages from the parent. The task reads them from
-  `ctx.inbox`.
-- `emits` validates the messages to the parent. The task sends them with
+- `steering` validates the messages from the parent. The task reads them from
+  `ctx.steering`.
+- `output` validates the messages to the parent. The task sends them with
   `ctx.emit()`.
 
 If a task has no message schema, it accepts and emits any message. The schemas
-also give the types of `ctx.inbox`, `ctx.emit()`, `send()`, and `updates`.
+also give the types of `ctx.steering`, `ctx.emit()`, `steer()`, and `output`.
 
 ```ts
 import { log, task, Type } from 'runling';
@@ -22,12 +26,12 @@ const sum = task(
   {
     name: 'Sum',
     input: Type.Number(),
-    output: Type.Number(),
-    receives: Type.Number(),
-    emits: Type.Object({ total: Type.Number() })
+    result: Type.Number(),
+    steering: Type.Number(),
+    output: Type.Object({ total: Type.Number() })
   },
   async (ctx, total) => {
-    for await (const amount of ctx.inbox) {
+    for await (const amount of ctx.steering) {
       total += amount;
       await ctx.emit({ total });
     }
@@ -35,18 +39,18 @@ const sum = task(
   }
 );
 
-const parent = task({ name: 'Parent', input: Type.Null(), output: Type.Number() }, async (ctx) => {
+const parent = task({ name: 'Parent', input: Type.Null(), result: Type.Number() }, async (ctx) => {
   await using child = ctx.start(sum, 0);
-  await child.send(2);
-  await child.send(3);
-  child.closeInput();
+  await child.steer(2);
+  await child.steer(3);
+  child.closeSteering();
 
-  for await (const update of child.updates) log.info(`Total: ${update.total}`);
+  for await (const update of child.output) log.info(`Total: ${update.total}`);
   return await child.result; // 5
 });
 ```
 
-An invalid message rejects `send()` or `ctx.emit()` with a `TypeError`. The
+An invalid message rejects `steer()` or `ctx.emit()` with a `TypeError`. The
 receiver gets the parsed value of the schema.
 
 ## Start a task
@@ -57,13 +61,13 @@ handle:
 - `id` identifies the invocation and its recorded messages. It is not the ID of
   the workflow run.
 - `status` is `running`, `completed`, `failed`, or `cancelled`.
-- `send(message)` validates a message and puts it in the child's queue. It does
+- `steer(message)` validates a message and puts it in the child's queue. It does
   not wait until the child reads the message.
-- `closeInput()` tells the child that no more messages come. The child can
-  still read the messages in the queue. Then its `ctx.inbox` loop ends.
-- `updates` is an async iterable of the messages that the child emits. Only one
+- `closeSteering()` tells the child that no more messages come. The child can
+  still read the messages in the queue. Then its `ctx.steering` loop ends.
+- `output` is an async iterable of the messages that the child emits. Only one
   reader can use it.
-- `result` resolves with the validated output of the child, or rejects with its
+- `result` resolves with the validated final result of the child, or rejects with its
   error.
 - `cancel(reason?)` cancels the child and its children. It does not cancel the
   parent or the siblings of the child.
@@ -71,7 +75,7 @@ handle:
   `await using`, or call `await handle[Symbol.asyncDispose]()` in `finally`.
 
 A direct call, `await task(ctx, input)`, starts the task and waits for its
-result. The input of a direct call is closed, so `ctx.inbox` in the child ends
+result. Steering for a direct call is closed, so `ctx.steering` in the child ends
 at once. Runling records the updates of a direct call in the journal and then
 discards them.
 
@@ -97,7 +101,7 @@ await delivery;
 
 A direct call records updates but does not deliver them to the parent. Use
 `ctx.start` when the parent needs progress, steering, or explicit cancellation.
-Retain that handle, consume `updates`, and observe `result`. Dispose the handle
+Retain that handle, consume `output`, and observe `result`. Dispose the handle
 in the owning parent's `finally` block or with `await using`; its lifetime must
 not be limited to the short tool callback that started the work.
 
@@ -115,8 +119,8 @@ after a restart. Cancellation and disposal cannot undo external effects.
 
 The task context gives these members:
 
-- `ctx.inbox`: messages from the parent. Only one reader can use it. It ends
-  when the parent closes the input.
+- `ctx.steering`: messages from the parent. Only one reader can use it. It ends
+  when the parent closes steering.
 - `ctx.emit(message)`: send a message to the parent.
 - `ctx.start(task, input)`: start a child task.
 - `ctx.signal`: an abort signal for cancellation.
@@ -131,14 +135,14 @@ The host is the parent of the top-level task. It uses the same channels. See
 [workflow messages](workflow-messages.md).
 
 Use `createTaskContext()` to call a task in a test or a script without a host.
-That context has an empty inbox, and it discards the messages that it receives
+That context has empty steering, and it discards the messages that it receives
 through `emit`.
 
 ## Limits and errors
 
 Each direction holds up to 64 messages in its queue:
 
-- A send to a full queue rejects with `ChannelFullError`. Read `updates` while
+- A send to a full queue rejects with `ChannelFullError`. Read `output` while
   the child runs if the child can emit more than 64 messages.
 - A send to a closed queue rejects with `ChannelClosedError`.
 - A send never waits for free space, and Runling never drops a message without
@@ -147,7 +151,7 @@ Each direction holds up to 64 messages in its queue:
 When the child completes, Runling closes both directions. The parent can still
 read the updates in the queue. When the child fails or is cancelled, Runling
 discards the messages in the queue. Pending reads and later sends reject with
-the original error. If the parent stops reading `updates`, for example with
+the original error. If the parent stops reading `output`, for example with
 `break`, the updates close and later `ctx.emit()` calls fail.
 
 Cancellation reaches the child through `ctx.signal`. The handle settles also if
@@ -159,6 +163,27 @@ undo its side effects, so task code must use the signal.
 `createChannel<T>({ capacity, signal })` gives `send`, `close`, `fail`, and
 async iteration. Channels keep data only in memory and use no Node-specific
 imports.
+
+### Wake a processing loop
+
+Use `createNotifier()` when a loop owns its queue or state and only needs a wake-up
+signal. `notify()` wakes a pending `wait()` or retains one notification. Repeated
+notifications coalesce. Only one wait can be pending at a time.
+
+```ts
+import { createNotifier } from 'runling';
+
+const changed = createNotifier();
+changed.notify(); // For example, after adding an item to an application queue.
+const notified = await changed.wait({ signal: ctx.signal, timeoutMs: 60_000 });
+// true: a notification arrived; false: the timeout expired.
+// Inspect the application queue or state, then wait again.
+```
+
+The timeout is optional, in milliseconds; zero checks for a retained notification
+without waiting. Cancellation rejects with the signal's reason. Each wait removes
+its timer and abort listener when it ends. The helper holds no payload, persists
+nothing, and does not start or track tasks. The caller owns batching and recovery.
 
 ## Timeline and journal
 
@@ -176,3 +201,27 @@ shows a placeholder. A read by a task does not mean that an agent used the
 message.
 
 See the [task channel example](../examples/channel-demo.md).
+
+## Migration from the message API
+
+Update task definitions and callers together. These are TypeScript API changes;
+existing journal records, HTTP payloads, and stored workflow state do not change.
+
+| Previous API | Current API |
+| --- | --- |
+| Task `output` (final return schema) | `result` |
+| Task `receives` | `steering` |
+| Task `emits` | `output` (stream schema) |
+| `ctx.inbox` | `ctx.steering` |
+| `child.send(message)` | `child.steer(message)` |
+| `child.updates` | `child.output` |
+| `child.closeInput()` | `child.closeSteering()` |
+| `TaskOutput<T>` (final return type) | `TaskResult<T>` |
+| `TaskReceives<T>` | `TaskSteering<T>` |
+| `TaskEmits<T>` | `TaskOutput<T>` (stream item type) |
+| Classifier option `output` | `result` |
+
+Run handles use `steer` and `closeSteering` too. The raw `Channel.send` API and
+the session API's `output: 'text'` or `output: 'report'` option do not change.
+The host's `onUpdate` callback still receives streamed root output. The journal
+retains its `input` and `update` direction tags.

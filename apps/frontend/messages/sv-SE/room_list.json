@@ -30,6 +30,9 @@
     "server_actions": "Åtgärder för {server}",
     "room_actions": "Åtgärder för #{room}",
     "open_group_settings": "Öppna gruppinställningar",
-    "open_room_settings": "Öppna rumsinställningar"
+    "open_room_settings": "Öppna rumsinställningar",
+    "older_conversations": "Äldre konversationer",
+    "show_older_conversations": "Visa äldre ({count})",
+    "show_fewer_conversations": "Visa färre"
   }
 }

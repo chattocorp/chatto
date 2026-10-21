@@ -36,7 +36,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
   };
   const classify = vi.fn(async () => ({ engage: true, reason: 'relevant' }));
   const classifier = task(
-    { name: 'Classifier', input: IntakeInput, output: IntakeDecision },
+    { name: 'Classifier', input: IntakeInput, result: IntakeDecision },
     classify
   );
   const conversation = createConversation(
@@ -46,6 +46,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
       typing: async () => {},
       acknowledge: async () => {},
       setHandled: async () => {},
+      react: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('unused');
@@ -83,12 +84,14 @@ test('restores one thread, retains intake and follow-up state, and waits without
     classifier,
     conversation,
     read: async () => ({ body: first.body, attachmentTypes: [] }),
+    readReactionContext: async () => [],
     readFollowUp: async () => ({
       boundary: 'bot-post',
       input: { context: [{ role: 'bot', body: 'What browser?' }] },
       messages: [{ message: reply, attachmentTypes: [] }]
     }),
-    intervalMs: 5
+    intervalMs: 5,
+    batchMs: 0
   });
   const open = async () => {
     const store = new RunStore(directory);

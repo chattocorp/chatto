@@ -17,7 +17,7 @@ actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
 buf = "latest"
-go = "1.27.1"
+go = "1.27.3"
 goreleaser = "latest"
 node = "lts"
 pnpm = "11.25.0"
@@ -211,16 +211,12 @@ run = "buf lint"
 description = "Generate Go and frontend code from protobuf schemas"
 depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
-# `clean` also removes the built package. Rebuild it at the end so tools that
-# read `packages/api-types/dist` directly, such as svelte-check and Vitest run
-# from `apps/frontend`, never see a missing package after codegen.
 run = [
     "pnpm --dir ../packages/api-types run clean",
     "buf generate",
     "node ../tools/split-connectrpc-docs.mjs",
     "node ../tools/trim-proto-codegen-output.mjs",
     "node ../packages/chatto-client/scripts/generate-types.mjs",
-    "pnpm --dir .. run build:api-types",
 ]
 
 [tasks.codegen-emoji]
@@ -279,26 +275,6 @@ depends = ["mobile-ios-sync"]
 dir = "apps/mobile"
 run = "pnpm build:ios"
 
-[tasks.build-api-types]
-description = "Build the generated TypeScript API package"
-depends = ["setup-frontend"]
-run = "pnpm run build:api-types"
-sources = [
-    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
-    "packages/api-types/{src/**,package.json,tsconfig*.json}",
-]
-outputs = ["packages/api-types/dist"]
-
-[tasks.build-lingua]
-description = "Build the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm run build:lingua"
-sources = [
-    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
-    "packages/lingua/{src/**,package.json,tsconfig*.json}",
-]
-outputs = ["packages/lingua/dist"]
-
 [tasks.test-runling-bot]
 description = "Test the Runling webhook bot example"
 depends = ["setup-frontend"]
@@ -310,19 +286,9 @@ depends = ["setup-frontend"]
 run = "pnpm turbo run build --filter=runling"
 
 [tasks.build-runling-bot]
-description = "Build Runling and the Chatto client for the Runling webhook bot example"
+description = "Build Runling for the Runling webhook bot example"
 depends = ["setup-frontend"]
 run = "pnpm turbo run build --filter=@chatto/runling-bot^..."
-
-[tasks.build-chatto-client]
-description = "Build the framework-neutral Chatto client"
-depends = ["setup-frontend"]
-run = "pnpm run build:chatto-client"
-sources = [
-    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
-    "packages/{api-types,chatto-client}/{src/**,package.json,tsconfig*.json}",
-]
-outputs = ["packages/api-types/dist", "packages/chatto-client/dist"]
 
 [tasks.test-chatto-client]
 description = "Check, lint, and test the Chatto client"
@@ -379,8 +345,8 @@ run = [
     "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
     "bash -c \"mkdir -p ../../.context/build-frontend && touch ../../.context/build-frontend/{{vars.frontend_build_environment}}\"",
 ]
-# Include each workspace library that Turbo builds for the frontend. Declare
-# both the published build and the embedded copy, so either can be restored.
+# Include the workspace libraries whose source the frontend bundles. Declare
+# both the frontend build and the embedded copy, so either can be restored.
 sources = [
     "{src,messages,static}/**",
     "{package.json,*config.*,scripts/*.mjs,.env*}",
@@ -390,9 +356,6 @@ sources = [
 outputs = [
     "build",
     "../../cli/internal/http_server/.client",
-    "../../packages/api-types/dist",
-    "../../packages/lingua/dist",
-    "../../packages/chatto-client/dist",
     "../../.context/build-frontend/{{vars.frontend_build_environment}}",
 ]
 
@@ -485,7 +448,7 @@ outputs = ["../apps/frontend/e2e/fixtures/bin/chatto-current"]
 
 [tasks.storybook]
 description = "Run the Storybook design-system catalog"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend"]
 dir = "apps/frontend"
 # `mise dev-full` and `mise dev-frontend` use the complete workspace port block.
 # Storybook therefore uses the first free loopback port from 6006. Storybook's
@@ -625,7 +588,7 @@ exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- server --config "$state/livekit.yaml
 
 [tasks.paseo-storybook]
 hide = true
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend"]
 dir = "apps/frontend"
 run = '''
 set -eu
@@ -648,7 +611,7 @@ exec pnpm exec astro dev --host 127.0.0.1 --port "$PASEO_PORT" --allowedHosts "$
 
 [tasks.dev-frontend]
 description = "Run the Vite frontend development server against a Chatto server"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend"]
 dir = "apps/frontend"
 env = { VITE_PORT = "{{env.CHATTO_DEV_VITE_PORT}}" }
 # CHATTO_BACKEND_URL selects the proxied Chatto server. The default is the
@@ -922,7 +885,7 @@ run = ["pnpm run check:frontend", "pnpm run lint:frontend"]
 description = "Vet the Chatto CLI module and check it for unused code and outdated idioms"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.1", "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.2", "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 # The build matrix makes staticcheck report a symbol as unused only when no
 # build tag set uses it.
 run = [
@@ -1081,7 +1044,6 @@ run = [
     "rm -rf cli/internal/http_server/.client",
     "rm -rf apps/frontend/build",
     "rm -rf apps/desktop/dist",
-    "rm -rf packages/lingua/dist",
 ]
 
 [tasks.reset]

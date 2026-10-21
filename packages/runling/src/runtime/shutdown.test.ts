@@ -30,13 +30,13 @@ test('repeated shutdown signals flush an idle conversation with a completed chil
         setTimeout(() => process.kill(process.pid, "SIGTERM"), 10);
         await store.close();
       });
-      const child = task({ name: "Child", input: Type.Null(), output: Type.String() }, async () => "evidence");
-      await store.start("conversation", task({ name: "Conversation", input: Type.Null(), output: Type.Null() }, async ctx => {
+      const child = task({ name: "Child", input: Type.Null(), result: Type.String() }, async () => "evidence");
+      await store.start("conversation", task({ name: "Conversation", input: Type.Null(), result: Type.Null() }, async ctx => {
         await child(ctx, null);
         try {
           // The conversation is idle: it waits for the next message from the host.
           setTimeout(() => process.kill(process.pid, "SIGINT"), 1);
-          for await (const _ of ctx.inbox) {}
+          for await (const _ of ctx.steering) {}
         } finally { await delay(50, undefined, { ref: false }); }
         return null;
       }), null, "source");

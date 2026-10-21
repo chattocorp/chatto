@@ -3124,3 +3124,72 @@ func TestRoomDirectoryServiceRejectsInvalidArchiveFilter(t *testing.T) {
 	_, err := env.directory.ListRooms(env.ctx, connect.NewRequest(&apiv1.ListRoomsRequest{ArchiveFilter: apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ALL}))
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
 }
+
+func TestRoomDirectoryDMActivityAcrossReads(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "activity-peer", "Activity Peer", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{peer.Id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := withCaller(env.ctx, peer)
+	check := func(message, root *timestamppb.Timestamp) {
+		t.Helper()
+		get, err := env.directory.GetRoom(ctx, connect.NewRequest(&apiv1.GetRoomRequest{RoomId: dm.Id}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		batch, err := env.directory.BatchGetRooms(ctx, connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{dm.Id}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		list, err := env.directory.ListRooms(ctx, connect.NewRequest(&apiv1.ListRoomsRequest{Scope: apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := env.api.BuildRealtimeSnapshot(env.ctx, peer.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, room := range map[string]*apiv1.RoomWithViewerState{
+			"get":      get.Msg.Room,
+			"batch":    directoryRoomsByID(batch.Msg.Rooms)[dm.Id],
+			"list":     directoryRoomsByID(list.Msg.Rooms)[dm.Id],
+			"snapshot": directoryRoomsByID(snapshot.Rooms.Rooms)[dm.Id],
+		} {
+			if room == nil {
+				t.Fatalf("%s missing DM", name)
+			}
+			if !room.LastMessageAt.AsTime().Equal(message.AsTime()) || (room.LastMessageAt == nil) != (message == nil) ||
+				!room.LastRootMessageAt.AsTime().Equal(root.AsTime()) || (room.LastRootMessageAt == nil) != (root == nil) {
+				t.Fatalf("%s activity = %v/%v, want %v/%v", name, room.LastMessageAt, room.LastRootMessageAt, message, root)
+			}
+		}
+	}
+	check(nil, nil)
+	root, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(root.CreatedAt, root.CreatedAt)
+	reply, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(reply.CreatedAt, root.CreatedAt)
+	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, peer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageRead, core.PermissionStateDeny); err != nil {
+		t.Fatal(err)
+	}
+	check(nil, nil)
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, peer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageRead, core.PermissionStateNone); err != nil {
+		t.Fatal(err)
+	}
+	check(reply.CreatedAt, root.CreatedAt)
+}

@@ -98,8 +98,8 @@ type Room struct {
 	// Minimum number of seconds a non-exempt member must wait between root message
 	// posts. Channel rooms only; zero means slow mode is disabled.
 	SlowModeSeconds uint32 `protobuf:"varint,8,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
-	// Threading policy for this channel room. Direct-message rooms report
-	// UNSPECIFIED because they do not support threads.
+	// Effective threading policy for this room. Direct-message rooms always
+	// report ENABLED.
 	ThreadingMode RoomThreadingMode `protobuf:"varint,9,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
 	// Per-user interval within each thread, including its root. Zero disables
 	// the interval. Absent on servers without independent thread slow mode.

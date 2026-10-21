@@ -8,8 +8,8 @@ const conversation = task(
   {
     name: 'Conversation',
     input: IncomingMessage,
-    output: Type.Null(),
-    receives: IncomingMessage
+    result: Type.Null(),
+    steering: IncomingMessage
   },
   async () => null
 );
@@ -23,7 +23,7 @@ const message = (id: string, body = id, threadRootId = 'root'): IncomingMessage 
 });
 
 /** A router with fake runs that record their messages. */
-function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) {
+function harness({ steer }: { steer?: (message: unknown) => Promise<void> } = {}) {
   const runs: {
     workflow: string;
     input: unknown;
@@ -43,11 +43,11 @@ function harness({ send }: { send?: (message: unknown) => Promise<void> } = {}) 
     runs.push(run);
     const handle: RunHandle = {
       id: `run-${runs.length}`,
-      send: async (value) => {
-        await send?.(value);
+      steer: async (value) => {
+        await steer?.(value);
         run.sent.push(value);
       },
-      closeInput: () => void (run.closed = true),
+      closeSteering: () => void (run.closed = true),
       cancel: () => {},
       finished: finished.promise
     };
@@ -113,7 +113,7 @@ test('starts intake once and forwards later pings to that workflow', async () =>
 test('starts a new run when the thread run no longer accepts messages', async () => {
   let accept = true;
   const router = harness({
-    send: async () => {
+    steer: async () => {
       if (!accept) throw new Error('This run is not running.');
     }
   });
@@ -130,4 +130,31 @@ test('forgets a finished run', async () => {
   await new Promise((resolve) => setTimeout(resolve));
   await router.route(message('two'));
   expect(router.runs).toHaveLength(2);
+});
+
+test('ordinary replies only wake active workflows and never create or reopen a run', async () => {
+  const router = harness();
+  const reply = (id: string) => ({ ...message(id), trigger: 'follow-up' as const });
+  await router.route(reply('before'));
+  expect(router.runs).toHaveLength(0);
+  expect(router.state.accepted.size).toBe(0);
+  await router.route(message('ping'));
+  await router.route(reply('during'));
+  await router.route(reply('during'));
+  expect(router.runs[0]!.sent).toEqual([reply('during')]);
+  router.runs[0]!.finish();
+  await new Promise((resolve) => setTimeout(resolve));
+  await router.route(reply('after'));
+  expect(router.runs).toHaveLength(1);
+});
+
+test('a reply racing a closed workflow does not start another one', async () => {
+  const router = harness({
+    steer: async () => {
+      throw new Error('Closed');
+    }
+  });
+  await router.route(message('ping'));
+  await router.route({ ...message('reply'), trigger: 'follow-up' });
+  expect(router.runs).toHaveLength(1);
 });

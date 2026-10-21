@@ -179,8 +179,8 @@ export interface RunAgentOptions {
   /** Text agents finish naturally and return their final text; report agents must call
    * report_outcome (default). */
   output?: 'text' | 'report';
-  /** In text mode, permit a successful turn without a text reply, such as a
-   * tool-only action. Defaults to false. Provider errors still fail the turn. */
+  /** In text mode, permit silence without an explicit terminating tool result.
+   * Defaults to false. Provider errors still fail the turn. */
   allowEmptyText?: boolean;
   /** Built-in and extension tools to expose. `report_outcome` is added in report mode. */
   tools?: readonly string[];
@@ -563,6 +563,8 @@ async function createRunlingAgent(
     reports = [];
     let finalText: string | undefined;
     let finalTextError: string | undefined;
+    // Match Pi's batch termination rule, but only successful results count as completion.
+    let toolsTerminated: boolean | undefined;
     const usage = emptyTokenUsage();
     let turn = 0;
     // Pi starts its agent loop again after a provider retry. It is still the same interaction.
@@ -637,6 +639,7 @@ async function createRunlingAgent(
         }
 
         if (event.type === 'turn_start') {
+          toolsTerminated = undefined;
           turn++;
           agentLog.debug(`Turn ${turn} started`);
         }
@@ -653,6 +656,11 @@ async function createRunlingAgent(
           if (!event.parentToolCallId) activity(event.toolName, 'started');
           const action = describeTool(event.toolName, event.args, cwd);
           agentLog.info(highlightToolAction(event.toolName, action));
+        }
+
+        if (event.type === 'tool_execution_end' && !event.parentToolCallId) {
+          toolsTerminated =
+            (toolsTerminated ?? true) && !event.isError && event.result?.terminate === true;
         }
 
         if (event.type === 'tool_execution_end' && event.toolName !== 'report_outcome') {
@@ -780,7 +788,7 @@ async function createRunlingAgent(
           }
           if (textOutput) {
             // The final text is the result. onText already delivered it during the turn.
-            if (!finalText?.trim() && !options.allowEmptyText)
+            if (!finalText?.trim() && !options.allowEmptyText && !toolsTerminated)
               return {
                 outcome: 'failed',
                 summary: 'Agent finished without a text response',

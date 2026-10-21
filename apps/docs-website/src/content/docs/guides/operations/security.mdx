@@ -23,8 +23,10 @@ reverse proxy, the secrets, and the backups. This page describes both parts.
 
 ## Accounts and sessions
 
-- Chatto stores passwords as bcrypt hashes. Passwords must have 8 to 128
-  characters.
+- Chatto stores passwords as bcrypt hashes. New passwords must have 8 to 72
+  UTF-8 bytes. A character can use more than one byte. Chatto rejects passwords
+  outside these limits and does not truncate them. API clients must count UTF-8
+  bytes when they validate a new password. Existing password hashes remain valid.
 - Sessions use random, opaque credentials, not JWTs. Browser cookies are
   `HttpOnly`, `SameSite=Lax`, and `Secure` on HTTPS.
 - Other clients get an access token that expires after 15 minutes and a

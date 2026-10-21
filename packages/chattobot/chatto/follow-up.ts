@@ -6,7 +6,8 @@ import type { FollowUpInput } from '../tasks/classify-intake.ts';
 import { threadOf, type IncomingMessage } from './message.ts';
 
 export interface FollowUpSnapshot {
-  /** The bot post that starts this batch. Message IDs are opaque, never sorted. */
+  /** Latest bot post or conversation entry for reconciliation. Pending replies can predate it.
+   * Message IDs are opaque, never sorted. */
   boundary: string;
   input: Omit<Static<typeof FollowUpInput>, 'messages'>;
   /** Keep each routable message with its classifier metadata when filtering replies. */
@@ -15,23 +16,35 @@ export interface FollowUpSnapshot {
 
 export type ReadFollowUp = (
   message: IncomingMessage,
-  signal: AbortSignal
+  signal: AbortSignal,
+  /** Observed replies that must remain candidates across a newer bot post. */
+  pendingIds?: readonly string[]
 ) => Promise<FollowUpSnapshot | undefined>;
 
 /** Read only as the bot. Unknown, deleted, other-bot, and disallowed authors cannot engage it.
- * If the latest page has no bot post, do not guess a boundary across omitted history. */
+ * Use the conversation entry until the bot posts text, including after reaction-only turns.
+ * Do not guess a boundary across omitted history. */
 export function createFollowUpReader(
   api: Pick<ReturnType<typeof createApi>, 'readThread' | 'service'>,
   allowedUserId?: string
 ): ReadFollowUp {
-  return async (message, signal) => {
+  return async (message, signal, pendingIds = []) => {
     const thread = await api.readThread(threadOf(message), { signal });
-    const boundaryIndex = thread.messages.findLastIndex((item) => item.fromViewer);
+    const entryId = message.reaction?.messageId ?? message.id;
+    const boundaryIndex = Math.max(
+      thread.messages.findLastIndex((item) => item.fromViewer),
+      thread.messages.findIndex((item) => item.id === entryId)
+    );
     const boundary = thread.messages[boundaryIndex];
     if (!boundary || (boundaryIndex === 0 && thread.olderOmitted)) return;
-    const candidates = thread.messages
-      .slice(boundaryIndex + 1)
-      .filter((item) => item.authorId && (!allowedUserId || item.authorId === allowedUserId));
+    const pending = new Set(pendingIds);
+    const candidates = thread.messages.filter(
+      (item, index) =>
+        (index > boundaryIndex || pending.has(item.id)) &&
+        !item.fromViewer &&
+        item.authorId &&
+        (!allowedUserId || item.authorId === allowedUserId)
+    );
     if (!candidates.length) return;
     const { users } = await api
       .service(UserService)
@@ -44,12 +57,20 @@ export function createFollowUpReader(
     );
     const replies = candidates.filter((item) => humans.has(item.authorId!));
     if (!replies.length) return;
+    // Include the question an earlier pending reply answered, as well as newer bot posts.
+    // Candidate replies belong only in `messages`, never a second time in `context`.
+    const replyIds = new Set(replies.map((item) => item.id));
+    const contextStart = Math.min(
+      boundaryIndex,
+      thread.messages.findIndex((item) => replyIds.has(item.id))
+    );
     return {
       boundary: boundary.id,
       input: {
         ...(message.trigger === 'intake' ? { trackHandled: true } : {}),
         context: thread.messages
-          .slice(Math.max(0, boundaryIndex - 3), boundaryIndex + 1)
+          .slice(Math.max(0, contextStart - 3), boundaryIndex + 1)
+          .filter((item) => !replyIds.has(item.id))
           .map((item) => ({
             role: item.fromViewer ? ('bot' as const) : ('human' as const),
             body: item.body

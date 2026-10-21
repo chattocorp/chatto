@@ -32,7 +32,7 @@ test('a failed command has a failed timeline step with a safe label', async () =
     true
   );
   const workflow = task(
-    { name: 'Check command activity', input: Type.Null(), output: Type.Null() },
+    { name: 'Check command activity', input: Type.Null(), result: Type.Null() },
     async () => {
       await tool.execute(
         '1',

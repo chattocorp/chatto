@@ -38,6 +38,7 @@ async function supervisor(
   const investigations: string[] = [];
   const posts: string[] = [];
   const handled: boolean[] = [];
+  const reactions: { messageId: string; emoji: string }[] = [];
   const warmed = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const conversation = createConversation(
@@ -60,8 +61,8 @@ async function supervisor(
             {
               name: 'Fixture investigation',
               input: Type.Any(),
-              output: Type.Any(),
-              emits: Type.String()
+              result: Type.Any(),
+              output: Type.String()
             },
             async (_ctx, input) => {
               investigations.push(input.question);
@@ -90,6 +91,9 @@ async function supervisor(
           );
         handled.push(value);
       },
+      react: async (messageId, emoji) => {
+        reactions.push({ messageId, emoji });
+      },
       readThread: async () => ({ messages: scenario.thread ?? [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('No evaluation attachments');
@@ -100,6 +104,7 @@ async function supervisor(
         ...options,
         // Other production tools cannot contact their real services during this evaluation.
         tools: [
+          'react',
           'gh',
           'githubWork',
           'investigate',
@@ -137,7 +142,7 @@ async function supervisor(
         {
           name: 'Fixture GitHub worker',
           input: GitHubWorkInput,
-          output: Type.String()
+          result: Type.String()
         },
         async (workerContext, input) => {
           delegated.push(input);
@@ -171,10 +176,10 @@ async function supervisor(
       throw new Error('Conversation ended before evaluation');
     })
   ]);
-  for (const message of scenario.messages) await invocation.send({ ...location, ...message });
+  for (const message of scenario.messages) await invocation.steer({ ...location, ...message });
   // Let the conversation's inbox reader queue the complete batch before releasing its turn.
   await new Promise<void>((done) => setImmediate(done));
-  invocation.closeInput();
+  invocation.closeSteering();
   release.resolve();
   await invocation.result;
   return {
@@ -185,6 +190,7 @@ async function supervisor(
     investigationAttempts,
     posts: posts.slice(1),
     handled,
+    reactions,
     commands: github.commands
   };
 }
@@ -193,7 +199,7 @@ export default task(
   {
     name: 'Evaluate GitHub behavior',
     input: Type.String(),
-    output: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
+    result: Type.Object({ passed: Type.Integer(), total: Type.Integer(), report: Type.String() })
   },
   async (ctx, filter) => {
     const model = setting('CHATTO_AGENT_MODEL');
@@ -298,7 +304,7 @@ export default task(
           'Supervisor attempted to delegate the wrong message'
         );
         assert(
-          result.posts.length > 0 || result.handled.length > 0,
+          result.posts.length > 0 || result.handled.length > 0 || result.reactions.length > 0,
           'Supervisor did not answer or react'
         );
         assert(
@@ -332,6 +338,8 @@ export default task(
           result.commands.every((command) => command.supported),
           'Unsupported fixture command'
         );
+        if (scenario.expectedReactions)
+          assert.deepEqual(result.reactions, scenario.expectedReactions);
         scenario.check?.(result.posts, result.commands, result.delegated);
       });
     }

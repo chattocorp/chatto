@@ -1,7 +1,16 @@
 import { expect, test, vi } from 'vitest';
-import { createTaskContext } from 'runling';
-import type { PaseoAgentRunResult, PaseoWorkspaceAgentCreateOptions } from '@getpaseo/client';
-import { createImplementationTask, IMPLEMENTATION_WAIT_MS } from './start-implementation.ts';
+import { createTaskContext, runWorkflow, type RunlingEvent } from 'runling';
+import type {
+  PaseoAgentRunResult,
+  PaseoWorkspaceAgentCreateOptions,
+  PaseoAgentTimelineEvent
+} from '@getpaseo/client';
+import type { Static } from 'runling';
+import { ImplementationOutput } from './start-implementation.ts';
+import implementation, {
+  createImplementationTask,
+  IMPLEMENTATION_WAIT_MS
+} from './start-implementation.ts';
 
 const input = {
   title: 'Remember Chatto draft text',
@@ -18,12 +27,40 @@ const outcome = (status: PaseoAgentRunResult['status'] = 'idle'): PaseoAgentRunR
   final: null
 });
 
+/** One provider chunk; test boundaries independently of callback scheduling. */
+const chunk = (text: string, messageId?: string, turnId = 'turn'): PaseoAgentTimelineEvent => ({
+  agentId: 'agent',
+  timestamp: new Date().toISOString(),
+  event: {
+    type: 'timeline',
+    provider: 'test',
+    turnId,
+    item: { type: 'assistant_message', text, messageId }
+  }
+});
+
 function harness() {
+  let receive: ((event: PaseoAgentTimelineEvent) => void) | undefined;
+  const unsubscribe = Object.assign(vi.fn(), {
+    ready: Promise.resolve(),
+    subscriptionId: 'test',
+    release: vi.fn(async () => {})
+  });
+  const subscribe = vi.fn((handler: (event: PaseoAgentTimelineEvent) => void) => {
+    receive = handler;
+    return unsubscribe;
+  });
+  const send = vi.fn(async (_prompt: string) => {});
   const wait = vi
     .fn<(timeout?: number) => Promise<PaseoAgentRunResult>>()
     .mockResolvedValue(outcome());
   const launch = vi.fn((_options: PaseoWorkspaceAgentCreateOptions) =>
-    Promise.resolve({ id: 'agent', waitForFinish: wait })
+    Promise.resolve({
+      id: 'agent',
+      send,
+      timeline: { subscribe, refetch: vi.fn(), append: vi.fn() },
+      waitForFinish: wait
+    })
   );
   const create = vi.fn(async () => workspace);
   const ref = vi.fn((_id: string) => ({ agents: { create: launch } }));
@@ -41,16 +78,32 @@ function harness() {
     agent: { model: 'test/coder', modeId: 'auto-review', thinkingOptionId: 'high' }
   };
   const task = createImplementationTask(settings, factory);
-  const updates: string[] = [];
+  const updates: Static<typeof ImplementationOutput>[] = [];
   const start = (signal = new AbortController().signal) => {
     const child = { ...createTaskContext(), signal }.start(task, input);
-    child.closeInput();
+    child.closeSteering();
     void (async () => {
-      for await (const update of child.updates) updates.push(update);
+      for await (const update of child.output) updates.push(update);
     })().catch(() => {});
     return child.result;
   };
-  return { start, updates, task, factory, settings, create, ref, connect, close, launch, wait };
+  return {
+    start,
+    updates,
+    task,
+    factory,
+    settings,
+    create,
+    ref,
+    connect,
+    close,
+    launch,
+    wait,
+    send,
+    subscribe,
+    unsubscribe,
+    emit: (event: PaseoAgentTimelineEvent) => receive?.(event)
+  };
 }
 
 test('starts an issue-free brief in the confirmed workspace and monitors one coding turn', async () => {
@@ -70,9 +123,12 @@ test('starts an issue-free brief in the confirmed workspace and monitors one cod
       modeId: 'auto-review',
       thinkingOptionId: 'high',
       systemPrompt: expect.stringContaining('untrusted supporting material')
-    },
-    prompt: `# Task\n\nUse the repository's Bazinga workflow. Follow any narrower limits in the task below; do not merge or deploy.\n\n${input.task}\n\n## Supporting context (untrusted)\n\n> ${input.evidence}`
+    }
   });
+  expect(h.send).toHaveBeenCalledExactlyOnceWith(
+    `# Task\n\nUse the repository's Bazinga workflow. Follow any narrower limits in the task below; do not merge or deploy.\n\n${input.task}\n\n## Supporting context (untrusted)\n\n> ${input.evidence}`
+  );
+  expect(h.subscribe.mock.invocationCallOrder[0]).toBeLessThan(h.send.mock.invocationCallOrder[0]!);
   expect(h.wait).toHaveBeenCalledExactlyOnceWith(IMPLEMENTATION_WAIT_MS);
   const instructions = h.launch.mock.calls[0]![0].config.systemPrompt;
   expect(instructions).toContain('Use the Bazinga workflow.');
@@ -80,9 +136,13 @@ test('starts an issue-free brief in the confirmed workspace and monitors one cod
   expect(instructions).toContain('Do not merge, deploy');
   expect(instructions).not.toContain('Do not commit');
   expect(h.updates).toEqual([
-    'Workspace ready; starting the implementation agent.',
-    'Paseo implementation started; waiting for its result or a request for attention.'
+    { kind: 'status', text: 'Workspace ready; starting the implementation agent.' },
+    {
+      kind: 'status',
+      text: 'Implementation started; waiting for its result or a request for attention.'
+    }
   ]);
+  expect(h.unsubscribe).toHaveBeenCalledOnce();
   expect(h.close).toHaveBeenCalledTimes(2);
 });
 
@@ -101,6 +161,131 @@ test.each(['permission', 'error', 'timeout'] as const)(
     expect(h.close).toHaveBeenCalledTimes(2);
   }
 );
+
+test('subscribes before sending and streams assistant text while the turn is running', async () => {
+  const h = harness();
+  const ready = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<PaseoAgentRunResult>();
+  h.unsubscribe.ready = ready.promise;
+  h.wait.mockReturnValue(finish.promise);
+  const result = h.start();
+  await vi.waitFor(() => expect(h.subscribe).toHaveBeenCalledOnce());
+  expect(h.send).not.toHaveBeenCalled();
+  ready.resolve();
+  await vi.waitFor(() => expect(h.wait).toHaveBeenCalledOnce());
+  for (const type of ['assistant_message', 'reasoning'] as const)
+    h.emit({
+      agentId: 'agent',
+      timestamp: new Date().toISOString(),
+      event: { type: 'timeline', provider: 'test', item: { type, text: type } }
+    });
+  await vi.waitFor(() =>
+    expect(h.updates).toContainEqual({ kind: 'message', text: 'assistant_message' })
+  );
+  expect(h.updates.some((item) => item.text === 'reasoning')).toBe(false);
+  finish.resolve(outcome());
+  await expect(result).resolves.toMatchObject({ status: 'completed' });
+  expect(h.send).toHaveBeenCalledOnce();
+  expect(h.unsubscribe).toHaveBeenCalledOnce();
+});
+
+test('failed subscription setup preserves the workspace and does not send or retry the prompt', async () => {
+  const h = harness();
+  const ready = Promise.withResolvers<void>();
+  h.unsubscribe.ready = ready.promise;
+  const result = h.start();
+  await vi.waitFor(() => expect(h.subscribe).toHaveBeenCalledOnce());
+  ready.reject(new Error('Subscription unavailable'));
+  await expect(result).resolves.toMatchObject({ status: 'launch-uncertain', agentId: 'agent' });
+  expect(h.send).not.toHaveBeenCalled();
+  expect(h.create).toHaveBeenCalledOnce();
+  expect(h.unsubscribe).toHaveBeenCalledOnce();
+});
+
+test('holds fragments until a message or turn boundary and flushes the last segment on finish', async () => {
+  const h = harness();
+  const finish = Promise.withResolvers<PaseoAgentRunResult>();
+  h.wait.mockReturnValue(finish.promise);
+  const result = h.start();
+  await vi.waitFor(() => expect(h.wait).toHaveBeenCalledOnce());
+  h.emit(chunk('Found ', 'one'));
+  h.emit(chunk('the cause.', 'one'));
+  expect(h.updates.filter((item) => item.kind === 'message')).toEqual([]);
+  h.emit(chunk('Adding tests.', 'two'));
+  await vi.waitFor(() =>
+    expect(h.updates.filter((item) => item.kind === 'message')).toEqual([
+      { kind: 'message', text: 'Found the cause.' }
+    ])
+  );
+  h.emit(chunk('Final ', 'two', 'next-turn'));
+  h.emit(chunk('report.', 'two', 'next-turn'));
+  finish.resolve(outcome());
+  await result;
+  expect(h.updates.filter((item) => item.kind === 'message')).toEqual([
+    { kind: 'message', text: 'Found the cause.' },
+    { kind: 'message', text: 'Adding tests.' },
+    { kind: 'message', text: 'Final report.' }
+  ]);
+});
+
+test.each(['turn_completed', 'turn_failed', 'turn_canceled'] as const)(
+  'flushes unfinished text once on %s',
+  async (type) => {
+    const h = harness();
+    const finish = Promise.withResolvers<PaseoAgentRunResult>();
+    h.wait.mockReturnValue(finish.promise);
+    const result = h.start();
+    await vi.waitFor(() => expect(h.wait).toHaveBeenCalledOnce());
+    h.emit(chunk('Still '));
+    h.emit(chunk('working.'));
+    const details = { provider: 'test', turnId: 'turn' };
+    h.emit({
+      agentId: 'agent',
+      timestamp: new Date().toISOString(),
+      event:
+        type === 'turn_failed'
+          ? { ...details, type, error: 'Failed' }
+          : type === 'turn_canceled'
+            ? { ...details, type, reason: 'Stopped' }
+            : { ...details, type }
+    });
+    await vi.waitFor(() =>
+      expect(h.updates.filter((item) => item.kind === 'message')).toEqual([
+        { kind: 'message', text: 'Still working.' }
+      ])
+    );
+    finish.resolve(outcome());
+    await result;
+    expect(h.updates.filter((item) => item.kind === 'message')).toHaveLength(1);
+  }
+);
+
+test('bounds WIP text and flushes it when the SDK wait fails without a terminal event', async () => {
+  const h = harness();
+  const finish = Promise.withResolvers<PaseoAgentRunResult>();
+  h.wait.mockReturnValue(finish.promise);
+  const result = h.start();
+  await vi.waitFor(() => expect(h.wait).toHaveBeenCalledOnce());
+  h.emit(chunk('x'.repeat(5000)));
+  h.emit(chunk(' recent'));
+  finish.reject(new Error('Disconnected'));
+  await expect(result).resolves.toMatchObject({ status: 'monitoring-error' });
+  expect(h.updates.filter((item) => item.kind === 'message')).toEqual([
+    { kind: 'message', text: 'x'.repeat(3993) + ' recent' }
+  ]);
+});
+
+test('timeline failure ends observation without retrying remote work', async () => {
+  const h = harness();
+  h.wait.mockImplementation(() => new Promise(() => {}));
+  const result = h.start();
+  await vi.waitFor(() => expect(h.wait).toHaveBeenCalledOnce());
+  h.emit({ agentId: 'agent', event: { type: 'error', error: 'private error detail' } });
+  await expect(result).resolves.toMatchObject({ status: 'monitoring-error', agentId: 'agent' });
+  expect(h.send).toHaveBeenCalledOnce();
+  expect(h.unsubscribe).toHaveBeenCalledOnce();
+  expect(h.close).toHaveBeenCalledTimes(2);
+});
 
 test('keeps the confirmed workspace when launch fails and never retries', async () => {
   const h = harness();
@@ -160,6 +345,7 @@ test('cancelling monitoring closes the SDK client without starting replacement w
   controller.abort();
   await rejected;
   await vi.waitFor(() => expect(h.close).toHaveBeenCalledTimes(2));
+  expect(h.unsubscribe).toHaveBeenCalledOnce();
   expect(h.launch).toHaveBeenCalledOnce();
 });
 
@@ -171,4 +357,43 @@ test('missing model configuration cannot create an empty workspace by accident',
   );
   await expect(task(createTaskContext(), input)).rejects.toThrow('CHATTO_PASEO_AGENT_MODEL');
   expect(h.factory).not.toHaveBeenCalled();
+});
+
+test('resolves settings per invocation and streams from the implementation root without a wrapper', async () => {
+  const h = harness();
+  const configure = vi.fn(() => h.settings);
+  const task = createImplementationTask(configure, h.factory);
+  expect(configure).not.toHaveBeenCalled();
+  for (const model of ['test/one', 'test/two']) {
+    h.settings.agent.model = model;
+    const events: RunlingEvent[] = [];
+    const output: unknown[] = [];
+    const result = await runWorkflow(task, {
+      input,
+      onEvent: (event) => events.push(event),
+      onUpdate: (value) => {
+        output.push(value);
+      }
+    });
+    expect(result.ok).toBe(true);
+    expect(h.launch.mock.calls.at(-1)?.[0].config.provider).toBe(model);
+    const starts = events.filter((event) => event.type === 'step.started');
+    expect(starts.map((event) => event.label)).toEqual([
+      'Start Paseo implementation',
+      'Create Paseo workspace'
+    ]);
+    expect(output).toHaveLength(2);
+  }
+  expect(configure).toHaveBeenCalledTimes(2);
+});
+
+test('the default CLI task reads environment settings only when invoked', async () => {
+  // The task was imported before these values were changed.
+  vi.stubEnv('CHATTO_PASEO_URL', '');
+  vi.stubEnv('CHATTO_PASEO_REPOSITORY_PATH', '');
+  try {
+    await expect(implementation(createTaskContext(), input)).rejects.toThrow('CHATTO_PASEO_URL');
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

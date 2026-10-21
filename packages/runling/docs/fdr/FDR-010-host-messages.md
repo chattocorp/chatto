@@ -1,11 +1,12 @@
 # FDR-010: Messages between hosts, tasks, and runs
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
-A task can exchange messages with its parent while it runs. The host of a
+A parent can steer a task while it runs, and the task can stream output back.
+The final result is separate from streamed output. The host of a
 workflow run is the parent of the top-level task. Thus a person at a terminal, a
 person in the web console, an HTTP client, or a router can talk to a running
 workflow in the same way as a parent task talks to a child.
@@ -15,10 +16,13 @@ workflow in the same way as a parent task talks to a child.
 - A task can declare a schema for the messages that it receives and a schema for
   the messages that it emits. Without a schema, the task accepts any message.
   Runling rejects an invalid message at the sender.
-- A parent that starts a child gets a handle. It can send messages, close the
-  input, read the updates, wait for the result, and cancel the child. A direct
-  call waits for the result. Its input is closed, and Runling records its
-  updates and then discards them.
+- A parent that starts a child gets a handle. It can steer the child, close
+  steering, read output, wait for the result, and cancel the child. A direct
+  call waits for the result. Its steering is closed, and Runling records its
+  streamed output and then discards it.
+- Both stream directions have inferred types and runtime validation when the
+  task declares their schemas. Output is data for the parent. It does not cause
+  a model turn or user notification unless the parent implements that behavior.
 - A sent message is in the queue of the receiver. Acceptance does not mean that
   the receiver read or used the message.
 - Queues are bounded. A sender to a full or closed queue gets an error at once.

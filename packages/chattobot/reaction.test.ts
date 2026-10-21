@@ -13,7 +13,7 @@ const message: IncomingMessage = {
   body: 'Hello'
 };
 
-test('reacts to the pinging message, not the thread root', async () => {
+test('reacts to the selected root message', async () => {
   const requests: AddReactionRequest[] = [];
   const { createApi } = fakeChatto({
     viewerId: 'bot',
@@ -26,10 +26,10 @@ test('reacts to the pinging message, not the thread root', async () => {
       })
   });
   const api = createApi({ serverUrl: 'https://chat.example', apiKey: 'key' });
-  await createEyesReaction(api)(message);
+  await createEyesReaction(api)({ ...message, id: 'root' });
 
   expect(requests).toHaveLength(1);
-  expect(requests[0]).toMatchObject({ roomId: 'room', messageEventId: 'ping', emoji: 'eyes' });
+  expect(requests[0]).toMatchObject({ roomId: 'room', messageEventId: 'root', emoji: 'eyes' });
 });
 
 test('sets and clears the authenticated bot reaction on the thread root', async () => {

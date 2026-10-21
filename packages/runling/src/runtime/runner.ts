@@ -26,7 +26,7 @@ import {
   type RunDetail,
   type RunJournal
 } from './run-journal.ts';
-import { isTask, type AnyTask, type TaskInput, type TaskOutput } from './task.ts';
+import { isTask, type AnyTask, type TaskInput, type TaskResult } from './task.ts';
 import { emptyTokenUsage, formatTokenUsage, totalTokens, type TokenUsage } from './usage.ts';
 
 export function formatDuration(ms: number): string {
@@ -56,7 +56,8 @@ export function formatDuration(ms: number): string {
 export interface WorkflowExecution<Output = unknown> {
   durationMs: number;
   usage: TokenUsage;
-  /** The top-level task's validated output, or null when the run failed. */
+  /** The top-level task's validated final result, or null when the run failed.
+   * The field keeps its existing name for journal and HTTP compatibility. */
   output: Output | null;
   error: string | null;
   ok: boolean;
@@ -77,8 +78,8 @@ export interface RunWorkflowOptions<Input = unknown> {
   signal?: AbortSignal;
   verbose?: boolean;
   onEvent?: RunlingEventListener;
-  /** Messages from the host to the top-level task. When the iterable ends, the task's input
-   * closes. Without it, the task's input is closed from the start. */
+  /** Steering from the host to the top-level task. When the iterable ends, steering
+   * closes. Without it, steering is closed from the start. */
   messages?: AsyncIterable<unknown>;
   /** Receives the messages that the top-level task emits. Without it, they are discarded after
    * the journal records them. */
@@ -114,7 +115,7 @@ export async function runWorkflow<T extends AnyTask>(
     run: identity,
     state
   }: RunWorkflowOptions<TaskInput<T>>
-): Promise<WorkflowExecution<TaskOutput<T>>> {
+): Promise<WorkflowExecution<TaskResult<T>>> {
   return withExecutionServices({ verbose }, () =>
     withRunlingEventScope(onEvent, () =>
       withRootLog(() =>
@@ -123,7 +124,7 @@ export async function runWorkflow<T extends AnyTask>(
         )
       )
     )
-  ) as Promise<WorkflowExecution<TaskOutput<T>>>;
+  ) as Promise<WorkflowExecution<TaskResult<T>>>;
 }
 
 async function captureExecution(
@@ -157,9 +158,9 @@ async function captureExecution(
     root.signal.throwIfAborted();
     invocation = invoke(root, task, input, { state });
     if (messages) void forward(messages, invocation, root.signal);
-    else invocation.closeInput();
+    else invocation.closeSteering();
     // Always read updates: an unread buffer would make the task's emit fail.
-    const { updates: messagesFromTask } = invocation;
+    const { output: messagesFromTask } = invocation;
     const updates = (async () => {
       for await (const update of messagesFromTask) await onUpdate?.(update);
     })();
@@ -193,8 +194,8 @@ async function captureExecution(
 async function forward(
   messages: AsyncIterable<unknown>,
   invocation: {
-    send(message: unknown): Promise<void>;
-    closeInput(): void;
+    steer(message: unknown): Promise<void>;
+    closeSteering(): void;
     result: Promise<unknown>;
   },
   signal: AbortSignal
@@ -208,7 +209,7 @@ async function forward(
     while (!signal.aborted) {
       const next = await Promise.race([reader.next(), finished]);
       if (next.done) break;
-      await invocation.send(next.value).catch((cause: unknown) => {
+      await invocation.steer(next.value).catch((cause: unknown) => {
         log.error(
           `Message not delivered: ${cause instanceof Error ? cause.message : String(cause)}`
         );
@@ -217,7 +218,7 @@ async function forward(
   } catch {
     // A failed message source ends the input; the task decides what that means.
   } finally {
-    invocation.closeInput();
+    invocation.closeSteering();
     void reader.return?.();
   }
 }

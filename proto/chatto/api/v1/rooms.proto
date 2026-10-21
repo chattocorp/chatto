@@ -43,8 +43,8 @@ message Room {
   // Minimum number of seconds a non-exempt member must wait between root message
   // posts. Channel rooms only; zero means slow mode is disabled.
   uint32 slow_mode_seconds = 8;
-  // Threading policy for this channel room. Direct-message rooms report
-  // UNSPECIFIED because they do not support threads.
+  // Effective threading policy for this room. Direct-message rooms always
+  // report ENABLED.
   RoomThreadingMode threading_mode = 9;
   // Per-user interval within each thread, including its root. Zero disables
   // the interval. Absent on servers without independent thread slow mode.

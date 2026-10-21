@@ -5604,7 +5604,7 @@ Public room metadata returned by room commands.
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
 | `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
-| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for this channel room. Direct-message rooms report UNSPECIFIED because they do not support threads. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 
 
@@ -5713,6 +5713,8 @@ viewer.
 | `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
 | `member_user_ids` | `repeated string` | Complete participant user IDs for a DM, including participants whose accounts were deleted. Clients show those as deleted users. Empty for channel rooms. |
 | `has_message_history` | `optional bool` | Whether this DM has received a root message. Absent for channel rooms. |
+| `last_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM message, including thread replies. Edits and retractions do not change this value; historical imports are excluded. Absent for other room kinds, no ordinary messages, or no message.read permission. Older servers can omit this field. Absence does not prove inactivity. |
+| `last_root_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM root message, excluding thread replies. Uses the same visibility, import, and absence rules as last_message_at. |
 
 
 

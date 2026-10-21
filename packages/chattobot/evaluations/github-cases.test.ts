@@ -9,6 +9,25 @@ const call = (github: FakeGitHub, ...args: string[]) =>
     signal: new AbortController().signal
   });
 
+test('the no-match grader accepts natural clarification and rejects the old search-first reply', async () => {
+  const scenario = supervisorCases.find((item) => item.name === 'issue-discovery-no-match')!;
+  const github = scenario.fixture!();
+  await call(github, 'issue', 'list', '--state', 'all');
+  scenario.check!(
+    ['This appears to be a new feature request. Who should be able to upload emojis?'],
+    github.commands,
+    []
+  );
+  scenario.check!(['Who should be able to upload custom emojis?'], github.commands, []);
+  expect(() =>
+    scenario.check!(
+      ["I couldn't find an issue. This appears to be a new request. Who should upload emojis?"],
+      github.commands,
+      []
+    )
+  ).toThrow('empty issue search');
+});
+
 test.each(['issues', 'pull'])('GitHub %s references need a linked, visible number', (kind) => {
   const url = `https://github.com/evaluation/fixture/${kind}/12`;
   checkGitHubLink(`See [#12 — Custom emojis](${url}).`, url, 12);

@@ -18,13 +18,13 @@ const accumulator = task(
   {
     name: 'Accumulator',
     input: Type.Number(),
-    output: Type.Number(),
-    receives: Command,
-    emits: Update
+    result: Type.Number(),
+    steering: Command,
+    output: Update
   },
   async (ctx, initial) => {
     let total = initial;
-    for await (const message of ctx.inbox) {
+    for await (const message of ctx.steering) {
       total += message.add;
       await ctx.emit({ total });
     }
@@ -34,7 +34,7 @@ const accumulator = task(
 
 /** Waits until its context is cancelled. */
 const waitForCancel = task(
-  { name: 'Wait for cancel', input: Type.Null(), output: Type.Null() },
+  { name: 'Wait for cancel', input: Type.Null(), result: Type.Null() },
   async (ctx) => {
     await new Promise<void>((resolve) =>
       ctx.signal.addEventListener('abort', () => resolve(), { once: true })
@@ -47,31 +47,31 @@ const waitForCancel = task(
 const untyped = <Output>(
   name: string,
   run: (ctx: TaskContext<unknown, unknown>) => Output | Promise<Output>
-) => task({ name, input: Type.Null(), output: Type.Unknown() }, (ctx) => run(ctx));
+) => task({ name, input: Type.Null(), result: Type.Unknown() }, (ctx) => run(ctx));
 
 test('sends messages while the task runs, streams updates, then returns its typed result', async () => {
   const handle = createTaskContext().start(accumulator, 10);
 
   expectTypeOf(handle).toEqualTypeOf<Invocation<Command, Update, number>>();
-  expectTypeOf(handle.send).parameter(0).toEqualTypeOf<Command>();
-  expectTypeOf(handle.updates).toEqualTypeOf<AsyncIterable<Update>>();
+  expectTypeOf(handle.steer).parameter(0).toEqualTypeOf<Command>();
+  expectTypeOf(handle.output).toEqualTypeOf<AsyncIterable<Update>>();
   expectTypeOf(handle.result).toEqualTypeOf<Promise<number>>();
   expect(handle.id).toEqual(expect.any(String));
   expect(handle.status).toBe('running');
 
-  await handle.send({ add: 2 });
-  const updates = handle.updates[Symbol.asyncIterator]();
+  await handle.steer({ add: 2 });
+  const updates = handle.output[Symbol.asyncIterator]();
   expect(await updates.next()).toEqual({ done: false, value: { total: 12 } });
 
-  await handle.send({ add: 3 });
-  handle.closeInput();
+  await handle.steer({ add: 3 });
+  handle.closeSteering();
 
   expect(await updates.next()).toEqual({ done: false, value: { total: 15 } });
   expect((await updates.next()).done).toBe(true);
   expect(await handle.result).toBe(15);
   expect(handle.status).toBe('completed');
 
-  await expect(handle.send({ add: 1 })).rejects.toBeInstanceOf(ChannelClosedError);
+  await expect(handle.steer({ add: 1 })).rejects.toBeInstanceOf(ChannelClosedError);
   await handle[Symbol.asyncDispose]();
   expect(handle.status).toBe('completed');
 });
@@ -79,7 +79,7 @@ test('sends messages while the task runs, streams updates, then returns its type
 test('validates messages against the message schemas with a TypeError', async () => {
   const events: RunlingEvent[] = [];
   const invalidUpdate = task(
-    { name: 'Invalid update', input: Type.Null(), output: Type.Null(), emits: Update },
+    { name: 'Invalid update', input: Type.Null(), result: Type.Null(), output: Update },
     async (ctx) => {
       await ctx.emit({ total: 'many' } as never);
       return null;
@@ -89,15 +89,15 @@ test('validates messages against the message schemas with a TypeError', async ()
     (event) => events.push(event),
     async () => {
       const handle = createTaskContext().start(accumulator, 0);
-      await expect(handle.send({ add: 'one' } as never)).rejects.toThrow(
-        new TypeError('Task "Accumulator" message is invalid: /add: must be number')
+      await expect(handle.steer({ add: 'one' } as never)).rejects.toThrow(
+        new TypeError('Task "Accumulator" steering is invalid: /add: must be number')
       );
-      handle.closeInput();
+      handle.closeSteering();
       expect(await handle.result).toBe(0);
 
       const failing = createTaskContext().start(invalidUpdate, null);
       await expect(failing.result).rejects.toThrow(
-        new TypeError('Task "Invalid update" update is invalid: /total: must be number')
+        new TypeError('Task "Invalid update" output is invalid: /total: must be number')
       );
     }
   );
@@ -110,14 +110,16 @@ test('delivers the parsed values of Standard Schema message schemas', async () =
     {
       name: 'Parsed messages',
       input: z.string().transform(Number),
-      output: z.number().transform(String),
-      receives: z.string().transform(Number),
-      emits: z.number().transform((total) => ({ total }))
+      result: z.number().transform(String),
+      steering: z.string().transform(Number),
+      output: z.number().transform((total) => ({ total }))
     },
     async (ctx, initial) => {
       expectTypeOf(initial).toEqualTypeOf<number>();
+      expectTypeOf(ctx.steering).toEqualTypeOf<AsyncIterable<number>>();
+      expectTypeOf(ctx.emit).parameter(0).toEqualTypeOf<number>();
       let total = initial;
-      for await (const message of ctx.inbox) {
+      for await (const message of ctx.steering) {
         expectTypeOf(message).toEqualTypeOf<number>();
         total += message;
         await ctx.emit(total);
@@ -127,14 +129,14 @@ test('delivers the parsed values of Standard Schema message schemas', async () =
   );
   const handle = createTaskContext().start(child, '10');
 
-  expectTypeOf(handle.send).parameter(0).toEqualTypeOf<string>();
-  expectTypeOf(handle.updates).toEqualTypeOf<AsyncIterable<{ total: number }>>();
+  expectTypeOf(handle.steer).parameter(0).toEqualTypeOf<string>();
+  expectTypeOf(handle.output).toEqualTypeOf<AsyncIterable<{ total: number }>>();
   expectTypeOf(handle.result).toEqualTypeOf<Promise<string>>();
 
-  await handle.send('2');
-  handle.closeInput();
+  await handle.steer('2');
+  handle.closeSteering();
   const updates: unknown[] = [];
-  for await (const update of handle.updates) updates.push(update);
+  for await (const update of handle.output) updates.push(update);
   expect(updates).toEqual([{ total: 12 }]);
   expect(await handle.result).toBe('12');
 });
@@ -144,7 +146,7 @@ test('nested invocations inherit the child signal, including context overrides',
   const root = { ...createTaskContext(), signal: controller.signal };
   const grandchild = Promise.withResolvers<Invocation<unknown, unknown, null>>();
   const child = root.start(
-    task({ name: 'Child', input: Type.Null(), output: Type.Null() }, async (ctx) => {
+    task({ name: 'Child', input: Type.Null(), result: Type.Null() }, async (ctx) => {
       const nested = ctx.start(waitForCancel, null);
       grandchild.resolve(nested);
       return nested.result;
@@ -218,14 +220,14 @@ test('sibling invocations share usage but not cancellation', async () => {
     {
       name: 'Counted',
       input: Type.Null(),
-      output: Type.Number(),
-      receives: Command,
-      emits: Update
+      result: Type.Number(),
+      steering: Command,
+      output: Update
     },
     async (ctx) => {
       ctx.recordUsage({ input: 1, output: 0, cacheRead: 0, cacheWrite: 0 });
       let total = 0;
-      for await (const message of ctx.inbox) {
+      for await (const message of ctx.steering) {
         total += message.add;
         await ctx.emit({ total });
       }
@@ -242,10 +244,10 @@ test('sibling invocations share usage but not cancellation', async () => {
   expect(parent.signal.aborted).toBe(false);
 
   // Cancelling one child must leave its sibling able to communicate.
-  await b.send({ add: 5 });
-  b.closeInput();
+  await b.steer({ add: 5 });
+  b.closeSteering();
   const updates: Update[] = [];
-  for await (const update of b.updates) updates.push(update);
+  for await (const update of b.output) updates.push(update);
   expect(updates).toEqual([{ total: 5 }]);
   expect(await b.result).toBe(5);
 });
@@ -253,7 +255,7 @@ test('sibling invocations share usage but not cancellation', async () => {
 test('parent cancellation releases readers and rejects the result', async () => {
   const ctx = createTaskContext();
   const handle = ctx.start(accumulator, 0);
-  const next = handle.updates[Symbol.asyncIterator]().next();
+  const next = handle.output[Symbol.asyncIterator]().next();
 
   try {
     ctx.abort('parent stopped');
@@ -297,7 +299,7 @@ test.each([false, true])(
       null
     );
     await expect(handle.result).rejects.toBe(failure);
-    await expect(handle.updates[Symbol.asyncIterator]().next()).rejects.toBe(failure);
+    await expect(handle.output[Symbol.asyncIterator]().next()).rejects.toBe(failure);
   }
 );
 
@@ -333,19 +335,19 @@ test('a reader that leaves the updates closes them and a later emit fails', asyn
     }),
     null
   );
-  for await (const _ of handle.updates) break;
+  for await (const _ of handle.output) break;
   proceed.resolve();
   await expect(handle.result).rejects.toBeInstanceOf(ChannelClosedError);
 });
 
 test('started tasks validate input and output and nest in the timeline', async () => {
   const work = task(
-    { name: 'Child', input: Type.Number(), output: Type.Number() },
+    { name: 'Child', input: Type.Number(), result: Type.Number() },
     (_ctx, value) => value + 1
   );
   const events: RunlingEvent[] = [];
   const root = task(
-    { name: 'Root', input: Type.Null(), output: Type.Number() },
+    { name: 'Root', input: Type.Null(), result: Type.Number() },
     (ctx) => ctx.start(work, 1).result
   );
   const execution = await runWorkflow(root, {
@@ -365,7 +367,7 @@ test('started tasks validate input and output and nest in the timeline', async (
 function typeChecks() {
   const handle = createTaskContext().start(accumulator, 0);
   // @ts-expect-error wrong message type
-  void handle.send({ add: 'one' });
+  void handle.steer({ add: 'one' });
   // @ts-expect-error missing required task input
   createTaskContext().start(accumulator);
   // @ts-expect-error wrong task input
@@ -385,7 +387,7 @@ test('cancellation before result settlement cannot report success with failed ch
   );
   handle.cancel(new Error('cancelled before settlement'));
   await expect(handle.result).rejects.toThrow('cancelled before settlement');
-  await expect(handle.updates[Symbol.asyncIterator]().next()).rejects.toThrow(
+  await expect(handle.output[Symbol.asyncIterator]().next()).rejects.toThrow(
     'cancelled before settlement'
   );
 });
@@ -401,14 +403,14 @@ test('a completed result is unchanged by late cancellation', async () => {
 
   expect(await handle.result).toBe(1);
   expect(handle.status).toBe('completed');
-  expect((await handle.updates[Symbol.asyncIterator]().next()).done).toBe(true);
+  expect((await handle.output[Symbol.asyncIterator]().next()).done).toBe(true);
 });
 
 test('journals message identities, reads, and task links without changing values', async () => {
   const events: RunlingEvent[] = [];
   const child = untyped('Read two', async (ctx) => {
     const received: unknown[] = [];
-    for await (const message of ctx.inbox) received.push(message);
+    for await (const message of ctx.steering) received.push(message);
     await ctx.emit('result');
     return received;
   });
@@ -417,11 +419,11 @@ test('journals message identities, reads, and task links without changing values
     (event) => events.push(event),
     async () => {
       const handle = createTaskContext().start(child, null);
-      await handle.send('same');
-      await handle.send('same');
-      handle.closeInput();
+      await handle.steer('same');
+      await handle.steer('same');
+      handle.closeSteering();
       const updates: unknown[] = [];
-      for await (const update of handle.updates) updates.push(update);
+      for await (const update of handle.output) updates.push(update);
       expect(updates).toEqual(['result']);
       expect(await handle.result).toEqual(['same', 'same']);
     }
@@ -452,17 +454,17 @@ test('journals message identities, reads, and task links without changing values
 
 test('a task without message schemas accepts and emits any message', async () => {
   const echo = untyped('Echo messages', async (ctx) => {
-    for await (const message of ctx.inbox) await ctx.emit(message);
+    for await (const message of ctx.steering) await ctx.emit(message);
   });
   const handle = createTaskContext().start(echo, null);
-  expectTypeOf(handle.send).parameter(0).toEqualTypeOf<unknown>();
-  expectTypeOf(handle.updates).toEqualTypeOf<AsyncIterable<unknown>>();
+  expectTypeOf(handle.steer).parameter(0).toEqualTypeOf<unknown>();
+  expectTypeOf(handle.output).toEqualTypeOf<AsyncIterable<unknown>>();
 
-  await handle.send({ any: 'value' });
-  await handle.send(42);
-  handle.closeInput();
+  await handle.steer({ any: 'value' });
+  await handle.steer(42);
+  handle.closeSteering();
   const updates: unknown[] = [];
-  for await (const update of handle.updates) updates.push(update);
+  for await (const update of handle.output) updates.push(update);
   expect(updates).toEqual([{ any: 'value' }, 42]);
 });
 
@@ -478,9 +480,9 @@ test('message previews tolerate circular values and do not record rejected sends
         untyped('Never reads', () => new Promise(() => {})),
         null
       );
-      await handle.send(circular);
-      for (let i = 1; i < 64; i++) await handle.send({ i });
-      await expect(handle.send({ overflow: true })).rejects.toBeInstanceOf(ChannelFullError);
+      await handle.steer(circular);
+      for (let i = 1; i < 64; i++) await handle.steer({ i });
+      await expect(handle.steer({ overflow: true })).rejects.toBeInstanceOf(ChannelFullError);
       handle.cancel();
       await expect(handle.result).rejects.toThrow('cancelled');
     }
@@ -497,7 +499,7 @@ test('records a wait when the task reads an empty inbox', async () => {
   const reading = Promise.withResolvers<void>();
   const child = untyped('Wait for messages', async (ctx) => {
     const received: unknown[] = [];
-    const inbox = ctx.inbox[Symbol.asyncIterator]();
+    const inbox = ctx.steering[Symbol.asyncIterator]();
     reading.resolve();
     for (let next = await inbox.next(); !next.done; next = await inbox.next()) {
       received.push(next.value);
@@ -511,11 +513,11 @@ test('records a wait when the task reads an empty inbox', async () => {
       const handle = createTaskContext().start(child, null);
       await reading.promise;
       await vi.waitFor(() => expect(events.some((e) => e.type === 'wait.started')).toBe(true));
-      await handle.send('first');
+      await handle.steer('first');
       await vi.waitFor(() =>
         expect(events.filter((e) => e.type === 'wait.started')).toHaveLength(2)
       );
-      handle.closeInput();
+      handle.closeSteering();
       expect(await handle.result).toEqual(['first']);
     }
   );
@@ -540,7 +542,7 @@ test('does not record a wait when a message is already queued', async () => {
   const events: RunlingEvent[] = [];
   const child = untyped('Read queued', async (ctx) => {
     const received: unknown[] = [];
-    for await (const message of ctx.inbox) received.push(message);
+    for await (const message of ctx.steering) received.push(message);
     return received;
   });
 
@@ -548,8 +550,8 @@ test('does not record a wait when a message is already queued', async () => {
     (event) => events.push(event),
     async () => {
       const handle = createTaskContext().start(child, null);
-      await handle.send('queued');
-      handle.closeInput();
+      await handle.steer('queued');
+      handle.closeSteering();
       expect(await handle.result).toEqual(['queued']);
     }
   );

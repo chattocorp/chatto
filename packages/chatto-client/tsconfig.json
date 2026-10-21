@@ -1,15 +1,13 @@
 {
   "compilerOptions": {
-    "declaration": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "outDir": "dist",
-    "rootDir": "src",
     "strict": true,
     "skipLibCheck": true,
     "target": "ES2022",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "noEmit": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.svelte.ts"]

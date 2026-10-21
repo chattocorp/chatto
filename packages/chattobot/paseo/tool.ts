@@ -6,7 +6,7 @@ import {
   type TaskContext,
   type AnyTask,
   type TaskInput,
-  type TaskOutput
+  type TaskResult
 } from 'runling';
 import { replyTo, type IncomingMessage } from '../chatto/message.ts';
 import type { WorkOwner } from '../harness/work.ts';
@@ -40,7 +40,7 @@ export function workspaceExtension(
     label: string,
     task: T,
     input: TaskInput<T>,
-    formatResult: (result: TaskOutput<T>) => string
+    formatResult: (result: TaskResult<T>) => string
   ) {
     const request = requireMaintainerRequest('Paseo', requestId, messages(), maintainers);
     ctx.signal.throwIfAborted();

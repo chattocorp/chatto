@@ -6,40 +6,22 @@
   "license": "MIT",
   "type": "module",
   "sideEffects": [
-    "./src/svelte/index.ts",
-    "./dist/svelte/index.js"
+    "./src/svelte/index.ts"
   ],
   "exports": {
-    ".": {
-      "@chatto/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./svelte": {
-      "@chatto/source": "./src/svelte/index.ts",
-      "types": "./dist/svelte/index.d.ts",
-      "import": "./dist/svelte/index.js"
-    },
-    "./reactivity": {
-      "@chatto/source": "./src/reactivity/index.ts",
-      "types": "./dist/reactivity/index.d.ts",
-      "import": "./dist/reactivity/index.js"
-    },
-    "./*": {
-      "@chatto/source": "./src/*.ts",
-      "types": "./dist/*.d.ts",
-      "import": "./dist/*.js"
-    },
+    ".": "./src/index.ts",
+    "./svelte": "./src/svelte/index.ts",
+    "./reactivity": "./src/reactivity/index.ts",
+    "./*": "./src/*.ts",
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
+    "src",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "check": "tsc -p tsconfig.json --noEmit && node scripts/generate-types.mjs --check",
+    "check": "tsc -p tsconfig.json && tsc -p tsconfig.strict.json && node scripts/generate-types.mjs --check",
     "test": "vitest run --coverage",
     "lint": "eslint ."
   },

@@ -47,3 +47,20 @@ try {
 ```
 
 `cancel()` cancels the child and its children. It does not cancel the parent.
+
+## External operations without cancellation
+
+Use `awaitWithSignal(operation, signal)` when an SDK operation does not accept
+an abort signal:
+
+```ts
+import { awaitWithSignal } from 'runling';
+
+const result = await awaitWithSignal(() => sdk.request(), ctx.signal);
+```
+
+Pass a function so the helper can check cancellation before starting the
+operation. It rejects with `signal.reason` on abort, removes its listener when
+the wait ends, and handles late operation rejections. It does not stop the
+operation or undo its effects. The caller still owns connection cleanup.
+After an interrupted write, check its outcome before deciding to retry.

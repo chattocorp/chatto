@@ -30,10 +30,11 @@ function harness(messages: ThreadMessage[], allowed?: string) {
     typeof createFollowUpReader
   >[0];
   return {
-    read: (automatic = false) =>
+    read: (automatic = false, pending: string[] = []) =>
       createFollowUpReader(api, allowed)(
         { ...location, ...(automatic ? { trigger: 'intake' as const } : {}) },
-        new AbortController().signal
+        new AbortController().signal,
+        pending
       ),
     batchGetUsers,
     readThread
@@ -44,6 +45,71 @@ test('only automatic-intake threads forward completion tracking to the classifie
   const h = harness([post('root'), post('last', 'bot'), post('thanks', 'human', 'That fixed it!')]);
   expect((await h.read(true))?.input.trackHandled).toBe(true);
   expect((await h.read())?.input.trackHandled).toBeUndefined();
+});
+
+test('a reaction-only answer still allows replies after the conversation entry to be classified', async () => {
+  const h = harness([
+    post('older'),
+    post('root', 'human', 'You there, @ChattoBot?'),
+    post('cool', 'human', 'cool :D')
+  ]);
+  const result = await h.read();
+  expect(result?.boundary).toBe('root');
+  expect(result?.messages.map(({ message }) => message.id)).toEqual(['cool']);
+  expect(result?.input.context).toEqual([
+    { role: 'human', body: 'older' },
+    { role: 'human', body: 'You there, @ChattoBot?' }
+  ]);
+});
+
+test('the entry message excludes old discussion after an earlier bot post', async () => {
+  const h = harness([
+    post('old-bot', 'bot'),
+    post('old-discussion'),
+    post('root'),
+    post('new-reply')
+  ]);
+  const result = await h.read();
+  expect(result?.boundary).toBe('root');
+  expect(result?.messages.map(({ message }) => message.id)).toEqual(['new-reply']);
+});
+
+test('retains pending replies before the latest bot post with their earlier question as context', async () => {
+  const h = harness([
+    post('old-discussion'),
+    post('question', 'bot', 'Which browser and version?'),
+    post('one', 'human', 'Firefox'),
+    post('two', 'human', '142'),
+    post('answer', 'bot', 'I am still checking.'),
+    post('three', 'human', 'On Linux')
+  ]);
+  const result = await h.read(false, ['one', 'two']);
+  expect(result?.messages.map(({ message }) => message.id)).toEqual(['one', 'two', 'three']);
+  expect(result?.input.context).toEqual([
+    { role: 'human', body: 'old-discussion' },
+    { role: 'bot', body: 'Which browser and version?' },
+    { role: 'bot', body: 'I am still checking.' }
+  ]);
+});
+
+test('pending IDs do not bypass author filters or restore missing messages from event bodies', async () => {
+  const h = harness(
+    [
+      post('question', 'bot'),
+      post('one', 'human'),
+      post('two', 'maintainer'),
+      post('three', 'deleted'),
+      post('four', 'other-bot'),
+      post('five', 'unknown'),
+      post('answer', 'bot')
+    ],
+    'human'
+  );
+  expect(
+    (await h.read(false, ['one', 'two', 'three', 'four', 'five', 'missing']))?.messages.map(
+      ({ message }) => message.id
+    )
+  ).toEqual(['one']);
 });
 
 test('an old bot root cannot stand in for a boundary missing from the newest page', async () => {
@@ -75,7 +141,7 @@ test('uses the latest bot post as the boundary and preserves every eligible auth
 });
 
 test.each([[], [post('root')], [post('root'), post('last', 'bot')]])(
-  'no snapshot is returned without a visible bot boundary and newer replies: %j',
+  'no snapshot is returned without a visible boundary and newer replies: %j',
   async (...messages) => {
     const h = harness(messages);
     expect(await h.read()).toBeUndefined();

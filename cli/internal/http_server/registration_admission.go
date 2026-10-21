@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -113,12 +114,12 @@ func (s *HTTPServer) setupRegistrationAdmissionRoutes(auth *gin.RouterGroup) {
 			return
 		}
 		entries := registrationAdmissions(sessions.Default(c))
-		for i := len(entries) - 1; i >= 0; i-- {
-			if selected := c.Query("admission"); selected != "" && selected != entries[i].ID {
+		for _, entry := range slices.Backward(entries) {
+			if selected := c.Query("admission"); selected != "" && selected != entry.ID {
 				continue
 			}
-			if _, err := s.registrationInvitation(c, entries[i].ID); err == nil {
-				c.JSON(http.StatusOK, gin.H{"admissionId": entries[i].ID})
+			if _, err := s.registrationInvitation(c, entry.ID); err == nil {
+				c.JSON(http.StatusOK, gin.H{"admissionId": entry.ID})
 				return
 			} else if !errors.Is(err, core.ErrInvitationInvalid) {
 				c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Registration is temporarily unavailable"})

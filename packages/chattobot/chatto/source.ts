@@ -13,6 +13,7 @@ import { createEyesReaction, createHandledReaction } from '../reaction.ts';
 import {
   ConfigurationError,
   maintainerLoginSetting,
+  intakeDecisionSettings,
   setting,
   thinkingSetting,
   autoEngageRoomIds
@@ -20,7 +21,7 @@ import {
 import { createAttachmentReader, createThreadReader } from '../thread.ts';
 import { webSettings } from '../web.ts';
 import { createInvestigator, investigatorSettings } from '../tasks/investigate.ts';
-import { incomingMessage, intakeMessage } from './message.ts';
+import { incomingMessage, intakeMessage, followUpMessage, reactionMessage } from './message.ts';
 import { createChattoRouter, createRouterState, type RouterState } from './router.ts';
 import { createIntakeClassifier } from '../tasks/classify-intake.ts';
 import { createThreadWorkflow } from '../tasks/thread.ts';
@@ -87,6 +88,7 @@ export function sourceSettings() {
       // Match the server-authenticated actor ID, never a display name.
       allowedUserId: setting('CHATTO_ALLOWED_USER_ID'),
       autoEngageRooms: autoEngageRoomIds(),
+      intake: intakeDecisionSettings(),
       conversation
     };
   } catch (error) {
@@ -112,7 +114,13 @@ export const chattoSource: EventSource = async (ctx) => {
 
 /** Stable registered root. Recovery uses HTTP access without waiting for the realtime source. */
 export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
-  const { serverUrl, apiKey, allowedUserId, conversation: conversationSettings } = sourceSettings();
+  const {
+    serverUrl,
+    apiKey,
+    allowedUserId,
+    intake,
+    conversation: conversationSettings
+  } = sourceSettings();
   const api = createApi({ serverUrl, apiKey });
   // A server outage during restart must not close all recovered conversations.
   let botId: string;
@@ -136,13 +144,25 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     acknowledge: createEyesReaction(api),
     setHandled: createHandledReaction(api),
+    react: (messageId, emoji, signal) =>
+      api.addReaction({ roomId: message.roomId, messageId }, emoji, { signal }),
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
   return {
-    classifier: createIntakeClassifier(conversationSettings.model),
+    classifier: createIntakeClassifier(conversationSettings.model, intake),
     conversation,
     readFollowUp: createFollowUpReader(api, allowedUserId),
+    async readReactionContext(message, signal) {
+      const thread = await api.readThread(
+        { roomId: message.roomId, threadRootId: message.threadRootId },
+        { signal, limit: 20 }
+      );
+      return thread.messages.map((item) => ({
+        role: item.fromViewer ? ('bot' as const) : ('human' as const),
+        body: item.body
+      }));
+    },
     async read(message, signal) {
       const { users } = await api
         .service(UserService)
@@ -171,7 +191,7 @@ const connectionIdentity = (serverUrl: string, botId: string) =>
 async function consume(
   ctx: Parameters<EventSource>[0],
   server: Server,
-  { serverUrl, allowedUserId, autoEngageRooms }: ReturnType<typeof sourceSettings>
+  { serverUrl, allowedUserId, autoEngageRooms, conversation }: ReturnType<typeof sourceSettings>
 ) {
   const { viewerId: botId } = await server.ready({ signal: ctx.signal });
   const identity = connectionIdentity(serverUrl, botId);
@@ -202,17 +222,32 @@ async function consume(
     async onEvent(event) {
       // Disallowed senders cannot start or continue a conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await server.addressedMessage(event, { signal: ctx.signal }).catch(() => {
-        ctx.signal.throwIfAborted();
-        console.warn('ChattoBot could not verify a reply target; ignoring the message.');
-        return undefined;
-      });
+      const message = await server
+        .addressedMessage(event, {
+          signal: ctx.signal,
+          // A DM starts a conversation, but ordinary replies inside its threads use
+          // the same participation check as channel replies. Explicit addressing still wins.
+          ...(event.event.case === 'messagePosted' && event.event.value.threadRootEventId
+            ? { reasons: ['mention', 'reply'] as const }
+            : {})
+        })
+        .catch(() => {
+          ctx.signal.throwIfAborted();
+          console.warn('ChattoBot could not verify a reply target; ignoring the message.');
+          return undefined;
+        });
       if (message?.authorId === botId) return;
       try {
         if (message)
           await ctx.dispatch(route, { ...incomingMessage(message), connection: identity });
         else {
-          const candidate = intakeMessage(event, autoEngageRooms, botId);
+          const candidate =
+            // Maintainers can address the bot explicitly, but their posts do not start intake.
+            (event.actorId && conversation.maintainers.has(event.actorId)
+              ? undefined
+              : intakeMessage(event, autoEngageRooms, botId)) ??
+            followUpMessage(event, botId) ??
+            (await reactionMessage(event, botId, server, ctx.signal));
           if (candidate) await ctx.dispatch(route, { ...candidate, connection: identity });
         }
       } catch {

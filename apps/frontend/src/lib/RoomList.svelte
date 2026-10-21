@@ -5,6 +5,8 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import Interval from '$lib/lifecycle/Interval.svelte';
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -574,6 +576,31 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     navigation.rooms.filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
   );
 
+  // This display preference belongs to the mounted sidebar, not the room directory.
+  let showOlderDMs = $state(false);
+  let activityNow = $state(Date.now());
+  const recentDMs = $derived(
+    dmRooms.filter((room) => {
+      if (isHighlighted(room) || !room.lastMessageAt) return true;
+      const lastMessageAt = Date.parse(room.lastMessageAt);
+      // Unknown metadata must not hide a conversation on an older server.
+      return !Number.isFinite(lastMessageAt) || lastMessageAt >= activityNow - 7 * 86400000;
+    })
+  );
+  const olderDMCount = $derived(dmRooms.length - recentDMs.length);
+  const timeSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
+
+  /** Compact elapsed posting time for sidebar metadata; unknown times stay absent. */
+  function dmActivityAge(timestamp: string | null | undefined): string | null {
+    if (!timestamp) return null;
+    const milliseconds = Date.parse(timestamp);
+    if (!Number.isFinite(milliseconds)) return null;
+    const minutes = Math.floor(Math.max(0, activityNow - milliseconds) / 60000);
+    if (minutes < 60) return `${minutes}min`;
+    if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
+    return `${Math.floor(minutes / 1440)}d`;
+  }
+
   let roomMap = $derived(new Map(navigation.rooms.map((r) => [r.id, r])));
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
   const dmMenuRoom = $derived(roomMap.get(dmUserMenu.target ?? ''));
@@ -681,7 +708,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       sections.push({
         id: 'direct-messages',
         label: m('room_list.direct_messages'),
-        items: roomItems(dmRooms),
+        items: roomItems(showOlderDMs ? dmRooms : recentDMs),
         persistKey: serverStorageKey(activeServerId, 'collapsible:dms'),
         keepVisibleWhenCollapsed: isGroupItemHighlighted
       });
@@ -1081,9 +1108,24 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               )}
             {/if}
           </div>
-        {:else if showUnread}
-          <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
-          <span class="sr-only">{m('room_list.unread_messages')}</span>
+        {:else}
+          {#if showUnread}
+            <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
+            <span class="sr-only">{m('room_list.unread_messages')}</span>
+          {/if}
+          {@const activityAge = isDM ? dmActivityAge(room.lastMessageAt) : null}
+          {#if activityAge && room.lastMessageAt}
+            <time
+              datetime={room.lastMessageAt}
+              title={formatDateTime(room.lastMessageAt, timeSettings)}
+              dir="ltr"
+              class={[
+                'relative top-px me-0.5 hidden shrink-0 text-xs tabular-nums group-focus-within/room:text-muted group-hover/room:text-muted @min-[240px]:inline',
+                isCurrentRoom ? 'text-muted' : 'text-muted/70'
+              ]}
+              data-testid="dm-activity-age">{activityAge}</time
+            >
+          {/if}
         {/if}
       </div>
     </div>
@@ -1179,6 +1221,25 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
+{#snippet olderConversations()}
+  {#if olderDMCount > 0 || showOlderDMs}
+    {@const label = showOlderDMs
+      ? m('room_list.show_fewer_conversations')
+      : m('room_list.show_older_conversations', { count: olderDMCount })}
+    <button
+      type="button"
+      class="sidebar-item w-full cursor-pointer text-start"
+      aria-expanded={showOlderDMs}
+      data-testid="older-conversations"
+      title={label}
+      onclick={() => (showOlderDMs = !showOlderDMs)}
+    >
+      <span class="sidebar-icon" aria-hidden="true">{showOlderDMs ? '−' : '+'}</span>
+      <span class="min-w-0 flex-1 truncate">{label}</span>
+    </button>
+  {/if}
+{/snippet}
+
 {#snippet groupLeadingOverlay()}
   <button
     type="button"
@@ -1228,6 +1289,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </MenuSection>
 {/snippet}
 
+<Interval milliseconds={60000} ontick={() => (activityNow = Date.now())} />
+
 {#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !navigation.isInitialLoading}
   <EmptyState icon="icon-[uil--comments]" title={m('room_list.empty_title')}>
     {m('room_list.empty_prefix')}
@@ -1276,7 +1339,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {/if}
     {#each unmanagedSections as section, i (section.id)}
       {#snippet footer()}
-        {@render moreRooms(section)}
+        {#if section.id === 'direct-messages'}
+          {@render olderConversations()}
+        {:else}
+          {@render moreRooms(section)}
+        {/if}
       {/snippet}
       <RoomGroupSection
         label={section.label}

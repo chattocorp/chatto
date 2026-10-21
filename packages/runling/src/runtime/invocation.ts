@@ -12,20 +12,20 @@ export const implementation = Symbol.for('runling.task');
  * A running task. The parent and the task exchange messages until the task returns.
  * Messages are buffered in bounded channels; the result and the cleanup have separate lifetimes.
  */
-export interface Invocation<Receives, Emits, Output> extends AsyncDisposable {
+export interface Invocation<Steering, Output, Result> extends AsyncDisposable {
   /** Identity of the invocation and of its recorded message channel. */
   readonly id: string;
   readonly status: 'running' | 'completed' | 'failed' | 'cancelled';
   /** Validate a message and queue it for the task. Does not wait for the task to read it.
    * Rejects with `ChannelFullError` when the buffer is full. */
-  send(message: Receives): Promise<void>;
+  steer(message: Steering): Promise<void>;
   /** Tell the task that no more messages come. It can still read the queued messages. */
-  closeInput(): void;
+  closeSteering(): void;
   /** Messages that the task emits. One consumer only. The task's `emit` rejects with
    * `ChannelFullError` when the parent does not read them. */
-  readonly updates: AsyncIterable<Emits>;
-  /** The task's validated output. */
-  readonly result: Promise<Output>;
+  readonly output: AsyncIterable<Output>;
+  /** The task's validated final result, separate from its streamed output. */
+  readonly result: Promise<Result>;
   /** Cancel this task and its children, not its parent or siblings. */
   cancel(reason?: unknown): void;
   /** Cancel unfinished work and wait for cooperative cleanup. */
@@ -57,7 +57,7 @@ export function invoke(
     // A reader waits for `ready`, so the journal records a message before its read.
     type Envelope = { id: string; value: unknown; ready: Promise<void> };
     const channel = createChannel<Envelope>({ signal });
-    const schema = direction === 'input' ? task.receives : task.emits;
+    const schema = direction === 'input' ? task.steering : task.output;
     let unread = 0;
 
     return {
@@ -65,7 +65,7 @@ export function invoke(
       async send(value: unknown): Promise<void> {
         const parsed = await parseBoundary(
           task.name,
-          direction === 'input' ? 'message' : 'update',
+          direction === 'input' ? 'steering' : 'output',
           schema,
           value
         );
@@ -128,7 +128,7 @@ export function invoke(
     ...parent,
     state,
     signal,
-    inbox: { [Symbol.asyncIterator]: () => incoming[Symbol.asyncIterator]() },
+    steering: { [Symbol.asyncIterator]: () => incoming[Symbol.asyncIterator]() },
     emit: outgoing.send
   };
 
@@ -196,9 +196,9 @@ export function invoke(
     get status() {
       return status === 'running' && signal.aborted ? 'cancelled' : status;
     },
-    send: incoming.send,
-    closeInput: () => incoming.channel.close(),
-    updates: { [Symbol.asyncIterator]: () => outgoing[Symbol.asyncIterator]() },
+    steer: incoming.send,
+    closeSteering: () => incoming.channel.close(),
+    output: { [Symbol.asyncIterator]: () => outgoing[Symbol.asyncIterator]() },
     result,
     cancel,
     async [Symbol.asyncDispose]() {
