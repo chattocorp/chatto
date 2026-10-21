@@ -15,11 +15,11 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
 - `chatto/source.ts` connects to Chatto. `chatto/router.ts` sends messages to the
   run of their thread. Addressed messages and report intake can start a run.
   Ordinary thread replies only notify an existing run, including a recovered run.
-  Apply this to DM threads too: new room-level DMs can start a workflow, but
-  still pass classification. Within threads, recognize explicit mentions and replies
-  to the bot; otherwise use the ordinary follow-up path. Reactions to bot messages
-  pass the participation classifier before they become addressed input. Ordinary
-  DM replies grant no delegation authority.
+  All DM messages, including thread replies, are addressed input and pass the
+  participation classifier. A current maintainer's accepted DM can authorize
+  delegation without a mention. Channel thread replies require an explicit
+  mention or a verified reply to the bot for delegation. Reactions to bot
+  messages pass a separate participation check before they become addressed input.
 - In `CHATTO_AUTO_ENGAGE_ROOM_IDS`, unaddressed top-level posts start
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards

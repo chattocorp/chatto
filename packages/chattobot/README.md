@@ -13,7 +13,7 @@ See [the TODO list](docs/TODO.md) for planned work and experiments.
 ## How it works
 
 1. The `chatto` event source connects to Chatto as the bot. It receives the
-   messages that address the bot: new room-level DMs, mentions, and replies to
+   messages that address the bot: DMs, mentions, and replies to
    the bot, plus added emoji reactions to the bot's messages.
 2. The router sends each message to the conversation run of its thread. When a
    thread has no run, the router starts one.
@@ -148,11 +148,12 @@ reach one conversation turn, with each author's identity and authorization conte
 kept separate. The window runs while the agent is busy, so it adds no further wait
 when the agent becomes available after the window has ended.
 
-DM threads use the same participation rules as channel threads. A new room-level
-DM starts a workflow. DMs, explicit mentions, replies to the bot, and ordinary
-thread replies pass the participation classifier before a conversation turn.
-Reactions to its messages pass a separate participation check.
-Ordinary DM replies cannot authorize restricted work or reopen an expired conversation.
+All DM messages, including thread replies, are addressed input. DMs, explicit
+mentions, replies to the bot, and ordinary thread replies pass the participation
+classifier before a conversation turn. Reactions to the bot's messages pass a
+separate participation check. A current maintainer's accepted DM can authorize
+restricted work without a mention. Channel thread replies still need a mention
+or a verified reply to the bot to provide authorization.
 
 Ordinary realtime replies notify an existing thread workflow after that same
 window. It reads human messages after the bot's latest post (or the conversation's
@@ -344,7 +345,9 @@ its `origin/main` reference. The endpoint must use `ws://` or `wss://`, end in `
 and contain no credentials, query, or fragment. Use `wss://` for remote connections.
 With all Paseo settings absent, the capability is disabled.
 
-For a local desktop daemon, use `CHATTO_PASEO_URL=ws://127.0.0.1:6767/ws`.
+For a local desktop daemon that listens on loopback, use
+`CHATTO_PASEO_URL=ws://127.0.0.1:6767/ws`. If the daemon listens on another
+interface, use that address. The bot must be able to reach the listener.
 The default local listener does not use TLS; `wss://localhost:6767/ws` will fail.
 
 To enable implementation, also set `CHATTO_PASEO_AGENT_MODEL` to a `provider/model`
@@ -400,7 +403,8 @@ the workspace. After creation, the bot assigns the `chattobot` workspace label.
 If labeling fails, the result retains the workspace and reports `labelApplied: false`;
 implementation can continue in that workspace.
 
-The bot acknowledges accepted work once and keeps answering messages. The Runling
+The bot acknowledges accepted work once as an attempt to start the work and keeps
+answering messages. It confirms startup only after the remote service confirms it. The Runling
 child task subscribes before sending the brief, streams assistant messages back,
 and waits for the coding turn to finish, a permission request, an error, or a
 one-hour timeout. It joins live text fragments and emits each segment at the next

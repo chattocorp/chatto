@@ -100,7 +100,7 @@ async function harness(implementation = false) {
 test('a current maintainer starts one background job and gets its confirmed result', async () => {
   const h = await harness();
   await expect(h.execute('call', input)).resolves.toMatchObject({
-    content: [{ text: expect.stringContaining('not confirmed yet') }]
+    content: [{ text: expect.stringContaining('startup is unconfirmed') }]
   });
   expect([...h.pending.values()][0]).toMatchObject({
     kind: 'paseo',
