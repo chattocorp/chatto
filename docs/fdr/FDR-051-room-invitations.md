@@ -25,6 +25,8 @@ channel room. The recipient accepts or declines in the room welcome screen.
   after the recipient leaves.
 - Invited rooms appear in their normal sidebar groups. This can make a group
   visible for the first time. The group shows only visible or invited rooms.
+- Overview marks rooms with an active invitation as Invited. The recipient
+  can select the room to open its invitation screen without `room.join`.
 - An invitation icon identifies the room. Opening it shows the inviter,
   expiry, and Accept invitation and Decline buttons. Protected room content
   stays unavailable until the recipient joins.

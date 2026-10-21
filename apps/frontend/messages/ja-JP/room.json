@@ -62,7 +62,8 @@
       "join_group_failed": "グループに参加できませんでした",
       "left": "左 #{room}",
       "left_generic": "部屋を出ました",
-      "leave_confirm": "#{room} を退会してもよろしいですか?"
+      "leave_confirm": "#{room} を退会してもよろしいですか?",
+      "invited": "招待済み"
     },
     "server": {
       "remove_title": "サーバーを削除",

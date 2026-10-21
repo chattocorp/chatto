@@ -62,7 +62,8 @@
       "join_group_failed": "Gruba katılma başarısız oldu",
       "left": "Sol #{room}",
       "left_generic": "Sol oda",
-      "leave_confirm": "#{room}'den ayrılmak istediğinizden emin misiniz?"
+      "leave_confirm": "#{room}'den ayrılmak istediğinizden emin misiniz?",
+      "invited": "Davet edildi"
     },
     "server": {
       "remove_title": "Sunucuyu Kaldır",

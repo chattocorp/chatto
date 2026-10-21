@@ -62,7 +62,8 @@
       "join_group_failed": "Malsukcesis aliĝi al grupo",
       "left": "Maldekstre #{room}",
       "left_generic": "Foriris ĉambro",
-      "leave_confirm": "Ĉu vi certas, ke vi volas forlasi #{room}?"
+      "leave_confirm": "Ĉu vi certas, ke vi volas forlasi #{room}?",
+      "invited": "Invitita"
     },
     "server": {
       "remove_title": "Forigi servilon",

@@ -63,7 +63,8 @@
       "join_group_failed": "נכשל ההצטרפות לקבוצה",
       "left": "עזבת את #{room}",
       "left_generic": "עזבת את החדר",
-      "leave_confirm": "האם אתה בטוח שאתה רוצה לעזוב את #{room}?"
+      "leave_confirm": "האם אתה בטוח שאתה רוצה לעזוב את #{room}?",
+      "invited": "הוזמנת"
     },
     "server": {
       "remove_title": "הסר שרת",

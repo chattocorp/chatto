@@ -119,7 +119,15 @@ for (const answer of ['accept', 'decline'] as const) {
       await expect(
         recipientPage.getByRole('button', { name: 'Invitation project', exact: true })
       ).toBeVisible();
-      await recipientRoom.click();
+      const overviewInvitation = recipientPage
+        .getByRole('listitem')
+        .filter({ hasText: 'Private invitation project' });
+      await expect(overviewInvitation.getByText('Invited', { exact: true })).toBeVisible();
+      await recipientPage.screenshot({
+        animations: 'disabled',
+        path: test.info().outputPath('overview-room-invitation.png')
+      });
+      await overviewInvitation.getByRole('link').click();
       const welcome = recipientPage.getByTestId('room-invitation-preview');
       await expect(welcome).toBeVisible();
       await expect(welcome).toContainText(sender.displayName);

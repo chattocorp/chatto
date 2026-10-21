@@ -62,7 +62,8 @@
       "join_group_failed": "加入分组失败",
       "left": "已退出 #{room}",
       "left_generic": "已退出聊天室",
-      "leave_confirm": "确定要退出 #{room} 吗？"
+      "leave_confirm": "确定要退出 #{room} 吗？",
+      "invited": "已获邀请"
     },
     "server": {
       "remove_title": "移除服务器",

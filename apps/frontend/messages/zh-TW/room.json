@@ -62,7 +62,8 @@
       "join_group_failed": "無法加入群組",
       "left": "已離開 #{room}",
       "left_generic": "已離開聊天室",
-      "leave_confirm": "確定要離開 #{room} 嗎？"
+      "leave_confirm": "確定要離開 #{room} 嗎？",
+      "invited": "已獲邀請"
     },
     "server": {
       "remove_title": "移除伺服器",

@@ -62,7 +62,8 @@
       "join_group_failed": "Impossible de rejoindre le groupe",
       "left": "Gauche #{room}",
       "left_generic": "Chambre de gauche",
-      "leave_confirm": "Etes-vous sûr de vouloir quitter #{room} ?"
+      "leave_confirm": "Etes-vous sûr de vouloir quitter #{room} ?",
+      "invited": "Invité"
     },
     "server": {
       "remove_title": "Retirer le serveur",

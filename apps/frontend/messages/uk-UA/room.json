@@ -62,7 +62,8 @@
       "join_group_failed": "Не вдалося приєднатися до групи",
       "left": "Ліворуч #{room}",
       "left_generic": "Вийшов з кімнати",
-      "leave_confirm": "Ви впевнені, що хочете залишити #{room}?"
+      "leave_confirm": "Ви впевнені, що хочете залишити #{room}?",
+      "invited": "Запрошено"
     },
     "server": {
       "remove_title": "Видалити сервер",

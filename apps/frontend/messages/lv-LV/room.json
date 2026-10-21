@@ -62,7 +62,8 @@
       "join_group_failed": "Neizdevās pievienoties grupai",
       "left": "Pa kreisi #{room}",
       "left_generic": "Kreisā istaba",
-      "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?"
+      "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?",
+      "invited": "Uzaicināts"
     },
     "server": {
       "remove_title": "Noņemt serveri",

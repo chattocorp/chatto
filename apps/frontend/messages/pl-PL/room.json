@@ -62,7 +62,8 @@
       "join_group_failed": "Nie udało się dołączyć do grupy",
       "left": "W lewo #{room}",
       "left_generic": "Opuścił pokój",
-      "leave_confirm": "Czy na pewno chcesz opuścić #{room}?"
+      "leave_confirm": "Czy na pewno chcesz opuścić #{room}?",
+      "invited": "Zaproszono"
     },
     "server": {
       "remove_title": "Usuń serwer",

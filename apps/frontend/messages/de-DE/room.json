@@ -62,7 +62,8 @@
       "join_group_failed": "Gruppe konnte nicht beigetreten werden",
       "left": "#{room} verlassen",
       "left_generic": "Raum verlassen",
-      "leave_confirm": "Möchtest du #{room} wirklich verlassen?"
+      "leave_confirm": "Möchtest du #{room} wirklich verlassen?",
+      "invited": "Eingeladen"
     },
     "server": {
       "remove_title": "Server entfernen",

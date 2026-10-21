@@ -62,7 +62,8 @@
       "join_group_failed": "Failed to join group",
       "left": "Left #{room}",
       "left_generic": "Left room",
-      "leave_confirm": "Are you sure you want to leave #{room}?"
+      "leave_confirm": "Are you sure you want to leave #{room}?",
+      "invited": "Invited"
     },
     "server": {
       "remove_title": "Remove Server",

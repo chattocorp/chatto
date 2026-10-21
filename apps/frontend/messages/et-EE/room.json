@@ -62,7 +62,8 @@
       "join_group_failed": "Grupiga liitumine ebaõnnestus",
       "left": "Vasak number {room}",
       "left_generic": "Vasak tuba",
-      "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?"
+      "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?",
+      "invited": "Kutsutud"
     },
     "server": {
       "remove_title": "Eemalda server",

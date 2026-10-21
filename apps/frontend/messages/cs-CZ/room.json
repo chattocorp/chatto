@@ -62,7 +62,8 @@
       "join_group_failed": "Připojení ke skupině se nezdařilo",
       "left": "Vlevo #{room}",
       "left_generic": "Levý pokoj",
-      "leave_confirm": "Opravdu chcete opustit #{room}?"
+      "leave_confirm": "Opravdu chcete opustit #{room}?",
+      "invited": "Pozván(a)"
     },
     "server": {
       "remove_title": "Odebrat server",

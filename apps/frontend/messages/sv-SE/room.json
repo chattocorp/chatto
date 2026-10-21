@@ -62,7 +62,8 @@
       "join_group_failed": "Det gick inte att gå med i gruppen",
       "left": "Vänster #{room}",
       "left_generic": "Vänster rummet",
-      "leave_confirm": "Är du säker på att du vill lämna #{room}?"
+      "leave_confirm": "Är du säker på att du vill lämna #{room}?",
+      "invited": "Inbjuden"
     },
     "server": {
       "remove_title": "Ta bort server",

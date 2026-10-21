@@ -62,7 +62,8 @@
       "join_group_failed": "Kan niet deelnemen aan de groep",
       "left": "Links #{room}",
       "left_generic": "Linkerkamer",
-      "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?"
+      "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?",
+      "invited": "Uitgenodigd"
     },
     "server": {
       "remove_title": "Server verwijderen",
