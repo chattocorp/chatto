@@ -176,7 +176,7 @@
     class={[
       'relative',
       multiple &&
-        'flex input flex-wrap items-center gap-1.5 p-1 pe-16 text-base leading-6 focus-within:border-action',
+        'flex input flex-wrap items-center gap-1.5 p-1.5 pe-16 text-base leading-6 focus-within:border-action',
       multiple && disabled && 'opacity-60',
       className
     ]}
