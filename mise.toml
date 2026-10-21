@@ -885,7 +885,7 @@ run = ["pnpm run check:frontend", "pnpm run lint:frontend"]
 description = "Vet the Chatto CLI module and check it for unused code and outdated idioms"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.1", "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.2", "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 # The build matrix makes staticcheck report a symbol as unused only when no
 # build tag set uses it.
 run = [
