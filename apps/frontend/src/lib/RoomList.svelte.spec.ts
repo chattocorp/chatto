@@ -313,6 +313,19 @@ function setRooms() {
   }
 }
 
+/** Add recent conversations so activity tests can hide DMs beyond the minimum. */
+function addRecentDMs(): void {
+  const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+  const template = rooms.find((room) => room.type === RoomKind.DM)!;
+  for (let index = 0; index < 2; index++) {
+    rooms.push({
+      ...template,
+      id: `dm-recent-${index}`,
+      lastMessageAt: new Date(Date.now() - 86400000).toISOString()
+    });
+  }
+}
+
 function setDMParticipants(participants: UserAvatarUserView[], participantIds?: string[]): void {
   const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
     (room) => room.id === 'dm-with-participants'
@@ -432,6 +445,7 @@ describe('RoomList', () => {
     [90 * 1440, '90d'],
     [-1, '0min']
   ])('shows %s elapsed minutes as %s, including older expanded DMs', async (minutes, age) => {
+    addRecentDMs();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (r) => r.id === 'dm-with-participants'
     )!;
@@ -531,7 +545,61 @@ describe('RoomList', () => {
     expect(container.querySelector('[href="/chat/-/channel-1"] time')).toBeNull();
   });
 
+  it.each([0, 1, 2, 3, 5])('shows up to three of %s old DMs by default', async (count) => {
+    const template = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (room) => room.type === RoomKind.DM
+    )!;
+    // Navigation order differs from activity order; the newest are at the end.
+    mocks.store.navigation.rooms = Array.from({ length: count }, (_, index) => ({
+      ...template,
+      id: `dm-old-${index}`,
+      lastMessageAt: new Date(Date.now() - (20 - index) * 86400000).toISOString()
+    })) as never;
+    const { container } = render(RoomList);
+    const visibleIds = () =>
+      Array.from(container.querySelectorAll('a[href^="/chat/-/dm-old-"]'), (link) =>
+        link.getAttribute('href')!.split('/').at(-1)
+      );
+    const allIds = Array.from({ length: count }, (_, index) => `dm-old-${index}`);
+    expect(visibleIds()).toEqual(allIds.slice(-3));
+    if (count <= 3) {
+      expect(container.querySelector('[data-testid="older-conversations"]')).toBeNull();
+    } else {
+      await browserPage.getByRole('button', { name: 'Show older (2)', exact: true }).click();
+      expect(visibleIds()).toEqual(allIds);
+      await browserPage.getByRole('button', { name: 'Show less', exact: true }).click();
+      await vi.waitFor(() => expect(visibleIds()).toEqual(allIds.slice(-3)));
+    }
+  });
+
+  it.each([1, 2, 3, 4])('fills the minimum around %s recent DMs', (recentCount) => {
+    const template = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (room) => room.type === RoomKind.DM
+    )!;
+    const ages = [12, ...Array.from({ length: recentCount }, () => 1), 8, 10];
+    mocks.store.navigation.rooms = ages.map((days, index) => ({
+      ...template,
+      id: `dm-mixed-${index}`,
+      lastMessageAt: new Date(Date.now() - days * 86400000).toISOString()
+    })) as never;
+    const { container } = render(RoomList);
+    const visible = Array.from(container.querySelectorAll('a[href^="/chat/-/dm-mixed-"]'), (link) =>
+      link.getAttribute('href')
+    );
+    const expected = Array.from(
+      { length: recentCount },
+      (_, index) => `/chat/-/dm-mixed-${index + 1}`
+    );
+    if (recentCount < 3) expected.push(`/chat/-/dm-mixed-${recentCount + 1}`);
+    if (recentCount < 2) expected.push(`/chat/-/dm-mixed-${recentCount + 2}`);
+    expect(visible).toEqual(expected);
+    expect(container.querySelector('[data-testid="older-conversations"]')).toHaveTextContent(
+      `Show older (${ages.length - expected.length})`
+    );
+  });
+
   it('hides old DMs, reveals them on request, and keeps unknown activity visible', async () => {
+    addRecentDMs();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (entry) => entry.id === 'dm-with-participants'
     )!;
@@ -554,6 +622,7 @@ describe('RoomList', () => {
   it.each(['recent', 'unread', 'notification', 'current', 'call', 'invalid'])(
     'keeps a DM visible with %s activity or attention',
     async (reason) => {
+      addRecentDMs();
       const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
         (entry) => entry.id === 'dm-with-participants'
       )!;
@@ -573,6 +642,7 @@ describe('RoomList', () => {
   );
 
   it('keeps older-conversation controls out of the collapsed section', async () => {
+    addRecentDMs();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (entry) => entry.id === 'dm-with-participants'
     )!;
@@ -587,6 +657,7 @@ describe('RoomList', () => {
   });
 
   it('ages DMs while mounted and clears its interval when removed', async () => {
+    addRecentDMs();
     const now = Date.now();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (entry) => entry.id === 'dm-with-participants'
