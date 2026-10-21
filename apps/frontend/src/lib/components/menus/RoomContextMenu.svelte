@@ -2,8 +2,8 @@
 @component
 
 Actions shown when a room row is right-clicked or long-pressed.
-User actions precede room administration in separate groups. The parent owns all
-action behavior so this component stays presentation-only.
+Room actions precede copy actions, with archive and leave actions at the bottom.
+The parent owns all action behavior so this component stays presentation-only.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
@@ -49,40 +49,44 @@ action behavior so this component stays presentation-only.
     <MenuItem icon="icon-[uil--sign-in-alt]" mirrorIconInRtl onclick={onJoin} disabled={!canJoin}>
       {joinLabel}
     </MenuItem>
-  {:else}
-    <MenuItem icon="icon-[uil--check-circle]" onclick={onMarkRead} disabled={!canMarkRead}>
-      {m('room_list.mark_as_read')}
-    </MenuItem>
   {/if}
-
   {#if canInvite && onInvite}
     <MenuItem icon="icon-[uil--user-plus]" onclick={onInvite}>
       {m('room.invitation.invite')}
     </MenuItem>
   {/if}
+  {#if isRoomMember}
+    <MenuItem icon="icon-[uil--check-circle]" onclick={onMarkRead} disabled={!canMarkRead}>
+      {m('room_list.mark_as_read')}
+    </MenuItem>
+  {/if}
+  {#if canConfigure && onConfigure}
+    <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
+      {m('room_list.open_room_settings')}
+    </MenuItem>
+  {/if}
+</MenuSection>
 
+<MenuSection>
   <MenuItem icon="icon-[uil--link]" onclick={onCopyLink} dataTestid="copy-room-link">
     {m('room_list.copy_room_link')}
   </MenuItem>
   <MenuItem icon="icon-[uil--copy]" onclick={onCopyId} dataTestid="copy-room-id">
     {m('room_list.copy_room_id')}
   </MenuItem>
-  {#if isRoomMember && canLeave}
-    <MenuItem icon="icon-[uil--sign-out-alt]" mirrorIconInRtl tone="danger" onclick={onLeave}>
-      {m('room_list.leave_room')}
-    </MenuItem>
-  {/if}
 </MenuSection>
 
-{#if canConfigure}
+{#if canConfigure || (isRoomMember && canLeave)}
   <MenuSection>
-    {#if onConfigure}
-      <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
-        {m('room_list.open_room_settings')}
+    {#if canConfigure}
+      <MenuItem icon="icon-[uil--archive]" onclick={onArchive}>
+        {m('room.management.archive_room')}
       </MenuItem>
     {/if}
-    <MenuItem icon="icon-[uil--archive]" onclick={onArchive}>
-      {m('room.management.archive_room')}
-    </MenuItem>
+    {#if isRoomMember && canLeave}
+      <MenuItem icon="icon-[uil--sign-out-alt]" mirrorIconInRtl tone="danger" onclick={onLeave}>
+        {m('room_list.leave_room')}
+      </MenuItem>
+    {/if}
   </MenuSection>
 {/if}

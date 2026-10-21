@@ -848,7 +848,7 @@ describe('RoomList', () => {
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
     await expect.element(leave ?? null).toBeInTheDocument();
-    expect(markRead?.closest('.menu-section')).toBe(leave?.closest('.menu-section'));
+    expect(markRead?.closest('.menu-section')).not.toBe(leave?.closest('.menu-section'));
     expect(q(document.body, '[role="separator"]')).toBeNull();
 
     markRead!.click();
@@ -876,11 +876,12 @@ describe('RoomList', () => {
   });
 
   it.each([false, true])(
-    'groups user actions before admin actions for universal=%s and copies the room ID',
+    'groups room, copy, and exit actions for universal=%s and copies the room ID',
     async (isUniversal) => {
-      const rooms = mocks.store.navigation.rooms as Array<{ id: string; isUniversal: boolean }>;
+      const rooms = mocks.store.navigation.rooms as RoomsListItem[];
       const room = rooms.find((room) => room.id === 'channel-1')!;
       room.isUniversal = isUniversal;
+      room.viewerCanInvite = true;
       const { container } = render(RoomList);
       const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
 
@@ -899,8 +900,9 @@ describe('RoomList', () => {
           )
         )
       ).toEqual([
-        ['Mark as read', 'Copy room link', 'Copy room ID', ...(isUniversal ? [] : ['Leave room'])],
-        ['Open room settings', 'Archive room']
+        ['Invite member', 'Mark as read', 'Open room settings'],
+        ['Copy room link', 'Copy room ID'],
+        ['Archive room', ...(isUniversal ? [] : ['Leave room'])]
       ]);
 
       copyRoomId.click();
@@ -1004,7 +1006,7 @@ describe('RoomList', () => {
     await expect.element(join ?? null).toBeEnabled();
     await expect.element(settings ?? null).toBeInTheDocument();
 
-    expect(join?.closest('.menu-section')).not.toBe(settings?.closest('.menu-section'));
+    expect(join?.closest('.menu-section')).toBe(settings?.closest('.menu-section'));
 
     settings!.click();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/joinable-channel');
@@ -1341,7 +1343,7 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Open room settings'
     );
     expect(settings).toBeUndefined();
-    expect(document.querySelectorAll('[role="menu"] .menu-section')).toHaveLength(1);
+    expect(document.querySelectorAll('[role="menu"] .menu-section')).toHaveLength(3);
     expect(document.body.textContent).not.toContain('Archive room');
   });
 
