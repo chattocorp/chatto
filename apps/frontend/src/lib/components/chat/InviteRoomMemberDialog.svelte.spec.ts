@@ -59,6 +59,9 @@ describe('Invite room member dialog', () => {
     await expect.element(submit).toBeDisabled();
     await page.getByRole('combobox', { name: 'Members' }).fill('bob');
     await page.getByRole('option').click();
+    const pill = page.getByTestId('combobox-selection');
+    await expect.element(pill).toBeVisible();
+    expect(pill.element().querySelector('[role="img"][aria-label="bob"]')).not.toBeNull();
     await submit.click();
     await vi.waitFor(() => expect(invitations.createRoomInvitation).toHaveBeenCalledOnce());
     expect(receivedRequest(invitations.createRoomInvitation)).toMatchObject({

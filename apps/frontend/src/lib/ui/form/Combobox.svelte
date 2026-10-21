@@ -30,6 +30,7 @@
     class: className,
     item,
     selectionAdornment,
+    selectedItemLeading,
     selectionDescription,
     ontextchange,
     onselect,
@@ -62,6 +63,8 @@
     item?: Snippet<[{ item: T; selected: boolean }]>;
     /** Passive content beside a selected value, such as an account badge. */
     selectionAdornment?: Snippet;
+    /** Compact passive content before each selected label in multiple mode. */
+    selectedItemLeading?: Snippet<[{ item: T }]>;
     /** Text announced with the selected value when the adornment is visual. */
     selectionDescription?: string;
     ontextchange?: (text: string) => void;
@@ -208,6 +211,11 @@
           class="inline-flex h-7 max-w-full min-w-0 items-center gap-1 rounded-md border border-input-border bg-surface selection-indicator ps-1.5 pe-0.5"
           data-testid="combobox-selection"
         >
+          {#if selectedItemLeading}
+            <span class="flex shrink-0 items-center" aria-hidden="true">
+              {@render selectedItemLeading({ item: selected })}
+            </span>
+          {/if}
           <bdi class="min-w-0 truncate">{getLabel(selected)}</bdi>
           <button
             type="button"

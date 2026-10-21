@@ -106,6 +106,10 @@
       getValue={(timezone) => timezone.id}
       getLabel={(timezone) => timezone.label}
       placeholder="Search timezones"
-    />
+    >
+      {#snippet selectedItemLeading()}
+        <span class="iconify icon-[uil--clock] text-muted"></span>
+      {/snippet}
+    </Combobox>
   </div>
 </Story>

@@ -137,6 +137,9 @@
     emptyMessage={m('common.no_users')}
     clearLabel={m('common.clear')}
   >
+    {#snippet selectedItemLeading({ item: user })}
+      <UserAvatar {user} size="xs" useLiveProfile={false} />
+    {/snippet}
     {#snippet item({ item: user })}
       <UserAvatar {user} size="sm" useLiveProfile={false} />
       <span class="flex min-w-0 flex-1 flex-col items-start">
