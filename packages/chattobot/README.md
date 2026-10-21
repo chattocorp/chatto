@@ -280,15 +280,16 @@ login as part of the bot's instructions. Restart the bot after changing `.env`.
 An added reaction to a ChattoBot message first passes a participation check,
 including in a thread whose earlier conversation has ended. The bot reads the target
 message from Chatto. The existing participation classifier receives its exact text,
-the emoji, and up to 20 recent thread messages. Target text is context, not a new
-request. Appreciation on completed answers normally requires no response. Clear
+the emoji, the thread root, and up to 20 recent replies. Target text is context,
+not a new request. Appreciation on completed answers normally requires no response. Clear
 answers to pending questions and approval of pending proposals can start a turn.
 The classifier checks each reaction separately, including in batches with direct
 messages. A failed check sends no reaction-driven response. Direct messages still
 reach the conversation. Checked reaction event IDs are retained across recovery.
 Accepted reactions retain the reacting user's identity, event ID, and exact target
 for the conversation model and its authorization checks. Its own reactions,
-reactions to other people's messages, and reaction removals do not start a turn. Removing a reaction does not cancel work.
+reactions to other people's messages, and reaction removals do not start a turn.
+Removing a reaction does not cancel work.
 
 A maintainer can approve a clear proposal by adding 👍 to that proposal's message.
 The same user-ID check applies as for a direct reply. Approval covers the proposal
