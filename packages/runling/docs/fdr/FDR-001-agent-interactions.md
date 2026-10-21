@@ -1,7 +1,7 @@
 # FDR-001: Agent interactions and steering
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-19
+**Last reviewed:** 2026-10-21
 
 ## Overview
 
@@ -23,6 +23,10 @@ one session, gives parent messages to it, and emits its completed replies.
   Terminal display follows [FDR-011](FDR-011-cli-output.md).
 - `createAgentSession()` exposes explicit session ownership for custom loops,
   report outcomes, and forks. `runAgent()` runs one explicit interaction.
+- Model lookup uses the local catalog first. If a model is missing, refresh only
+  its provider catalog with a five-second deadline, then try lookup again. This
+  lets new models work without an SDK update and avoids network discovery for
+  known models. `PI_OFFLINE` disables network discovery.
 - Text mode lets the agent finish its turn naturally. The final text of the
   agent is the summary of the result. Applications can also see each completed
   assistant text message during the turn. These messages do not include private
