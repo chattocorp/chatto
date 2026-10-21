@@ -2007,6 +2007,8 @@ describe('MessageComposer', () => {
   });
 
   describe('draft lifecycle', () => {
+    // Append tests disable autofocus and place the caret explicitly. DOM focus alone
+    // can leave it at the start until TipTap's delayed autofocus runs.
     it('renders saved markdown drafts as rich editor content', async () => {
       sessionStorage.setItem(
         'chatto:draft:room_markdown_draft',
@@ -2046,13 +2048,13 @@ describe('MessageComposer', () => {
       sessionStorage.setItem('chatto:draft:room_html_draft', body);
 
       const { container } = renderMessageComposer(
-        { roomId: 'room_html_draft' },
+        { roomId: 'room_html_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent(body);
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() =>
@@ -2064,7 +2066,7 @@ describe('MessageComposer', () => {
       const body = '@chatto_bot \\o/ ¯\\_(ツ)_/¯';
       sessionStorage.setItem('chatto:draft:room_literal_draft', body);
       const { container } = renderMessageComposer(
-        { roomId: 'room_literal_draft' },
+        { roomId: 'room_literal_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -2084,13 +2086,13 @@ describe('MessageComposer', () => {
       sessionStorage.setItem('chatto:draft:room_entity_draft', body);
 
       const { container } = renderMessageComposer(
-        { roomId: 'room_entity_draft' },
+        { roomId: 'room_entity_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent(body);
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() =>
@@ -2104,13 +2106,13 @@ describe('MessageComposer', () => {
       sessionStorage.setItem('chatto:draft:room_less_than_entity_draft', body);
 
       const { container } = renderMessageComposer(
-        { roomId: 'room_less_than_entity_draft' },
+        { roomId: 'room_less_than_entity_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent(body);
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() =>
@@ -2148,7 +2150,7 @@ describe('MessageComposer', () => {
       sessionStorage.setItem('chatto:draft:room_indented_code_draft', '    <b>x</b>');
 
       const { container } = renderMessageComposer(
-        { roomId: 'room_indented_code_draft' },
+        { roomId: 'room_indented_code_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -2156,12 +2158,13 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(editor.querySelector('pre code')?.textContent).toBe('<b>x</b>')
       );
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() => {
         const draft = sessionStorage.getItem('chatto:draft:room_indented_code_draft') ?? '';
         expect(draft).toContain('<b>x</b>');
+        expect(draft).toMatch(/!$/);
         expect(draft).not.toContain('&lt;b>x&lt;/b>');
       });
     });
@@ -2171,7 +2174,7 @@ describe('MessageComposer', () => {
       sessionStorage.setItem('chatto:draft:room_indented_continuation_draft', body);
 
       const { container } = renderMessageComposer(
-        { roomId: 'room_indented_continuation_draft' },
+        { roomId: 'room_indented_continuation_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -2195,13 +2198,13 @@ describe('MessageComposer', () => {
       sessionStorage.setItem('chatto:draft:room_unmatched_backtick_draft', body);
 
       const { container } = renderMessageComposer(
-        { roomId: 'room_unmatched_backtick_draft' },
+        { roomId: 'room_unmatched_backtick_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent(body);
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() =>
@@ -2264,14 +2267,14 @@ describe('MessageComposer', () => {
       sessionStorage.setItem('chatto:draft:room_fake_link_draft', body);
 
       const { container } = renderMessageComposer(
-        { roomId: 'room_fake_link_draft' },
+        { roomId: 'room_fake_link_draft', autoFocus: false },
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent(body);
       expect(editor.querySelector('strong')).toBeNull();
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() =>
