@@ -35,8 +35,11 @@
     "leave": {
       "title": "Quitter le salon",
       "action": "Quitter le salon",
-      "prompt": "Êtes-vous certain de vouloir quitter #{room} ? Vous pourrez vous joindre plus tard.",
-      "failed": "Impossible de quitter la salle"
+      "prompt": "Êtes-vous certain de vouloir quitter #{room} ?",
+      "failed": "Impossible de quitter la salle",
+      "join_later": "Vous pourrez vous joindre plus tard.",
+      "need_invite": "Vous aurez besoin d’une nouvelle invitation pour rejoindre ce salon.",
+      "rejoin_unknown": "Une nouvelle invitation peut être nécessaire pour rejoindre ce salon à nouveau."
     },
     "directory": {
       "universal_title": "Les salons universels sont rejoints automatiquement",
@@ -318,7 +321,6 @@
       "invite": "Inviter un membre",
       "invited": "Vous avez reçu une invitation",
       "sent": "Invitations envoyées",
-      "sender": "Invitation de {name}",
       "expires": "Expire le {date}",
       "unavailable": "Vous ne pouvez pas accepter cette invitation pour le moment. Vous pouvez toujours la refuser.",
       "accept": "Accepter l’invitation",
@@ -328,7 +330,11 @@
       "members": "Membres",
       "send": "Envoyer les invitations",
       "failed": "Impossible d’inviter {name} : {error}",
-      "already_member": "Déjà dans ce salon"
+      "already_member": "Déjà dans ce salon",
+      "invited_by": "Vous avez reçu une invitation de",
+      "decline_title": "Refuser l’invitation ?",
+      "decline_join_later": "Vous pourrez rejoindre ce salon plus tard.",
+      "decline_need_invite": "Vous aurez besoin d’une nouvelle invitation pour rejoindre ce salon."
     }
   }
 }

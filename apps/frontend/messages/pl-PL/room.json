@@ -35,8 +35,11 @@
     "leave": {
       "title": "Opuść pokój",
       "action": "Opuść pokój",
-      "prompt": "Czy na pewno chcesz opuścić #{room}? Możesz dołączyć później.",
-      "failed": "Nie udało się opuścić pokoju"
+      "prompt": "Czy na pewno chcesz opuścić #{room}?",
+      "failed": "Nie udało się opuścić pokoju",
+      "join_later": "Możesz dołączyć później.",
+      "need_invite": "Aby dołączyć do tego pokoju, będziesz potrzebować nowego zaproszenia.",
+      "rejoin_unknown": "Do ponownego dołączenia może być potrzebne nowe zaproszenie."
     },
     "directory": {
       "universal_title": "Pokoje uniwersalne łączą się automatycznie",
@@ -325,7 +328,6 @@
       "invite": "Zaproś członka",
       "invited": "Masz zaproszenie",
       "sent": "Zaproszenia wysłane",
-      "sender": "Zaproszenie od {name}",
       "expires": "Wygasa {date}",
       "unavailable": "Nie możesz teraz przyjąć tego zaproszenia. Nadal możesz je odrzucić.",
       "accept": "Przyjmij zaproszenie",
@@ -335,7 +337,11 @@
       "members": "Członkowie",
       "send": "Wyślij zaproszenia",
       "failed": "Nie udało się zaprosić {name}: {error}",
-      "already_member": "Już jest w tym pokoju"
+      "already_member": "Już jest w tym pokoju",
+      "invited_by": "Zaproszenie od",
+      "decline_title": "Odrzucić zaproszenie?",
+      "decline_join_later": "Możesz dołączyć do tego pokoju później.",
+      "decline_need_invite": "Aby dołączyć do tego pokoju, będziesz potrzebować nowego zaproszenia."
     }
   }
 }

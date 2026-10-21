@@ -35,8 +35,11 @@
     "leave": {
       "title": "ルームから退出",
       "action": "ルームから退出",
-      "prompt": "#{room} を退会してもよろしいですか?後で再参加できます。",
-      "failed": "ルームから退出できませんでした"
+      "prompt": "#{room} を退会してもよろしいですか?",
+      "failed": "ルームから退出できませんでした",
+      "join_later": "後で再参加できます。",
+      "need_invite": "このルームに参加するには、新しい招待が必要になります。",
+      "rejoin_unknown": "再参加には新しい招待が必要になる場合があります。"
     },
     "directory": {
       "universal_title": "ユニバーサルルームは自動的に参加します",
@@ -318,7 +321,6 @@
       "invite": "メンバーを招待",
       "invited": "招待されています",
       "sent": "招待を送信しました",
-      "sender": "{name}さんからの招待",
       "expires": "有効期限：{date}",
       "unavailable": "現在この招待を承諾できません。辞退することはできます。",
       "accept": "招待を承諾",
@@ -328,7 +330,11 @@
       "members": "メンバー",
       "send": "招待を送信",
       "failed": "{name}さんを招待できませんでした：{error}",
-      "already_member": "すでにこのルームに参加しています"
+      "already_member": "すでにこのルームに参加しています",
+      "invited_by": "招待者：",
+      "decline_title": "招待を辞退しますか？",
+      "decline_join_later": "このルームには後で参加できます。",
+      "decline_need_invite": "このルームに参加するには、新しい招待が必要になります。"
     }
   }
 }

@@ -9,6 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRoomDirectoryRejoinPresence(t *testing.T) {
+	for _, allowed := range []bool{false, true} {
+		view := apiRoomWithViewerState(&core.DirectoryRoom{
+			ViewerState: core.DirectoryRoomViewerState{CanRejoin: allowed},
+		})
+		require.NotNil(t, view.ViewerState.CanRejoin)
+		require.Equal(t, allowed, view.ViewerState.GetCanRejoin())
+	}
+}
+
 func TestRoomInvitationServicePrivacyAndDecline(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	s := &roomInvitationService{api: env.api}

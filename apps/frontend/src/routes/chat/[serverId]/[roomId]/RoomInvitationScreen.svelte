@@ -9,7 +9,8 @@
   import type { RoomsListItem } from '$lib/state/server/navigation';
   import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
-  import { PageTitle } from '$lib/ui';
+  import { PageTitle, ConfirmDialog } from '$lib/ui';
+  import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { Button, FormError } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { errorMessage } from '$lib/utils/errorMessage';
@@ -20,6 +21,8 @@
   const session = createSessionGuard(scope);
   const invitation = $derived(room.viewerInvitation);
   let answering = $state(false);
+  let declineInvitationId = $state<string | null>(null);
+  const confirmingDecline = $derived(!!invitation && declineInvitationId === invitation.id);
   let error = $state<string | null>(null);
   const sender = createQuery(() => {
     const senderId = invitation?.senderId ?? '';
@@ -46,7 +49,10 @@
       else await api.declineInvitation(id);
       if (!session.isCurrent(snapshot)) return;
       // The canonical room projection opens the joined room after acceptance.
-      if (!accept) await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+      if (!accept) {
+        declineInvitationId = null;
+        await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+      }
     } catch (cause) {
       if (session.isCurrent(snapshot) && invitation?.id === id) error = errorMessage(cause);
     } finally {
@@ -66,14 +72,14 @@
     <span class="iconify mb-4 icon-[uil--envelope-alt] text-3xl text-action" aria-hidden="true"
     ></span>
     <h1 class="text-2xl font-semibold text-text-top"><bdi>#{room.name}</bdi></h1>
-    <p class="mt-4 text-text">{m('room.invitation.invited')}</p>
-    {#if !sender.isPending}
-      <p class="mt-2 text-muted" dir="auto">
-        {m('room.invitation.sender', {
-          name: sender.data?.displayName || sender.data?.login || m('common.unknown_user')
-        })}
-      </p>
-    {/if}
+    <div class="mt-4 flex flex-wrap items-center justify-center gap-x-2 text-text">
+      <span>{m('room.invitation.invited_by')}</span>
+      {#if sender.data}
+        <UserIdentity user={sender.data} size="xs" openOnClick />
+      {:else if !sender.isPending}
+        <span>{m('common.unknown_user')}</span>
+      {/if}
+    </div>
     {#if invitation}
       <p class="mt-2 text-muted">
         {m('room.invitation.expires', {
@@ -86,17 +92,39 @@
       {#if !invitation.viewerCanAccept}
         <p class="mt-4 text-muted">{m('room.invitation.unavailable')}</p>
       {/if}
-      <FormError {error} />
+      {#if !confirmingDecline}<FormError {error} />{/if}
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button
           loading={answering}
           disabled={!invitation.viewerCanAccept}
           onclick={() => void answer(true)}>{m('room.invitation.accept')}</Button
         >
-        <Button variant="secondary" disabled={answering} onclick={() => void answer(false)}
+        <Button
+          variant="secondary"
+          disabled={answering}
+          onclick={() => (declineInvitationId = invitation?.id ?? null)}
           >{m('room.invitation.decline')}</Button
         >
       </div>
     {/if}
   </div>
 </section>
+
+{#if confirmingDecline}
+  <ConfirmDialog
+    title={m('room.invitation.decline_title')}
+    actionLabel={m('room.invitation.decline')}
+    loading={answering}
+    onconfirm={() => void answer(false)}
+    onclose={() => (declineInvitationId = null)}
+  >
+    <p>
+      {m(
+        room.viewerCanJoinRoom
+          ? 'room.invitation.decline_join_later'
+          : 'room.invitation.decline_need_invite'
+      )}
+    </p>
+    <FormError {error} />
+  </ConfirmDialog>
+{/if}

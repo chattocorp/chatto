@@ -275,6 +275,11 @@ them by ID, and hydrates viewer state only for the selected page. Archive discov
 permissions. Room-group and realtime navigation snapshots keep their default
 active-room scope.
 
+Room viewer state reports optional `can_rejoin` independently of current
+membership. It uses the current join authorization and active channel state;
+the `room.join` action decision still requires the viewer to be a non-member.
+Older servers omit this value, so clients must not treat absence as a denial.
+
 `RoomService.AddMember` and `RemoveMember` accept room managers, account
 managers, bot owners, and human bot managers. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.

@@ -35,8 +35,11 @@
     "leave": {
       "title": "Leave room",
       "action": "Leave room",
-      "prompt": "Are you sure you want to leave #{room}? You can rejoin later.",
-      "failed": "Failed to leave room"
+      "prompt": "Are you sure you want to leave #{room}?",
+      "failed": "Failed to leave room",
+      "join_later": "You can rejoin later.",
+      "need_invite": "You will need a new invitation to join this room.",
+      "rejoin_unknown": "You may need a new invitation to rejoin."
     },
     "directory": {
       "universal_title": "Universal rooms are joined automatically",
@@ -318,7 +321,6 @@
       "invite": "Invite member",
       "invited": "You have been invited",
       "sent": "Invitations sent",
-      "sender": "Invited by {name}",
       "expires": "Expires on {date}",
       "unavailable": "This invitation cannot be accepted at present. You can still decline it.",
       "accept": "Accept invitation",
@@ -328,7 +330,11 @@
       "members": "Members",
       "send": "Send invitations",
       "failed": "Could not invite {name}: {error}",
-      "already_member": "Already in this room"
+      "already_member": "Already in this room",
+      "invited_by": "You have been invited by",
+      "decline_title": "Decline invitation?",
+      "decline_join_later": "You can join this room later.",
+      "decline_need_invite": "You will need a new invitation to join this room."
     }
   }
 }

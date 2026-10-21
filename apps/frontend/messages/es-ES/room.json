@@ -35,8 +35,11 @@
     "leave": {
       "title": "Salir de la sala",
       "action": "Salir de la sala",
-      "prompt": "¿Estás seguro de que quieres salir de #{room}? Puedes volver a unirte más tarde.",
-      "failed": "No se pudo salir de la habitación"
+      "prompt": "¿Estás seguro de que quieres salir de #{room}?",
+      "failed": "No se pudo salir de la habitación",
+      "join_later": "Puedes volver a unirte más tarde.",
+      "need_invite": "Necesitarás una nueva invitación para unirte a esta sala.",
+      "rejoin_unknown": "Es posible que necesites una nueva invitación para volver a unirte."
     },
     "directory": {
       "universal_title": "Las salas universales se unen automáticamente",
@@ -318,7 +321,6 @@
       "invite": "Invitar a un miembro",
       "invited": "Has recibido una invitación",
       "sent": "Invitaciones enviadas",
-      "sender": "Invitación de {name}",
       "expires": "Caduca el {date}",
       "unavailable": "No puedes aceptar esta invitación en este momento. Todavía puedes rechazarla.",
       "accept": "Aceptar invitación",
@@ -328,7 +330,11 @@
       "members": "Miembros",
       "send": "Enviar invitaciones",
       "failed": "No se pudo invitar a {name}: {error}",
-      "already_member": "Ya está en esta sala"
+      "already_member": "Ya está en esta sala",
+      "invited_by": "Has recibido una invitación de",
+      "decline_title": "¿Rechazar invitación?",
+      "decline_join_later": "Puedes unirte a esta sala más tarde.",
+      "decline_need_invite": "Necesitarás una nueva invitación para unirte a esta sala."
     }
   }
 }

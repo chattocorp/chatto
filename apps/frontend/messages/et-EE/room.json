@@ -35,8 +35,11 @@
     "leave": {
       "title": "Lahkuge ruumist",
       "action": "Lahkuge ruumist",
-      "prompt": "Kas soovite kindlasti #{room} lahkuda? Saate hiljem uuesti liituda.",
-      "failed": "Ruumi lahkumine ebaõnnestus"
+      "prompt": "Kas soovite kindlasti #{room} lahkuda?",
+      "failed": "Ruumi lahkumine ebaõnnestus",
+      "join_later": "Saate hiljem uuesti liituda.",
+      "need_invite": "Selle ruumiga liitumiseks vajad uut kutset.",
+      "rejoin_unknown": "Uuesti liitumiseks võid vajada uut kutset."
     },
     "directory": {
       "universal_title": "Universaalsed ruumid liidetakse automaatselt",
@@ -318,7 +321,6 @@
       "invite": "Kutsu liige",
       "invited": "Teid on kutsutud",
       "sent": "Kutsed saadetud",
-      "sender": "Kutsuja: {name}",
       "expires": "Aegub {date}",
       "unavailable": "Te ei saa praegu seda kutset vastu võtta. Saate sellest endiselt keelduda.",
       "accept": "Võta kutse vastu",
@@ -328,7 +330,11 @@
       "members": "Liikmed",
       "send": "Saada kutsed",
       "failed": "Liikme {name} kutsumine nurjus: {error}",
-      "already_member": "Juba selles ruumis"
+      "already_member": "Juba selles ruumis",
+      "invited_by": "Sind kutsus",
+      "decline_title": "Kas lükata kutse tagasi?",
+      "decline_join_later": "Saad selle ruumiga hiljem liituda.",
+      "decline_need_invite": "Selle ruumiga liitumiseks vajad uut kutset."
     }
   }
 }

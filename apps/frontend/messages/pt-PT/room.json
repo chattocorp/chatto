@@ -35,8 +35,11 @@
     "leave": {
       "title": "Sair da sala",
       "action": "Sair da sala",
-      "prompt": "Tem a certeza que pretende sair do #{room}? Pode voltar mais tarde.",
-      "failed": "Falha ao sair da sala"
+      "prompt": "Tem a certeza que pretende sair do #{room}?",
+      "failed": "Falha ao sair da sala",
+      "join_later": "Pode voltar mais tarde.",
+      "need_invite": "Vais precisar de um novo convite para entrar nesta sala.",
+      "rejoin_unknown": "Podes precisar de um novo convite para voltar."
     },
     "directory": {
       "universal_title": "As salas universais são unidas automaticamente",
@@ -318,7 +321,6 @@
       "invite": "Convidar membro",
       "invited": "Recebeu um convite",
       "sent": "Convites enviados",
-      "sender": "Convite de {name}",
       "expires": "Expira em {date}",
       "unavailable": "Não é possível aceitar este convite de momento. Ainda o pode recusar.",
       "accept": "Aceitar convite",
@@ -328,7 +330,11 @@
       "members": "Membros",
       "send": "Enviar convites",
       "failed": "Não foi possível convidar {name}: {error}",
-      "already_member": "Já está nesta sala"
+      "already_member": "Já está nesta sala",
+      "invited_by": "Recebeste um convite de",
+      "decline_title": "Recusar convite?",
+      "decline_join_later": "Podes entrar nesta sala mais tarde.",
+      "decline_need_invite": "Vais precisar de um novo convite para entrar nesta sala."
     }
   }
 }

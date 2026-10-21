@@ -85,14 +85,16 @@ type DirectoryRoom struct {
 }
 
 type DirectoryRoomViewerState struct {
-	Invitation             *RoomInvitationState
-	CanAcceptInvitation    bool
-	CanInvite              bool
-	CallPermissions        CallPermissions // Effective call actions, false for non-members.
-	IsMember               bool
-	HasUnread              bool
-	CanListRoom            bool
-	CanJoinRoom            bool
+	Invitation          *RoomInvitationState
+	CanAcceptInvitation bool
+	CanInvite           bool
+	CallPermissions     CallPermissions // Effective call actions, false for non-members.
+	IsMember            bool
+	HasUnread           bool
+	CanListRoom         bool
+	CanJoinRoom         bool
+	// CanRejoin retains joining authority even while the viewer is a member.
+	CanRejoin              bool
 	CanReadMessages        bool
 	CanReadInteractions    bool
 	CanPostMessage         bool
@@ -621,7 +623,8 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	}
 	messageActionsEnabled := isMember && !room.GetArchived()
 	memberActionsEnabled := isMember
-	canJoin = canJoin && !isMember && kind == KindChannel && !room.GetArchived()
+	canRejoin := canJoin && kind == KindChannel && !room.GetArchived()
+	canJoin = canRejoin && !isMember
 	canPostMessage = canPostMessage && messageActionsEnabled
 	canPostInThread = canPostInThread && messageActionsEnabled
 	canAttach = canAttach && messageActionsEnabled
@@ -659,6 +662,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		HasUnread:              hasUnread,
 		CanListRoom:            canList,
 		CanJoinRoom:            canJoin,
+		CanRejoin:              canRejoin,
 		CanReadMessages:        isMember && canReadMessages,
 		CanReadInteractions:    isMember && canReadInteractions,
 		CanPostMessage:         canPostMessage,

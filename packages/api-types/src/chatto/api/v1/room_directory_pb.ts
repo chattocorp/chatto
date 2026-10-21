@@ -137,6 +137,14 @@ export class RoomViewerState extends Message<RoomViewerState> {
    */
   invitation?: RoomInvitation;
 
+  /**
+   * Whether current permissions and room state allow joining without an invitation,
+   * even if already a member. Absent on servers that do not report this decision.
+   *
+   * @generated from field: optional bool can_rejoin = 6;
+   */
+  canRejoin?: boolean;
+
   constructor(data?: PartialMessage<RoomViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -150,6 +158,7 @@ export class RoomViewerState extends Message<RoomViewerState> {
     { no: 3, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
     { no: 4, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
     { no: 5, name: "invitation", kind: "message", T: RoomInvitation },
+    { no: 6, name: "can_rejoin", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomViewerState {

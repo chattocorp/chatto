@@ -59,7 +59,9 @@ for (const answer of ['accept', 'decline'] as const) {
       await expect(
         recipientPage.getByRole('heading', { name: 'Overview', exact: true })
       ).toBeVisible();
-      const recipientRoom = recipientPage.locator(`a[href="${routes.room(roomId)}"]`);
+      const recipientRoom = recipientPage
+        .getByTestId('server-sidebar')
+        .locator(`a[href="${routes.room(roomId)}"]`);
       await expect(recipientRoom).not.toBeAttached();
       await expect(
         recipientPage.getByRole('button', { name: 'Invitation project', exact: true })
@@ -121,18 +123,36 @@ for (const answer of ['accept', 'decline'] as const) {
       const welcome = recipientPage.getByTestId('room-invitation-preview');
       await expect(welcome).toBeVisible();
       await expect(welcome).toContainText(sender.displayName);
+      await welcome.getByTestId('user-identity').click();
+      await expect(recipientPage.getByRole('dialog')).toContainText(sender.displayName);
+      await recipientPage.keyboard.press('Escape');
       await expect(welcome).toContainText('Expires on');
       await recipientPage.reload();
       await expect(welcome).toBeVisible();
       await recipientPage.setViewportSize({ width: 390, height: 844 });
       await expect(welcome.getByRole('button', { name: 'Accept invitation' })).toBeInViewport();
       await expect(welcome.getByRole('button', { name: 'Decline', exact: true })).toBeInViewport();
+      await recipientPage.screenshot({
+        animations: 'disabled',
+        path: test.info().outputPath('invitation-welcome.png')
+      });
       await welcome
         .getByRole('button', {
           name: answer === 'accept' ? 'Accept invitation' : 'Decline',
           exact: true
         })
         .click();
+      if (answer === 'decline') {
+        const confirmation = recipientPage.getByRole('dialog');
+        await expect(confirmation).toContainText(
+          'You will need a new invitation to join this room.'
+        );
+        await recipientPage.screenshot({
+          animations: 'disabled',
+          path: test.info().outputPath('decline-invitation-confirmation.png')
+        });
+        await confirmation.getByRole('button', { name: 'Decline', exact: true }).click();
+      }
       await expect(welcome).not.toBeVisible();
       if (answer === 'accept') {
         await expect
@@ -149,10 +169,19 @@ for (const answer of ['accept', 'decline'] as const) {
         await expect(new RoomPage(recipientPage).messageInput).toBeVisible();
         await expect(recipientPage.getByTestId('room-invitation-preview')).not.toBeVisible();
 
+        await recipientPage.setViewportSize({ width: 1280, height: 900 });
         await recipientPage.goto(routes.serverOverview);
         await expect(
           recipientPage.getByRole('heading', { name: 'Overview', exact: true })
         ).toBeVisible();
+
+        await recipientRoom.click({ button: 'right' });
+        await recipientPage.getByRole('menuitem', { name: 'Leave room', exact: true }).click();
+        const leaveConfirmation = recipientPage.getByRole('dialog');
+        await expect(leaveConfirmation).toContainText(
+          'You will need a new invitation to join this room.'
+        );
+        await leaveConfirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
 
         // Cache the disabled result while the recipient is still a room member.
         await senderRoom.click({ button: 'right' });

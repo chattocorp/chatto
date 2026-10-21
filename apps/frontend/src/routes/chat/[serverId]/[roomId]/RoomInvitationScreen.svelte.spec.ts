@@ -66,7 +66,7 @@ beforeEach(() => {
 describe('Room invitation welcome screen', () => {
   it('shows the inviter and accepts without requiring the ordinary join permission', async () => {
     render(RoomInvitationScreen, { room: room(), serverSegment: '-' });
-    await expect.element(page.getByText('Invited by Alice')).toBeVisible();
+    await expect.element(page.getByTestId('user-identity')).toBeVisible();
     await expect.element(page.getByText('Expires on', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Accept invitation' }).click();
     await vi.waitFor(() => expect(invitations.acceptRoomInvitation).toHaveBeenCalledOnce());
@@ -77,6 +77,26 @@ describe('Room invitation welcome screen', () => {
     expect(goto).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])(
+    'explains later access before declining, join permission=%s',
+    async (canJoin) => {
+      render(RoomInvitationScreen, {
+        room: { ...room(), viewerCanJoinRoom: canJoin },
+        serverSegment: '-'
+      });
+      await page.getByRole('button', { name: 'Decline', exact: true }).click();
+      const dialog = page.getByRole('dialog');
+      await expect
+        .element(dialog)
+        .toHaveTextContent(
+          canJoin ? 'You can join this room later.' : 'You will need a new invitation to join this room.'
+        );
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect.element(dialog).not.toBeInTheDocument();
+      expect(invitations.declineRoomInvitation).not.toHaveBeenCalled();
+    }
+  );
+
   it('keeps decline available when acceptance is unavailable', async () => {
     render(RoomInvitationScreen, { room: room(false), serverSegment: '-' });
     await expect.element(page.getByRole('button', { name: 'Accept invitation' })).toBeDisabled();
@@ -84,6 +104,8 @@ describe('Room invitation welcome screen', () => {
       .element(page.getByText('This invitation cannot be accepted at present.', { exact: false }))
       .toBeVisible();
     await page.getByRole('button', { name: 'Decline', exact: true }).click();
+    expect(invitations.declineRoomInvitation).not.toHaveBeenCalled();
+    await page.getByRole('dialog').getByRole('button', { name: 'Decline', exact: true }).click();
     await vi.waitFor(() => expect(invitations.declineRoomInvitation).toHaveBeenCalledOnce());
     expect(receivedRequest(invitations.declineRoomInvitation)).toMatchObject({
       invitationId: 'invite-1'
@@ -97,8 +119,12 @@ describe('Room invitation welcome screen', () => {
     );
     render(RoomInvitationScreen, { room: room(), serverSegment: '-' });
     await page.getByRole('button', { name: 'Decline', exact: true }).click();
+    expect(invitations.declineRoomInvitation).not.toHaveBeenCalled();
+    await page.getByRole('dialog').getByRole('button', { name: 'Decline', exact: true }).click();
     await expect.element(page.getByRole('alert')).toBeVisible();
-    await expect.element(page.getByRole('button', { name: 'Decline', exact: true })).toBeEnabled();
+    await expect
+      .element(page.getByRole('dialog').getByRole('button', { name: 'Decline', exact: true }))
+      .toBeEnabled();
     expect(goto).not.toHaveBeenCalled();
   });
 
@@ -118,6 +144,8 @@ describe('Room invitation welcome screen', () => {
     });
     render(RoomInvitationScreen, { room: room(), serverSegment: '-' });
     await page.getByRole('button', { name: 'Decline', exact: true }).click();
+    expect(invitations.declineRoomInvitation).not.toHaveBeenCalled();
+    await page.getByRole('dialog').getByRole('button', { name: 'Decline', exact: true }).click();
     await vi.waitFor(() => expect(invitations.declineRoomInvitation).toHaveBeenCalledOnce());
     scope.current = false;
     finish();

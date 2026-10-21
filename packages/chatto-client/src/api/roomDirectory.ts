@@ -42,6 +42,8 @@ export type DirectoryRoomSummary = {
   lastRootMessageAt?: string | null;
   canReadMessages: boolean | null;
   canJoinRoom: boolean;
+  /** Joining authority without an invitation, including current members; absent on older servers. */
+  canRejoin?: boolean;
   canManageRoom: boolean;
 };
 
@@ -227,6 +229,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
       RoomPermission.ReadInteractions
     ]),
     canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
+    canRejoin: entry.viewerState?.canRejoin,
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };
 }

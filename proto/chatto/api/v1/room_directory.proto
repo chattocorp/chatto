@@ -23,6 +23,9 @@ message RoomViewerState {
   google.protobuf.Timestamp slow_mode_next_post_at = 4;
   // Pending invitation for this viewer; does not grant access to room content.
   RoomInvitation invitation = 5;
+  // Whether current permissions and room state allow joining without an invitation,
+  // even if already a member. Absent on servers that do not report this decision.
+  optional bool can_rejoin = 6;
 }
 
 // Room kinds to include in directory responses.

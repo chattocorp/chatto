@@ -35,8 +35,11 @@
     "leave": {
       "title": "Forlat rom",
       "action": "Forlat rom",
-      "prompt": "Er du sikker på at du vil forlate #{room}? Du kan bli med igjen senere.",
-      "failed": "Kunne ikke forlate rommet"
+      "prompt": "Er du sikker på at du vil forlate #{room}?",
+      "failed": "Kunne ikke forlate rommet",
+      "join_later": "Du kan bli med igjen senere.",
+      "need_invite": "Du trenger en ny invitasjon for å bli med i dette rommet.",
+      "rejoin_unknown": "Du kan trenge en ny invitasjon for å bli med igjen."
     },
     "directory": {
       "universal_title": "Universalrom slås sammen automatisk",
@@ -318,7 +321,6 @@
       "invite": "Inviter medlem",
       "invited": "Du har blitt invitert",
       "sent": "Invitasjoner sendt",
-      "sender": "Invitert av {name}",
       "expires": "Utløper {date}",
       "unavailable": "Du kan ikke godta denne invitasjonen nå. Du kan fortsatt avslå den.",
       "accept": "Godta invitasjon",
@@ -328,7 +330,11 @@
       "members": "Medlemmer",
       "send": "Send invitasjoner",
       "failed": "Kunne ikke invitere {name}: {error}",
-      "already_member": "Allerede i dette rommet"
+      "already_member": "Allerede i dette rommet",
+      "invited_by": "Du har blitt invitert av",
+      "decline_title": "Avslå invitasjonen?",
+      "decline_join_later": "Du kan bli med i dette rommet senere.",
+      "decline_need_invite": "Du trenger en ny invitasjon for å bli med i dette rommet."
     }
   }
 }

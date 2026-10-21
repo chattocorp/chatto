@@ -28,6 +28,10 @@ channel room. The recipient accepts or declines in the room welcome screen.
 - An invitation icon identifies the room. Opening it shows the inviter,
   expiry, and Accept invitation and Decline buttons. Protected room content
   stays unavailable until the recipient joins.
+- The inviter's badge opens their user menu. Decline requires confirmation.
+  Decline and leave confirmations explain whether the user can join without
+  an invitation or needs a new invitation. If an older server does not report
+  rejoin authority, the leave confirmation says a new invitation may be needed.
 - Decline and expiry remove the invitation entry. Ordinary room visibility
   rules still apply. A group with no visible content disappears.
 - Invitations apply to human accounts in active, non-universal channel rooms.

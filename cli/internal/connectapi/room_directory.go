@@ -156,6 +156,7 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 	viewerState := &apiv1.RoomViewerState{
 		IsMember:  state.IsMember,
 		HasUnread: state.HasUnread,
+		CanRejoin: &state.CanRejoin,
 		Permissions: permissionGrants(
 			permissionGrant(core.PermCallStart, state.CallPermissions.Start),
 			permissionGrant(core.PermCallJoin, state.CallPermissions.Join),

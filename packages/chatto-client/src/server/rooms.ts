@@ -25,6 +25,8 @@ export type RoomListItem = {
   viewerIsMember: boolean | null;
   viewerCanReadMessages?: boolean | null;
   viewerCanJoinRoom: boolean;
+  /** Whether current authority permits joining again without an invitation. */
+  viewerCanRejoin?: boolean;
   viewerCanManageRoom: boolean;
   /** For a direct message: whether it has messages. Null for other rooms. */
   hasMessageHistory?: boolean | null;
@@ -111,6 +113,7 @@ export class RoomListView {
           viewerIsMember: room.isMember,
           viewerCanReadMessages: room.canReadMessages,
           viewerCanJoinRoom: room.canJoinRoom,
+          viewerCanRejoin: room.canRejoin,
           viewerInvitation: room.invitation,
           viewerCanInvite: room.canInvite,
           viewerCanManageRoom: room.canManageRoom,

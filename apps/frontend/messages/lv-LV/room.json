@@ -35,8 +35,11 @@
     "leave": {
       "title": "Atstāj istabu",
       "action": "Atstāj istabu",
-      "prompt": "Vai tiešām vēlaties atstāt #{room}? Varat pievienoties vēlāk.",
-      "failed": "Neizdevās atstāt telpu"
+      "prompt": "Vai tiešām vēlaties atstāt #{room}?",
+      "failed": "Neizdevās atstāt telpu",
+      "join_later": "Varat pievienoties vēlāk.",
+      "need_invite": "Lai pievienotos šai istabai, būs vajadzīgs jauns uzaicinājums.",
+      "rejoin_unknown": "Lai pievienotos vēlreiz, iespējams, būs vajadzīgs jauns uzaicinājums."
     },
     "directory": {
       "universal_title": "Universālās telpas tiek apvienotas automātiski",
@@ -318,7 +321,6 @@
       "invite": "Uzaicināt dalībnieku",
       "invited": "Jūs esat uzaicināts",
       "sent": "Uzaicinājumi nosūtīti",
-      "sender": "Uzaicināja {name}",
       "expires": "Derīgs līdz {date}",
       "unavailable": "Pašlaik jūs nevarat pieņemt šo uzaicinājumu. Jūs joprojām varat to noraidīt.",
       "accept": "Pieņemt uzaicinājumu",
@@ -328,7 +330,11 @@
       "members": "Dalībnieki",
       "send": "Sūtīt uzaicinājumus",
       "failed": "Neizdevās uzaicināt {name}: {error}",
-      "already_member": "Jau ir šajā istabā"
+      "already_member": "Jau ir šajā istabā",
+      "invited_by": "Tevi uzaicināja",
+      "decline_title": "Noraidīt uzaicinājumu?",
+      "decline_join_later": "Šai istabai vari pievienoties vēlāk.",
+      "decline_need_invite": "Lai pievienotos šai istabai, būs vajadzīgs jauns uzaicinājums."
     }
   }
 }

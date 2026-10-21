@@ -810,6 +810,7 @@ Viewer-specific state and permission decisions for one room.
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
 | `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another root message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
 | `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | Pending invitation for this viewer; does not grant access to room content. |
+| `can_rejoin` | `optional bool` | Whether current permissions and room state allow joining without an invitation, even if already a member. Absent on servers that do not report this decision. |
 
 <a id="chatto-api-v1-RoomWithViewerState"></a>
 

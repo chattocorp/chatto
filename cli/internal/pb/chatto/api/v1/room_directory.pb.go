@@ -151,7 +151,10 @@ type RoomViewerState struct {
 	// slow mode is disabled, expired, or bypassed by moderation permissions.
 	SlowModeNextPostAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=slow_mode_next_post_at,json=slowModeNextPostAt,proto3" json:"slow_mode_next_post_at,omitempty"`
 	// Pending invitation for this viewer; does not grant access to room content.
-	Invitation    *RoomInvitation `protobuf:"bytes,5,opt,name=invitation,proto3" json:"invitation,omitempty"`
+	Invitation *RoomInvitation `protobuf:"bytes,5,opt,name=invitation,proto3" json:"invitation,omitempty"`
+	// Whether current permissions and room state allow joining without an invitation,
+	// even if already a member. Absent on servers that do not report this decision.
+	CanRejoin     *bool `protobuf:"varint,6,opt,name=can_rejoin,json=canRejoin,proto3,oneof" json:"can_rejoin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -219,6 +222,13 @@ func (x *RoomViewerState) GetInvitation() *RoomInvitation {
 		return x.Invitation
 	}
 	return nil
+}
+
+func (x *RoomViewerState) GetCanRejoin() bool {
+	if x != nil && x.CanRejoin != nil {
+		return *x.CanRejoin
+	}
+	return false
 }
 
 // Room metadata plus state and capabilities resolved for the authenticated
@@ -1174,7 +1184,7 @@ var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a$chatto/api/v1/room_invitations.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x02\n" +
+	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a$chatto/api/v1/room_invitations.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x02\n" +
 	"\x0fRoomViewerState\x12\x1b\n" +
 	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x1d\n" +
 	"\n" +
@@ -1183,7 +1193,10 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\x16slow_mode_next_post_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x12slowModeNextPostAt\x12=\n" +
 	"\n" +
 	"invitation\x18\x05 \x01(\v2\x1d.chatto.api.v1.RoomInvitationR\n" +
-	"invitation\"\xd3\x04\n" +
+	"invitation\x12\"\n" +
+	"\n" +
+	"can_rejoin\x18\x06 \x01(\bH\x00R\tcanRejoin\x88\x01\x01B\r\n" +
+	"\v_can_rejoin\"\xd3\x04\n" +
 	"\x13RoomWithViewerState\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\x12A\n" +
 	"\fviewer_state\x18\x0e \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerState\x12&\n" +
@@ -1350,6 +1363,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 	file_chatto_api_v1_room_invitations_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_rooms_proto_init()
+	file_chatto_api_v1_room_directory_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_api_v1_room_directory_proto_msgTypes[1].OneofWrappers = []any{}
 	file_chatto_api_v1_room_directory_proto_msgTypes[3].OneofWrappers = []any{
 		(*RoomGroupItem_Room)(nil),
