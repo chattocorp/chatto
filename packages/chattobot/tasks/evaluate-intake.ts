@@ -46,7 +46,12 @@ const cases = [
 const emojiActions = ['like', 'love', 'smile'];
 const acknowledgments = [
   { name: 'ack-thanks', replies: ['Thanks for explaining!'], action: emojiActions },
-  { name: 'ack-friendly', replies: ['That Chatto joke made me smile!'], action: emojiActions },
+  {
+    name: 'ack-friendly',
+    bot: 'Why did the Chatto message bring a ladder? To reach the top of the thread.',
+    replies: ['That Chatto joke made me smile!'],
+    action: emojiActions
+  },
   {
     name: 'ack-mixed-question',
     replies: ['Thanks!', 'How do I upgrade Chatto?'],
@@ -55,7 +60,7 @@ const acknowledgments = [
   { name: 'ack-approval', replies: ['Yes, please file that issue.'], action: 'engage' },
   { name: 'ack-unrelated', replies: ['Write me a recipe for pizza.'], action: 'ignore' },
   { name: 'ack-stop', replies: ['Please stop replying now.'], action: 'ignore' }
-];
+].map((item) => ({ bot: 'I can file an issue for this Chatto problem if you want.', ...item }));
 
 /** These fixtures exercise participation in an existing thread, without an explicit ping. */
 const followUps = [
@@ -414,11 +419,10 @@ export default task(
         engage: item.action === 'engage',
         action: item.action,
         input: {
-          addressed: true,
           context: [
             {
               role: 'bot' as const,
-              body: 'I can file an issue for this Chatto problem if you want.'
+              body: item.bot
             }
           ],
           messages: item.replies.map((body) => ({ body, attachmentTypes: [] }))

@@ -18,11 +18,14 @@ See [the TODO list](docs/TODO.md) for planned work and experiments.
 2. The router sends each message to the conversation run of its thread. When a
    thread has no run, the router starts one.
 3. The participation classifier chooses silence, an emoji acknowledgment, or a
-   conversation turn. Mentions, direct replies, and new DMs also pass this check.
+   conversation turn for automatic intake and ordinary thread replies. Verified
+   mentions, replies to the bot, and DMs always reach the conversation.
    The workflow adds emoji acknowledgments without starting the conversation agent.
 4. The conversation answers accepted messages in turns. A turn includes all messages
    that arrived since the previous turn, and the other new messages in the
-   thread as context. The first turn includes the thread so far.
+   thread as context. The first turn includes the thread so far. Replies lead with
+   the answer or next action, usually in one short paragraph. The bot gives more
+   detail when requested or needed.
 5. The agent's final text is posted to the thread as the reply.
 
 A conversation ends after one hour without an addressed message or an accepted
@@ -118,7 +121,7 @@ This tool is limited to the active automatic-intake conversation. Reactions rema
 after expiry or restart. Recovered conversations retain intake status; a new
 conversation after expiry does not recover it.
 
-Mentions, replies to the bot, and direct messages also pass classification.
+Mentions, replies to the bot, and direct messages bypass participation classification.
 Bot posts, forwarded copies, and existing history do not start intake.
 `CHATTO_ALLOWED_USER_ID` also applies to intake.
 
@@ -129,9 +132,9 @@ bot with that request. The classifier does not grant permissions.
 Duplicate intake deliveries are suppressed for 24 hours in the running
 process, including source reloads. A process restart clears this memory.
 Failed classifications are not retried automatically. A mention received during
-classification cancels that check. The addressed batch receives its own
-classification before it can start the conversation child. It does not add a
-second intake turn or start another run.
+classification cancels that check. The verified addressed batch starts the
+conversation child directly. It does not add a second intake turn or start
+another run.
 
 ## Automatic thread follow-ups
 
@@ -149,9 +152,9 @@ kept separate. The window runs while the agent is busy, so it adds no further wa
 when the agent becomes available after the window has ended.
 
 All DM messages, including thread replies, are addressed input. DMs, explicit
-mentions, replies to the bot, and ordinary thread replies pass the participation
-classifier before a conversation turn. Reactions to the bot's messages pass a
-separate participation check. A current maintainer's accepted DM can authorize
+mentions, and verified replies to the bot always reach a conversation turn.
+Ordinary thread replies and reactions to the bot's messages still pass participation
+checks. A current maintainer's DM can authorize
 restricted work without a mention. Channel thread replies still need a mention
 or a verified reply to the bot to provide authorization.
 
@@ -177,7 +180,7 @@ next steps also qualify. One clear reply to the bot is sufficient for a batch;
 earlier vague remarks do not outweigh it. Discussion of the same topic,
 human-to-human questions, brainstorming, and status updates do not qualify on
 their own. Uncertain cases and requests to leave the conversation to humans
-stay silent. Simple thanks to the bot can receive an emoji acknowledgment.
+stay silent. Simple unaddressed thanks to the bot can receive an emoji acknowledgment.
 For automatic-intake conversations, clear resolutions and report withdrawals also
 reach the conversation agent so it can update the checkmark.
 
@@ -818,3 +821,11 @@ or a live GitHub integration test. These evaluations are separate from the
 deterministic tests in `mise test-chattobot`.
 
 Read [AGENTS.md](AGENTS.md) before you add a tool or change the conversation.
+
+### Response style evaluation
+
+Run `pnpm eval:style` to check concise replies and summaries with the configured
+conversation model. The thread history is synthetic. Chatto and documentation
+services are not contacted; only the model provider receives the test prompts.
+The checks retain known facts while limiting word counts, repeated questions,
+and generic offers of more help. A pass is a behavior sample, not a guarantee.

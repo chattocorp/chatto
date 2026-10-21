@@ -210,7 +210,7 @@ async function run(
   return inputs;
 }
 
-test('ordinary mentions and opted-in roots classify once before conversation', async () => {
+test('ordinary mentions bypass classification and opted-in roots classify once', async () => {
   const inputs = await run([
     event('root'),
     event('root'),
@@ -226,7 +226,7 @@ test('ordinary mentions and opted-in roots classify once before conversation', a
   expect(inputs).toHaveLength(2);
   // Intake owns the conversation child: the host registers no second run for the report.
   expect(mocks.started.mock.calls).toEqual([['Chatto thread'], ['Chatto thread']]);
-  expect(mocks.classify).toHaveBeenCalledTimes(2);
+  expect(mocks.classify).toHaveBeenCalledOnce();
   expect(mocks.classify).toHaveBeenCalledWith({
     body: '',
     attachmentTypes: ['image/png']
@@ -238,10 +238,64 @@ test('maintainer roots skip automatic intake while direct mentions still engage'
     event('maintainer-report', 'intake', 'maintainer'),
     event('ping', 'intake', 'maintainer')
   ]);
-  expect(mocks.classify).toHaveBeenCalledOnce();
+  expect(mocks.classify).not.toHaveBeenCalled();
   expect(inputs).toHaveLength(1);
   expect(inputs[0]).toMatchObject({ id: 'ping' });
 });
+
+test.each(['mention', 'reply'])(
+  'a maintainer %s always reaches the conversation when participation would ignore it',
+  async (kind) => {
+    const { createApi } = fakeChatto({
+      viewerId: 'bot',
+      routes: (router) =>
+        router.service(MessageService, {
+          getMessage: ({ roomId, eventId }) => ({
+            message: {
+              id: eventId,
+              roomId,
+              actorId: eventId === 'bot-message' ? 'bot' : 'maintainer',
+              threadRootEventId: 'root',
+              body: 'Please continue'
+            }
+          })
+        })
+    });
+    const api = createApi({ serverUrl: 'https://chatto.example.test', apiKey: 'fixture' });
+    const inputs = await run(
+      [
+        new RealtimeEvent({
+          id: 'request',
+          actorId: 'maintainer',
+          event: {
+            case: 'messagePosted',
+            value: {
+              roomId: 'ordinary',
+              threadRootEventId: 'root',
+              bodyPlaintext: 'Please continue',
+              inReplyTo: kind === 'reply' ? 'bot-message' : '',
+              mentions: kind === 'mention' ? [{ includesViewer: true }] : []
+            }
+          }
+        })
+      ],
+      {
+        rooms: '',
+        engage: false,
+        addressed: api.addressedMessage.bind(api),
+        storedMessage: new Message({
+          id: 'request',
+          roomId: 'ordinary',
+          threadRootEventId: 'root',
+          actorId: 'maintainer',
+          body: 'Please continue'
+        })
+      }
+    );
+    expect(inputs).toEqual([expect.objectContaining({ id: 'request', authorId: 'maintainer' })]);
+    expect(mocks.classify).not.toHaveBeenCalled();
+  }
+);
 
 test('reactions on bot messages reach recovered threads once with the reacting identity', async () => {
   mocks.getMessage.mockResolvedValue({
@@ -413,7 +467,7 @@ test('a new DM root still starts a direct conversation', async () => {
     })
   ]);
   expect((inputs[0] as IncomingMessage).trigger).toBeUndefined();
-  expect(mocks.classify).toHaveBeenCalledOnce();
+  expect(mocks.classify).not.toHaveBeenCalled();
 });
 
 test('realtime replies in ordinary rooms wake recovered active threads without starting runs', async () => {
@@ -524,11 +578,7 @@ test('an addressed reply outside the recent thread window is read by exact ID', 
   expect(inputs).toEqual([
     expect.objectContaining({ id: 'old-reply', body: 'Current question', threadRootId: 'root' })
   ]);
-  expect(mocks.classify).toHaveBeenCalledWith(
-    expect.objectContaining({
-      messages: [{ body: 'Current question', attachmentTypes: ['image/png'] }]
-    })
-  );
+  expect(mocks.classify).not.toHaveBeenCalled();
   expect(mocks.readMessage).toHaveBeenCalledWith(
     { roomId: 'ordinary', eventId: 'old-reply' },
     expect.objectContaining({ signal: expect.any(AbortSignal) })
