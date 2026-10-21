@@ -24,5 +24,4 @@ minimumReleaseAgeExclude:
   - '@earendil-works/pi-tui@1.0.0'
 
 patchedDependencies:
-  vidstack@1.15.6: patches/vidstack@1.15.6.patch
   virtua@0.53.4: patches/virtua@0.53.4.patch

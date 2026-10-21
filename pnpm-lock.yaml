@@ -5,7 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  vidstack@1.15.6: 9fae5ddcce02e80321dc35039e7be2dd1b39ba7206c07fc09037b3c020aaa133
   virtua@0.53.4: 22972fdd964c511bf544dd1d287b65fa5172e8577ad8645af79cf9007a67f273
 
 importers:
@@ -117,7 +116,7 @@ importers:
         version: 1.261.0
       vidstack:
         specifier: ^1.15.6
-        version: 1.15.6(patch_hash=9fae5ddcce02e80321dc35039e7be2dd1b39ba7206c07fc09037b3c020aaa133)
+        version: 1.15.6
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.13.0
@@ -470,6 +469,21 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(happy-dom@20.14.5)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(tsx@4.23.13)(yaml@2.9.0)
 
+  packages/translatto:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      '@vitest/coverage-v8':
+        specifier: ^4.1.10
+        version: 4.1.10(@vitest/browser@4.1.10)(vitest@4.1.10)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.1)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(happy-dom@20.14.5)(vite@8.3.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+
   packages/runling:
     dependencies:
       '@earendil-works/pi-coding-agent':
@@ -578,21 +592,6 @@ importers:
       zod:
         specifier: ^4.5.4
         version: 4.6.5
-
-  packages/translatto:
-    devDependencies:
-      '@types/node':
-        specifier: ^22.20.1
-        version: 22.20.1
-      '@vitest/coverage-v8':
-        specifier: ^4.1.10
-        version: 4.1.10(@vitest/browser@4.1.10)(vitest@4.1.10)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.20.1)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(happy-dom@20.14.5)(vite@8.3.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
 packages:
 
@@ -14114,7 +14113,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vidstack@1.15.6(patch_hash=9fae5ddcce02e80321dc35039e7be2dd1b39ba7206c07fc09037b3c020aaa133):
+  vidstack@1.15.6:
     dependencies:
       '@floating-ui/dom': 1.8.0
       fscreen: 1.2.0

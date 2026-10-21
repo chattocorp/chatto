@@ -139,6 +139,8 @@ describe('VideoPlayer', () => {
         .toBe(true);
       expect(loadSource).toHaveBeenCalledWith(hlsUrl);
     } finally {
+      // Vidstack otherwise defers destruction until a later animation frame.
+      rendered.container.querySelector<MediaPlayerElement>('media-player')?.destroy();
       await rendered.unmount();
       loadSource.mockRestore();
     }
