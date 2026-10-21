@@ -36,9 +36,14 @@ depends = ["deps-go", "deps-playwright"]
 description = "Install all Authling dependencies"
 depends = ["deps-go", "deps-web"]
 
+[tasks.build-proto-generators]
+description = "Build the pinned protobuf generator before Buf runs"
+depends = ["deps-go"]
+run = "GOWORK=off go build -o bin/proto/ google.golang.org/protobuf/cmd/protoc-gen-go"
+
 [tasks.codegen-proto]
 description = "Generate Authling Go code from protobuf schemas"
-depends = ["deps-go"]
+depends = ["build-proto-generators"]
 run = "GOWORK=off buf generate"
 
 [tasks.codegen-templates]
