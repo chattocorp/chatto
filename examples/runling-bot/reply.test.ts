@@ -105,33 +105,34 @@ function fixture(
   return { workflow, posts, contexts, typing };
 }
 
-test('posts a thread reply through authenticated Connect JSON', async () => {
-  const { workflow, posts } = fixture();
-  const result = await runWorkflow(workflow, { input });
-  assert.equal(result.ok, true);
-  assert.deepEqual(result.output, {
-    deliveryId: 'delivery',
-    status: 'replied',
-    replyId: 'reply'
+// Exercise reply routing in the workflow without starting the Runling web console.
+for (const scenario of [
+  { name: 'root mention', triggers: ['mention' as const], root: null },
+  { name: 'thread mention', triggers: ['mention' as const], root: 'root' },
+  { name: 'new direct message', triggers: ['direct_message' as const], root: null },
+  { name: 'existing DM thread', triggers: ['direct_message' as const], root: 'root' }
+]) {
+  test(`posts a reply to the correct message and thread for a ${scenario.name}`, async () => {
+    const { workflow, posts } = fixture();
+    const result = await runWorkflow(workflow, {
+      input: { ...input, triggers: scenario.triggers, thread_root_id: scenario.root }
+    });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.output, {
+      deliveryId: 'delivery',
+      status: 'replied',
+      replyId: 'reply'
+    });
+    assert.deepEqual(posts, [
+      {
+        roomId: 'room',
+        body: 'Hello from Runling! I received your webhook and replied through the Chatto API.',
+        threadRootEventId: scenario.root ?? 'source',
+        inReplyTo: 'source'
+      }
+    ]);
   });
-  assert.deepEqual(posts, [
-    {
-      roomId: 'room',
-      body: 'Hello from Runling! I received your webhook and replied through the Chatto API.',
-      threadRootEventId: 'source',
-      inReplyTo: 'source'
-    }
-  ]);
-});
-
-test('continues an existing DM thread', async () => {
-  const { workflow, posts } = fixture();
-  const result = await runWorkflow(workflow, {
-    input: { ...input, triggers: ['direct_message'], thread_root_id: 'root' }
-  });
-  assert.equal(result.ok, true);
-  assert.equal((posts[0] as { threadRootEventId: string }).threadRootEventId, 'root');
-});
+}
 
 test("rejects another bot's payload before posting", async () => {
   const { workflow, posts } = fixture({ wrongBot: true });
@@ -152,18 +153,26 @@ test('reports API failures instead of claiming a reply', async () => {
   assert.equal(result.output, null);
 });
 
-test('notifies the user when the model fails and keeps the run failed', async () => {
-  const { workflow, posts } = fixture({ modelFailure: true });
-  assert.equal((await runWorkflow(workflow, { input })).ok, false);
-  assert.deepEqual(posts, [
-    {
-      roomId: 'room',
-      body: "Sorry, I couldn't generate a reply. Please try again.",
-      threadRootEventId: 'source',
-      inReplyTo: 'source'
-    }
-  ]);
-});
+for (const scenario of [
+  { name: 'root mention', triggers: ['mention' as const], root: null },
+  { name: 'DM thread', triggers: ['direct_message' as const], root: 'root' }
+]) {
+  test(`notifies the ${scenario.name} when the model fails and keeps the run failed`, async () => {
+    const { workflow, posts } = fixture({ modelFailure: true });
+    const result = await runWorkflow(workflow, {
+      input: { ...input, triggers: scenario.triggers, thread_root_id: scenario.root }
+    });
+    assert.equal(result.ok, false);
+    assert.deepEqual(posts, [
+      {
+        roomId: 'room',
+        body: "Sorry, I couldn't generate a reply. Please try again.",
+        threadRootEventId: scenario.root ?? 'source',
+        inReplyTo: 'source'
+      }
+    ]);
+  });
+}
 
 test('channel pings preload the thread in order, including the root and bot replies', async () => {
   const { workflow, contexts } = fixture();

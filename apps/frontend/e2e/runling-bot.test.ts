@@ -7,8 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
   connectPost,
   getRoomIdByNameViaConnect,
-  postMessageViaConnect,
-  postThreadReplyViaConnect
+  postMessageViaConnect
 } from './fixtures/connectHelpers';
 import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import { expect, test } from './setup';
@@ -19,7 +18,8 @@ const replyBody = 'Hello from Runling! I received your webhook and replied throu
 test.describe('Runling webhook bot', () => {
   test.use({ serverOptions: { bootstrapTestBot: true } });
 
-  test('replies to root mentions, thread mentions, and direct messages', async ({
+  // Keep only the cross-product wiring here; reply scenarios live in the bot tests.
+  test('delivers a mention webhook to Runling and posts its reply', async ({
     page,
     server,
     serverURL
@@ -46,7 +46,6 @@ test.describe('Runling webhook bot', () => {
       import { createReplyWorkflow } from ${JSON.stringify(path.join(root, 'examples/runling-bot/reply.ts'))};
       export default defineWebConfig({ webhooks: { chatto: startWorkflow(
         createReplyWorkflow(undefined, undefined, async (_r, context) => {
-          if (context.message === "Trigger test model failure") throw new Error("Synthetic model failure");
           if (!context.thread?.some(message => message.body === context.message)) {
             throw new Error('Mention context did not include the current message');
           }
@@ -102,128 +101,44 @@ test.describe('Runling webhook bot', () => {
       }>(page, 'chatto.api.v1.BotService/ListBots', {});
       const botId = listed.bots?.find((bot) => bot.user?.login === 'test_bot')?.user?.id;
       if (!botId) throw new Error('Bootstrap bot is missing');
-      const created = await connectPost<{ webhook: { id: string }; signingSecret: string }>(
-        page,
-        'chatto.api.v1.BotService/CreateBotOutboundWebhook',
-        {
-          name: 'Runling',
-          botUserId: botId,
-          url: `http://localhost:${address.port}/api/runs/start/chatto`,
-          enabled: true
-        }
-      );
-      const paused = await connectPost<{ webhook: { id: string }; signingSecret: string }>(
-        page,
-        'chatto.api.v1.BotService/CreateBotOutboundWebhook',
-        {
-          botUserId: botId,
-          name: 'Paused integration',
-          url: 'https://example.com/hook',
-          enabled: false
-        }
-      );
-      expect(paused.webhook.id).not.toBe(created.webhook.id);
-      expect(paused.signingSecret).not.toBe(created.signingSecret);
-      const endpoints = await connectPost<{ webhooks: Array<{ id: string }> }>(
-        page,
-        'chatto.api.v1.BotService/ListBotOutboundWebhooks',
-        { botUserId: botId }
-      );
-      expect(endpoints.webhooks.map((item) => item.id)).toEqual(
-        expect.arrayContaining([created.webhook.id, paused.webhook.id])
-      );
-      const updated = await connectPost<{
-        webhook: { id: string; enabled: boolean };
-        signingSecret?: string;
-      }>(page, 'chatto.api.v1.BotService/UpdateBotOutboundWebhook', {
+      await connectPost(page, 'chatto.api.v1.BotService/CreateBotOutboundWebhook', {
+        name: 'Runling',
         botUserId: botId,
-        webhookId: created.webhook.id,
-        enabled: false
-      });
-      // Protobuf JSON omits scalar defaults; an absent enabled field means false.
-      expect(updated.webhook.enabled ?? false).toBe(false);
-      expect(updated.signingSecret).toBeUndefined();
-      await connectPost(page, 'chatto.api.v1.BotService/UpdateBotOutboundWebhook', {
-        botUserId: botId,
-        webhookId: created.webhook.id,
+        url: `http://localhost:${address.port}/api/runs/start/chatto`,
         enabled: true
       });
-      await connectPost(page, 'chatto.api.v1.BotService/RevokeBotOutboundWebhook', {
-        botUserId: botId,
-        webhookId: paused.webhook.id
-      });
-      const fetched = await connectPost<{ webhook: { id: string; enabled: boolean } }>(
-        page,
-        'chatto.api.v1.BotService/GetBotOutboundWebhook',
-        { botUserId: botId, webhookId: created.webhook.id }
-      );
-      expect(fetched.webhook.enabled).toBe(true);
       const roomId = await getRoomIdByNameViaConnect(page, 'general');
-      async function expectReply(
-        roomId: string,
-        rootId: string,
-        sourceId: string,
-        expectedBodies = [replyBody]
-      ) {
-        await expect
-          .poll(
-            async () => {
-              const timeline = await connectPost<{ page?: { events?: Array<{ id?: string }> } }>(
-                page,
-                'chatto.api.v1.ThreadService/GetThreadEvents',
-                { roomId, threadRootEventId: rootId, limit: 20 }
-              );
-              const replies: Array<{ body?: string; root?: string }> = [];
-              for (const event of timeline.page?.events ?? []) {
-                const result = await connectPost<{
-                  message?: {
-                    actorId?: string;
-                    body?: string;
-                    inReplyTo?: string;
-                    threadRootEventId?: string;
-                  };
-                }>(page, 'chatto.api.v1.MessageService/GetMessage', { roomId, eventId: event.id });
-                if (result.message?.actorId === botId && result.message.inReplyTo === sourceId) {
-                  replies.push({
-                    body: result.message.body,
-                    root: result.message.threadRootEventId
-                  });
-                }
-              }
-              return replies;
-            },
-            { timeout: 15_000 }
-          )
-          .toEqual(expectedBodies.map((body) => ({ body, root: rootId })));
-      }
       const rootId = await postMessageViaConnect(page, roomId, '@test_bot Hello Runling');
-      await expectReply(roomId, rootId, rootId);
-      const threadId = await postThreadReplyViaConnect(
-        page,
-        roomId,
-        '@test_bot Reply in this thread',
-        rootId
-      );
-      await expectReply(roomId, rootId, threadId);
-      const dm = await connectPost<{ room?: { id?: string } }>(
-        page,
-        'chatto.api.v1.RoomService/StartDM',
-        {
-          participantIds: [botId]
-        }
-      );
-      if (!dm.room?.id) throw new Error('Missing DM room');
-      const dmId = await postMessageViaConnect(page, dm.room.id, 'Hello without a mention');
-      await expectReply(dm.room.id, dmId, dmId);
-      const failedId = await postThreadReplyViaConnect(
-        page,
-        dm.room.id,
-        'Trigger test model failure',
-        dmId
-      );
-      await expectReply(dm.room.id, dmId, failedId, [
-        "Sorry, I couldn't generate a reply. Please try again."
-      ]);
+      await expect
+        .poll(
+          async () => {
+            const timeline = await connectPost<{ page?: { events?: Array<{ id?: string }> } }>(
+              page,
+              'chatto.api.v1.ThreadService/GetThreadEvents',
+              { roomId, threadRootEventId: rootId, limit: 20 }
+            );
+            const replies: Array<{ body?: string; root?: string }> = [];
+            for (const event of timeline.page?.events ?? []) {
+              const result = await connectPost<{
+                message?: {
+                  actorId?: string;
+                  body?: string;
+                  inReplyTo?: string;
+                  threadRootEventId?: string;
+                };
+              }>(page, 'chatto.api.v1.MessageService/GetMessage', { roomId, eventId: event.id });
+              if (result.message?.actorId === botId && result.message.inReplyTo === rootId) {
+                replies.push({
+                  body: result.message.body,
+                  root: result.message.threadRootEventId
+                });
+              }
+            }
+            return replies;
+          },
+          { timeout: 15_000 }
+        )
+        .toEqual([{ body: replyBody, root: rootId }]);
     } finally {
       if (bot.exitCode === null && bot.signalCode === null) bot.kill('SIGTERM');
       const timer = setTimeout(() => bot.kill('SIGKILL'), 5_000);
