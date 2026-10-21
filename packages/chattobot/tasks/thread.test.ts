@@ -9,7 +9,7 @@ import {
 } from 'runling';
 import { IncomingMessage, ConversationInput, ConversationStart } from '../chatto/message.ts';
 import { IntakeDecision, IntakeInput } from './classify-intake.ts';
-import { createThreadWorkflow } from './thread.ts';
+import { createThreadWorkflow, type ThreadOptions } from './thread.ts';
 import type { FollowUpSnapshot, ReadFollowUp } from '../chatto/follow-up.ts';
 import { createFollowUpReader } from '../chatto/follow-up.ts';
 
@@ -28,6 +28,7 @@ function harness(
   readable = true,
   options: {
     readFollowUp?: ReadFollowUp;
+    readReactionContext?: ThreadOptions['readReactionContext'];
     intervalMs?: number;
     batchMs?: number;
     idleMs?: number;
@@ -85,6 +86,7 @@ function harness(
     classifier,
     conversation,
     read,
+    readReactionContext: async () => [],
     readFollowUp: async () => undefined,
     batchMs: 0,
     ...options
@@ -770,6 +772,215 @@ test('an inactivity deadline does not close delivery while the child is still wo
   await run.steer(reply);
   ready.resolve();
   await vi.waitFor(() => expect(h.received).toEqual([ping, reply]));
+  run.closeSteering();
+  await run.result;
+});
+
+/** The reacted-to text is a completed answer, not a new request from its author. */
+const appreciation: IncomingMessage = {
+  ...ping,
+  id: 'reaction-thanks',
+  body: '+1',
+  reaction: {
+    emoji: '+1',
+    messageId: 'bot-answer',
+    body: '#1013 — Invite server member to room covers this request.'
+  }
+};
+
+test('appreciation on a completed answer does not open a conversation', async () => {
+  const context = [{ role: 'bot' as const, body: appreciation.reaction!.body }];
+  const h = harness(async () => false, true, { readReactionContext: async () => context });
+  await using run = h.start(appreciation);
+  await run.result;
+  expect(h.received).toEqual([]);
+  expect(h.read).not.toHaveBeenCalled();
+  expect(h.classify).toHaveBeenCalledExactlyOnceWith({ context, reaction: appreciation.reaction });
+});
+
+test.each(['maintainer', 'human'])(
+  'accepted proposal reactions retain the %s identity, event ID, and exact target',
+  async (authorId) => {
+    const approval = {
+      ...appreciation,
+      authorId,
+      reaction: { ...appreciation.reaction!, body: 'Should I file the image upload issue?' }
+    };
+    const h = harness(async () => true);
+    await using run = h.start(approval);
+    await vi.waitFor(() => expect(h.received).toEqual([approval]));
+    run.closeSteering();
+    await run.result;
+  }
+);
+
+test.each([false, true])(
+  'mixed opening batches keep text and only accepted reactions (%s)',
+  async (engage) => {
+    const h = harness(async () => engage, true, { batchMs: 20 });
+    await using run = h.start(appreciation);
+    await run.steer(ping);
+    await vi.waitFor(() => expect(h.received).toEqual(engage ? [appreciation, ping] : [ping]));
+    expect(h.classify).toHaveBeenCalledOnce();
+    run.closeSteering();
+    await run.result;
+  }
+);
+
+test('an active thread checks each reaction once and does not forward ignored reactions in mixed batches', async () => {
+  let engage = false;
+  const h = harness(async () => engage, true, { batchMs: 10 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  const next = { ...ping, id: 'next' };
+  await run.steer(appreciation);
+  await run.steer(appreciation);
+  await run.steer(next);
+  await vi.waitFor(() => expect(h.received).toEqual([ping, next]));
+  expect(h.classify).toHaveBeenCalledOnce();
+  engage = true;
+  const approval = { ...appreciation, id: 'approval' };
+  await run.steer(appreciation);
+  await run.steer(approval);
+  await run.steer(approval);
+  await vi.waitFor(() => expect(h.received).toEqual([ping, next, approval]));
+  expect(h.classify).toHaveBeenCalledTimes(2);
+  run.closeSteering();
+  await run.result;
+});
+
+test.each(['context', 'classifier'])(
+  'reaction %s failure preserves explicit messages and consumes the reaction',
+  async (failure) => {
+    const fail = async (): Promise<never> => {
+      throw new Error('fixture unavailable');
+    };
+    const h = harness(failure === 'classifier' ? fail : async () => true, true, {
+      batchMs: 10,
+      readReactionContext: failure === 'context' ? fail : async () => []
+    });
+    await using run = h.start(appreciation);
+    await run.steer(ping);
+    await vi.waitFor(() => expect(h.received).toEqual([ping]));
+    await run.steer(appreciation);
+    run.closeSteering();
+    await run.result;
+    expect(h.received).toEqual([ping]);
+    expect(h.classify).toHaveBeenCalledTimes(failure === 'classifier' ? 1 : 0);
+  }
+);
+
+test('a ping received during a rejected opening reaction check is not lost', async () => {
+  const decision = Promise.withResolvers<boolean>();
+  const h = harness(() => decision.promise);
+  await using run = h.start(appreciation);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer(ping);
+  decision.resolve(false);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  run.closeSteering();
+  await run.result;
+});
+
+test('recovery does not repeat checked reactions and still classifies fresh ones', async () => {
+  const h = harness(async () => true);
+  const messages = createChannel<IncomingMessage>();
+  const run = runWorkflow(h.workflow, {
+    input: ping,
+    state: {
+      first: ping,
+      delivered: [ping.id],
+      checkedReactions: [appreciation.id],
+      lastActivity: Date.now()
+    },
+    run: { id: 'reaction-recovery', resumed: true },
+    messages
+  });
+  const fresh = { ...appreciation, id: 'fresh-reaction' };
+  messages.send(appreciation);
+  messages.send(fresh);
+  await vi.waitFor(() => expect(h.received).toEqual([fresh]));
+  messages.close();
+  expect((await run).ok).toBe(true);
+  expect(h.classify).toHaveBeenCalledOnce();
+});
+
+test('one accepted reaction does not admit appreciation from the same window', async () => {
+  const decisions = [false, true];
+  const h = harness(async () => decisions.shift()!, true, { batchMs: 20 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  const approval = {
+    ...appreciation,
+    id: 'proposal-approval',
+    reaction: { ...appreciation.reaction!, body: 'Should I file the image issue?' }
+  };
+  const next = { ...ping, id: 'new-question' };
+  await run.steer(appreciation);
+  await run.steer(approval);
+  await run.steer(next);
+  await vi.waitFor(() => expect(h.received).toEqual([ping, approval, next]));
+  expect(h.batches).toEqual([[approval, next]]);
+  run.closeSteering();
+  await run.result;
+});
+
+test('an ignored reaction cannot suppress the report whose intake it interrupted', async () => {
+  const decision = Promise.withResolvers<boolean>();
+  let calls = 0;
+  const h = harness(async () => {
+    calls++;
+    if (calls === 1) return decision.promise;
+    return calls === 3;
+  });
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer(appreciation);
+  await vi.waitFor(() => expect(h.received).toEqual([{ ...message, body: 'Current report' }]));
+  expect(h.classify).toHaveBeenCalledTimes(3);
+  decision.resolve(false);
+  run.closeSteering();
+  await run.result;
+});
+
+test('a ping during retried intake after an ignored reaction is not discarded', async () => {
+  const retry = Promise.withResolvers<boolean>();
+  let calls = 0;
+  const h = harness(async () => {
+    calls++;
+    if (calls === 1) return new Promise<boolean>(() => {});
+    if (calls === 2) return false;
+    return retry.promise;
+  });
+  await using run = h.start();
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer(appreciation);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledTimes(3));
+  await run.steer(ping);
+  retry.resolve(false);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  run.closeSteering();
+  await run.result;
+});
+
+test('an ignored reaction resumes a pending ordinary reply check without waiting for reconciliation', async () => {
+  const reactionDecision = Promise.withResolvers<boolean>();
+  const reading = Promise.withResolvers<FollowUpSnapshot>();
+  let calls = 0;
+  const h = harness(async () => (++calls === 1 ? reactionDecision.promise : true), true, {
+    readFollowUp: async () => reading.promise,
+    batchMs: 10,
+    intervalMs: 60_000
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await run.steer(appreciation);
+  await run.steer(snapshot('one').messages[0]!.message);
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  reading.resolve(snapshot('one'));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  reactionDecision.resolve(false);
+  await vi.waitFor(() => expect(h.received.map((item) => item.id)).toEqual(['ping', 'one']));
   run.closeSteering();
   await run.result;
 });

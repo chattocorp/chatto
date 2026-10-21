@@ -73,6 +73,7 @@ async function run(
   events: RealtimeEvent[],
   {
     rooms = 'intake',
+    engage = true,
     allowed = '',
     botAuthor = false,
     missing = false,
@@ -80,6 +81,7 @@ async function run(
     addressed
   }: {
     rooms?: string;
+    engage?: boolean;
     allowed?: string;
     botAuthor?: boolean;
     missing?: boolean;
@@ -98,7 +100,7 @@ async function run(
   vi.stubEnv('CHATTO_GITHUB_APP_PRIVATE_KEY_FILE', '');
   vi.stubEnv('CHATTO_GITHUB_REPOSITORY', '');
   mocks.ready.mockResolvedValue({ viewerId: 'bot' });
-  mocks.classify.mockResolvedValue({ engage: true, reason: 'bug' });
+  mocks.classify.mockResolvedValue({ engage, reason: 'fixture' });
   mocks.addressedMessage.mockImplementation(
     addressed ??
       (async (event: RealtimeEvent) =>
@@ -259,33 +261,50 @@ test('reactions on bot messages reach recovered threads once with the reacting i
   expect(mocks.started).not.toHaveBeenCalled();
 });
 
-test('a reaction can reopen a conversation without automatic intake', async () => {
-  mocks.getMessage.mockResolvedValue({
-    id: 'proposal',
-    roomId: 'ordinary',
-    threadRootId: 'root',
-    authorId: 'bot',
-    body: 'Shall I file the issue?'
-  });
-  const inputs = await run([
-    new RealtimeEvent({
-      id: 'approval',
-      actorId: 'human',
-      event: {
-        case: 'reactionAdded',
-        value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
-      }
-    })
-  ]);
-  expect(inputs).toEqual([
-    expect.objectContaining({
-      id: 'approval',
-      authorId: 'human',
-      reaction: expect.objectContaining({ messageId: 'proposal' })
-    })
-  ]);
-  expect(mocks.classify).not.toHaveBeenCalled();
-});
+test.each([true, false])(
+  'a reaction reopens a conversation only when classified as engage=%s',
+  async (engage) => {
+    mocks.getMessage.mockResolvedValue({
+      id: 'proposal',
+      roomId: 'ordinary',
+      threadRootId: 'root',
+      authorId: 'bot',
+      body: 'Shall I file the issue?'
+    });
+    const inputs = await run(
+      [
+        new RealtimeEvent({
+          id: 'approval',
+          actorId: 'human',
+          event: {
+            case: 'reactionAdded',
+            value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
+          }
+        })
+      ],
+      { engage }
+    );
+    expect(inputs).toEqual(
+      engage
+        ? [
+            expect.objectContaining({
+              id: 'approval',
+              authorId: 'human',
+              reaction: expect.objectContaining({ messageId: 'proposal' })
+            })
+          ]
+        : []
+    );
+    expect(mocks.classify).toHaveBeenCalledExactlyOnceWith({
+      context: [{ role: 'human', body: '' }],
+      reaction: { emoji: '+1', messageId: 'proposal', body: 'Shall I file the issue?' }
+    });
+    expect(mocks.readThread).toHaveBeenCalledWith(
+      { roomId: 'ordinary', threadRootId: 'root' },
+      { signal: expect.any(AbortSignal), limit: 20 }
+    );
+  }
+);
 
 test.each([RoomKind.DM, RoomKind.CHANNEL])(
   'thread addressing uses the same rules for room kind %s',
