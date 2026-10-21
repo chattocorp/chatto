@@ -108,7 +108,6 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
         typing: async () => {},
         acknowledge: async () => {},
         setHandled: async () => {},
-        react: async () => {},
         readThread: async () => ({
           messages: clarification
             ? [

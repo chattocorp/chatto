@@ -100,7 +100,7 @@ async function run(
   vi.stubEnv('CHATTO_GITHUB_APP_PRIVATE_KEY_FILE', '');
   vi.stubEnv('CHATTO_GITHUB_REPOSITORY', '');
   mocks.ready.mockResolvedValue({ viewerId: 'bot' });
-  mocks.classify.mockResolvedValue({ engage, reason: 'fixture' });
+  mocks.classify.mockResolvedValue({ action: engage ? 'engage' : 'ignore', reason: 'fixture' });
   mocks.addressedMessage.mockImplementation(
     addressed ??
       (async (event: RealtimeEvent) =>
@@ -115,7 +115,9 @@ async function run(
           : undefined)
   );
   mocks.batchGetUsers.mockResolvedValue({
-    users: [{ user: { id: 'human', ...(botAuthor ? { bot: {} } : {}) } }]
+    users: ['human', 'maintainer'].map((id) => ({
+      user: { id, ...(botAuthor ? { bot: {} } : {}) }
+    }))
   });
   mocks.readThread.mockImplementation(async ({ threadRootId }: { threadRootId: string }) => ({
     messages: missing
@@ -123,7 +125,7 @@ async function run(
       : [
           {
             id: threadRootId,
-            authorId: 'human',
+            authorId: events.find((event) => event.id === threadRootId)?.actorId ?? 'human',
             body: '',
             attachments: [{ contentType: 'image/png' }],
             fromViewer: false
@@ -191,7 +193,7 @@ async function run(
   return inputs;
 }
 
-test('ordinary mentions bypass intake and opted-in roots classify once before conversation', async () => {
+test('ordinary mentions and opted-in roots classify once before conversation', async () => {
   const inputs = await run([
     event('root'),
     event('root'),
@@ -200,14 +202,15 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
   ]);
   expect(inputs).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ id: 'ping', body: 'Hello' }),
+      expect.objectContaining({ id: 'ping', body: '' }),
       expect.objectContaining({ id: 'root', authorId: 'human', body: '', trigger: 'intake' })
     ])
   );
   expect(inputs).toHaveLength(2);
   // Intake owns the conversation child: the host registers no second run for the report.
   expect(mocks.started.mock.calls).toEqual([['Chatto thread'], ['Chatto thread']]);
-  expect(mocks.classify).toHaveBeenCalledExactlyOnceWith({
+  expect(mocks.classify).toHaveBeenCalledTimes(2);
+  expect(mocks.classify).toHaveBeenCalledWith({
     body: '',
     attachmentTypes: ['image/png']
   });
@@ -218,7 +221,7 @@ test('maintainer roots skip automatic intake while direct mentions still engage'
     event('maintainer-report', 'intake', 'maintainer'),
     event('ping', 'intake', 'maintainer')
   ]);
-  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.classify).toHaveBeenCalledOnce();
   expect(inputs).toHaveLength(1);
   expect(inputs[0]).toMatchObject({ id: 'ping' });
 });
@@ -388,11 +391,11 @@ test('a new DM root still starts a direct conversation', async () => {
     expect.objectContaining({
       id: 'dm-root',
       threadRootId: 'dm-root',
-      body: 'Help me set up Chatto'
+      body: ''
     })
   ]);
   expect((inputs[0] as IncomingMessage).trigger).toBeUndefined();
-  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.classify).toHaveBeenCalledOnce();
 });
 
 test('realtime replies in ordinary rooms wake recovered active threads without starting runs', async () => {

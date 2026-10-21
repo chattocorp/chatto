@@ -144,8 +144,6 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     acknowledge: createEyesReaction(api),
     setHandled: createHandledReaction(api),
-    react: (messageId, emoji, signal) =>
-      api.addReaction({ roomId: message.roomId, messageId }, emoji, { signal }),
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
@@ -153,15 +151,22 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     classifier: createIntakeClassifier(conversationSettings.model, intake),
     conversation,
     readFollowUp: createFollowUpReader(api, allowedUserId),
-    async readReactionContext(message, signal) {
+    react: (target, emoji, signal) =>
+      api.addReaction({ roomId: target.roomId, messageId: target.id }, emoji, {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)])
+      }),
+    async readContext(messages, signal) {
+      const message = messages[0]!;
       const thread = await api.readThread(
         { roomId: message.roomId, threadRootId: message.threadRootId },
         { signal, limit: 20 }
       );
-      return thread.messages.map((item) => ({
-        role: item.fromViewer ? ('bot' as const) : ('human' as const),
-        body: item.body
-      }));
+      return thread.messages
+        .filter((item) => !messages.some((input) => input.id === item.id))
+        .map((item) => ({
+          role: item.fromViewer ? ('bot' as const) : ('human' as const),
+          body: item.body
+        }));
     },
     async read(message, signal) {
       const { users } = await api
@@ -169,10 +174,10 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
         .batchGetUsers({ userIds: [message.authorId] }, { signal, timeoutMs: 10_000 });
       const author = users.find((row) => row.user?.id === message.authorId)?.user;
       if (!author || author.bot || author.deleted) return;
-      // The thread reader includes its root and current attachments; retracted roots are absent.
+      if (allowedUserId && message.authorId !== allowedUserId) return;
       const thread = await api.readThread(
-        { roomId: message.roomId, threadRootId: message.id },
-        { signal, limit: 1 }
+        { roomId: message.roomId, threadRootId: message.threadRootId },
+        { signal }
       );
       const root = thread.messages.find((item) => item.id === message.id);
       if (!root || root.authorId !== message.authorId) return;

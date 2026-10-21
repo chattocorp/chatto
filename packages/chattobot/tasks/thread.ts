@@ -10,7 +10,13 @@ import {
 } from 'runling';
 import { IncomingMessage, type ConversationInput } from '../chatto/message.ts';
 import type { createConversation } from './conversation.ts';
-import type { createIntakeClassifier, ReactionInput, ReportInput } from './classify-intake.ts';
+import {
+  reactionEmoji,
+  type IntakeDecision,
+  type createIntakeClassifier,
+  type ReactionInput,
+  type ReportInput
+} from './classify-intake.ts';
 import type { ReadFollowUp } from '../chatto/follow-up.ts';
 import { messageBatches } from '../harness/message-batches.ts';
 
@@ -28,11 +34,13 @@ export interface ThreadOptions {
     signal: AbortSignal
   ) => Promise<Static<typeof ReportInput> | undefined>;
   readFollowUp: ReadFollowUp;
-  /** Recent thread history for reaction decisions, read with the bot's permissions. */
-  readReactionContext: (
-    message: IncomingMessage,
+  /** Recent thread history, excluding new text being classified, read with the bot's permissions. */
+  readContext: (
+    messages: IncomingMessage[],
     signal: AbortSignal
   ) => Promise<Static<typeof ReactionInput>['context']>;
+  /** Apply one bounded emoji to a verified text message, never an event ID. */
+  react: (message: IncomingMessage, emoji: string, signal: AbortSignal) => Promise<void>;
   /** Injectable clock interval for lifecycle tests. */
   intervalMs?: number;
   /** Fixed inbox window for all incoming messages, injectable for lifecycle tests. */
@@ -44,8 +52,10 @@ export interface ThreadOptions {
 interface ThreadState {
   first?: IncomingMessage;
   delivered: string[];
-  /** Accepted, ignored, and failed reaction checks must not run again after recovery. */
-  checkedReactions: string[];
+  /** Legacy snapshots stored consumed reaction events separately. */
+  checkedReactions?: string[];
+  /** Inputs consumed without an agent turn, including uncertain reaction writes. */
+  consumed: string[];
   /** Realtime replies awaiting consideration, even if the bot posts again before the check. */
   pendingFollowUps: string[];
   checked?: string;
@@ -53,7 +63,7 @@ interface ThreadState {
 }
 
 /** The router only starts this workflow and delivers messages. Classification, silence, and
- * the child conversation belong here. An addressed message can bypass pending classification. */
+ * the child conversation belong here. Addressed input interrupts an obsolete check and receives its own classification. */
 export function createThreadWorkflow(
   configure:
     | ThreadOptions
@@ -70,44 +80,99 @@ export function createThreadWorkflow(
       const saved = ctx.state as Partial<ThreadState>;
       const resume = !!saved.delivered || !!ctx.run?.resumed;
       const hadConversation = !!saved.first;
-      saved.delivered ??= [message.id];
+      saved.delivered ??= [];
       saved.pendingFollowUps ??= [];
-      saved.checkedReactions ??= [];
+      saved.consumed ??= saved.checkedReactions ?? [];
+      delete saved.checkedReactions;
       saved.lastActivity ??= Date.now();
       const state = saved as ThreadState;
       const options = typeof configure === 'function' ? await configure(ctx, message) : configure;
       const { classifier, conversation, read } = options;
-      let checkingReactions = false;
-      // Keep reaction decisions separate: accepting one must not forward unrelated reactions.
-      // Explicit messages still pass if a context read or classifier fails.
-      const acceptReactions = async (batch: IncomingMessage[]) => {
-        const accepted: IncomingMessage[] = [];
-        checkingReactions = true;
+      let checkingInput = false;
+      const applyDecision = async (
+        decision: IntakeDecision,
+        messages: IncomingMessage[],
+        signal: AbortSignal
+      ) => {
+        if (decision.action === 'engage') return messages;
+        if (decision.action === 'ignore') return [];
+        for (const item of messages)
+          if (!state.consumed.includes(item.id)) state.consumed.push(item.id);
+        const target = messages.at(-1);
+        if (target && !target.reaction) {
+          // Consume before the write: an uncertain acknowledgement must not repeat it.
+          try {
+            signal.throwIfAborted();
+            await options.react(target, reactionEmoji[decision.action], signal);
+          } catch {
+            signal.throwIfAborted();
+            log.error('Participation reaction failed; no automatic reply sent');
+          }
+        }
+        return [];
+      };
+      // Explicit text and incoming reactions share one gate. Reactions stay separate so
+      // approval of one proposal cannot admit an unrelated reaction in the same window.
+      const accept = async (batch: IncomingMessage[]) => {
+        checkingInput = true;
         try {
-          for (const item of batch) {
-            if (!item.reaction) {
-              accepted.push(item);
-              continue;
-            }
-            if (
-              state.checkedReactions.includes(item.id) ||
-              (hadConversation && state.delivered.includes(item.id))
-            )
-              continue;
+          const fresh = batch.filter(
+            (item, index) =>
+              batch.findIndex((other) => other.id === item.id) === index &&
+              !state.consumed.includes(item.id) &&
+              !state.delivered.includes(item.id)
+          );
+          const accepted = fresh.filter((item) => item.trigger === 'intake');
+          const text = fresh.filter((item) => !item.reaction && !item.trigger);
+          if (text.length) {
+            const verified: IncomingMessage[] = [];
             try {
-              const context = await options.readReactionContext(item, ctx.signal);
-              const decision = await classifier(ctx, { context, reaction: item.reaction });
-              if (decision.engage) accepted.push(item);
-              else log.info('Thread reaction ignored');
+              const inputs = [];
+              for (const item of text) {
+                const input = await read(item, ctx.signal);
+                if (input) {
+                  verified.push({ ...item, body: input.body });
+                  inputs.push(input);
+                }
+              }
+              if (verified.length) {
+                const context = await options.readContext(verified, ctx.signal);
+                const decision = await classifier(ctx, {
+                  addressed: true,
+                  trackHandled: state.first?.trigger === 'intake',
+                  context,
+                  messages: inputs
+                });
+                if (decision.action === 'ignore')
+                  state.consumed.push(...verified.map((item) => item.id));
+                accepted.push(...(await applyDecision(decision, verified, ctx.signal)));
+              }
+            } catch {
+              ctx.signal.throwIfAborted();
+              // A model/context outage must not swallow verified explicit requests.
+              log.error('Addressed participation check failed; forwarding verified messages');
+              accepted.push(...verified);
+            }
+          }
+          for (const item of fresh.filter((item) => item.reaction)) {
+            try {
+              const context = await options.readContext([item], ctx.signal);
+              const decision = await classifier(ctx, { context, reaction: item.reaction! });
+              if (decision.action === 'engage') accepted.push(item);
             } catch {
               ctx.signal.throwIfAborted();
               log.error('Thread reaction check failed; no reaction response sent');
             }
-            state.checkedReactions.push(item.id);
+            state.consumed.push(item.id);
           }
-          return accepted;
+          // Preserve input order and authenticated provenance in mixed batches.
+          return accepted.sort(
+            (a, b) =>
+              batch.findIndex((item) => item.id === a.id) -
+              batch.findIndex((item) => item.id === b.id)
+          );
         } finally {
-          checkingReactions = false;
+          checkingInput = false;
         }
       };
       const inboxLifetime = new AbortController();
@@ -123,7 +188,12 @@ export function createThreadWorkflow(
       const consider = (batch: IncomingMessage[]) => {
         let followUp = false;
         for (const item of batch) {
-          if (item.trigger !== 'follow-up' || state.delivered.includes(item.id)) continue;
+          if (
+            item.trigger !== 'follow-up' ||
+            state.delivered.includes(item.id) ||
+            state.consumed.includes(item.id)
+          )
+            continue;
           if (!state.pendingFollowUps.includes(item.id)) state.pendingFollowUps.push(item.id);
           followUp = true;
         }
@@ -173,11 +243,17 @@ export function createThreadWorkflow(
             usedNextMessage = true;
           } else {
             await using classification = input ? ctx.start(classifier, input) : undefined;
-            const decision = (classification?.result ?? Promise.resolve({ engage: false })).then(
-              (value) => ({ kind: 'decision' as const, engage: value.engage, failed: false }),
+            const decision = (
+              classification?.result ?? Promise.resolve({ action: 'ignore' as const })
+            ).then(
+              (value) => ({ kind: 'decision' as const, decision: value, failed: false }),
               () => {
                 ctx.signal.throwIfAborted();
-                return { kind: 'decision' as const, engage: false, failed: true };
+                return {
+                  kind: 'decision' as const,
+                  decision: { action: 'ignore' as const },
+                  failed: true
+                };
               }
             );
             let outcome = await Promise.race([
@@ -198,15 +274,26 @@ export function createThreadWorkflow(
               usedNextMessage = true;
             } else {
               if (outcome.failed) log.error('Report intake failed; no automatic reply sent');
-              else log.info(outcome.engage ? 'Report intake accepted' : 'Report intake ignored');
-              if (outcome.engage && input)
-                first = { ...message, body: input.body, trigger: 'intake' };
+              else
+                log.info(
+                  outcome.decision.action === 'engage'
+                    ? 'Report intake accepted'
+                    : 'Report intake ignored'
+                );
+              if (input) {
+                const accepted = await applyDecision(
+                  outcome.decision,
+                  [{ ...message, body: input.body, trigger: 'intake' }],
+                  ctx.signal
+                );
+                first = accepted[0];
+              }
             }
             // Disposing the classifier cancels it if addressed input won the race.
           }
         }
         if (!first || (resume && !usedNextMessage)) break;
-        opening = await acceptReactions(opening.length ? opening : [first]);
+        opening = await accept(opening.length ? opening : [first]);
         first = opening[0];
         // Consume any later addressed windows before allowing a rejected opening to exit.
         while (!first) {
@@ -215,7 +302,7 @@ export function createThreadWorkflow(
           const next = await nextMessage;
           usedNextMessage = true;
           if (next.done) break;
-          opening = await acceptReactions(next.value);
+          opening = await accept(next.value);
           first = opening[0];
         }
         if (first || message.trigger !== 'intake') break;
@@ -242,7 +329,8 @@ export function createThreadWorkflow(
         first,
         options,
         state,
-        () => inbox.pending || checkingReactions
+        () => inbox.pending || checkingInput,
+        applyDecision
       );
       notify = monitor.notify;
       if (state.pendingFollowUps.length) notify();
@@ -252,7 +340,8 @@ export function createThreadWorkflow(
         while (true) {
           const item = await Promise.race([pending, finished]);
           if (item.done) break;
-          const accepted = await acceptReactions(item.value);
+          monitor.cancelCheck();
+          const accepted = await accept(item.value);
           if (accepted.length) await monitor.send(accepted.length === 1 ? accepted[0]! : accepted);
           else if (state.pendingFollowUps.length) notify();
           pending = nextAddressed();
@@ -285,7 +374,12 @@ function monitorConversation(
   first: IncomingMessage,
   { classifier, readFollowUp, intervalMs = FOLLOW_UP_INTERVAL_MS, idleMs = IDLE_MS }: ThreadOptions,
   saved: ThreadState,
-  hasPendingInput: () => boolean
+  hasPendingInput: () => boolean,
+  decide: (
+    decision: IntakeDecision,
+    messages: IncomingMessage[],
+    signal: AbortSignal
+  ) => Promise<IncomingMessage[]>
 ) {
   const lifetime = new AbortController();
   const signal = AbortSignal.any([ctx.signal, lifetime.signal]);
@@ -298,10 +392,13 @@ function monitorConversation(
   };
   let check: AbortController | undefined;
   let classification: TaskInvocation<ReturnType<typeof createIntakeClassifier>> | undefined;
-  const interrupt = () => {
-    state = 'busy';
+  const cancelCheck = () => {
     check?.abort();
     classification?.cancel();
+  };
+  const interrupt = () => {
+    state = 'busy';
+    cancelCheck();
   };
   const stop = () => {
     lifetime.abort();
@@ -361,7 +458,8 @@ function monitorConversation(
         considered = pendingIds;
         if (!snapshot) continue;
         const pending = snapshot.messages.filter(
-          ({ message }) => !saved.delivered.includes(message.id)
+          ({ message }) =>
+            !saved.delivered.includes(message.id) && !saved.consumed.includes(message.id)
         );
         if (!pending.length) continue;
         const messages = pending.map(({ message }) => message);
@@ -373,7 +471,10 @@ function monitorConversation(
             context: [
               ...snapshot.input.context,
               ...snapshot.messages
-                .filter(({ message }) => saved.delivered.includes(message.id))
+                .filter(
+                  ({ message }) =>
+                    saved.delivered.includes(message.id) || saved.consumed.includes(message.id)
+                )
                 .map(({ message }) => ({ role: 'human' as const, body: message.body }))
             ],
             messages: pending.map(({ message, attachmentTypes }) => ({
@@ -382,10 +483,13 @@ function monitorConversation(
             }))
           });
           classification = decision;
-          const { engage } = await decision.result;
+          const result = await decision.result;
           checkSignal.throwIfAborted();
-          if (engage) accepted = messages;
-          else log.info('Thread follow-up ignored');
+          if (hasPendingInput()) {
+            check.abort();
+            continue;
+          }
+          accepted = await decide(result, messages, checkSignal);
         }
       } catch {
         if (!signal.aborted && !check?.signal.aborted)
@@ -405,11 +509,11 @@ function monitorConversation(
         classification = undefined;
         check = undefined;
       }
-      if (accepted) {
+      if (accepted?.length) {
         await send(accepted);
         log.info('Thread follow-up accepted');
       }
     }
   })();
-  return { send, notify, stop, done: Promise.all([updates, polls]).then(() => {}) };
+  return { send, notify, stop, cancelCheck, done: Promise.all([updates, polls]).then(() => {}) };
 }
