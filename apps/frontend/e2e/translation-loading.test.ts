@@ -40,8 +40,8 @@ for (const locale of ['en-GB', 'de-DE']) {
     await expect(page.locator('body')).not.toContainText('⟦');
     const expected =
       locale === 'en-GB'
-        ? ['lingua-en-GB-management']
-        : ['lingua-en-GB-management', 'lingua-de-DE-management'];
+        ? ['translatto-en-GB-management']
+        : ['translatto-en-GB-management', 'translatto-de-DE-management'];
     expect(requests.sort()).toEqual(expected.sort());
 
     await page.locator('a[href="/chat/-/settings/appearance"]').click();
@@ -62,7 +62,7 @@ for (const locale of ['en-GB', 'de-DE']) {
     expect(requests.sort()).toEqual(expected.sort());
     await general.click();
     await expect(page.locator('input#name')).toBeVisible();
-    expect(requests.sort()).toEqual([...expected, 'lingua-fr-FR-management'].sort());
+    expect(requests.sort()).toEqual([...expected, 'translatto-fr-FR-management'].sort());
     await expect(page.locator('body')).not.toContainText('⟦');
     expect(errors).toEqual([]);
   });
@@ -72,7 +72,7 @@ test('a failed English management download offers retry and a direct reload succ
   page
 }) => {
   const payloads = managementPayloads();
-  const english = [...payloads].find(([, name]) => name === 'lingua-en-GB-management');
+  const english = [...payloads].find(([, name]) => name === 'translatto-en-GB-management');
   expect(english).toBeDefined();
   await page.addInitScript(() => localStorage.setItem('chatto:locale', 'en-GB'));
   await loginAsAdmin(page);

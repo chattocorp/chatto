@@ -56,14 +56,14 @@ export interface MissingTranslation {
   readonly locale: string;
 }
 
-export interface LinguaSnapshot<Locale extends string, Section extends string> {
+export interface TranslattoSnapshot<Locale extends string, Section extends string> {
   readonly locale: Locale;
   readonly activeSections: readonly Section[];
   readonly revision: number;
 }
 
-/** Configuration for a Lingua runtime backed by lazy JSON section loaders. */
-export interface LinguaOptions<Registry extends LoaderRegistry> {
+/** Configuration for a Translatto runtime backed by lazy JSON section loaders. */
+export interface TranslattoOptions<Registry extends LoaderRegistry> {
   readonly baseLocale: LocaleName<Registry>;
   readonly initialLocale?: LocaleName<Registry>;
   /**

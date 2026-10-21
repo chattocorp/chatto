@@ -54,7 +54,7 @@
     "packages/api-types": {
       "ignoreDependencies": ["@bufbuild/protoc-gen-es", "@connectrpc/protoc-gen-connect-es"]
     },
-    "packages/lingua": {
+    "packages/translatto": {
       "entry": ["src/**/*.spec.ts", "test/**/*.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },

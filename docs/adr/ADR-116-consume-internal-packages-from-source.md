@@ -4,7 +4,7 @@
 
 ## Context
 
-The workspace libraries `@chatto/api-types`, `@chatto/lingua`, and
+The workspace libraries `@chatto/api-types`, `@chatto/translatto`, and
 `@chatto/client` exported compiled `dist/` output. Only `@chatto/client` also
 exported its source, under the `@chatto/source` condition.
 [ADR-102](ADR-102-turborepo-workspace-tasks.md) removed package builds from
@@ -52,7 +52,7 @@ a test that installs the packed package in a host outside the workspace.
 
 A new worktree can run any frontend, client, or bot command after
 `mise setup`. Changes to package source take effect immediately, also in
-direct Vitest and svelte-check runs. The API types, Lingua, and client build
+direct Vitest and svelte-check runs. The API types, Translatto, and client build
 tasks are removed from Turbo, mise, and the root scripts. `mise codegen-proto`
 only generates source.
 

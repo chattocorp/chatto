@@ -100,7 +100,7 @@
     "@capacitor/core": "8.5.2",
     "@chatto/api-types": "workspace:*",
     "@chatto/client": "workspace:*",
-    "@chatto/lingua": "workspace:*",
+    "@chatto/translatto": "workspace:*",
     "@connectrpc/connect": "^1.7.0",
     "@connectrpc/connect-web": "^1.7.0",
     "@tanstack/svelte-query": "^6.2.4",

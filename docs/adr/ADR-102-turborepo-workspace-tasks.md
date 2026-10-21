@@ -27,7 +27,7 @@ The bot has a test script but no check or lint script. Its empty check and
 lint task definitions prevent Turbo's virtual tasks from building the Runling
 console during unrelated workspace checks.
 
-The API types, Lingua, and Chatto client packages have no build. Consumers
+The API types, Translatto, and Chatto client packages have no build. Consumers
 read their TypeScript source
 ([ADR-116](ADR-116-consume-internal-packages-from-source.md)).
 

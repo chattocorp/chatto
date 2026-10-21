@@ -1,4 +1,4 @@
-import type { SectionLoader, TranslationDocument, TranslationModule } from '@chatto/lingua';
+import type { SectionLoader, TranslationDocument, TranslationModule } from '@chatto/translatto';
 
 import {
   catalogSections,
