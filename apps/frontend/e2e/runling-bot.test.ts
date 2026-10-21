@@ -24,7 +24,7 @@ test.describe('Runling webhook bot', () => {
     server,
     serverURL
   }, testInfo) => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000);
     const keyFile = server.bootstrapBotCredentialFile;
     if (!keyFile) throw new Error('Missing bootstrap bot credential file');
     // Reserve an available port; the Runling CLI does not accept port zero.
@@ -74,7 +74,8 @@ test.describe('Runling webhook bot', () => {
           CHATTO_RUNLING_SERVER_URL: serverURL,
           CHATTO_RUNLING_API_KEY_FILE: keyFile
         },
-        stdio: 'ignore'
+        // Keep startup and HTTP errors in the CI log when readiness fails.
+        stdio: ['ignore', 'inherit', 'inherit']
       }
     );
     // Register before startup polling so early process failures are also handled.
@@ -90,7 +91,9 @@ test.describe('Runling webhook bot', () => {
               return false;
             }
           },
-          { timeout: 15_000 }
+          // Match the Chatto fixture startup budget: a cold Runling config loads
+          // the TypeScript bot and its dependencies before opening the listener.
+          { timeout: 45_000 }
         )
         .toBe(true);
       await loginAsAdminAndUsePrimaryServer(page);
