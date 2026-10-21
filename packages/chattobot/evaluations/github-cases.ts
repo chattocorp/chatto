@@ -354,7 +354,6 @@ export interface SupervisorCase {
   /** Synthetic configured contact; naming it does not add an authorized user ID. */
   maintainerLogin?: string;
   messages: Omit<IncomingMessage, 'roomId' | 'threadRootId'>[];
-  expectedReactions?: { messageId: string; emoji: string }[];
   /** Host-owned thread context, also returned by readThread for proposal references. */
   thread?: ThreadMessage[];
   expectedRequest?: string;
@@ -416,20 +415,6 @@ export const supervisorCases: readonly SupervisorCase[] = [
         }
       }
     ]
-  },
-  {
-    name: 'reaction-only-response',
-    messages: [
-      {
-        id: 'thanks',
-        authorId: 'member',
-        body: 'Thanks for helping with Chatto! A heart reaction is plenty, no need to reply.'
-      }
-    ],
-    expectedReactions: [{ messageId: 'thanks', emoji: 'heart' }],
-    check(posts) {
-      assert.equal(posts.length, 0, 'Do not add a redundant text reply');
-    }
   },
   {
     name: 'retry-handoff',

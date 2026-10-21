@@ -38,7 +38,6 @@ async function supervisor(
   const investigations: string[] = [];
   const posts: string[] = [];
   const handled: boolean[] = [];
-  const reactions: { messageId: string; emoji: string }[] = [];
   const warmed = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const conversation = createConversation(
@@ -91,9 +90,6 @@ async function supervisor(
           );
         handled.push(value);
       },
-      react: async (messageId, emoji) => {
-        reactions.push({ messageId, emoji });
-      },
       readThread: async () => ({ messages: scenario.thread ?? [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('No evaluation attachments');
@@ -104,7 +100,6 @@ async function supervisor(
         ...options,
         // Other production tools cannot contact their real services during this evaluation.
         tools: [
-          'react',
           'gh',
           'githubWork',
           'investigate',
@@ -190,7 +185,6 @@ async function supervisor(
     investigationAttempts,
     posts: posts.slice(1),
     handled,
-    reactions,
     commands: github.commands
   };
 }
@@ -304,7 +298,7 @@ export default task(
           'Supervisor attempted to delegate the wrong message'
         );
         assert(
-          result.posts.length > 0 || result.handled.length > 0 || result.reactions.length > 0,
+          result.posts.length > 0 || result.handled.length > 0,
           'Supervisor did not answer or react'
         );
         assert(
@@ -338,8 +332,6 @@ export default task(
           result.commands.every((command) => command.supported),
           'Unsupported fixture command'
         );
-        if (scenario.expectedReactions)
-          assert.deepEqual(result.reactions, scenario.expectedReactions);
         scenario.check?.(result.posts, result.commands, result.delegated);
       });
     }

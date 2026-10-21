@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { parseEnv } from 'node:util';
 import { RealtimeEvent, type MessagingRequests } from '@chatto/client';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createTaskContext, runWorkflow, task, Type } from 'runling';
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   close: vi.fn(),
   batchGetUsers: vi.fn(),
   readThread: vi.fn(),
+  readMessage: vi.fn(),
   classify: vi.fn(),
   conversation: vi.fn(),
   started: vi.fn(),
@@ -28,7 +30,7 @@ vi.mock('@chatto/client', async (original) => ({
   createClient: () => ({ connect: () => mocks, close: mocks.close }),
   createApi: () => ({
     ready: mocks.ready,
-    service: () => ({ batchGetUsers: mocks.batchGetUsers }),
+    service: () => ({ batchGetUsers: mocks.batchGetUsers, getMessage: mocks.readMessage }),
     readThread: mocks.readThread
   })
 }));
@@ -78,8 +80,10 @@ async function run(
     botAuthor = false,
     missing = false,
     recovered = false,
-    addressed
+    addressed,
+    storedMessage
   }: {
+    storedMessage?: Message;
     rooms?: string;
     engage?: boolean;
     allowed?: string;
@@ -100,7 +104,7 @@ async function run(
   vi.stubEnv('CHATTO_GITHUB_APP_PRIVATE_KEY_FILE', '');
   vi.stubEnv('CHATTO_GITHUB_REPOSITORY', '');
   mocks.ready.mockResolvedValue({ viewerId: 'bot' });
-  mocks.classify.mockResolvedValue({ engage, reason: 'fixture' });
+  mocks.classify.mockResolvedValue({ action: engage ? 'engage' : 'ignore', reason: 'fixture' });
   mocks.addressedMessage.mockImplementation(
     addressed ??
       (async (event: RealtimeEvent) =>
@@ -115,7 +119,9 @@ async function run(
           : undefined)
   );
   mocks.batchGetUsers.mockResolvedValue({
-    users: [{ user: { id: 'human', ...(botAuthor ? { bot: {} } : {}) } }]
+    users: ['human', 'maintainer'].map((id) => ({
+      user: { id, ...(botAuthor ? { bot: {} } : {}) }
+    }))
   });
   mocks.readThread.mockImplementation(async ({ threadRootId }: { threadRootId: string }) => ({
     messages: missing
@@ -123,7 +129,7 @@ async function run(
       : [
           {
             id: threadRootId,
-            authorId: 'human',
+            authorId: events.find((event) => event.id === threadRootId)?.actorId ?? 'human',
             body: '',
             attachments: [{ contentType: 'image/png' }],
             fromViewer: false
@@ -131,6 +137,19 @@ async function run(
         ],
     olderOmitted: false
   }));
+  mocks.readMessage.mockImplementation(
+    async ({ roomId, eventId }: { roomId: string; eventId: string }) => ({
+      message: missing
+        ? undefined
+        : (storedMessage ??
+          new Message({
+            id: eventId,
+            roomId,
+            actorId: events.find((event) => event.id === eventId)?.actorId ?? 'human',
+            attachments: [{ contentType: 'image/png' }]
+          }))
+    })
+  );
   const inputs: unknown[] = [];
   mocks.conversation.mockImplementation((input: unknown) => inputs.push(input));
   const pending: Promise<void>[] = [];
@@ -191,7 +210,7 @@ async function run(
   return inputs;
 }
 
-test('ordinary mentions bypass intake and opted-in roots classify once before conversation', async () => {
+test('ordinary mentions and opted-in roots classify once before conversation', async () => {
   const inputs = await run([
     event('root'),
     event('root'),
@@ -200,14 +219,15 @@ test('ordinary mentions bypass intake and opted-in roots classify once before co
   ]);
   expect(inputs).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ id: 'ping', body: 'Hello' }),
+      expect.objectContaining({ id: 'ping', body: '' }),
       expect.objectContaining({ id: 'root', authorId: 'human', body: '', trigger: 'intake' })
     ])
   );
   expect(inputs).toHaveLength(2);
   // Intake owns the conversation child: the host registers no second run for the report.
   expect(mocks.started.mock.calls).toEqual([['Chatto thread'], ['Chatto thread']]);
-  expect(mocks.classify).toHaveBeenCalledExactlyOnceWith({
+  expect(mocks.classify).toHaveBeenCalledTimes(2);
+  expect(mocks.classify).toHaveBeenCalledWith({
     body: '',
     attachmentTypes: ['image/png']
   });
@@ -218,7 +238,7 @@ test('maintainer roots skip automatic intake while direct mentions still engage'
     event('maintainer-report', 'intake', 'maintainer'),
     event('ping', 'intake', 'maintainer')
   ]);
-  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.classify).toHaveBeenCalledOnce();
   expect(inputs).toHaveLength(1);
   expect(inputs[0]).toMatchObject({ id: 'ping' });
 });
@@ -388,11 +408,11 @@ test('a new DM root still starts a direct conversation', async () => {
     expect.objectContaining({
       id: 'dm-root',
       threadRootId: 'dm-root',
-      body: 'Help me set up Chatto'
+      body: ''
     })
   ]);
   expect((inputs[0] as IncomingMessage).trigger).toBeUndefined();
-  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.classify).toHaveBeenCalledOnce();
 });
 
 test('realtime replies in ordinary rooms wake recovered active threads without starting runs', async () => {
@@ -479,3 +499,58 @@ test.each([{ rooms: '' }, { allowed: 'someone-else' }, { botAuthor: true }, { mi
     expect(mocks.classify).not.toHaveBeenCalled();
   }
 );
+
+test('an addressed reply outside the recent thread window is read by exact ID', async () => {
+  const inputs = await run([event('old-reply', 'ordinary')], {
+    addressed: async () => ({
+      id: 'old-reply',
+      roomId: 'ordinary',
+      threadRootId: 'root',
+      authorId: 'human',
+      body: 'Stale event body',
+      reasons: ['mention']
+    }),
+    storedMessage: new Message({
+      id: 'old-reply',
+      roomId: 'ordinary',
+      threadRootEventId: 'root',
+      actorId: 'human',
+      body: 'Current question',
+      attachments: [{ contentType: 'image/png' }]
+    })
+  });
+  // The recent thread fixture contains only the root, never this older reply.
+  expect(inputs).toEqual([
+    expect.objectContaining({ id: 'old-reply', body: 'Current question', threadRootId: 'root' })
+  ]);
+  expect(mocks.classify).toHaveBeenCalledWith(
+    expect.objectContaining({
+      messages: [{ body: 'Current question', attachmentTypes: ['image/png'] }]
+    })
+  );
+  expect(mocks.readMessage).toHaveBeenCalledWith(
+    { roomId: 'ordinary', eventId: 'old-reply' },
+    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  );
+});
+
+test.each([
+  { id: 'wrong-id' },
+  { roomId: 'wrong-room' },
+  { threadRootEventId: 'wrong-thread' },
+  { actorId: 'wrong-author' },
+  { deletedAt: { seconds: 1n, nanos: 0 } },
+  { body: undefined, attachments: [] }
+])('exact lookup rejects an invalid or unavailable message: %o', async (invalid) => {
+  const inputs = await run([event('ping', 'ordinary')], {
+    storedMessage: new Message({
+      id: 'ping',
+      roomId: 'ordinary',
+      actorId: 'human',
+      attachments: [{ contentType: 'image/png' }],
+      ...invalid
+    })
+  });
+  expect(inputs).toEqual([]);
+  expect(mocks.classify).not.toHaveBeenCalled();
+});
