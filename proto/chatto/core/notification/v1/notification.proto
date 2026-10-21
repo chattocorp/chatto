@@ -206,6 +206,10 @@ message NotificationOccurrence {
   // Terminal alert result. Absence means Pending when alert_expires_at is
   // present and the occurrence is unread; false means Suppressed.
   optional bool alert_delivered = 13;
+  // Time of the first projected transition to Read, including an initially-read
+  // signal. Derived from existing lifecycle timestamps and retained in snapshots
+  // so maintenance can delete read occurrences without extending their lifetime.
+  google.protobuf.Timestamp read_at = 14;
 }
 
 // NotificationSignalled is the immutable materialized fact from which the

@@ -790,7 +790,8 @@ export class NotificationSignal extends Message<NotificationSignal> {
 }
 
 /**
- * One exact Notifications 2.0 source occurrence.
+ * One exact Notifications 2.0 source occurrence. Read occurrences are deleted
+ * automatically after seven days by server maintenance, checked once per minute.
  *
  * @generated from message chatto.api.v1.NotificationOccurrence
  */
@@ -831,7 +832,8 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   unread = false;
 
   /**
-   * Absolute expiry, 90 days after the source activity.
+   * Absolute expiry, 90 days after the source activity. Read occurrences can be
+   * deleted earlier by automatic cleanup.
    *
    * @generated from field: google.protobuf.Timestamp expires_at = 6;
    */

@@ -34,7 +34,7 @@ Chatto keeps different kinds of data in different NATS resources:
 | Resource | Type | Contents | In backups |
 | -------- | ---- | -------- | ---------- |
 | `EVT` | Stream | Every change to domain data, as events. The source of truth. | Yes |
-| `NOTIFICATIONS` | Stream | Notifications and their delivery state, kept for 90 days. | Yes |
+| `NOTIFICATIONS` | Stream | Notifications and their delivery state, kept for up to 90 days. Read notification payloads are deleted earlier. | Yes |
 | `LOG` | Stream | Operational records, such as webhook delivery failures, kept for 7 days. | No |
 | `RUNTIME_STATE` | KV bucket | Current values that are not domain history: sessions, credentials, presence choices, wrapped data keys. | Yes |
 | `MEMORY_CACHE` | KV bucket | Volatile shared state, such as leases and counters. Kept in memory. | No |

@@ -7,7 +7,7 @@
 > notification decision projection, the read boundary, and the visibility
 > boundary when it is read. The materializer no longer writes Badge state.
 
-**Updated:** 2026-09-05
+**Updated:** 2026-10-19
 
 ## Context
 
@@ -231,10 +231,27 @@ hint; it does not play old sounds. Web Push retains its server-side delivery che
 
 ### Retention and automatic expiry
 
+The existing startup and periodic maintenance pass deletes occurrences seven
+days after their first recorded Read transition. An initially-read signal uses
+its envelope's `occurred_at`, which records materialization time. Repeated reads
+do not extend this deadline. The pass uses the normal `NotificationRemoved`
+path, including client invalidation and retryable physical signal deletion.
+It does not hide read occurrences locally before that removal commits.
+
+Read time is projected from existing lifecycle timestamps and retained in
+notification snapshots. The added snapshot field selects a new schema contract;
+upgraded replicas replay the retained log instead of using older snapshots
+without read times. Existing read occurrences already older than seven days
+are eligible for cleanup on upgrade. Older beta replicas can still produce
+signals and read events, and they apply automatic removals without a protocol
+change. Rolling back stops automatic read cleanup but preserves completed
+removals. No new stream, subject, consumer, or stream configuration is needed.
+
 The application expiry of every lifecycle fact is exactly 90 days after its
 source activity. The immutable `expires_at` field gives projections, APIs, and
 workers the semantic boundary even if broker cleanup is delayed. Reads and
-dismissals never extend it.
+dismissals never extend it. This remains the upper bound for occurrences that
+have not already been removed by read cleanup or explicit deletion.
 
 Each stream record also receives a JetStream per-message TTL ending 24 hours
 after application expiry. The stream `MaxAge` is the same 91-day upper bound.

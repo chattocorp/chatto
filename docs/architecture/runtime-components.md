@@ -201,7 +201,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   compact current-state decision projection; direct double-ack derivation from
   existing EVT facts into `NOTIFICATIONS`; lifecycle facts and encrypted
   snapshots over `NOTIFICATIONS`; secure deletion of rich signals after
-  projected removal; best-effort local-sound hints for notification modes; and
+  projected removal; startup and periodic cleanup of old read occurrences through
+  the same removal path; best-effort local-sound hints for notification modes; and
   direct durable push consumption from `notifications.signalled` with an
   immutable deadline and current policy, visibility, DND, and subscription
   revalidation.

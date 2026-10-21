@@ -101,6 +101,9 @@ func (p *NotificationProjection) Apply(event *notificationv1.NotificationEvent, 
 			NotificationStreamSequence: sequence,
 			AlertDelivered:             alertDelivered,
 		}
+		if stored.GetRead() {
+			stored.ReadAt = event.GetOccurredAt()
+		}
 		p.byID[stored.GetId()] = stored
 		if p.idsByUser[stored.GetRecipientId()] == nil {
 			p.idsByUser[stored.GetRecipientId()] = make(map[string]struct{})
@@ -112,7 +115,10 @@ func (p *NotificationProjection) Apply(event *notificationv1.NotificationEvent, 
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() {
 			return nil
 		}
-		occurrence.Read = true
+		if !occurrence.GetRead() {
+			occurrence.Read = true
+			occurrence.ReadAt = event.GetOccurredAt()
+		}
 		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
 			occurrence.AlertDelivered = new(false)
 		}
@@ -286,6 +292,24 @@ func (p *NotificationProjection) pruneExpiredLocked(now time.Time) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// readOccurrencesDueForDeletion selects only retained read occurrences. Removal
+// must go through the normal lifecycle write so older replicas also remove them;
+// locally hiding them here would leave other replicas and stream payloads intact.
+func (p *NotificationProjection) readOccurrencesDueForDeletion(now time.Time) []*notificationv1.NotificationOccurrence {
+	p.RLock()
+	defer p.RUnlock()
+	var due []*notificationv1.NotificationOccurrence
+	for _, occurrence := range p.byID {
+		readAt := occurrence.GetReadAt()
+		if occurrence.GetRead() && readAt != nil && readAt.IsValid() &&
+			!readAt.AsTime().Add(notificationReadRetention).After(now) &&
+			occurrence.GetExpiresAt().AsTime().After(now) {
+			due = append(due, proto.Clone(occurrence).(*notificationv1.NotificationOccurrence))
+		}
+	}
+	return due
 }
 
 func (p *NotificationProjection) pendingPhysicalDeletes(now time.Time) map[string]notificationProjectionTombstone {

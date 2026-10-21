@@ -130,14 +130,9 @@ func (m *NotificationOccurrenceModel) Run(ctx context.Context) error {
 		}
 	}
 	runMaintenance := func() {
-		now := m.now().UTC()
-		expiredUsers := m.projection.Projection().pruneExpired(now)
-		invalidations := make([]*notificationv1.NotificationOccurrence, 0, len(expiredUsers))
-		for _, userID := range expiredUsers {
-			invalidations = append(invalidations, &notificationv1.NotificationOccurrence{RecipientId: userID})
+		if err := m.maintain(ctx, m.now().UTC()); err != nil && ctx.Err() == nil {
+			m.logger.Warn("Read notification cleanup will retry", "error", err)
 		}
-		m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, false)
-		m.cleanupDismissedSignals(ctx, now)
 	}
 	runMaintenance()
 	ticker := time.NewTicker(notificationPhysicalDeleteRetry)
@@ -153,6 +148,25 @@ func (m *NotificationOccurrenceModel) Run(ctx context.Context) error {
 			runMaintenance()
 		}
 	}
+}
+
+// maintain expires old state and deletes read occurrences through the existing
+// removal path. All replicas, including older beta servers, understand these
+// removal facts. Partial writes retry on the next pass; physical cleanup runs
+// once per pass, either inside deleteOccurrences or directly when none are due.
+func (m *NotificationOccurrenceModel) maintain(ctx context.Context, now time.Time) error {
+	expiredUsers := m.projection.Projection().pruneExpired(now)
+	invalidations := make([]*notificationv1.NotificationOccurrence, 0, len(expiredUsers))
+	for _, userID := range expiredUsers {
+		invalidations = append(invalidations, &notificationv1.NotificationOccurrence{RecipientId: userID})
+	}
+	m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, false)
+	if due := m.projection.Projection().readOccurrencesDueForDeletion(now); len(due) > 0 {
+		_, err := m.deleteOccurrences(ctx, due)
+		return err
+	}
+	m.cleanupDismissedSignals(ctx, now)
+	return nil
 }
 
 // reconcileCoveredUnread repairs the intentional two-store read handshake.
