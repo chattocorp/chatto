@@ -231,8 +231,44 @@ describe('NotificationStore', () => {
     expect(store.roomUnreadCounts).toEqual({});
     expect(store.roomImportantUnreadCounts).toEqual({});
     expect(store.occurrences.map((item) => item.id)).toEqual(['invite']);
-    store.replaceOccurrenceProjection(notificationPage(page([mention('stale-message')])));
-    expect(store.roomUnreadCounts).toEqual({});
+  });
+
+  it('restores an off-page invitation badge when its optimistic read fails', async () => {
+    const invitation = {
+      ...mention('invite'),
+      signalKind: NotificationSignalKind.ROOM_INVITATION,
+      invitationId: 'active-invite',
+      eventId: ''
+    };
+    const firstPage = notificationPage(
+      page(
+        Array.from({ length: 50 }, (_, index) => ({
+          ...mention(`other-${index}`),
+          room: { id: 'r2', name: 'Other room' }
+        })),
+        51
+      )
+    );
+    firstPage.roomUnreadCounts.r1 = 1;
+    firstPage.roomImportantUnreadCounts.r1 = 1;
+    firstPage.hasMore = true;
+    const api = makeAPI();
+    api.listNotificationOccurrences.mockResolvedValue(firstPage);
+    const mutation = deferred<NotificationOccurrenceItem>();
+    api.markNotificationRead.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.clearRoom('r1', 'active-invite');
+    store.replaceOccurrenceProjection(notificationPage(page([invitation])));
+    const reading = store.markRead('invite');
+    expect(store.roomUnreadCounts.r1).toBeUndefined();
+    // Directory updates must not turn this optimistic local read into authority.
+    store.clearRoom('r1', 'active-invite');
+    mutation.reject(new Error('offline'));
+    await expect(reading).resolves.toBe(false);
+    expect(store.occurrences.some((item) => item.id === 'invite')).toBe(false);
+    expect(store.roomUnreadCounts.r1).toBe(1);
+    expect(store.roomImportantUnreadCounts.r1).toBe(1);
+    expect(store.unreadNotificationCount).toBe(51);
   });
 
   it('removes invitation-only authority on a projection reset', async () => {

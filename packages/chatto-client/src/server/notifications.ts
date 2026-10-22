@@ -211,7 +211,10 @@ export class NotificationStore {
   }
 
   /** Keep server pagination/counts while removing revoked room content. */
-  #privacySafePage(page: NotificationOccurrencePage): NotificationOccurrencePage {
+  #privacySafePage(
+    page: NotificationOccurrencePage,
+    authoritative = true
+  ): NotificationOccurrencePage {
     const roomUnreadCounts = { ...page.roomUnreadCounts };
     const roomImportantUnreadCounts = { ...page.roomImportantUnreadCounts };
     let removedUnread = 0;
@@ -224,11 +227,10 @@ export class NotificationStore {
         row.room?.id === roomId &&
         row.signalKind === NotificationSignalKind.ROOM_INVITATION &&
         row.invitationId === invitationId;
-      const knownInvitation = invitationId
-        ? (page.occurrences.find(matchesInvitation) ?? this.occurrences.find(matchesInvitation))
-        : undefined;
-      // Reading is monotonic. Stale message counts must not revive a known
-      // read invitation. Otherwise use the server's visibility-filtered totals.
+      const knownInvitation =
+        authoritative && invitationId ? page.occurrences.find(matchesInvitation) : undefined;
+      // Only this server page can confirm a read. Retained rows can be
+      // optimistic; off-page invitations use the authoritative aggregate.
       const limit = invitationId && knownInvitation?.unread !== false ? 1 : 0;
       const unread = Math.min(limit, roomUnreadCounts[roomId] ?? 0);
       const important = Math.min(unread, roomImportantUnreadCounts[roomId] ?? 0);
@@ -376,15 +378,18 @@ export class NotificationStore {
       this.#pendingReadById.delete(occurrence.id);
       this.#pendingReadRequestById.delete(occurrence.id);
     }
-    const safe = this.#privacySafePage({
-      occurrences: this.occurrences,
-      unreadCount: this.unreadNotificationCount,
-      importantUnreadCount: this.importantUnreadNotificationCount,
-      roomUnreadCounts: this.roomUnreadCounts,
-      roomImportantUnreadCounts: this.roomImportantUnreadCounts,
-      totalCount: this.totalCount,
-      hasMore: this.hasMore
-    });
+    const safe = this.#privacySafePage(
+      {
+        occurrences: this.occurrences,
+        unreadCount: this.unreadNotificationCount,
+        importantUnreadCount: this.importantUnreadNotificationCount,
+        roomUnreadCounts: this.roomUnreadCounts,
+        roomImportantUnreadCounts: this.roomImportantUnreadCounts,
+        totalCount: this.totalCount,
+        hasMore: this.hasMore
+      },
+      false
+    );
     this.occurrences = safe.occurrences;
     this.consumedCount = this.occurrences.length;
     this.totalCount = Math.max(this.occurrences.length, this.totalCount - removed.length);
