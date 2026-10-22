@@ -18,6 +18,8 @@ type InvitationState struct {
 	ExpiresAt *time.Time
 	UseCount  uint32
 	RevokedAt *time.Time
+	// CodeVersion separates registration codes from historical invite links.
+	CodeVersion uint32
 }
 
 type InvitationProjection struct {
@@ -43,9 +45,10 @@ func (p *InvitationProjection) Apply(event *evtv1.Event, _ uint64) error {
 	case *evtv1.Event_InvitationCreated:
 		payload := e.InvitationCreated
 		state := &InvitationState{
-			ID:        payload.GetInvitationId(),
-			CreatedBy: event.GetActorId(),
-			CreatedAt: event.GetCreatedAt().AsTime(),
+			ID:          payload.GetInvitationId(),
+			CreatedBy:   event.GetActorId(),
+			CreatedAt:   event.GetCreatedAt().AsTime(),
+			CodeVersion: payload.GetCodeVersion(),
 		}
 		if payload.MaxUses != nil {
 			value := payload.GetMaxUses()
@@ -86,7 +89,12 @@ func (p *InvitationProjection) all() []InvitationState {
 	for _, state := range p.invitations {
 		result = append(result, cloneInvitationState(state))
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].CreatedAt.After(result[j].CreatedAt) })
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].CreatedAt.Equal(result[j].CreatedAt) {
+			return result[i].ID < result[j].ID
+		}
+		return result[i].CreatedAt.After(result[j].CreatedAt)
+	})
 	return result
 }
 

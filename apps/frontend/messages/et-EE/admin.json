@@ -544,37 +544,34 @@
       "total": "{count} kasutaja(t) kokku"
     },
     "invitations": {
-      "title": "Kutselingid",
-      "subtitle": "Looge ja hallake linke, mille kaudu saavad liituda uued kontod.",
-      "create_title": "Loo kutselink",
-      "max_uses": "Kasutuskordi kõige rohkem",
-      "max_uses_error": "Sisestage täisarv, mis on vähemalt 1.",
-      "unlimited_uses": "Luba piiramatu kasutus",
+      "title": "Kutsekoodid",
+      "subtitle": "Loo ja halda koode. Iga kood lubab ühe uue konto.",
+      "create_title": "Loo kood",
       "expiry": "Aegumine",
       "expiry_1d": "1 päev",
       "expiry_7d": "7 päeva",
       "expiry_30d": "30 päeva",
       "expiry_never": "Mitte kunagi",
-      "create": "Loo kutselink",
-      "created": "Kutselink loodud",
-      "list_title": "Kutselingid",
-      "empty": "Kutselinke veel pole.",
-      "uses": "Kasutusi",
+      "create": "Loo kood",
+      "created": "Kutsekood loodud",
+      "list_title": "Kutsekoodid",
+      "empty": "Kutsekoode veel pole.",
       "created_at": "Loodud",
       "actions": "Toimingud",
       "never": "Mitte kunagi",
-      "copy": "Kopeeri link",
-      "copied": "Kutselink kopeeritud",
+      "copy": "Kopeeri kood",
+      "copied": "Kutsekood kopeeritud",
       "revoke": "Tühista",
-      "revoked": "Kutselink tühistatud",
-      "revoke_title": "Kas tühistada kutselink?",
-      "revoke_description": "Selle lingi kaudu ei saa kohe enam uusi kontosid liituda.",
+      "revoked": "Kutsekood tühistatud",
+      "revoke_title": "Tühistada kood?",
+      "revoke_description": "See kood ei luba enam kohe uusi kontosid luua.",
       "status": {
         "active": "Aktiivne",
         "expired": "Aegunud",
-        "exhausted": "Ammendatud",
-        "revoked": "Tühistatud"
-      }
+        "revoked": "Tühistatud",
+        "used": "Kasutatud"
+      },
+      "copy_failed": "Koodi kopeerimine ebaõnnestus"
     }
   }
 }

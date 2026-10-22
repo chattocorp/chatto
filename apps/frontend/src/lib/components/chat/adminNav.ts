@@ -69,7 +69,7 @@ export function getAdminNavItems({
 
   if (permissions.canManageInvites) {
     items.push({
-      href: resolve('/chat/[serverId]/manage/server/invite-links', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/invitation-codes', { serverId: serverSegment }),
       label: m('chat.management_nav.invitations'),
       icon: 'iconify icon-[uil--envelope-share]'
     });

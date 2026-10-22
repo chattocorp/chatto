@@ -448,22 +448,20 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 	if err := chattoCore.AssignAdminRole(t.Context(), admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	maxUses := uint32(1)
-	invitation, err := chattoCore.CreateInvitation(t.Context(), admin.Id, &maxUses, nil)
+	invitation, err := chattoCore.CreateInvitationCode(t.Context(), admin.Id, nil)
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
-	bindResp, err := client.Get(ts.URL + chattoCore.InvitationLinkPath(invitation.ID))
-	if err != nil {
-		t.Fatalf("GET invite link: %v", err)
-	}
-	bindResp.Body.Close()
-	if bindResp.StatusCode != http.StatusSeeOther || bindResp.Header.Get("Location") != "/register?invited=1" {
-		t.Fatalf("GET invite link = %d %q", bindResp.StatusCode, bindResp.Header.Get("Location"))
-	}
+	admissionID := acceptTestInvitation(t, client, ts.URL, chattoCore.InvitationCode(invitation.ID), "")["admissionId"]
 
 	issuer.SetSubject("subject-invited-create")
-	createToken := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-invited", "/chat")
+	admittedStart := startNoEmailOIDC(t, client, ts.URL, "oidc-invited", url.Values{"redirect": {"/chat"}, "admission": {admissionID}})
+	admittedLocation := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-invited", authStateFromLocation(t, admittedStart))
+	admittedURL, err := url.Parse(admittedLocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	createToken := admittedURL.Query().Get("token")
 	flow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), createToken)
 	if err != nil {
 		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
@@ -482,8 +480,8 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 	issuer.SetSubject("subject-missing-invite")
 	startLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-invited", url.Values{"redirect": {"/chat"}})
 	location := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-invited", authStateFromLocation(t, startLocation))
-	if location != "/login?error=invalid_invitation" {
-		t.Fatalf("uninvited auto-provision Location = %q, want invalid invitation", location)
+	if !strings.HasPrefix(location, "/register?external_identity=") {
+		t.Fatalf("uninvited auto-provision Location = %q, want invitation gate", location)
 	}
 }
 

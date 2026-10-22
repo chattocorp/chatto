@@ -8,12 +8,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { Timestamp } from '@bufbuild/protobuf';
-import { AdminInviteLinkService } from '@chatto/api-types/admin/v1/invitations_connect';
+import { AdminInvitationCodeService } from '@chatto/api-types/admin/v1/invitations_connect';
+import { InvitationCodeStatus } from '@chatto/api-types/admin/v1/invitations_pb';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { mockService } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
-import InviteLinksPage from './+page.svelte';
+import InvitationCodesPage from './+page.svelte';
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -21,19 +22,24 @@ vi.mock(
 );
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
-const invitations = mockService(AdminInviteLinkService);
-const link = 'https://chat.example/join/test-invitation';
+const invitations = mockService(AdminInvitationCodeService);
+const code = 'ABCD-EFGH-IJKL-MNOP-QRST';
 
-describe('Invitation link copying', () => {
+describe('Invitation code copying', () => {
   beforeEach(() => {
     queryClient.clear();
     toast.clear();
     createTestServerScope({
-      routes: (router) => router.service(AdminInviteLinkService, invitations)
+      routes: (router) => router.service(AdminInvitationCodeService, invitations)
     });
-    invitations.listInviteLinks.mockReturnValue({
-      inviteLinks: [
-        { id: 'invitation-1', link, createdAt: Timestamp.fromDate(new Date('2026-01-01')) }
+    invitations.listInvitationCodes.mockReturnValue({
+      invitationCodes: [
+        {
+          id: 'invitation-1',
+          code,
+          status: InvitationCodeStatus.ACTIVE,
+          createdAt: Timestamp.fromDate(new Date('2026-01-01'))
+        }
       ],
       page: { totalCount: 1n, hasMore: false }
     });
@@ -50,21 +56,21 @@ describe('Invitation link copying', () => {
       .spyOn(navigator.clipboard, 'writeText')
       .mockRejectedValueOnce(new Error('private browser detail'))
       .mockResolvedValue(undefined);
-    const { container } = render(InviteLinksPage);
+    const { container } = render(InvitationCodesPage);
     const copyButton = () =>
       [...container.querySelectorAll('button')].find(
-        (button) => button.textContent?.trim() === 'Copy link'
+        (button) => button.textContent?.trim() === 'Copy code'
       );
     await vi.waitFor(() => expect(copyButton()).toBeDefined());
 
     await userEvent.click(copyButton()!);
 
-    expect(getToasts()).toMatchObject([{ tone: 'error', message: 'Failed to copy link' }]);
+    expect(getToasts()).toMatchObject([{ tone: 'error', message: 'Failed to copy code' }]);
     toast.clear();
 
     await userEvent.click(copyButton()!);
 
-    expect(writeText).toHaveBeenNthCalledWith(2, link);
-    expect(getToasts()).toMatchObject([{ tone: 'success', message: 'Invite link copied' }]);
+    expect(writeText).toHaveBeenNthCalledWith(2, code);
+    expect(getToasts()).toMatchObject([{ tone: 'success', message: 'Invitation code copied' }]);
   });
 });

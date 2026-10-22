@@ -47,10 +47,12 @@ read-your-writes. Projection-aware domain models keep the projector references
 needed for those waits; the `ChattoCore` facade does not mirror every registered
 projector.
 
-`InvitationModel` derives a process-local 16-character invite-token lookup
+`InvitationModel` derives a process-local 20-character invitation-code lookup
 index from the cold-replayed Invitation projection. The index contains no
 additional durable facts or stored bearer values and is rebuilt whenever the
-append-only projected invitation identity count changes.
+append-only projected invitation identity count changes. The creation event's
+code version distinguishes single-use codes from retired beta links. Both
+remain in the cold-replayed history; only version-one codes admit accounts.
 
 `CallModel`, `AssetModel`, and `UserModel` own their projection reads for domain
 logic and API adapters. Call state, assets, user profiles, and content keys are

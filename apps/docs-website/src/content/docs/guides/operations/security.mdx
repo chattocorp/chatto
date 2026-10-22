@@ -221,7 +221,7 @@ Your configuration contains these secrets:
 - the asset signing secret
 - S3, NATS, SMTP or JMAP, login provider, Web Push, and LiveKit credentials
 
-A change to `core.secret_key` signs out every session and makes invite links
+A change to `core.secret_key` signs out every session and makes invitation codes
 and pending sign-in links invalid. It does not change the encryption keys.
 
 Protect key exports and backups with keys like the secrets above. See

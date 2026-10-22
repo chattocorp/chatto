@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { userEvent } from 'vitest/browser';
 import type { PublicServerInfo } from '@chatto/client/api/server';
 import RegisterPage from './+page.svelte';
 
@@ -39,33 +40,97 @@ describe('invite-only registration', () => {
     vi.unstubAllGlobals();
   });
 
-  it('requires an invite link before showing account creation choices', async () => {
+  it('validates a code before showing email registration and keeps its selector for resend', async () => {
+    const fetcher = vi.fn<typeof fetch>(async (input) => {
+      const path = String(input);
+      if (path === '/auth/browser/registration-invitation')
+        return Response.json({ admissionId: 'tab-a', externalIdentityToken: '' });
+      if (path === '/auth/register') return Response.json({ message: 'sent' });
+      throw new Error('Unexpected request');
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const page = render(RegisterPage, {
+      props: {
+        data: {
+          user: null,
+          serverInfo: serverInfo(),
+          serverInfoLoaded: true,
+          admissionId: '',
+          externalIdentityToken: '',
+          retiredInvitation: false
+        }
+      }
+    });
+    await userEvent.fill(page.getByLabelText('Invitation code'), 'ABCD-EFGH-IJKL-MNOP-QRST');
+    await userEvent.click(page.getByRole('button', { name: 'Continue' }));
+    await expect.element(page.getByLabelText('Email')).toBeVisible();
+    await userEvent.fill(page.getByLabelText('Email'), 'invited@example.test');
+    await userEvent.click(page.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(page.getByRole('button', { name: 'Resend', exact: true }));
+    const submissions = fetcher.mock.calls.filter(([path]) => path === '/auth/register');
+    expect(submissions).toHaveLength(2);
+    for (const submission of submissions) {
+      expect(JSON.parse(submission[1]?.body as string)).toMatchObject({ admissionId: 'tab-a' });
+    }
+  });
+
+  it('requires an invitation code before showing account creation choices', async () => {
     const { getByText, getByLabelText } = render(RegisterPage, {
       props: {
         data: {
           user: null,
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
-          inviteAccepted: false,
-          inviteError: false
+          admissionId: '',
+          externalIdentityToken: '',
+          retiredInvitation: false
         }
       }
     });
 
     await expect
-      .element(getByText('You need a valid invite link to create an account on this server.'))
+      .element(getByText('Enter an invitation code to create an account on this server.'))
       .toBeVisible();
     await expect.element(getByLabelText('Email')).not.toBeInTheDocument();
   });
 
-  it('shows account creation choices after an invite link is accepted', async () => {
+  it('continues a verified SSO flow after code admission without showing the email form', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () =>
+      Response.json({ admissionId: 'sso-tab', externalIdentityToken: 'admitted-flow' })
+    );
+    vi.stubGlobal('fetch', fetcher);
+    const page = render(RegisterPage, {
+      props: {
+        data: {
+          user: null,
+          serverInfo: serverInfo(),
+          serverInfoLoaded: true,
+          admissionId: '',
+          externalIdentityToken: 'verified-flow',
+          retiredInvitation: false
+        }
+      }
+    });
+    await userEvent.fill(page.getByLabelText('Invitation code'), 'ABCD-EFGH-IJKL-MNOP-QRST');
+    await userEvent.click(page.getByRole('button', { name: 'Continue' }));
+    expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toMatchObject({
+      externalIdentityToken: 'verified-flow'
+    });
+    expect(navigation.goto).toHaveBeenCalledWith('/sso/confirm?token=admitted-flow', {
+      replaceState: true
+    });
+    await expect.element(page.getByLabelText('Email')).not.toBeInTheDocument();
+  });
+
+  it('shows account creation choices after a code is accepted', async () => {
     const { getByRole, getByLabelText } = render(RegisterPage, {
       props: {
         data: {
           user: null,
           serverInfoLoaded: true,
-          inviteAccepted: true,
-          inviteError: false,
+          admissionId: 'admission-1',
+          externalIdentityToken: '',
+          retiredInvitation: false,
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
             authProviders: [
@@ -87,21 +152,26 @@ describe('invite-only registration', () => {
     await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
   });
 
-  it('shows the generic invite-link error after an invalid link redirect', async () => {
+  it('explains the retirement of beta links', async () => {
     const { getByText } = render(RegisterPage, {
       props: {
         data: {
           user: null,
           serverInfoLoaded: true,
-          inviteAccepted: false,
-          inviteError: true,
+          admissionId: '',
+          externalIdentityToken: '',
+          retiredInvitation: true,
           serverInfo: serverInfo()
         }
       }
     });
 
     await expect
-      .element(getByText('This invite link is invalid or no longer available.'))
+      .element(
+        getByText(
+          'This invite link has been retired. Ask an administrator for a new invitation code.'
+        )
+      )
       .toBeVisible();
   });
 
@@ -111,8 +181,9 @@ describe('invite-only registration', () => {
         data: {
           user: null,
           serverInfoLoaded: true,
-          inviteAccepted: false,
-          inviteError: false,
+          admissionId: '',
+          externalIdentityToken: '',
+          retiredInvitation: false,
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
             authProviders: [

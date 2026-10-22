@@ -26,6 +26,8 @@ export type PendingExternalIdentityInfo = {
   displayNameHint: string;
   boundUserId: string | null;
   redirectPath: string | null;
+  /** A new identity needs admission before it can create an account. */
+  invitationRequired: boolean;
 };
 
 export type LinkedExternalIdentityInfo = {
@@ -147,7 +149,8 @@ function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalI
     loginHint: pending.loginHint,
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
-    redirectPath: pending.redirectPath || null
+    redirectPath: pending.redirectPath || null,
+    invitationRequired: pending.invitationRequired
   };
 }
 

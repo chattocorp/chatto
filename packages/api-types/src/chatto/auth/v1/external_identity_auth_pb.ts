@@ -111,6 +111,13 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
    */
   redirectPath = "";
 
+  /**
+   * A create flow must first supply an invitation code. Existing-account sign-in is unaffected.
+   *
+   * @generated from field: bool invitation_required = 10;
+   */
+  invitationRequired = false;
+
   constructor(data?: PartialMessage<PendingExternalIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -128,6 +135,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
     { no: 7, name: "display_name_hint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "bound_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "invitation_required", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PendingExternalIdentity {
@@ -257,6 +265,14 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
    */
   displayName = "";
 
+  /**
+   * Required on invite-only servers when the pending flow has no invitation.
+   * Supplying a code does not consume it until account creation succeeds.
+   *
+   * @generated from field: string invitation_code = 4;
+   */
+  invitationCode = "";
+
   constructor(data?: PartialMessage<CreateExternalIdentityAccountRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -268,6 +284,7 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
     { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "invitation_code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateExternalIdentityAccountRequest {

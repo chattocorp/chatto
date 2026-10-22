@@ -36,6 +36,8 @@ message PendingExternalIdentity {
   string bound_user_id = 8;
   // Internal path the client should return to after confirmation.
   string redirect_path = 9;
+  // A create flow must first supply an invitation code. Existing-account sign-in is unaffected.
+  bool invitation_required = 10;
 }
 
 // Request to inspect a pending external identity flow.
@@ -62,6 +64,9 @@ message CreateExternalIdentityAccountRequest {
   // Desired display name. When omitted, the server uses a valid provider hint
   // and otherwise falls back to the requested username.
   string display_name = 3 [(buf.validate.field).string.max_len = 32];
+  // Required on invite-only servers when the pending flow has no invitation.
+  // Supplying a code does not consume it until account creation succeeds.
+  string invitation_code = 4 [(buf.validate.field).string.max_len = 128];
 }
 
 // Result of creating an account from a pending provider identity.

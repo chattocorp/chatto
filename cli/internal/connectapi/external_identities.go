@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -30,9 +31,17 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 	if flow.Kind == core.ExternalIdentityFlowKindCreate {
 		flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
 	}
-	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
-		Pending: apiPendingExternalIdentity(flow),
-	}), nil
+	pending := apiPendingExternalIdentity(flow)
+	if flow.Kind == core.ExternalIdentityFlowKindCreate && s.api.config.Auth.InvitationRequired() {
+		err := s.api.core.ValidateInvitationAdmission(ctx, flow.InvitationID)
+		if err != nil && !errors.Is(err, core.ErrInvitationInvalid) {
+			return nil, err
+		}
+		pending.InvitationRequired = err != nil
+	}
+	response := connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{Pending: pending})
+	response.Header().Set("Cache-Control", "no-store")
+	return response, nil
 }
 
 func availableExternalIdentityLogin(chattoCore *core.ChattoCore, token, hint string) string {
@@ -62,6 +71,12 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		return nil, err
 	}
 	if s.api.config.Auth.InvitationRequired() {
+		if flow.InvitationID == "" && req.Msg.GetInvitationCode() != "" {
+			flow.InvitationID, err = s.api.core.ValidateInvitationCode(ctx, req.Msg.GetInvitationCode())
+			if err != nil {
+				return nil, err
+			}
+		}
 		if strings.TrimSpace(flow.InvitationID) == "" {
 			return nil, core.ErrInvitationInvalid
 		}
@@ -76,6 +91,7 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		return nil, err
 	}
 	// The account is committed. A failed sync is repeated at the next sign-in.
+	completeRegistrationAdmission(ctx, flow.InvitationID)
 	if provider, ok := s.api.authProvider(flow.ProviderID); ok {
 		groups := core.ProviderGroups{Groups: flow.Groups, Known: flow.GroupsKnown}
 		if err := s.api.core.SyncProviderGroupRoles(ctx, user.GetId(), core.ProviderRoleSource{ProviderID: provider.ID, Issuer: flow.Issuer, Subject: flow.Subject}, provider.GroupRoleMappings(), groups); err != nil {

@@ -1,4 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
+import { redirect } from '@sveltejs/kit';
 import {
   createExternalIdentityFlowAPI,
   type PendingExternalIdentityInfo
@@ -22,11 +23,9 @@ export const load: PageLoad = async ({ url }): Promise<SSOConfirmLoadData> => {
     return { token, pending: null, loadError: 'invalid' };
   }
 
+  let pending: PendingExternalIdentityInfo | null;
   try {
-    const pending = await createExternalIdentityFlowAPI().getPending(token);
-    return pending
-      ? { token, pending, loadError: null }
-      : { token, pending: null, loadError: 'invalid' };
+    pending = await createExternalIdentityFlowAPI().getPending(token);
   } catch (error) {
     return {
       token,
@@ -35,4 +34,9 @@ export const load: PageLoad = async ({ url }): Promise<SSOConfirmLoadData> => {
         error instanceof ConnectError && error.code === Code.NotFound ? 'invalid' : 'failed'
     };
   }
+  if (pending?.invitationRequired)
+    redirect(302, `/register?external_identity=${encodeURIComponent(token)}`);
+  return pending
+    ? { token, pending, loadError: null }
+    : { token, pending: null, loadError: 'invalid' };
 };

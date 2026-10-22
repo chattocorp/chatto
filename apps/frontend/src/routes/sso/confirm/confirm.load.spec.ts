@@ -63,6 +63,14 @@ describe('SSO confirmation load', () => {
     });
   });
 
+  it('sends an unadmitted new identity through the invitation gate', async () => {
+    mocks.getPending.mockResolvedValue({ invitationRequired: true });
+    await expect(loadConfirmation('verified-flow')).rejects.toMatchObject({
+      status: 302,
+      location: '/register?external_identity=verified-flow'
+    });
+  });
+
   it('maps a not-found API response to the invalid state', async () => {
     mocks.getPending.mockRejectedValue(new ConnectError('not found', Code.NotFound));
 

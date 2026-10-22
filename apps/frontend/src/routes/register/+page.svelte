@@ -9,6 +9,7 @@
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { acceptRegistrationInvitation } from '$lib/auth/registrationAdmission';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import { Divider, Hint, PageTitle } from '$lib/ui';
@@ -25,8 +26,8 @@
     authProviders.filter((provider) => provider.autoProvision !== false)
   );
   const selfServiceAvailable = $derived(registrationEnabled || registrationProviders.length > 0);
-  const inviteAccepted = $derived(data.inviteAccepted ?? false);
-  const inviteError = $derived(data.inviteError ?? false);
+  let admissionId = $derived(data.admissionId ?? '');
+  let invitationCode = $state('');
 
   let step = $state<Step>('email');
   let email = $state('');
@@ -93,7 +94,40 @@
   }
 
   function providerLoginHref(provider: PublicAuthProvider): string {
-    return `${provider.loginUrl}?redirect=${encodeURIComponent('/')}`;
+    const url = new URL(provider.loginUrl, window.location.origin);
+    url.searchParams.set('redirect', '/');
+    if (admissionId) url.searchParams.set('admission', admissionId);
+    return url.href;
+  }
+
+  async function handleInvitationSubmit(event: Event) {
+    event.preventDefault();
+    error = '';
+    isLoading = true;
+    try {
+      const accepted = await acceptRegistrationInvitation(
+        invitationCode,
+        data.externalIdentityToken ?? ''
+      );
+      if (!active) return;
+      if (!accepted) {
+        error = m('auth.register.invitation.invalid');
+        return;
+      }
+      invitationCode = '';
+      if (accepted.externalIdentityToken) {
+        await goto(
+          resolve(`/sso/confirm?token=${encodeURIComponent(accepted.externalIdentityToken)}`),
+          { replaceState: true }
+        );
+      } else {
+        admissionId = accepted.admissionId;
+      }
+    } catch (err) {
+      if (active) error = errorMessage(err, m('auth.register.failed'));
+    } finally {
+      isLoading = false;
+    }
   }
 
   async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
@@ -101,7 +135,7 @@
     providerError = '';
     selectedProviderId = provider.id;
     try {
-      providerPopup = openProviderSignIn(provider.loginUrl);
+      providerPopup = openProviderSignIn(providerLoginHref(provider));
       await verifyProviderSignIn(providerPopup);
       if (!active) return;
       if (!(await completeOriginAuthentication())) await goto(resolve('/'));
@@ -133,7 +167,7 @@
           'Content-Type': 'application/json',
           ...browserCookieAuthenticationHeaders
         },
-        body: JSON.stringify({ email: normalizedEmail })
+        body: JSON.stringify({ email: normalizedEmail, admissionId })
       });
       const body = await response.json();
 
@@ -240,15 +274,28 @@
       ? m('auth.register.complete_title')
       : m('auth.register.title')}
 >
+  {#if data.retiredInvitation}
+    <Hint>{m('auth.register.invitation.retired')}</Hint>
+  {/if}
   {#if !selfServiceAvailable}
     <Hint>{m('auth.register.unavailable')}</Hint>
-  {:else if invitationRequired && !inviteAccepted}
-    <div class="flex flex-col gap-4 text-center">
+  {:else if invitationRequired && !admissionId}
+    <form onsubmit={handleInvitationSubmit} class="flex flex-col gap-4">
       <p class="text-muted">{m('auth.register.invitation.required')}</p>
-      {#if inviteError}
-        <FormError error={m('auth.register.invitation.invalid')} />
-      {/if}
-    </div>
+      <TextInput
+        id="invitation-code"
+        label={m('auth.register.invitation.label')}
+        bind:value={invitationCode}
+        required
+        autofocus
+        disabled={isLoading}
+        autocomplete="off"
+      />
+      <FormError {error} />
+      <Button type="submit" size="lg" loading={isLoading} disabled={!invitationCode.trim()}>
+        {m('common.continue')}
+      </Button>
+    </form>
   {:else if step === 'email'}
     {#if registrationEnabled}
       <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">

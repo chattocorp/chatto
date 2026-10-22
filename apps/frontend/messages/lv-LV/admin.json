@@ -555,37 +555,34 @@
       "total": "Kopā {count} lietotājs(-i)."
     },
     "invitations": {
-      "title": "Uzaicinājumu saites",
-      "subtitle": "Izveidojiet un pārvaldiet saites, ar kurām var pievienoties jauni konti.",
-      "create_title": "Izveidot uzaicinājuma saiti",
-      "max_uses": "Maksimālais lietojumu skaits",
-      "max_uses_error": "Ievadiet veselu skaitli, kas nav mazāks par 1.",
-      "unlimited_uses": "Atļaut neierobežotu lietojumu skaitu",
+      "title": "Uzaicinājuma kodi",
+      "subtitle": "Izveidojiet un pārvaldiet kodus. Katrs kods ļauj izveidot vienu kontu.",
+      "create_title": "Izveidot kodu",
       "expiry": "Derīguma termiņš",
       "expiry_1d": "1 diena",
       "expiry_7d": "7 dienas",
       "expiry_30d": "30 dienas",
       "expiry_never": "Nekad",
-      "create": "Izveidot uzaicinājuma saiti",
-      "created": "Uzaicinājuma saite izveidota",
-      "list_title": "Uzaicinājumu saites",
-      "empty": "Vēl nav uzaicinājumu saišu.",
-      "uses": "Lietojumi",
+      "create": "Izveidot kodu",
+      "created": "Uzaicinājuma kods izveidots",
+      "list_title": "Uzaicinājuma kodi",
+      "empty": "Vēl nav uzaicinājuma kodu.",
       "created_at": "Izveidota",
       "actions": "Darbības",
       "never": "Nekad",
-      "copy": "Kopēt saiti",
-      "copied": "Uzaicinājuma saite nokopēta",
+      "copy": "Kopēt kodu",
+      "copied": "Uzaicinājuma kods nokopēts",
       "revoke": "Atsaukt",
-      "revoked": "Uzaicinājuma saite atsaukta",
-      "revoke_title": "Atsaukt uzaicinājuma saiti?",
-      "revoke_description": "Ar šo saiti uzreiz vairs nevarēs pievienoties jauni konti.",
+      "revoked": "Uzaicinājuma kods atsaukts",
+      "revoke_title": "Atsaukt kodu?",
+      "revoke_description": "Šis kods nekavējoties pārtrauks atļaut jaunus kontus.",
       "status": {
         "active": "Aktīva",
         "expired": "Beigusies",
-        "exhausted": "Izlietota",
-        "revoked": "Atsaukta"
-      }
+        "revoked": "Atsaukta",
+        "used": "Izmantots"
+      },
+      "copy_failed": "Neizdevās nokopēt kodu"
     }
   }
 }
