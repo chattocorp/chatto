@@ -102,7 +102,7 @@ describe('Invite room member dialog', () => {
       .element(page.getByRole('dialog', { name: 'Invite members to #Project' }))
       .toBeVisible();
     await expect
-      .element(page.getByText('Invited users will receive an invitation', { exact: false }))
+      .element(page.getByText('Invited users will receive a notification', { exact: false }))
       .toBeVisible();
     const search = page.getByRole('combobox', { name: 'Members' });
     await search.fill('b');
