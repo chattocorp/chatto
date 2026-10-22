@@ -1035,7 +1035,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         /></span
       >
     {:else}
-      <span class="relative flex shrink-0">
+      <span class="relative flex size-5 shrink-0 items-center justify-center">
         {#if isJoined}
           {#if room.isUniversal}
             <span
@@ -1182,7 +1182,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         else handleRenderedLinkClick(event, target.href);
       }}
     >
-      <span class="relative flex shrink-0" data-testid="sidebar-link-leading-icon">
+      <span
+        class="relative flex size-5 shrink-0 items-center justify-center"
+        data-testid="sidebar-link-leading-icon"
+      >
         <span
           aria-hidden="true"
           class={[
