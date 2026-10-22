@@ -48,13 +48,13 @@ describe('createNotificationAPI', () => {
       new NotificationOccurrence({
         id: 'invite-notification',
         unread: true,
+        expiresAt: Timestamp.fromDate(new Date('2026-11-01T00:00:00Z')),
         signal: {
           kind: {
             case: 'roomInvitationReceived',
             value: {
               room: { id: 'room', name: 'Private room' },
-              invitationId: 'invitation',
-              expiresAt: Timestamp.fromDate(new Date('2026-11-01T00:00:00Z'))
+              invitationId: 'invitation'
             }
           }
         }
@@ -66,6 +66,7 @@ describe('createNotificationAPI', () => {
       room: { id: 'room', name: 'Private room' },
       eventId: '',
       threadRootId: null,
+      expiresAt: '2026-11-01T00:00:00.000Z',
       unread: true
     });
   });

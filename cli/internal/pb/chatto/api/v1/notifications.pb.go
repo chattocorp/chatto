@@ -822,14 +822,13 @@ func (x *ReactionReceived) GetEmoji() string {
 }
 
 // An invitation to join a room. Its destination is the room, not a message.
-// Attention ends when the invitation is handled or expires.
+// Attention ends when the invitation is handled or reaches the containing
+// NotificationOccurrence's expires_at deadline.
 type RoomInvitationReceived struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Room  *RoomSummary           `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
 	// Stable invitation identifier.
-	InvitationId string `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
-	// Original invitation deadline; it is not extended by notification reads.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	InvitationId  string `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -876,13 +875,6 @@ func (x *RoomInvitationReceived) GetInvitationId() string {
 		return x.InvitationId
 	}
 	return ""
-}
-
-func (x *RoomInvitationReceived) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
 }
 
 // Immutable, typed cause and destination of one notification. Clients must
@@ -2537,12 +2529,10 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\"o\n" +
 	"\x10ReactionReceived\x12E\n" +
 	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\x12\x14\n" +
-	"\x05emoji\x18\x02 \x01(\tR\x05emoji\"\xa8\x01\n" +
+	"\x05emoji\x18\x02 \x01(\tR\x05emoji\"m\n" +
 	"\x16RoomInvitationReceived\x12.\n" +
 	"\x04room\x18\x01 \x01(\v2\x1a.chatto.api.v1.RoomSummaryR\x04room\x12#\n" +
-	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\x129\n" +
-	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xff\a\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\"\xff\a\n" +
 	"\x12NotificationSignal\x12^\n" +
 	"\x17direct_message_received\x18\x01 \x01(\v2$.chatto.api.v1.DirectMessageReceivedH\x00R\x15directMessageReceived\x12^\n" +
 	"\x17direct_mention_received\x18\x02 \x01(\v2$.chatto.api.v1.DirectMentionReceivedH\x00R\x15directMentionReceived\x12E\n" +
@@ -2750,69 +2740,68 @@ var file_chatto_api_v1_notifications_proto_depIdxs = []int32{
 	3,  // 20: chatto.api.v1.RoomMessageReceived.message:type_name -> chatto.api.v1.NotificationMessageReference
 	3,  // 21: chatto.api.v1.ReactionReceived.message:type_name -> chatto.api.v1.NotificationMessageReference
 	41, // 22: chatto.api.v1.RoomInvitationReceived.room:type_name -> chatto.api.v1.RoomSummary
-	42, // 23: chatto.api.v1.RoomInvitationReceived.expires_at:type_name -> google.protobuf.Timestamp
-	4,  // 24: chatto.api.v1.NotificationSignal.direct_message_received:type_name -> chatto.api.v1.DirectMessageReceived
-	5,  // 25: chatto.api.v1.NotificationSignal.direct_mention_received:type_name -> chatto.api.v1.DirectMentionReceived
-	6,  // 26: chatto.api.v1.NotificationSignal.reply_received:type_name -> chatto.api.v1.ReplyReceived
-	7,  // 27: chatto.api.v1.NotificationSignal.role_mention_received:type_name -> chatto.api.v1.RoleMentionReceived
-	8,  // 28: chatto.api.v1.NotificationSignal.here_mention_received:type_name -> chatto.api.v1.HereMentionReceived
-	9,  // 29: chatto.api.v1.NotificationSignal.all_mention_received:type_name -> chatto.api.v1.AllMentionReceived
-	10, // 30: chatto.api.v1.NotificationSignal.followed_thread_activity:type_name -> chatto.api.v1.FollowedThreadActivity
-	11, // 31: chatto.api.v1.NotificationSignal.followed_room_activity:type_name -> chatto.api.v1.FollowedRoomActivity
-	13, // 32: chatto.api.v1.NotificationSignal.reaction_received:type_name -> chatto.api.v1.ReactionReceived
-	12, // 33: chatto.api.v1.NotificationSignal.room_message_received:type_name -> chatto.api.v1.RoomMessageReceived
-	14, // 34: chatto.api.v1.NotificationSignal.room_invitation_received:type_name -> chatto.api.v1.RoomInvitationReceived
-	42, // 35: chatto.api.v1.NotificationOccurrence.created_at:type_name -> google.protobuf.Timestamp
-	43, // 36: chatto.api.v1.NotificationOccurrence.actor:type_name -> chatto.api.v1.User
-	15, // 37: chatto.api.v1.NotificationOccurrence.signal:type_name -> chatto.api.v1.NotificationSignal
-	42, // 38: chatto.api.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 39: chatto.api.v1.NotificationOccurrence.attention_level:type_name -> chatto.api.v1.NotificationAttentionLevel
-	44, // 40: chatto.api.v1.ListNotificationOccurrencesRequest.page:type_name -> chatto.api.v1.PageRequest
-	16, // 41: chatto.api.v1.ListNotificationOccurrencesResponse.occurrences:type_name -> chatto.api.v1.NotificationOccurrence
-	45, // 42: chatto.api.v1.ListNotificationOccurrencesResponse.page:type_name -> chatto.api.v1.PageInfo
-	42, // 43: chatto.api.v1.ListNotificationOccurrencesResponse.next_expiry_at:type_name -> google.protobuf.Timestamp
-	23, // 44: chatto.api.v1.ListNotificationOccurrencesResponse.room_unread_counts:type_name -> chatto.api.v1.NotificationRoomUnreadCount
-	16, // 45: chatto.api.v1.GetNotificationOccurrenceResponse.occurrence:type_name -> chatto.api.v1.NotificationOccurrence
-	16, // 46: chatto.api.v1.BatchGetNotificationOccurrencesResponse.occurrences:type_name -> chatto.api.v1.NotificationOccurrence
-	16, // 47: chatto.api.v1.MarkNotificationReadResponse.occurrence:type_name -> chatto.api.v1.NotificationOccurrence
-	2,  // 48: chatto.api.v1.NotificationPolicy.overrides:type_name -> chatto.api.v1.NotificationDeliveryModes
-	2,  // 49: chatto.api.v1.NotificationPolicy.effective:type_name -> chatto.api.v1.NotificationDeliveryModes
-	46, // 50: chatto.api.v1.NotificationPolicyScope.server:type_name -> google.protobuf.Empty
-	33, // 51: chatto.api.v1.ScopedNotificationPolicy.scope:type_name -> chatto.api.v1.NotificationPolicyScope
-	32, // 52: chatto.api.v1.ScopedNotificationPolicy.policy:type_name -> chatto.api.v1.NotificationPolicy
-	33, // 53: chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyRequest.scope:type_name -> chatto.api.v1.NotificationPolicyScope
-	34, // 54: chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyResponse.policy:type_name -> chatto.api.v1.ScopedNotificationPolicy
-	33, // 55: chatto.api.v1.BatchGetNotificationPoliciesRequest.scopes:type_name -> chatto.api.v1.NotificationPolicyScope
-	34, // 56: chatto.api.v1.BatchGetNotificationPoliciesResponse.policies:type_name -> chatto.api.v1.ScopedNotificationPolicy
-	33, // 57: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest.scope:type_name -> chatto.api.v1.NotificationPolicyScope
-	2,  // 58: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest.overrides:type_name -> chatto.api.v1.NotificationDeliveryModes
-	47, // 59: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
-	34, // 60: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyResponse.policy:type_name -> chatto.api.v1.ScopedNotificationPolicy
-	19, // 61: chatto.api.v1.NotificationService.GetNotificationOccurrence:input_type -> chatto.api.v1.GetNotificationOccurrenceRequest
-	21, // 62: chatto.api.v1.NotificationService.BatchGetNotificationOccurrences:input_type -> chatto.api.v1.BatchGetNotificationOccurrencesRequest
-	17, // 63: chatto.api.v1.NotificationService.ListNotificationOccurrences:input_type -> chatto.api.v1.ListNotificationOccurrencesRequest
-	24, // 64: chatto.api.v1.NotificationService.MarkNotificationRead:input_type -> chatto.api.v1.MarkNotificationReadRequest
-	26, // 65: chatto.api.v1.NotificationService.DeleteNotificationOccurrence:input_type -> chatto.api.v1.DeleteNotificationOccurrenceRequest
-	28, // 66: chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences:input_type -> chatto.api.v1.BatchDeleteNotificationOccurrencesRequest
-	30, // 67: chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences:input_type -> chatto.api.v1.DeleteAllNotificationOccurrencesRequest
-	35, // 68: chatto.api.v1.NotificationPolicyService.GetNotificationPolicy:input_type -> chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyRequest
-	37, // 69: chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies:input_type -> chatto.api.v1.BatchGetNotificationPoliciesRequest
-	39, // 70: chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy:input_type -> chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest
-	20, // 71: chatto.api.v1.NotificationService.GetNotificationOccurrence:output_type -> chatto.api.v1.GetNotificationOccurrenceResponse
-	22, // 72: chatto.api.v1.NotificationService.BatchGetNotificationOccurrences:output_type -> chatto.api.v1.BatchGetNotificationOccurrencesResponse
-	18, // 73: chatto.api.v1.NotificationService.ListNotificationOccurrences:output_type -> chatto.api.v1.ListNotificationOccurrencesResponse
-	25, // 74: chatto.api.v1.NotificationService.MarkNotificationRead:output_type -> chatto.api.v1.MarkNotificationReadResponse
-	27, // 75: chatto.api.v1.NotificationService.DeleteNotificationOccurrence:output_type -> chatto.api.v1.DeleteNotificationOccurrenceResponse
-	29, // 76: chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences:output_type -> chatto.api.v1.BatchDeleteNotificationOccurrencesResponse
-	31, // 77: chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences:output_type -> chatto.api.v1.DeleteAllNotificationOccurrencesResponse
-	36, // 78: chatto.api.v1.NotificationPolicyService.GetNotificationPolicy:output_type -> chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyResponse
-	38, // 79: chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies:output_type -> chatto.api.v1.BatchGetNotificationPoliciesResponse
-	40, // 80: chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy:output_type -> chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyResponse
-	71, // [71:81] is the sub-list for method output_type
-	61, // [61:71] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	4,  // 23: chatto.api.v1.NotificationSignal.direct_message_received:type_name -> chatto.api.v1.DirectMessageReceived
+	5,  // 24: chatto.api.v1.NotificationSignal.direct_mention_received:type_name -> chatto.api.v1.DirectMentionReceived
+	6,  // 25: chatto.api.v1.NotificationSignal.reply_received:type_name -> chatto.api.v1.ReplyReceived
+	7,  // 26: chatto.api.v1.NotificationSignal.role_mention_received:type_name -> chatto.api.v1.RoleMentionReceived
+	8,  // 27: chatto.api.v1.NotificationSignal.here_mention_received:type_name -> chatto.api.v1.HereMentionReceived
+	9,  // 28: chatto.api.v1.NotificationSignal.all_mention_received:type_name -> chatto.api.v1.AllMentionReceived
+	10, // 29: chatto.api.v1.NotificationSignal.followed_thread_activity:type_name -> chatto.api.v1.FollowedThreadActivity
+	11, // 30: chatto.api.v1.NotificationSignal.followed_room_activity:type_name -> chatto.api.v1.FollowedRoomActivity
+	13, // 31: chatto.api.v1.NotificationSignal.reaction_received:type_name -> chatto.api.v1.ReactionReceived
+	12, // 32: chatto.api.v1.NotificationSignal.room_message_received:type_name -> chatto.api.v1.RoomMessageReceived
+	14, // 33: chatto.api.v1.NotificationSignal.room_invitation_received:type_name -> chatto.api.v1.RoomInvitationReceived
+	42, // 34: chatto.api.v1.NotificationOccurrence.created_at:type_name -> google.protobuf.Timestamp
+	43, // 35: chatto.api.v1.NotificationOccurrence.actor:type_name -> chatto.api.v1.User
+	15, // 36: chatto.api.v1.NotificationOccurrence.signal:type_name -> chatto.api.v1.NotificationSignal
+	42, // 37: chatto.api.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 38: chatto.api.v1.NotificationOccurrence.attention_level:type_name -> chatto.api.v1.NotificationAttentionLevel
+	44, // 39: chatto.api.v1.ListNotificationOccurrencesRequest.page:type_name -> chatto.api.v1.PageRequest
+	16, // 40: chatto.api.v1.ListNotificationOccurrencesResponse.occurrences:type_name -> chatto.api.v1.NotificationOccurrence
+	45, // 41: chatto.api.v1.ListNotificationOccurrencesResponse.page:type_name -> chatto.api.v1.PageInfo
+	42, // 42: chatto.api.v1.ListNotificationOccurrencesResponse.next_expiry_at:type_name -> google.protobuf.Timestamp
+	23, // 43: chatto.api.v1.ListNotificationOccurrencesResponse.room_unread_counts:type_name -> chatto.api.v1.NotificationRoomUnreadCount
+	16, // 44: chatto.api.v1.GetNotificationOccurrenceResponse.occurrence:type_name -> chatto.api.v1.NotificationOccurrence
+	16, // 45: chatto.api.v1.BatchGetNotificationOccurrencesResponse.occurrences:type_name -> chatto.api.v1.NotificationOccurrence
+	16, // 46: chatto.api.v1.MarkNotificationReadResponse.occurrence:type_name -> chatto.api.v1.NotificationOccurrence
+	2,  // 47: chatto.api.v1.NotificationPolicy.overrides:type_name -> chatto.api.v1.NotificationDeliveryModes
+	2,  // 48: chatto.api.v1.NotificationPolicy.effective:type_name -> chatto.api.v1.NotificationDeliveryModes
+	46, // 49: chatto.api.v1.NotificationPolicyScope.server:type_name -> google.protobuf.Empty
+	33, // 50: chatto.api.v1.ScopedNotificationPolicy.scope:type_name -> chatto.api.v1.NotificationPolicyScope
+	32, // 51: chatto.api.v1.ScopedNotificationPolicy.policy:type_name -> chatto.api.v1.NotificationPolicy
+	33, // 52: chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyRequest.scope:type_name -> chatto.api.v1.NotificationPolicyScope
+	34, // 53: chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyResponse.policy:type_name -> chatto.api.v1.ScopedNotificationPolicy
+	33, // 54: chatto.api.v1.BatchGetNotificationPoliciesRequest.scopes:type_name -> chatto.api.v1.NotificationPolicyScope
+	34, // 55: chatto.api.v1.BatchGetNotificationPoliciesResponse.policies:type_name -> chatto.api.v1.ScopedNotificationPolicy
+	33, // 56: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest.scope:type_name -> chatto.api.v1.NotificationPolicyScope
+	2,  // 57: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest.overrides:type_name -> chatto.api.v1.NotificationDeliveryModes
+	47, // 58: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	34, // 59: chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyResponse.policy:type_name -> chatto.api.v1.ScopedNotificationPolicy
+	19, // 60: chatto.api.v1.NotificationService.GetNotificationOccurrence:input_type -> chatto.api.v1.GetNotificationOccurrenceRequest
+	21, // 61: chatto.api.v1.NotificationService.BatchGetNotificationOccurrences:input_type -> chatto.api.v1.BatchGetNotificationOccurrencesRequest
+	17, // 62: chatto.api.v1.NotificationService.ListNotificationOccurrences:input_type -> chatto.api.v1.ListNotificationOccurrencesRequest
+	24, // 63: chatto.api.v1.NotificationService.MarkNotificationRead:input_type -> chatto.api.v1.MarkNotificationReadRequest
+	26, // 64: chatto.api.v1.NotificationService.DeleteNotificationOccurrence:input_type -> chatto.api.v1.DeleteNotificationOccurrenceRequest
+	28, // 65: chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences:input_type -> chatto.api.v1.BatchDeleteNotificationOccurrencesRequest
+	30, // 66: chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences:input_type -> chatto.api.v1.DeleteAllNotificationOccurrencesRequest
+	35, // 67: chatto.api.v1.NotificationPolicyService.GetNotificationPolicy:input_type -> chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyRequest
+	37, // 68: chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies:input_type -> chatto.api.v1.BatchGetNotificationPoliciesRequest
+	39, // 69: chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy:input_type -> chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyRequest
+	20, // 70: chatto.api.v1.NotificationService.GetNotificationOccurrence:output_type -> chatto.api.v1.GetNotificationOccurrenceResponse
+	22, // 71: chatto.api.v1.NotificationService.BatchGetNotificationOccurrences:output_type -> chatto.api.v1.BatchGetNotificationOccurrencesResponse
+	18, // 72: chatto.api.v1.NotificationService.ListNotificationOccurrences:output_type -> chatto.api.v1.ListNotificationOccurrencesResponse
+	25, // 73: chatto.api.v1.NotificationService.MarkNotificationRead:output_type -> chatto.api.v1.MarkNotificationReadResponse
+	27, // 74: chatto.api.v1.NotificationService.DeleteNotificationOccurrence:output_type -> chatto.api.v1.DeleteNotificationOccurrenceResponse
+	29, // 75: chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences:output_type -> chatto.api.v1.BatchDeleteNotificationOccurrencesResponse
+	31, // 76: chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences:output_type -> chatto.api.v1.DeleteAllNotificationOccurrencesResponse
+	36, // 77: chatto.api.v1.NotificationPolicyService.GetNotificationPolicy:output_type -> chatto.api.v1.NotificationPolicyServiceGetNotificationPolicyResponse
+	38, // 78: chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies:output_type -> chatto.api.v1.BatchGetNotificationPoliciesResponse
+	40, // 79: chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy:output_type -> chatto.api.v1.NotificationPolicyServiceUpdateNotificationPolicyResponse
+	70, // [70:80] is the sub-list for method output_type
+	60, // [60:70] is the sub-list for method input_type
+	60, // [60:60] is the sub-list for extension type_name
+	60, // [60:60] is the sub-list for extension extendee
+	0,  // [0:60] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_notifications_proto_init() }

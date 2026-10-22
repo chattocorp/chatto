@@ -6536,13 +6536,13 @@ A message mentioning a role held by the viewer.
 ### RoomInvitationReceived
 
 An invitation to join a room. Its destination is the room, not a message.
-Attention ends when the invitation is handled or expires.
+Attention ends when the invitation is handled or reaches the containing
+NotificationOccurrence's expires_at deadline.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | No field description provided. |
 | `invitation_id` | `string` | Stable invitation identifier. |
-| `expires_at` | `google.protobuf.Timestamp` | Original invitation deadline; it is not extended by notification reads. |
 
 
 

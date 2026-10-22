@@ -688,7 +688,8 @@ export class ReactionReceived extends Message<ReactionReceived> {
 
 /**
  * An invitation to join a room. Its destination is the room, not a message.
- * Attention ends when the invitation is handled or expires.
+ * Attention ends when the invitation is handled or reaches the containing
+ * NotificationOccurrence's expires_at deadline.
  *
  * @generated from message chatto.api.v1.RoomInvitationReceived
  */
@@ -705,13 +706,6 @@ export class RoomInvitationReceived extends Message<RoomInvitationReceived> {
    */
   invitationId = "";
 
-  /**
-   * Original invitation deadline; it is not extended by notification reads.
-   *
-   * @generated from field: google.protobuf.Timestamp expires_at = 3;
-   */
-  expiresAt?: Timestamp;
-
   constructor(data?: PartialMessage<RoomInvitationReceived>) {
     super();
     proto3.util.initPartial(data, this);
@@ -722,7 +716,6 @@ export class RoomInvitationReceived extends Message<RoomInvitationReceived> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "invitation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "expires_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomInvitationReceived {

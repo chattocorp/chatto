@@ -304,13 +304,17 @@ export class NotificationStore {
 
   /** Replace notification state from the realtime projection. */
   replaceOccurrenceProjection(page: NotificationOccurrencePage): void {
+    this.#replaceSafeOccurrenceProjection(this.#privacySafePage(page));
+  }
+
+  /** Install a page whose room access and actor data have already been checked. */
+  #replaceSafeOccurrenceProjection(page: NotificationOccurrencePage): void {
     this.pushRevision++;
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
     this.#pendingDeletionById.clear();
     this.#pendingReadById.clear();
     this.#pendingReadRequestById.clear();
-    page = this.#privacySafePage(page);
     this.occurrences = page.occurrences;
     this.consumedCount = page.consumedCount ?? page.occurrences.length;
     this.totalCount = page.totalCount;
@@ -474,7 +478,7 @@ export class NotificationStore {
       return await this.#fetchPage(offset);
     }
     const safePage = this.#privacySafePage(page);
-    if (offset === 0) this.replaceOccurrenceProjection(safePage);
+    if (offset === 0) this.#replaceSafeOccurrenceProjection(safePage);
     else {
       this.occurrences = mergeNotificationOccurrences(this.occurrences, safePage.occurrences);
       const consumedCount = safePage.consumedCount ?? safePage.occurrences.length;

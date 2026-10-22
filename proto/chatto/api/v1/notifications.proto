@@ -130,13 +130,12 @@ message ReactionReceived {
 }
 
 // An invitation to join a room. Its destination is the room, not a message.
-// Attention ends when the invitation is handled or expires.
+// Attention ends when the invitation is handled or reaches the containing
+// NotificationOccurrence's expires_at deadline.
 message RoomInvitationReceived {
   RoomSummary room = 1;
   // Stable invitation identifier.
   string invitation_id = 2;
-  // Original invitation deadline; it is not extended by notification reads.
-  google.protobuf.Timestamp expires_at = 3;
 }
 
 // Immutable, typed cause and destination of one notification. Clients must
