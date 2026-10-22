@@ -213,7 +213,7 @@ store owns only optimistic join/leave state.
 
     <div class="flex min-w-28 shrink-0 items-center justify-center gap-1">
       {#if joined && room.isUniversal}
-        <Pill tone="action">
+        <Pill tone="action" class="inline-flex items-center gap-1">
           <span aria-hidden="true" class="iconify icon-[uil--globe]"></span>
           {m('room.directory.universal')}
         </Pill>
@@ -252,7 +252,7 @@ store owns only optimistic join/leave state.
           </Button>
         </div>
       {:else if invited}
-        <Pill tone="action">
+        <Pill tone="action" class="inline-flex items-center gap-1">
           <span aria-hidden="true" class="iconify icon-[uil--envelope-alt]"></span>
           {m('room.directory.invited')}
         </Pill>
@@ -272,7 +272,7 @@ store owns only optimistic join/leave state.
           {/if}
         </Button>
       {:else}
-        <Pill tone="muted">
+        <Pill tone="muted" class="inline-flex items-center gap-1">
           <span aria-hidden="true" class="iconify icon-[uil--lock]"></span>
           {m('room.directory.restricted')}
         </Pill>
