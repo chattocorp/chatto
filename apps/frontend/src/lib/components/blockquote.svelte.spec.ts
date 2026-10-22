@@ -68,7 +68,7 @@ describe.each(['*', '_'])('Blockquote emphasis with %s', (delimiter) => {
         expect(quotes).toHaveLength(2);
         for (const quote of quotes) {
           const style = getComputedStyle(quote);
-          expect(style.fontStyle).toBe('normal');
+          expect(style.fontStyle).toBe('italic');
           expect(style.color).not.toBe(outsideStyle.color);
           expect(style.borderInlineStartStyle).toBe('solid');
           expect(parseFloat(style.borderInlineStartWidth)).toBeGreaterThan(0);
@@ -81,17 +81,17 @@ describe.each(['*', '_'])('Blockquote emphasis with %s', (delimiter) => {
         expect(quotes[0]!.querySelectorAll('ul > li')).toHaveLength(2);
         expect(quotes[0]!.querySelectorAll('ol > li')).toHaveLength(2);
         for (const paragraph of container.querySelectorAll('blockquote p, blockquote li')) {
-          expect(getComputedStyle(paragraph).fontStyle).toBe('normal');
+          expect(getComputedStyle(paragraph).fontStyle).toBe('italic');
         }
         for (const emphasis of container.querySelectorAll('blockquote em')) {
-          expect(getComputedStyle(emphasis).fontStyle).toBe('italic');
+          expect(getComputedStyle(emphasis).fontStyle).toBe('normal');
         }
         const emphasisWeight = getComputedStyle(quotes[0]!.querySelector('em')!).fontWeight;
         const strongElements = container.querySelectorAll('blockquote strong');
         expect(strongElements).toHaveLength(4);
         for (const strong of strongElements) {
           const style = getComputedStyle(strong);
-          expect(style.fontStyle).toBe('normal');
+          expect(style.fontStyle).toBe('italic');
           expect(Number(style.fontWeight)).toBeGreaterThan(Number(emphasisWeight));
         }
         const code = quotes[0]!.querySelector('code')!;
