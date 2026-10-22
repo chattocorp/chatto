@@ -10,7 +10,6 @@
   import { contextMenuTrigger, type ContextMenuTriggerDetails } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
-  import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
 
   let {
     target,
@@ -82,9 +81,9 @@
   <bdi class="truncate">{name}</bdi>
 </a>
 {#if menu && store}
-  <ServerScopeProvider serverId={target.serverId} {store} connection={store.connection}>
-    {#await import('./EntityLinkMenu.svelte') then module}
-      <module.default {target} {user} {room} {name} {menu} onclose={() => (menu = null)} />
-    {/await}
-  </ServerScopeProvider>
+  {#await Promise.all( [import('./EntityLinkMenu.svelte'), import('$lib/state/server/ServerScopeProvider.svelte')] ) then [actions, scope]}
+    <scope.default serverId={target.serverId} {store} connection={store.connection}>
+      <actions.default {target} {user} {room} {name} {menu} onclose={() => (menu = null)} />
+    </scope.default>
+  {/await}
 {/if}
