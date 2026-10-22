@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Ŝarĝante...",
       "empty": "Neniuj kongruoj",
-      "clear": "Klara"
+      "clear": "Klara",
+      "remove": "Forigi {label}"
     },
     "expiry": {
       "24h": "24 horoj",

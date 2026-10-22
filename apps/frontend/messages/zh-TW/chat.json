@@ -25,7 +25,8 @@
         "mention": "{actor} 提及了你",
         "followed_thread": "{actor} 回覆了你追蹤的討論串",
         "new_message": "{actor} 發布了一則新訊息",
-        "activity": "{actor} 傳送了一則通知給你"
+        "activity": "{actor} 傳送了一則通知給你",
+        "room_invitation": "{actor} 邀請你加入房間"
       }
     },
     "sign_out": {

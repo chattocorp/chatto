@@ -25,7 +25,8 @@
         "mention": "{actor}さんがあなたをメンションしました",
         "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました",
         "new_message": "{actor}さんが新しいメッセージを投稿しました",
-        "activity": "{actor}さんから通知が届きました"
+        "activity": "{actor}さんから通知が届きました",
+        "room_invitation": "{actor} があなたをルームに招待しました"
       }
     },
     "sign_out": {

@@ -475,7 +475,7 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
 			return core.ErrUnsupportedNotificationSignal
 		}
-		if core.NotificationOccurrenceMessageReference(occurrence) == nil {
+		if core.NotificationOccurrenceRoomID(occurrence) == "" {
 			return core.ErrNotificationAlertSuppressed
 		}
 		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, occurrence.GetRecipientId())
@@ -593,6 +593,13 @@ func filterOwnedPushSubscriptions(
 // fetchOccurrencePayloadContext builds a best-effort message preview and room
 // name for an occurrence-backed push payload.
 func fetchOccurrencePayloadContext(ctx context.Context, chattoCore *core.ChattoCore, occurrence *notificationv1.NotificationOccurrence, logger *log.Logger) *push.PayloadContext {
+	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
+		room, err := chattoCore.FindRoomByID(ctx, invitation.GetRoomId())
+		if err != nil {
+			return nil
+		}
+		return &push.PayloadContext{RoomName: room.GetName()}
+	}
 	target := core.NotificationOccurrenceMessageReference(occurrence)
 	if target == nil {
 		return nil

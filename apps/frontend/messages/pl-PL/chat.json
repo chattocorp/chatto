@@ -25,7 +25,8 @@
         "mention": "Osoba {actor} wspomniała o Tobie",
         "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku",
         "new_message": "Osoba {actor} opublikowała nową wiadomość",
-        "activity": "Masz nowe powiadomienie od {actor}"
+        "activity": "Masz nowe powiadomienie od {actor}",
+        "room_invitation": "{actor} zaprasza Cię do pokoju"
       }
     },
     "sign_out": {

@@ -179,7 +179,8 @@
       "call_join": "Lubab kontol liituda käimasoleva kõnega, ka ainult kuulajana. Heli või video saatmiseks on vaja call.voice, call.camera või call.screenshare õigust.",
       "call_voice": "Lubab kontol saata kõnedes mikrofoni heli. Ilma selleta saab konto siiski kuulata.",
       "call_camera": "Lubab kontol saata kõnedes kaamera videot.",
-      "call_screenshare": "Lubab kontol jagada kõnedes ekraani, akent, vahelehte või rakendust koos heliga. See ei luba mikrofoni heli; selleks on vaja call.voice õigust."
+      "call_screenshare": "Lubab kontol jagada kõnedes ekraani, akent, vahelehte või rakendust koos heliga. See ei luba mikrofoni heli; selleks on vaja call.voice õigust.",
+      "room_invite": "Kutsuge serveri liikmeid tubadesse, millega olete liitunud."
     }
   }
 }

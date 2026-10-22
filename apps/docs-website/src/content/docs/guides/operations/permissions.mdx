@@ -268,3 +268,25 @@ Make these changes on an upgraded server:
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
+
+## Room invitations
+
+Grant `room.invite` to let members invite other human server members to their
+rooms. You can grant it for the server, a room group, or one room. Fresh servers
+grant it to the admin role only. On an existing server, grant it explicitly.
+
+To send invitations, open the room menu and select **Invite member**. Select
+one or more members in the dialog. You can remove a selected member before
+you send.
+
+The recipient sees the invited room in its sidebar group. Opening the room
+shows who sent the invitation and when it expires. The recipient has seven days
+to accept or decline. Acceptance bypasses `room.join`, but does not grant
+message or call permissions. The sender must still be a member with
+`room.invite` when the recipient accepts.
+
+Invitations use Push notification by default, subject to device permission and
+Do Not Disturb. Recipients can change the **Room invitations** setting to
+Notification, Badge, or Off. The notification opens the room. Reading or
+deleting it does not respond to the invitation. It disappears after acceptance,
+decline, or expiry.

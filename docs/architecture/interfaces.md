@@ -275,6 +275,11 @@ them by ID, and hydrates viewer state only for the selected page. Archive discov
 permissions. Room-group and realtime navigation snapshots keep their default
 active-room scope.
 
+Room viewer state reports optional `can_rejoin` independently of current
+membership. It uses the current join authorization and active channel state;
+the `room.join` action decision still requires the viewer to be a non-member.
+Older servers omit this value, so clients must not treat absence as a denial.
+
 `RoomService.AddMember` and `RemoveMember` accept room managers, account
 managers, bot owners, and human bot managers. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.
@@ -321,7 +326,10 @@ realtime requests.
 policy scopes. Its batch read accepts at most 100 scopes, removes duplicates in
 first-seen order, and omits missing or inaccessible resource scopes.
 `NotificationService` owns occurrence reads and triage only; policy reads and
-writes use `NotificationPolicyService`.
+writes use `NotificationPolicyService`. A pending invitation also permits access
+to that room's notification preferences. Invitation occurrences carry a room
+summary, invitation ID, and expiry, without a message target. Current invitation
+eligibility controls visibility independently of message access.
 
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive
@@ -526,3 +534,9 @@ call also requires `call.start`. Tokens encode `call.voice`, `call.camera`, and
 `call.screenshare`. Member-only observer reads and leaving do not require these
 permissions. Room viewer-state permission rows expose the five actions through
 existing room reads and realtime reconciliation.
+
+## RoomInvitationService
+
+The authenticated public `chatto.api.v1.RoomInvitationService` provides create,
+get, batch-get, list, accept, and decline operations. Only the sender and
+recipient can read an invitation. Only the recipient can respond.

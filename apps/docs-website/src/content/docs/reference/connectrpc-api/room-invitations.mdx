@@ -1,0 +1,217 @@
+---
+title: RoomInvitationService
+description: Invitations to channel rooms.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-RoomInvitationService"></a>
+
+## RoomInvitationService
+
+Invitations grant membership only after the recipient accepts them.
+
+<a id="chatto-api-v1-RoomInvitationService-CreateRoomInvitation"></a>
+
+### CreateRoomInvitation
+
+Requires room membership and room.invite. A duplicate from the same sender returns the pending invitation.
+A pending invitation from a different sender returns INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/CreateRoomInvitation
+```
+
+<a id="chatto-api-v1-CreateRoomInvitationRequest"></a>
+
+#### Input: CreateRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `recipient_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateRoomInvitationResponse"></a>
+
+#### Result: CreateRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](/reference/connectrpc-api/types/#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-GetRoomInvitation"></a>
+
+### GetRoomInvitation
+
+Returns NOT_FOUND for absent or inaccessible invitations.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/GetRoomInvitation
+```
+
+<a id="chatto-api-v1-GetRoomInvitationRequest"></a>
+
+#### Input: GetRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetRoomInvitationResponse"></a>
+
+#### Result: GetRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](/reference/connectrpc-api/types/#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-BatchGetRoomInvitations"></a>
+
+### BatchGetRoomInvitations
+
+Omits absent and inaccessible invitations. Accepts at most 100 IDs.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/BatchGetRoomInvitations
+```
+
+<a id="chatto-api-v1-BatchGetRoomInvitationsRequest"></a>
+
+#### Input: BatchGetRoomInvitationsRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_ids` | `repeated string` | No field description provided. |
+
+
+<a id="chatto-api-v1-BatchGetRoomInvitationsResponse"></a>
+
+#### Result: BatchGetRoomInvitationsResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitations` | repeated [`RoomInvitation`](/reference/connectrpc-api/types/#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-ListRoomInvitations"></a>
+
+### ListRoomInvitations
+
+Lists the caller's received or sent invitations, newest first. Default 50, maximum 100.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/ListRoomInvitations
+```
+
+<a id="chatto-api-v1-ListRoomInvitationsRequest"></a>
+
+#### Input: ListRoomInvitationsRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | No field description provided. |
+| `sent` | `bool` | Select sent invitations instead of invitations received by the caller. |
+| `pending_only` | `bool` | Restrict to unexpired pending invitations. |
+
+
+<a id="chatto-api-v1-ListRoomInvitationsResponse"></a>
+
+#### Result: ListRoomInvitationsResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitations` | repeated [`RoomInvitation`](/reference/connectrpc-api/types/#chatto-api-v1-RoomInvitation) | No field description provided. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-AcceptRoomInvitation"></a>
+
+### AcceptRoomInvitation
+
+Recipient-only. Rechecks sender authority and bypasses only room.join.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/AcceptRoomInvitation
+```
+
+<a id="chatto-api-v1-AcceptRoomInvitationRequest"></a>
+
+#### Input: AcceptRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-AcceptRoomInvitationResponse"></a>
+
+#### Result: AcceptRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](/reference/connectrpc-api/types/#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-DeclineRoomInvitation"></a>
+
+### DeclineRoomInvitation
+
+Recipient-only. Does not change membership or notification preferences.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/DeclineRoomInvitation
+```
+
+<a id="chatto-api-v1-DeclineRoomInvitationRequest"></a>
+
+#### Input: DeclineRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-DeclineRoomInvitationResponse"></a>
+
+#### Result: DeclineRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](/reference/connectrpc-api/types/#chatto-api-v1-RoomInvitation) | No field description provided. |

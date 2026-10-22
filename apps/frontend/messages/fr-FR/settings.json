@@ -378,7 +378,8 @@
           "here": "Messages qui utilisent @here lorsque votre présence n’est pas hors ligne.",
           "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
           "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
-          "reaction": "Réactions ajoutées à vos messages par d’autres membres."
+          "reaction": "Réactions ajoutées à vos messages par d’autres membres.",
+          "room_invitation": "Invitations à rejoindre des salons."
         }
       }
     },

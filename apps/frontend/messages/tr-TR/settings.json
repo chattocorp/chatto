@@ -378,7 +378,8 @@
           "here": "Durumunuz çevrimdışı değilken @here kullanan mesajlar.",
           "all": "Üyesi olduğunuz bir odada @all kullanan mesajlar.",
           "followed_thread": "Takip ettiğiniz ileti dizilerindeki yeni yanıtlar.",
-          "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler."
+          "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler.",
+          "room_invitation": "Odalara katılma davetleri."
         }
       }
     },

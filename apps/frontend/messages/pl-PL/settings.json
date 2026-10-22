@@ -378,7 +378,8 @@
           "here": "Wiadomości z @here, gdy Twój status obecności nie jest ustawiony na offline.",
           "all": "Wiadomości z @all w pokoju, do którego należysz.",
           "followed_thread": "Nowe odpowiedzi w obserwowanych przez Ciebie wątkach.",
-          "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków."
+          "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków.",
+          "room_invitation": "Zaproszenia do dołączenia do pokoi."
         }
       }
     },

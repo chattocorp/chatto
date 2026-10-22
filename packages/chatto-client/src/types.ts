@@ -36,6 +36,8 @@ export * from '@chatto/api-types/api/v1/roles_connect';
 export * from '@chatto/api-types/api/v1/roles_pb';
 export * from '@chatto/api-types/api/v1/room_directory_connect';
 export * from '@chatto/api-types/api/v1/room_directory_pb';
+export * from '@chatto/api-types/api/v1/room_invitations_connect';
+export * from '@chatto/api-types/api/v1/room_invitations_pb';
 export * from '@chatto/api-types/api/v1/room_timeline_pb';
 export * from '@chatto/api-types/api/v1/rooms_connect';
 export * from '@chatto/api-types/api/v1/rooms_pb';

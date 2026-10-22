@@ -28,6 +28,13 @@
   ];
   const emptyTimezones: Timezone[] = [];
 
+  let selectedTimezones = $state<Timezone[]>([timezones[0], timezones[1]]);
+  let multipleSearch = $state('');
+  const multipleResults = $derived(
+    timezones.filter((timezone) =>
+      timezone.label.toLowerCase().includes(multipleSearch.toLowerCase())
+    )
+  );
   let query = $state('');
   let value = $state('');
   let text = $state('');
@@ -82,5 +89,27 @@
       getLabel={(timezone) => timezone.label}
       error="Choose a supported timezone."
     />
+  </div>
+</Story>
+
+<Story name="Multiple selections" asChild>
+  <div class="max-w-md">
+    <Combobox
+      id="multiple-timezones"
+      label="Timezones"
+      description="Select several timezones. Tokyo is unavailable. Use Backspace in the empty input to remove the last choice."
+      multiple
+      bind:selectedItems={selectedTimezones}
+      bind:text={multipleSearch}
+      items={multipleResults}
+      getOptionDisabled={(timezone) => timezone.id === 'Asia/Tokyo'}
+      getValue={(timezone) => timezone.id}
+      getLabel={(timezone) => timezone.label}
+      placeholder="Search timezones"
+    >
+      {#snippet selectedItemLeading()}
+        <span class="iconify icon-[uil--clock] text-muted"></span>
+      {/snippet}
+    </Combobox>
   </div>
 </Story>

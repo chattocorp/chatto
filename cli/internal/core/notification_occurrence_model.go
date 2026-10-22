@@ -319,6 +319,18 @@ func NotificationOccurrenceMessageReference(occurrence *notificationv1.Notificat
 	return notificationSignalMessage(occurrence.GetSignal())
 }
 
+// NotificationOccurrenceRoomID returns the room destination for either message
+// activity or an invitation, without inventing a message target.
+func NotificationOccurrenceRoomID(occurrence *notificationv1.NotificationOccurrence) string {
+	if occurrence == nil {
+		return ""
+	}
+	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
+		return invitation.GetRoomId()
+	}
+	return notificationSignalMessage(occurrence.GetSignal()).GetRoomId()
+}
+
 func notificationSignalIdentity(signal *notificationv1.NotificationSignal) string {
 	if signal == nil {
 		return ""
@@ -344,6 +356,8 @@ func notificationSignalIdentity(signal *notificationv1.NotificationSignal) strin
 		return "reaction_received"
 	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return "room_message_received"
+	case *notificationv1.NotificationSignal_RoomInvitationReceived:
+		return "room_invitation_received"
 	default:
 		return ""
 	}
@@ -434,6 +448,9 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 			continue
 		}
 		expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
+		if invitation := input.Signal.GetRoomInvitationReceived(); invitation != nil && invitation.GetExpiresAt().AsTime().Before(expiresAt) {
+			expiresAt = invitation.GetExpiresAt().AsTime()
+		}
 		if !expiresAt.After(now) {
 			continue
 		}
@@ -607,8 +624,10 @@ func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) er
 		return invalidArgument("recipient_id, source_event_id, and source_created_at are required")
 	}
 	message := notificationSignalMessage(input.Signal)
-	if message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalIdentity(input.Signal) == "" {
-		return invalidArgument("a supported notification signal with an exact message is required")
+	invitation := input.Signal.GetRoomInvitationReceived()
+	validInvitation := invitation != nil && invitation.GetRoomId() != "" && invitation.GetInvitationId() != "" && invitation.GetExpiresAt() != nil && invitation.GetExpiresAt().IsValid() && invitation.GetExpiresAt().AsTime().After(input.SourceCreated)
+	if !validInvitation && (message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalIdentity(input.Signal) == "") {
+		return invalidArgument("a supported notification signal with a message or invitation target is required")
 	}
 	if !notificationModeProducesOccurrence(input.Mode) {
 		return nil
@@ -865,8 +884,8 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	return len(matches), nil
 }
 
-// VisibleOccurrences returns the occurrences whose target messages
-// recipientID can currently read, in input order. It waits once for the
+// VisibleOccurrences returns occurrences whose message or pending invitation
+// targets recipientID can currently access, in input order. It waits once for the
 // current authorization inputs and then checks the occurrences in chunks, each
 // under one content-view barrier. The notification API deletes occurrences
 // that it omits; alert delivery skips them.
@@ -874,7 +893,14 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	if len(occurrences) == 0 {
 		return nil, nil
 	}
-	userPosition, err := m.core.EventPublisher.LastSubjectPosition(ctx, evtstream.UserAggregate(recipientID).AllEventsFilter())
+	userFilter := evtstream.UserAggregate(recipientID).AllEventsFilter()
+	if slices.ContainsFunc(occurrences, func(occurrence *notificationv1.NotificationOccurrence) bool {
+		return occurrence.GetSignal().GetRoomInvitationReceived() != nil
+	}) {
+		// Invitation authority depends on both the recipient and the sender.
+		userFilter = evtstream.UserSubjectFilter()
+	}
+	userPosition, err := m.core.EventPublisher.LastSubjectPosition(ctx, userFilter)
 	if err != nil {
 		return nil, fmt.Errorf("capture notification recipient boundary: %w", err)
 	}
@@ -898,6 +924,7 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	if !roomPosition.IsZero() {
 		if err := waitForPositionAll(ctx, roomPosition,
 			waitForProjection("notification room directory", m.core.roomModel.directory.Projector()),
+			waitForProjection("notification invitations", m.core.roomInvitations.projection.Projector()),
 			waitForProjection("notification room timeline", m.core.roomModel.timeline.Projector()),
 			waitForProjection("notification reactions", m.core.roomModel.reactions.Projector()),
 		); err != nil {
@@ -946,6 +973,9 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil || occurrence.GetRecipientId() != recipientID {
 		return false, nil
+	}
+	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
+		return m.invitationVisible(ctx, recipientID, invitation)
 	}
 	message := notificationSignalMessage(occurrence.GetSignal())
 	if message == nil || message.GetRoomId() == "" {
@@ -1019,8 +1049,8 @@ func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, use
 	}
 	matches := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
-		message := notificationSignalMessage(occurrence.GetSignal())
-		if message == nil || message.GetRoomId() != roomID || (removedThroughSequence != 0 && occurrence.GetSourceStreamSequence() >= removedThroughSequence) {
+		targetRoomID := NotificationOccurrenceRoomID(occurrence)
+		if targetRoomID != roomID || (removedThroughSequence != 0 && occurrence.GetSourceStreamSequence() >= removedThroughSequence) {
 			continue
 		}
 		matches = append(matches, occurrence)
@@ -1030,8 +1060,7 @@ func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, use
 
 func (m *NotificationOccurrenceModel) RemoveRoom(ctx context.Context, roomID string) (int, error) {
 	return m.removeMatching(ctx, func(occurrence *notificationv1.NotificationOccurrence) bool {
-		message := notificationSignalMessage(occurrence.GetSignal())
-		return message != nil && message.GetRoomId() == roomID
+		return NotificationOccurrenceRoomID(occurrence) == roomID
 	})
 }
 

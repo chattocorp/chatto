@@ -35,8 +35,11 @@
     "leave": {
       "title": "Lahkuge ruumist",
       "action": "Lahkuge ruumist",
-      "prompt": "Kas soovite kindlasti #{room} lahkuda? Saate hiljem uuesti liituda.",
-      "failed": "Ruumi lahkumine ebaõnnestus"
+      "prompt": "Kas soovite kindlasti #{room} lahkuda?",
+      "failed": "Ruumi lahkumine ebaõnnestus",
+      "join_later": "Saate hiljem uuesti liituda.",
+      "need_invite": "Selle ruumiga liitumiseks vajad uut kutset.",
+      "rejoin_unknown": "Uuesti liitumiseks võid vajada uut kutset."
     },
     "directory": {
       "universal_title": "Universaalsed ruumid liidetakse automaatselt",
@@ -59,7 +62,8 @@
       "join_group_failed": "Grupiga liitumine ebaõnnestus",
       "left": "Vasak number {room}",
       "left_generic": "Vasak tuba",
-      "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?"
+      "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?",
+      "invited": "Kutsutud"
     },
     "server": {
       "remove_title": "Eemalda server",
@@ -313,6 +317,25 @@
       "indefinite": "Tähtajatult",
       "remove_title": "Eemalda {user} toast",
       "suspension_period": "Peatamise kestus"
+    },
+    "invitation": {
+      "invite": "Kutsu liige",
+      "invited": "Teid on kutsutud",
+      "sent": "Kutsed saadetud",
+      "expires": "Aegub {date}",
+      "unavailable": "Te ei saa praegu seda kutset vastu võtta. Saate sellest endiselt keelduda.",
+      "accept": "Võta kutse vastu",
+      "decline": "Keeldu",
+      "title": "Kutsu liikmeid tuppa #{room}",
+      "description": "Vali, keda soovid kutsuda. Kutsutud kasutajad saavad teavituse ning neil on seitse päeva kutse vastuvõtmiseks või tagasilükkamiseks.",
+      "members": "Liikmed",
+      "send": "Saada kutsed",
+      "failed": "Liikme {name} kutsumine nurjus: {error}",
+      "already_member": "Juba selles ruumis",
+      "invited_by": "Sind kutsus",
+      "decline_title": "Kas lükata kutse tagasi?",
+      "decline_join_later": "Saad selle ruumiga hiljem liituda.",
+      "decline_need_invite": "Selle ruumiga liitumiseks vajad uut kutset."
     }
   }
 }

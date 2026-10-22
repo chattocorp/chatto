@@ -378,7 +378,8 @@
           "here": "Messaggi che usano @here quando la tua presenza non è offline.",
           "all": "Messaggi che usano @all in una stanza di cui fai parte.",
           "followed_thread": "Nuove risposte nelle discussioni che segui.",
-          "reaction": "Reazioni aggiunte ai tuoi messaggi da altri membri."
+          "reaction": "Reazioni aggiunte ai tuoi messaggi da altri membri.",
+          "room_invitation": "Inviti a entrare nelle stanze."
         }
       }
     },

@@ -246,6 +246,9 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `message.post-in-thread` — reply in any readable thread where room policy permits it.
 - `message.post-in-interactions` — reply only in readable threads with an interaction relationship.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
+- `room.invite` — invite human server members to a channel room where the sender
+  is a member. Fresh servers grant it to admins only. Existing servers need an
+  explicit grant. See FDR-051.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.remove-member` — remove current channel-room members with an optional suspension. DM membership is not managed through this permission. Upgraded 0.4 servers copy each `room.ban-member` decision to this permission once.
 

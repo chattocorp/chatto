@@ -165,8 +165,7 @@ func notificationSummary(occurrences []*notificationv1.NotificationOccurrence) n
 			if important {
 				summary.importantUnreadCount++
 			}
-			if message := core.NotificationOccurrenceMessageReference(occurrence); message != nil && message.GetRoomId() != "" {
-				roomID := message.GetRoomId()
+			if roomID := core.NotificationOccurrenceRoomID(occurrence); roomID != "" {
 				room := roomCounts[roomID]
 				room.unreadCount++
 				if important {
@@ -406,7 +405,7 @@ func apiNotificationDeliveryModes(modes *evtv1.NotificationDeliveryModes) (*apiv
 	for _, pair := range []struct {
 		source *evtv1.NotificationDeliveryMode
 		target **apiv1.NotificationDeliveryMode
-	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}} {
+	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}, {modes.RoomInvitations, &result.RoomInvitations}} {
 		if err := set(pair.source, pair.target); err != nil {
 			return nil, err
 		}
@@ -433,7 +432,7 @@ func coreNotificationDeliveryModes(modes *apiv1.NotificationDeliveryModes) (*evt
 	for _, pair := range []struct {
 		source *apiv1.NotificationDeliveryMode
 		target **evtv1.NotificationDeliveryMode
-	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}} {
+	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}, {modes.RoomInvitations, &result.RoomInvitations}} {
 		if err := set(pair.source, pair.target); err != nil {
 			return nil, err
 		}

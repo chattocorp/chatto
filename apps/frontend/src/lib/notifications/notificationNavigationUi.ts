@@ -1,3 +1,5 @@
+import type { ServerStateStore } from '@chatto/client/server/store';
+import type { NotificationOccurrenceItem } from '@chatto/client/api/notifications';
 import { segmentToServerId } from '$lib/navigation';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 
@@ -40,5 +42,36 @@ function decodePathSegment(segment: string): string | null {
     return decodeURIComponent(segment);
   } catch {
     return null;
+  }
+}
+
+/** Read a room-only occurrence only after navigation succeeds in its original session.
+ * Message notifications remain unread until their highlight reaches the timeline.
+ */
+export async function navigateNotification(
+  store: ServerStateStore,
+  occurrence: NotificationOccurrenceItem,
+  navigate: () => Promise<void>
+): Promise<void> {
+  if (occurrence.eventId || !occurrence.room?.id || !occurrence.unread) {
+    await navigate();
+    return;
+  }
+  const accountId = store.accountId;
+  let current = true;
+  const stopSession = store.onSessionEnded(() => {
+    current = false;
+  });
+  const stopReset = store.onReset((reset) => {
+    if (reset.privacy) current = false;
+  });
+  try {
+    await navigate();
+    if (current && accountId && store.isAuthenticated && store.accountId === accountId) {
+      await store.notifications.markOccurrenceRead(occurrence.id);
+    }
+  } finally {
+    stopSession();
+    stopReset();
   }
 }

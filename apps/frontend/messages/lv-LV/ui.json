@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Notiek ielāde...",
       "empty": "Nav nevienas spēles",
-      "clear": "Skaidrs"
+      "clear": "Skaidrs",
+      "remove": "Noņemt {label}"
     },
     "expiry": {
       "24h": "24 stundas",

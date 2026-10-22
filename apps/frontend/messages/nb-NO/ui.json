@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Laster ...",
       "empty": "Ingen treff",
-      "clear": "Fjern"
+      "clear": "Fjern",
+      "remove": "Fjern {label}"
     },
     "expiry": {
       "24h": "24 timer",

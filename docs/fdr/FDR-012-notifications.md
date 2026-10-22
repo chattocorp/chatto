@@ -9,7 +9,7 @@ Notifications and Unread dot indicators are user-scoped ways to show activity th
 deserves attention. Notifications form a persistent list of exact activity.
 Unread dot indicators add only neutral unread dots. Both forms cover direct
 messages, root messages in channel rooms, replies, direct and role mentions,
-`@here`, `@all`, followed threads, and reactions. Notification
+`@here`, `@all`, followed threads, reactions, and room invitations. Notification
 occurrences use a small lifecycle: Unread, Read, or explicitly Deleted. Unread dot
 attention uses a latest-value marker that becomes inactive through read,
 visibility, and expiry boundaries.
@@ -57,11 +57,16 @@ targets, unread counts, read state, or deletion semantics.
 - The list has no panel frame. Below 768px viewport width, summaries and
   metadata wrap so the activity remains readable. This layout applies to both
   touch and mouse input.
-- Opening a row navigates to the selected occurrence's exact room, thread, and
+- Opening a message activity row navigates to the selected occurrence's exact room, thread, and
   event. The occurrence is marked Read only after the target is visible and
   highlighted. An interrupted load keeps the selected target until navigation
   completes or the user leaves the destination or selects another target.
   A failed jump does not itself mark the occurrence Read.
+- Invitation notifications use Push by default and support the same delivery
+  preferences. They open the room without a message target and become Read
+  after successful navigation. Reading or deleting them does not resolve the
+  invitation. Acceptance, decline, or expiry removes them from history.
+  Invitation Unread dot attention lasts while the invitation is pending.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
 - A thread root belongs to its room, so a thread read does not cover
@@ -91,11 +96,11 @@ targets, unread counts, read state, or deletion semantics.
   before or during the action. If a page fails to load, the action reports an
   error and does not start deletion. Both deletion actions update the UI
   optimistically and then reconcile with the server.
-- Every occurrence leaves application-visible state exactly 90 days after its
-  source activity. Reading or deleting it does not extend that lifetime.
+- Message-derived occurrences leave application-visible state 90 days after their
+  source activity. Reading or deleting them does not extend that lifetime.
   Physical cleanup may continue during ADR-076's 24-hour grace period without
   extending user-visible retention.
-- An Unread dot source gives attention for 90 days after its source activity. A
+- A message Unread dot source gives attention for 90 days after its source activity. A
   read, visibility loss, target removal, reaction removal, or a change of the
   notification policy or thread follow can end the attention sooner.
 - The combined multi-server list preserves healthy results when another server
@@ -186,8 +191,8 @@ modes when the notification has Important attention.
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
 
-The notification settings page shows the nine supported causes as matrix rows.
-It shows the server, visible room groups, current-member channel rooms, and
+The notification settings page shows the ten supported causes as matrix rows.
+It shows the server, visible room groups, joined or invited channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user
 preference exists, it shows the product default at full intensity without an
@@ -274,7 +279,9 @@ the bounded notification lifecycle. ADR-076 defines that architecture.
 
 **Decision:** An occurrence may be listed, opened, mutated, or delivered only
 while the recipient still exists and can currently see its room and exact
-target. Message-derived occurrences also require current
+target. An invitation requires a current, eligible pending invitation for the
+recipient; it does not require room membership or message access.
+Message-derived occurrences also require current
 `message.read`, or `message.read-interactions` with a relationship to the
 target's thread. Without applicable
 access, Chatto hides the occurrence. Removed reactions, retracted targets,

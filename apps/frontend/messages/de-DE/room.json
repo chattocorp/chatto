@@ -35,8 +35,11 @@
     "leave": {
       "title": "Raum verlassen",
       "action": "Raum verlassen",
-      "prompt": "Möchtest du #{room} wirklich verlassen? Du kannst später wieder beitreten.",
-      "failed": "Raum konnte nicht verlassen werden"
+      "prompt": "Möchtest du #{room} wirklich verlassen?",
+      "failed": "Raum konnte nicht verlassen werden",
+      "join_later": "Du kannst später wieder beitreten.",
+      "need_invite": "Du brauchst eine neue Einladung, um diesem Raum beizutreten.",
+      "rejoin_unknown": "Möglicherweise brauchst du eine neue Einladung, um wieder beizutreten."
     },
     "directory": {
       "universal_title": "Universelle Räume werden automatisch beigetreten",
@@ -59,7 +62,8 @@
       "join_group_failed": "Gruppe konnte nicht beigetreten werden",
       "left": "#{room} verlassen",
       "left_generic": "Raum verlassen",
-      "leave_confirm": "Möchtest du #{room} wirklich verlassen?"
+      "leave_confirm": "Möchtest du #{room} wirklich verlassen?",
+      "invited": "Eingeladen"
     },
     "server": {
       "remove_title": "Server entfernen",
@@ -313,6 +317,25 @@
       "indefinite": "Unbefristet",
       "remove_title": "{user} aus dem Raum entfernen",
       "suspension_period": "Dauer der Sperre"
+    },
+    "invitation": {
+      "invite": "Mitglied einladen",
+      "invited": "Du wurdest eingeladen",
+      "sent": "Einladungen gesendet",
+      "expires": "Läuft am {date} ab",
+      "unavailable": "Du kannst diese Einladung derzeit nicht annehmen. Du kannst sie weiterhin ablehnen.",
+      "accept": "Einladung annehmen",
+      "decline": "Ablehnen",
+      "title": "Mitglieder in #{room} einladen",
+      "description": "Wähle aus, wen du einladen möchtest. Eingeladene Nutzer erhalten eine Benachrichtigung und haben sieben Tage Zeit, die Einladung anzunehmen oder abzulehnen.",
+      "members": "Mitglieder",
+      "send": "Einladungen senden",
+      "failed": "{name} konnte nicht eingeladen werden: {error}",
+      "already_member": "Bereits in diesem Raum",
+      "invited_by": "Du wurdest eingeladen von",
+      "decline_title": "Einladung ablehnen?",
+      "decline_join_later": "Du kannst diesem Raum später beitreten.",
+      "decline_need_invite": "Du brauchst eine neue Einladung, um diesem Raum beizutreten."
     }
   }
 }

@@ -15,9 +15,9 @@ separate components behind that barrier.
 
 `initializeCoreProjections` registers each top-level projector once with a
 stable machine-readable key and a human display name. `NewChattoCore` installs
-that registry into the core runtime. The registry contains seven projectors:
+that registry into the core runtime. The registry contains eight projectors:
 `server_content_view`, `notification_decisions`, `notifications`, `user_auth`,
-`invitations`, `oauth_clients`, and `bot_webhooks`. Each registration also declares whether
+`invitations`, `room_invitations`, `oauth_clients`, and `bot_webhooks`. Each registration also declares whether
 that key is eligible for shared snapshots.
 
 Core couples each projection pointer to its exact projector as one typed
@@ -37,10 +37,10 @@ see [`NotificationOccurrenceModel`](../../cli/internal/core/notification_occurre
 and [`NotificationProjection`](../../cli/internal/core/notification_projection.go).
 
 `ChattoCore.Run` starts one process-local ordered consumer for each registered
-projector. `ServerContentView` and the five independent EVT projectors read
+projector. `ServerContentView` and the six independent EVT projectors read
 `EVT`. Notifications reads `NOTIFICATIONS`. Each projector owns its physical
 filters, replay progress, failure state, and readiness. Chatto waits for all
-seven registered projectors before it completes boot.
+eight registered projectors before it completes boot.
 
 Writers wait for the relevant projector sequence before returning
 read-your-writes. Projection-aware domain models keep the projector references
@@ -436,6 +436,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | User authentication                 | User Auth              | Focused account, password, external-identity, consent, deletion, and key-shredding user facts. Identity unlink events preserve auth generation when `preserve_existing_credentials` is set; historical events without it advance the generation. | `UserModel`; password verifiers, auth generations, external identity links, and OAuth consent keyed by stable client ID (legacy facts by redirect origin); always cold-replayed                                                                                                                                                            |
 | OAuth clients                       | OAuth Clients          | `evt.oauth_client.>`                                                                                                                                                                                                                             | `OAuthClientModel`; validated metadata and callback origins for successfully authorized clients, distinct authorized-user counts, and administrative default/trusted/blocked policy; always cold-replayed                                                                                                                                  |
 | Invitations                         | Invitations            | `evt.invitation.>`                                                                                                                                                                                                                               | `InvitationModel`; immutable constraints, redemption count, revocation state, and administrator listings; always cold-replayed                                                                                                                                                                                                             |
+| Room invitations                    | Room invitations       | `evt.room.>`                                                                                                                                                                                                                                     | `RoomInvitationModel`; participant history and pending room-recipient index; always cold-replayed                                                                                                                                                                                                                                          |
 
 Registered projector keys are used by metrics and automation. Registered names
 match the admin projection diagnostics. Composite projections expose nested
@@ -542,3 +543,9 @@ content.
 The Bleve search checkpoint contract is `bleve-message-index-v12`. Echo posts
 are not searchable contributions. Historical echo bodies cannot replace the
 original search document or create a second result.
+
+## Room invitations
+
+`RoomInvitationProjection` consumes room aggregate facts and cold-replays
+invitation state. It has no snapshot or notification dependency. The registered
+`room_invitations` projector participates in startup readiness and diagnostics.

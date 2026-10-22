@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Chargement...",
       "empty": "Aucune correspondance",
-      "clear": "Effacer"
+      "clear": "Effacer",
+      "remove": "Retirer {label}"
     },
     "expiry": {
       "24h": "24 h",

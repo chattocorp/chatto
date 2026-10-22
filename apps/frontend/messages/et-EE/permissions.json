@@ -34,7 +34,8 @@
       "call_join": "Käimasoleva kõnega liitumine",
       "call_voice": "Mikrofoni kasutamine kõnedes",
       "call_camera": "Kaamera kasutamine kõnedes",
-      "call_screenshare": "Ekraani või rakenduse jagamine koos salvestatud heliga"
+      "call_screenshare": "Ekraani või rakenduse jagamine koos salvestatud heliga",
+      "room_invite": "Kutsuge serveri liikmeid tubadesse, millega olete liitunud"
     }
   }
 }

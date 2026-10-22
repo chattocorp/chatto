@@ -35,8 +35,11 @@
     "leave": {
       "title": "离开聊天室",
       "action": "离开聊天室",
-      "prompt": "确定要退出 #{room} 吗？之后可以重新加入。",
-      "failed": "退出聊天室失败"
+      "prompt": "确定要退出 #{room} 吗？",
+      "failed": "退出聊天室失败",
+      "join_later": "之后可以重新加入。",
+      "need_invite": "你需要新的邀请才能加入此房间。",
+      "rejoin_unknown": "你可能需要新的邀请才能重新加入。"
     },
     "directory": {
       "universal_title": "全员聊天室会自动加入",
@@ -59,7 +62,8 @@
       "join_group_failed": "加入分组失败",
       "left": "已退出 #{room}",
       "left_generic": "已退出聊天室",
-      "leave_confirm": "确定要退出 #{room} 吗？"
+      "leave_confirm": "确定要退出 #{room} 吗？",
+      "invited": "已获邀请"
     },
     "server": {
       "remove_title": "移除服务器",
@@ -313,6 +317,25 @@
       "indefinite": "无限期",
       "remove_title": "将 {user} 移出聊天室",
       "suspension_period": "暂停期限"
+    },
+    "invitation": {
+      "invite": "邀请成员",
+      "invited": "你已收到邀请",
+      "sent": "邀请已发送",
+      "expires": "到期时间：{date}",
+      "unavailable": "你目前无法接受此邀请，但仍可拒绝。",
+      "accept": "接受邀请",
+      "decline": "拒绝",
+      "title": "邀请成员加入 #{room}",
+      "description": "选择你想邀请的用户。受邀用户将收到通知，并可在七天内接受或拒绝邀请。",
+      "members": "成员",
+      "send": "发送邀请",
+      "failed": "无法邀请 {name}：{error}",
+      "already_member": "已在此房间中",
+      "invited_by": "邀请你加入的用户：",
+      "decline_title": "拒绝邀请？",
+      "decline_join_later": "你可以稍后加入此房间。",
+      "decline_need_invite": "你需要新的邀请才能加入此房间。"
     }
   }
 }

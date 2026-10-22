@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Laadimine...",
       "empty": "Vasteid pole",
-      "clear": "Selge"
+      "clear": "Selge",
+      "remove": "Eemalda {label}"
     },
     "expiry": {
       "24h": "24 tundi",

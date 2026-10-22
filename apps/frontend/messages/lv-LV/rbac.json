@@ -179,7 +179,8 @@
       "call_join": "Ļauj kontam pievienoties notiekošam zvanam, arī tikai kā klausītājam. Lai sūtītu audio vai video, vajadzīga call.voice, call.camera vai call.screenshare.",
       "call_voice": "Ļauj kontam zvanos sūtīt mikrofona audio. Bez tās konts joprojām var klausīties.",
       "call_camera": "Ļauj kontam zvanos sūtīt kameras video.",
-      "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice."
+      "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice.",
+      "room_invite": "Uzaicināt servera dalībniekus uz istabām, kurām esat pievienojies."
     }
   }
 }

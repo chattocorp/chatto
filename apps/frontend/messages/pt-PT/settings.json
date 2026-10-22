@@ -378,7 +378,8 @@
           "here": "Mensagens que usam @here quando a sua presença não está offline.",
           "all": "Mensagens que usam @all numa sala da qual faz parte.",
           "followed_thread": "Novas respostas nos tópicos que segue.",
-          "reaction": "Reações que outros membros adicionam às suas mensagens."
+          "reaction": "Reações que outros membros adicionam às suas mensagens.",
+          "room_invitation": "Convites para entrar em salas."
         }
       }
     },

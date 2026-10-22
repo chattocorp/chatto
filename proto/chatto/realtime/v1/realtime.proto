@@ -167,6 +167,9 @@ message RealtimeEvent {
     RolePermissionsChangedEvent role_permissions_changed = 66;
     ViewerPermissionsChangedEvent viewer_permissions_changed = 67;
     ViewerPresencePreferenceChangedEvent viewer_presence_preference_changed = 68;
+    RoomInvitationCreatedEvent room_invitation_created = 69;
+    RoomInvitationAcceptedEvent room_invitation_accepted = 70;
+    RoomInvitationDeclinedEvent room_invitation_declined = 71;
   }
 }
 

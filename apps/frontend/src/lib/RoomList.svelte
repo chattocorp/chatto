@@ -50,7 +50,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import {
+    prepareUiForNotificationTarget,
+    navigateNotification
+  } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -194,6 +197,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       creationMenu = null;
     };
   };
+
+  let inviteRoom = $state<RoomsListItem | null>(null);
 
   let createRoomDialogVisible = $state(false);
   let createRoomGroupId = $state<string | null>(null);
@@ -555,6 +560,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function handleJoinRoom(room: RoomsListItem): Promise<void> {
     roomContextMenu = null;
+    if (room.viewerInvitation) {
+      await goto(conversationPath(activeServerId, room.id, { store: stores }));
+      return;
+    }
     const result = await serverUi(stores).roomDirectory.joinRoom(room.id);
     if (!serverScope.isCurrent()) return;
     if (result.ok) {
@@ -635,6 +644,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       !!room &&
       room.type !== RoomKind.DM &&
       room.viewerIsMember === false &&
+      !room.viewerInvitation &&
       room.id !== activeRoomId
     );
   }
@@ -820,6 +830,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function isHighlighted(room: RoomsListItem): boolean {
     return (
       room.id === activeRoomId ||
+      !!room.viewerInvitation ||
       activeCallRooms.has(room.id) ||
       roomUnreadStore.roomIsUnread(room.id) ||
       room.viewerNotificationCount > 0
@@ -900,7 +911,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     const path = notificationPath(activeServerId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- notificationPath returns a resolved app path.
-    await goto(path);
+    await navigateNotification(stores, notification, () => goto(path));
   }
 </script>
 
@@ -996,7 +1007,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const hasUnread = roomUnreadStore.roomIsUnread(room.id)}
   {@const isJoined = room.viewerIsMember}
-  {@const showUnread = hasUnread && (isDM || isJoined)}
+  {@const showUnread = hasUnread && (isDM || isJoined || !!room.viewerInvitation)}
   {@const showActiveCall = hasActiveCall && (isDM || isJoined)}
   {@const presentation = isDM ? dmPresentation(room) : null}
   {@const owningGroup = groupByRoomId.get(room.id)}
@@ -1006,7 +1017,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     class={[
       'group/room group/badges @container sidebar-item',
       showUnread && !isCurrentRoom ? 'sidebar-item-attention' : '',
-      !isDM && isJoined === false ? 'opacity-60 hover:opacity-85' : ''
+      !isDM && isJoined === false && !room.viewerInvitation ? 'opacity-60 hover:opacity-85' : ''
     ]}
     aria-current={isCurrentRoom ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
@@ -1028,7 +1039,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         /></span
       >
     {:else}
-      <span class="relative flex shrink-0">
+      <span class="relative flex size-5 shrink-0 items-center justify-center">
         {#if isJoined}
           {#if room.isUniversal}
             <span
@@ -1050,6 +1061,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               ]}>#</span
             >
           {/if}
+        {:else if room.viewerInvitation}
+          <span
+            class="iconify sidebar-icon icon-[uil--envelope-alt] text-action"
+            role="img"
+            aria-label={m('room.invitation.invited')}
+            title={m('room.invitation.invited')}
+          ></span>
         {:else if room.viewerCanJoinRoom}
           <span
             class={[
@@ -1095,7 +1113,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {@render activeCallIcon()}
         {/if}
 
-        {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
+        {#if (isDM || isJoined || room.viewerInvitation) && room.viewerNotificationCount > 0}
           {@const importantCount = room.viewerImportantNotificationCount}
           {@const otherCount = Math.max(0, room.viewerNotificationCount - importantCount)}
           <!-- The Important count stays at the row edge, where a single badge sits. -->
@@ -1168,7 +1186,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         else handleRenderedLinkClick(event, target.href);
       }}
     >
-      <span class="relative flex shrink-0" data-testid="sidebar-link-leading-icon">
+      <span
+        class="relative flex size-5 shrink-0 items-center justify-center"
+        data-testid="sidebar-link-leading-icon"
+      >
         <span
           aria-hidden="true"
           class={[
@@ -1429,7 +1450,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   >
     <RoomContextMenu
       isRoomMember={contextRoom.viewerIsMember === true}
-      canJoin={contextRoom.viewerCanJoinRoom}
+      canJoin={contextRoom.viewerCanJoinRoom || !!contextRoom.viewerInvitation}
+      joinLabel={contextRoom.viewerInvitation
+        ? m('room.invitation.invited')
+        : m('room.join.action')}
+      canInvite={contextRoom.viewerCanInvite}
+      onInvite={() => {
+        inviteRoom = contextRoom;
+        roomContextMenu = null;
+      }}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
       canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomKind.DM}
@@ -1559,5 +1588,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     >
       {m('room.management.archive_room_prompt', { room: archiveRoomTarget.name })}
     </ConfirmDialogModule.default>
+  {/await}
+{/if}
+
+{#if inviteRoom}
+  {#await import('$lib/components/chat/InviteRoomMemberDialog.svelte') then module}
+    <module.default room={inviteRoom} onclose={() => (inviteRoom = null)} />
   {/await}
 {/if}

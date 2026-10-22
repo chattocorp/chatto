@@ -57,6 +57,9 @@ const (
 	// it directly.
 	PermRoomJoin Permission = "room.join"
 
+	// PermRoomInvite allows members to invite human accounts to a channel room.
+	PermRoomInvite Permission = "room.invite"
+
 	// PermRoomList allows seeing a room in the directory and elsewhere
 	// the server enumerates rooms (e.g. group "Join all" affordances).
 	// Default-granted at server scope so the directory works out of the
@@ -208,6 +211,7 @@ var allPermissions = []PermissionMetadata{
 	// Room
 	{Permission: PermRoomCreate, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup}, RequiresPrivilegedMode: true},
 	{Permission: PermRoomJoin, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomInvite, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 	{Permission: PermRoomMemberRemove, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
@@ -441,6 +445,7 @@ func DefaultAdminPermissions() []Permission {
 		PermRoomJoin,
 		PermRoomList,
 		PermRoomManage,
+		PermRoomInvite,
 		PermRoomMemberRemove,
 		PermMessageManage,
 		PermMessagePin,

@@ -35,8 +35,11 @@
     "leave": {
       "title": "Forlasi ĉambron",
       "action": "Forlasi ĉambron",
-      "prompt": "Ĉu vi certas, ke vi volas forlasi #{room}? Vi povas denove aliĝi poste.",
-      "failed": "Malsukcesis forlasi ĉambron"
+      "prompt": "Ĉu vi certas, ke vi volas forlasi #{room}?",
+      "failed": "Malsukcesis forlasi ĉambron",
+      "join_later": "Vi povas denove aliĝi poste.",
+      "need_invite": "Vi bezonos novan inviton por aliĝi al ĉi tiu ĉambro.",
+      "rejoin_unknown": "Vi eble bezonos novan inviton por denove aliĝi."
     },
     "directory": {
       "universal_title": "Universalaj ĉambroj estas kunigitaj aŭtomate",
@@ -59,7 +62,8 @@
       "join_group_failed": "Malsukcesis aliĝi al grupo",
       "left": "Maldekstre #{room}",
       "left_generic": "Foriris ĉambro",
-      "leave_confirm": "Ĉu vi certas, ke vi volas forlasi #{room}?"
+      "leave_confirm": "Ĉu vi certas, ke vi volas forlasi #{room}?",
+      "invited": "Invitita"
     },
     "server": {
       "remove_title": "Forigi servilon",
@@ -313,6 +317,25 @@
       "indefinite": "Senfine",
       "remove_title": "Forigi {user} el ĉambro",
       "suspension_period": "Daŭro de suspendo"
+    },
+    "invitation": {
+      "invite": "Inviti membron",
+      "invited": "Vi estas invitita",
+      "sent": "Invitoj senditaj",
+      "expires": "Eksvalidiĝas je {date}",
+      "unavailable": "Vi ne povas akcepti ĉi tiun inviton nun. Vi ankoraŭ povas malakcepti ĝin.",
+      "accept": "Akcepti inviton",
+      "decline": "Malakcepti",
+      "title": "Inviti membrojn al #{room}",
+      "description": "Elektu kiun vi volas inviti. Invititaj uzantoj ricevos sciigon kaj havos sep tagojn por akcepti aŭ malakcepti.",
+      "members": "Membroj",
+      "send": "Sendi invitojn",
+      "failed": "Ne eblis inviti {name}: {error}",
+      "already_member": "Jam en ĉi tiu ĉambro",
+      "invited_by": "Vi ricevis inviton de",
+      "decline_title": "Malakcepti inviton?",
+      "decline_join_later": "Vi povas aliĝi al ĉi tiu ĉambro poste.",
+      "decline_need_invite": "Vi bezonos novan inviton por aliĝi al ĉi tiu ĉambro."
     }
   }
 }

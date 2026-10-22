@@ -179,7 +179,8 @@
       "call_join": "Umožňuje účtu připojit se k probíhajícímu hovoru, i jen jako posluchač. K odesílání zvuku nebo videa je potřeba call.voice, call.camera nebo call.screenshare.",
       "call_voice": "Umožňuje účtu odesílat zvuk z mikrofonu v hovorech. Bez něj může účet stále poslouchat.",
       "call_camera": "Umožňuje účtu odesílat video z kamery v hovorech.",
-      "call_screenshare": "Umožňuje účtu sdílet obrazovku, okno, kartu nebo aplikaci v hovorech, včetně zvuku. Neumožňuje zvuk z mikrofonu; k tomu je potřeba call.voice."
+      "call_screenshare": "Umožňuje účtu sdílet obrazovku, okno, kartu nebo aplikaci v hovorech, včetně zvuku. Neumožňuje zvuk z mikrofonu; k tomu je potřeba call.voice.",
+      "room_invite": "Pozvěte členy serveru do místností, do kterých jste se připojili."
     }
   }
 }

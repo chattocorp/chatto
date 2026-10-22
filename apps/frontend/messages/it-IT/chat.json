@@ -25,7 +25,8 @@
         "mention": "{actor} ti ha menzionato",
         "followed_thread": "{actor} ha risposto in una discussione che segui",
         "new_message": "{actor} ha pubblicato un nuovo messaggio",
-        "activity": "{actor} ti ha inviato una notifica"
+        "activity": "{actor} ti ha inviato una notifica",
+        "room_invitation": "{actor} ti ha invitato in una stanza"
       }
     },
     "sign_out": {

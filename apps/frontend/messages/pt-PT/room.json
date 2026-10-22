@@ -35,8 +35,11 @@
     "leave": {
       "title": "Sair da sala",
       "action": "Sair da sala",
-      "prompt": "Tem a certeza que pretende sair do #{room}? Pode voltar mais tarde.",
-      "failed": "Falha ao sair da sala"
+      "prompt": "Tem a certeza que pretende sair do #{room}?",
+      "failed": "Falha ao sair da sala",
+      "join_later": "Pode voltar mais tarde.",
+      "need_invite": "Vais precisar de um novo convite para entrar nesta sala.",
+      "rejoin_unknown": "Podes precisar de um novo convite para voltar."
     },
     "directory": {
       "universal_title": "As salas universais são unidas automaticamente",
@@ -59,7 +62,8 @@
       "join_group_failed": "Falha ao entrar no grupo",
       "left": "Esquerda #{room}",
       "left_generic": "Esquerda da sala",
-      "leave_confirm": "Tem a certeza que pretende sair do #{room}?"
+      "leave_confirm": "Tem a certeza que pretende sair do #{room}?",
+      "invited": "Convidado"
     },
     "server": {
       "remove_title": "Remover servidor",
@@ -313,6 +317,25 @@
       "indefinite": "Indefinida",
       "remove_title": "Remover {user} da sala",
       "suspension_period": "Período de suspensão"
+    },
+    "invitation": {
+      "invite": "Convidar membro",
+      "invited": "Recebeu um convite",
+      "sent": "Convites enviados",
+      "expires": "Expira em {date}",
+      "unavailable": "Não é possível aceitar este convite de momento. Ainda o pode recusar.",
+      "accept": "Aceitar convite",
+      "decline": "Recusar",
+      "title": "Convidar membros para #{room}",
+      "description": "Escolhe quem queres convidar. Os utilizadores convidados receberão uma notificação e terão sete dias para aceitar ou recusar.",
+      "members": "Membros",
+      "send": "Enviar convites",
+      "failed": "Não foi possível convidar {name}: {error}",
+      "already_member": "Já está nesta sala",
+      "invited_by": "Recebeste um convite de",
+      "decline_title": "Recusar convite?",
+      "decline_join_later": "Podes entrar nesta sala mais tarde.",
+      "decline_need_invite": "Vais precisar de um novo convite para entrar nesta sala."
     }
   }
 }

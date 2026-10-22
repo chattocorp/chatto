@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PermissionGrant } from "./permissions_pb.js";
+import { RoomInvitation } from "./room_invitations_pb.js";
 import { Room } from "./rooms_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
@@ -129,6 +130,21 @@ export class RoomViewerState extends Message<RoomViewerState> {
    */
   slowModeNextPostAt?: Timestamp;
 
+  /**
+   * Pending invitation for this viewer; does not grant access to room content.
+   *
+   * @generated from field: chatto.api.v1.RoomInvitation invitation = 5;
+   */
+  invitation?: RoomInvitation;
+
+  /**
+   * Whether current permissions and room state allow joining without an invitation,
+   * even if already a member. Absent on servers that do not report this decision.
+   *
+   * @generated from field: optional bool can_rejoin = 6;
+   */
+  canRejoin?: boolean;
+
   constructor(data?: PartialMessage<RoomViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -141,6 +157,8 @@ export class RoomViewerState extends Message<RoomViewerState> {
     { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
     { no: 4, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
+    { no: 5, name: "invitation", kind: "message", T: RoomInvitation },
+    { no: 6, name: "can_rejoin", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomViewerState {

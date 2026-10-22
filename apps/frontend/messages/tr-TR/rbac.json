@@ -179,7 +179,8 @@
       "call_join": "Bir hesabın devam eden bir aramaya, yalnızca dinleyici olarak da olsa katılmasına izin verir. Ses veya görüntü göndermek için call.voice, call.camera veya call.screenshare gerekir.",
       "call_voice": "Bir hesabın aramalarda mikrofon sesi göndermesine izin verir. Bu izin olmadan hesap yine de dinleyebilir.",
       "call_camera": "Bir hesabın aramalarda kamera görüntüsü göndermesine izin verir.",
-      "call_screenshare": "Bir hesabın aramalarda bir ekranı, pencereyi, sekmeyi veya uygulamayı sesiyle birlikte paylaşmasına izin verir. Mikrofon sesine izin vermez; bunun için call.voice gerekir."
+      "call_screenshare": "Bir hesabın aramalarda bir ekranı, pencereyi, sekmeyi veya uygulamayı sesiyle birlikte paylaşmasına izin verir. Mikrofon sesine izin vermez; bunun için call.voice gerekir.",
+      "room_invite": "Sunucu üyelerini katıldığınız odalara davet edin."
     }
   }
 }

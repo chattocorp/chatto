@@ -25,7 +25,8 @@
         "mention": "{actor} senden bahsetti",
         "followed_thread": "{actor} takip ettiğin bir konuya yanıt verdi",
         "new_message": "{actor} yeni bir mesaj yayınladı",
-        "activity": "{actor} sana bir bildirim gönderdi"
+        "activity": "{actor} sana bir bildirim gönderdi",
+        "room_invitation": "{actor} sizi bir odaya davet etti"
       }
     },
     "sign_out": {

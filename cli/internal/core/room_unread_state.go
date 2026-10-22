@@ -293,7 +293,7 @@ func (s *ReadStateModel) HasUnread(ctx context.Context, kind RoomKind, userID, r
 		return false, fmt.Errorf("failed to check room membership: %w", err)
 	}
 	if !isMember {
-		return false, nil
+		return s.notifications.invitationBadge(ctx, userID, roomID)
 	}
 	badgeUnread, err := s.notifications.HasNotificationUnread(ctx, userID, roomID, "")
 	if err != nil {

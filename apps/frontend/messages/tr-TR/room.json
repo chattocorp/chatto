@@ -35,8 +35,11 @@
     "leave": {
       "title": "Odadan ayrılın",
       "action": "Odadan ayrılın",
-      "prompt": "#{room}'den ayrılmak istediğinizden emin misiniz? Daha sonra tekrar katılabilirsiniz.",
-      "failed": "Odadan çıkılamadı"
+      "prompt": "#{room}'den ayrılmak istediğinizden emin misiniz?",
+      "failed": "Odadan çıkılamadı",
+      "join_later": "Daha sonra tekrar katılabilirsiniz.",
+      "need_invite": "Bu odaya katılmak için yeni bir davete ihtiyacınız olacak.",
+      "rejoin_unknown": "Yeniden katılmak için yeni bir davete ihtiyacınız olabilir."
     },
     "directory": {
       "universal_title": "Evrensel odalar otomatik olarak birleştirilir",
@@ -59,7 +62,8 @@
       "join_group_failed": "Gruba katılma başarısız oldu",
       "left": "Sol #{room}",
       "left_generic": "Sol oda",
-      "leave_confirm": "#{room}'den ayrılmak istediğinizden emin misiniz?"
+      "leave_confirm": "#{room}'den ayrılmak istediğinizden emin misiniz?",
+      "invited": "Davet edildi"
     },
     "server": {
       "remove_title": "Sunucuyu Kaldır",
@@ -313,6 +317,25 @@
       "indefinite": "Süresiz",
       "remove_title": "{user} adlı kullanıcıyı odadan çıkar",
       "suspension_period": "Uzaklaştırma süresi"
+    },
+    "invitation": {
+      "invite": "Üye davet et",
+      "invited": "Davet edildiniz",
+      "sent": "Davetler gönderildi",
+      "expires": "Son tarih: {date}",
+      "unavailable": "Bu daveti şu anda kabul edemezsiniz. Yine de reddedebilirsiniz.",
+      "accept": "Daveti kabul et",
+      "decline": "Reddet",
+      "title": "#{room} odasına üyeleri davet et",
+      "description": "Kimi davet etmek istediğinizi seçin. Davet edilen kullanıcılar bir bildirim alacak ve kabul etmek veya reddetmek için yedi günleri olacak.",
+      "members": "Üyeler",
+      "send": "Davetleri gönder",
+      "failed": "{name} davet edilemedi: {error}",
+      "already_member": "Zaten bu odada",
+      "invited_by": "Sizi davet eden",
+      "decline_title": "Davet reddedilsin mi?",
+      "decline_join_later": "Bu odaya daha sonra katılabilirsiniz.",
+      "decline_need_invite": "Bu odaya katılmak için yeni bir davete ihtiyacınız olacak."
     }
   }
 }

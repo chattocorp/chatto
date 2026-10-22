@@ -729,3 +729,11 @@ Echo post frames resolve body, mentions, and reply attribution from the original
 reply after projection readiness. Canonical edit and reaction events refresh
 loaded echo rows through their original-message links. No extra durable echo
 edit is required.
+
+## Room invitations
+
+Invitation creation, acceptance, and decline have separate public event
+variants. Delivery is restricted to the sender and recipient, including before
+room membership. Directory reads expose pending invitations to their recipient
+without granting access to messages or member lists. Replay follows the same
+participant boundary.

@@ -522,6 +522,7 @@ func TestPermissionConsistency(t *testing.T) {
 			PermRoomJoin,
 			PermRoomList,
 			PermRoomManage,
+			PermRoomInvite,
 			PermRoomMemberRemove,
 			PermMessageManage,
 			PermMessagePin,

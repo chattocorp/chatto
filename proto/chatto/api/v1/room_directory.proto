@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/permissions.proto";
+import "chatto/api/v1/room_invitations.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/rooms.proto";
 import "google/protobuf/timestamp.proto";
@@ -20,6 +21,11 @@ message RoomViewerState {
   // Earliest time the current user may create another root message. Absent when
   // slow mode is disabled, expired, or bypassed by moderation permissions.
   google.protobuf.Timestamp slow_mode_next_post_at = 4;
+  // Pending invitation for this viewer; does not grant access to room content.
+  RoomInvitation invitation = 5;
+  // Whether current permissions and room state allow joining without an invitation,
+  // even if already a member. Absent on servers that do not report this decision.
+  optional bool can_rejoin = 6;
 }
 
 // Room kinds to include in directory responses.

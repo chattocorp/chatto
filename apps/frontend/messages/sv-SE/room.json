@@ -35,8 +35,11 @@
     "leave": {
       "title": "Lämna rum",
       "action": "Lämna rum",
-      "prompt": "Är du säker på att du vill lämna #{room}? Du kan gå med igen senare.",
-      "failed": "Det gick inte att lämna rummet"
+      "prompt": "Är du säker på att du vill lämna #{room}?",
+      "failed": "Det gick inte att lämna rummet",
+      "join_later": "Du kan gå med igen senare.",
+      "need_invite": "Du behöver en ny inbjudan för att gå med i det här rummet.",
+      "rejoin_unknown": "Du kan behöva en ny inbjudan för att gå med igen."
     },
     "directory": {
       "universal_title": "Universalrum ansluts automatiskt",
@@ -59,7 +62,8 @@
       "join_group_failed": "Det gick inte att gå med i gruppen",
       "left": "Vänster #{room}",
       "left_generic": "Vänster rummet",
-      "leave_confirm": "Är du säker på att du vill lämna #{room}?"
+      "leave_confirm": "Är du säker på att du vill lämna #{room}?",
+      "invited": "Inbjuden"
     },
     "server": {
       "remove_title": "Ta bort server",
@@ -313,6 +317,25 @@
       "indefinite": "Tills vidare",
       "remove_title": "Ta bort {user} från rummet",
       "suspension_period": "Avstängningens längd"
+    },
+    "invitation": {
+      "invite": "Bjud in medlem",
+      "invited": "Du har blivit inbjuden",
+      "sent": "Inbjudningar skickade",
+      "expires": "Upphör {date}",
+      "unavailable": "Du kan inte acceptera denna inbjudan just nu. Du kan fortfarande avböja den.",
+      "accept": "Acceptera inbjudan",
+      "decline": "Avböj",
+      "title": "Bjud in medlemmar till #{room}",
+      "description": "Välj vilka du vill bjuda in. Inbjudna användare får en avisering och har sju dagar på sig att acceptera eller avböja.",
+      "members": "Medlemmar",
+      "send": "Skicka inbjudningar",
+      "failed": "Kunde inte bjuda in {name}: {error}",
+      "already_member": "Redan i det här rummet",
+      "invited_by": "Du har blivit inbjuden av",
+      "decline_title": "Avböja inbjudan?",
+      "decline_join_later": "Du kan gå med i det här rummet senare.",
+      "decline_need_invite": "Du behöver en ny inbjudan för att gå med i det här rummet."
     }
   }
 }

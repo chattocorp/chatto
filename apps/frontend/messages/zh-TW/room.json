@@ -35,8 +35,11 @@
     "leave": {
       "title": "離開聊天室",
       "action": "離開聊天室",
-      "prompt": "確定要離開 #{room} 嗎？之後仍可重新加入。",
-      "failed": "無法離開聊天室"
+      "prompt": "確定要離開 #{room} 嗎？",
+      "failed": "無法離開聊天室",
+      "join_later": "之後仍可重新加入。",
+      "need_invite": "你需要新的邀請才能加入此房間。",
+      "rejoin_unknown": "你可能需要新的邀請才能重新加入。"
     },
     "directory": {
       "universal_title": "全員聊天室會自動加入",
@@ -59,7 +62,8 @@
       "join_group_failed": "無法加入群組",
       "left": "已離開 #{room}",
       "left_generic": "已離開聊天室",
-      "leave_confirm": "確定要離開 #{room} 嗎？"
+      "leave_confirm": "確定要離開 #{room} 嗎？",
+      "invited": "已獲邀請"
     },
     "server": {
       "remove_title": "移除伺服器",
@@ -313,6 +317,25 @@
       "indefinite": "無期限",
       "remove_title": "將 {user} 移出聊天室",
       "suspension_period": "暫停期限"
+    },
+    "invitation": {
+      "invite": "邀請成員",
+      "invited": "你已收到邀請",
+      "sent": "邀請已傳送",
+      "expires": "到期時間：{date}",
+      "unavailable": "你目前無法接受此邀請，但仍可拒絕。",
+      "accept": "接受邀請",
+      "decline": "拒絕",
+      "title": "邀請成員加入 #{room}",
+      "description": "選擇你想邀請的使用者。受邀使用者將收到通知，並可在七天內接受或拒絕邀請。",
+      "members": "成員",
+      "send": "傳送邀請",
+      "failed": "無法邀請 {name}：{error}",
+      "already_member": "已在此房間中",
+      "invited_by": "邀請你加入的使用者：",
+      "decline_title": "拒絕邀請？",
+      "decline_join_later": "你可以稍後加入此房間。",
+      "decline_need_invite": "你需要新的邀請才能加入此房間。"
     }
   }
 }

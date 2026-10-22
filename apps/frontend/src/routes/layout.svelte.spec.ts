@@ -115,7 +115,8 @@ vi.mock('$lib/notifications/notificationClick', () => ({
   onNotificationClick: vi.fn(() => vi.fn())
 }));
 
-vi.mock('$lib/notifications/notificationNavigationUi', () => ({
+vi.mock('$lib/notifications/notificationNavigationUi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/notifications/notificationNavigationUi')>()),
   prepareUiForNotificationPath: vi.fn(),
   prepareUiForNotificationTarget: vi.fn()
 }));

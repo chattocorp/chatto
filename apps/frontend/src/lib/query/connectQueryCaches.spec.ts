@@ -55,7 +55,7 @@ const caches = {
     retractMessage: vi.fn(),
     scrubRoom: vi.fn()
   },
-  roomMembers: { purgeRoom: vi.fn(), scrubUser: vi.fn() }
+  roomMembers: { refreshRoom: vi.fn(async () => {}), purgeRoom: vi.fn(), scrubUser: vi.fn() }
 };
 
 beforeEach(() => {
@@ -135,6 +135,16 @@ describe('connectQueryCaches', () => {
     await refreshed;
     expect(caches.server.refresh).toHaveBeenCalledWith('S1');
   });
+
+  it.each(['userJoinedRoom', 'userLeftRoom', 'roomUniversalChanged'])(
+    'refreshes membership snapshots after %s',
+    (eventCase) => {
+      const { store, emit } = fakeStore();
+      connectQueryCaches(store);
+      emit('onUpdate', { event: { event: { case: eventCase, value: { roomId: 'R1' } } } });
+      expect(caches.roomMembers.refreshRoom).toHaveBeenCalledExactlyOnceWith('S1', 'R1');
+    }
+  );
 
   it('refreshes reads that realtime changes make stale', () => {
     const { store, emit } = fakeStore();

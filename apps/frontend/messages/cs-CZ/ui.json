@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Načítání...",
       "empty": "Žádné zápasy",
-      "clear": "Jasný"
+      "clear": "Jasný",
+      "remove": "Odebrat {label}"
     },
     "expiry": {
       "24h": "24 hodin",

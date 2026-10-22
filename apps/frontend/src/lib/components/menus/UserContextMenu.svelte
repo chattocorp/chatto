@@ -191,7 +191,7 @@ keep the compact menu without a navigation action.
   class={audioParticipant ? 'w-72' : 'w-64'}
   onclose={() => onClose?.()}
 >
-  <div class="flex items-center gap-3 menu-section p-3">
+  <div class="flex items-center gap-3 menu-section p-3 text-start">
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">
       <AccountName name={displayName} identity={user} class="font-semibold" />
@@ -201,7 +201,7 @@ keep the compact menu without a navigation action.
   </div>
 
   {#if bio || localTime}
-    <div class="space-y-1 menu-section px-3 py-2">
+    <div class="space-y-1 menu-section px-3 py-2 text-start">
       {#if bio}
         <ScrollFader
           top

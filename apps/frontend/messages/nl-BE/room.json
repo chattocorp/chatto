@@ -35,8 +35,11 @@
     "leave": {
       "title": "Ruimte verlaten",
       "action": "Ruimte verlaten",
-      "prompt": "Weet je zeker dat je #{room} wilt verlaten? Je kunt later weer meedoen.",
-      "failed": "Kan de kamer niet verlaten"
+      "prompt": "Weet je zeker dat je #{room} wilt verlaten?",
+      "failed": "Kan de kamer niet verlaten",
+      "join_later": "Je kunt later weer meedoen.",
+      "need_invite": "Je hebt een nieuwe uitnodiging nodig om aan deze kamer deel te nemen.",
+      "rejoin_unknown": "Je hebt mogelijk een nieuwe uitnodiging nodig om weer deel te nemen."
     },
     "directory": {
       "universal_title": "Universele kamers worden automatisch samengevoegd",
@@ -59,7 +62,8 @@
       "join_group_failed": "Kan niet deelnemen aan de groep",
       "left": "Links #{room}",
       "left_generic": "Linkerkamer",
-      "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?"
+      "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?",
+      "invited": "Uitgenodigd"
     },
     "server": {
       "remove_title": "Server verwijderen",
@@ -313,6 +317,25 @@
       "indefinite": "Onbepaald",
       "remove_title": "{user} uit de kamer verwijderen",
       "suspension_period": "Duur van schorsing"
+    },
+    "invitation": {
+      "invite": "Lid uitnodigen",
+      "invited": "Je bent uitgenodigd",
+      "sent": "Uitnodigingen verzonden",
+      "expires": "Verloopt op {date}",
+      "unavailable": "Je kunt deze uitnodiging momenteel niet accepteren. Je kunt deze nog wel weigeren.",
+      "accept": "Uitnodiging accepteren",
+      "decline": "Weigeren",
+      "title": "Leden uitnodigen voor #{room}",
+      "description": "Kies wie je wilt uitnodigen. Uitgenodigde gebruikers ontvangen een melding en hebben zeven dagen om te accepteren of te weigeren.",
+      "members": "Leden",
+      "send": "Uitnodigingen verzenden",
+      "failed": "Kan {name} niet uitnodigen: {error}",
+      "already_member": "Al in deze kamer",
+      "invited_by": "Je bent uitgenodigd door",
+      "decline_title": "Uitnodiging afwijzen?",
+      "decline_join_later": "Je kunt later aan deze kamer deelnemen.",
+      "decline_need_invite": "Je hebt een nieuwe uitnodiging nodig om aan deze kamer deel te nemen."
     }
   }
 }

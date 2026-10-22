@@ -379,3 +379,12 @@ message NotificationUnreadStateChangedEvent {
 message RoomReadStateChangedEvent {
   string room_id = 1;
 }
+
+// An invitation created. Delivered only to its sender and recipient.
+message RoomInvitationCreatedEvent { string room_id = 1; string invitation_id = 2; }
+
+// An invitation accepted. Delivered only to its sender and recipient.
+message RoomInvitationAcceptedEvent { string room_id = 1; string invitation_id = 2; }
+
+// An invitation declined. Delivered only to its sender and recipient.
+message RoomInvitationDeclinedEvent { string room_id = 1; string invitation_id = 2; }

@@ -864,7 +864,7 @@ describe('RoomList', () => {
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
     await expect.element(leave ?? null).toBeInTheDocument();
-    expect(markRead?.closest('.menu-section')).toBe(leave?.closest('.menu-section'));
+    expect(markRead?.closest('.menu-section')).not.toBe(leave?.closest('.menu-section'));
     expect(q(document.body, '[role="separator"]')).toBeNull();
 
     markRead!.click();
@@ -892,11 +892,12 @@ describe('RoomList', () => {
   });
 
   it.each([false, true])(
-    'groups user actions before admin actions for universal=%s and copies the room ID',
+    'groups room, copy, and exit actions for universal=%s and copies the room ID',
     async (isUniversal) => {
-      const rooms = mocks.store.navigation.rooms as Array<{ id: string; isUniversal: boolean }>;
+      const rooms = mocks.store.navigation.rooms as RoomsListItem[];
       const room = rooms.find((room) => room.id === 'channel-1')!;
       room.isUniversal = isUniversal;
+      room.viewerCanInvite = true;
       const { container } = render(RoomList);
       const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
 
@@ -915,14 +916,84 @@ describe('RoomList', () => {
           )
         )
       ).toEqual([
-        ['Mark as read', 'Copy room link', 'Copy room ID', ...(isUniversal ? [] : ['Leave room'])],
-        ['Open room settings', 'Archive room']
+        ['Invite member', 'Mark as read'],
+        ['Copy room link', 'Copy room ID'],
+        ['Open room settings', 'Archive room', ...(isUniversal ? [] : ['Leave room'])]
       ]);
 
       copyRoomId.click();
 
       await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('channel-1'));
       expect(getToasts().map((item) => item.message)).toContain('Copied to clipboard');
+    }
+  );
+
+  it('keeps an invited non-member room visible and opens its invitation instead of joining', async () => {
+    const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+    const invited = rooms.find((room) => room.id === 'restricted-channel')!;
+    invited.viewerInvitation = {
+      id: 'invitation-1',
+      senderId: 'sender-1',
+      expiresAt: new Date('2099-01-01'),
+      viewerCanAccept: true
+    };
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
+    await expect.element(row).toBeVisible();
+    expect(row.classList.contains('opacity-60')).toBe(false);
+    await expect
+      .element(row.querySelector<HTMLElement>('[aria-label="You have been invited"]'))
+      .toBeVisible();
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await browserPage.getByRole('menuitem', { name: 'You have been invited' }).click();
+    expect(mocks.store.roomDirectory.joinRoom).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/restricted-channel');
+  });
+
+  it.each(['badge', 'notification'] as const)(
+    'shows %s attention for an invited nonmember',
+    async (delivery) => {
+      const invited = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+        (room) => room.id === 'restricted-channel'
+      )!;
+      invited.viewerInvitation = {
+        id: 'invitation',
+        senderId: 'sender',
+        expiresAt: new Date('2099-01-01'),
+        viewerCanAccept: true
+      };
+      if (delivery === 'badge') mocks.unreadRoomIds.add(invited.id);
+      else {
+        invited.viewerNotificationCount = 1;
+        invited.viewerImportantNotificationCount = 1;
+      }
+      const { container } = render(RoomList);
+      const row = q(container, '[href="/chat/-/restricted-channel"]')!;
+      await expect
+        .element(
+          row.querySelector<HTMLElement>(
+            delivery === 'badge'
+              ? '[data-testid="room-unread-dot"]'
+              : '[data-testid="room-notification-badge"]'
+          )
+        )
+        .toBeVisible();
+      expect(mocks.store.roomDirectory.joinRoom).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([true, false])(
+    'shows Invite member only with room invitation authority (%s)',
+    async (allowed) => {
+      const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+      rooms.find((room) => room.id === 'channel-1')!.viewerCanInvite = allowed;
+      const { container } = render(RoomList);
+      const row = q(container, '[href="/chat/-/channel-1"]')!;
+      row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      await expect.element(browserPage.getByTestId('copy-room-id')).toBeVisible();
+      const invite = browserPage.getByRole('menuitem', { name: 'Invite member' });
+      if (allowed) await expect.element(invite).toBeVisible();
+      else await expect.element(invite).not.toBeInTheDocument();
     }
   );
 
@@ -1320,7 +1391,7 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Open room settings'
     );
     expect(settings).toBeUndefined();
-    expect(document.querySelectorAll('[role="menu"] .menu-section')).toHaveLength(1);
+    expect(document.querySelectorAll('[role="menu"] .menu-section')).toHaveLength(3);
     expect(document.body.textContent).not.toContain('Archive room');
   });
 

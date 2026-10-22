@@ -34,7 +34,8 @@
       "call_join": "Pievienoties notiekošam zvanam",
       "call_voice": "Izmantot mikrofonu zvanos",
       "call_camera": "Izmantot kameru zvanos",
-      "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio"
+      "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio",
+      "room_invite": "Uzaicināt servera dalībniekus uz istabām, kurām esat pievienojies"
     }
   }
 }

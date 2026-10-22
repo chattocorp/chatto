@@ -22,7 +22,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-010](FDR-010-typing-indicators.md)                     | Typing Indicators                     | Active       | 2026-10-15    |
 | [FDR-011](FDR-011-user-presence.md)                         | User Presence                         | Active       | 2026-09-19    |
 | [FDR-012](FDR-012-notifications.md)                         | Notifications                         | Experimental | 2026-10-22    |
-| [FDR-013](FDR-013-web-push-notifications.md)                | Web Push Notifications                | Active       | 2026-10-09    |
+| [FDR-013](FDR-013-web-push-notifications.md)                | Web Push Notifications                | Active       | 2026-10-22    |
 | [FDR-014](FDR-014-jump-to-present.md)                       | Jump to Present                       | Active       | 2026-09-25    |
 | [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-09-21    |
 | [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-10-10    |
@@ -60,3 +60,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-048](FDR-048-chatto-mobile.md)                         | Chatto Mobile                         | Experimental | 2026-09-25    |
 | [FDR-049](FDR-049-server-gutter.md)                         | Server Gutter                         | Active       | 2026-10-09    |
 | [FDR-050](FDR-050-provider-group-roles.md)                  | Provider Group Roles                  | Active       | 2026-10-14    |
+| [FDR-051](FDR-051-room-invitations.md)                      | Room Invitations                      | Experimental | 2026-10-22    |

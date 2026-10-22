@@ -35,8 +35,11 @@
     "leave": {
       "title": "Forlat rom",
       "action": "Forlat rom",
-      "prompt": "Er du sikker på at du vil forlate #{room}? Du kan bli med igjen senere.",
-      "failed": "Kunne ikke forlate rommet"
+      "prompt": "Er du sikker på at du vil forlate #{room}?",
+      "failed": "Kunne ikke forlate rommet",
+      "join_later": "Du kan bli med igjen senere.",
+      "need_invite": "Du trenger en ny invitasjon for å bli med i dette rommet.",
+      "rejoin_unknown": "Du kan trenge en ny invitasjon for å bli med igjen."
     },
     "directory": {
       "universal_title": "Universalrom slås sammen automatisk",
@@ -59,7 +62,8 @@
       "join_group_failed": "Kunne ikke bli med i gruppen",
       "left": "Venstre #{room}",
       "left_generic": "Venstre rom",
-      "leave_confirm": "Er du sikker på at du vil forlate #{room}?"
+      "leave_confirm": "Er du sikker på at du vil forlate #{room}?",
+      "invited": "Invitert"
     },
     "server": {
       "remove_title": "Fjern server",
@@ -313,6 +317,25 @@
       "indefinite": "Ubestemt",
       "remove_title": "Fjern {user} fra rommet",
       "suspension_period": "Varighet for utestengelse"
+    },
+    "invitation": {
+      "invite": "Inviter medlem",
+      "invited": "Du har blitt invitert",
+      "sent": "Invitasjoner sendt",
+      "expires": "Utløper {date}",
+      "unavailable": "Du kan ikke godta denne invitasjonen nå. Du kan fortsatt avslå den.",
+      "accept": "Godta invitasjon",
+      "decline": "Avslå",
+      "title": "Inviter medlemmer til #{room}",
+      "description": "Velg hvem du vil invitere. Inviterte brukere får et varsel og har sju dager på å godta eller avslå.",
+      "members": "Medlemmer",
+      "send": "Send invitasjoner",
+      "failed": "Kunne ikke invitere {name}: {error}",
+      "already_member": "Allerede i dette rommet",
+      "invited_by": "Du har blitt invitert av",
+      "decline_title": "Avslå invitasjonen?",
+      "decline_join_later": "Du kan bli med i dette rommet senere.",
+      "decline_need_invite": "Du trenger en ny invitasjon for å bli med i dette rommet."
     }
   }
 }

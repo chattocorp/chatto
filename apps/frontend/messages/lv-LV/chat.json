@@ -25,7 +25,8 @@
         "mention": "{actor} pieminēja jūs",
         "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat",
         "new_message": "{actor} publicēja jaunu ziņu",
-        "activity": "{actor} nosūtīja jums paziņojumu"
+        "activity": "{actor} nosūtīja jums paziņojumu",
+        "room_invitation": "{actor} uzaicināja jūs uz telpu"
       }
     },
     "sign_out": {

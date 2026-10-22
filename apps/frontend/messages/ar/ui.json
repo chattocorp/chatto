@@ -84,7 +84,8 @@
     "combobox": {
       "loading": "...",
       "empty": "لا يوجد تطابقات",
-      "clear": "مسح"
+      "clear": "مسح",
+      "remove": "أزل {label}"
     },
     "expiry": {
       "24h": "24 ساعة",

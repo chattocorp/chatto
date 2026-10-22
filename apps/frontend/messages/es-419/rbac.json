@@ -179,7 +179,8 @@
       "call_join": "Permite a una cuenta unirse a una llamada activa, también solo para escuchar. Para enviar audio o video necesita call.voice, call.camera o call.screenshare.",
       "call_voice": "Permite a una cuenta enviar audio del micrófono en las llamadas. Sin él, la cuenta puede seguir escuchando.",
       "call_camera": "Permite a una cuenta enviar video de la cámara en las llamadas.",
-      "call_screenshare": "Permite a una cuenta compartir una pantalla, ventana, pestaña o aplicación en las llamadas, con su audio. No permite el audio del micrófono; para eso necesita call.voice."
+      "call_screenshare": "Permite a una cuenta compartir una pantalla, ventana, pestaña o aplicación en las llamadas, con su audio. No permite el audio del micrófono; para eso necesita call.voice.",
+      "room_invite": "Invitar a miembros del servidor a salas a las que te has unido."
     }
   }
 }

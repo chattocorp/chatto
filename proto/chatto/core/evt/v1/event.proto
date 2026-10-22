@@ -82,6 +82,9 @@ message Event {
     // feature; oneof tags don't reserve, so don't reuse that number.
     RoomSlowModeChangedEvent room_slow_mode_changed = 307;
     RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
+    RoomInvitationCreatedEvent room_invitation_created = 312;
+    RoomInvitationAcceptedEvent room_invitation_accepted = 313;
+    RoomInvitationDeclinedEvent room_invitation_declined = 314;
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;

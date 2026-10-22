@@ -25,7 +25,8 @@
         "mention": "קיבלת אזכור מאת {actor}",
         "followed_thread": "נוספה תשובה מאת {actor} בשרשור שבמעקב שלך",
         "new_message": "נוספה הודעה חדשה מאת {actor}",
-        "activity": "קיבלת התראה מאת {actor}"
+        "activity": "קיבלת התראה מאת {actor}",
+        "room_invitation": "{actor} הזמין אותך לחדר"
       }
     },
     "sign_out": {

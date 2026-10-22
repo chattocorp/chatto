@@ -57,6 +57,10 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
     description: () => m('permissions.descriptions.room_create'),
     help: () => m('rbac.permission_help.room_create')
   },
+  'room.invite': {
+    description: () => m('permissions.descriptions.room_invite'),
+    help: () => m('rbac.permission_help.room_invite')
+  },
   'room.join': {
     description: () => m('permissions.descriptions.room_join'),
     help: () => m('rbac.permission_help.room_join')

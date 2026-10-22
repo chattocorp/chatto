@@ -179,7 +179,8 @@
       "call_join": "允许账户加入进行中的通话，也可以只作为听众加入。发送音频或视频需要 call.voice、call.camera 或 call.screenshare。",
       "call_voice": "允许账户在通话中发送麦克风音频。没有此权限时，账户仍可收听。",
       "call_camera": "允许账户在通话中发送摄像头视频。",
-      "call_screenshare": "允许账户在通话中共享屏幕、窗口、标签页或应用程序及其音频。不允许发送麦克风音频；这需要 call.voice。"
+      "call_screenshare": "允许账户在通话中共享屏幕、窗口、标签页或应用程序及其音频。不允许发送麦克风音频；这需要 call.voice。",
+      "room_invite": "邀请服务器成员加入你已加入的聊天室."
     }
   }
 }

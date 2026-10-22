@@ -576,3 +576,10 @@ routing. It has no `message_body` fact or copied mention and reply-attribution
 fields. Full and partial content edits append the original message's body and
 edit facts only. Edit-driven echo creation or removal shares the parent edit's
 room-OCC batch.
+
+## Room invitation facts
+
+`evt.room.<room-id>.room_invitation_created`, `room_invitation_accepted`, and
+`room_invitation_declined` use the room aggregate. The event envelope records
+the actor and time. Created facts store the recipient and expiry; response
+facts identify both participants. They do not appear in room timelines.

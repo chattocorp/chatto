@@ -188,6 +188,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`notification_badge_sources.go`](../../cli/internal/core/notification_badge_sources.go),
   [`notification_projection.go`](../../cli/internal/core/notification_projection.go),
   [`notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
+  [`notification_invitations.go`](../../cli/internal/core/notification_invitations.go),
   [`notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go),
   [`notification_alert_delivery.go`](../../cli/internal/core/notification_alert_delivery.go),
   [`stream.go`](../../cli/internal/notificationstream/stream.go)):
@@ -195,7 +196,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   signal class; materialization-time Ambient/Important classification
   independent from delivery mode; deterministic recipient/source/signal
   identity; durable rich mention causes; root channel-message delivery to
-  current members with `message.read`; Badge attention computed when it is read
+  current members with `message.read`; a separate durable invitation consumer
+  creates room-targeted attention for eligible pending recipients and removes
+  it after acceptance or decline; invitation expiry bounds its visible lifetime;
+  Badge attention computed when it is read
   from the decision projection's Badge source index, current visibility, and
   read boundaries (ADR-109), with hints only when a source turns attention on; a
   compact current-state decision projection; direct double-ack derivation from
@@ -477,3 +481,9 @@ grants guarded by the complete RBAC subject tail. The same startup step also
 applies the 0.5 upgrade grants (ADR-113). It reads historical decisions so a
 cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
+
+## Room invitations
+
+`RoomInvitationModel` owns participant reads and invitation commands. It uses
+the room aggregate for creation and responses. Acceptance commits membership
+in the same atomic batch. See [FDR-051](../fdr/FDR-051-room-invitations.md).

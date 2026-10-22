@@ -15,7 +15,8 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
   description: overrides.description ?? null,
   archived: overrides.archived ?? false,
   isUniversal: overrides.isUniversal ?? false,
-  viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true
+  viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
+  viewerInvitation: overrides.viewerInvitation
 });
 
 const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsListItem => ({
@@ -140,6 +141,28 @@ describe('RoomDirectory', () => {
 
     // Non-joined row: no link wrapping the label.
     expect(unjoinedItem.querySelector('a')).toBeNull();
+  });
+
+  it('opens invited restricted rooms and returns to restricted when the invitation is cleared', async () => {
+    const invitedRoom = room('private', {
+      viewerCanJoinRoom: false,
+      viewerInvitation: {
+        id: 'invite-1',
+        senderId: 'alice',
+        expiresAt: new Date('2099-01-01'),
+        viewerCanAccept: true
+      }
+    });
+    const { container, rerender } = render(Harness, { initialRooms: [invitedRoom] });
+    await expect.element(page.getByText('Invited', { exact: true })).toBeVisible();
+    const link = container.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/chat/-/private');
+    expect(findButton(container, 'Join')).toBeUndefined();
+    // Canonical expiry or handling removes the invitation from the room view.
+    await rerender({ initialRooms: [room('private', { viewerCanJoinRoom: false })] });
+    await expect.element(page.getByText('Restricted', { exact: true })).toBeVisible();
+    expect(container.querySelector('a')).toBeNull();
+    expect(container.textContent).not.toContain('Invited');
   });
 
   it('renders "Restricted" for rooms the viewer cannot join', () => {

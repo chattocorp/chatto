@@ -2458,3 +2458,138 @@ export class RoomReadStateChangedEvent extends Message<RoomReadStateChangedEvent
     return proto3.util.equals(RoomReadStateChangedEvent, a, b);
   }
 }
+
+/**
+ * An invitation created. Delivered only to its sender and recipient.
+ *
+ * @generated from message chatto.realtime.v1.RoomInvitationCreatedEvent
+ */
+export class RoomInvitationCreatedEvent extends Message<RoomInvitationCreatedEvent> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string invitation_id = 2;
+   */
+  invitationId = "";
+
+  constructor(data?: PartialMessage<RoomInvitationCreatedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoomInvitationCreatedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "invitation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomInvitationCreatedEvent {
+    return new RoomInvitationCreatedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomInvitationCreatedEvent {
+    return new RoomInvitationCreatedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomInvitationCreatedEvent {
+    return new RoomInvitationCreatedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomInvitationCreatedEvent | PlainMessage<RoomInvitationCreatedEvent> | undefined, b: RoomInvitationCreatedEvent | PlainMessage<RoomInvitationCreatedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomInvitationCreatedEvent, a, b);
+  }
+}
+
+/**
+ * An invitation accepted. Delivered only to its sender and recipient.
+ *
+ * @generated from message chatto.realtime.v1.RoomInvitationAcceptedEvent
+ */
+export class RoomInvitationAcceptedEvent extends Message<RoomInvitationAcceptedEvent> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string invitation_id = 2;
+   */
+  invitationId = "";
+
+  constructor(data?: PartialMessage<RoomInvitationAcceptedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoomInvitationAcceptedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "invitation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomInvitationAcceptedEvent {
+    return new RoomInvitationAcceptedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomInvitationAcceptedEvent {
+    return new RoomInvitationAcceptedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomInvitationAcceptedEvent {
+    return new RoomInvitationAcceptedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomInvitationAcceptedEvent | PlainMessage<RoomInvitationAcceptedEvent> | undefined, b: RoomInvitationAcceptedEvent | PlainMessage<RoomInvitationAcceptedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomInvitationAcceptedEvent, a, b);
+  }
+}
+
+/**
+ * An invitation declined. Delivered only to its sender and recipient.
+ *
+ * @generated from message chatto.realtime.v1.RoomInvitationDeclinedEvent
+ */
+export class RoomInvitationDeclinedEvent extends Message<RoomInvitationDeclinedEvent> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string invitation_id = 2;
+   */
+  invitationId = "";
+
+  constructor(data?: PartialMessage<RoomInvitationDeclinedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoomInvitationDeclinedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "invitation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomInvitationDeclinedEvent {
+    return new RoomInvitationDeclinedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomInvitationDeclinedEvent {
+    return new RoomInvitationDeclinedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomInvitationDeclinedEvent {
+    return new RoomInvitationDeclinedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomInvitationDeclinedEvent | PlainMessage<RoomInvitationDeclinedEvent> | undefined, b: RoomInvitationDeclinedEvent | PlainMessage<RoomInvitationDeclinedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomInvitationDeclinedEvent, a, b);
+  }
+}
