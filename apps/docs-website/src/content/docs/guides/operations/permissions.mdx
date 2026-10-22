@@ -284,3 +284,9 @@ shows who sent the invitation and when it expires. The recipient has seven days
 to accept or decline. Acceptance bypasses `room.join`, but does not grant
 message or call permissions. The sender must still be a member with
 `room.invite` when the recipient accepts.
+
+Invitations use Push notification by default, subject to device permission and
+Do Not Disturb. Recipients can change the **Room invitations** setting to
+Notification, Badge, or Off. The notification opens the room. Reading or
+deleting it does not respond to the invitation. It disappears after acceptance,
+decline, or expiry.

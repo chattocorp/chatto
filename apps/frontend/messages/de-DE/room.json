@@ -327,7 +327,7 @@
       "accept": "Einladung annehmen",
       "decline": "Ablehnen",
       "title": "Mitglieder in #{room} einladen",
-      "description": "Wähle aus, wen du einladen möchtest. Eingeladene Personen erhalten eine Einladung und haben sieben Tage Zeit, sie anzunehmen oder abzulehnen.",
+      "description": "Wähle aus, wen du einladen möchtest. Eingeladene Nutzer erhalten eine Benachrichtigung und haben sieben Tage Zeit, die Einladung anzunehmen oder abzulehnen.",
       "members": "Mitglieder",
       "send": "Einladungen senden",
       "failed": "{name} konnte nicht eingeladen werden: {error}",

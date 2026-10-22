@@ -10,7 +10,10 @@
   import { serverDisplayName } from '@chatto/client/server/state';
   import { MINIMUM_CONNECTABLE_SERVER_VERSION } from '@chatto/client/server/compatibility';
   import { serverHost } from '$lib/serverUrl';
-  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import {
+    prepareUiForNotificationTarget,
+    navigateNotification
+  } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
   import { m } from '$lib/i18n/messages';
@@ -276,7 +279,7 @@
     }
 
     const path = notificationPath(serverId, notification);
-    await goto(resolve(path as '/'));
+    await navigateNotification(stores, notification, () => goto(resolve(path as '/')));
   }
 
   // Handle click on icon unread dot. Channel and DM unreads both flow through

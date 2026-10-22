@@ -35,11 +35,15 @@ test.describe('Notification policy', () => {
       'td[data-notification-scope="server"][data-notification-field="directMessages"] button'
     );
     await expect(directMessages).toBeVisible();
-    await expect(page.locator('[data-notification-field="roomInvitations"]')).toHaveCount(0);
+    const roomInvitations = page.locator(
+      'td[data-notification-scope="server"][data-notification-field="roomInvitations"] button'
+    );
+    await expect(roomInvitations).toBeVisible();
+    await expect(roomInvitations).toHaveAttribute('aria-label', /Default: Push notification/);
     await expect(page.locator('[data-notification-field="followedRooms"]')).toHaveCount(0);
     await expect(
       page.locator('td[data-notification-scope="server"] [data-notification-field]')
-    ).toHaveCount(9);
+    ).toHaveCount(10);
     await expect(directMessages).toHaveAttribute('aria-label', /Default: Push notification/);
     await expect(
       page.locator(

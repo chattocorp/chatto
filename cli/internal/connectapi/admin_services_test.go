@@ -1518,8 +1518,8 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if resp.Msg.GetAssetCleanup() == nil {
 		t.Fatal("AssetCleanup = nil")
 	}
-	if len(resp.Msg.GetDurableWorkers()) != 8 {
-		t.Fatalf("DurableWorkers len = %d, want 8", len(resp.Msg.GetDurableWorkers()))
+	if len(resp.Msg.GetDurableWorkers()) != 9 {
+		t.Fatalf("DurableWorkers len = %d, want 9", len(resp.Msg.GetDurableWorkers()))
 	}
 	if got := resp.Msg.GetLivekit().GetConnectionState(); got != adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED {
 		t.Fatalf("Livekit.ConnectionState = %v, want not configured", got)

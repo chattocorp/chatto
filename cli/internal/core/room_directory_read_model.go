@@ -645,6 +645,10 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	if !isMember && s.invitations != nil && !room.GetArchived() && !room.GetUniversal() {
 		if v, ok := s.invitations.projection.Projection().pending(room.Id, actorID, time.Now()); ok {
 			invitation = &v
+			hasUnread, err = s.unread.HasUnread(ctx, kind, actorID, room.Id)
+			if err != nil {
+				return DirectoryRoomViewerState{}, err
+			}
 			canAccept, err = s.invitations.CanAccept(ctx, actorID, v)
 			if err != nil {
 				return DirectoryRoomViewerState{}, err

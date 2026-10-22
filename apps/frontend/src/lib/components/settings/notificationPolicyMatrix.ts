@@ -16,9 +16,9 @@ export type NotificationPolicyColumn = {
 };
 
 /**
- * Build the policy axes from the current member-visible navigation layout.
+ * Build the policy axes from the current joined and invited navigation layout.
  * A room match keeps its group for inheritance context, while a group match
- * keeps all of its current-member rooms.
+ * keeps all of its joined or invited rooms.
  */
 export function notificationPolicyColumns(
   serverLabel: string,
@@ -31,7 +31,7 @@ export function notificationPolicyColumns(
   ];
   const query = filter.trim().toLocaleLowerCase();
   const memberChannels = rooms.filter(
-    (room) => room.viewerIsMember && room.type === RoomKind.CHANNEL
+    (room) => (room.viewerIsMember || room.viewerInvitation) && room.type === RoomKind.CHANNEL
   );
   const memberDMs = rooms.filter((room) => room.viewerIsMember && room.type === RoomKind.DM);
   const roomsByID = new Map(memberChannels.map((room) => [room.id, room]));
@@ -98,7 +98,7 @@ export function notificationPolicyCellApplicable(
   if (field === 'directMessages') {
     return column.kind === 'server' || column.roomKind === RoomKind.DM;
   }
-  if (field === 'roomMessages') {
+  if (field === 'roomMessages' || field === 'roomInvitations') {
     return (
       column.kind === 'server' ||
       column.kind === 'roomGroup' ||

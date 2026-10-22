@@ -327,7 +327,7 @@
       "accept": "Akcepti inviton",
       "decline": "Malakcepti",
       "title": "Inviti membrojn al #{room}",
-      "description": "Elektu, kiun vi volas inviti. La invititaj uzantoj ricevos inviton kaj havos sep tagojn por akcepti aŭ malakcepti ĝin.",
+      "description": "Elektu kiun vi volas inviti. Invititaj uzantoj ricevos sciigon kaj havos sep tagojn por akcepti aŭ malakcepti.",
       "members": "Membroj",
       "send": "Sendi invitojn",
       "failed": "Ne eblis inviti {name}: {error}",

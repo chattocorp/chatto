@@ -29,6 +29,15 @@ materialization use application-owned durable consumers through this boundary.
 application site still owns its name, filters, handler, retry policy, and
 lifecycle.
 
+Room invitation notification effects use a separate durable consumer owned by
+`NotificationMaterializer` (see
+[`notification_invitations.go`](../../cli/internal/core/notification_invitations.go)).
+Creation uses the recipient, source event, and cause as the idempotency key.
+Acceptance and decline remove matching occurrences before acknowledgement.
+Current invitation state fences reads and alert delivery; expiry also bounds
+occurrence retention. Retries and other replicas reuse the same effect identity.
+The consumer starts with new events and does not backfill old invitations.
+
 Transient fetch failures retry in place. A deleted consumer stops its worker so
 the owning core process or supervised runtime unit can recreate the declared
 consumer instead of polling a stale handle indefinitely. Retry failures are

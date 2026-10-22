@@ -40,6 +40,7 @@
     'allMentions',
     'followedThreads',
     'followedRooms',
+    'roomInvitations',
     'reactions'
   ];
   const productDefaults: NotificationPolicyModes = {
@@ -52,6 +53,7 @@
     allMentions: NotificationDeliveryMode.OFF,
     followedThreads: NotificationDeliveryMode.IN_APP_NOTIFICATION,
     followedRooms: NotificationDeliveryMode.OFF,
+    roomInvitations: NotificationDeliveryMode.PUSH_NOTIFICATION,
     reactions: NotificationDeliveryMode.IN_APP_NOTIFICATION
   };
   const groupForRoom: Record<string, string> = {

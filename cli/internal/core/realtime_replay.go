@@ -94,7 +94,7 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 	if err != nil {
 		return false, fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	info, err := c.storage.serverEvtStream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return false, fmt.Errorf("read EVT stream info: %w", err)
 	}
@@ -121,7 +121,7 @@ func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor s
 	if err != nil {
 		return fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	info, err := c.storage.serverEvtStream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("read EVT stream info: %w", err)
 	}
@@ -148,7 +148,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 	if err != nil {
 		return RealtimeReplayPlan{}, fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	info, err := stream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return RealtimeReplayPlan{}, fmt.Errorf("read EVT stream info: %w", err)
 	}

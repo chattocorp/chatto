@@ -335,3 +335,13 @@ func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(co
 		RetryDelay:  25 * time.Millisecond,
 	}, create)
 }
+
+// currentEventStreamInfo uses a private handle because Stream.Info mutates its
+// cached metadata. The shared EVT handle also serves concurrent event reads.
+func (c *ChattoCore) currentEventStreamInfo(ctx context.Context) (*jetstream.StreamInfo, error) {
+	handle, err := c.js.Stream(ctx, natsresources.EVT)
+	if err != nil {
+		return nil, err
+	}
+	return handle.CachedInfo(), nil
+}

@@ -326,7 +326,10 @@ realtime requests.
 policy scopes. Its batch read accepts at most 100 scopes, removes duplicates in
 first-seen order, and omits missing or inaccessible resource scopes.
 `NotificationService` owns occurrence reads and triage only; policy reads and
-writes use `NotificationPolicyService`.
+writes use `NotificationPolicyService`. A pending invitation also permits access
+to that room's notification preferences. Invitation occurrences carry a room
+summary, invitation ID, and expiry, without a message target. Current invitation
+eligibility controls visibility independently of message access.
 
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive

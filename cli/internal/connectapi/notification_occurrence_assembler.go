@@ -74,6 +74,13 @@ func (a *notificationAssembler) signal(ctx context.Context, signal *notification
 	if signal == nil {
 		return nil, nil
 	}
+	if invitation := signal.GetRoomInvitationReceived(); invitation != nil {
+		room, err := a.room(ctx, invitation.GetRoomId())
+		if err != nil {
+			return nil, err
+		}
+		return &apiv1.NotificationSignal{Kind: &apiv1.NotificationSignal_RoomInvitationReceived{RoomInvitationReceived: &apiv1.RoomInvitationReceived{Room: room, InvitationId: invitation.GetInvitationId()}}}, nil
+	}
 	var message *notificationv1.NotificationMessageReference
 	switch payload := signal.GetKind().(type) {
 	case *notificationv1.NotificationSignal_DirectMessageReceived:

@@ -25,7 +25,10 @@
     type NotificationGroupItem,
     type NotificationOccurrenceItem
   } from '@chatto/client/api/notifications';
-  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import {
+    prepareUiForNotificationTarget,
+    navigateNotification
+  } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { serverRegistry } from '$lib/client';
   import { serverIdToSegment } from '$lib/navigation';
@@ -191,9 +194,7 @@
   ): NotificationOccurrenceItem[] {
     const notifications = serverRegistry.getStore(serverId).notifications;
     return occurrences
-      .filter(
-        (occurrence) => !occurrence.room || !notifications.revokedRoomIds.has(occurrence.room.id)
-      )
+      .filter((occurrence) => notifications.canDisplayOccurrence(occurrence))
       .map((occurrence) =>
         occurrence.actor && notifications.scrubbedUserIds.has(occurrence.actor.id)
           ? { ...occurrence, actor: null }
@@ -324,6 +325,9 @@
       return m('chat.notifications.summary.activity', { actor: reactionActor });
     }
     if (!actor) return m('chat.notifications.activity');
+    if (signalKind === NotificationSignalKind.ROOM_INVITATION) {
+      return m('chat.notifications.summary.room_invitation', { actor });
+    }
     if (signalKind === NotificationSignalKind.DIRECT_MESSAGE) {
       return m('chat.notifications.summary.direct_message', { actor });
     }
@@ -402,7 +406,9 @@
           occurrence.unread ? occurrence.id : null
         );
       }
-      await navigateToDestination(item.serverId, occurrence);
+      await navigateNotification(stores, occurrence, () =>
+        navigateToDestination(item.serverId, occurrence)
+      );
     } catch (error) {
       console.error('Failed to open notification:', error);
       toast.error(m('common.error.network'));

@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
@@ -35,7 +35,10 @@ persistent notification system (see FDR-012).
 - Notification pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - If the subscription's client host matches one of the server's configured exact public origins, regular and test notifications use that origin's scheme and the local `/chat/-` route. This includes custom domains in `webserver.allowed_origins`. Other client hosts use the sending server's primary hostname in the route. Wildcard origins do not identify aliases. Subscriptions without a client host keep the primary URL fallback.
-- Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries. It then confirms that the occurrence is still unread and has the Push notification mode, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
+- Room invitation pushes open the room URL. They require a pending invitation
+  that the recipient can still accept, instead of room membership or message
+  access. Acceptance, decline, and expiry suppress queued invitation pushes.
+- Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries. It then confirms that the occurrence is still unread and has the Push notification mode, its account remains active, its target is still visible (including membership and message checks for message activity), every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
 - While Chatto is visible, its notification stores control an unnumbered app-icon badge for Important unread attention across signed-in servers. When the service worker displays an Important push, it sets an unnumbered badge. After any push, it asks visible app windows to check current attention. Ambient pushes and older pushes without an attention level do not set a badge. If the browser displays a declarative push without running the worker, the badge stays unchanged; there is no numeric fallback.
 - Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
 - While Chatto is running, it asks the browser to close matching OS notifications after confirmed read or delete actions. It checks again after notification state updates, app focus, network recovery, and a regular push received by a visible app. Each check matches the sending server and recipient account.

@@ -250,18 +250,18 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 }
 
 func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *notificationv1.NotificationOccurrence) bool {
-	message := notificationSignalMessage(occurrence.GetSignal())
-	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
+	roomID := NotificationOccurrenceRoomID(occurrence)
+	if roomID == "" || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false
 	}
-	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal()) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), roomID, occurrence.GetSignal()) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
 }
 
 func (d *notificationAlertDelivery) currentPolicyAllowsSound(occurrence *notificationv1.NotificationOccurrence) bool {
-	message := notificationSignalMessage(occurrence.GetSignal())
-	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
+	roomID := NotificationOccurrenceRoomID(occurrence)
+	if roomID == "" || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false
 	}
-	mode := d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal())
+	mode := d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), roomID, occurrence.GetSignal())
 	return notificationModeProducesOccurrence(mode)
 }

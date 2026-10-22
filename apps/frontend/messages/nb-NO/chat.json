@@ -25,7 +25,8 @@
         "mention": "{actor} nevnte deg",
         "followed_thread": "{actor} svarte i en tråd du følger",
         "new_message": "{actor} la ut en ny melding",
-        "activity": "{actor} sendte deg et varsel"
+        "activity": "{actor} sendte deg et varsel",
+        "room_invitation": "{actor} inviterte deg til et rom"
       }
     },
     "sign_out": {

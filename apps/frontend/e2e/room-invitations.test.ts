@@ -131,6 +131,58 @@ for (const answer of ['accept', 'decline'] as const) {
       const welcome = recipientPage.getByTestId('room-invitation-preview');
       await expect(welcome).toBeVisible();
       await expect(welcome).toContainText(sender.displayName);
+      const invitationNotifications = async () => {
+        const response = await connectPost<{
+          occurrences: {
+            id: string;
+            unread: boolean;
+            signal?: { roomInvitationReceived?: { room?: { id: string } } };
+          }[];
+        }>(recipientPage, 'chatto.api.v1.NotificationService/ListNotificationOccurrences', {});
+        return (response.occurrences ?? []).filter(
+          (item) => item.signal?.roomInvitationReceived?.room?.id === roomId
+        );
+      };
+      // A plain room URL (including a push destination) does not answer or read the invite.
+      await expect
+        .poll(async () => (await invitationNotifications()).filter((item) => item.unread).length)
+        .toBe(1);
+      await expect(recipientRoom.getByTestId('room-notification-badge')).toBeVisible();
+      if (answer === 'accept') {
+        await recipientPage.goto(routes.settingsNotifications);
+        const invitationPolicy = recipientPage.locator(
+          'td[data-notification-field="roomInvitations"][data-notification-scope="server"] button'
+        );
+        await expect(invitationPolicy).toHaveAttribute('aria-label', /Push notification/);
+        await expect(
+          recipientPage.locator(
+            `td[data-notification-field="roomInvitations"][data-notification-scope="room:${roomId}"] button`
+          )
+        ).toBeEnabled();
+        await recipientPage.screenshot({
+          animations: 'disabled',
+          path: test.info().outputPath('room-invitation-preferences.png')
+        });
+      }
+      await recipientPage.goto(routes.notifications);
+      const notification = recipientPage
+        .getByTestId('notification-group')
+        .filter({ hasText: 'invited you to a room' });
+      await expect(notification).toContainText(sender.displayName);
+      await recipientPage.screenshot({
+        animations: 'disabled',
+        path: test.info().outputPath('room-invitation-notification.png')
+      });
+      await notification.locator(':scope > button').click();
+      await expect(recipientPage).toHaveURL(new RegExp(`${routes.room(roomId)}$`));
+      await expect(welcome).toBeVisible();
+      await expect
+        .poll(async () => {
+          const items = await invitationNotifications();
+          return items.length === 1 && !items[0]?.unread;
+        })
+        .toBe(true);
+      await expect(recipientRoom.getByTestId('room-notification-badge')).not.toBeVisible();
       await welcome.getByTestId('user-identity').click();
       await expect(recipientPage.getByRole('dialog')).toContainText(sender.displayName);
       await recipientPage.getByRole('button', { name: 'View profile', exact: true }).click();
@@ -176,6 +228,7 @@ for (const answer of ['accept', 'decline'] as const) {
         await confirmation.getByRole('button', { name: 'Decline', exact: true }).click();
       }
       await expect(welcome).not.toBeVisible();
+      await expect.poll(async () => (await invitationNotifications()).length).toBe(0);
       if (answer === 'accept') {
         await expect
           .poll(async () => {
@@ -251,11 +304,18 @@ for (const answer of ['accept', 'decline'] as const) {
         await expect(
           recipientPage.getByRole('button', { name: 'Invitation project', exact: true })
         ).not.toBeVisible();
+        // Verify durable removal independently of the server's last-room redirect.
+        await recipientPage.goto(routes.serverOverview);
         await recipientPage.reload();
-        // Opening the inviter's conversation establishes the last-room destination.
-        await expect(recipientPage).toHaveURL(new RegExp(`/user/${sender.id}$`));
-        await expect(new RoomPage(recipientPage).messageInput).toBeVisible();
+        await expect(
+          recipientPage.getByRole('heading', { name: 'Overview', exact: true })
+        ).toBeVisible();
         await expect(recipientRoom).not.toBeAttached();
+        await expect(
+          recipientPage.getByRole('button', { name: 'Invitation project', exact: true })
+        ).not.toBeVisible();
+        await expect(welcome).not.toBeVisible();
+        await expect.poll(async () => (await invitationNotifications()).length).toBe(0);
       }
       expect(errors).toEqual([]);
     } finally {

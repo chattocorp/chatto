@@ -378,7 +378,8 @@
           "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
           "all": "Meldinger som bruker @all i et rom du er medlem av.",
           "followed_thread": "Nye svar i tråder du følger.",
-          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
+          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine.",
+          "room_invitation": "Invitasjoner til å bli med i rom."
         }
       }
     },

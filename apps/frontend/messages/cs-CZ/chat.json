@@ -25,7 +25,8 @@
         "mention": "Uživatel {actor} vás zmínil",
         "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete",
         "new_message": "Uživatel {actor} zveřejnil novou zprávu",
-        "activity": "Uživatel {actor} vám poslal oznámení"
+        "activity": "Uživatel {actor} vám poslal oznámení",
+        "room_invitation": "{actor} vás pozval do místnosti"
       }
     },
     "sign_out": {

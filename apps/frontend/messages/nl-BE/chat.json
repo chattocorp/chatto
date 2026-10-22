@@ -25,7 +25,8 @@
         "mention": "{actor} heeft je vermeld",
         "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt",
         "new_message": "{actor} heeft een nieuw bericht geplaatst",
-        "activity": "{actor} heeft je een melding gestuurd"
+        "activity": "{actor} heeft je een melding gestuurd",
+        "room_invitation": "{actor} heeft je uitgenodigd voor een ruimte"
       }
     },
     "sign_out": {

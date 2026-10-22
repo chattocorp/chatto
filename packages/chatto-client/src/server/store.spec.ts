@@ -673,14 +673,32 @@ describe('ServerStateStore invitation expiry', () => {
         ])
       })
     );
+    const notification = {
+      id: 'notification',
+      signalKind: 'roomInvitationReceived' as const,
+      invitationId: 'invitation',
+      room: { id: 'invited', name: 'Room' }
+    } as import('../api/notifications.js').NotificationOccurrenceItem;
+    expect(store.notifications.canDisplayOccurrence(notification)).toBe(true);
+    expect(
+      store.notifications.canDisplayOccurrence({
+        ...notification,
+        signalKind: 'roomMessageReceived'
+      })
+    ).toBe(false);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toContain(
+      'notifications'
+    );
     apiMocks.readRealtimeResource.mockClear();
-    await vi.advanceTimersByTimeAsync(4999);
+    await vi.advanceTimersByTimeAsync(4899);
     expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(101);
     expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
       'rooms',
       'roomGroups'
     ]);
+    expect(store.notifications.canDisplayOccurrence(notification)).toBe(false);
     store.dispose();
   });
 });
