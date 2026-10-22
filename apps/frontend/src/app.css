@@ -4,6 +4,7 @@
 @import '@fontsource/ibm-plex-mono/500.css';
 @import 'tailwindcss' source('./');
 @import './prose.css';
+@import './composer.css';
 
 /* Registered numbers let the whole design system interpolate depth together. */
 @property --depth-strength {

@@ -75,19 +75,13 @@ the same API as the visual editor while keeping the stored Markdown visible.
   };
 
   const markdownHighlightStyle = HighlightStyle.define([
-    { tag: tags.heading, color: 'var(--color-text)', fontWeight: '600' },
-    { tag: tags.strong, fontWeight: '700' },
-    { tag: tags.emphasis, fontStyle: 'italic' },
-    { tag: [tags.link, tags.url], color: 'var(--color-link)', textDecoration: 'underline' },
-    { tag: tags.list, color: 'var(--color-text)' },
-    { tag: tags.quote, color: 'var(--color-muted)' },
-    {
-      tag: tags.monospace,
-      color: 'var(--color-text)',
-      backgroundColor: 'var(--color-surface-emphasized)',
-      fontFamily: 'var(--font-mono)'
-    },
-    { tag: [tags.processingInstruction, tags.punctuation], color: 'var(--color-muted)' }
+    { tag: tags.heading, class: 'cm-format-heading' },
+    { tag: tags.strong, class: 'cm-format-strong' },
+    { tag: tags.emphasis, class: 'cm-format-emphasis' },
+    { tag: [tags.link, tags.url], class: 'cm-format-link' },
+    { tag: tags.quote, class: 'cm-format-quote' },
+    { tag: tags.monospace, class: 'cm-format-code' },
+    { tag: [tags.processingInstruction, tags.punctuation], class: 'cm-format-marker' }
   ]);
 
   const markdownTheme = EditorView.theme({
@@ -112,7 +106,6 @@ the same API as the visual editor while keeping the stored Markdown visible.
       caretColor: 'var(--color-text)'
     },
     '.cm-line': { padding: '0' },
-    '.cm-link-label': { color: 'var(--color-link)', textDecoration: 'underline' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
     // Firefox positions the native caret against the buffer before the placeholder.
     // Keep that buffer on the text baseline when the editor is empty.
