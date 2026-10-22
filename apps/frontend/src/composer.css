@@ -42,6 +42,11 @@
     font-style: normal;
   }
 
+  /* Fenced code also receives this tag, but must not receive inline layout. */
+  & .cm-format-code {
+    font-style: normal;
+  }
+
   & .ProseMirror code:not(pre code),
   & .cm-line:not(.cm-code-fence-body) .cm-format-code {
     border-radius: 0.25rem;

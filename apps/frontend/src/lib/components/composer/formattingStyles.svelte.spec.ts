@@ -13,6 +13,17 @@ afterEach(() => {
   document.documentElement.style.transition = originalTransition;
 });
 
+it('keeps fenced code upright inside a source quote', async () => {
+  let api: ComposerEditorApi | undefined;
+  const { container } = render(MarkdownEditor, { onReady: (ready) => (api = ready) });
+  await vi.waitFor(() => expect(api).toBeDefined());
+  api!.setContent('> ```text\n> plain code\n> ```');
+  await expect.poll(() => container.querySelector('.cm-code-fence-body')).not.toBeNull();
+  const code = container.querySelector('.cm-code-fence-body .cm-format-code')!;
+  expect(code).not.toBeNull();
+  expect(getComputedStyle(code).fontStyle).toBe('normal');
+});
+
 it('uses the same preview typography in both composers across themes and edits', async () => {
   const apis: ComposerEditorApi[] = [];
   const visual = render(TipTapEditor, { onReady: (api) => apis.push(api) }).container;
