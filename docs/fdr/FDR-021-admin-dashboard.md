@@ -1,13 +1,24 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
 The server-management section gives owners and admins visibility into the server's operational state: user counts, room counts, storage resource usage, projection health, and audit/event-log diagnostics. It lives within a broader management area that also gives delegated managers direct access to the rooms and room groups they are authorised to configure. Operational views deliberately expose metadata — never message content, never per-user activity logs, never per-room conversation summaries.
 
 ## Behavior
+
+- **Configuration warnings prototype** — role managers can open a dedicated
+  page in Server configuration. It lists room and role pairs where the role
+  permits message posting but does not permit broad message reading. Each warning
+  links to the role's permission settings. The page explains that members can
+  send messages without reading the full room conversation. Interaction-only
+  read access can still permit reading some threads. This can be intentional.
+  Other roles and user-specific permissions can change a member's access. These notices are advisory and do not change permission enforcement.
+  The check uses the existing role permission matrices, including inherited
+  decisions, and covers the rooms that these matrices return. Archived rooms
+  are excluded. A failed read shows an error instead of a result with no warnings.
 
 - Room General settings have four independent forms: name and description,
   visibility, Slow Mode, and Threading Mode. Each form has Save changes and

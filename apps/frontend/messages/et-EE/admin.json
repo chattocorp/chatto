@@ -575,6 +575,14 @@
         "exhausted": "Ammendatud",
         "revoked": "Tühistatud"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Soovitused aktiivsete tubade jaoks. Need seaded võivad olla tahtlikud, näiteks tagasiside kogumiseks. Muud rollid ja kasutajapõhised õigused võivad liikme ligipääsu muuta.",
+      "rule": "Saatmine ilma täieliku lugemisõiguseta",
+      "consequence": "See roll lubab sõnumeid saata, kuid mitte kogu toa vestlust lugeda. Ainult suhtlustega seotud lugemisõigus võib siiski anda ligipääsu mõnele lõimele.",
+      "load_failed": "Seadistuse hoiatusi ei saanud kontrollida.",
+      "empty": "Kontrollitud tubades hoiatusi ei leitud.",
+      "review": "Vaadake rolli õigused üle"
     }
   }
 }

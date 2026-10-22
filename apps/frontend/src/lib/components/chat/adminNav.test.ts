@@ -132,3 +132,18 @@ describe('getAdminNavItems', () => {
     expect(items.find((item) => item.label === 'Rooms')?.href).toBe('/chat/local/manage/rooms');
   });
 });
+
+it('shows Configuration warnings only to role managers', () => {
+  const hidden = getAdminNavItems({
+    serverSegment: 'local',
+    permissions: permissions({ canManageServer: true })
+  });
+  expect(hidden.some((item) => item.label === 'Configuration warnings')).toBe(false);
+  const visible = getAdminNavItems({
+    serverSegment: 'local',
+    permissions: permissions({ canAdminManageRoles: true })
+  });
+  expect(visible.find((item) => item.label === 'Configuration warnings')?.href).toBe(
+    '/chat/local/manage/server/configuration-warnings'
+  );
+});

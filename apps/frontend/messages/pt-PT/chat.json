@@ -176,7 +176,8 @@
       "event_log": "Registo de eventos",
       "system": "Sistema",
       "back_to_server": "Regressar ao servidor",
-      "invitations": "Ligações de convite"
+      "invitations": "Ligações de convite",
+      "configuration_warnings": "Avisos de configuração"
     }
   }
 }

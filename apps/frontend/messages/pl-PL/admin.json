@@ -597,6 +597,14 @@
         "exhausted": "Wyczerpany",
         "revoked": "Unieważniony"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Wskazówki dla aktywnych pokojów. Te ustawienia mogą być celowe, na przykład przy zbieraniu opinii. Inne role i uprawnienia użytkownika mogą zmienić dostęp członka.",
+      "rule": "Wysyłanie bez pełnego dostępu do odczytu",
+      "consequence": "Ta rola pozwala wysyłać wiadomości, ale nie czytać całej rozmowy w pokoju. Odczyt ograniczony do interakcji może nadal dawać dostęp do niektórych wątków.",
+      "load_failed": "Nie udało się sprawdzić ostrzeżeń konfiguracji.",
+      "empty": "Nie znaleziono ostrzeżeń w sprawdzonych pokojach.",
+      "review": "Sprawdź uprawnienia roli"
     }
   }
 }

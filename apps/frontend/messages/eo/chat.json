@@ -176,7 +176,8 @@
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
       "back_to_server": "Reiru al Servilo",
-      "invitations": "Invitligiloj"
+      "invitations": "Invitligiloj",
+      "configuration_warnings": "Agordaj avertoj"
     }
   }
 }

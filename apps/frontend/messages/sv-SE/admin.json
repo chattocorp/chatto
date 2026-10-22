@@ -575,6 +575,14 @@
         "exhausted": "Förbrukad",
         "revoked": "Återkallad"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Råd för aktiva rum. Inställningarna kan vara avsiktliga, till exempel för synpunkter. Andra roller och användarspecifika behörigheter kan ändra en medlems åtkomst.",
+      "rule": "Skriva utan fullständig läsåtkomst",
+      "consequence": "Rollen tillåter att skicka meddelanden men inte att läsa hela rumskonversationen. Läsåtkomst för interaktioner kan fortfarande ge åtkomst till vissa trådar.",
+      "load_failed": "Det gick inte att kontrollera konfigurationsvarningar.",
+      "empty": "Inga varningar hittades i de kontrollerade rummen.",
+      "review": "Granska rollbehörigheter"
     }
   }
 }

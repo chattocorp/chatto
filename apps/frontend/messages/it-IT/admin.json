@@ -575,6 +575,14 @@
         "exhausted": "Esaurito",
         "revoked": "Revocato"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Consigli per le stanze attive. Queste impostazioni possono essere intenzionali, ad esempio per raccogliere commenti. Altri ruoli e permessi specifici dell’utente possono cambiare l’accesso di un membro.",
+      "rule": "Invio senza accesso completo in lettura",
+      "consequence": "Questo ruolo permette di inviare messaggi, ma non di leggere l’intera conversazione della stanza. La lettura limitata alle interazioni può ancora dare accesso ad alcune discussioni.",
+      "load_failed": "Impossibile verificare gli avvisi di configurazione.",
+      "empty": "Nessun avviso nelle stanze controllate.",
+      "review": "Controlla i permessi del ruolo"
     }
   }
 }

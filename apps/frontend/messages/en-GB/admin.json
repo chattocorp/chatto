@@ -575,6 +575,14 @@
         "exhausted": "Exhausted",
         "revoked": "Revoked"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Advisory checks for active rooms. These settings can be intentional, for example for feedback boxes. Other roles and user-specific permissions can change a member's access.",
+      "rule": "Posting without broad read access",
+      "consequence": "This role permits sending messages but not reading the full room conversation. Interaction-only read access can still permit reading some threads.",
+      "load_failed": "Could not check configuration warnings.",
+      "empty": "No warnings found in the checked rooms.",
+      "review": "Review role permissions"
     }
   }
 }

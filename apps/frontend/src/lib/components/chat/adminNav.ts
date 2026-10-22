@@ -99,6 +99,16 @@ export function getAdminNavItems({
     });
   }
 
+  if (permissions.canAdminManageRoles) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/configuration-warnings', {
+        serverId: serverSegment
+      }),
+      label: m('chat.management_nav.configuration_warnings'),
+      icon: 'iconify icon-[uil--exclamation-triangle]'
+    });
+  }
+
   if (permissions.canManageServer) {
     items.push({
       href: resolve('/chat/[serverId]/manage/server/security', { serverId: serverSegment }),

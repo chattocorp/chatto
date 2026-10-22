@@ -188,7 +188,8 @@
       "event_log": "سجل الأحداث",
       "system": "النظام",
       "back_to_server": "العودة إلى الخادم",
-      "invitations": "روابط الدعوة"
+      "invitations": "روابط الدعوة",
+      "configuration_warnings": "تحذيرات الإعدادات"
     }
   }
 }

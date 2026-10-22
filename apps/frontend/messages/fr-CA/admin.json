@@ -575,6 +575,14 @@
         "exhausted": "Épuisé",
         "revoked": "Révoqué"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Conseils pour les salons actifs. Ces réglages peuvent être intentionnels, par exemple pour recueillir des avis. Les autres rôles et les permissions propres à un utilisateur peuvent modifier son accès.",
+      "rule": "Envoi sans accès complet en lecture",
+      "consequence": "Ce rôle permet d’envoyer des messages, mais pas de lire toute la conversation du salon. La lecture limitée aux interactions peut encore donner accès à certains fils.",
+      "load_failed": "Impossible de vérifier les avertissements de configuration.",
+      "empty": "Aucun avertissement dans les salons vérifiés.",
+      "review": "Vérifiez les permissions du rôle"
     }
   }
 }

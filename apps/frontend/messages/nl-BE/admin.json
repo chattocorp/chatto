@@ -575,6 +575,14 @@
         "exhausted": "Opgebruikt",
         "revoked": "Ingetrokken"
       }
+    },
+    "configuration_warnings": {
+      "intro": "Adviezen voor actieve ruimtes. Deze instellingen kunnen bewust gekozen zijn, bijvoorbeeld voor feedback. Andere rollen en gebruikersspecifieke rechten kunnen de toegang van een lid wijzigen.",
+      "rule": "Berichten plaatsen zonder volledige leestoegang",
+      "consequence": "Deze rol staat berichten verzenden toe, maar niet het lezen van het hele gesprek. Leestoegang voor interacties kan nog wel toegang tot sommige threads geven.",
+      "load_failed": "Configuratiewaarschuwingen konden niet worden gecontroleerd.",
+      "empty": "Geen waarschuwingen gevonden in de gecontroleerde ruimtes.",
+      "review": "Rolrechten bekijken"
     }
   }
 }
