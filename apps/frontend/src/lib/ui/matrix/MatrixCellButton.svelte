@@ -6,6 +6,7 @@ state machine and supplies the semantic tone, icon, presentation, and
 activation callback.
 -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   export type MatrixCellTone = 'neutral' | 'action' | 'success' | 'warning' | 'danger';
   export type MatrixCellVariant = 'badge' | 'icon';
 
@@ -13,7 +14,8 @@ activation callback.
     tone = 'neutral',
     explicit = false,
     variant = 'badge',
-    icon,
+    icon = '',
+    iconContent,
     loading = false,
     disabled = false,
     locked = false,
@@ -28,7 +30,9 @@ activation callback.
     tone?: MatrixCellTone;
     explicit?: boolean;
     variant?: MatrixCellVariant;
-    icon: string;
+    icon?: string;
+    /** Custom visual inside the cell; loading still shows the shared spinner. */
+    iconContent?: Snippet;
     loading?: boolean;
     disabled?: boolean;
     locked?: boolean;
@@ -133,6 +137,8 @@ activation callback.
           ]}
           aria-hidden="true"
         ></span>
+      {:else if iconContent}
+        {@render iconContent()}
       {:else}
         <span
           class={['iconify', variant === 'icon' ? 'h-5 w-5' : 'h-3 w-3', icon]}

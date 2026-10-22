@@ -23,7 +23,7 @@ describe('NotificationPolicyCell', () => {
     setReactiveLocale('en-GB');
   });
 
-  it('cycles server defaults through Off → Badge → Notification → Push without Inherit', async () => {
+  it('cycles server defaults through Off → Unread dot → In-app notification → Push without Inherit', async () => {
     const onChange = vi.fn();
     const rendered = render(NotificationPolicyCell, {
       props: { ...baseProps, override: null, onChange }
@@ -62,7 +62,7 @@ describe('NotificationPolicyCell', () => {
     clickAndExpect(NotificationDeliveryMode.OFF);
   });
 
-  it('cycles nested scopes through Inherit → Off → Badge → Notification → Push → Inherit', async () => {
+  it('cycles nested scopes through Inherit → Off → Unread dot → In-app notification → Push → Inherit', async () => {
     const onChange = vi.fn();
     const nestedProps = {
       ...baseProps,
@@ -138,7 +138,7 @@ describe('NotificationPolicyCell', () => {
     expect(container.querySelector('[data-notification-source="default"]')).not.toBeNull();
   });
 
-  it('renders Badge as a filled neutral bell', () => {
+  it('renders Unread dot as a filled neutral dot', () => {
     const { container } = render(NotificationPolicyCell, {
       props: {
         ...baseProps,
@@ -148,7 +148,15 @@ describe('NotificationPolicyCell', () => {
       }
     });
 
-    expect(container.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[class~="rounded-full"][class~="h-2"][class~="w-2"][class~="bg-text"]'
+      )
+    ).not.toBeNull();
+    expect(container.querySelector('button')?.ariaLabel).toContain('Override: Unread dot');
+    expect(container.querySelector('button')?.ariaLabel).toContain(
+      'Activate to set In-app notification'
+    );
     expect(container.querySelector('[class~="text-text"]')).not.toBeNull();
     expect(container.querySelector('[class~="text-warning"]')).toBeNull();
   });
@@ -167,6 +175,26 @@ describe('NotificationPolicyCell', () => {
     expect(container.querySelector('[class~="opacity-40"]')).not.toBeNull();
     expect(container.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
     expect(container.querySelector('[data-notification-source="inherited"]')).not.toBeNull();
+  });
+
+  it('dims the inherited unread dot and replaces it with a spinner while saving', async () => {
+    const props = {
+      ...baseProps,
+      scope: { kind: 'room' as const, id: 'room-1' },
+      effective: NotificationDeliveryMode.UNREAD_BADGE,
+      override: null,
+      onChange: vi.fn()
+    };
+    const rendered = render(NotificationPolicyCell, { props });
+    const dot = rendered.container.querySelector('[class~="bg-text"][class~="rounded-full"]');
+    expect(dot).not.toBeNull();
+    expect(dot?.parentElement?.classList.contains('opacity-40')).toBe(true);
+
+    await rendered.rerender({ ...props, loading: true });
+    expect(
+      rendered.container.querySelector('[class~="bg-text"][class~="rounded-full"]')
+    ).toBeNull();
+    expect(rendered.container.querySelector('[class~="icon-[uil--spinner]"]')).not.toBeNull();
   });
 
   it('keeps keyboard focus while a save is pending', async () => {

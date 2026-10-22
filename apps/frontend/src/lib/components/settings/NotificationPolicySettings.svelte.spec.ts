@@ -262,13 +262,19 @@ describe('NotificationPolicySettings', () => {
 
     const legend = container.querySelector('[aria-label="Notification delivery modes"]');
     expect(legend?.textContent).toContain('Off');
-    expect(legend?.textContent).toContain('Badge');
-    expect(legend?.textContent).toContain('Notification');
+    expect(legend?.textContent).toContain('Unread dot');
+    expect(legend?.textContent).toContain('In-app notification');
     expect(legend?.textContent).toContain('Push notification');
     expect(legend?.querySelector('[class~="icon-[ph--bell-slash-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
+    expect(
+      legend?.querySelector('[class~="rounded-full"][class~="h-2"][class~="w-2"][class~="bg-text"]')
+    ).not.toBeNull();
+    expect(legend?.querySelectorAll('[class~="text-warning"]')).toHaveLength(2);
     expect(legend?.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
-    expect(legend?.querySelector('button[aria-label="More information: Badge"]')).not.toBeNull();
+    expect(
+      legend?.querySelector('button[aria-label="More information: Unread dot"]')
+    ).not.toBeNull();
     expect(legend?.querySelector('[title*="neutral unread dot"]')).toBeNull();
     expect(legend?.textContent).not.toContain('Inherit');
     expect(legend?.querySelector('[class~="icon-[uil--link]"]')).toBeNull();

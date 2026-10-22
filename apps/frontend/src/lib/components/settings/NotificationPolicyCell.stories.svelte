@@ -32,7 +32,7 @@
     docs: {
       description: {
         story:
-          'The crossed bell is Off. The grey filled bell adds only an unread Badge. Orange creates an in-app notification, and the phone icon also adds push delivery.'
+          'The crossed bell is Off. The dot marks unread activity. The bell creates an in-app notification, and the phone also adds push delivery. Off and Unread dot use neutral icons. The bell and phone use notification orange.'
       }
     }
   }}
@@ -60,7 +60,7 @@
         effective={NotificationDeliveryMode.UNREAD_BADGE}
         onChange={() => undefined}
       />
-      <div>Badge</div>
+      <div>Unread dot</div>
     </div>
     <div>
       <NotificationPolicyCell
@@ -72,7 +72,7 @@
         effective={NotificationDeliveryMode.IN_APP_NOTIFICATION}
         onChange={() => undefined}
       />
-      <div>Notification</div>
+      <div>In-app notification</div>
     </div>
     <div>
       <NotificationPolicyCell

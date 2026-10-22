@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "继承",
           "off": "关闭",
-          "badge": "徽标",
-          "badge_hint": "仅添加一个表示未读的灰色圆点。不会创建通知、播放声音或发送推送通知。",
-          "notification": "通知",
+          "badge": "未读圆点",
+          "badge_hint": "仅添加一个表示未读的圆点。不会创建通知、播放声音或发送推送通知。",
+          "notification": "应用内通知",
           "push_notification": "推送通知"
         },
         "reason": {
