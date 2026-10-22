@@ -10,6 +10,7 @@ import MessageContent from '../MessageContent.svelte';
 import TipTapEditor from '../composer/TipTapEditor.svelte';
 import type { ComposerEditorApi } from '../composer/editorTypes';
 import { ServerInfoState } from '@chatto/client/server/state';
+import '../../../app.css';
 
 const mocks = vi.hoisted(() => ({
   registry: undefined as ReturnType<typeof createClient>['registry'] | undefined,
@@ -281,4 +282,38 @@ it('keeps typing after a known URL outside its link', async () => {
   await userEvent.keyboard(' after');
   await vi.waitFor(() => expect(markdown).toBe(`${origin} after`));
   expect(api!.getText()).toBe(`${origin} after`);
+});
+
+it('shows a pasted room URL as a pill immediately and keeps the following text editable', async () => {
+  let api: ComposerEditorApi | undefined;
+  let markdown = '';
+  const { container } = render(TipTapEditor, {
+    onReady: (ready) => {
+      api = ready;
+    },
+    onUpdate: (value) => {
+      markdown = value;
+    }
+  });
+  await vi.waitFor(() => expect(api).toBeDefined());
+  api!.focus('end');
+  const editor = container.querySelector<HTMLElement>('.ProseMirror')!;
+  await vi.waitFor(() => expect(document.activeElement).toBe(editor));
+  const href = `${origin}/chat/-/${roomId}`;
+  const clipboardData = new DataTransfer();
+  clipboardData.setData('text/plain', href);
+  editor.dispatchEvent(
+    new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData })
+  );
+  await vi.waitFor(() =>
+    expect(container.querySelector('.composer-entity-preview .entity-link')?.textContent).toContain(
+      'General'
+    )
+  );
+  expect(getComputedStyle(container.querySelector('.composer-entity-source')!).display).toBe(
+    'none'
+  );
+  expect(markdown).toBe(href);
+  await userEvent.keyboard(' after');
+  await vi.waitFor(() => expect(markdown).toBe(`${href} after`));
 });

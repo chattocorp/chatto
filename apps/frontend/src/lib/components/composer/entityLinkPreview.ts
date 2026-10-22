@@ -34,9 +34,24 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
           if (node.text !== href && `http://${node.text}` !== href) return;
           if (!parseEntityLink(href)) return;
           const to = from + node.nodeSize;
-          if (focused && state.selection.from <= to && state.selection.to >= from) return;
+          // A caret beside the URL (including just after paste) does not edit its text.
+          if (focused && state.selection.from < to && state.selection.to > from) return;
 
           decorations.push(Decoration.inline(from, to, { class: 'composer-entity-source' }));
+          // Give the browser a visible DOM boundary after hidden URL text, so a
+          // paste leaves the caret after the pill instead of before its widget.
+          decorations.push(
+            Decoration.widget(
+              to,
+              () => {
+                const boundary = document.createElement('span');
+                boundary.textContent = '\u200b';
+                boundary.setAttribute('aria-hidden', 'true');
+                return boundary;
+              },
+              { key: `${to}:entity-boundary`, side: -1 }
+            )
+          );
           let dispose: (() => void) | undefined;
           decorations.push(
             Decoration.widget(
@@ -58,7 +73,7 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
                     if (position === undefined) return;
                     focused = true;
                     view.dispatch(
-                      view.state.tr.setSelection(TextSelection.create(view.state.doc, position))
+                      view.state.tr.setSelection(TextSelection.create(view.state.doc, position + 1))
                     );
                     view.focus();
                   },
