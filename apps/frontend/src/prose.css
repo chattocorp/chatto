@@ -60,7 +60,7 @@
   }
 
   /* Links */
-  & a {
+  & a:not(.entity-link) {
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -274,7 +274,7 @@
   }
 
   /* Images */
-  & img {
+  & img:not(.entity-link img) {
     max-width: 100%;
     height: auto;
     border-radius: 0.375rem;

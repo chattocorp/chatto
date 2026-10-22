@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    tryGetStore: () => undefined,
     getServer: (serverId: string) =>
       serverId === 'origin'
         ? { id: 'origin', url: window.location.origin }
