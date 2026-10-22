@@ -24,6 +24,39 @@ export interface MessageLink {
 const roomIdPattern = /^(?:R[a-zA-Z0-9]{14}|[a-f0-9]{14})$/;
 const eventIdPattern = /^E[a-zA-Z0-9]{14}$/;
 
+/** A plain entity destination. Thread, message, and management URLs are excluded. */
+export type EntityLink =
+  { kind: 'server'; serverId: string } | { kind: 'room' | 'user'; serverId: string; id: string };
+
+/** Resolve only known-server entity URLs, without discovery or resource requests. */
+export function parseEntityLink(input: string): EntityLink | null {
+  if (typeof window === 'undefined') return null;
+  let url: URL;
+  try {
+    url = new URL(input, window.location.origin);
+  } catch {
+    return null;
+  }
+  if (url.username || url.password || url.search || url.hash) return null;
+  if (url.pathname === '/' && ['http:', 'https:'].includes(url.protocol)) {
+    const serverId = serverIdForHostname(url.hostname);
+    return serverId ? { kind: 'server', serverId } : null;
+  }
+  const parsed = parseChatURL(input, window.location.origin);
+  if (!parsed) return null;
+  const serverId = resolveChatLinkServerId(parsed);
+  if (!serverId || !serverRegistry.getServer(serverId)) return null;
+  const [, , target, userId] = parsed.parts;
+  if (parsed.parts.length === 2) return { kind: 'server', serverId };
+  if (parsed.parts.length === 3 && roomIdPattern.test(target)) {
+    return { kind: 'room', serverId, id: target };
+  }
+  if (parsed.parts.length === 4 && target === 'user' && userId && !userId.includes('/')) {
+    return { kind: 'user', serverId, id: userId };
+  }
+  return null;
+}
+
 /** Parse the shared server-route prefix without consulting the catalogue. */
 function parseChatURL(input: string, origin: string) {
   let url: URL;

@@ -16,11 +16,15 @@ targets are unique to each component, including when callers reuse rendered HTML
   import { trustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { toast } from '$lib/ui/toast';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
+  import type { Attachment } from 'svelte/attachments';
 
   let {
-    html
+    html,
+    enhanceLink
   }: {
     html: string;
+    /** Optional message-owned enhancement; its lifetime follows this rendered HTML. */
+    enhanceLink?: Attachment<HTMLAnchorElement>;
   } = $props();
 
   const footnoteScope = $props.id();
@@ -76,6 +80,14 @@ targets are unique to each component, including when callers reuse rendered HTML
   // Markdown actions come from the audited HTML renderer, so they use one
   // delegated listener on this component's DOM root.
   function attachMarkdownActions(element: HTMLDivElement) {
+    // Rerun after the HTML changes, and dispose mounted link content before replacement.
+    const linkCleanups =
+      enhanceLink && html.includes('data-content-href=')
+        ? Array.from(
+            element.querySelectorAll<HTMLAnchorElement>('a[data-content-href]'),
+            enhanceLink
+          )
+        : [];
     element.addEventListener('click', handleClick);
     const handleAuxClick = (event: MouseEvent) => {
       if (event.button !== 1 || !(event.target instanceof Element)) return;
@@ -90,6 +102,7 @@ targets are unique to each component, including when callers reuse rendered HTML
     };
     element.addEventListener('auxclick', handleAuxClick);
     return () => {
+      for (const cleanup of linkCleanups) cleanup?.();
       element.removeEventListener('click', handleClick);
       element.removeEventListener('auxclick', handleAuxClick);
     };

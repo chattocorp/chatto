@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-18
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
@@ -24,7 +24,11 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. In the visual editor, pasting into an unlabelled code block or leaving a changed block starts language detection. A successful guess becomes the block's saved language and appears in the language selector. Users can override the guess, including with **TEXT** for plain text. Detection uses a fixed set of preferred languages and does not change blocks merely opened for editing. Unlabelled blocks without a match and unsupported languages remain plain code. Detection does not delay sending.
 - Rendered code blocks use the visual editor's spacing without line numbers. Each block has a button to copy its code without the Markdown fence or display-only tab spacing.
 - The message menu offers **Copy message text** to copy the full Markdown source. When text is selected wholly within that message body, **Copy selected text** appears immediately above it and copies only the selected text. A selection outside the message or across messages does not show this action. The menu keeps the selected text when it opens, even if focus changes.
-- Right-clicking a link in a message body opens the message menu. **Copy Link** copies that link's URL; **Copy Message Link** copies the message permalink.
+- Plain URLs to known users, rooms, and servers appear as inline pills with the current name and an avatar or icon. This includes angle-bracket URLs and links to other registered servers. Explicit Markdown links retain their labels and normal link display. Selecting a message pill opens the entity. Right-clicking or long-pressing it opens entity actions.
+- The visual composer previews automatic entity links as pills immediately after paste, without a trailing space. Selecting a preview or moving the caret into its text reveals the URL for editing. Sending, copying, or switching editor modes retains the URL, not the displayed entity name.
+- Entity pills use data already available to the client. Unknown or unavailable entities keep the original link display. A later name change updates the pill; loss of the entity restores the original link. Rendering does not discover unknown servers or fetch missing profiles or rooms. Images come from the known entity's avatar or server icon, as on other identity surfaces.
+- Only plain entity destinations become pills. Message and thread permalinks, management routes, and URLs with a query or fragment remain ordinary links. Links in code remain literal text. Entity links do not send mention notifications.
+- Right-clicking an ordinary link in a message body opens the message menu. **Copy Link** copies that link's URL; **Copy Message Link** copies the message permalink.
 - The app applies the editor choice to every registered Chatto server. It does not sync this App Preference to other browsers or devices.
 - The app applies the sending keys to every registered Chatto server. Return sends by default. People can select the platform modifier plus Return instead.
 - The key not assigned to sending performs the selected editor's normal Return action. In the visual editor that includes paragraph splitting, list continuation, leaving an empty list item, and new lines inside code blocks; Shift+Return remains a hard line break.
@@ -59,6 +63,12 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 **Decision:** The bundled client supplies visual and Markdown source editors for the same message body. App Preferences stores the editor and send-key choices on the Composer page. It also stores the formatting-toolbar state when a person changes it in the composer. Markdown, Return-to-send, and a hidden formatting toolbar are the defaults when a preference is absent or invalid. The key that does not send keeps the editor's normal Return behavior. Each editor uses its own indent model. The visual editor changes list structure. The Markdown editor changes source-line indentation.
 **Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. They can also preserve their preferred chat shortcut and familiar keyboard editing behavior in paragraphs, lists, or code blocks.
 **Tradeoff:** App Preferences do not follow a person to another browser or device. Each editor must have the same composer integrations and formatting controls. A person must open the toolbar before they can select a formatting control. The indent controls operate differently in each editor. The alternate Return shortcut changes meaning with the selected send mode.
+
+### 5. Normal links carry entity references
+
+**Decision:** Keep URLs and Markdown links in the message body. Replace only automatic URL displays with known entity names. Explicit Markdown labels keep their normal link display.
+**Why:** Existing links work across clients without a custom reference format. Current names identify plain URL destinations. Keeping explicit labels preserves the author's sentence.
+**Tradeoff:** The pill can differ between readers because their clients know different entities. The URL remains in the message source and returns when the target is unavailable.
 
 ## Related
 
