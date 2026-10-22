@@ -304,11 +304,18 @@ for (const answer of ['accept', 'decline'] as const) {
         await expect(
           recipientPage.getByRole('button', { name: 'Invitation project', exact: true })
         ).not.toBeVisible();
+        // Verify durable removal independently of the server's last-room redirect.
+        await recipientPage.goto(routes.serverOverview);
         await recipientPage.reload();
-        // Opening the inviter's conversation establishes the last-room destination.
-        await expect(recipientPage).toHaveURL(new RegExp(`/user/${sender.id}$`));
-        await expect(new RoomPage(recipientPage).messageInput).toBeVisible();
+        await expect(
+          recipientPage.getByRole('heading', { name: 'Overview', exact: true })
+        ).toBeVisible();
         await expect(recipientRoom).not.toBeAttached();
+        await expect(
+          recipientPage.getByRole('button', { name: 'Invitation project', exact: true })
+        ).not.toBeVisible();
+        await expect(welcome).not.toBeVisible();
+        await expect.poll(async () => (await invitationNotifications()).length).toBe(0);
       }
       expect(errors).toEqual([]);
     } finally {
