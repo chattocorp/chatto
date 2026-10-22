@@ -162,6 +162,16 @@ message ReactionReceived {
   string emoji = 2;
 }
 
+// An invitation to join a room. Its destination is the room, not a message.
+// Attention ends when the invitation is handled or expires.
+message RoomInvitationReceived {
+  string room_id = 1;
+  // Stable invitation identifier.
+  string invitation_id = 2;
+  // Original invitation deadline; it is not extended by notification reads.
+  google.protobuf.Timestamp expires_at = 3;
+}
+
 // NotificationSignal is the immutable, event-shaped cause and target of one
 // recipient notification. New signal kinds are additive oneof branches whose
 // payload owns all data required to authorize, render, and navigate it.
@@ -177,6 +187,7 @@ message NotificationSignal {
     FollowedRoomActivity followed_room_activity = 8 [deprecated = true];
     ReactionReceived reaction_received = 9;
     RoomMessageReceived room_message_received = 10;
+    RoomInvitationReceived room_invitation_received = 11;
   }
 }
 

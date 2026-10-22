@@ -327,7 +327,7 @@
       "accept": "Accetta l’invito",
       "decline": "Rifiuta",
       "title": "Invita membri in #{room}",
-      "description": "Scegli chi vuoi invitare. Gli utenti invitati riceveranno un invito e avranno sette giorni per accettarlo o rifiutarlo.",
+      "description": "Scegli chi vuoi invitare. Gli utenti invitati riceveranno una notifica e avranno sette giorni per accettare o rifiutare.",
       "members": "Membri",
       "send": "Invia inviti",
       "failed": "Impossibile invitare {name}: {error}",

@@ -378,7 +378,8 @@
           "here": "Zprávy, které používají @here, když váš stav není offline.",
           "all": "Zprávy, které používají @all v místnosti, jejímž jste členem.",
           "followed_thread": "Nové odpovědi ve vláknech, která sledujete.",
-          "reaction": "Reakce, které ostatní členové přidají k vašim zprávám."
+          "reaction": "Reakce, které ostatní členové přidají k vašim zprávám.",
+          "room_invitation": "Pozvánky ke vstupu do místností."
         }
       }
     },

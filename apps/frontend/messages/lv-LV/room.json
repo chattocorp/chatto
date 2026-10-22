@@ -327,7 +327,7 @@
       "accept": "Pieņemt uzaicinājumu",
       "decline": "Noraidīt",
       "title": "Uzaicināt dalībniekus uz #{room}",
-      "description": "Izvēlies, ko vēlies uzaicināt. Uzaicinātie lietotāji saņems uzaicinājumu, un viņiem būs septiņas dienas, lai to pieņemtu vai noraidītu.",
+      "description": "Izvēlieties, ko vēlaties uzaicināt. Uzaicinātie lietotāji saņems paziņojumu un varēs pieņemt vai noraidīt uzaicinājumu septiņu dienu laikā.",
       "members": "Dalībnieki",
       "send": "Sūtīt uzaicinājumus",
       "failed": "Neizdevās uzaicināt {name}: {error}",

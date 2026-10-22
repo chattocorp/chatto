@@ -37,11 +37,14 @@ export type NotificationOccurrenceItem = {
   /** Whether this client understands the signal well enough to navigate it. */
   targetSupported: boolean;
   room: { id: string; name: string } | null;
+  /** Empty for room-only signals such as invitations. */
   eventId: string;
   threadRootId: string | null;
   attentionLevel: NotificationAttentionLevel;
   unread: boolean;
   reactionEmoji?: string | null;
+  /** Invitation identity for the invitation-only room access boundary. */
+  invitationId?: string;
   expiresAt?: string;
 };
 
@@ -81,6 +84,7 @@ export const NotificationSignalKind = {
   FOLLOWED_THREAD: 'followedThreadActivity',
   FOLLOWED_ROOM: 'followedRoomActivity',
   REACTION: 'reactionReceived',
+  ROOM_INVITATION: 'roomInvitationReceived',
   UNSUPPORTED: 'unsupported'
 } as const;
 
@@ -98,6 +102,7 @@ type NotificationPolicyShape<Value> = {
   followedThreads: Value;
   followedRooms: Value;
   reactions: Value;
+  roomInvitations: Value;
 };
 
 export type NotificationPolicyModes = NotificationPolicyShape<NotificationDeliveryMode>;
@@ -236,7 +241,8 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
       allMentions: policy?.overrides?.allMentions ?? null,
       followedThreads: policy?.overrides?.followedThreads ?? null,
       followedRooms: policy?.overrides?.followedRooms ?? null,
-      reactions: policy?.overrides?.reactions ?? null
+      reactions: policy?.overrides?.reactions ?? null,
+      roomInvitations: policy?.overrides?.roomInvitations ?? null
     },
     effective: {
       directMessages: requiredNotificationDeliveryMode(
@@ -269,7 +275,13 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
         policy?.effective?.followedRooms,
         'followed_rooms'
       ),
-      reactions: requiredNotificationDeliveryMode(policy?.effective?.reactions, 'reactions')
+      reactions: requiredNotificationDeliveryMode(policy?.effective?.reactions, 'reactions'),
+      // Older servers do not expose invitation policy; retain its default without
+      // rejecting the other effective notification preferences.
+      roomInvitations: requiredNotificationDeliveryMode(
+        policy?.effective?.roomInvitations ?? NotificationDeliveryMode.PUSH_NOTIFICATION,
+        'room_invitations'
+      )
     }
   };
 }
@@ -337,6 +349,7 @@ function notificationPolicyUpdate(patch: NotificationPolicyPatch): {
   addNotificationPolicyUpdate(patch, overrides, paths, 'followedThreads', 'followed_threads');
   addNotificationPolicyUpdate(patch, overrides, paths, 'followedRooms', 'followed_rooms');
   addNotificationPolicyUpdate(patch, overrides, paths, 'reactions', 'reactions');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'roomInvitations', 'room_invitations');
 
   return { overrides, paths };
 }
@@ -386,12 +399,13 @@ export function notificationOccurrence(
     actor,
     signalKind: mapped.kind,
     targetSupported: mapped.supported,
-    room: target?.room ? { id: target.room.id, name: target.room.name } : null,
+    room: mapped.room ?? (target?.room ? { id: target.room.id, name: target.room.name } : null),
     eventId: target?.eventId ?? '',
     threadRootId: target?.threadRootEventId ?? null,
     attentionLevel: notificationAttentionLevel(item.attentionLevel),
     unread: item.unread,
     reactionEmoji: mapped.reactionEmoji,
+    invitationId: mapped.invitationId,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
 }
@@ -408,10 +422,22 @@ function notificationSignal(item: APINotificationOccurrence): {
   supported: boolean;
   kind: NotificationSignalKind;
   message: NotificationMessageReference | null;
+  /** Room-only signals never fabricate a message reference. */
+  room?: { id: string; name: string } | null;
+  invitationId?: string;
   reactionEmoji: string | null;
 } {
   const kind = item.signal?.kind;
   switch (kind?.case) {
+    case 'roomInvitationReceived':
+      return {
+        supported: true,
+        kind: NotificationSignalKind.ROOM_INVITATION,
+        invitationId: kind.value.invitationId,
+        message: null,
+        room: kind.value.room ? { id: kind.value.room.id, name: kind.value.room.name } : null,
+        reactionEmoji: null
+      };
     case 'directMessageReceived':
       return {
         supported: true,

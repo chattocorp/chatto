@@ -50,7 +50,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import {
+    prepareUiForNotificationTarget,
+    navigateNotification
+  } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -907,7 +910,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     const path = notificationPath(activeServerId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- notificationPath returns a resolved app path.
-    await goto(path);
+    await navigateNotification(stores, notification, () => goto(path));
   }
 </script>
 
@@ -1003,7 +1006,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const hasUnread = roomUnreadStore.roomIsUnread(room.id)}
   {@const isJoined = room.viewerIsMember}
-  {@const showUnread = hasUnread && (isDM || isJoined)}
+  {@const showUnread = hasUnread && (isDM || isJoined || !!room.viewerInvitation)}
   {@const showActiveCall = hasActiveCall && (isDM || isJoined)}
   {@const presentation = isDM ? dmPresentation(room) : null}
   {@const owningGroup = groupByRoomId.get(room.id)}
@@ -1109,7 +1112,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {@render activeCallIcon()}
         {/if}
 
-        {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
+        {#if (isDM || isJoined || room.viewerInvitation) && room.viewerNotificationCount > 0}
           {@const importantCount = room.viewerImportantNotificationCount}
           {@const otherCount = Math.max(0, room.viewerNotificationCount - importantCount)}
           <!-- The Important count stays at the row edge, where a single badge sits. -->

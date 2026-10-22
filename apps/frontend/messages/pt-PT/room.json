@@ -327,7 +327,7 @@
       "accept": "Aceitar convite",
       "decline": "Recusar",
       "title": "Convidar membros para #{room}",
-      "description": "Escolhe quem queres convidar. Os utilizadores convidados receberão um convite e terão sete dias para aceitar ou recusar.",
+      "description": "Escolhe quem queres convidar. Os utilizadores convidados receberão uma notificação e terão sete dias para aceitar ou recusar.",
       "members": "Membros",
       "send": "Enviar convites",
       "failed": "Não foi possível convidar {name}: {error}",

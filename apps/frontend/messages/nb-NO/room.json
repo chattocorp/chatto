@@ -327,7 +327,7 @@
       "accept": "Godta invitasjon",
       "decline": "Avslå",
       "title": "Inviter medlemmer til #{room}",
-      "description": "Velg hvem du vil invitere. De inviterte brukerne får en invitasjon og har sju dager på å godta eller avslå den.",
+      "description": "Velg hvem du vil invitere. Inviterte brukere får et varsel og har sju dager på å godta eller avslå.",
       "members": "Medlemmer",
       "send": "Send invitasjoner",
       "failed": "Kunne ikke invitere {name}: {error}",

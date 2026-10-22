@@ -735,10 +735,13 @@ export class ServerStateStore {
   }
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
-  private clearRoomAccess(roomId: string, forgetStores = false): void {
+  private clearRoomAccess(roomId: string, forgetStores = false, invitationId?: string): void {
     this.#rooms.loaded(roomId)?.members?.resetProjectionState();
     this.projection.removeRoomCalls(roomId);
-    this.notifications.clearRoom(roomId);
+    if (this.notifications.clearRoom(roomId, invitationId)) {
+      // Its creation hint may have arrived before the invitation directory row.
+      this.refreshRealtimeResource('notifications');
+    }
     this.clearRoomMessageAccess(roomId, forgetStores);
     this.#emitRoomAccessLost({ roomId, messagesOnly: false, removed: forgetStores });
   }
@@ -857,7 +860,8 @@ export class ServerStateStore {
         case 'rooms':
           this.scheduleInvitationExpiry();
           for (const [roomId, room] of this.projection.rooms) {
-            if (room.viewerState?.isMember === false) this.clearRoomAccess(roomId);
+            if (room.viewerState?.isMember === false)
+              this.clearRoomAccess(roomId, false, room.viewerState.invitation?.id);
             else if (room.viewerState?.isMember === true) this.restoreRoomAccess(roomId);
           }
           for (const roomId of previousRoomIds) {
@@ -985,7 +989,7 @@ export class ServerStateStore {
     for (const roomId of ids) {
       const next = nextRooms.get(roomId);
       if (!next?.viewerState?.isMember) {
-        this.clearRoomAccess(roomId);
+        this.clearRoomAccess(roomId, false, next?.viewerState?.invitation?.id);
         continue;
       }
       const previous = this.projection.rooms.get(roomId);
@@ -1057,6 +1061,12 @@ export class ServerStateStore {
       () => {
         this.#invitationExpiryTimer = undefined;
         if (this.#disposed || generation !== this.#realtimeProjectionGeneration) return;
+        for (const [roomId, room] of this.projection.rooms) {
+          const expiry = room.viewerState?.invitation?.expiresAt?.toDate().getTime();
+          if (!room.viewerState?.isMember && expiry !== undefined && expiry <= Date.now()) {
+            this.notifications.clearRoom(roomId);
+          }
+        }
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
       },

@@ -327,7 +327,7 @@
       "accept": "Přijmout pozvánku",
       "decline": "Odmítnout",
       "title": "Pozvat členy do #{room}",
-      "description": "Vyberte, koho chcete pozvat. Pozvaní uživatelé obdrží pozvánku a budou mít sedm dní na její přijetí nebo odmítnutí.",
+      "description": "Vyberte, koho chcete pozvat. Pozvaní uživatelé obdrží oznámení a budou mít sedm dní na přijetí nebo odmítnutí.",
       "members": "Členové",
       "send": "Odeslat pozvánky",
       "failed": "Nepodařilo se pozvat {name}: {error}",

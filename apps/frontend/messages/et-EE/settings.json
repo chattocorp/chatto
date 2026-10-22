@@ -378,7 +378,8 @@
           "here": "Sõnumid, mis kasutavad @here, kui sinu olek ei ole võrguühenduseta.",
           "all": "Sõnumid, mis kasutavad @all ruumis, mille liige sa oled.",
           "followed_thread": "Uued vastused lõimedes, mida jälgid.",
-          "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele."
+          "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele.",
+          "room_invitation": "Kutsed ruumidega liitumiseks."
         }
       }
     },

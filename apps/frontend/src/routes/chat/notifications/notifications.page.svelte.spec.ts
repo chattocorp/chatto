@@ -32,6 +32,8 @@ const { mocks } = vi.hoisted(() => ({
     },
     store: {
       accountId: 'viewer',
+      onSessionEnded: () => () => {},
+      onReset: () => () => {},
       projection: { rooms: new Map() },
       isAuthenticated: true,
       serverInfo: { name: 'Example Chat', iconUrl: null as string | null },
@@ -45,6 +47,8 @@ const { mocks } = vi.hoisted(() => ({
       },
       notifications: {
         revokedRoomIds: new Set<string>(),
+        canDisplayOccurrence: (occurrence: NotificationOccurrenceItem) =>
+          !occurrence.room || !mocks.store.notifications.revokedRoomIds.has(occurrence.room.id),
         scrubbedUserIds: new Set<string>(),
         occurrences: [] as NotificationOccurrenceItem[],
         consumedCount: 0,
@@ -191,6 +195,38 @@ describe('notifications page', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
     });
     expect(mocks.store.notifications.markOccurrenceRead).not.toHaveBeenCalled();
+  });
+
+  it('opens an invitation room without a highlight and reads only its notification', async () => {
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        id: 'invitation-notification',
+        eventId: '',
+        threadRootId: null,
+        signalKind: NotificationSignalKind.ROOM_INVITATION,
+        actor: {
+          id: 'sender',
+          login: 'alice',
+          displayName: 'Alice'
+        } as NotificationOccurrenceItem['actor']
+      }
+    ]);
+    const { container } = render(NotificationsPage);
+    const button = await vi.waitFor(() => {
+      const element = q(container, '[data-testid="notification-group"] > button');
+      expect(element?.textContent).toContain('invited you to a room');
+      return element as HTMLButtonElement;
+    });
+    expect(q(button, '[class~="icon-[uil--envelope-alt]"]')).not.toBeNull();
+    button.click();
+    await vi.waitFor(() =>
+      expect(mocks.store.notifications.markOccurrenceRead).toHaveBeenCalledExactlyOnceWith(
+        'invitation-notification'
+      )
+    );
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+    expect(mocks.store.pendingHighlights.set).not.toHaveBeenCalled();
   });
 
   it('uses the notification orange and reveals a quiet delete action from the row', async () => {

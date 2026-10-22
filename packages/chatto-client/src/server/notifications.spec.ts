@@ -189,6 +189,67 @@ describe('NotificationStore', () => {
     expect(store.occurrences[0]?.actor).toBeNull();
   });
 
+  it('allows only the active invitation through a revoked room boundary, including paginated lookup', async () => {
+    const invitation = {
+      ...mention('invite'),
+      signalKind: NotificationSignalKind.ROOM_INVITATION,
+      invitationId: 'active-invite',
+      eventId: '',
+      threadRootId: null
+    };
+    const staleInvite = { ...invitation, id: 'old', invitationId: 'old-invite' };
+    const api = makeAPI({ notifications: page([mention('message'), staleInvite, invitation]) });
+    const store = new NotificationStore(api);
+    store.clearRoom('r1', 'active-invite');
+    await store.fetch();
+    expect(store.occurrences.map((item) => item.id)).toEqual(['invite']);
+    expect(store.roomUnreadCounts).toEqual({ r1: 1 });
+    expect(store.revokedRoomIds.has('r1')).toBe(true);
+    expect((await store.fetchRoomNotification('r1')).notification?.id).toBe('invite');
+    store.clearRoom('r1', 'active-invite');
+    expect(store.occurrences.map((item) => item.id)).toEqual(['invite']);
+    store.clearRoom('r1');
+    expect(store.occurrences).toEqual([]);
+    expect(store.roomUnreadCounts).toEqual({});
+    await store.fetch();
+    expect(store.occurrences).toEqual([]);
+  });
+
+  it('does not revive a read invitation badge from stale message counts', () => {
+    const invitation = {
+      ...mention('invite'),
+      signalKind: NotificationSignalKind.ROOM_INVITATION,
+      invitationId: 'active-invite',
+      eventId: '',
+      unread: false
+    };
+    const store = new NotificationStore(makeAPI());
+    store.clearRoom('r1', 'active-invite');
+    store.replaceOccurrenceProjection(
+      notificationPage(page([invitation, mention('stale-message')]))
+    );
+    expect(store.roomUnreadCounts).toEqual({});
+    expect(store.roomImportantUnreadCounts).toEqual({});
+    expect(store.occurrences.map((item) => item.id)).toEqual(['invite']);
+    store.replaceOccurrenceProjection(notificationPage(page([mention('stale-message')])));
+    expect(store.roomUnreadCounts).toEqual({});
+  });
+
+  it('removes invitation-only authority on a projection reset', async () => {
+    const invitation = {
+      ...mention('invite'),
+      signalKind: NotificationSignalKind.ROOM_INVITATION,
+      invitationId: 'active-invite',
+      eventId: ''
+    };
+    const store = new NotificationStore(makeAPI({ notifications: page([invitation]) }));
+    store.clearRoom('r1', 'active-invite');
+    store.resetProjectionState();
+    await store.fetch();
+    expect(store.occurrences).toEqual([]);
+    expect(store.roomUnreadCounts).toEqual({});
+  });
+
   it('clears room notification payloads at an authorization boundary', () => {
     const other = {
       ...mention('n2'),

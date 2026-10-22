@@ -327,7 +327,7 @@
       "accept": "Daveti kabul et",
       "decline": "Reddet",
       "title": "#{room} odasına üyeleri davet et",
-      "description": "Kimi davet etmek istediğinizi seçin. Davet edilen kullanıcılar bir davet alacak ve kabul etmek veya reddetmek için yedi günleri olacak.",
+      "description": "Kimi davet etmek istediğinizi seçin. Davet edilen kullanıcılar bir bildirim alacak ve kabul etmek veya reddetmek için yedi günleri olacak.",
       "members": "Üyeler",
       "send": "Davetleri gönder",
       "failed": "{name} davet edilemedi: {error}",

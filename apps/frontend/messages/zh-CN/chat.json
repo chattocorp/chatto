@@ -25,7 +25,8 @@
         "mention": "{actor} 提到了你",
         "followed_thread": "{actor} 回复了你关注的主题",
         "new_message": "{actor} 发布了一条新消息",
-        "activity": "{actor} 向你发送了一条通知"
+        "activity": "{actor} 向你发送了一条通知",
+        "room_invitation": "{actor} 邀请你加入房间"
       }
     },
     "sign_out": {

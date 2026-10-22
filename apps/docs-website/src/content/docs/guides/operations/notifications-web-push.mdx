@@ -13,6 +13,7 @@ Chatto creates persistent notifications for attention-worthy events:
 
 | Event | Default behavior |
 | ----- | ---------------- |
+| Room invitations | Notify the invited user; open the room to respond. |
 | DM messages | Notify the recipient. |
 | Root messages in channel rooms | Add a neutral room dot by default. |
 | Direct `@username` mentions | Notify the mentioned user. |
@@ -21,7 +22,7 @@ Chatto creates persistent notifications for attention-worthy events:
 | Followed thread replies | Notify followers. |
 | Reactions to your messages | Add a non-interruptive notification by default. |
 
-Notifications are stored for the user, survive browser restarts, sync across tabs and devices, and expire after 90 days. Read and Delete changes synchronize everywhere for that user.
+Notifications are stored for the user, survive browser restarts, sync across tabs and devices, and normally expire after 90 days. Invitation notifications disappear when the invitation is accepted, declined, or expires. Read and Delete changes synchronize everywhere for that user.
 
 ## Notification Centre
 
@@ -32,11 +33,11 @@ It shows one chronological list:
 - Unread notifications show their summary in bold. Read notifications stay in the same chronological list in regular weight.
 - Delete permanently removes a notification from the list.
 
-Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. Chatto reads only up to the newest message that you can see. If you open an older message, newer notifications stay unread until you scroll to them. All notifications expire 90 days after their source activity.
+Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. Chatto reads only up to the newest message that you can see. If you open an older message, newer notifications stay unread until you scroll to them. Message notifications expire 90 days after their source activity. Invitation notifications open the room welcome screen and become Read after navigation. Reading or deleting the notification does not accept or decline the invitation.
 
 ## Notification Policy
 
-Members use a matrix to control each notification cause at server, room-group, and room scope. The rows contain the nine notification causes. The columns contain the server, visible room groups and their current-member channel rooms, and current-member direct-message rooms.
+Members use a matrix to control each notification cause at server, room-group, and room scope. The rows contain the ten notification causes. The columns contain the server, visible room groups and their joined or invited channel rooms, and current-member direct-message rooms.
 
 | Mode | Effect |
 | ---- | ------ |
@@ -46,7 +47,7 @@ Members use a matrix to control each notification cause at server, room-group, a
 | Notification | Add an in-app notification. Important notifications can play the configured in-app sound, but Chatto does not send push. |
 | Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
-Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
+Room invitations, direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
 
 Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. In the room list, a room shows its Important and Ambient notifications as two separate counts. Each count opens its newest notification. Important notifications use orange indicators and can play your selected sound.
 
@@ -56,7 +57,7 @@ The server column always shows a concrete setting. If you have not configured a 
 
 Room-group and room cells cycle through Inherit, Off, Badge, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. A grey filled bell means Badge. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
 
-A Badge setting uses the neutral dot for its room. Thread Badge activity rolls up to its parent room. Reading the room or thread clears covered Badge attention. The dot uses your current settings. If you change a setting from Badge to a different setting, unread messages of that type do not show the dot. If you unfollow a thread, its replies do not show the dot. An orange notification dot takes priority over the grey dot. Badge does not change an operating-system or application-icon badge.
+A Badge setting uses the neutral dot for its room. Thread Badge activity rolls up to its parent room. Reading the room or thread clears covered Badge attention. An invitation Badge stays until the invitation is accepted, declined, or expires. The dot uses your current settings. If you change a setting from Badge to a different setting, unread messages of that type do not show the dot. If you unfollow a thread, its replies do not show the dot. An orange notification dot takes priority over the grey dot. Badge does not change an operating-system or application-icon badge.
 
 Room dots are controlled only by notification policy. If you set Room messages to Off, ordinary root messages do not add a dot. Chatto still keeps the Message Read Cursor and uses it to place the New messages separator when you open the room.
 

@@ -6390,6 +6390,7 @@ Presence is significant: absent fields inherit in a stored policy.
 | `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | **Deprecated.** Deprecated compatibility slot. Use room_messages at room scope. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
+| `room_invitations` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for invitations to join a channel room. |
 
 
 
@@ -6420,7 +6421,7 @@ One exact Notifications 2.0 source occurrence.
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
 | `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
-| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
 
@@ -6450,7 +6451,7 @@ group.
 | --- | --- | --- |
 | `scope.server` | `google.protobuf.Empty` | Selects the authenticated viewer's server-wide policy. |
 | `scope.room_group_id` | `string` | Selects one existing room group's policy. |
-| `scope.room_id` | `string` | Selects one room's policy and requires current room membership. |
+| `scope.room_id` | `string` | Selects one room's policy. Requires membership or a pending invitation. |
 
 
 
@@ -6488,6 +6489,7 @@ navigation semantics for them.
 | `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | **Deprecated.** No field description provided. |
 | `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
 | `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
+| `kind.room_invitation_received` | [`RoomInvitationReceived`](#chatto-api-v1-RoomInvitationReceived) | No field description provided. |
 
 
 
@@ -6526,6 +6528,21 @@ A message mentioning a role held by the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 | `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+
+
+<a id="chatto-api-v1-RoomInvitationReceived"></a>
+
+### RoomInvitationReceived
+
+An invitation to join a room. Its destination is the room, not a message.
+Attention ends when the invitation is handled or expires.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | No field description provided. |
+| `invitation_id` | `string` | Stable invitation identifier. |
+| `expires_at` | `google.protobuf.Timestamp` | Original invitation deadline; it is not extended by notification reads. |
 
 
 

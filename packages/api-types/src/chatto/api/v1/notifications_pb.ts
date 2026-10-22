@@ -176,6 +176,13 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
    */
   roomMessages?: NotificationDeliveryMode;
 
+  /**
+   * Delivery mode for invitations to join a channel room.
+   *
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode room_invitations = 11;
+   */
+  roomInvitations?: NotificationDeliveryMode;
+
   constructor(data?: PartialMessage<NotificationDeliveryModes>) {
     super();
     proto3.util.initPartial(data, this);
@@ -194,6 +201,7 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
     { no: 8, name: "followed_rooms", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 9, name: "reactions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 10, name: "room_messages", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 11, name: "room_invitations", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationDeliveryModes {
@@ -679,6 +687,62 @@ export class ReactionReceived extends Message<ReactionReceived> {
 }
 
 /**
+ * An invitation to join a room. Its destination is the room, not a message.
+ * Attention ends when the invitation is handled or expires.
+ *
+ * @generated from message chatto.api.v1.RoomInvitationReceived
+ */
+export class RoomInvitationReceived extends Message<RoomInvitationReceived> {
+  /**
+   * @generated from field: chatto.api.v1.RoomSummary room = 1;
+   */
+  room?: RoomSummary;
+
+  /**
+   * Stable invitation identifier.
+   *
+   * @generated from field: string invitation_id = 2;
+   */
+  invitationId = "";
+
+  /**
+   * Original invitation deadline; it is not extended by notification reads.
+   *
+   * @generated from field: google.protobuf.Timestamp expires_at = 3;
+   */
+  expiresAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RoomInvitationReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomInvitationReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room", kind: "message", T: RoomSummary },
+    { no: 2, name: "invitation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "expires_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomInvitationReceived {
+    return new RoomInvitationReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomInvitationReceived {
+    return new RoomInvitationReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomInvitationReceived {
+    return new RoomInvitationReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomInvitationReceived | PlainMessage<RoomInvitationReceived> | undefined, b: RoomInvitationReceived | PlainMessage<RoomInvitationReceived> | undefined): boolean {
+    return proto3.util.equals(RoomInvitationReceived, a, b);
+  }
+}
+
+/**
  * Immutable, typed cause and destination of one notification. Clients must
  * preserve unknown variants as generic dismissible rows and must not infer
  * navigation semantics for them.
@@ -750,6 +814,12 @@ export class NotificationSignal extends Message<NotificationSignal> {
      */
     value: RoomMessageReceived;
     case: "roomMessageReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.RoomInvitationReceived room_invitation_received = 11;
+     */
+    value: RoomInvitationReceived;
+    case: "roomInvitationReceived";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<NotificationSignal>) {
@@ -770,6 +840,7 @@ export class NotificationSignal extends Message<NotificationSignal> {
     { no: 8, name: "followed_room_activity", kind: "message", T: FollowedRoomActivity, oneof: "kind" },
     { no: 9, name: "reaction_received", kind: "message", T: ReactionReceived, oneof: "kind" },
     { no: 10, name: "room_message_received", kind: "message", T: RoomMessageReceived, oneof: "kind" },
+    { no: 11, name: "room_invitation_received", kind: "message", T: RoomInvitationReceived, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationSignal {
@@ -831,7 +902,8 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   unread = false;
 
   /**
-   * Absolute expiry, 90 days after the source activity.
+   * Absolute expiry: the invitation deadline for room invitations, otherwise
+   * 90 days after source activity. Handled invitations are removed earlier.
    *
    * @generated from field: google.protobuf.Timestamp expires_at = 6;
    */
@@ -1624,7 +1696,7 @@ export class NotificationPolicyScope extends Message<NotificationPolicyScope> {
     case: "roomGroupId";
   } | {
     /**
-     * Selects one room's policy and requires current room membership.
+     * Selects one room's policy. Requires membership or a pending invitation.
      *
      * @generated from field: string room_id = 3;
      */

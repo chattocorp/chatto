@@ -378,7 +378,8 @@
           "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
           "all": "Berichten met @all in een ruimte waarvan je lid bent.",
           "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
-          "reaction": "Reacties die andere leden aan je berichten toevoegen."
+          "reaction": "Reacties die andere leden aan je berichten toevoegen.",
+          "room_invitation": "Uitnodigingen om deel te nemen aan ruimtes."
         }
       }
     },

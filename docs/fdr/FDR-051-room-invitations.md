@@ -1,7 +1,7 @@
 # FDR-051: Room Invitations
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-21
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
@@ -38,7 +38,14 @@ channel room. The recipient accepts or declines in the room welcome screen.
   rules still apply. A group with no visible content disappears.
 - Invitations apply to human accounts in active, non-universal channel rooms.
   They do not apply to DMs, bot accounts, the sender, or existing members.
-- This version has no sender cancellation, reminder, or notification delivery.
+- Invitations use Push notification by default. Recipients can select Push,
+  Notification, Badge, or Off at server, group, or room scope. Device permission
+  and Do Not Disturb still apply.
+- An invitation notification opens the room welcome screen. Opening the
+  notification marks it Read; reading or deleting it does not accept or decline
+  the invitation. Acceptance, decline, and expiry remove it from notification
+  history. Badge attention lasts only while the invitation is pending.
+- This version has no sender cancellation or reminder.
 
 ## Design Decisions
 
@@ -53,8 +60,8 @@ channel room. The recipient accepts or declines in the room welcome screen.
 **Decision:** Record creation, acceptance, and decline as durable domain facts,
 with the acting account and time. Acceptance and membership change are atomic.
 **Why:** Invitation decisions must remain available for auditing and recovery.
-**Tradeoff:** Future notifications need a separate connection to invitation state.
-Deleting a future notification must not decline an invitation.
+**Tradeoff:** Notifications must follow invitation state. Reading or deleting
+a notification does not change the invitation.
 
 ### 3. Preserve permission choices
 
@@ -77,7 +84,8 @@ Deleting a future notification must not decline an invitation.
 - **FDRs:** FDR-001, FDR-012, FDR-017, FDR-019
 - **Issue:** [#1013](https://github.com/chattocorp/chatto/issues/1013)
 
-## Open Questions
+## Notification rollout
 
-Phase 2 adds invitation notifications. Notifications will link to the same
-welcome screen and will not own invitation state.
+Notification delivery starts with invitations sent after the server enables
+this feature. Existing pending invitations remain available in the sidebar;
+they do not receive a notification retroactively.

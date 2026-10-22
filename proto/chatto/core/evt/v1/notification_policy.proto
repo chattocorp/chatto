@@ -39,4 +39,6 @@ message NotificationDeliveryModes {
   // Root messages posted directly to joined channel rooms. Thread messages
   // and direct messages use their own signal classes.
   optional NotificationDeliveryMode room_messages = 10;
+  // Delivery mode for invitations to join a channel room.
+  optional NotificationDeliveryMode room_invitations = 11;
 }

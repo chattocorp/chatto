@@ -327,7 +327,7 @@
       "accept": "Acceptera inbjudan",
       "decline": "Avböj",
       "title": "Bjud in medlemmar till #{room}",
-      "description": "Välj vem du vill bjuda in. De inbjudna användarna får en inbjudan och har sju dagar på sig att acceptera eller avböja den.",
+      "description": "Välj vilka du vill bjuda in. Inbjudna användare får en avisering och har sju dagar på sig att acceptera eller avböja.",
       "members": "Medlemmar",
       "send": "Skicka inbjudningar",
       "failed": "Kunde inte bjuda in {name}: {error}",

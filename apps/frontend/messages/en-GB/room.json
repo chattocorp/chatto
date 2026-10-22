@@ -327,7 +327,7 @@
       "accept": "Accept invitation",
       "decline": "Decline",
       "title": "Invite members to #{room}",
-      "description": "Choose who you would like to invite. Invited users will receive an invitation and have seven days to accept or decline.",
+      "description": "Choose who you would like to invite. Invited users will receive a notification and have seven days to accept or decline.",
       "members": "Members",
       "send": "Send invitations",
       "failed": "Could not invite {name}: {error}",

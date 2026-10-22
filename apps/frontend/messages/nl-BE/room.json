@@ -327,7 +327,7 @@
       "accept": "Uitnodiging accepteren",
       "decline": "Weigeren",
       "title": "Leden uitnodigen voor #{room}",
-      "description": "Kies wie je wilt uitnodigen. De uitgenodigde gebruikers ontvangen een uitnodiging en hebben zeven dagen om deze te accepteren of af te wijzen.",
+      "description": "Kies wie je wilt uitnodigen. Uitgenodigde gebruikers ontvangen een melding en hebben zeven dagen om te accepteren of te weigeren.",
       "members": "Leden",
       "send": "Uitnodigingen verzenden",
       "failed": "Kan {name} niet uitnodigen: {error}",

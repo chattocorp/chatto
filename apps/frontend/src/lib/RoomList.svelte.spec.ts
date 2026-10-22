@@ -934,6 +934,38 @@ describe('RoomList', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/restricted-channel');
   });
 
+  it.each(['badge', 'notification'] as const)(
+    'shows %s attention for an invited nonmember',
+    async (delivery) => {
+      const invited = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+        (room) => room.id === 'restricted-channel'
+      )!;
+      invited.viewerInvitation = {
+        id: 'invitation',
+        senderId: 'sender',
+        expiresAt: new Date('2099-01-01'),
+        viewerCanAccept: true
+      };
+      if (delivery === 'badge') mocks.unreadRoomIds.add(invited.id);
+      else {
+        invited.viewerNotificationCount = 1;
+        invited.viewerImportantNotificationCount = 1;
+      }
+      const { container } = render(RoomList);
+      const row = q(container, '[href="/chat/-/restricted-channel"]')!;
+      await expect
+        .element(
+          row.querySelector<HTMLElement>(
+            delivery === 'badge'
+              ? '[data-testid="room-unread-dot"]'
+              : '[data-testid="room-notification-badge"]'
+          )
+        )
+        .toBeVisible();
+      expect(mocks.store.roomDirectory.joinRoom).not.toHaveBeenCalled();
+    }
+  );
+
   it.each([true, false])(
     'shows Invite member only with room invitation authority (%s)',
     async (allowed) => {

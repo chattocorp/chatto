@@ -42,6 +42,15 @@
 
   const rows = [
     {
+      summary: m('chat.notifications.summary.room_invitation', { actor: token }),
+      actor: alice,
+      signalKind: NotificationSignalKind.ROOM_INVITATION,
+      roomName: 'design-team',
+      time: 'Just now',
+      unread: true,
+      important: true
+    },
+    {
       summary: m('chat.notifications.summary.direct_message', { actor: token }),
       actor: bob,
       signalKind: NotificationSignalKind.DIRECT_MESSAGE,
