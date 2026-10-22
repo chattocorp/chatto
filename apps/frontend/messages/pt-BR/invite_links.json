@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Convidar para o servidor",
+    "compatibility_title": "Os convites para o servidor não estão disponíveis",
+    "compatibility_description": "Este servidor não permite criar ou gerenciar links de convite neste aplicativo. Os links existentes continuam válidos.",
+    "own": "Seus convites para o servidor",
+    "all": "Todos os convites para o servidor",
+    "creator": "Criado por",
+    "create_permission": "Criar convites para o servidor",
+    "manage_permission": "Gerenciar todos os convites para o servidor",
+    "create_help": "Crie links para novas contas. Remover esta permissão não revoga os links existentes.",
+    "manage_help": "Veja, copie e revogue os links de qualquer pessoa. Requer o modo escudo; não permite criar links.",
+    "max_uses": "Número máximo de usos",
+    "max_uses_error": "Digite um número inteiro igual ou maior que 1.",
+    "unlimited_uses": "Permitir usos ilimitados",
+    "expiry": "Validade",
+    "expiry_1d": "1 dia",
+    "expiry_7d": "7 dias",
+    "expiry_30d": "30 dias",
+    "expiry_never": "Nunca",
+    "create": "Criar convite para o servidor",
+    "created": "Convite para o servidor criado",
+    "copy": "Copiar link",
+    "copied": "Convite para o servidor copiado",
+    "title": "Convites para o servidor",
+    "creation_unavailable": "Criar convites para o servidor requer permissão de um administrador do servidor. Você ainda pode gerenciar seus convites existentes."
+  }
+}

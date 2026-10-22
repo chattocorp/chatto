@@ -200,7 +200,7 @@ test.describe('Server Roles Management', () => {
     await scroller.hover();
     await page.mouse.wheel(0, 2000);
     await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(500);
-    const cell = page.locator('td[data-role="everyone"][data-permission="user.invite"] button');
+    const cell = page.locator('td[data-role="everyone"][data-permission="invite.manage"] button');
     await cell.scrollIntoViewIfNeeded();
     await cell.hover();
     // Account for the browser scrolling a newly focused cell into view before
@@ -1229,7 +1229,7 @@ test.describe('Server Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('Settings only exposes Bots when user lacks room.manage permission', async ({
+    test('Settings exposes owned bots and invite links without room.manage permission', async ({
       page,
       serverAdminPage
     }) => {
@@ -1255,6 +1255,7 @@ test.describe('Server Permission Enforcement', () => {
       await page.waitForURL(routes.settingsAppearance);
       await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Server invites', exact: true })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
 

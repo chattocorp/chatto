@@ -2,13 +2,12 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        (unknown)
-// source: chatto/admin/v1/invitations.proto
+// source: chatto/api/v1/invitations.proto
 
-package adminv1
+package apiv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -64,11 +63,11 @@ func (x InviteLinkStatus) String() string {
 }
 
 func (InviteLinkStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_admin_v1_invitations_proto_enumTypes[0].Descriptor()
+	return file_chatto_api_v1_invitations_proto_enumTypes[0].Descriptor()
 }
 
 func (InviteLinkStatus) Type() protoreflect.EnumType {
-	return &file_chatto_admin_v1_invitations_proto_enumTypes[0]
+	return &file_chatto_api_v1_invitations_proto_enumTypes[0]
 }
 
 func (x InviteLinkStatus) Number() protoreflect.EnumNumber {
@@ -77,14 +76,15 @@ func (x InviteLinkStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use InviteLinkStatus.Descriptor instead.
 func (InviteLinkStatus) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{0}
 }
 
-// An administrator-visible invite link. The link is a bearer capability and
-// is returned only to callers with user.invite.
+// An invite link visible to its creator or a caller with effective
+// invite.manage. The link is a bearer capability: anyone who has it can
+// create an account while the link is active and admission requires an invite.
 type InviteLink struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Durable identifier used for administrative operations.
+	// Identifier used to read or revoke the link.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Fully qualified bearer URL. Anyone who has it can use the link while active.
 	Link          string                 `protobuf:"bytes,2,opt,name=link,proto3" json:"link,omitempty"`
@@ -93,7 +93,7 @@ type InviteLink struct {
 	MaxUses       *uint32                `protobuf:"varint,5,opt,name=max_uses,json=maxUses,proto3,oneof" json:"max_uses,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	UseCount      uint32                 `protobuf:"varint,7,opt,name=use_count,json=useCount,proto3" json:"use_count,omitempty"`
-	Status        InviteLinkStatus       `protobuf:"varint,8,opt,name=status,proto3,enum=chatto.admin.v1.InviteLinkStatus" json:"status,omitempty"`
+	Status        InviteLinkStatus       `protobuf:"varint,8,opt,name=status,proto3,enum=chatto.api.v1.InviteLinkStatus" json:"status,omitempty"`
 	RevokedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -101,7 +101,7 @@ type InviteLink struct {
 
 func (x *InviteLink) Reset() {
 	*x = InviteLink{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -113,7 +113,7 @@ func (x *InviteLink) String() string {
 func (*InviteLink) ProtoMessage() {}
 
 func (x *InviteLink) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -126,7 +126,7 @@ func (x *InviteLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InviteLink.ProtoReflect.Descriptor instead.
 func (*InviteLink) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *InviteLink) GetId() string {
@@ -192,18 +192,20 @@ func (x *InviteLink) GetRevokedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Requests a page of invite links, newest first.
+// Requests a page of owned invite links, newest first. Effective
+// invite.manage expands the result to all links. Counts include only
+// visible links. Refresh and clear cached links when authority changes.
 type ListInviteLinksRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Defaults to 20 results when absent or limit is zero. Maximum: 100.
-	Page          *v1.PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	Page          *PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListInviteLinksRequest) Reset() {
 	*x = ListInviteLinksRequest{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +217,7 @@ func (x *ListInviteLinksRequest) String() string {
 func (*ListInviteLinksRequest) ProtoMessage() {}
 
 func (x *ListInviteLinksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,10 +230,10 @@ func (x *ListInviteLinksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInviteLinksRequest.ProtoReflect.Descriptor instead.
 func (*ListInviteLinksRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListInviteLinksRequest) GetPage() *v1.PageRequest {
+func (x *ListInviteLinksRequest) GetPage() *PageRequest {
 	if x != nil {
 		return x.Page
 	}
@@ -241,14 +243,14 @@ func (x *ListInviteLinksRequest) GetPage() *v1.PageRequest {
 type ListInviteLinksResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	InviteLinks   []*InviteLink          `protobuf:"bytes,1,rep,name=invite_links,json=inviteLinks,proto3" json:"invite_links,omitempty"`
-	Page          *v1.PageInfo           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	Page          *PageInfo              `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListInviteLinksResponse) Reset() {
 	*x = ListInviteLinksResponse{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -260,7 +262,7 @@ func (x *ListInviteLinksResponse) String() string {
 func (*ListInviteLinksResponse) ProtoMessage() {}
 
 func (x *ListInviteLinksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -273,7 +275,7 @@ func (x *ListInviteLinksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInviteLinksResponse.ProtoReflect.Descriptor instead.
 func (*ListInviteLinksResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListInviteLinksResponse) GetInviteLinks() []*InviteLink {
@@ -283,7 +285,7 @@ func (x *ListInviteLinksResponse) GetInviteLinks() []*InviteLink {
 	return nil
 }
 
-func (x *ListInviteLinksResponse) GetPage() *v1.PageInfo {
+func (x *ListInviteLinksResponse) GetPage() *PageInfo {
 	if x != nil {
 		return x.Page
 	}
@@ -299,7 +301,7 @@ type GetInviteLinkRequest struct {
 
 func (x *GetInviteLinkRequest) Reset() {
 	*x = GetInviteLinkRequest{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -311,7 +313,7 @@ func (x *GetInviteLinkRequest) String() string {
 func (*GetInviteLinkRequest) ProtoMessage() {}
 
 func (x *GetInviteLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -324,7 +326,7 @@ func (x *GetInviteLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInviteLinkRequest.ProtoReflect.Descriptor instead.
 func (*GetInviteLinkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetInviteLinkRequest) GetId() string {
@@ -343,7 +345,7 @@ type GetInviteLinkResponse struct {
 
 func (x *GetInviteLinkResponse) Reset() {
 	*x = GetInviteLinkResponse{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +357,7 @@ func (x *GetInviteLinkResponse) String() string {
 func (*GetInviteLinkResponse) ProtoMessage() {}
 
 func (x *GetInviteLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +370,7 @@ func (x *GetInviteLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInviteLinkResponse.ProtoReflect.Descriptor instead.
 func (*GetInviteLinkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetInviteLinkResponse) GetInviteLink() *InviteLink {
@@ -389,7 +391,7 @@ type CreateInviteLinkRequest struct {
 
 func (x *CreateInviteLinkRequest) Reset() {
 	*x = CreateInviteLinkRequest{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -401,7 +403,7 @@ func (x *CreateInviteLinkRequest) String() string {
 func (*CreateInviteLinkRequest) ProtoMessage() {}
 
 func (x *CreateInviteLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -414,7 +416,7 @@ func (x *CreateInviteLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInviteLinkRequest.ProtoReflect.Descriptor instead.
 func (*CreateInviteLinkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateInviteLinkRequest) GetMaxUses() uint32 {
@@ -440,7 +442,7 @@ type CreateInviteLinkResponse struct {
 
 func (x *CreateInviteLinkResponse) Reset() {
 	*x = CreateInviteLinkResponse{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -452,7 +454,7 @@ func (x *CreateInviteLinkResponse) String() string {
 func (*CreateInviteLinkResponse) ProtoMessage() {}
 
 func (x *CreateInviteLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -465,7 +467,7 @@ func (x *CreateInviteLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInviteLinkResponse.ProtoReflect.Descriptor instead.
 func (*CreateInviteLinkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateInviteLinkResponse) GetInviteLink() *InviteLink {
@@ -484,7 +486,7 @@ type RevokeInviteLinkRequest struct {
 
 func (x *RevokeInviteLinkRequest) Reset() {
 	*x = RevokeInviteLinkRequest{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +498,7 @@ func (x *RevokeInviteLinkRequest) String() string {
 func (*RevokeInviteLinkRequest) ProtoMessage() {}
 
 func (x *RevokeInviteLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +511,7 @@ func (x *RevokeInviteLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeInviteLinkRequest.ProtoReflect.Descriptor instead.
 func (*RevokeInviteLinkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RevokeInviteLinkRequest) GetId() string {
@@ -528,7 +530,7 @@ type RevokeInviteLinkResponse struct {
 
 func (x *RevokeInviteLinkResponse) Reset() {
 	*x = RevokeInviteLinkResponse{}
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -540,7 +542,7 @@ func (x *RevokeInviteLinkResponse) String() string {
 func (*RevokeInviteLinkResponse) ProtoMessage() {}
 
 func (x *RevokeInviteLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_invitations_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_invitations_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -553,7 +555,7 @@ func (x *RevokeInviteLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeInviteLinkResponse.ProtoReflect.Descriptor instead.
 func (*RevokeInviteLinkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_invitations_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_invitations_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RevokeInviteLinkResponse) GetInviteLink() *InviteLink {
@@ -563,11 +565,11 @@ func (x *RevokeInviteLinkResponse) GetInviteLink() *InviteLink {
 	return nil
 }
 
-var File_chatto_admin_v1_invitations_proto protoreflect.FileDescriptor
+var File_chatto_api_v1_invitations_proto protoreflect.FileDescriptor
 
-const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
+const file_chatto_api_v1_invitations_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/admin/v1/invitations.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x85\x03\n" +
+	"\x1fchatto/api/v1/invitations.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\x03\n" +
 	"\n" +
 	"InviteLink\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -579,96 +581,96 @@ const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
 	"\bmax_uses\x18\x05 \x01(\rH\x00R\amaxUses\x88\x01\x01\x129\n" +
 	"\n" +
 	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1b\n" +
-	"\tuse_count\x18\a \x01(\rR\buseCount\x129\n" +
-	"\x06status\x18\b \x01(\x0e2!.chatto.admin.v1.InviteLinkStatusR\x06status\x129\n" +
+	"\tuse_count\x18\a \x01(\rR\buseCount\x127\n" +
+	"\x06status\x18\b \x01(\x0e2\x1f.chatto.api.v1.InviteLinkStatusR\x06status\x129\n" +
 	"\n" +
 	"revoked_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAtB\v\n" +
 	"\t_max_uses\"H\n" +
 	"\x16ListInviteLinksRequest\x12.\n" +
-	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x86\x01\n" +
-	"\x17ListInviteLinksResponse\x12>\n" +
-	"\finvite_links\x18\x01 \x03(\v2\x1b.chatto.admin.v1.InviteLinkR\vinviteLinks\x12+\n" +
+	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x84\x01\n" +
+	"\x17ListInviteLinksResponse\x12<\n" +
+	"\finvite_links\x18\x01 \x03(\v2\x19.chatto.api.v1.InviteLinkR\vinviteLinks\x12+\n" +
 	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"/\n" +
 	"\x14GetInviteLinkRequest\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"U\n" +
-	"\x15GetInviteLinkResponse\x12<\n" +
-	"\vinvite_link\x18\x01 \x01(\v2\x1b.chatto.admin.v1.InviteLinkR\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"S\n" +
+	"\x15GetInviteLinkResponse\x12:\n" +
+	"\vinvite_link\x18\x01 \x01(\v2\x19.chatto.api.v1.InviteLinkR\n" +
 	"inviteLink\"\x8a\x01\n" +
 	"\x17CreateInviteLinkRequest\x12'\n" +
 	"\bmax_uses\x18\x01 \x01(\rB\a\xbaH\x04*\x02(\x01H\x00R\amaxUses\x88\x01\x01\x129\n" +
 	"\n" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAtB\v\n" +
-	"\t_max_uses\"X\n" +
-	"\x18CreateInviteLinkResponse\x12<\n" +
-	"\vinvite_link\x18\x01 \x01(\v2\x1b.chatto.admin.v1.InviteLinkR\n" +
+	"\t_max_uses\"V\n" +
+	"\x18CreateInviteLinkResponse\x12:\n" +
+	"\vinvite_link\x18\x01 \x01(\v2\x19.chatto.api.v1.InviteLinkR\n" +
 	"inviteLink\"2\n" +
 	"\x17RevokeInviteLinkRequest\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"X\n" +
-	"\x18RevokeInviteLinkResponse\x12<\n" +
-	"\vinvite_link\x18\x01 \x01(\v2\x1b.chatto.admin.v1.InviteLinkR\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"V\n" +
+	"\x18RevokeInviteLinkResponse\x12:\n" +
+	"\vinvite_link\x18\x01 \x01(\v2\x19.chatto.api.v1.InviteLinkR\n" +
 	"inviteLink*\xb7\x01\n" +
 	"\x10InviteLinkStatus\x12\"\n" +
 	"\x1eINVITE_LINK_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19INVITE_LINK_STATUS_ACTIVE\x10\x01\x12\x1e\n" +
 	"\x1aINVITE_LINK_STATUS_EXPIRED\x10\x02\x12 \n" +
 	"\x1cINVITE_LINK_STATUS_EXHAUSTED\x10\x03\x12\x1e\n" +
-	"\x1aINVITE_LINK_STATUS_REVOKED\x10\x042\xb0\x03\n" +
-	"\x16AdminInviteLinkService\x12d\n" +
-	"\x0fListInviteLinks\x12'.chatto.admin.v1.ListInviteLinksRequest\x1a(.chatto.admin.v1.ListInviteLinksResponse\x12^\n" +
-	"\rGetInviteLink\x12%.chatto.admin.v1.GetInviteLinkRequest\x1a&.chatto.admin.v1.GetInviteLinkResponse\x12g\n" +
-	"\x10CreateInviteLink\x12(.chatto.admin.v1.CreateInviteLinkRequest\x1a).chatto.admin.v1.CreateInviteLinkResponse\x12g\n" +
-	"\x10RevokeInviteLink\x12(.chatto.admin.v1.RevokeInviteLinkRequest\x1a).chatto.admin.v1.RevokeInviteLinkResponseB\xcb\x01\n" +
-	"\x13com.chatto.admin.v1B\x10InvitationsProtoP\x01ZDgithub.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
+	"\x1aINVITE_LINK_STATUS_REVOKED\x10\x042\x9b\x03\n" +
+	"\x11InviteLinkService\x12`\n" +
+	"\x0fListInviteLinks\x12%.chatto.api.v1.ListInviteLinksRequest\x1a&.chatto.api.v1.ListInviteLinksResponse\x12Z\n" +
+	"\rGetInviteLink\x12#.chatto.api.v1.GetInviteLinkRequest\x1a$.chatto.api.v1.GetInviteLinkResponse\x12c\n" +
+	"\x10CreateInviteLink\x12&.chatto.api.v1.CreateInviteLinkRequest\x1a'.chatto.api.v1.CreateInviteLinkResponse\x12c\n" +
+	"\x10RevokeInviteLink\x12&.chatto.api.v1.RevokeInviteLinkRequest\x1a'.chatto.api.v1.RevokeInviteLinkResponseB\xbd\x01\n" +
+	"\x11com.chatto.api.v1B\x10InvitationsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
-	file_chatto_admin_v1_invitations_proto_rawDescOnce sync.Once
-	file_chatto_admin_v1_invitations_proto_rawDescData []byte
+	file_chatto_api_v1_invitations_proto_rawDescOnce sync.Once
+	file_chatto_api_v1_invitations_proto_rawDescData []byte
 )
 
-func file_chatto_admin_v1_invitations_proto_rawDescGZIP() []byte {
-	file_chatto_admin_v1_invitations_proto_rawDescOnce.Do(func() {
-		file_chatto_admin_v1_invitations_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_invitations_proto_rawDesc), len(file_chatto_admin_v1_invitations_proto_rawDesc)))
+func file_chatto_api_v1_invitations_proto_rawDescGZIP() []byte {
+	file_chatto_api_v1_invitations_proto_rawDescOnce.Do(func() {
+		file_chatto_api_v1_invitations_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_api_v1_invitations_proto_rawDesc), len(file_chatto_api_v1_invitations_proto_rawDesc)))
 	})
-	return file_chatto_admin_v1_invitations_proto_rawDescData
+	return file_chatto_api_v1_invitations_proto_rawDescData
 }
 
-var file_chatto_admin_v1_invitations_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_admin_v1_invitations_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
-var file_chatto_admin_v1_invitations_proto_goTypes = []any{
-	(InviteLinkStatus)(0),            // 0: chatto.admin.v1.InviteLinkStatus
-	(*InviteLink)(nil),               // 1: chatto.admin.v1.InviteLink
-	(*ListInviteLinksRequest)(nil),   // 2: chatto.admin.v1.ListInviteLinksRequest
-	(*ListInviteLinksResponse)(nil),  // 3: chatto.admin.v1.ListInviteLinksResponse
-	(*GetInviteLinkRequest)(nil),     // 4: chatto.admin.v1.GetInviteLinkRequest
-	(*GetInviteLinkResponse)(nil),    // 5: chatto.admin.v1.GetInviteLinkResponse
-	(*CreateInviteLinkRequest)(nil),  // 6: chatto.admin.v1.CreateInviteLinkRequest
-	(*CreateInviteLinkResponse)(nil), // 7: chatto.admin.v1.CreateInviteLinkResponse
-	(*RevokeInviteLinkRequest)(nil),  // 8: chatto.admin.v1.RevokeInviteLinkRequest
-	(*RevokeInviteLinkResponse)(nil), // 9: chatto.admin.v1.RevokeInviteLinkResponse
+var file_chatto_api_v1_invitations_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chatto_api_v1_invitations_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_chatto_api_v1_invitations_proto_goTypes = []any{
+	(InviteLinkStatus)(0),            // 0: chatto.api.v1.InviteLinkStatus
+	(*InviteLink)(nil),               // 1: chatto.api.v1.InviteLink
+	(*ListInviteLinksRequest)(nil),   // 2: chatto.api.v1.ListInviteLinksRequest
+	(*ListInviteLinksResponse)(nil),  // 3: chatto.api.v1.ListInviteLinksResponse
+	(*GetInviteLinkRequest)(nil),     // 4: chatto.api.v1.GetInviteLinkRequest
+	(*GetInviteLinkResponse)(nil),    // 5: chatto.api.v1.GetInviteLinkResponse
+	(*CreateInviteLinkRequest)(nil),  // 6: chatto.api.v1.CreateInviteLinkRequest
+	(*CreateInviteLinkResponse)(nil), // 7: chatto.api.v1.CreateInviteLinkResponse
+	(*RevokeInviteLinkRequest)(nil),  // 8: chatto.api.v1.RevokeInviteLinkRequest
+	(*RevokeInviteLinkResponse)(nil), // 9: chatto.api.v1.RevokeInviteLinkResponse
 	(*timestamppb.Timestamp)(nil),    // 10: google.protobuf.Timestamp
-	(*v1.PageRequest)(nil),           // 11: chatto.api.v1.PageRequest
-	(*v1.PageInfo)(nil),              // 12: chatto.api.v1.PageInfo
+	(*PageRequest)(nil),              // 11: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                 // 12: chatto.api.v1.PageInfo
 }
-var file_chatto_admin_v1_invitations_proto_depIdxs = []int32{
-	10, // 0: chatto.admin.v1.InviteLink.created_at:type_name -> google.protobuf.Timestamp
-	10, // 1: chatto.admin.v1.InviteLink.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: chatto.admin.v1.InviteLink.status:type_name -> chatto.admin.v1.InviteLinkStatus
-	10, // 3: chatto.admin.v1.InviteLink.revoked_at:type_name -> google.protobuf.Timestamp
-	11, // 4: chatto.admin.v1.ListInviteLinksRequest.page:type_name -> chatto.api.v1.PageRequest
-	1,  // 5: chatto.admin.v1.ListInviteLinksResponse.invite_links:type_name -> chatto.admin.v1.InviteLink
-	12, // 6: chatto.admin.v1.ListInviteLinksResponse.page:type_name -> chatto.api.v1.PageInfo
-	1,  // 7: chatto.admin.v1.GetInviteLinkResponse.invite_link:type_name -> chatto.admin.v1.InviteLink
-	10, // 8: chatto.admin.v1.CreateInviteLinkRequest.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: chatto.admin.v1.CreateInviteLinkResponse.invite_link:type_name -> chatto.admin.v1.InviteLink
-	1,  // 10: chatto.admin.v1.RevokeInviteLinkResponse.invite_link:type_name -> chatto.admin.v1.InviteLink
-	2,  // 11: chatto.admin.v1.AdminInviteLinkService.ListInviteLinks:input_type -> chatto.admin.v1.ListInviteLinksRequest
-	4,  // 12: chatto.admin.v1.AdminInviteLinkService.GetInviteLink:input_type -> chatto.admin.v1.GetInviteLinkRequest
-	6,  // 13: chatto.admin.v1.AdminInviteLinkService.CreateInviteLink:input_type -> chatto.admin.v1.CreateInviteLinkRequest
-	8,  // 14: chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink:input_type -> chatto.admin.v1.RevokeInviteLinkRequest
-	3,  // 15: chatto.admin.v1.AdminInviteLinkService.ListInviteLinks:output_type -> chatto.admin.v1.ListInviteLinksResponse
-	5,  // 16: chatto.admin.v1.AdminInviteLinkService.GetInviteLink:output_type -> chatto.admin.v1.GetInviteLinkResponse
-	7,  // 17: chatto.admin.v1.AdminInviteLinkService.CreateInviteLink:output_type -> chatto.admin.v1.CreateInviteLinkResponse
-	9,  // 18: chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink:output_type -> chatto.admin.v1.RevokeInviteLinkResponse
+var file_chatto_api_v1_invitations_proto_depIdxs = []int32{
+	10, // 0: chatto.api.v1.InviteLink.created_at:type_name -> google.protobuf.Timestamp
+	10, // 1: chatto.api.v1.InviteLink.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: chatto.api.v1.InviteLink.status:type_name -> chatto.api.v1.InviteLinkStatus
+	10, // 3: chatto.api.v1.InviteLink.revoked_at:type_name -> google.protobuf.Timestamp
+	11, // 4: chatto.api.v1.ListInviteLinksRequest.page:type_name -> chatto.api.v1.PageRequest
+	1,  // 5: chatto.api.v1.ListInviteLinksResponse.invite_links:type_name -> chatto.api.v1.InviteLink
+	12, // 6: chatto.api.v1.ListInviteLinksResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 7: chatto.api.v1.GetInviteLinkResponse.invite_link:type_name -> chatto.api.v1.InviteLink
+	10, // 8: chatto.api.v1.CreateInviteLinkRequest.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 9: chatto.api.v1.CreateInviteLinkResponse.invite_link:type_name -> chatto.api.v1.InviteLink
+	1,  // 10: chatto.api.v1.RevokeInviteLinkResponse.invite_link:type_name -> chatto.api.v1.InviteLink
+	2,  // 11: chatto.api.v1.InviteLinkService.ListInviteLinks:input_type -> chatto.api.v1.ListInviteLinksRequest
+	4,  // 12: chatto.api.v1.InviteLinkService.GetInviteLink:input_type -> chatto.api.v1.GetInviteLinkRequest
+	6,  // 13: chatto.api.v1.InviteLinkService.CreateInviteLink:input_type -> chatto.api.v1.CreateInviteLinkRequest
+	8,  // 14: chatto.api.v1.InviteLinkService.RevokeInviteLink:input_type -> chatto.api.v1.RevokeInviteLinkRequest
+	3,  // 15: chatto.api.v1.InviteLinkService.ListInviteLinks:output_type -> chatto.api.v1.ListInviteLinksResponse
+	5,  // 16: chatto.api.v1.InviteLinkService.GetInviteLink:output_type -> chatto.api.v1.GetInviteLinkResponse
+	7,  // 17: chatto.api.v1.InviteLinkService.CreateInviteLink:output_type -> chatto.api.v1.CreateInviteLinkResponse
+	9,  // 18: chatto.api.v1.InviteLinkService.RevokeInviteLink:output_type -> chatto.api.v1.RevokeInviteLinkResponse
 	15, // [15:19] is the sub-list for method output_type
 	11, // [11:15] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
@@ -676,29 +678,30 @@ var file_chatto_admin_v1_invitations_proto_depIdxs = []int32{
 	0,  // [0:11] is the sub-list for field type_name
 }
 
-func init() { file_chatto_admin_v1_invitations_proto_init() }
-func file_chatto_admin_v1_invitations_proto_init() {
-	if File_chatto_admin_v1_invitations_proto != nil {
+func init() { file_chatto_api_v1_invitations_proto_init() }
+func file_chatto_api_v1_invitations_proto_init() {
+	if File_chatto_api_v1_invitations_proto != nil {
 		return
 	}
-	file_chatto_admin_v1_invitations_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_admin_v1_invitations_proto_msgTypes[5].OneofWrappers = []any{}
+	file_chatto_api_v1_pagination_proto_init()
+	file_chatto_api_v1_invitations_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_invitations_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_invitations_proto_rawDesc), len(file_chatto_admin_v1_invitations_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_invitations_proto_rawDesc), len(file_chatto_api_v1_invitations_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_chatto_admin_v1_invitations_proto_goTypes,
-		DependencyIndexes: file_chatto_admin_v1_invitations_proto_depIdxs,
-		EnumInfos:         file_chatto_admin_v1_invitations_proto_enumTypes,
-		MessageInfos:      file_chatto_admin_v1_invitations_proto_msgTypes,
+		GoTypes:           file_chatto_api_v1_invitations_proto_goTypes,
+		DependencyIndexes: file_chatto_api_v1_invitations_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_invitations_proto_enumTypes,
+		MessageInfos:      file_chatto_api_v1_invitations_proto_msgTypes,
 	}.Build()
-	File_chatto_admin_v1_invitations_proto = out.File
-	file_chatto_admin_v1_invitations_proto_goTypes = nil
-	file_chatto_admin_v1_invitations_proto_depIdxs = nil
+	File_chatto_api_v1_invitations_proto = out.File
+	file_chatto_api_v1_invitations_proto_goTypes = nil
+	file_chatto_api_v1_invitations_proto_depIdxs = nil
 }

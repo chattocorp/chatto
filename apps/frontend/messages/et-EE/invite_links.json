@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Kutsu serverisse",
+    "compatibility_title": "Serverikutsed pole saadaval",
+    "compatibility_description": "See server ei toeta selles rakenduses kutselinkide loomist ega haldamist. Olemasolevad kutselingid jäävad kehtima.",
+    "own": "Teie serverikutsed",
+    "all": "Kõik serverikutsed",
+    "creator": "Looja",
+    "create_permission": "Loo serverikutseid",
+    "manage_permission": "Halda kõiki serverikutseid",
+    "create_help": "Looge linke uute kontode jaoks. Selle õiguse eemaldamine ei tühista olemasolevaid linke.",
+    "manage_help": "Vaadake, kopeerige ja tühistage kõigi kasutajate linke. Nõuab kilbirežiimi; ei luba linke luua.",
+    "max_uses": "Kasutuskordi kõige rohkem",
+    "max_uses_error": "Sisestage täisarv, mis on vähemalt 1.",
+    "unlimited_uses": "Luba piiramatu kasutus",
+    "expiry": "Aegumine",
+    "expiry_1d": "1 päev",
+    "expiry_7d": "7 päeva",
+    "expiry_30d": "30 päeva",
+    "expiry_never": "Mitte kunagi",
+    "create": "Loo serverikutse",
+    "created": "Serverikutse loodud",
+    "copy": "Kopeeri link",
+    "copied": "Serverikutse kopeeritud",
+    "title": "Serverikutsed",
+    "creation_unavailable": "Serverikutsete loomine nõuab serveri administraatori antud õigust. Saate oma olemasolevaid kutseid endiselt hallata."
+  }
+}

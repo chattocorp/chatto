@@ -1,8 +1,17 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, waitFor } from 'storybook/test';
   import ComposerStatusRow from './ComposerStatusRow.svelte';
   import ComposerStatusRowMock from './ComposerStatusRowMock.svelte';
-  const { Story } = defineMeta({ title: 'Composer/Status badges', component: ComposerStatusRow });
+  const { Story } = defineMeta({
+    title: 'Composer/Status badges',
+    component: ComposerStatusRow,
+    play: async ({ canvas }) => {
+      const typing = canvas.queryByTestId('typing-indicator');
+      // Check contrast after the badge's entrance transition reaches full opacity.
+      if (typing) await waitFor(() => expect(getComputedStyle(typing).opacity).toBe('1'));
+    }
+  });
 </script>
 
 <Story name="Ready with typing" asChild><ComposerStatusRowMock /></Story>

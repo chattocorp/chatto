@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Inviti al servilo",
+    "compatibility_title": "Servilaj invitoj ne disponeblas",
+    "compatibility_description": "Ĉi tiu servilo ne subtenas kreadon aŭ administradon de invitligiloj en ĉi tiu aplikaĵo. Ekzistantaj invitligiloj restas validaj.",
+    "own": "Viaj servilaj invitoj",
+    "all": "Ĉiuj servilaj invitoj",
+    "creator": "Kreinto",
+    "create_permission": "Krei servilajn invitojn",
+    "manage_permission": "Administri ĉiujn servilajn invitojn",
+    "create_help": "Kreu ligilojn por novaj kontoj. Forigo de ĉi tiu permeso ne nuligas ekzistantajn ligilojn.",
+    "manage_help": "Vidu, kopiu kaj nuligu la ligilojn de iu ajn. Postulas ŝildan reĝimon; ne permesas kreadon.",
+    "max_uses": "Maksimuma nombro de uzoj",
+    "max_uses_error": "Enigu entjeron de almenaŭ 1.",
+    "unlimited_uses": "Permesi senliman nombron de uzoj",
+    "expiry": "Eksvalidiĝo",
+    "expiry_1d": "1 tago",
+    "expiry_7d": "7 tagoj",
+    "expiry_30d": "30 tagoj",
+    "expiry_never": "Neniam",
+    "create": "Krei servilan inviton",
+    "created": "Servila invito kreita",
+    "copy": "Kopii ligilon",
+    "copied": "Servila invito kopiita",
+    "title": "Servilaj invitoj",
+    "creation_unavailable": "Kreado de servilaj invitoj postulas permeson de servila administranto. Vi povas plu administri viajn ekzistantajn invitojn."
+  }
+}

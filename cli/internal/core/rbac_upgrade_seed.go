@@ -15,6 +15,10 @@ import (
 // 0.5 and is read only to carry its decisions over to PermRoomMemberRemove.
 const permRoomMemberBanLegacy Permission = "room.ban-member"
 
+// permUserInviteLegacy no longer grants authority. Its historical decisions
+// still show that an operator reviewed the 0.5 permission set.
+const permUserInviteLegacy Permission = "user.invite"
+
 // v05UpgradePermissions are the non-call permissions introduced in 0.5. Any
 // historical decision for one of them, at any scope and for any subject, shows
 // that the RBAC log was bootstrapped or reviewed by 0.5. The upgrade grants
@@ -26,7 +30,9 @@ func v05UpgradePermissions() []Permission {
 		PermMessageRead,
 		PermMessageReadInteractions,
 		PermMessagePostInInteractions,
-		PermUserInvite,
+		permUserInviteLegacy,
+		PermInviteCreate,
+		PermInviteManage,
 		PermBotCreate,
 		PermBotManage,
 	}

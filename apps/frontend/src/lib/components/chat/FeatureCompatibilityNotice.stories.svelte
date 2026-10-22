@@ -10,7 +10,9 @@
     args: { serverSegment: 'chat.example.test' },
     tags: ['autodocs']
   });
-  const features = limitedServerFeatures('0.5.0-beta.11');
+  const features = limitedServerFeatures('0.5.0-beta.11').filter(
+    (feature) => feature === 'threadViews'
+  );
 </script>
 
 <Story name="Older server threads" asChild>
@@ -34,5 +36,5 @@
   </div>
 </Story>
 
-<Story name="Supported server" args={{ features: limitedServerFeatures('0.5.0-beta.16') }} />
+<Story name="Supported server" args={{ features: limitedServerFeatures('0.5.0-beta.18') }} />
 <Story name="Unknown version" args={{ features: limitedServerFeatures('dev') }} />

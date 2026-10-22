@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Bjud in till server",
+    "compatibility_title": "Serverinbjudningar är inte tillgängliga",
+    "compatibility_description": "Den här servern stöder inte att skapa eller hantera inbjudningslänkar i den här appen. Befintliga inbjudningslänkar är fortfarande giltiga.",
+    "own": "Dina serverinbjudningar",
+    "all": "Alla serverinbjudningar",
+    "creator": "Skapad av",
+    "create_permission": "Skapa serverinbjudningar",
+    "manage_permission": "Hantera alla serverinbjudningar",
+    "create_help": "Skapa länkar för nya konton. Om behörigheten tas bort återkallas inte befintliga länkar.",
+    "manage_help": "Visa, kopiera och återkalla allas länkar. Kräver sköldläge; tillåter inte att skapa länkar.",
+    "max_uses": "Max antal användningar",
+    "max_uses_error": "Ange ett heltal på minst 1.",
+    "unlimited_uses": "Tillåt obegränsat antal användningar",
+    "expiry": "Giltighetstid",
+    "expiry_1d": "1 dag",
+    "expiry_7d": "7 dagar",
+    "expiry_30d": "30 dagar",
+    "expiry_never": "Aldrig",
+    "create": "Skapa serverinbjudan",
+    "created": "Serverinbjudan skapad",
+    "copy": "Kopiera länk",
+    "copied": "Serverinbjudan kopierad",
+    "title": "Serverinbjudningar",
+    "creation_unavailable": "Du behöver tillstånd från en serveradministratör för att skapa serverinbjudningar. Du kan fortfarande hantera dina befintliga inbjudningar."
+  }
+}

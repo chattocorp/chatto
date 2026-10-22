@@ -1,6 +1,14 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
-  import { createInviteLinkAPI, type InviteLink } from '$lib/api/invitations';
+  import { createInviteLinkAPI, type InviteLink } from '@chatto/client/api/invitations';
+  import { createUserAPI } from '@chatto/client/api/users';
+  import AccountName from '$lib/components/users/AccountName.svelte';
+  import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { onMount } from 'svelte';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';
   import {
     Panel,
     DataTable,
@@ -12,33 +20,53 @@
     PageTitle
   } from '$lib/ui';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
+  import { createInfiniteQuery, createMutation, createQuery, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { Button, Checkbox, Select, TextInput } from '$lib/ui/form';
+  import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
   const PAGE_SIZE = 20;
   const serverScope = useServerScope();
+  const users = serverScope.store.projection.users;
+  const limitedFeatures = $derived(
+    serverScope.store.serverInfo.limitedFeatures.filter((feature) => feature === 'inviteLinks')
+  );
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
-  let maxUses = $state('1');
-  let unlimitedUses = $state(false);
-  let expiry = $state('7d');
   let revokeTarget = $state<InviteLink | null>(null);
+  let authorityGeneration = $state(0);
+  const guard = createSessionGuard(serverScope);
+  const manageAll = $derived(serverScope.store.permissions.canManageInvites);
+  const title = $derived(m('invite_links.title'));
+  const listTitle = $derived(manageAll ? m('invite_links.all') : m('invite_links.own'));
+
+  onMount(() =>
+    registerQueryCacheRemovalListener((serverId) => {
+      if (serverId !== serverScope.serverId) return;
+      // A late list or open confirmation must not retain another creator's link.
+      authorityGeneration++;
+      revokeTarget = null;
+    })
+  );
 
   const invitationsQuery = createInfiniteQuery(() => {
     const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.invitations(serverId, connection),
+      queryKey: [
+        ...adminQueryKeys.invitations(serverId, connection),
+        manageAll,
+        authorityGeneration
+      ],
       queryFn: ({ pageParam, signal }) =>
         connection.getAPI(createInviteLinkAPI).list(pageParam, PAGE_SIZE, { signal }),
+      enabled: limitedFeatures.length === 0,
       initialPageParam: 0,
       getNextPageParam: (lastPage, _pages, lastPageParam) =>
         lastPage.hasMore && lastPage.inviteLinks.length > 0
@@ -50,33 +78,37 @@
   const invitations = $derived(
     (invitationsQuery.data?.pages ?? []).flatMap((page) => page.inviteLinks)
   );
+  // Hydrate profiles through the shared owner; do not cache copies of their names.
+  createQuery(() => {
+    const ids = invitations.map((link) => link.createdBy);
+    return {
+      queryKey: [
+        ...adminQueryKeys.invitations(serverScope.serverId, serverScope.connection),
+        'creators',
+        manageAll,
+        authorityGeneration,
+        ids
+      ],
+      enabled: limitedFeatures.length === 0 && manageAll && ids.length > 0,
+      queryFn: async ({ signal }) => {
+        await serverScope.connection.getAPI(createUserAPI).batchGetUsers(ids);
+        signal.throwIfAborted();
+        return null;
+      }
+    };
+  });
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
   const hasMore = $derived(invitationsQuery.hasNextPage);
-  const maxUsesValue = $derived(unlimitedUses ? null : Number.parseInt(maxUses, 10));
-  const maxUsesInvalid = $derived(
-    !unlimitedUses && (!Number.isInteger(maxUsesValue) || (maxUsesValue ?? 0) < 1)
-  );
-
-  const createInvitationMutation = createMutation(() => ({
-    mutationFn: () =>
-      serverScope.connection.getAPI(createInviteLinkAPI).create({
-        maxUses: maxUsesValue,
-        expiresAt: expiryDate(expiry)
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
-      });
-      toast.success(m('admin.invitations.created'));
-    },
-    onError: (error) => toastError(error)
-  }));
 
   const revokeMutation = createMutation(() => ({
-    mutationFn: (invitation: InviteLink) =>
-      serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id),
-    onSuccess: async () => {
+    mutationFn: async (invitation: InviteLink) => {
+      const snapshot = guard.snapshot();
+      await serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id);
+      return snapshot;
+    },
+    onSuccess: async (snapshot) => {
+      if (!guard.isCurrent(snapshot)) return;
       revokeTarget = null;
       await queryClient.invalidateQueries({
         queryKey: adminQueryKeys.invitations(serverScope.serverId, serverScope.connection)
@@ -86,15 +118,10 @@
     onError: (error) => toastError(error)
   }));
 
-  function expiryDate(value: string): string | null {
-    const days = value === '1d' ? 1 : value === '30d' ? 30 : value === 'never' ? 0 : 7;
-    return days === 0 ? null : new Date(Date.now() + days * 86_400_000).toISOString();
-  }
-
   async function copyInvitation(invitation: InviteLink) {
     try {
       await navigator.clipboard.writeText(invitation.link);
-      toast.success(m('admin.invitations.copied'));
+      toast.success(m('invite_links.copied'));
     } catch {
       toastError(undefined, m('room.message.actions.copy_link_failed'));
     }
@@ -113,119 +140,100 @@
   }
 </script>
 
-<PageTitle
-  title={m('admin.common.server_admin_page_title', { title: m('admin.invitations.title') })}
-/>
+<PageTitle {title} />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.invitations.title')} subtitle={m('admin.invitations.subtitle')} />
+  <PaneHeader {title} />
 
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
-      <Panel title={m('admin.invitations.create_title')} icon="iconify icon-[uil--envelope-share]">
-        <form
-          class="flex flex-col gap-4"
-          onsubmit={(event) => {
-            event.preventDefault();
-            if (!maxUsesInvalid) createInvitationMutation.mutate();
-          }}
-        >
-          <div class="grid gap-4 sm:grid-cols-2">
-            <TextInput
-              id="invitation-max-uses"
-              label={m('admin.invitations.max_uses')}
-              bind:value={maxUses}
-              disabled={unlimitedUses || createInvitationMutation.isPending}
-              error={maxUsesInvalid ? m('admin.invitations.max_uses_error') : undefined}
-            />
-            <Select
-              id="invitation-expiry"
-              label={m('admin.invitations.expiry')}
-              bind:value={expiry}
-              disabled={createInvitationMutation.isPending}
-              options={[
-                { value: '1d', label: m('admin.invitations.expiry_1d') },
-                { value: '7d', label: m('admin.invitations.expiry_7d') },
-                { value: '30d', label: m('admin.invitations.expiry_30d') },
-                { value: 'never', label: m('admin.invitations.expiry_never') }
-              ]}
-            />
-          </div>
-          <Checkbox
-            id="invitation-unlimited-uses"
-            bind:checked={unlimitedUses}
-            label={m('admin.invitations.unlimited_uses')}
-            disabled={createInvitationMutation.isPending}
-          />
-          <div>
+      <FeatureCompatibilityNotice
+        features={limitedFeatures}
+        serverSegment={serverIdToSegment(serverScope.serverId)}
+      />
+      {#if limitedFeatures.length === 0}
+        {#if serverScope.store.permissions.canCreateInvites}
+          <div class="max-w-full self-start">
             <Button
-              type="submit"
-              loading={createInvitationMutation.isPending}
-              disabled={maxUsesInvalid}
+              fullWidth
+              href={resolve('/chat/[serverId]/invite', {
+                serverId: serverIdToSegment(serverScope.serverId)
+              })}
             >
-              <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
-              {m('admin.invitations.create')}
+              <span class="iconify icon-[uil--envelope-share]" aria-hidden="true"></span>
+              <span class="min-w-0 whitespace-normal">{m('invite_links.create')}</span>
             </Button>
           </div>
-        </form>
-      </Panel>
-
-      <Panel title={m('admin.invitations.list_title')} noPadding>
-        {#if invitationsQuery.error}
-          <div class="p-5"><Hint tone="danger">{errorMessage(invitationsQuery.error)}</Hint></div>
+        {:else}
+          <Hint>{m('invite_links.creation_unavailable')}</Hint>
         {/if}
-        <DataTable
-          items={invitations}
-          columns={5}
-          loading={loading && invitations.length === 0}
-          emptyMessage={m('admin.invitations.empty')}
-          {hasMore}
-          {loadingMore}
-          onLoadMore={loadMore}
-          loadMoreRoot={scrollContainer}
-          loadingMoreMessage={m('admin.common.loading')}
-        >
-          {#snippet header()}
-            <th class="table-header-cell">{m('admin.common.status')}</th>
-            <th class="table-header-cell">{m('admin.invitations.uses')}</th>
-            <th class="table-header-cell">{m('admin.common.expires')}</th>
-            <th class="table-header-cell">{m('admin.invitations.created_at')}</th>
-            <th class="table-header-cell text-end">{m('admin.invitations.actions')}</th>
-          {/snippet}
-          {#snippet row(invitation)}
-            <td class="px-4 py-3"
-              ><Pill tone={statusTone(invitation.status)}
-                >{m(`admin.invitations.status.${invitation.status}`)}</Pill
-              ></td
-            >
-            <td class="px-4 py-3 whitespace-nowrap"
-              >{invitation.useCount} / {invitation.maxUses ?? '∞'}</td
-            >
-            <td class="px-4 py-3 text-muted"
-              >{invitation.expiresAt
-                ? formatTimestamp(invitation.expiresAt)
-                : m('admin.invitations.never')}</td
-            >
-            <td class="px-4 py-3 text-muted">{formatTimestamp(invitation.createdAt)}</td>
-            <td class="px-4 py-3">
-              <div class="flex justify-end gap-2">
-                <Button size="sm" variant="secondary" onclick={() => copyInvitation(invitation)}>
-                  <span aria-hidden="true" class="iconify icon-[uil--copy]"></span>{m(
-                    'admin.invitations.copy'
-                  )}
-                </Button>
-                {#if invitation.status === 'active'}
-                  <Button size="sm" variant="danger" onclick={() => (revokeTarget = invitation)}>
-                    <span aria-hidden="true" class="iconify icon-[uil--ban]"></span>{m(
-                      'admin.invitations.revoke'
+        <Panel title={listTitle} noPadding>
+          {#if invitationsQuery.error}
+            <div class="p-5"><Hint tone="danger">{errorMessage(invitationsQuery.error)}</Hint></div>
+          {/if}
+          <DataTable
+            items={invitations}
+            columns={manageAll ? 6 : 5}
+            loading={loading && invitations.length === 0}
+            emptyMessage={m('admin.invitations.empty')}
+            {hasMore}
+            {loadingMore}
+            onLoadMore={loadMore}
+            loadMoreRoot={scrollContainer}
+            loadingMoreMessage={m('admin.common.loading')}
+          >
+            {#snippet header()}
+              {#if manageAll}<th class="table-header-cell">{m('invite_links.creator')}</th>{/if}
+              <th class="table-header-cell">{m('admin.common.status')}</th>
+              <th class="table-header-cell">{m('admin.invitations.uses')}</th>
+              <th class="table-header-cell">{m('admin.common.expires')}</th>
+              <th class="table-header-cell">{m('admin.invitations.created_at')}</th>
+              <th class="table-header-cell text-end">{m('admin.invitations.actions')}</th>
+            {/snippet}
+            {#snippet row(invitation)}
+              {#if manageAll}
+                {@const creator = users.view(invitation.createdBy)}
+                <td class="px-4 py-3"
+                  ><AccountName
+                    name={creator?.displayName || creator?.login || invitation.createdBy}
+                    identity={creator}
+                  /></td
+                >
+              {/if}
+              <td class="px-4 py-3"
+                ><Pill tone={statusTone(invitation.status)}
+                  >{m(`admin.invitations.status.${invitation.status}`)}</Pill
+                ></td
+              >
+              <td class="px-4 py-3 whitespace-nowrap"
+                >{invitation.useCount} / {invitation.maxUses ?? '∞'}</td
+              >
+              <td class="px-4 py-3 text-muted"
+                >{invitation.expiresAt
+                  ? formatTimestamp(invitation.expiresAt)
+                  : m('admin.invitations.never')}</td
+              >
+              <td class="px-4 py-3 text-muted">{formatTimestamp(invitation.createdAt)}</td>
+              <td class="px-4 py-3">
+                <div class="flex justify-end gap-2">
+                  <Button size="sm" variant="secondary" onclick={() => copyInvitation(invitation)}>
+                    <span aria-hidden="true" class="iconify icon-[uil--copy]"></span>{m(
+                      'invite_links.copy'
                     )}
                   </Button>
-                {/if}
-              </div>
-            </td>
-          {/snippet}
-        </DataTable>
-      </Panel>
+                  {#if invitation.status === 'active'}
+                    <Button size="sm" variant="danger" onclick={() => (revokeTarget = invitation)}>
+                      <span aria-hidden="true" class="iconify icon-[uil--ban]"></span>{m(
+                        'admin.invitations.revoke'
+                      )}
+                    </Button>
+                  {/if}
+                </div>
+              </td>
+            {/snippet}
+          </DataTable>
+        </Panel>
+      {/if}
     </div>
   </PaneContent>
 </div>

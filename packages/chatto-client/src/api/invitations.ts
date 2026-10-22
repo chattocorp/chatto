@@ -1,11 +1,14 @@
+/** Invite-link requests shared by frontends and integrations. All reads are
+ * scoped by the server to owned links or effective global management authority. */
 import { Timestamp } from '@bufbuild/protobuf';
-import { AdminInviteLinkService } from '@chatto/api-types/admin/v1/invitations_connect';
+import { InviteLinkService } from '@chatto/api-types/api/v1/invitations_connect';
 import {
   InviteLinkStatus,
   type InviteLink as APIInviteLink
-} from '@chatto/api-types/admin/v1/invitations_pb';
-import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
+} from '@chatto/api-types/api/v1/invitations_pb';
+import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 
+/** A visible bearer link and its current lifecycle state. Keep it in memory only. */
 export type InviteLink = {
   id: string;
   link: string;
@@ -18,8 +21,10 @@ export type InviteLink = {
   revokedAt: string | null;
 };
 
+/** Creates the invite-link facade. Hosts must clear cached results when the
+ * session, permissions, or privileged mode changes. */
 export function createInviteLinkAPI(config: ConnectAPIConfig) {
-  const client = createChattoClient(AdminInviteLinkService, config);
+  const client = createChattoClient(InviteLinkService, config);
   return {
     async list(offset = 0, limit = 100, options: { signal?: AbortSignal } = {}) {
       const response = await client.listInviteLinks(
@@ -32,16 +37,27 @@ export function createInviteLinkAPI(config: ConnectAPIConfig) {
         hasMore: response.page?.hasMore ?? false
       };
     },
-    async create(input: { maxUses: number | null; expiresAt: string | null }) {
-      const response = await client.createInviteLink({
-        maxUses: input.maxUses ?? undefined,
-        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
-      });
+    async get(id: string, options: { signal?: AbortSignal } = {}) {
+      const response = await client.getInviteLink({ id }, { signal: options.signal });
       if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
       return mapInviteLink(response.inviteLink);
     },
-    async revoke(id: string) {
-      const response = await client.revokeInviteLink({ id });
+    async create(
+      input: { maxUses: number | null; expiresAt: string | null },
+      options: { signal?: AbortSignal } = {}
+    ) {
+      const response = await client.createInviteLink(
+        {
+          maxUses: input.maxUses ?? undefined,
+          expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+        },
+        { signal: options.signal }
+      );
+      if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
+      return mapInviteLink(response.inviteLink);
+    },
+    async revoke(id: string, options: { signal?: AbortSignal } = {}) {
+      const response = await client.revokeInviteLink({ id }, { signal: options.signal });
       if (!response.inviteLink) throw new Error('Invite-link response was incomplete.');
       return mapInviteLink(response.inviteLink);
     }

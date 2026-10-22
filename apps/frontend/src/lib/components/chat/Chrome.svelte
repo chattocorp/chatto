@@ -227,6 +227,15 @@
           <span aria-hidden="true" class="iconify sidebar-icon icon-[uil--estate]"></span>
           {m('chat.overview.title')}
         </a>
+        {#if activeStore.permissions.canCreateInvites}
+          <a
+            href={resolve('/chat/[serverId]/invite', { serverId: serverSegment })}
+            class="sidebar-item"
+          >
+            <span class="iconify sidebar-icon icon-[uil--envelope-share]" aria-hidden="true"></span>
+            {m('invite_links.invite_to_server')}
+          </a>
+        {/if}
         {#if messageSearchAvailable}
           <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- searchHref is resolved above -->
           <a

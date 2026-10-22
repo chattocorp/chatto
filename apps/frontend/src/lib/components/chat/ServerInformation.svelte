@@ -37,6 +37,10 @@
     loading?: boolean;
   } = $props();
   const descriptions = $derived({
+    inviteLinks: {
+      title: m('invite_links.compatibility_title'),
+      description: m('invite_links.compatibility_description')
+    },
     threadViews: {
       title: m('chat.compatibility.thread_views_title'),
       description: m('chat.compatibility.thread_views_description')

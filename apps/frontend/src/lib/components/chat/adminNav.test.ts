@@ -88,7 +88,7 @@ describe('getAdminNavItems', () => {
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
   });
 
-  it('shows Invite links only for invitation managers', () => {
+  it('shows Server invites for members who can manage their own links', () => {
     const hidden = getAdminNavItems({
       serverSegment: 'local',
       permissions: permissions({ canViewAdmin: true })
@@ -98,8 +98,8 @@ describe('getAdminNavItems', () => {
       permissions: permissions({ canViewAdmin: true, canManageInvites: true })
     });
 
-    expect(hidden.some((item) => item.label === 'Invite links')).toBe(false);
-    expect(visible.find((item) => item.label === 'Invite links')?.href).toBe(
+    expect(hidden.some((item) => item.label === 'Server invites')).toBe(true);
+    expect(visible.find((item) => item.label === 'Server invites')?.href).toBe(
       '/chat/local/manage/server/invite-links'
     );
   });

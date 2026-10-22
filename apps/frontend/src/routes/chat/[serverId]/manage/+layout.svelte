@@ -55,7 +55,9 @@
     }
 
     if (pathname.startsWith(invitationsBase)) {
-      return () => permissions.canManageInvites;
+      // Creators retain access to their links after losing creation authority.
+      // InviteLinkService scopes every operation by ownership or management.
+      return () => true;
     }
 
     // The room collection is a server-wide layout editor. Individual room

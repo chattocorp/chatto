@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Sunucuya davet et",
+    "compatibility_title": "Sunucu davetleri kullanılamıyor",
+    "compatibility_description": "Bu sunucu, bu uygulamada davet bağlantısı oluşturmayı veya yönetmeyi desteklemiyor. Mevcut davet bağlantıları geçerliliğini korur.",
+    "own": "Sunucu davetleriniz",
+    "all": "Tüm sunucu davetleri",
+    "creator": "Oluşturan",
+    "create_permission": "Sunucu davetleri oluştur",
+    "manage_permission": "Tüm sunucu davetlerini yönet",
+    "create_help": "Yeni hesaplar için bağlantılar oluşturun. Bu iznin kaldırılması mevcut bağlantıları iptal etmez.",
+    "manage_help": "Herkesin bağlantılarını görüntüleyin, kopyalayın ve iptal edin. Kalkan modu gerektirir; oluşturmaya izin vermez.",
+    "max_uses": "En fazla kullanım",
+    "max_uses_error": "En az 1 olan bir tam sayı girin.",
+    "unlimited_uses": "Sınırsız kullanıma izin ver",
+    "expiry": "Geçerlilik süresi",
+    "expiry_1d": "1 gün",
+    "expiry_7d": "7 gün",
+    "expiry_30d": "30 gün",
+    "expiry_never": "Asla",
+    "create": "Sunucu daveti oluştur",
+    "created": "Sunucu daveti oluşturuldu",
+    "copy": "Bağlantıyı kopyala",
+    "copied": "Sunucu daveti kopyalandı",
+    "title": "Sunucu davetleri",
+    "creation_unavailable": "Sunucu daveti oluşturmak için bir sunucu yöneticisinden izin almanız gerekir. Mevcut davetlerinizi yönetmeye devam edebilirsiniz."
+  }
+}

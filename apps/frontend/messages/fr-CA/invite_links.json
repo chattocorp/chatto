@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Inviter sur le serveur",
+    "compatibility_title": "Les invitations au serveur ne sont pas disponibles",
+    "compatibility_description": "Ce serveur ne permet pas de créer ni de gérer des liens d’invitation dans cette application. Les liens existants restent valides.",
+    "own": "Vos invitations au serveur",
+    "all": "Toutes les invitations au serveur",
+    "creator": "Créé par",
+    "create_permission": "Créer des invitations au serveur",
+    "manage_permission": "Gérer toutes les invitations au serveur",
+    "create_help": "Créez des liens pour de nouveaux comptes. Retirer cette permission ne révoque pas les liens existants.",
+    "manage_help": "Consultez, copiez et révoquez les liens de tous les membres. Nécessite le mode bouclier ; ne permet pas la création.",
+    "max_uses": "Nombre maximal d’utilisations",
+    "max_uses_error": "Saisissez un nombre entier supérieur ou égal à 1.",
+    "unlimited_uses": "Autoriser un nombre illimité d’utilisations",
+    "expiry": "Expiration",
+    "expiry_1d": "1 jour",
+    "expiry_7d": "7 jours",
+    "expiry_30d": "30 jours",
+    "expiry_never": "Jamais",
+    "create": "Créer une invitation au serveur",
+    "created": "Invitation au serveur créée",
+    "copy": "Copier le lien",
+    "copied": "Invitation au serveur copiée",
+    "title": "Invitations au serveur",
+    "creation_unavailable": "La création d’invitations au serveur nécessite une permission accordée par un administrateur du serveur. Vous pouvez toujours gérer vos invitations existantes."
+  }
+}

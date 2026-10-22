@@ -52,6 +52,7 @@ export type ViewerCapabilities = {
   canAdminViewSystem: boolean;
   canAdminViewAudit: boolean;
   canManageUserPermissions: boolean;
+  /** Effective invite.manage; includes the human privileged-mode gate. */
   canManageInvites: boolean;
 };
 
@@ -122,7 +123,7 @@ const capabilityKeys = {
   adminViewSystem: 'admin.view-system',
   adminViewAudit: 'admin.view-audit',
   manageUserPermissions: 'user.manage-permissions',
-  manageInvites: 'user.invite'
+  manageInvites: 'invite.manage'
 } as const;
 
 /**

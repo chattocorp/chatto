@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Invitar al servidor",
+    "compatibility_title": "Las invitaciones al servidor no están disponibles",
+    "compatibility_description": "Este servidor no permite crear ni gestionar enlaces de invitación en esta aplicación. Los enlaces existentes siguen siendo válidos.",
+    "own": "Tus invitaciones al servidor",
+    "all": "Todas las invitaciones al servidor",
+    "creator": "Creado por",
+    "create_permission": "Crear invitaciones al servidor",
+    "manage_permission": "Gestionar todas las invitaciones al servidor",
+    "create_help": "Crea enlaces para nuevas cuentas. Retirar este permiso no revoca los enlaces existentes.",
+    "manage_help": "Consulta, copia y revoca los enlaces de cualquier persona. Requiere el modo escudo; no permite crearlos.",
+    "max_uses": "Usos máximos",
+    "max_uses_error": "Introduce un número entero igual o mayor que 1.",
+    "unlimited_uses": "Permitir usos ilimitados",
+    "expiry": "Caducidad",
+    "expiry_1d": "1 día",
+    "expiry_7d": "7 días",
+    "expiry_30d": "30 días",
+    "expiry_never": "Nunca",
+    "create": "Crear invitación al servidor",
+    "created": "Invitación al servidor creada",
+    "copy": "Copiar enlace",
+    "copied": "Invitación al servidor copiada",
+    "title": "Invitaciones al servidor",
+    "creation_unavailable": "Crear invitaciones al servidor requiere el permiso de un administrador del servidor. Puedes seguir gestionando tus invitaciones existentes."
+  }
+}

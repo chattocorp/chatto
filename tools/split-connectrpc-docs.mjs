@@ -155,6 +155,12 @@ const categories = [
         description: 'Thread timeline, read-state, follow, and followed-thread listing RPCs.'
       },
       {
+        name: 'InviteLinkService',
+        slug: 'invite-links',
+        title: 'Invite Links',
+        description: 'Invite-link creation and ownership-based management RPCs.'
+      },
+      {
         name: 'UserService',
         slug: 'users',
         title: 'Users',
@@ -177,12 +183,6 @@ const categories = [
   {
     title: 'chatto.admin.v1',
     services: [
-      {
-        name: 'AdminInviteLinkService',
-        slug: 'admin-invite-links',
-        title: 'Admin Invite Links',
-        description: 'Invite-link administration RPCs.'
-      },
       {
         name: 'AdminOAuthClientService',
         slug: 'admin-oauth-clients',

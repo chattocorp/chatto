@@ -50,6 +50,7 @@ const { mocks } = vi.hoisted(() => {
       },
       store: {
         isAuthenticated: true,
+        permissions: { canCreateInvites: false, canManageInvites: false },
         projection: { viewer: {} as object | null },
         notifications: {
           fetch: vi.fn().mockResolvedValue(undefined),
@@ -326,6 +327,7 @@ describe('ServerSidebarEntry', () => {
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
     mocks.store.isAuthenticated = true;
+    mocks.store.permissions = { canCreateInvites: false, canManageInvites: false };
     mocks.listRooms.mockResolvedValue([]);
     mocks.createRoomDirectoryAPI.mockReturnValue({ listRooms: mocks.listRooms });
     mocks.store.notifications.fetch.mockClear();
@@ -362,6 +364,23 @@ describe('ServerSidebarEntry', () => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
   });
+
+  it.each([false, true])(
+    'offers invitation creation only with create permission (%s)',
+    async (canCreate) => {
+      mocks.store.permissions = { canCreateInvites: canCreate, canManageInvites: true };
+      const screen = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+      openServerMenu(q(screen.container, '[data-testid="server-icon"]'));
+      const invite = screen.getByRole('menuitem', { name: 'Invite to server' });
+      if (canCreate) {
+        await expect.element(invite).toBeVisible();
+        await invite.click();
+        expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com/invite');
+      } else {
+        await expect.element(invite).not.toBeInTheDocument();
+      }
+    }
+  );
 
   it('opens the move actions from the keyboard and keeps navigation unchanged', async () => {
     otherServerIds.add('second');

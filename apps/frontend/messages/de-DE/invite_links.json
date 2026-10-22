@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Zum Server einladen",
+    "compatibility_title": "Server-Einladungen sind nicht verfügbar",
+    "compatibility_description": "Dieser Server unterstützt das Erstellen und Verwalten von Einladungslinks in dieser App nicht. Bestehende Einladungslinks bleiben gültig.",
+    "own": "Deine Server-Einladungen",
+    "all": "Alle Server-Einladungen",
+    "creator": "Erstellt von",
+    "create_permission": "Server-Einladungen erstellen",
+    "manage_permission": "Alle Server-Einladungen verwalten",
+    "create_help": "Erstelle Links für neue Konten. Der Entzug dieser Berechtigung widerruft bestehende Links nicht.",
+    "manage_help": "Zeige, kopiere und widerrufe die Einladungslinks aller Personen. Erfordert den Schutzmodus; erlaubt keine Erstellung.",
+    "max_uses": "Maximale Nutzungen",
+    "max_uses_error": "Gib eine ganze Zahl von mindestens 1 ein.",
+    "unlimited_uses": "Unbegrenzte Nutzungen erlauben",
+    "expiry": "Ablauf",
+    "expiry_1d": "1 Tag",
+    "expiry_7d": "7 Tage",
+    "expiry_30d": "30 Tage",
+    "expiry_never": "Nie",
+    "create": "Server-Einladung erstellen",
+    "created": "Server-Einladung erstellt",
+    "copy": "Link kopieren",
+    "copied": "Server-Einladung kopiert",
+    "title": "Server-Einladungen",
+    "creation_unavailable": "Um Server-Einladungen zu erstellen, brauchst du die Berechtigung eines Server-Administrators. Deine bestehenden Einladungen kannst du weiterhin verwalten."
+  }
+}

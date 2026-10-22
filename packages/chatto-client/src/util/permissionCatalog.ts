@@ -21,6 +21,7 @@ export const PERMISSION_CATEGORIES = [
   'role',
   'room',
   'server',
+  'server-invite',
   'user',
   'other'
 ] as const;
@@ -181,8 +182,12 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     category: 'user',
     scopes: ['server']
   },
-  'user.invite': {
-    category: 'user',
+  'invite.create': {
+    category: 'server-invite',
+    scopes: ['server']
+  },
+  'invite.manage': {
+    category: 'server-invite',
     scopes: ['server'],
     privileged: true
   },

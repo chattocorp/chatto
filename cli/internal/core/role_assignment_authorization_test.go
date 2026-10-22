@@ -2,10 +2,53 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/stretchr/testify/require"
 )
+
+// Replaying retired decisions must not make otherwise delegated roles unusable.
+func TestDelegatedRoleAssignmentIgnoresRetiredInviteDecisions(t *testing.T) {
+	t.Parallel()
+	for _, role := range []string{RoleAdmin, "legacy-inviter"} {
+		for _, scope := range []PermissionScope{ScopeServer, ScopeRoom, ScopeGroup, ScopeDM} {
+			for _, deny := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%s/deny=%t", role, scope, deny), func(t *testing.T) {
+					core, _ := setupTestCore(t)
+					ctx := testContext(t)
+					actor, err := core.CreateUser(ctx, SystemActorID, "assigner", "Assigner", "password123")
+					require.NoError(t, err)
+					target, err := core.CreateUser(ctx, SystemActorID, "target", "Target", "password123")
+					require.NoError(t, err)
+					require.NoError(t, core.AssignAdminRole(ctx, actor.Id))
+					if role != RoleAdmin {
+						_, err = core.CreateServerRole(ctx, SystemActorID, role, "Legacy inviter", "", false)
+						require.NoError(t, err)
+					}
+					// Append historical facts directly: current commands reject this permission.
+					event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
+						RbacPermissionGranted: rbacRolePermissionGrantedEvent(scope, "legacy-scope", role, permUserInviteLegacy),
+					}})
+					if deny {
+						event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
+							RbacPermissionDenied: rbacRolePermissionDeniedEvent(scope, "legacy-scope", role, permUserInviteLegacy),
+						}})
+					}
+					pos, err := core.EventPublisher.AppendEventually(ctx, rbacSubjectForEvent(event), event)
+					require.NoError(t, err)
+					require.NoError(t, core.rbacModel.waitFor(ctx, events.SubjectPosition(rbacSubjectForEvent(event), pos)))
+					require.NoError(t, core.AdminAssignServerRole(ctx, actor.Id, target.Id, role))
+					require.True(t, core.rbacModel.hasRole(target.Id, role))
+					require.NoError(t, core.AdminRevokeServerRole(ctx, actor.Id, target.Id, role))
+					require.False(t, core.rbacModel.hasRole(target.Id, role))
+				})
+			}
+		}
+	}
+}
 
 func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	t.Parallel()

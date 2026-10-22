@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "邀請加入伺服器",
+    "compatibility_title": "伺服器邀請無法使用",
+    "compatibility_description": "此伺服器不支援在此應用程式中建立或管理邀請連結。現有邀請連結仍然有效。",
+    "own": "你的伺服器邀請",
+    "all": "所有伺服器邀請",
+    "creator": "建立者",
+    "create_permission": "建立伺服器邀請",
+    "manage_permission": "管理所有伺服器邀請",
+    "create_help": "建立用於註冊新帳號的連結。移除此權限不會撤銷現有連結。",
+    "manage_help": "檢視、複製及撤銷任何人的邀請連結。需要護盾模式；不允許建立連結。",
+    "max_uses": "最多使用次數",
+    "max_uses_error": "請輸入不小於 1 的整數。",
+    "unlimited_uses": "允許無限次使用",
+    "expiry": "有效期限",
+    "expiry_1d": "1 天",
+    "expiry_7d": "7 天",
+    "expiry_30d": "30 天",
+    "expiry_never": "永不過期",
+    "create": "建立伺服器邀請",
+    "created": "已建立伺服器邀請",
+    "copy": "複製連結",
+    "copied": "已複製伺服器邀請",
+    "title": "伺服器邀請",
+    "creation_unavailable": "建立伺服器邀請需要伺服器管理員授予權限。你仍然可以管理現有的邀請。"
+  }
+}

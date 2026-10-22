@@ -1,0 +1,28 @@
+{
+  "invite_links": {
+    "invite_to_server": "Zaproś na serwer",
+    "compatibility_title": "Zaproszenia na serwer są niedostępne",
+    "compatibility_description": "Ten serwer nie obsługuje tworzenia linków zaproszeń ani zarządzania nimi w tej aplikacji. Istniejące linki pozostają ważne.",
+    "own": "Twoje zaproszenia na serwer",
+    "all": "Wszystkie zaproszenia na serwer",
+    "creator": "Utworzony przez",
+    "create_permission": "Twórz zaproszenia na serwer",
+    "manage_permission": "Zarządzaj wszystkimi zaproszeniami na serwer",
+    "create_help": "Twórz linki dla nowych kont. Odebranie tego uprawnienia nie unieważnia istniejących linków.",
+    "manage_help": "Przeglądaj, kopiuj i unieważniaj linki wszystkich osób. Wymaga trybu tarczy; nie pozwala tworzyć linków.",
+    "max_uses": "Maksymalna liczba użyć",
+    "max_uses_error": "Wpisz liczbę całkowitą równą co najmniej 1.",
+    "unlimited_uses": "Zezwalaj na nieograniczoną liczbę użyć",
+    "expiry": "Wygaśnięcie",
+    "expiry_1d": "1 dzień",
+    "expiry_7d": "7 dni",
+    "expiry_30d": "30 dni",
+    "expiry_never": "Nigdy",
+    "create": "Utwórz zaproszenie na serwer",
+    "created": "Utworzono zaproszenie na serwer",
+    "copy": "Kopiuj link",
+    "copied": "Skopiowano zaproszenie na serwer",
+    "title": "Zaproszenia na serwer",
+    "creation_unavailable": "Tworzenie zaproszeń na serwer wymaga uprawnienia od administratora serwera. Nadal możesz zarządzać swoimi istniejącymi zaproszeniami."
+  }
+}

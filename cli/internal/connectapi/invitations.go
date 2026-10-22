@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
-	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -15,9 +15,9 @@ const (
 	maxInviteLinkLimit     = 100
 )
 
-type adminInviteLinkService struct{ api *API }
+type inviteLinkService struct{ api *API }
 
-func (s *adminInviteLinkService) ListInviteLinks(ctx context.Context, req *connect.Request[adminv1.ListInviteLinksRequest]) (*connect.Response[adminv1.ListInviteLinksResponse], error) {
+func (s *inviteLinkService) ListInviteLinks(ctx context.Context, req *connect.Request[apiv1.ListInviteLinksRequest]) (*connect.Response[apiv1.ListInviteLinksResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -32,17 +32,17 @@ func (s *adminInviteLinkService) ListInviteLinks(ctx context.Context, req *conne
 		offset = total
 	}
 	end := min(offset+limit, total)
-	result := make([]*adminv1.InviteLink, 0, end-offset)
+	result := make([]*apiv1.InviteLink, 0, end-offset)
 	for _, state := range states[offset:end] {
 		result = append(result, s.apiInviteLink(ctx, state))
 	}
-	return connect.NewResponse(&adminv1.ListInviteLinksResponse{
+	return connect.NewResponse(&apiv1.ListInviteLinksResponse{
 		InviteLinks: result,
 		Page:        apiPageInfo(total, end < total),
 	}), nil
 }
 
-func (s *adminInviteLinkService) GetInviteLink(ctx context.Context, req *connect.Request[adminv1.GetInviteLinkRequest]) (*connect.Response[adminv1.GetInviteLinkResponse], error) {
+func (s *inviteLinkService) GetInviteLink(ctx context.Context, req *connect.Request[apiv1.GetInviteLinkRequest]) (*connect.Response[apiv1.GetInviteLinkResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -51,10 +51,10 @@ func (s *adminInviteLinkService) GetInviteLink(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.GetInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
+	return connect.NewResponse(&apiv1.GetInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
 
-func (s *adminInviteLinkService) CreateInviteLink(ctx context.Context, req *connect.Request[adminv1.CreateInviteLinkRequest]) (*connect.Response[adminv1.CreateInviteLinkResponse], error) {
+func (s *inviteLinkService) CreateInviteLink(ctx context.Context, req *connect.Request[apiv1.CreateInviteLinkRequest]) (*connect.Response[apiv1.CreateInviteLinkResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -72,10 +72,10 @@ func (s *adminInviteLinkService) CreateInviteLink(ctx context.Context, req *conn
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.CreateInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
+	return connect.NewResponse(&apiv1.CreateInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
 
-func (s *adminInviteLinkService) RevokeInviteLink(ctx context.Context, req *connect.Request[adminv1.RevokeInviteLinkRequest]) (*connect.Response[adminv1.RevokeInviteLinkResponse], error) {
+func (s *inviteLinkService) RevokeInviteLink(ctx context.Context, req *connect.Request[apiv1.RevokeInviteLinkRequest]) (*connect.Response[apiv1.RevokeInviteLinkResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -84,11 +84,11 @@ func (s *adminInviteLinkService) RevokeInviteLink(ctx context.Context, req *conn
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.RevokeInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
+	return connect.NewResponse(&apiv1.RevokeInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
 
-func (s *adminInviteLinkService) apiInviteLink(ctx context.Context, state core.InvitationState) *adminv1.InviteLink {
-	inviteLink := &adminv1.InviteLink{
+func (s *inviteLinkService) apiInviteLink(ctx context.Context, state core.InvitationState) *apiv1.InviteLink {
+	inviteLink := &apiv1.InviteLink{
 		Id:        state.ID,
 		Link:      s.api.absolutizeServerURL(ctx, s.api.core.InvitationLinkPath(state.ID)),
 		CreatedBy: state.CreatedBy,
@@ -106,17 +106,17 @@ func (s *adminInviteLinkService) apiInviteLink(ctx context.Context, state core.I
 	return inviteLink
 }
 
-func apiInviteLinkStatus(status core.InvitationStatus) adminv1.InviteLinkStatus {
+func apiInviteLinkStatus(status core.InvitationStatus) apiv1.InviteLinkStatus {
 	switch status {
 	case core.InvitationStatusActive:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_ACTIVE
+		return apiv1.InviteLinkStatus_INVITE_LINK_STATUS_ACTIVE
 	case core.InvitationStatusExpired:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_EXPIRED
+		return apiv1.InviteLinkStatus_INVITE_LINK_STATUS_EXPIRED
 	case core.InvitationStatusExhausted:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_EXHAUSTED
+		return apiv1.InviteLinkStatus_INVITE_LINK_STATUS_EXHAUSTED
 	case core.InvitationStatusRevoked:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_REVOKED
+		return apiv1.InviteLinkStatus_INVITE_LINK_STATUS_REVOKED
 	default:
-		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_UNSPECIFIED
+		return apiv1.InviteLinkStatus_INVITE_LINK_STATUS_UNSPECIFIED
 	}
 }

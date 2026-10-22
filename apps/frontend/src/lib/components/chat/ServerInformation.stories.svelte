@@ -26,11 +26,12 @@
 </script>
 
 <Story name="Older server" args={example('0.5.0-beta.11')} />
-<Story name="Supported server" args={example('0.5.0-beta.16')} />
+<Story name="Invite links unavailable" args={example('0.5.0-beta.17')} />
+<Story name="Supported server" args={example('0.5.0-beta.18')} />
 <Story
   name="Community profile"
   args={{
-    ...example('0.5.0-beta.16'),
+    ...example('0.5.0-beta.18'),
     iconUrl: exampleIcon,
     bannerUrl: exampleBanner,
     description: 'A place to share projects and meet other makers.',

@@ -175,8 +175,7 @@
       "security": "Seguridad",
       "event_log": "Registro de eventos",
       "system": "Sistema",
-      "back_to_server": "Regresar al Servidor",
-      "invitations": "Enlaces de invitación"
+      "back_to_server": "Regresar al Servidor"
     }
   }
 }

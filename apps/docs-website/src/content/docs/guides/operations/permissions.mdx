@@ -53,7 +53,7 @@ roles does not change which setting wins.
 | ---- | --------------------------------------- |
 | `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
 | `moderator` | `message.manage`, `message.pin`, `room.remove-member` |
-| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `message.pin`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
+| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `message.pin`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `invite.create`, `invite.manage`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
 | `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
 Moderators and admins get their member permissions from `everyone`. A new
@@ -131,7 +131,8 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `role.assign` | S | Yes | Assign and remove roles. A non-owner can assign only roles whose allows they have. Only owners can assign `owner`. |
 | `admin.view-users` | S | Yes | See the member list in Server Administration. |
 | `admin.view-audit` | S | Yes | See the event log. |
-| `user.invite` | S | Yes | List, create, copy, and revoke invite links. The holder can use all active invite links. |
+| `invite.create` | S | No | Create invite links. Removing this permission does not revoke existing links. |
+| `invite.manage` | S | Yes | List, copy, and revoke anyone's invite links. Does not permit creation. Creators can manage their own links without a permission. |
 | `user.manage-accounts` | S | Yes | Create accounts, edit account identity, reset passwords, attach verified email addresses, and clear login cooldowns. |
 | `user.manage-permissions` | S | Yes | Change the permission settings of one user. |
 | `user.delete-any` | S | Yes | Delete any account. |
@@ -246,8 +247,9 @@ the 0.4 behavior:
 
 Make these changes on an upgraded server:
 
-- **Allow `user.invite` and `bot.manage`** for `admin` if admins must manage
+- **Allow `invite.manage` and `bot.manage`** for `admin` if admins must manage
   invite links and bots.
+- **Allow `invite.create`** for the roles that can create invite links.
 - **Allow `bot.create`** for the roles that can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.

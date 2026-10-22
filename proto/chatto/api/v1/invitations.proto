@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package chatto.admin.v1;
+package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/pagination.proto";
@@ -15,10 +15,11 @@ enum InviteLinkStatus {
   INVITE_LINK_STATUS_REVOKED = 4;
 }
 
-// An administrator-visible invite link. The link is a bearer capability and
-// is returned only to callers with user.invite.
+// An invite link visible to its creator or a caller with effective
+// invite.manage. The link is a bearer capability: anyone who has it can
+// create an account while the link is active and admission requires an invite.
 message InviteLink {
-  // Durable identifier used for administrative operations.
+  // Identifier used to read or revoke the link.
   string id = 1;
   // Fully qualified bearer URL. Anyone who has it can use the link while active.
   string link = 2;
@@ -31,7 +32,9 @@ message InviteLink {
   google.protobuf.Timestamp revoked_at = 9;
 }
 
-// Requests a page of invite links, newest first.
+// Requests a page of owned invite links, newest first. Effective
+// invite.manage expands the result to all links. Counts include only
+// visible links. Refresh and clear cached links when authority changes.
 message ListInviteLinksRequest {
   // Defaults to 20 results when absent or limit is zero. Maximum: 100.
   chatto.api.v1.PageRequest page = 1;
@@ -68,14 +71,19 @@ message RevokeInviteLinkResponse {
   InviteLink invite_link = 1;
 }
 
-// Manages the invite links used for invite-only account admission.
-service AdminInviteLinkService {
-  // Lists invite links. Requires user.invite.
+// Creates and manages links for invite-only account admission. Creators can
+// read and revoke their own links without a permission or privileged mode.
+// Effective invite.manage permits reads and revocation of any link and
+// requires privileged mode for human sessions. It does not permit creation.
+// Removing creation permission does not invalidate existing links.
+service InviteLinkService {
+  // Lists visible links. Filters by authorization before pagination and counts.
   rpc ListInviteLinks(ListInviteLinksRequest) returns (ListInviteLinksResponse);
-  // Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
+  // Gets a visible link. Missing and inaccessible links both return NOT_FOUND.
   rpc GetInviteLink(GetInviteLinkRequest) returns (GetInviteLinkResponse);
-  // Creates an invite link. Requires user.invite.
+  // Creates a link. Requires invite.create, without privileged mode.
   rpc CreateInviteLink(CreateInviteLinkRequest) returns (CreateInviteLinkResponse);
-  // Permanently revokes an invite link while retaining its audit history. Requires user.invite.
+  // Permanently revokes a visible link and retains its history. Repeated calls
+  // return the revoked link. Missing and inaccessible links return NOT_FOUND.
   rpc RevokeInviteLink(RevokeInviteLinkRequest) returns (RevokeInviteLinkResponse);
 }
