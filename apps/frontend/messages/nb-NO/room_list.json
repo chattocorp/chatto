@@ -31,6 +31,7 @@
     "room_actions": "Handlinger for #{room}",
     "open_group_settings": "Åpne gruppeinnstillinger",
     "open_room_settings": "Åpne rominnstillinger",
+    "activity_now": "nå",
     "older_conversations": "Eldre samtaler",
     "show_older_conversations": "Vis eldre ({count})",
     "show_fewer_conversations": "Vis færre"

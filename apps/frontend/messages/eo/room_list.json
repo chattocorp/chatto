@@ -31,6 +31,7 @@
     "room_actions": "Agoj por #{room}",
     "open_group_settings": "Malfermi agordojn de grupo",
     "open_room_settings": "Malfermi agordojn de ĉambro",
+    "activity_now": "nun",
     "older_conversations": "Pli malnovaj konversacioj",
     "show_older_conversations": "Montri pli malnovajn ({count})",
     "show_fewer_conversations": "Montri malpli"
