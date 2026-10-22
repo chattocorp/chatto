@@ -129,6 +129,14 @@
     padding-block: 0.35em;
     padding-inline-start: 0.9em;
     color: var(--prose-quote-text);
+    font-style: italic;
+  }
+
+  /* Emphasis reverses the quote's italics; code stays upright. */
+  & blockquote em,
+  & blockquote code,
+  & blockquote pre {
+    font-style: normal;
   }
 
   & blockquote > * {
