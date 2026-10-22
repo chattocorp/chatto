@@ -186,7 +186,7 @@
       "room_permissions_subtitle": "Åsidosättningsbehörigheter per rum (lagrat ovanpå rummets grupp)",
       "permissions_page_title": "Behörigheter – {name}",
       "back_to_rooms": "Tillbaka till rummen",
-      "group_permissions_hint": "Åsidosättanden per grupp för kanalrummen i denna grupp. Standardvärden ärvda från serveromfånget. Enskilda rum kan ytterligare åsidosätta behörigheter från sin egen behörighetssida.",
+      "group_permissions_hint": "Ange rollbehörigheter för alla rum i den här gruppen. De ersätter serverns standardvärden. Enskilda rum kan åsidosätta dessa inställningar.",
       "room_permissions_hint": "De här inställningarna gäller bara i det här rummet. De ersätter inställningarna för rumsgruppen och servern för samma roll eller användare. Om bara vissa roller ska kunna göra något här väljer du Neka för everyone och Tillåt för de rollerna.",
       "loading": "Laddar rum...",
       "empty_groups": "Inga rumsgrupper än",

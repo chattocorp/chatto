@@ -186,7 +186,7 @@
       "room_permissions_subtitle": "Permissões de substituição por sala (colocadas no topo do grupo da sala)",
       "permissions_page_title": "Permissões - {name}",
       "back_to_rooms": "Voltar às salas",
-      "group_permissions_hint": "Substituições por grupo para as salas de canal deste grupo. Padrões herdados do âmbito do servidor. As salas individuais podem substituir ainda mais as permissões das suas próprias páginas de permissões.",
+      "group_permissions_hint": "Defina as permissões dos cargos para todas as salas deste grupo. Estas substituem as predefinições do servidor. Cada sala pode substituir estas definições.",
       "room_permissions_hint": "Estas definições aplicam-se apenas nesta sala. Substituem as definições do grupo de salas e do servidor para a mesma função ou o mesmo utilizador. Para que só algumas funções possam fazer algo aqui, defina Negar para everyone e Permitir para essas funções.",
       "loading": "A carregar salas...",
       "empty_groups": "Ainda não existem grupos de salas",

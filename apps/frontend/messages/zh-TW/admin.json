@@ -186,7 +186,7 @@
       "room_permissions_subtitle": "各聊天室的覆寫權限（疊加於聊天室所屬群組之上）",
       "permissions_page_title": "權限 - {name}",
       "back_to_rooms": "返回聊天室",
-      "group_permissions_hint": "此群組內頻道聊天室的群組層級覆寫。預設值繼承自伺服器範圍。個別聊天室可在各自的權限頁面進一步覆寫權限。",
+      "group_permissions_hint": "設定此群組中所有房間的角色權限。這些設定會覆寫伺服器預設值。每個房間也可以覆寫這些設定。",
       "room_permissions_hint": "這些設定只在此聊天室中生效。對於同一角色或使用者，它們會取代聊天室群組和伺服器的設定。如果只想讓部分角色在這裡執行某項操作，請為 everyone 設定「拒絕」，並為這些角色設定「允許」。",
       "loading": "正在載入聊天室...",
       "empty_groups": "尚無聊天室群組",
