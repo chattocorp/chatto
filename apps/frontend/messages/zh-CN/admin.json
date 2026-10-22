@@ -186,7 +186,7 @@
       "room_permissions_subtitle": "各聊天室的覆盖权限（叠加在聊天室所属群组之上）",
       "permissions_page_title": "权限 - {name}",
       "back_to_rooms": "返回聊天室",
-      "group_permissions_hint": "此群组内频道聊天室的群组级覆盖项。默认值继承自服务器作用域。各聊天室可在自己的权限页面中进一步覆盖权限。",
+      "group_permissions_hint": "设置此分组中所有房间的角色权限。这些设置会覆盖服务器默认值。每个房间也可以覆盖这些设置。",
       "room_permissions_hint": "这些设置仅在此聊天室中生效。对于同一角色或用户，它们会取代聊天室分组和服务器的设置。如果只想让部分角色在这里执行某项操作，请为 everyone 设置“拒绝”，并为这些角色设置“允许”。",
       "loading": "正在加载聊天室...",
       "empty_groups": "暂无聊天室群组",

@@ -186,7 +186,7 @@
       "room_permissions_subtitle": "Per-ĉambraj anstataŭigaj permesoj (tavoligitaj sur la grupo de la ĉambro)",
       "permissions_page_title": "Permesoj - {name}",
       "back_to_rooms": "Reen al ĉambroj",
-      "group_permissions_hint": "Po-grupaj anstataŭaĵoj por la kanalĉambroj en ĉi tiu grupo. Defaŭltoj hereditaj de la servila amplekso. Individuaj ĉambroj povas plue superregi permesojn de sia propra permespaĝo.",
+      "group_permissions_hint": "Agordu rolpermesojn por ĉiuj ĉambroj en ĉi tiu grupo. Ili anstataŭas la defaŭltojn de la servilo. Individuaj ĉambroj povas anstataŭi ĉi tiujn agordojn.",
       "room_permissions_hint": "Ĉi tiuj agordoj validas nur en ĉi tiu ĉambro. Ili anstataŭas la agordojn de la ĉambrogrupo kaj de la servilo por la sama rolo aŭ uzanto. Por permesi ion ĉi tie nur al kelkaj roloj, agordu Rifuzi por everyone kaj Permesi por tiuj roloj.",
       "loading": "Ŝarĝante ĉambrojn...",
       "empty_groups": "Ankoraŭ neniuj ĉambrogrupoj",
