@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "継承",
           "off": "オフ",
-          "badge": "バッジ",
+          "badge": "未読の点",
           "badge_hint": "未読を示すグレーの点だけを追加します。通知の作成、サウンドの再生、プッシュ通知の送信は行いません。",
-          "notification": "通知",
+          "notification": "アプリ内通知",
           "push_notification": "プッシュ通知"
         },
         "reason": {

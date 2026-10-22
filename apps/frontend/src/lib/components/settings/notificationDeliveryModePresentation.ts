@@ -3,7 +3,8 @@ import type { MatrixCellTone } from '$lib/ui/matrix';
 import { m } from '$lib/i18n/messages';
 
 export type NotificationDeliveryModePresentation = {
-  icon: string;
+  /** Null renders the shared sidebar unread dot instead of an icon. */
+  icon: string | null;
   tone: MatrixCellTone;
   legendClass: string;
 };
@@ -21,7 +22,7 @@ export function notificationDeliveryModePresentation(
   }
   if (mode === NotificationDeliveryMode.UNREAD_BADGE) {
     return {
-      icon: 'icon-[ph--bell-fill]',
+      icon: null,
       tone: 'neutral',
       legendClass: 'text-text'
     };

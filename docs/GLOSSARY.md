@@ -125,7 +125,7 @@ another address does not change the selection. See
 
 **Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-077](adr/ADR-077-persistent-notification-list.md).
 
-**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Badge, Notification, or Push notification. Badge adds only a neutral unread dot. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Unread dot, In-app notification, or Push notification. Unread dot adds only a neutral unread dot. In-app notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Push Subscription** — One browser's Web Push registration for one account on one server, stored by that server. Each server has its own subscription in each browser. A subscription expires 180 days after its most recent save; the client saves it again while the device uses Chatto. See [FDR-013](fdr/FDR-013-web-push-notifications.md).
 

@@ -7,6 +7,7 @@ Inherited room-group and room cells render the effective mode at reduced
 intensity.
 -->
 <script lang="ts">
+  import { UnreadDot } from '$lib/ui';
   import { MatrixCellButton } from '$lib/ui/matrix';
   import {
     NotificationDeliveryMode,
@@ -96,7 +97,8 @@ intensity.
     tone={presentation.tone}
     explicit={explicitVisual}
     variant="icon"
-    icon={presentation.icon}
+    icon={presentation.icon ?? undefined}
+    iconContent={presentation.icon === null ? unreadDot : undefined}
     {loading}
     {disabled}
     pressed={override !== null}
@@ -104,3 +106,7 @@ intensity.
     onActivate={() => onChange(next)}
   />
 </span>
+
+{#snippet unreadDot()}
+  <UnreadDot color="neutral" />
+{/snippet}

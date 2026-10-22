@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Eredita",
           "off": "Disattivato",
-          "badge": "Indicatore",
+          "badge": "Punto dei contenuti non letti",
           "badge_hint": "Aggiunge solo un punto neutro per i contenuti non letti. Non crea una notifica, non riproduce un suono e non invia una notifica push.",
-          "notification": "Notifica",
+          "notification": "Notifica nell’app",
           "push_notification": "Notifica push"
         },
         "reason": {

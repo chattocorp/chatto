@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Inherit",
           "off": "Off",
-          "badge": "Badge",
+          "badge": "Unread dot",
           "badge_hint": "Adds only a neutral unread dot. It does not create a notification, play a sound, or send a push notification.",
-          "notification": "Notification",
+          "notification": "In-app notification",
           "push_notification": "Push notification"
         },
         "reason": {
