@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { UnreadDot } from '$lib/ui';
   import MatrixCellButton from './MatrixCellButton.svelte';
 
   const componentDescription = `
@@ -308,5 +309,22 @@
       ariaLabel="Inherited danger with warning"
       onActivate={() => undefined}
     />
+  </div>
+</Story>
+
+<Story name="Custom visual" asChild>
+  <div class="flex gap-4 rounded-lg bg-background p-4">
+    {#each [true, false] as explicit (explicit)}
+      <MatrixCellButton
+        variant="icon"
+        {explicit}
+        ariaLabel={explicit ? 'Explicit unread dot' : 'Inherited unread dot'}
+        onActivate={() => undefined}
+      >
+        {#snippet iconContent()}
+          <UnreadDot color="neutral" />
+        {/snippet}
+      </MatrixCellButton>
+    {/each}
   </div>
 </Story>

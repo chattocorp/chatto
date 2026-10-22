@@ -177,6 +177,26 @@ describe('NotificationPolicyCell', () => {
     expect(container.querySelector('[data-notification-source="inherited"]')).not.toBeNull();
   });
 
+  it('dims the inherited unread dot and replaces it with a spinner while saving', async () => {
+    const props = {
+      ...baseProps,
+      scope: { kind: 'room' as const, id: 'room-1' },
+      effective: NotificationDeliveryMode.UNREAD_BADGE,
+      override: null,
+      onChange: vi.fn()
+    };
+    const rendered = render(NotificationPolicyCell, { props });
+    const dot = rendered.container.querySelector('[class~="bg-text"][class~="rounded-full"]');
+    expect(dot).not.toBeNull();
+    expect(dot?.parentElement?.classList.contains('opacity-40')).toBe(true);
+
+    await rendered.rerender({ ...props, loading: true });
+    expect(
+      rendered.container.querySelector('[class~="bg-text"][class~="rounded-full"]')
+    ).toBeNull();
+    expect(rendered.container.querySelector('[class~="icon-[uil--spinner]"]')).not.toBeNull();
+  });
+
   it('keeps keyboard focus while a save is pending', async () => {
     const onChange = vi.fn();
     const rendered = render(NotificationPolicyCell, {
