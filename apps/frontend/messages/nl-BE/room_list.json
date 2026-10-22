@@ -31,6 +31,7 @@
     "room_actions": "Acties voor #{room}",
     "open_group_settings": "Groepsinstellingen openen",
     "open_room_settings": "Kamerinstellingen openen",
+    "activity_now": "nu",
     "older_conversations": "Oudere gesprekken",
     "show_older_conversations": "Oudere tonen ({count})",
     "show_fewer_conversations": "Minder tonen"

@@ -31,6 +31,7 @@
     "room_actions": "Ações para #{room}",
     "open_group_settings": "Abrir definições do grupo",
     "open_room_settings": "Abrir definições da sala",
+    "activity_now": "agora",
     "older_conversations": "Conversas antigas",
     "show_older_conversations": "Mostrar antigas ({count})",
     "show_fewer_conversations": "Mostrar menos"

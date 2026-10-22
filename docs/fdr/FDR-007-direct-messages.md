@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-10-21
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
@@ -38,7 +38,8 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   the sidebar and does not archive conversations. The Quick Switcher still
   includes older conversations. The collapsed section keeps its attention rules.
 - When a DM has no notification badge, its row shows the elapsed time since
-  the latest message, including replies: `min`, `h`, or `d`. The unread dot
+  the latest message, including replies: `now` for less than one minute, then
+  `min`, `h`, or `d`. The unread dot
   and active call indicator remain visible. Unknown activity times have no age.
   The full date and time appear on hover. Narrow sidebar rows hide ages to
   leave more space for names; notification badges stay visible.
