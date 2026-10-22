@@ -1,6 +1,6 @@
 version: v2
 plugins:
-  - local: ["go", "tool", "protoc-gen-go"]
+  - local: bin/proto/protoc-gen-go
     out: internal/pb
     opt:
       - paths=source_relative

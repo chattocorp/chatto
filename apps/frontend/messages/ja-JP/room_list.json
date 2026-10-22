@@ -31,6 +31,7 @@
     "room_actions": "#{room}のアクション",
     "open_group_settings": "グループ設定を開く",
     "open_room_settings": "ルーム設定を開く",
+    "activity_now": "今",
     "older_conversations": "以前の会話",
     "show_older_conversations": "以前の会話を表示（{count}）",
     "show_fewer_conversations": "表示を減らす"

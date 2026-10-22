@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
-          "badge": "Märgis",
+          "badge": "Lugemata sisu täpp",
           "badge_hint": "Lisab ainult neutraalse lugemata sisu täpi. See ei loo teavitust, ei esita heli ega saada tõuketeavitust.",
-          "notification": "Teavitus",
+          "notification": "Rakendusesisene teavitus",
           "push_notification": "Tõuketeavitus"
         },
         "reason": {

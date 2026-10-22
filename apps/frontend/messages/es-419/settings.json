@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Heredar",
           "off": "Desactivado",
-          "badge": "Indicador",
+          "badge": "Punto de contenido no leído",
           "badge_hint": "Solo agrega un punto neutro de contenido no leído. No crea una notificación, reproduce un sonido ni envía una notificación push.",
-          "notification": "Notificación",
+          "notification": "Notificación en la aplicación",
           "push_notification": "Notificación push"
         },
         "reason": {

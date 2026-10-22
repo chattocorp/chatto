@@ -31,6 +31,7 @@
     "room_actions": "#{room} 的操作",
     "open_group_settings": "開啟群組設定",
     "open_room_settings": "開啟聊天室設定",
+    "activity_now": "現在",
     "older_conversations": "較早的對話",
     "show_older_conversations": "顯示較早的對話（{count}）",
     "show_fewer_conversations": "收合"

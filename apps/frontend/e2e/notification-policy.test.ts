@@ -70,18 +70,18 @@ test.describe('Notification policy', () => {
     // The label updates before the inherited-policy refresh enables the cell.
     await expect(directMessages).toBeEnabled();
     await directMessages.press('Enter');
-    await expect(directMessages).toHaveAttribute('aria-label', /Override: Badge/);
+    await expect(directMessages).toHaveAttribute('aria-label', /Override: Unread dot/);
 
     await expect(directMessages).toBeEnabled();
     await directMessages.press('Enter');
-    await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
+    await expect(directMessages).toHaveAttribute('aria-label', /Override: In-app notification/);
     await expect(directMessages).toBeEnabled();
 
     await page.reload();
-    await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
+    await expect(directMessages).toHaveAttribute('aria-label', /Override: In-app notification/);
   });
 
-  test('Badge adds only neutral unread attention and clears when the room is read', async ({
+  test('Unread dot adds only neutral unread attention and clears when the room is read', async ({
     page,
     chatPage,
     notificationsPage,
@@ -97,7 +97,7 @@ test.describe('Notification policy', () => {
     const messageEventId = await postMessageViaConnect(
       page,
       roomId,
-      `Badge reaction target ${Date.now()}`
+      `Unread dot reaction target ${Date.now()}`
     );
     await waitForRoomReadViaConnect(page, roomId);
     await updateScopedNotificationPolicy(page, { server: {} }, { reactions: 'UNREAD_BADGE' });
@@ -116,7 +116,7 @@ test.describe('Notification policy', () => {
     const roomLink = chatPage.getRoomLink('general');
     const unreadDot = roomLink.getByTestId('room-unread-dot');
     await expect(unreadDot).toBeVisible({ timeout: 10_000 });
-    await expect(unreadDot).toHaveClass(/bg-neutral-action/);
+    await expect(unreadDot).toHaveClass(/bg-text/);
     await expect(roomLink.getByTestId('room-notification-badge')).not.toBeVisible();
     await expect(roomLink.getByTestId('room-ambient-notification-badge')).not.toBeVisible();
     await notificationsPage.expectBellIndicatorNotVisible();
@@ -148,7 +148,7 @@ test.describe('Notification policy', () => {
     await updateScopedNotificationPolicy(page, { roomId }, { roomMessages: 'OFF' });
     await chatPage.enterRoom('announcements');
 
-    const newMessage = `No Badge, cursor retained ${Date.now()}`;
+    const newMessage = `No unread dot, cursor retained ${Date.now()}`;
     const newMessageEventId = await withServerUser(
       browser!,
       serverURL,

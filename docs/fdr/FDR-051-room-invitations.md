@@ -38,13 +38,13 @@ channel room. The recipient accepts or declines in the room welcome screen.
   rules still apply. A group with no visible content disappears.
 - Invitations apply to human accounts in active, non-universal channel rooms.
   They do not apply to DMs, bot accounts, the sender, or existing members.
-- Invitations use Push notification by default. Recipients can select Push,
-  Notification, Badge, or Off at server, group, or room scope. Device permission
-  and Do Not Disturb still apply.
+- Invitations use Push notification by default. Recipients can select
+  Push notification, In-app notification, Unread dot, or Off at server, group,
+  or room scope. Device permission and Do Not Disturb still apply.
 - An invitation notification opens the room welcome screen. Opening the
   notification marks it Read; reading or deleting it does not accept or decline
   the invitation. Acceptance, decline, and expiry remove it from notification
-  history. Badge attention lasts only while the invitation is pending.
+  history. Unread dot attention lasts only while the invitation is pending.
 - This version has no sender cancellation or reminder.
 
 ## Design Decisions

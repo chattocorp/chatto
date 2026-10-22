@@ -6,7 +6,7 @@ import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page as browserPage, userEvent } from 'vitest/browser';
 import { SvelteMap } from 'svelte/reactivity';
@@ -404,6 +404,10 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('hides ages in narrow rows while notification badges stay visible', async () => {
     const rooms = mocks.store.navigation.rooms as RoomsListItem[];
     const room = rooms.find((entry) => entry.id === 'dm-with-participants')!;
@@ -437,14 +441,18 @@ describe('RoomList', () => {
   });
 
   it.each([
-    [0, '0min'],
+    [0, 'now'],
+    [59 / 60, 'now'],
+    [1, '1min'],
     [59, '59min'],
     [60, '1h'],
     [1439, '23h'],
     [1440, '1d'],
     [90 * 1440, '90d'],
-    [-1, '0min']
+    [-1, 'now']
   ])('shows %s elapsed minutes as %s, including older expanded DMs', async (minutes, age) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T12:00:00Z'));
     addRecentDMs();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (r) => r.id === 'dm-with-participants'
@@ -464,35 +472,43 @@ describe('RoomList', () => {
     expect(time.getAttribute('dir')).toBe('ltr');
   });
 
-  it('refreshes a visible age on the minute tick without replacing the room', async () => {
-    const now = Date.now();
-    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
-      (r) => r.id === 'dm-with-participants'
-    )!;
-    room.lastMessageAt = new Date(now - 59 * 60000).toISOString();
-    const intervals = vi.spyOn(window, 'setInterval');
-    const { container, unmount } = render(RoomList);
-    try {
-      const time = container.querySelector<HTMLTimeElement>(
-        '[href="/chat/-/dm-with-participants"] time'
+  it.each([
+    [0, 'now', 60000, '1min'],
+    [59, '59min', 120000, '1h']
+  ])(
+    'refreshes %s elapsed minutes from %s on the minute tick without replacing the room',
+    async (minutes, initialAge, elapsed, updatedAge) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-22T12:00:00Z'));
+      const now = Date.now();
+      const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+        (r) => r.id === 'dm-with-participants'
       )!;
-      await expect.element(time).toHaveTextContent('59min');
-      const interval = intervals.mock.calls.find((args) => args[1] === 60000)![0] as () => void;
-      const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now + 120000);
+      room.lastMessageAt = new Date(now - Number(minutes) * 60000).toISOString();
+      const intervals = vi.spyOn(window, 'setInterval');
+      const { container, unmount } = render(RoomList);
       try {
-        interval();
+        const time = container.querySelector<HTMLTimeElement>(
+          '[href="/chat/-/dm-with-participants"] time'
+        )!;
+        await expect.element(time).toHaveTextContent(String(initialAge));
+        const interval = intervals.mock.calls.find((args) => args[1] === 60000)![0] as () => void;
+        const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now + Number(elapsed));
+        try {
+          interval();
+        } finally {
+          dateNow.mockRestore();
+        }
+        await expect.element(time).toHaveTextContent(String(updatedAge));
+        expect(
+          (mocks.store.navigation.rooms as RoomsListItem[]).find((r) => r.id === room.id)
+        ).toBe(room);
       } finally {
-        dateNow.mockRestore();
+        await unmount();
+        intervals.mockRestore();
       }
-      await expect.element(time).toHaveTextContent('1h');
-      expect((mocks.store.navigation.rooms as RoomsListItem[]).find((r) => r.id === room.id)).toBe(
-        room
-      );
-    } finally {
-      await unmount();
-      intervals.mockRestore();
     }
-  });
+  );
 
   it.each([undefined, null, 'invalid'])('omits unknown or invalid activity %s', (timestamp) => {
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(

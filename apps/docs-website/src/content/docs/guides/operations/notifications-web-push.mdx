@@ -43,21 +43,21 @@ Members use a matrix to control each notification cause at server, room-group, a
 | ---- | ------ |
 | Inherit | Use the next broader room-group or server setting. |
 | Off | Do not create attention for this cause. |
-| Badge | Add only a neutral unread dot. Do not create a notification, play a sound, or send push. |
-| Notification | Add an in-app notification. Important notifications can play the configured in-app sound, but Chatto does not send push. |
+| Unread dot | Add only a neutral unread dot. Do not create a notification, play a sound, or send push. |
+| In-app notification | Add an in-app notification. Important notifications can play the configured in-app sound, but Chatto does not send push. |
 | Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
-Room invitations, direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
+Room invitations, direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Unread dot. Followed threads and reactions use In-app notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
 
 Ambient notifications, such as reactions, use a neutral badge and do not play an in-app sound. In the room list, a room shows its Important and Ambient notifications as two separate counts. Each count opens its newest notification. Important notifications use orange indicators and can play your selected sound.
 
 The installed app icon shows an unnumbered badge for Important unread notifications. The window title shows their total count across signed-in servers. Ambient notifications do not contribute to either indicator, even when you enable pushes for them. An Important background push can set the app icon badge when the browser runs the app's notification handler and the server includes the attention level; otherwise, the badge stays unchanged until the app can update it.
 
-The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Badge, Notification, and Push notification.
+The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Unread dot, In-app notification, and Push notification.
 
-Room-group and room cells cycle through Inherit, Off, Badge, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. A grey filled bell means Badge. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
+Room-group and room cells cycle through Inherit, Off, Unread dot, In-app notification, Push notification, and back to Inherit. A grey crossed bell means Off. A small filled dot means Unread dot. It uses the same size and colour as the room dot: white in dark mode and dark in light mode. An orange bell means In-app notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
 
-A Badge setting uses the neutral dot for its room. Thread Badge activity rolls up to its parent room. Reading the room or thread clears covered Badge attention. An invitation Badge stays until the invitation is accepted, declined, or expires. The dot uses your current settings. If you change a setting from Badge to a different setting, unread messages of that type do not show the dot. If you unfollow a thread, its replies do not show the dot. An orange notification dot takes priority over the grey dot. Badge does not change an operating-system or application-icon badge.
+An Unread dot setting uses the neutral dot for its room. Thread Unread dot activity rolls up to its parent room. Reading the room or thread clears covered Unread dot attention. An invitation Unread dot stays until the invitation is accepted, declined, or expires. The dot uses your current settings. If you change a setting from Unread dot to a different setting, unread messages of that type do not show the dot. If you unfollow a thread, its replies do not show the dot. An orange notification dot takes priority over the neutral dot. Unread dot does not change an operating-system or application-icon badge.
 
 Room dots are controlled only by notification policy. If you set Room messages to Off, ordinary root messages do not add a dot. Chatto still keeps the Message Read Cursor and uses it to place the New messages separator when you open the room.
 

@@ -17,7 +17,7 @@
     warning: 'bg-attention',
     ambient: 'bg-text',
     action: 'bg-action',
-    neutral: 'bg-neutral-action',
+    neutral: 'bg-text',
     muted: 'bg-muted'
   } as const;
 </script>

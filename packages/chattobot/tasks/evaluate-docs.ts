@@ -290,7 +290,6 @@ export default task(
             typing: async () => {},
             acknowledge: async () => {},
             setHandled: async () => {},
-            react: async () => {},
             readThread: async (_thread, _signal, after) => ({
               messages:
                 scenario.nudge && after

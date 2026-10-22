@@ -3,6 +3,7 @@ import { statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createApi, createClient, type Server } from '@chatto/client';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
 import { log } from 'runling';
@@ -144,8 +145,6 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     typing: (destination, signal) => api.refreshTyping(destination, { signal }),
     acknowledge: createEyesReaction(api),
     setHandled: createHandledReaction(api),
-    react: (messageId, emoji, signal) =>
-      api.addReaction({ roomId: message.roomId, messageId }, emoji, { signal }),
     readThread: createThreadReader(api),
     readAttachment: createAttachmentReader(api)
   });
@@ -153,15 +152,22 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
     classifier: createIntakeClassifier(conversationSettings.model, intake),
     conversation,
     readFollowUp: createFollowUpReader(api, allowedUserId),
-    async readReactionContext(message, signal) {
+    react: (target, emoji, signal) =>
+      api.addReaction({ roomId: target.roomId, messageId: target.id }, emoji, {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)])
+      }),
+    async readContext(messages, signal) {
+      const message = messages[0]!;
       const thread = await api.readThread(
         { roomId: message.roomId, threadRootId: message.threadRootId },
         { signal, limit: 20 }
       );
-      return thread.messages.map((item) => ({
-        role: item.fromViewer ? ('bot' as const) : ('human' as const),
-        body: item.body
-      }));
+      return thread.messages
+        .filter((item) => !messages.some((input) => input.id === item.id))
+        .map((item) => ({
+          role: item.fromViewer ? ('bot' as const) : ('human' as const),
+          body: item.body
+        }));
     },
     async read(message, signal) {
       const { users } = await api
@@ -169,16 +175,25 @@ export const chattoWorkflow = createThreadWorkflow(async (ctx, message) => {
         .batchGetUsers({ userIds: [message.authorId] }, { signal, timeoutMs: 10_000 });
       const author = users.find((row) => row.user?.id === message.authorId)?.user;
       if (!author || author.bot || author.deleted) return;
-      // The thread reader includes its root and current attachments; retracted roots are absent.
-      const thread = await api.readThread(
-        { roomId: message.roomId, threadRootId: message.id },
-        { signal, limit: 1 }
-      );
-      const root = thread.messages.find((item) => item.id === message.id);
-      if (!root || root.authorId !== message.authorId) return;
+      if (allowedUserId && message.authorId !== allowedUserId) return;
+      // Fetch the target itself: a recent thread page can omit a valid queued reply.
+      // The service response also includes the MIME metadata needed for classification.
+      const { message: current } = await api
+        .service(MessageService)
+        .getMessage({ roomId: message.roomId, eventId: message.id }, { signal, timeoutMs: 10_000 });
+      if (
+        !current ||
+        current.id !== message.id ||
+        current.roomId !== message.roomId ||
+        (current.threadRootEventId || current.id) !== message.threadRootId ||
+        current.actorId !== message.authorId ||
+        current.deletedAt ||
+        (!current.body && !current.attachments.length)
+      )
+        return;
       return {
-        body: root.body,
-        attachmentTypes: (root.attachments ?? []).map((item) => item.contentType)
+        body: current.body ?? '',
+        attachmentTypes: current.attachments.map((item) => item.contentType)
       };
     }
   };
@@ -222,20 +237,11 @@ async function consume(
     async onEvent(event) {
       // Disallowed senders cannot start or continue a conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await server
-        .addressedMessage(event, {
-          signal: ctx.signal,
-          // A DM starts a conversation, but ordinary replies inside its threads use
-          // the same participation check as channel replies. Explicit addressing still wins.
-          ...(event.event.case === 'messagePosted' && event.event.value.threadRootEventId
-            ? { reasons: ['mention', 'reply'] as const }
-            : {})
-        })
-        .catch(() => {
-          ctx.signal.throwIfAborted();
-          console.warn('ChattoBot could not verify a reply target; ignoring the message.');
-          return undefined;
-        });
+      const message = await server.addressedMessage(event, { signal: ctx.signal }).catch(() => {
+        ctx.signal.throwIfAborted();
+        console.warn('ChattoBot could not verify a reply target; ignoring the message.');
+        return undefined;
+      });
       if (message?.authorId === botId) return;
       try {
         if (message)

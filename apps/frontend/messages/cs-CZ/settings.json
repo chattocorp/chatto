@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Zdědit",
           "off": "Vypnuto",
-          "badge": "Odznak",
+          "badge": "Tečka nepřečteného obsahu",
           "badge_hint": "Přidá pouze neutrální tečku nepřečteného obsahu. Nevytvoří oznámení, nepřehraje zvuk ani neodešle push oznámení.",
-          "notification": "Oznámení",
+          "notification": "Oznámení v aplikaci",
           "push_notification": "Push oznámení"
         },
         "reason": {

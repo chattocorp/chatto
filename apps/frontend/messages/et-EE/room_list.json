@@ -31,6 +31,7 @@
     "room_actions": "Toimingud: #{room}",
     "open_group_settings": "Avage rühma seaded",
     "open_room_settings": "Avage ruumi seaded",
+    "activity_now": "nüüd",
     "older_conversations": "Vanemad vestlused",
     "show_older_conversations": "Kuva vanemad ({count})",
     "show_fewer_conversations": "Kuva vähem"

@@ -613,6 +613,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const milliseconds = Date.parse(timestamp);
     if (!Number.isFinite(milliseconds)) return null;
     const minutes = Math.floor(Math.max(0, activityNow - milliseconds) / 60000);
+    if (minutes === 0) return m('room_list.activity_now');
     if (minutes < 60) return `${minutes}min`;
     if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
     return `${Math.floor(minutes / 1440)}d`;

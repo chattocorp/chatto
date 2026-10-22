@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
-          "badge": "Markering",
+          "badge": "Bolletje voor ongelezen inhoud",
           "badge_hint": "Voegt alleen een neutraal bolletje voor ongelezen inhoud toe. Maakt geen melding, speelt geen geluid af en verstuurt geen pushmelding.",
-          "notification": "Melding",
+          "notification": "Melding in de app",
           "push_notification": "Pushmelding"
         },
         "reason": {

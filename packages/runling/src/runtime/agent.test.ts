@@ -24,6 +24,17 @@ let createdSessions: any[] = [];
 let abortCalls = 0;
 let disposed = false;
 let modelAvailable = true;
+let modelAvailableAfterRefresh = false;
+const refreshModels = vi.fn(
+  async (_options: {
+    providers: string[];
+    allowNetwork: boolean;
+    force: boolean;
+    signal: AbortSignal;
+  }) => {
+    modelAvailable = modelAvailableAfterRefresh;
+  }
+);
 
 vi.doMock('@earendil-works/pi-coding-agent', async () => {
   const actual = await vi.importActual<typeof import('@earendil-works/pi-coding-agent')>(
@@ -33,7 +44,8 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
     convertToLlm: actual.convertToLlm,
     ModelRuntime: {
       create: async () => ({
-        getModel: () => (modelAvailable ? fakeModel : undefined)
+        getModel: () => (modelAvailable ? fakeModel : undefined),
+        refresh: refreshModels
       })
     },
     DefaultResourceLoader: class {
@@ -140,6 +152,9 @@ beforeEach(() => {
   abortCalls = 0;
   disposed = false;
   modelAvailable = true;
+  modelAvailableAfterRefresh = false;
+  refreshModels.mockClear();
+  vi.unstubAllEnvs();
 });
 
 async function reportOutcome(report: {
@@ -918,6 +933,43 @@ describe('runAgent', () => {
       cacheWrite: 1,
       costIncomplete: true
     });
+  });
+
+  test('discovers a missing model by refreshing only its provider', async () => {
+    modelAvailable = false;
+    modelAvailableAfterRefresh = true;
+    await using agent = await createAgentSession({
+      cwd: '/project',
+      model: 'openrouter/deepseek/deepseek-v4.1-flash-1017'
+    });
+    expect(refreshModels).toHaveBeenCalledExactlyOnceWith({
+      providers: ['openrouter'],
+      allowNetwork: true,
+      force: true,
+      signal: expect.any(AbortSignal)
+    });
+    expect(sessionCreations).toBe(1);
+  });
+
+  test('known models need no catalog refresh', async () => {
+    await using agent = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
+    expect(refreshModels).not.toHaveBeenCalled();
+  });
+
+  test('offline mode rejects a missing model without network discovery', async () => {
+    vi.stubEnv('PI_OFFLINE', '1');
+    modelAvailable = false;
+    await expect(
+      createAgentSession({
+        cwd: '/project',
+        model: 'openrouter/missing'
+      })
+    ).rejects.toThrow('Model openrouter/missing is unavailable');
+    expect(refreshModels).not.toHaveBeenCalled();
+    expect(sessionOptions).toBeUndefined();
   });
 
   test('rejects unavailable models before creating a session', async () => {

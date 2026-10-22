@@ -42,6 +42,26 @@ const cases = [
   }
 ];
 
+/** Require an emoji response for thanks; a silent ignore does not pass. */
+const emojiActions = ['like', 'love', 'smile'];
+const acknowledgments = [
+  { name: 'ack-thanks', replies: ['Thanks for explaining!'], action: emojiActions },
+  {
+    name: 'ack-friendly',
+    bot: 'Why did the Chatto message bring a ladder? To reach the top of the thread.',
+    replies: ['That Chatto joke made me smile!'],
+    action: emojiActions
+  },
+  {
+    name: 'ack-mixed-question',
+    replies: ['Thanks!', 'How do I upgrade Chatto?'],
+    action: 'engage'
+  },
+  { name: 'ack-approval', replies: ['Yes, please file that issue.'], action: 'engage' },
+  { name: 'ack-unrelated', replies: ['Write me a recipe for pizza.'], action: 'ignore' },
+  { name: 'ack-stop', replies: ['Please stop replying now.'], action: 'ignore' }
+].map((item) => ({ bot: 'I can file an issue for this Chatto problem if you want.', ...item }));
+
 /** These fixtures exercise participation in an existing thread, without an explicit ping. */
 const followUps = [
   {
@@ -179,6 +199,7 @@ const followUps = [
   },
   {
     name: 'handled-thanks',
+    action: emojiActions,
     bot: 'What version are you using?',
     replies: ['Thanks for helping!'],
     trackHandled: true,
@@ -213,7 +234,7 @@ const followUps = [
     name: 'resolved',
     bot: 'Try refreshing the page. Does the problem persist?',
     replies: ['That fixed it, thanks!'],
-    engage: false
+    engage: true
   },
   {
     name: 'human-discussion',
@@ -374,6 +395,7 @@ export default task(
       ...followUps.map((item) => ({
         name: item.name,
         engage: item.engage,
+        action: item.action ?? (item.engage ? 'engage' : 'ignore'),
         input: {
           ...(item.trackHandled ? { trackHandled: true } : {}),
           context: [
@@ -391,7 +413,21 @@ export default task(
           reaction: { emoji: item.emoji, messageId: 'target', body: item.target }
         }
       })),
-      ...heldOut
+      ...heldOut,
+      ...acknowledgments.map((item) => ({
+        name: item.name,
+        engage: item.action === 'engage',
+        action: item.action,
+        input: {
+          context: [
+            {
+              role: 'bot' as const,
+              body: item.bot
+            }
+          ],
+          messages: item.replies.map((body) => ({ body, attachmentTypes: [] }))
+        }
+      }))
     ];
     const selected = all.filter(
       (item) =>
@@ -415,11 +451,17 @@ export default task(
         ctx.signal.throwIfAborted();
         error = cause instanceof Error ? cause.message : String(cause);
       }
-      const passed = !error && decision?.engage === item.engage;
+      const expected = 'action' in item ? item.action : item.engage ? 'engage' : 'ignore';
+      const passed =
+        !error &&
+        !!decision &&
+        (Array.isArray(expected)
+          ? expected.includes(decision.action)
+          : decision.action === expected);
       results.push({
         name: item.name,
         group: item.name.startsWith('held-out-') ? 'held-out' : 'existing',
-        expected: item.engage,
+        expected,
         passed,
         decision,
         error,

@@ -9,7 +9,7 @@ Rows are notification causes. Columns follow the current navigation layout.
   import { serverUi } from '$lib/state/server/serverUi';
   import { onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { Panel, HelpTooltip, Hint } from '$lib/ui';
+  import { Panel, HelpTooltip, Hint, UnreadDot } from '$lib/ui';
   import { MatrixCellButton, MatrixTable } from '$lib/ui/matrix';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
@@ -236,10 +236,16 @@ Rows are notification causes. Columns follow the current navigation layout.
     {#each [NotificationDeliveryMode.OFF, NotificationDeliveryMode.UNREAD_BADGE, NotificationDeliveryMode.IN_APP_NOTIFICATION, NotificationDeliveryMode.PUSH_NOTIFICATION] as mode (mode)}
       {@const presentation = notificationDeliveryModePresentation(mode)}
       <span class="inline-flex items-center gap-1.5">
-        <span
-          class={['iconify h-5 w-5 shrink-0', presentation.icon, presentation.legendClass]}
-          aria-hidden="true"
-        ></span>
+        {#if presentation.icon === null}
+          <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden="true">
+            <UnreadDot color="neutral" />
+          </span>
+        {:else}
+          <span
+            class={['iconify h-5 w-5 shrink-0', presentation.icon, presentation.legendClass]}
+            aria-hidden="true"
+          ></span>
+        {/if}
         {notificationDeliveryModeLabel(mode)}
         {#if mode === NotificationDeliveryMode.UNREAD_BADGE}
           <HelpTooltip

@@ -21,15 +21,15 @@ describe('notification delivery mode presentation', () => {
     });
   });
 
-  it('uses a neutral filled bell for Badge', () => {
+  it('uses a neutral filled dot for Unread dot', () => {
     expect(notificationDeliveryModePresentation(NotificationDeliveryMode.UNREAD_BADGE)).toEqual({
-      icon: 'icon-[ph--bell-fill]',
+      icon: null,
       tone: 'neutral',
       legendClass: 'text-text'
     });
   });
 
-  it('uses orange warning language for in-app notifications and push', () => {
+  it('uses notification-orange icons for in-app notifications and push', () => {
     expect(
       notificationDeliveryModePresentation(NotificationDeliveryMode.IN_APP_NOTIFICATION)
     ).toEqual({
@@ -48,9 +48,9 @@ describe('notification delivery mode presentation', () => {
 
   it('provides the shared localized labels, including the inheritance marker', () => {
     expect(notificationDeliveryModeLabel(NotificationDeliveryMode.OFF)).toBe('Off');
-    expect(notificationDeliveryModeLabel(NotificationDeliveryMode.UNREAD_BADGE)).toBe('Badge');
+    expect(notificationDeliveryModeLabel(NotificationDeliveryMode.UNREAD_BADGE)).toBe('Unread dot');
     expect(notificationDeliveryModeLabel(NotificationDeliveryMode.IN_APP_NOTIFICATION)).toBe(
-      'Notification'
+      'In-app notification'
     );
     expect(notificationDeliveryModeLabel(NotificationDeliveryMode.PUSH_NOTIFICATION)).toBe(
       'Push notification'

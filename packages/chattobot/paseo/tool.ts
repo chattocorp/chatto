@@ -65,7 +65,7 @@ export function workspaceExtension(
       content: [
         {
           type: 'text' as const,
-          text: 'The Paseo request was accepted, but remote startup is not confirmed yet. Acknowledge once with ongoing language, then end this turn. The result will arrive later.'
+          text: 'Request queued; remote startup is unconfirmed. Acknowledge once that you will try to start the requested work, then end this turn. The result will arrive later.'
         }
       ],
       details: {}

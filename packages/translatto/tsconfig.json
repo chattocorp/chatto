@@ -7,7 +7,10 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "allowJs": true,
+    "checkJs": true,
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.mjs"]
 }

@@ -10,8 +10,9 @@
   scopes can inherit. Direct-message policy applies only at server scope and to
   individual direct-message conversations. Room-message and room-invitation policy applies only at
   server, group, and channel-room scope. Each activity heading has an info
-  popover that explains when the activity occurs. Badge uses a neutral bell and creates only an unread dot.
-  Orange modes create notification occurrences. Cell state details remain
+  popover that explains when the activity occurs. Unread dot uses a small filled dot.
+  Off and Unread dot use neutral icons. The orange bell creates an in-app notification,
+  and the orange phone also adds push delivery. Cell state details remain
   available to assistive technology without native browser title popups.
   `.trim();
 

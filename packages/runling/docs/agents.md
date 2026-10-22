@@ -43,6 +43,22 @@ it alive. Closing steering does not cancel an active turn. See
 [agent steering](agent-steering.md). As with other tasks, a successful `steer`
 means queued, not processed; do not send more work after the task completes.
 
+## Model discovery
+
+Use a model reference in `provider/model-id` form. For OpenRouter, keep the
+upstream provider in the model ID, for example
+`openrouter/deepseek/deepseek-v4.1-flash-1017`.
+
+Runling uses the local catalog first. If the model is missing, Runling refreshes
+only its provider's catalog with a five-second deadline and tries lookup again.
+Set `PI_OFFLINE` to disable network discovery. If the model is still missing,
+session creation fails before a model request is sent.
+
+Catalog discovery can contact Pi's catalog service at `pi.dev`. OpenRouter
+catalog discovery also contacts `openrouter.ai` with the configured API key.
+These services receive the host's IP address. Discovery sends no task prompt,
+thread messages, or tool results.
+
 ## Typed input and invocation setup
 
 Give `input` and `prompt` to accept structured input. Runling validates and
@@ -101,7 +117,9 @@ import { AgentSessionStore, createAgentSession } from 'runling';
 const sessions = new AgentSessionStore('.runling/research').scope('project-one');
 await using saved = await sessions.open();
 await using researcher = await createAgentSession({
-  model, cwd, sessionFile: saved.file
+  model,
+  cwd,
+  sessionFile: saved.file
 });
 // Save saved.id to resume later with sessions.open({ id, resume: true }).
 ```
@@ -270,7 +288,11 @@ cancellation or a restart. When the file does not exist, the agent starts a new
 conversation in it. Pi writes the file after the first model reply.
 
 ```ts
-await using worker = await createAgentSession({ model, cwd, sessionFile: join(artifactDirectory, 'worker.jsonl') });
+await using worker = await createAgentSession({
+  model,
+  cwd,
+  sessionFile: join(artifactDirectory, 'worker.jsonl')
+});
 ```
 
 The file contains the complete model context: prompts, tool results, and
