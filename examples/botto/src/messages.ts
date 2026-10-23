@@ -1,0 +1,57 @@
+/** Botto's participation policy, separate from the client's addressing rules. */
+import { stat } from 'node:fs/promises';
+import { join } from 'node:path';
+import type { AddressedMessage, RealtimeEvent, Server, ThreadLocation } from '@chatto/client';
+import { transcriptName } from './agent.ts';
+
+/** A saved Pi transcript keeps a thread active across restarts. No message cache is kept. */
+export async function hasTranscript(
+  directory: string,
+  identity: readonly string[]
+): Promise<boolean> {
+  try {
+    return (await stat(join(directory, transcriptName(identity)))).isFile();
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
+      return false;
+    throw error;
+  }
+}
+
+/** Accept verified addressing, or ordinary text in a thread Botto already participates in.
+ * Passive messages use an empty reasons list. The caller still checks the author
+ * and enforces its allowlist before enqueueing; self messages never qualify. */
+export async function incomingMessage(
+  server: Pick<Server, 'accountId' | 'addressedMessage'>,
+  event: RealtimeEvent,
+  isActive: (location: ThreadLocation) => Promise<boolean>,
+  signal: AbortSignal
+): Promise<AddressedMessage | undefined> {
+  signal.throwIfAborted();
+  if (
+    event.event.case !== 'messagePosted' ||
+    !event.id ||
+    !event.actorId ||
+    event.actorId === server.accountId
+  )
+    return;
+  const posted = event.event.value;
+  if (!posted.roomId || !posted.bodyPlaintext?.trim()) return;
+  const addressed = await server.addressedMessage(event, { signal });
+  if (addressed) return addressed;
+  if (
+    !posted.threadRootEventId ||
+    !(await isActive({ roomId: posted.roomId, threadRootId: posted.threadRootEventId }))
+  )
+    return;
+  signal.throwIfAborted();
+  return {
+    id: event.id,
+    roomId: posted.roomId,
+    threadRootId: posted.threadRootEventId,
+    authorId: event.actorId,
+    body: posted.bodyPlaintext,
+    reasons: [],
+    ...(posted.inReplyTo ? { inReplyTo: posted.inReplyTo } : {})
+  };
+}

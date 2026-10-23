@@ -7,6 +7,7 @@ import { readSettings, type Settings } from './settings.ts';
 import { StartupError, startupStep } from './diagnostics.ts';
 import { log, logged } from './log.ts';
 import { createTurnHandler } from './turn.ts';
+import { hasTranscript, incomingMessage } from './messages.ts';
 
 async function run(settings: Settings) {
   const controller = new AbortController();
@@ -47,7 +48,19 @@ async function run(settings: Settings) {
       async onEvent(event) {
         if (settings.allowedUserId && event.actorId !== settings.allowedUserId) return;
         try {
-          const message = await server.addressedMessage(event, { signal: controller.signal });
+          const message = await incomingMessage(
+            server,
+            event,
+            async (location) =>
+              activeInbox.isActive(location) ||
+              hasTranscript(settings.directory, [
+                new URL(settings.serverUrl).origin,
+                viewerId,
+                location.roomId,
+                location.threadRootId
+              ]),
+            controller.signal
+          );
           if (!message) return;
           // Other bots must not create an endless reply loop with Botto.
           const { users } = await server
@@ -63,10 +76,7 @@ async function run(settings: Settings) {
           if (result === 'accepted')
             log('info', 'Message accepted', {
               ...thread,
-              waitMs:
-                message.reasons.includes('direct_message') && !message.threadRootId
-                  ? 0
-                  : settings.debounceMs
+              waitMs: activeInbox.debounceMs(message)
             });
           else if (result === 'full') log('warn', 'Botto inbox is full; message skipped', thread);
           else if (result === 'duplicate') log('info', 'Duplicate message skipped', thread);

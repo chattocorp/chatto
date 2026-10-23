@@ -20,6 +20,7 @@ Say when you do not know something.
 [runtime]
 data_directory = ".botto"
 debounce_ms = 5000
+passive_debounce_ms = 45000
 turn_timeout_ms = 120000
 context_messages = 30
 max_pending_messages = 100

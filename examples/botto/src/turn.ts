@@ -34,7 +34,7 @@ export function createTurnHandler(
           () => readContext(server, destination, settings.contextMessages, signal),
           metrics
         );
-        // Persist only new addressed messages. The fresh snapshot travels through Pi's
+        // Persist only the accepted batch. The fresh snapshot travels through Pi's
         // request-only context hook, so old Chatto messages do not accumulate each turn.
         const prompt = JSON.stringify({
           currentMessages: messages.map((item) => ({

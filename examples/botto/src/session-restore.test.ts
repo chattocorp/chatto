@@ -7,19 +7,24 @@ import { resolve, join } from 'node:path';
 import { expect, test } from 'vitest';
 import { SessionManager } from '@earendil-works/pi-coding-agent';
 import { transcriptName } from './agent.ts';
+import { hasTranscript } from './messages.ts';
 
 test('a fresh process restores the same Pi session and its model context', async () => {
   const root = resolve('../../.context');
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, 'botto-resume-'));
   try {
-    const file = join(directory, transcriptName(['server', 'bot', 'room', 'thread']));
+    const identity = ['server', 'bot', 'room', 'thread'];
+    const file = join(directory, transcriptName(identity));
+    expect(await hasTranscript(directory, identity)).toBe(false);
     const original = SessionManager.open(file, directory, directory);
     original.appendMessage({
       role: 'user',
       content: 'Remember the synthetic test word: marmalade.',
       timestamp: Date.now()
     });
+    expect(await hasTranscript(directory, identity)).toBe(true);
+    expect(await hasTranscript(directory, ['server', 'other-bot', 'room', 'thread'])).toBe(false);
     const script = `
       import { SessionManager, ModelRuntime, SettingsManager, DefaultResourceLoader, createAgentSession } from '@earendil-works/pi-coding-agent';
       const [file, directory] = process.argv.slice(1);

@@ -7,6 +7,7 @@ import { parseServerUrl } from '@chatto/client/util/serverUrl';
 /** Queue limits and the quiet period shared by the inbox and its logs. */
 export interface InboxSettings {
   debounceMs: number;
+  passiveDebounceMs: number;
   maxPendingMessages: number;
   maxThreads: number;
 }
@@ -14,6 +15,7 @@ export interface InboxSettings {
 /** Defaults also used when a TOML runtime section is omitted. */
 export const DEFAULT_INBOX: InboxSettings = {
   debounceMs: 5000,
+  passiveDebounceMs: 45_000,
   maxPendingMessages: 100,
   maxThreads: 8
 };
@@ -88,6 +90,7 @@ export function parseSettings(
   const runtime = section('runtime', [
     'data_directory',
     'debounce_ms',
+    'passive_debounce_ms',
     'turn_timeout_ms',
     'context_messages',
     'max_pending_messages',
@@ -138,6 +141,7 @@ export function parseSettings(
         ? undefined
         : string(chatto, 'allowed_user_id', 'chatto.allowed_user_id'),
     debounceMs: number('debounce_ms', DEFAULT_INBOX.debounceMs, 0, 60_000),
+    passiveDebounceMs: number('passive_debounce_ms', DEFAULT_INBOX.passiveDebounceMs, 0, 600_000),
     maxPendingMessages: number('max_pending_messages', DEFAULT_INBOX.maxPendingMessages, 1, 10_000),
     maxThreads: number('max_threads', DEFAULT_INBOX.maxThreads, 1, 100),
     turnTimeoutMs: number('turn_timeout_ms', 120_000, 1000, 3_600_000),

@@ -39,20 +39,21 @@ Botto reads `botto.toml` from the working directory. Select another file with
 file. `.env` is still loaded from the working directory. Settings are read once;
 restart after changing them. `pnpm dev` restarts after source changes.
 
-| Setting                        | Default                  | Purpose                                                                 |
-| ------------------------------ | ------------------------ | ----------------------------------------------------------------------- |
-| `chatto.url`                   | Required                 | Chatto server URL                                                       |
-| `chatto.api_key`               | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}` |
-| `chatto.allowed_user_id`       | Unset                    | Restrict requests to one Chatto user ID                                 |
-| `agent.model`                  | Required                 | Pi model in `provider/model` format                                     |
-| `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context            |
-| `agent.system_prompt`          | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings      |
-| `runtime.data_directory`       | `.botto`                 | Private Pi transcript storage                                           |
-| `runtime.debounce_ms`          | `5000`                   | Thread quiet period, 0–60000 milliseconds                               |
-| `runtime.turn_timeout_ms`      | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                |
-| `runtime.context_messages`     | `30`                     | Recent thread messages to read, 1–100                                   |
-| `runtime.max_pending_messages` | `100`                    | Accepted messages across queued and active batches, 1–10000             |
-| `runtime.max_threads`          | `8`                      | Maximum active or queued threads, 1–100                                 |
+| Setting                        | Default                  | Purpose                                                                                   |
+| ------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------- |
+| `chatto.url`                   | Required                 | Chatto server URL                                                                         |
+| `chatto.api_key`               | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`                   |
+| `chatto.allowed_user_id`       | Unset                    | Restrict requests to one Chatto user ID                                                   |
+| `agent.model`                  | Required                 | Pi model in `provider/model` format                                                       |
+| `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context                              |
+| `agent.system_prompt`          | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings                        |
+| `runtime.data_directory`       | `.botto`                 | Private Pi transcript storage                                                             |
+| `runtime.debounce_ms`          | `5000`                   | Quiet period for mentions, replies to Botto, and DM thread messages, 0–60000 milliseconds |
+| `runtime.passive_debounce_ms`  | `45000`                  | Quiet period for other text in active room threads, 0–600000 milliseconds                 |
+| `runtime.turn_timeout_ms`      | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                                  |
+| `runtime.context_messages`     | `30`                     | Recent thread messages to read, 1–100                                                     |
+| `runtime.max_pending_messages` | `100`                    | Accepted messages across queued and active batches, 1–10000                               |
+| `runtime.max_threads`          | `8`                      | Maximum active or queued threads, 1–100                                                   |
 
 Unknown settings and invalid values fail at startup. Keep API key values in the
 environment and refer to the Chatto key from `chatto.api_key`. The configured name does not rename the Chatto account;
@@ -94,10 +95,18 @@ refresh. The initial Chatto connection has a 30-second deadline.
 ## Message flow
 
 Botto answers text DMs, verified mentions, and verified replies to its messages.
-Messages from other bots are ignored. Each thread has its own Pi transcript.
-Thread messages wait for the configured quiet period and then form one batch.
-New messages reset the timer; duplicate events do not. Top-level DM messages
-start immediately because each opens a separate thread.
+It also answers ordinary text in threads where it has queued or running work,
+or a saved Pi transcript. Saved transcripts keep threads active across restarts;
+this does not make other threads in the room active. Messages from other bots
+and from users outside `chatto.allowed_user_id`, when set, are ignored.
+
+Ordinary messages in active room threads wait for 45 seconds of quiet by default
+(`runtime.passive_debounce_ms`). A mention, verified reply to Botto, or DM thread
+message selects the shorter `runtime.debounce_ms` for the whole pending batch.
+Later ordinary messages keep that short delay until the batch starts. Each new
+message resets the selected quiet period; duplicate events do not. After the
+batch starts, the next batch selects its delay independently. Top-level DM
+messages start immediately because each opens a separate thread.
 
 Turns in one thread run in order. Messages received during a turn form the next
 batch; its timer can elapse while the current turn runs. The model receives the
@@ -113,7 +122,7 @@ before the start of history, the turn stops instead of using incomplete context.
 Thread stores follow the client's
 session retention policy; `runtime.max_threads` limits queued or running
 conversations, not retained history. Client shutdown releases the stores.
-Only the addressed batch and model responses
+Only the accepted batch and model responses
 are saved as conversation messages. The recent thread snapshot is added to the
 current model request without saving it again in the transcript. This preserves
 ordinary human replies as context without accumulating repeated snapshots.
@@ -148,7 +157,7 @@ room, and thread. The data directory contains private conversation data. New
 files use private permissions. There is no automatic retention limit; stop
 Botto before deleting transcripts.
 
-Restart restores context on the next addressed message. It does not resume a
+Restart restores context on the next accepted message in the thread. It does not resume a
 turn or replay missed messages. Queues and bounded duplicate detection exist
 only in memory. A saved model reply does not prove that Chatto received it.
 Botto does not retry failed or uncertain posts. Failed turns produce a local log
@@ -176,7 +185,8 @@ mise x -- pnpm --filter @chatto/example-botto check
 mise x -- pnpm --filter @chatto/example-botto test
 ```
 
-`src/main.ts` owns connectivity and shutdown. `src/inbox.ts` owns batching and
+`src/main.ts` owns connectivity and shutdown. `src/messages.ts` selects addressed
+messages and ordinary text in active threads. `src/inbox.ts` owns batching and
 ordering. `src/turn.ts` connects a batch to a model turn and reply. `src/agent.ts`
 owns Pi sessions; `src/thread-context.ts` connects Pi's request hook to the pure
 merge function in `src/context-messages.ts`. `src/context.ts` selects text from

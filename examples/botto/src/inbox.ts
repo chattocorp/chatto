@@ -1,5 +1,5 @@
 /** Debounced conversation queues. A failed turn never blocks later messages. */
-import type { AddressedMessage } from '@chatto/client';
+import type { AddressedMessage, ThreadLocation } from '@chatto/client';
 import { DEFAULT_INBOX, type InboxSettings } from './settings.ts';
 
 interface Conversation {
@@ -22,6 +22,22 @@ export class Inbox {
     private readonly failed: () => void,
     private readonly settings: InboxSettings = DEFAULT_INBOX
   ) {}
+
+  /** Pending work activates a thread even before Pi has saved its first transcript. */
+  isActive({ roomId, threadRootId }: ThreadLocation): boolean {
+    return this.threads.has(JSON.stringify([roomId, threadRootId]));
+  }
+
+  /** Addressed messages promote the whole pending batch to the short quiet period.
+   * Later passive messages retain that choice until the batch starts. */
+  debounceMs(message: AddressedMessage): number {
+    if (message.reasons.includes('direct_message') && !message.threadRootId) return 0;
+    const key = JSON.stringify([message.roomId, message.threadRootId ?? message.id]);
+    const addressed =
+      message.reasons.length > 0 ||
+      this.threads.get(key)?.messages.some((item) => item.reasons.length > 0);
+    return addressed ? this.settings.debounceMs : this.settings.passiveDebounceMs;
+  }
 
   /** Enqueue without waiting for the model, so realtime delivery remains responsive. */
   accept(message: AddressedMessage): 'accepted' | 'duplicate' | 'full' | 'closed' {
@@ -49,7 +65,7 @@ export class Inbox {
     conversation.timer = setTimeout(() => {
       conversation.timer = undefined;
       this.flush(key, conversation);
-    }, this.settings.debounceMs);
+    }, this.debounceMs(message));
     return 'accepted';
   }
 

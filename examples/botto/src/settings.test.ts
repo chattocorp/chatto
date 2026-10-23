@@ -15,6 +15,7 @@ test('uses defaults and preserves slashes in the model ID', () => {
     provider: 'openrouter',
     modelId: 'anthropic/claude-sonnet-4-6',
     debounceMs: 5000,
+    passiveDebounceMs: 45_000,
     maxThreads: 8,
     maxPendingMessages: 100,
     turnTimeoutMs: 120000,
@@ -45,6 +46,8 @@ test.each([
   'debounce_ms=1.5',
   'debounce_ms="5000"',
   'debounce_ms=60001',
+  'passive_debounce_ms=-1',
+  'passive_debounce_ms=600001',
   'max_threads=0',
   'turn_timeout_ms=0',
   'context_messages=101'
@@ -79,8 +82,16 @@ test('the shipped sample is valid and resolves data relative to its location', (
   const path = resolve('botto.example.toml');
   const settings = parseSettings(readFileSync(path, 'utf8'), path, env);
   expect(settings.directory).toBe(resolve('.botto'));
+  expect(settings.passiveDebounceMs).toBe(45_000);
   expect(settings.systemPrompt).toContain('untrusted conversation data');
   expect(readSettings(path, env)).toEqual(settings);
+});
+
+test('configures the passive quiet period independently of addressed messages', () => {
+  expect(parse(`${source}\n[runtime]\ndebounce_ms=250\npassive_debounce_ms=90000`)).toMatchObject({
+    debounceMs: 250,
+    passiveDebounceMs: 90_000
+  });
 });
 
 test('loads the API key only from its configured TOML value', () => {

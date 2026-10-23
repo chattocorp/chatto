@@ -1,7 +1,7 @@
 /** Pure request-context merging; never mutate Pi history or the live thread view. */
 import type { ContextEvent } from '@earendil-works/pi-coding-agent';
 
-/** One Chatto message, used in addressed batches and additional thread context. */
+/** One Chatto message, used in accepted batches and additional thread context. */
 export interface ContextMessage {
   id: string;
   author?: string;
@@ -9,7 +9,7 @@ export interface ContextMessage {
   fromViewer?: boolean;
 }
 
-/** Current Chatto data, separate from the addressed messages persisted in Pi. */
+/** Current Chatto data, separate from the accepted messages persisted in Pi. */
 export interface ThreadContext {
   messages: ContextMessage[];
   olderContextOmitted: boolean;

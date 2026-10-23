@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { AddressedMessage } from '@chatto/client';
 import { Inbox } from './inbox.ts';
+import { DEFAULT_INBOX } from './settings.ts';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -81,7 +82,12 @@ test('duplicates do not reset the quiet period', async () => {
 
 test('applies configured debounce and queue limits', async () => {
   const turn = vi.fn(async () => {});
-  const inbox = new Inbox(turn, vi.fn(), { debounceMs: 250, maxThreads: 1, maxPendingMessages: 2 });
+  const inbox = new Inbox(turn, vi.fn(), {
+    ...DEFAULT_INBOX,
+    debounceMs: 250,
+    maxThreads: 1,
+    maxPendingMessages: 2
+  });
   expect(inbox.accept(message('one'))).toBe('accepted');
   expect(inbox.accept(message('other', 'other-thread'))).toBe('full');
   expect(inbox.accept(message('two'))).toBe('accepted');
@@ -96,7 +102,12 @@ test('applies configured debounce and queue limits', async () => {
 
 test('zero debounce starts a thread batch without a quiet-period delay', async () => {
   const turn = vi.fn(async () => {});
-  const inbox = new Inbox(turn, vi.fn(), { debounceMs: 0, maxThreads: 1, maxPendingMessages: 2 });
+  const inbox = new Inbox(turn, vi.fn(), {
+    ...DEFAULT_INBOX,
+    debounceMs: 0,
+    maxThreads: 1,
+    maxPendingMessages: 2
+  });
   inbox.accept(message('one'));
   await vi.advanceTimersByTimeAsync(0);
   expect(turn).toHaveBeenCalledExactlyOnceWith([message('one')]);
@@ -182,4 +193,79 @@ test('bounds threads and messages even when they are still debouncing', async ()
   expect(inbox.accept(message('overflow-queue', 'thread-0'))).toBe('full');
   await inbox.close();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+test('passive thread messages wait for 45 seconds of quiet', async () => {
+  const turn = vi.fn(async (_messages: readonly AddressedMessage[]) => {});
+  const inbox = new Inbox(turn, vi.fn());
+  inbox.accept({ ...message('one'), reasons: [] });
+  await vi.advanceTimersByTimeAsync(40_000);
+  inbox.accept({ ...message('two'), reasons: [] });
+  await vi.advanceTimersByTimeAsync(44_999);
+  expect(turn).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(turn.mock.calls[0]?.[0].map((item) => item.id)).toEqual(['one', 'two']);
+  await inbox.close();
+});
+
+test.each(['mention', 'reply', 'direct_message'] as const)(
+  '%s promotes the pending batch and later passive text keeps the short debounce',
+  async (reason) => {
+    const turn = vi.fn(async (_messages: readonly AddressedMessage[]) => {});
+    const inbox = new Inbox(turn, vi.fn());
+    inbox.accept({ ...message('ordinary'), reasons: [] });
+    await vi.advanceTimersByTimeAsync(10_000);
+    inbox.accept({ ...message('addressed'), reasons: [reason] });
+    await vi.advanceTimersByTimeAsync(4000);
+    inbox.accept({ ...message('clarification'), reasons: [] });
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(turn).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(turn.mock.calls[0]?.[0].map((item) => item.id)).toEqual([
+      'ordinary',
+      'addressed',
+      'clarification'
+    ]);
+    inbox.accept({ ...message('next'), reasons: [] });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(turn).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(turn).toHaveBeenCalledTimes(2);
+    await inbox.close();
+  }
+);
+
+test('active work is scoped by room and thread and uses the configured passive delay', async () => {
+  const running = Promise.withResolvers<void>();
+  const turn = vi.fn(() => running.promise);
+  const inbox = new Inbox(turn, vi.fn(), { ...DEFAULT_INBOX, passiveDebounceMs: 100 });
+  inbox.accept({ ...message('one'), reasons: [] });
+  expect(inbox.isActive({ roomId: 'room', threadRootId: 'thread' })).toBe(true);
+  expect(inbox.isActive({ roomId: 'other', threadRootId: 'thread' })).toBe(false);
+  expect(inbox.isActive({ roomId: 'room', threadRootId: 'other' })).toBe(false);
+  await vi.advanceTimersByTimeAsync(100);
+  expect(turn).toHaveBeenCalledOnce();
+  expect(inbox.isActive({ roomId: 'room', threadRootId: 'thread' })).toBe(true);
+  running.resolve();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(inbox.isActive({ roomId: 'room', threadRootId: 'thread' })).toBe(false);
+  await inbox.close();
+});
+
+test('promotes a passive batch during a running turn without overlapping turns', async () => {
+  const running = Promise.withResolvers<void>();
+  const turn = vi.fn(async (items: readonly AddressedMessage[]) => {
+    if (items[0]?.id === 'first') await running.promise;
+  });
+  const inbox = new Inbox(turn, vi.fn());
+  inbox.accept(message('first'));
+  await vi.advanceTimersByTimeAsync(5000);
+  inbox.accept({ ...message('ordinary'), reasons: [] });
+  inbox.accept(message('ping'));
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(turn).toHaveBeenCalledOnce();
+  running.resolve();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(turn.mock.calls[1]?.[0].map((item) => item.id)).toEqual(['ordinary', 'ping']);
+  await inbox.close();
 });
