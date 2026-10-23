@@ -33,10 +33,13 @@
       "access_denied": "你没有权限加入此聊天室。"
     },
     "leave": {
-      "title": "退出聊天室",
-      "action": "退出聊天室",
-      "prompt": "确定要退出 #{room} 吗？之后可以重新加入。",
-      "failed": "退出聊天室失败"
+      "title": "离开聊天室",
+      "action": "离开聊天室",
+      "prompt": "确定要退出 #{room} 吗？",
+      "failed": "退出聊天室失败",
+      "join_later": "之后可以重新加入。",
+      "need_invite": "你需要新的邀请才能加入此房间。",
+      "rejoin_unknown": "你可能需要新的邀请才能重新加入。"
     },
     "directory": {
       "universal_title": "全员聊天室会自动加入",
@@ -59,7 +62,8 @@
       "join_group_failed": "加入分组失败",
       "left": "已退出 #{room}",
       "left_generic": "已退出聊天室",
-      "leave_confirm": "确定要退出 #{room} 吗？"
+      "leave_confirm": "确定要退出 #{room} 吗？",
+      "invited": "已获邀请"
     },
     "server": {
       "remove_title": "移除服务器",
@@ -97,7 +101,8 @@
         "edit": "编辑消息",
         "more": "更多操作",
         "edit_short": "编辑",
-        "copy_text": "复制文本",
+        "copy_text": "复制消息文本",
+        "copy_selected_text": "复制选中文本",
         "copy_text_failed": "复制文本失败",
         "copy_link": "复制链接",
         "copy_message_link": "复制消息链接",
@@ -106,7 +111,8 @@
         "message_link_copied": "消息链接已复制",
         "copy_link_failed": "无法复制链接",
         "image_copied": "图片已复制",
-        "copy_image_failed": "无法复制图片"
+        "copy_image_failed": "无法复制图片",
+        "view_reactions": "查看回应"
       },
       "meta": {
         "echo": "回声",
@@ -235,7 +241,7 @@
       "unpin_prompt": "确定要取消置顶这条消息吗？",
       "loading": "正在加载置顶消息...",
       "empty_title": "暂无置顶消息",
-      "empty_description": "房间管理员可以在这里置顶重要消息。",
+      "empty_description": "置顶消息显示在这里。",
       "error_title": "无法使用置顶消息",
       "error_description": "无法加载置顶消息，请稍后再试。",
       "update_failed": "无法更新置顶消息"
@@ -255,6 +261,81 @@
     "jump_to_present": "跳转到最新消息",
     "jump_failed": "无法跳转到该消息。",
     "unread_separator": "新消息",
-    "close_extras": "关闭聊天室附加内容"
+    "close_extras": "关闭聊天室附加内容",
+    "dm": {
+      "deleted_user_notice": "对方用户已被删除。"
+    },
+    "management": {
+      "room_name_too_long": "聊天室名称不能超过 30 个字符",
+      "room_name_invalid": "聊天室名称不能包含换行符或控制字符",
+      "create_room": "创建聊天室",
+      "reorder_groups_failed": "调整群组顺序失败：{error}",
+      "room_created": "聊天室已创建",
+      "link_updated": "链接已更新",
+      "link_created": "链接已创建",
+      "save_link_failed": "保存链接失败：{error}",
+      "group_deleted": "群组已删除",
+      "delete_group_failed": "删除群组失败：{error}",
+      "link_deleted": "链接已删除",
+      "delete_link_failed": "删除链接失败：{error}",
+      "room_archived": "聊天室已归档",
+      "archive_room_failed": "归档聊天室失败：{error}",
+      "drag_room": "拖动以调整聊天室顺序",
+      "drag_link": "拖动以调整链接顺序",
+      "drag_group": "拖动以调整群组顺序",
+      "new_room": "创建聊天室",
+      "new_link": "创建链接",
+      "delete_group": "删除群组",
+      "edit_link": "编辑链接",
+      "delete_link": "删除链接",
+      "create_link": "创建链接",
+      "label": "标签",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com 或 /docs",
+      "delete_group_prompt": "确定要删除群组 {name} 吗？",
+      "delete_link_prompt": "确定要删除 {label} 吗？",
+      "archive_room": "归档聊天室",
+      "archive_room_prompt": "确定要归档 #{room} 吗？成员将无法再访问此聊天室。",
+      "group_created": "群组已创建",
+      "create_group_failed": "创建群组失败：{error}",
+      "group_name": "群组名称",
+      "group_name_placeholder": "例如：常规、项目、团队",
+      "create_group": "创建群组",
+      "new_group": "添加群组",
+      "threading_mode_required": "必需",
+      "threading_mode_encouraged": "鼓励",
+      "threading_mode_enabled": "已启用",
+      "threading_mode_disabled": "已禁用"
+    },
+    "moderation": {
+      "removing": "正在移出...",
+      "remove_action": "移出聊天室",
+      "lift_title": "解除 {user} 的暂停加入",
+      "lift": "解除暂停",
+      "lifting": "正在解除...",
+      "no_suspension": "不暂停加入 — 可重新加入",
+      "indefinite": "无限期",
+      "remove_title": "将 {user} 移出聊天室",
+      "suspension_period": "暂停期限"
+    },
+    "invitation": {
+      "invite": "邀请成员",
+      "invited": "你已收到邀请",
+      "sent": "邀请已发送",
+      "expires": "到期时间：{date}",
+      "unavailable": "你目前无法接受此邀请，但仍可拒绝。",
+      "accept": "接受邀请",
+      "decline": "拒绝",
+      "title": "邀请成员加入 #{room}",
+      "description": "选择你想邀请的用户。受邀用户将收到通知，并可在七天内接受或拒绝邀请。",
+      "members": "成员",
+      "send": "发送邀请",
+      "failed": "无法邀请 {name}：{error}",
+      "already_member": "已在此房间中",
+      "invited_by": "邀请你加入的用户：",
+      "decline_title": "拒绝邀请？",
+      "decline_join_later": "你可以稍后加入此房间。",
+      "decline_need_invite": "你需要新的邀请才能加入此房间。"
+    }
   }
 }

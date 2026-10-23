@@ -194,11 +194,9 @@ var (
 	ErrRoomArchived = errors.New("room is archived")
 
 	// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
-	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters long", MinPasswordLength)
+	ErrPasswordTooShort = fmt.Errorf("password must be at least %d bytes long", MinPasswordLength)
 
 	// ErrPasswordTooLong is returned when a password exceeds MaxPasswordLength.
-	// bcrypt silently truncates input at 72 bytes, so we cap above that to ensure
-	// the entire user-provided password contributes to the hash and to bound work.
 	ErrPasswordTooLong = fmt.Errorf("password cannot exceed %d bytes", MaxPasswordLength)
 )
 
@@ -271,10 +269,8 @@ const (
 	MinPasswordLength = 8
 
 	// MaxPasswordLength is the maximum length of a password in bytes.
-	// bcrypt silently truncates input at 72 bytes; capping above that prevents
-	// surprising hash collisions on long passwords sharing the same prefix while
-	// still leaving room for passphrases.
-	MaxPasswordLength = 128
+	// Go bcrypt rejects passwords longer than 72 bytes. Never truncate passwords.
+	MaxPasswordLength = 72
 
 	// MaxServerNameLength is the maximum length of a runtime-editable server name in bytes.
 	MaxServerNameLength = 80

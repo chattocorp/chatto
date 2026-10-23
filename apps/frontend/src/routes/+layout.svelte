@@ -1,5 +1,6 @@
 <script lang="ts">
   import { initialPageReveal } from '$lib/dom/initialPageReveal';
+  import { deactivateManagementLocaleMessages } from '$lib/i18n/messages';
   import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
@@ -18,6 +19,7 @@
   import { sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
+  import { serverRegistry } from '$lib/client';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
@@ -48,7 +50,14 @@
   usePinchZoomPrevention();
 
   const activeServerId = $derived(getActiveServer());
-  const activeRoomId = $derived(chatRoomIdFromRoute(page.route.id, page.params.roomId));
+  const activeRoomId = $derived(
+    chatRoomIdFromRoute(
+      page.route.id,
+      page.params.roomId,
+      page.params.userId,
+      serverRegistry.tryGetStore(activeServerId)
+    )
+  );
 
   // OAuth windows keep their page content and branding without app navigation.
   const standaloneOAuth = $derived.by(() => {
@@ -88,8 +97,14 @@
   );
 
   $effect(() => sidebarNav.initViewportTracking());
-  afterNavigate(() => {
+  afterNavigate(async ({ from, to }) => {
     if (sidebarNav.isMobile) sidebarNav.close();
+    // Only a completed exit changes the active catalogs; canceled navigation
+    // must leave management ready for subsequent language changes.
+    const management = '/chat/[serverId]/manage';
+    if (from?.route.id?.startsWith(management) && !to?.route.id?.startsWith(management)) {
+      await deactivateManagementLocaleMessages();
+    }
   });
 </script>
 

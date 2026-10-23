@@ -62,19 +62,40 @@ frontends use it. See ADR-111.
   compatibility with earlier versions is not a priority for this release.
   Preserve upgrades from pre-0.5 servers. Keep persisted protobufs backward
   compatible where feasible.
+- Increase Chatto's minimum connectable server version only as a **last resort**,
+  including during alpha and beta releases. A new release, API change, or
+  simpler implementation alone does not justify an increase. First consider
+  a compatible API design, use of the existing server contract, or deferring
+  the new dependency. Do not add complex compatibility layers merely to avoid
+  an increase.
+- Before increasing the connection threshold, document the exact incompatibility, why
+  reasonable alternatives are insufficient, and the oldest server release
+  that meets the requirement. Include this evidence and the required upgrade
+  action in the PR. Set the minimum to that release, not automatically to the
+  current release. See [FDR-031](docs/fdr/FDR-031-client-server-compatibility-discovery.md).
+- Any value change to `MINIMUM_SUPPORTED_SERVER_VERSION` requires the PR label
+  `server-compatibility:full-support`. Any value change to
+  `MINIMUM_CONNECTABLE_SERVER_VERSION` requires
+  `server-compatibility:connection-floor`. This includes decreases. Changes to
+  both require both labels. Explain each change in the PR. Labels do not waive
+  compatibility tests or the justification required for a connection-threshold
+  increase.
 
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
 - [packages/runling/README.md](packages/runling/README.md) — Runling APIs,
   development commands, and release setup.
+- [packages/runling/AGENTS.md](packages/runling/AGENTS.md) — Runling instructions
+  and the feature requirements to read before changing behavior.
 - [packages/runling/docs/README.md](packages/runling/docs/README.md) — Runling-owned
   ADRs, FDRs, and API guides. Runling records have their own numbering.
 - [packages/chatto-client/AGENTS.md](packages/chatto-client/AGENTS.md) — the
   framework-neutral Chatto client: what belongs in it, stores, realtime
   projection, sessions, reactivity, and its Svelte adapter.
 - [packages/chattobot/AGENTS.md](packages/chattobot/AGENTS.md) — ChattoBot rules:
-  only the supervisor talks to users, with no hardcoded user-facing text.
+  one agent session per thread, capabilities as tools, background jobs, and
+  changes that a maintainer approves.
 - [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,
@@ -105,13 +126,21 @@ frontends use it. See ADR-111.
   interfaces, and realtime delivery.
 - `docs/GLOSSARY.md` — canonical Chatto terminology.
 
+## Installed Skills
+
+Treat skills listed in `skills-lock.json` as installed dependencies. Do not edit
+their files directly. Make shared changes in the source repository and reinstall.
+Put project-specific rules in repository-owned skills or `AGENTS.md`.
+
 ## Tooling
 
 `mise` manages tools. Prefer its tasks when they are available.
 
-Use Chrome DevTools MCP only to inspect and verify Chatto or Authling browser
-behavior. Do not use it for general web research or public documentation
-research. Use the available web or document research tools for those tasks.
+Use an available browser tool suited to the task to inspect and verify Chatto
+or Authling browser behavior. Playwright MCP and Chrome DevTools MCP are
+examples. Do not use browser tools for general web research or public
+documentation research. Use the available web or document research tools for
+those tasks.
 
 Run Authling's unprefixed tasks from `authling/`; its nested `mise.toml` owns
 the Authling toolchain and workflow.
@@ -123,13 +152,21 @@ Turborepo runs the pnpm workspace tasks. Every workspace package must define a
 `check` script that type-checks all of its source, tests, and examples, so
 `mise check-workspace` (`pnpm run check`) checks the complete workspace. Turbo
 caches `check` results and checks again only the packages that a change
-affects. Use `pnpm turbo run check --filter=<package>...` for one package and
-its dependents. In a package script, run Turbo with `pnpm -w turbo`, so the
-root script keeps local runs on the local cache (ADR-102).
+affects. Use `pnpm turbo run check --filter=...<package>` for one package and
+its dependents. The position of `...` is important: `--filter=<package>...`
+selects the package and its dependencies, not its dependents. In a package
+script, run Turbo with `pnpm -w turbo`, so the root script keeps local runs on
+the local cache (ADR-102).
 
-`mise codegen-proto` removes and rebuilds generated TypeScript API files. Do
+`mise codegen-proto` removes and generates again the TypeScript API files. Do
 not run it at the same time as `mise test-cli`, a frontend build, or another
-task that reads `packages/api-types/dist`.
+task that reads `packages/api-types`.
+
+The workspace packages `@chatto/api-types`, `@chatto/translatto`, and
+`@chatto/client` export their source (ADR-116). Load workspace imports through
+a compiling tool, such as Vite, Vitest, tsx, or jiti. Plain Node cannot load
+them. Translatto has a `build` script for npm releases. Its
+published package exports compiled JavaScript and type declarations.
 
 Put scratch files, such as PR bodies, commit messages, logs, and file backups,
 in the gitignored `.context/` directory of the worktree. Do not use fixed paths
@@ -193,7 +230,7 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`,
   `pkg/datacrypto/`, and `pkg/appconfig/`, the framework-neutral
-  `packages/lingua` runtime, plus explicit integration and documentation
+  `packages/translatto` runtime, plus explicit integration and documentation
   surfaces such as the standalone frontend source and image, public
   protocol/API definitions, generated TypeScript API clients, documentation,
   and examples.
@@ -202,8 +239,10 @@ Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Issues, Commits, And PRs
 
+- Every review that includes `apps/frontend/` must use
+  [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).
+  This includes self-review, branch and PR review, and architecture review.
 - Use Conventional Commit format for commits and PR titles, for example `fix(api): ...` or `feat(frontend)!: ...`. Only mark breaking changes when they really are breaking.
 - Always create pull requests as full, ready-for-review PRs. Create a draft PR only when the user explicitly asks for a draft.
 - PR bodies should use clean Markup and summarize changes and link relevant FDRs, ADRs, glossary terms, and issues.
 - If a PR closes an issue, include a GitHub closing keyword such as `Closes #123.` in the body.
-

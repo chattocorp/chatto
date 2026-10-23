@@ -34,10 +34,14 @@ message search results:
 - Use `selectable-list` on non-table collections and `selectable-list-item` on
   each navigable, draggable, or directly actionable record.
 - Use `ActivityListRow` for newest-first activity records that have one primary
-  open action and optional row actions. It owns the shared read-state styling,
-  important fill, pending state, and hover-reveal action shell.
-- Rows rest transparently on the owning `background` work plane. Hover and
-  keyboard focus rise exactly one level to `surface`; do not introduce ruled
+  open action and optional row actions. It owns the important fill, pending
+  state, and hover-reveal action shell. Put `ActivityAvatar` in its `leading`
+  snippet and `ActivityRowText` in its body: `ActivityRowText` shows unread
+  activity in bold and keeps read activity in the normal text color.
+- Rows rest transparently on the owning `background` work plane. Threads
+  uses an avatar dot for unread rows, so bold text is not the only unread cue.
+  Important notification attention keeps its own colour. Hover and keyboard
+  focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
 - Each row owns its rounded shape. The collection owns only the standard
   `p-1` inset and `gap-1`, so selections never merge into a single slab.
@@ -91,9 +95,10 @@ Do not add a separate speaking border or pulse to the card.
 
 ### Sidebar links
 
-Below the `md` breakpoint, the drawer fills the available frame width. The
-server gutter keeps its width and the navigation pane fills the remaining
-space. Both panes inherit one animation state through `sidebar-drawer`.
+Below the `md` breakpoint, the drawer leaves a 3rem strip of the client visible
+at the inline end. The existing dark backdrop covers this strip; tap it to
+close the drawer. The server gutter keeps its width and the navigation pane
+fills the remaining space. Both panes inherit one animation state through `sidebar-drawer`.
 Mouse drawers use the thread overlay's 300 px slide and fade. Touch drawers
 move the full frame width to follow a finger. Select a destination, use the app-header toggle, or swipe towards
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
@@ -367,6 +372,8 @@ Follow these defaults:
   and the block has an accessible busy state. It fades in briefly and leaves as
   soon as content is ready. When the user requests less motion, the highlight
   stops and the fade is removed.
+- Use `LoadingDots` in the centre of the server sidebar while its first view
+  loads. Keep the server header and current-user footer in place.
 - A conversation timeline grows from the bottom and has no stable size to
   reserve. Use `LoadingDots` at the bottom of a pending timeline instead of
   `LoadingFog`. The dots appear after a short delay, so fast loads do not
@@ -380,7 +387,10 @@ Follow these defaults:
 Panel titles are structural navigation, not decorative headings. Do not omit
 them merely because the page header already names the overall feature: the
 page title answers “where am I?”, while panel titles answer “what is in this
-section?”.
+section?”. One exception applies: an activity list page whose list is the
+whole feature, such as the notification list or My Threads, renders the list
+directly in `PaneContent` without a `Panel`. Put its controls in a toolbar
+above the list or in `PaneHeader` actions.
 
 ### Settings And Preferences
 
@@ -708,13 +718,16 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 - Use `danger-ghost` for a state that becomes a destructive action on hover or
   focus, such as a room directory's Joined state that changes to Leave. It
   rests like `ghost`.
-- Use Save buttons only for multi-field forms submitted together, and disable
-  them until the form is dirty.
-- Binary settings in Server Admin save immediately and confirm through a toast.
+- Administrative settings require explicit submission, including single-field
+  and binary settings. Each independent form has Save changes and Discard changes
+  actions. Disable Save until the form has valid changes; disable Discard when
+  it has no edits. Disable that form during a save, keep drafts after a failed
+  save, and warn before leaving with unsaved changes.
+- Room General settings use this pattern. Migrate other administrative settings
+  as separate changes; existing immediate-save forms are not the target pattern.
 - Treat each settings panel as one action scope. Its recommended committing
   action uses `action`, whether it submits a form or starts an immediate upload.
   A page can contain one recommended action in each independent panel.
-- Use sentence case for action labels, such as "Save changes" and "Upload logo".
 - Use `danger-secondary` for a quiet destructive action beside a recommended
   action. Do not apply a local danger text colour to `secondary` or `ghost`.
 
@@ -743,6 +756,27 @@ accepts the trigger attachment through `menu.attachment`.
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 `warning`, `danger`, and `danger-secondary`. Use the variant whose meaning
 matches the action.
+
+## Action labels
+
+Apply these rules to actions in context menus, other menus, action sheets, and
+buttons:
+
+- Use sentence case for English labels. Capitalize the first word, proper
+  names, and acronyms: "Save changes", "Copy user ID", and "Copy server hostname".
+- Start with an action verb. Keep labels short, but include enough context to
+  identify the action: "Leave room", "View profile", and "Mark as read". Remove
+  unnecessary words, such as "this" in "Sign out of this server".
+- Use the same label for the same action across menus, action sheets, and
+  buttons.
+- Describe the action's result. For example, use "Open conversation" when an
+  action opens a conversation without sending a message.
+- Do not add terminal punctuation. Use an ellipsis (…)
+  only when the user must provide more input before the action can proceed.
+  Opening a view or asking for confirmation does not by itself need an ellipsis.
+- Write labels explicitly in the translation catalogs. Follow each language's
+  capitalization and grammar rules; English sentence case does not override
+  them. Do not change capitalization through CSS or runtime text conversion.
 
 ## Shape, Type, And Motion
 

@@ -10,6 +10,7 @@
     events = [],
     unreadAfterEventId = null,
     showStartMarker = true,
+    showTombstones = false,
     emptyMessage = '',
     pendingHighlightId = null,
     highlightRequest = null,
@@ -22,6 +23,7 @@
     events?: TimelineEventView[];
     unreadAfterEventId?: string | null;
     showStartMarker?: boolean;
+    showTombstones?: boolean;
     emptyMessage?: string;
     pendingHighlightId?: string | null;
     onReachedBottom?: () => void;
@@ -39,6 +41,7 @@
   const { jumpState } = getComposerContext();
 </script>
 
+<output data-testid="event-list-show-tombstones">{showTombstones}</output>
 <output data-testid="event-list-start-marker">{showStartMarker}</output>
 {#if !isLoading}
   <output data-testid="event-list-empty-message">{emptyMessage}</output>
@@ -97,4 +100,11 @@
   onclick={() => onReadPosition?.({ eventId: 'history-event', createdAtMs: 1000, latest: false })}
 >
   report history position
+</button>
+<button
+  type="button"
+  data-testid="report-latest-position"
+  onclick={() => onReadPosition?.({ eventId: 'latest-event', createdAtMs: 2000, latest: true })}
+>
+  report latest position
 </button>

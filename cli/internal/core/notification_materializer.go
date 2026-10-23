@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 const (
@@ -46,6 +47,8 @@ type NotificationMaterializer struct {
 	ready                     chan struct{}
 	consumer                  jetstream.Consumer
 	consumerInfoMu            sync.Mutex
+	invitationConsumer        jetstream.Consumer
+	invitationConsumerInfoMu  sync.Mutex
 }
 
 func NewNotificationMaterializer(core *ChattoCore, decisions events.ProjectionHandle[*NotificationDecisionProjection]) *NotificationMaterializer {
@@ -53,7 +56,7 @@ func NewNotificationMaterializer(core *ChattoCore, decisions events.ProjectionHa
 		core:      core,
 		decisions: decisions,
 		assignConfiguredOwnerRole: func(ctx context.Context, userID string) error {
-			return core.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner)
+			return core.AssignConfiguredOwnerRole(ctx, userID)
 		},
 		ready: make(chan struct{}),
 	}
@@ -69,6 +72,11 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 		return err
 	}
 	m.consumer = consumer
+	invitationConsumer, err := m.createInvitationConsumer(ctx)
+	if err != nil {
+		return err
+	}
+	m.invitationConsumer = invitationConsumer
 	close(m.ready)
 	return nil
 }
@@ -92,7 +100,17 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		return fmt.Errorf("configure notification worker: %w", err)
 	}
 
-	err = worker.Run(ctx)
+	invitationWorker, err := evtstream.NewEffectWorker(m.invitationConsumer, m.processInvitationDelivery, evtstream.EffectWorkerOptions{
+		MaxConcurrent: 1, RetryDelay: notificationWorkerRetryDelay, AckTimeout: notificationWorkerAckTimeout,
+		HeartbeatInterval: notificationWorkerHeartbeat, Logger: m.core.logger.WithPrefix("InvitationNotificationWorker"),
+	})
+	if err != nil {
+		return err
+	}
+	group, workerCtx := errgroup.WithContext(ctx)
+	group.Go(func() error { return worker.Run(workerCtx) })
+	group.Go(func() error { return invitationWorker.Run(workerCtx) })
+	err = group.Wait()
 	if err == nil && ctx.Err() == nil {
 		return errors.New("notification worker stopped unexpectedly")
 	}
@@ -173,6 +191,9 @@ func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
 		}
 	}
 	if err := m.WaitThrough(ctx, boundary); err != nil {
+		return err
+	}
+	if err := m.waitInvitationCurrent(ctx); err != nil {
 		return err
 	}
 	return m.core.notificationOccurrences.projection.Projector().WaitForCurrent(ctx)
@@ -626,27 +647,17 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	if err != nil {
 		return fmt.Errorf("resolve notification source room: %w", err)
 	}
-	resolveActor := func(eventID string) (string, error) {
-		if eventID == "" {
-			return "", nil
-		}
-		target, err := m.core.GetRoomEventByEventID(ctx, KindOfRoom(room), room.GetId(), eventID)
+	var parentActorID string
+	if parentEventID := message.GetInReplyTo(); parentEventID != "" {
+		parent, err := m.core.GetRoomEventByEventID(ctx, KindOfRoom(room), room.GetId(), parentEventID)
 		if err != nil {
-			return "", err
+			return fmt.Errorf("resolve notification reply target: %w", err)
 		}
-		return messageAuthorID(target), nil
-	}
-	parentActorID, err := resolveActor(message.GetInReplyTo())
-	if err != nil {
-		return fmt.Errorf("resolve notification reply target: %w", err)
-	}
-	threadRootActorID, err := resolveActor(message.GetInThread())
-	if err != nil {
-		return fmt.Errorf("resolve notification thread root: %w", err)
+		parentActorID = messageAuthorID(parent)
 	}
 	var decisions []notificationRecipientDecision
 	if err := m.decisions.Projection().withCurrent(evaluatedAt, func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, event, parentActorID, threadRootActorID)
+		decisions = buildMessageNotificationDecisions(snapshot, event, parentActorID)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("derive current message notification decisions: %w", err)
@@ -655,6 +666,9 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 }
 
 func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
+	if reaction.GetHistoricalImport() {
+		return nil
+	}
 	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
 		return nil
 	}
@@ -792,4 +806,10 @@ func (m *NotificationMaterializer) badgeTransitions(ctx context.Context, inputs 
 		return nil, fmt.Errorf("derive Badge transitions: %w", err)
 	}
 	return invalidations, nil
+}
+
+// waitForDecisions waits before follow changes publish an unread-state hint.
+// The durable decision worker remains the only owner of decision persistence.
+func (m *NotificationMaterializer) waitForDecisions(ctx context.Context) error {
+	return m.decisions.Projector().WaitForCurrent(ctx)
 }

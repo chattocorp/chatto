@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Paziņojumi",
       "subtitle": "Lūk, kas jauns",
-      "list_title": "Nesenās aktivitātes",
       "clear_read": "Dzēst izlasītos",
       "empty_title": "Nav paziņojumu",
       "empty_body": "Jūs visi esat nokļuvuši!",
@@ -19,14 +18,15 @@
       "unread": "Nelasīts",
       "activity": "Jauna aktivitāte",
       "summary": {
-        "direct_message": "{actor} nosūtīja jums tiešu ziņu.",
-        "reaction": "{actor} reaģēja ar “{emoji}” uz jūsu ziņu kanālā {channel}.",
-        "reaction_group": "{actor} un citi reaģēja ar “{emoji}” uz jūsu ziņu kanālā {channel}.",
-        "reply": "{actor} atbildēja uz jūsu ziņu.",
-        "mention": "{actor} pieminēja jūs.",
-        "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat.",
-        "new_message": "{actor} publicēja jaunu ziņu.",
-        "activity": "{actor} nosūtīja jums paziņojumu."
+        "direct_message": "{actor} nosūtīja jums tiešu ziņu",
+        "reaction": "{actor} reaģēja ar {emoji} uz jūsu ziņu",
+        "reaction_group": "{actor} un citi reaģēja ar {emoji} uz jūsu ziņu",
+        "reply": "{actor} atbildēja uz jūsu ziņu",
+        "mention": "{actor} pieminēja jūs",
+        "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat",
+        "new_message": "{actor} publicēja jaunu ziņu",
+        "activity": "{actor} nosūtīja jums paziņojumu",
+        "room_invitation": "{actor} uzaicināja jūs uz telpu"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Lietotāja profils",
-      "send_message": "Nosūtīt ziņu",
+      "send_message": "Atveriet sarunu",
       "view_profile": "Skatīt profilu",
       "profile_requires_direct_message": "Lai skatītu šo profilu, ir nepieciešams tiešais ziņojums.",
       "manage_bot": "Pārvaldīt robotu",
       "view_in_admin": "Skatīt servera administrēšanā",
       "copy_user_id": "Kopēt lietotāja ID"
     },
+    "server_info": {
+      "title": "Servera informācija",
+      "details": "Servera dati"
+    },
+    "compatibility": {
+      "title": "Saderība",
+      "view": "Skatīt saderību",
+      "limited": "Vecāka servera versija",
+      "supported": "Nav zināmu saderības problēmu",
+      "affected": "Ietekmētās funkcijas",
+      "requires": "Nepieciešama {version} vai jaunāka versija",
+      "thread_views_title": "Pavedienu skatiem ir ierobežots atbalsts",
+      "thread_views_description": "Pavedieni, kuriem sekojat, un Jūsu sāktie pavedieni šajā serverī var netikt parādīti atsevišķi.",
+      "independent_slow_mode_title": "Neatkarīgs lēnais režīms nav pieejams",
+      "independent_slow_mode_description": "Šis serveris izmanto vienu kopīgu gaidīšanas laiku kanāla ziņojumiem un atbildēm pavedienos.",
+      "upgrade": "Lai iegūtu pilnu atbalstu, lūdziet servera administratoram atjaunināt uz {version} vai jaunāku versiju."
+    },
     "server_gutter": {
       "move_up": "Pārvietot uz augšu",
       "move_down": "Pārvietot uz leju",
       "add_server": "Pievienot serveri",
-      "log_in": "Pieteikties šajā serverī",
-      "sign_out": "Izrakstīties no šī servera",
+      "log_in": "Piesakieties serverī",
+      "sign_out": "Izrakstieties no servera",
       "version": "Versija {version}",
       "unreachable": "Serveris nav sasniedzams",
       "connection_unavailable": "Savienojums nav pieejams",
-      "compatibility_server_too_old": "Šis serveris ir jājaunina uz Chatto 0.5 vai jaunāku versiju, lai šī lietotne varētu izveidot savienojumu.",
+      "compatibility_server_too_old": "Šis serveris ir jājaunina uz Chatto {version} vai jaunāku versiju, lai šī lietotne varētu izveidot savienojumu.",
       "compatibility_unknown": "Šī lietotne nevar noteikt saderību no servera versijas.",
       "go_to_notifications_count": {
         "zero": "Pāriet uz {count} paziņojumiem",
@@ -92,9 +109,16 @@
       "body": "Piesakieties, lai šajā serverī lasītu un sūtītu ziņojumus."
     },
     "threads": {
-      "title": "Mani pavedieni",
-      "subtitle": "Pavedieni, kuriem sekojat",
-      "list_title": "Sekotie pavedieni",
+      "sort_label": "Kārtot pavedienus",
+      "sort_activity": "Aktivitāte",
+      "sort_created": "Vecums",
+      "tab_started": "Mani",
+      "tab_followed": "Sekotās",
+      "tab_label": "Pavedienu skats",
+      "empty_mine_title": "Nav jūsu sāktu pavedienu",
+      "empty_mine_body": "Šeit parādīsies pavedieni, kurus sākat un kuriem sekojat.",
+      "title": "Pavedieni",
+      "subtitle": "Jauna aktivitāte jūsu pavedienos",
       "filter_label": "Filtru pavedieni",
       "filter_all": "Visi",
       "filter_unread": "Nelasīts",
@@ -144,6 +168,19 @@
       },
       "owned_by": "Īpašnieks",
       "open_card": "Atvērt lietotāja {name} profila karti"
+    },
+    "management_nav": {
+      "general": "Ģenerālis",
+      "neighbors": "Kaimiņi",
+      "members": "Biedri",
+      "rooms": "Istabas",
+      "moderation": "Mērenība",
+      "permissions": "Atļaujas",
+      "security": "Drošība",
+      "event_log": "Notikumu žurnāls",
+      "system": "Sistēma",
+      "back_to_server": "Atgriezties uz serveri",
+      "invitations": "Uzaicinājumu saites"
     }
   }
 }

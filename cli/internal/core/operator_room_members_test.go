@@ -6,21 +6,21 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := first.CreateUser(ctx, SystemActorID, "operator-replica-member", "Operator Replica Member", "password")
 	require.NoError(t, err)
 	room, err := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "operator-replica-room", "")
 	require.NoError(t, err)
-	second, err := NewChattoCore(ctx, nc, first.config)
-	require.NoError(t, err)
-	startCoreServices(t, second)
+	second := startReplica(t, ns, first.config)
 
 	type result struct {
 		roomID string
@@ -46,9 +46,7 @@ func TestOperatorRoomMemberAddAcrossReplicasAndReplay(t *testing.T) {
 		require.Equal(t, user.GetId(), result.userID)
 	}
 
-	replayed, err := NewChattoCore(ctx, nc, first.config)
-	require.NoError(t, err)
-	startCoreServices(t, replayed)
+	replayed := startReplica(t, ns, first.config)
 	membership, err := replayed.AddMember(ctx, SystemActorID, KindChannel, room.GetId(), user.GetId())
 	require.NoError(t, err)
 	require.Equal(t, room.GetId(), membership.GetRoomId())
@@ -71,7 +69,7 @@ func TestAddMemberRechecksRoomAfterConcurrentArchive(t *testing.T) {
 	require.NoError(t, err)
 
 	checks := 0
-	_, err = c.addMember(ctx, SystemActorID, KindChannel, room.GetId(), user.GetId(), func() error {
+	_, err = c.roomMemberships.addMember(ctx, SystemActorID, KindChannel, room.GetId(), user.GetId(), func() error {
 		checks++
 		if checks == 2 {
 			_, archiveErr := c.ArchiveRoom(ctx, SystemActorID, KindChannel, room.GetId())
@@ -80,7 +78,7 @@ func TestAddMemberRechecksRoomAfterConcurrentArchive(t *testing.T) {
 		return nil
 	})
 	require.ErrorIs(t, err, ErrRoomArchived)
-	_, err = c.GetRoomMembership(ctx, KindChannel, user.GetId(), room.GetId())
+	_, err = c.roomMemberships.GetRoomMembership(ctx, KindChannel, user.GetId(), room.GetId())
 	require.Error(t, err)
 	for _, eventType := range []string{evtstream.EventRoomMemberAdded, evtstream.EventUserJoinedRoom} {
 		events, _, eventErr := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.GetId()).Subject(eventType))

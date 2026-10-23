@@ -20,6 +20,9 @@
       </p>
     </div>
 
-    <Button href="/" variant="secondary">{m('error_page.home_link')}</Button>
+    <div class="flex flex-wrap justify-center gap-3">
+      <Button onclick={() => window.location.reload()}>{m('common.retry')}</Button>
+      <Button href="/" variant="secondary">{m('error_page.home_link')}</Button>
+    </div>
   </section>
 </div>

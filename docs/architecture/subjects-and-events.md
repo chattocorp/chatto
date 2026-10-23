@@ -117,7 +117,7 @@ retroactively cancel an already-authorized, conflict-free reaction attempt;
 subsequent requests observe the changed authorization state.
 
 Pinned-message add/remove validates stable request-time authorization inputs,
-captures the full room aggregate tail, and reruns `room.manage` plus message
+captures the full room aggregate tail, and reruns `message.pin` plus message
 lifecycle checks before a room-OCC append. A concurrent room change forces a
 complete retry. Pins reference the canonical message ID; Room Timeline removes
 an active association when that message is retracted.
@@ -271,6 +271,14 @@ subjects. The body and post commit with any asset claims in one batch. The
 post's event actor is the system; its `author_id` names the displayed author.
 Its `historical_import` field remains in EVT so replay consumers suppress
 posting effects. No source ID or deduplication record is stored.
+
+Historical thread creation uses `ThreadCreatedEvent.historical_import` on the
+existing thread-created subject. It commits with the root or first reply and
+does not create a follow. Historical reactions use `ReactionAddedEvent.user_id`
+for the mapped reactor and the system envelope actor for the operation. Empty
+`user_id` retains ordinary actor-based attribution. Their `historical_import`
+marker suppresses attention and live delivery during replay. Reaction writes
+use room aggregate OCC to make repeated user/message/emoji imports idempotent.
 | `evt.room.{roomId}.reaction_added` | `ReactionAddedEvent` |
 | `evt.room.{roomId}.reaction_removed` | `ReactionRemovedEvent` |
 | `evt.asset.{assetId}.asset_created` | `AssetCreatedEvent` |
@@ -576,3 +584,10 @@ routing. It has no `message_body` fact or copied mention and reply-attribution
 fields. Full and partial content edits append the original message's body and
 edit facts only. Edit-driven echo creation or removal shares the parent edit's
 room-OCC batch.
+
+## Room invitation facts
+
+`evt.room.<room-id>.room_invitation_created`, `room_invitation_accepted`, and
+`room_invitation_declined` use the room aggregate. The event envelope records
+the actor and time. Created facts store the recipient and expiry; response
+facts identify both participants. They do not appear in room timelines.

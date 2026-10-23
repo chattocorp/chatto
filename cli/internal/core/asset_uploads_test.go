@@ -8,11 +8,61 @@ import (
 	"image"
 	"image/color"
 	"image/gif"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/nats-io/nats.go/jetstream"
 )
+
+func TestAssetUploadUsesOneLimitForAllFileTypes(t *testing.T) {
+	t.Parallel()
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "upload-limit", "Upload Limit", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "upload-limit", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatal(err)
+	}
+	// The same valid image bytes also exercise image completion, which must
+	// use the limit advertised at upload creation.
+	var imageBytes bytes.Buffer
+	if err := gif.Encode(&imageBytes, image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.Black, color.White}), nil); err != nil {
+		t.Fatal(err)
+	}
+	content := imageBytes.Bytes()
+	limit := int64(len(content))
+	core.config.Assets.MaxUploadSize = config.ByteSize(limit)
+	sum := sha256.Sum256(content)
+	hash := hex.EncodeToString(sum[:])
+	for _, contentType := range []string{"image/gif", "video/mp4", "application/octet-stream"} {
+		t.Run(contentType, func(t *testing.T) {
+			input := AssetUploadCreateInput{ActorID: user.Id, RoomID: room.Id, Filename: "attachment", ContentType: contentType, Size: limit, SHA256: hash}
+			upload, err := core.AssetUploads().CreateUpload(ctx, input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := core.AssetUploads().UploadChunk(ctx, AssetUploadChunkInput{ActorID: user.Id, UploadID: upload.UploadID, Content: content, ChunkSHA256: hash}); err != nil {
+				t.Fatal(err)
+			}
+			if _, _, err := core.AssetUploads().CompleteUpload(ctx, AssetUploadCompleteInput{ActorID: user.Id, UploadID: upload.UploadID}); err != nil {
+				t.Fatal(err)
+			}
+			input.Size++
+			input.RoomID = "missing-room"
+			if _, err := core.AssetUploads().CreateUpload(ctx, input); !errors.Is(err, ErrInvalidArgument) || !strings.Contains(err.Error(), "maximum size") {
+				t.Fatalf("oversized upload = %v, want size rejection before room lookup", err)
+			}
+		})
+	}
+}
 
 func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 	t.Parallel()

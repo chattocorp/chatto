@@ -16,8 +16,8 @@
       "submit_and_configure": "Create and configure"
     },
     "join": {
-      "title": "Join Room",
-      "action": "Join Room",
+      "title": "Join room",
+      "action": "Join room",
       "prompt": "Join #{room} to read and participate in this room.",
       "inline_prompt": "Join this room to read and participate.",
       "group_label": "In {group}",
@@ -33,10 +33,13 @@
       "access_denied": "You do not have permission to join this room."
     },
     "leave": {
-      "title": "Leave Room",
-      "action": "Leave Room",
-      "prompt": "Are you sure you want to leave #{room}? You can rejoin later.",
-      "failed": "Failed to leave room"
+      "title": "Leave room",
+      "action": "Leave room",
+      "prompt": "Are you sure you want to leave #{room}?",
+      "failed": "Failed to leave room",
+      "join_later": "You can rejoin later.",
+      "need_invite": "You will need a new invitation to join this room.",
+      "rejoin_unknown": "You may need a new invitation to rejoin."
     },
     "directory": {
       "universal_title": "Universal rooms are joined automatically",
@@ -59,7 +62,8 @@
       "join_group_failed": "Failed to join group",
       "left": "Left #{room}",
       "left_generic": "Left room",
-      "leave_confirm": "Are you sure you want to leave #{room}?"
+      "leave_confirm": "Are you sure you want to leave #{room}?",
+      "invited": "Invited"
     },
     "server": {
       "remove_title": "Remove Server",
@@ -97,7 +101,8 @@
         "edit": "Edit message",
         "more": "More actions",
         "edit_short": "Edit",
-        "copy_text": "Copy text",
+        "copy_text": "Copy message text",
+        "copy_selected_text": "Copy selected text",
         "copy_text_failed": "Failed to copy text",
         "copy_link": "Copy link",
         "copy_message_link": "Copy message link",
@@ -106,7 +111,8 @@
         "message_link_copied": "Message link copied",
         "copy_link_failed": "Failed to copy link",
         "image_copied": "Image copied",
-        "copy_image_failed": "Failed to copy image"
+        "copy_image_failed": "Failed to copy image",
+        "view_reactions": "View reactions"
       },
       "meta": {
         "echo": "Echo",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Are you sure you want to remove this pin?",
       "loading": "Loading pinned messages...",
       "empty_title": "No pinned messages",
-      "empty_description": "Room managers can pin important messages here.",
+      "empty_description": "Pinned messages appear here.",
       "error_title": "Pinned messages unavailable",
       "error_description": "Pinned messages could not be loaded. Try again in a moment.",
       "update_failed": "Failed to update pinned message"
@@ -255,6 +261,81 @@
     "jump_to_present": "Jump to Present",
     "jump_failed": "Could not jump to that message.",
     "unread_separator": "New messages",
-    "close_extras": "Close room extras"
+    "close_extras": "Close room extras",
+    "dm": {
+      "deleted_user_notice": "The other user has been deleted."
+    },
+    "management": {
+      "room_name_too_long": "Room name cannot exceed 30 characters",
+      "room_name_invalid": "Room name cannot contain line breaks or control characters",
+      "create_room": "Create room",
+      "reorder_groups_failed": "Failed to reorder groups: {error}",
+      "room_created": "Room created",
+      "link_updated": "Link updated",
+      "link_created": "Link created",
+      "save_link_failed": "Failed to save link: {error}",
+      "group_deleted": "Group deleted",
+      "delete_group_failed": "Failed to delete group: {error}",
+      "link_deleted": "Link deleted",
+      "delete_link_failed": "Failed to delete link: {error}",
+      "room_archived": "Room archived",
+      "archive_room_failed": "Failed to archive room: {error}",
+      "drag_room": "Drag to reorder room",
+      "drag_link": "Drag to reorder link",
+      "drag_group": "Drag to reorder group",
+      "new_room": "Create room",
+      "new_link": "Create link",
+      "delete_group": "Delete group",
+      "edit_link": "Edit link",
+      "delete_link": "Delete link",
+      "create_link": "Create link",
+      "label": "Label",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com or /docs",
+      "delete_group_prompt": "Are you sure you want to delete the set {name}?",
+      "delete_link_prompt": "Are you sure you want to delete {label}?",
+      "archive_room": "Archive room",
+      "archive_room_prompt": "Are you sure you want to archive #{room}? Members will no longer be able to access this room.",
+      "group_created": "Group created",
+      "create_group_failed": "Failed to create group: {error}",
+      "group_name": "Group name",
+      "group_name_placeholder": "e.g., General, Projects, Teams",
+      "create_group": "Create Group",
+      "new_group": "New Group",
+      "threading_mode_required": "Required",
+      "threading_mode_encouraged": "Encouraged",
+      "threading_mode_enabled": "Enabled",
+      "threading_mode_disabled": "Disabled"
+    },
+    "moderation": {
+      "removing": "Removing...",
+      "remove_action": "Remove from room",
+      "lift_title": "Lift suspension for {user}",
+      "lift": "Lift suspension",
+      "lifting": "Lifting...",
+      "no_suspension": "No suspension — can rejoin",
+      "indefinite": "Indefinite",
+      "remove_title": "Remove {user} from room",
+      "suspension_period": "Suspension period"
+    },
+    "invitation": {
+      "invite": "Invite member",
+      "invited": "You have been invited",
+      "sent": "Invitations sent",
+      "expires": "Expires on {date}",
+      "unavailable": "This invitation cannot be accepted at present. You can still decline it.",
+      "accept": "Accept invitation",
+      "decline": "Decline",
+      "title": "Invite members to #{room}",
+      "description": "Choose who you would like to invite. Invited users will receive a notification and have seven days to accept or decline.",
+      "members": "Members",
+      "send": "Send invitations",
+      "failed": "Could not invite {name}: {error}",
+      "already_member": "Already in this room",
+      "invited_by": "You have been invited by",
+      "decline_title": "Decline invitation?",
+      "decline_join_later": "You can join this room later.",
+      "decline_need_invite": "You will need a new invitation to join this room."
+    }
   }
 }

@@ -33,10 +33,13 @@
       "access_denied": "Non hai l'autorizzazione per entrare in questa stanza virtuale."
     },
     "leave": {
-      "title": "Lascia la stanza",
-      "action": "Lascia la stanza",
-      "prompt": "Sei sicuro di voler lasciare #{room}? Puoi ricongiungerti più tardi.",
-      "failed": "Impossibile lasciare la stanza"
+      "title": "Lascia stanza",
+      "action": "Lascia stanza",
+      "prompt": "Sei sicuro di voler lasciare #{room}?",
+      "failed": "Impossibile lasciare la stanza",
+      "join_later": "Puoi ricongiungerti più tardi.",
+      "need_invite": "Avrai bisogno di un nuovo invito per entrare in questa stanza.",
+      "rejoin_unknown": "Potresti aver bisogno di un nuovo invito per rientrare."
     },
     "directory": {
       "universal_title": "Le stanze universali vengono unite automaticamente",
@@ -59,7 +62,8 @@
       "join_group_failed": "Impossibile unirsi al gruppo",
       "left": "A sinistra #{room}",
       "left_generic": "Stanza di sinistra",
-      "leave_confirm": "Sei sicuro di voler lasciare #{room}?"
+      "leave_confirm": "Sei sicuro di voler lasciare #{room}?",
+      "invited": "Invitato"
     },
     "server": {
       "remove_title": "Rimuovi server",
@@ -93,11 +97,12 @@
         "reply": "Rispondi",
         "reply_room": "Rispondi nella stanza",
         "reply_thread": "Rispondi nel thread",
-        "open_thread": "Discussione aperta",
+        "open_thread": "Apri thread",
         "edit": "Modifica messaggio",
         "more": "Più azioni",
         "edit_short": "Modifica",
-        "copy_text": "Copia testo",
+        "copy_text": "Copia testo del messaggio",
+        "copy_selected_text": "Copia testo selezionato",
         "copy_text_failed": "Impossibile copiare il testo",
         "copy_link": "Copia collegamento",
         "copy_message_link": "Copia link al messaggio",
@@ -106,7 +111,8 @@
         "message_link_copied": "Link del messaggio copiato",
         "copy_link_failed": "Impossibile copiare il link",
         "image_copied": "Immagine copiata",
-        "copy_image_failed": "Impossibile copiare l’immagine"
+        "copy_image_failed": "Impossibile copiare l’immagine",
+        "view_reactions": "Visualizza reazioni"
       },
       "meta": {
         "echo": "Eco",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Vuoi davvero rimuovere questo messaggio fissato?",
       "loading": "Caricamento dei messaggi fissati...",
       "empty_title": "Nessun messaggio fissato",
-      "empty_description": "I gestori della stanza possono fissare qui i messaggi importanti.",
+      "empty_description": "I messaggi fissati vengono mostrati qui.",
       "error_title": "Messaggi fissati non disponibili",
       "error_description": "Impossibile caricare i messaggi fissati. Riprova tra poco.",
       "update_failed": "Impossibile aggiornare il messaggio fissato"
@@ -255,6 +261,81 @@
     "jump_to_present": "Vai al presente",
     "jump_failed": "Impossibile passare a quel messaggio.",
     "unread_separator": "Nuovi messaggi",
-    "close_extras": "Chiudi gli extra della camera"
+    "close_extras": "Chiudi gli extra della camera",
+    "dm": {
+      "deleted_user_notice": "L’altro utente è stato eliminato."
+    },
+    "management": {
+      "room_name_too_long": "Il nome della stanza non può superare i 30 caratteri",
+      "room_name_invalid": "Il nome della stanza non può contenere interruzioni di riga o caratteri di controllo",
+      "create_room": "Crea stanza",
+      "reorder_groups_failed": "Impossibile riordinare i gruppi: {error}",
+      "room_created": "Stanza creata",
+      "link_updated": "Collegamento aggiornato",
+      "link_created": "Collegamento creato",
+      "save_link_failed": "Impossibile salvare il collegamento: {error}",
+      "group_deleted": "Gruppo eliminato",
+      "delete_group_failed": "Impossibile eliminare il gruppo: {error}",
+      "link_deleted": "Collegamento eliminato",
+      "delete_link_failed": "Impossibile eliminare il collegamento: {error}",
+      "room_archived": "Camera archiviata",
+      "archive_room_failed": "Impossibile archiviare la stanza: {error}",
+      "drag_room": "Trascina per riordinare la stanza",
+      "drag_link": "Trascina per riordinare il link",
+      "drag_group": "Trascina per riordinare il gruppo",
+      "new_room": "Crea stanza",
+      "new_link": "Crea collegamento",
+      "delete_group": "Elimina gruppo",
+      "edit_link": "Modifica collegamento",
+      "delete_link": "Elimina collegamento",
+      "create_link": "Crea collegamento",
+      "label": "Etichetta",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com o /docs",
+      "delete_group_prompt": "Sei sicuro di voler eliminare il set {name}?",
+      "delete_link_prompt": "Sei sicuro di voler eliminare {label}?",
+      "archive_room": "Archivia stanza",
+      "archive_room_prompt": "Sei sicuro di voler archiviare #{room}? I membri non potranno più accedere a questa stanza.",
+      "group_created": "Gruppo creato",
+      "create_group_failed": "Impossibile creare il gruppo: {error}",
+      "group_name": "Nome del gruppo",
+      "group_name_placeholder": "ad esempio, Generale, Progetti, Team",
+      "create_group": "Crea gruppo",
+      "new_group": "Nuovo gruppo",
+      "threading_mode_required": "Obbligatoria",
+      "threading_mode_encouraged": "Consigliata",
+      "threading_mode_enabled": "Attivata",
+      "threading_mode_disabled": "Disattivata"
+    },
+    "moderation": {
+      "removing": "Rimozione...",
+      "remove_action": "Rimuovi dalla stanza",
+      "lift_title": "Revoca la sospensione di {user}",
+      "lift": "Revoca sospensione",
+      "lifting": "Revoca in corso...",
+      "no_suspension": "Nessuna sospensione — può rientrare",
+      "indefinite": "Indefinita",
+      "remove_title": "Rimuovi {user} dalla stanza",
+      "suspension_period": "Durata della sospensione"
+    },
+    "invitation": {
+      "invite": "Invita membro",
+      "invited": "Hai ricevuto un invito",
+      "sent": "Inviti inviati",
+      "expires": "Scade il {date}",
+      "unavailable": "Al momento non puoi accettare questo invito. Puoi ancora rifiutarlo.",
+      "accept": "Accetta l’invito",
+      "decline": "Rifiuta",
+      "title": "Invita membri in #{room}",
+      "description": "Scegli chi vuoi invitare. Gli utenti invitati riceveranno una notifica e avranno sette giorni per accettare o rifiutare.",
+      "members": "Membri",
+      "send": "Invia inviti",
+      "failed": "Impossibile invitare {name}: {error}",
+      "already_member": "Già in questa stanza",
+      "invited_by": "Hai ricevuto un invito da",
+      "decline_title": "Rifiutare l’invito?",
+      "decline_join_later": "Puoi entrare in questa stanza più tardi.",
+      "decline_need_invite": "Avrai bisogno di un nuovo invito per entrare in questa stanza."
+    }
   }
 }

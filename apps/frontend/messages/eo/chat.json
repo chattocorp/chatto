@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Sciigoj",
       "subtitle": "Jen kio estas nova",
-      "list_title": "Lasta aktiveco",
       "clear_read": "Forigi legitajn",
       "empty_title": "Neniuj sciigoj",
       "empty_body": "Vi ĉiuj estas kaptitaj!",
@@ -19,14 +18,15 @@
       "unread": "Nelegite",
       "activity": "Nova aktiveco",
       "summary": {
-        "direct_message": "{actor} sendis al vi rektan mesaĝon.",
-        "reaction": "{actor} reagis per «{emoji}» al via mesaĝo en {channel}.",
-        "reaction_group": "{actor} kaj aliaj reagis per «{emoji}» al via mesaĝo en {channel}.",
-        "reply": "{actor} respondis al via mesaĝo.",
-        "mention": "{actor} menciis vin.",
-        "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas.",
-        "new_message": "{actor} afiŝis novan mesaĝon.",
-        "activity": "{actor} sendis al vi sciigon."
+        "direct_message": "{actor} sendis al vi rektan mesaĝon",
+        "reaction": "{actor} reagis per {emoji} al via mesaĝo",
+        "reaction_group": "{actor} kaj aliaj reagis per {emoji} al via mesaĝo",
+        "reply": "{actor} respondis al via mesaĝo",
+        "mention": "{actor} menciis vin",
+        "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas",
+        "new_message": "{actor} afiŝis novan mesaĝon",
+        "activity": "{actor} sendis al vi sciigon",
+        "room_invitation": "{actor} invitis vin al ĉambro"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Profilo de uzanto",
-      "send_message": "Sendu Mesaĝon",
+      "send_message": "Malfermi konversacion",
       "view_profile": "Vidi profilon",
       "profile_requires_direct_message": "Necesas rekta mesaĝo por vidi ĉi tiun profilon.",
       "manage_bot": "Administri bot",
       "view_in_admin": "Vidi en servila administrado",
       "copy_user_id": "Kopii identigilon de uzanto"
     },
+    "server_info": {
+      "title": "Servilaj informoj",
+      "details": "Servilaj detaloj"
+    },
+    "compatibility": {
+      "title": "Kongrueco",
+      "view": "Vidi kongruecon",
+      "limited": "Pli malnova servila versio",
+      "supported": "Neniuj konataj kongruecaj problemoj",
+      "affected": "Trafitaj funkcioj",
+      "requires": "Postulas {version} aŭ pli novan version",
+      "thread_views_title": "Fadenaj vidoj havas limigitan subtenon",
+      "thread_views_description": "Sekvataj fadenoj kaj fadenoj, kiujn vi komencis, eble ne estas listigitaj aparte en ĉi tiu servilo.",
+      "independent_slow_mode_title": "Sendependa malrapida reĝimo ne disponeblas",
+      "independent_slow_mode_description": "Ĉi tiu servilo uzas unu komunan atendotempon por kanalaj mesaĝoj kaj respondoj en fadenoj.",
+      "upgrade": "Por plena subteno, petu la servilan administranton ĝisdatigi al {version} aŭ pli nova versio."
+    },
     "server_gutter": {
       "move_up": "Movi supren",
       "move_down": "Movi malsupren",
       "add_server": "Aldonu Servilon",
-      "log_in": "Ensaluti al ĉi tiu servilo",
-      "sign_out": "Elsaluti el ĉi tiu servilo",
+      "log_in": "Ensaluti al la servilo",
+      "sign_out": "Elsaluti el la servilo",
       "version": "Versio {version}",
       "unreachable": "Servilo neatingebla",
       "connection_unavailable": "Konekto ne disponeblas",
-      "compatibility_server_too_old": "Ĉi tiu servilo devas esti ĝisdatigita al Chatto 0.5 aŭ pli nova antaŭ ol ĉi tiu aplikaĵo povas konektiĝi.",
+      "compatibility_server_too_old": "Ĉi tiu servilo devas esti ĝisdatigita al Chatto {version} aŭ pli nova antaŭ ol ĉi tiu aplikaĵo povas konektiĝi.",
       "compatibility_unknown": "Ĉi tiu aplikaĵo ne povas determini kongruecon laŭ la servila versio.",
       "go_to_notifications_count": {
         "one": "Iri al {count} sciigo",
@@ -90,9 +107,16 @@
       "body": "Ensalutu por legi kaj sendi mesaĝojn en ĉi tiu servilo."
     },
     "threads": {
-      "title": "Miaj Fadenoj",
-      "subtitle": "Fadenoj, kiujn vi sekvas",
-      "list_title": "Sekvataj fadenoj",
+      "sort_label": "Ordigi fadenojn",
+      "sort_activity": "Aktiveco",
+      "sort_created": "Aĝo",
+      "tab_started": "Miaj",
+      "tab_followed": "Sekvataj",
+      "tab_label": "Vido de fadenoj",
+      "empty_mine_title": "Neniuj fadenoj komencitaj de vi",
+      "empty_mine_body": "Fadenoj, kiujn vi komencas kaj sekvas, aperos ĉi tie.",
+      "title": "Fadenoj",
+      "subtitle": "Nova agado en viaj fadenoj",
       "filter_label": "Filtri fadenojn",
       "filter_all": "Ĉiuj",
       "filter_unread": "Nelegita",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Posedanto",
       "open_card": "Malfermi la profilkarton de {name}"
+    },
+    "management_nav": {
+      "general": "Generalo",
+      "neighbors": "Najbaroj",
+      "members": "Membroj",
+      "rooms": "Ĉambroj",
+      "moderation": "Modereco",
+      "permissions": "Permesoj",
+      "security": "Sekureco",
+      "event_log": "Protokolo de Eventoj",
+      "system": "Sistemo",
+      "back_to_server": "Reiru al Servilo",
+      "invitations": "Invitligiloj"
     }
   }
 }

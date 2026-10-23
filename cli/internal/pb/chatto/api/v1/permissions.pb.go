@@ -479,8 +479,8 @@ const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"$EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM\x10\x03\x12&\n" +
 	"\"EFFECTIVE_PERMISSION_SCOPE_KIND_DM\x10\x042\x90\x01\n" +
 	"\x11PermissionService\x12{\n" +
-	"\x18ListEffectivePermissions\x12..chatto.api.v1.ListEffectivePermissionsRequest\x1a/.chatto.api.v1.ListEffectivePermissionsResponseB\xac\x01\n" +
-	"\x11com.chatto.api.v1B\x10PermissionsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x18ListEffectivePermissions\x12..chatto.api.v1.ListEffectivePermissionsRequest\x1a/.chatto.api.v1.ListEffectivePermissionsResponseB\xbd\x01\n" +
+	"\x11com.chatto.api.v1B\x10PermissionsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_permissions_proto_rawDescOnce sync.Once

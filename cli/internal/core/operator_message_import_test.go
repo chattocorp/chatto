@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestImportHistoricalMessageRoundTripWithoutPostingEffects(t *testing.T) {
@@ -84,7 +84,7 @@ func TestImportHistoricalMessageRoundTripWithoutPostingEffects(t *testing.T) {
 	if found != 2 {
 		t.Fatalf("timeline contains %d imported messages, want 2", found)
 	}
-	lastID, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.Id, room.Id)
+	lastID, _, exists, err := chatto.readStateModel.GetRoomLastReadableEvent(ctx, KindChannel, reader.Id, room.Id)
 	if err != nil || !exists || lastID != baseline.Id {
 		t.Fatalf("last readable activity = (%q, %t, %v)", lastID, exists, err)
 	}
@@ -198,7 +198,7 @@ func TestHistoricalMessageProjectionRestoreKeepsActivitySuppressed(t *testing.T)
 		if !ok || !imported.HistoricalImport {
 			t.Fatalf("historical entry = %+v", imported)
 		}
-		if _, ok := current.LatestOriginalPostAt("room", SystemActorID); ok {
+		if _, ok := current.LatestRootPostAt("room", SystemActorID); ok {
 			t.Fatal("historical import affected slow mode")
 		}
 	}

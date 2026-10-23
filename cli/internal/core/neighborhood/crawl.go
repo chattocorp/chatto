@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"hmans.de/chatto/internal/parallel"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
 )
 
 // Limits bound the remote work of one discovery pass. Each value is a hard

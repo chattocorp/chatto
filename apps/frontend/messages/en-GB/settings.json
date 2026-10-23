@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Inherit",
           "off": "Off",
-          "badge": "Badge",
+          "badge": "Unread dot",
           "badge_hint": "Adds only a neutral unread dot. It does not create a notification, play a sound, or send a push notification.",
-          "notification": "Notification",
+          "notification": "In-app notification",
           "push_notification": "Push notification"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Messages that use @here while your presence is not offline.",
           "all": "Messages that use @all in a room you belong to.",
           "followed_thread": "New replies in threads that you follow.",
-          "reaction": "Reactions that other members add to your messages."
+          "reaction": "Reactions that other members add to your messages.",
+          "room_invitation": "Invitations to join rooms."
         }
       }
     },

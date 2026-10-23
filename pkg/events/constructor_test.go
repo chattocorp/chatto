@@ -6,7 +6,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // Constructors panic when a required argument is nil: that is a wiring error,

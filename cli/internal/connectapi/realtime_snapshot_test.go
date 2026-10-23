@@ -9,10 +9,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestBuildRealtimeSnapshotLimitsUsersAndOmitsRuntimePresence(t *testing.T) {
@@ -73,6 +73,42 @@ func TestBuildRealtimeSnapshotLimitsUsersAndOmitsRuntimePresence(t *testing.T) {
 		t.Fatalf("active calls = %+v, want one call with one participant", calls)
 	} else if got := calls[0].GetParticipants()[0].GetUser().GetPresenceStatus(); got != apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED {
 		t.Fatalf("snapshot call participant presence = %v, want UNSPECIFIED", got)
+	}
+}
+
+func TestBuildRealtimeSnapshotIncludesExistingUniversalCallForNewAccount(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	env.api.config.LiveKit = config.LiveKitConfig{
+		Enabled: true, URL: "ws://livekit.test", APIKey: "test-key",
+		APISecret: "test-secret", ServerID: "test-server",
+	}
+	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "existing-universal-call", "", core.WithUniversalRoom(true))
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := env.core.RecordCallParticipantJoined(env.ctx, room.Id, env.viewer.Id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined: %v", err)
+	}
+	before, err := env.core.GetCallSnapshot(room.Id)
+	if err != nil || before.Call.CallID == "" {
+		t.Fatalf("GetCallSnapshot: call ID = %q, error = %v", before.Call.CallID, err)
+	}
+	newcomer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "call-newcomer", "Call Newcomer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	snapshot, err := env.api.BuildRealtimeSnapshot(env.ctx, newcomer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeSnapshot: %v", err)
+	}
+	calls := snapshot.ActiveCalls.GetCalls()
+	if len(calls) != 1 || calls[0].GetRoom().GetId() != room.Id || calls[0].GetCallId() != before.Call.CallID {
+		t.Fatal("new account snapshot must contain the existing universal room call")
+	}
+	participants := calls[0].GetParticipants()
+	if len(participants) != 1 || participants[0].GetUser().GetId() != env.viewer.Id {
+		t.Fatal("new account snapshot must contain the existing call participant")
 	}
 }
 

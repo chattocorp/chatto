@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 func TestIntegrationRelationshipReads(t *testing.T) {
@@ -77,7 +77,7 @@ func TestIntegrationReadMarkers(t *testing.T) {
 	roomState, err := env.rooms.GetRoomReadState(ctx, roomReq)
 	require.NoError(t, err)
 	require.Nil(t, roomState.Msg.State.Marker)
-	_, exists, err := env.core.PeekLastReadEventID(env.ctx, reader.Id, room.Id)
+	_, exists, err := env.core.ReadState().PeekLastReadEventID(env.ctx, reader.Id, room.Id)
 	require.NoError(t, err)
 	require.False(t, exists, "reading must not initialize a marker")
 	threadState, err := env.threads.GetThreadReadState(ctx, threadReq)

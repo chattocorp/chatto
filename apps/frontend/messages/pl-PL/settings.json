@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",
-          "badge": "Znacznik",
+          "badge": "Kropka nieprzeczytanej treści",
           "badge_hint": "Dodaje tylko neutralną kropkę nieprzeczytanej treści. Nie tworzy powiadomienia, nie odtwarza dźwięku ani nie wysyła powiadomienia push.",
-          "notification": "Powiadomienie",
+          "notification": "Powiadomienie w aplikacji",
           "push_notification": "Powiadomienie push"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Wiadomości z @here, gdy Twój status obecności nie jest ustawiony na offline.",
           "all": "Wiadomości z @all w pokoju, do którego należysz.",
           "followed_thread": "Nowe odpowiedzi w obserwowanych przez Ciebie wątkach.",
-          "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków."
+          "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków.",
+          "room_invitation": "Zaproszenia do dołączenia do pokoi."
         }
       }
     },

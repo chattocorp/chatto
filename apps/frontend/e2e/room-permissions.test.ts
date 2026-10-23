@@ -741,14 +741,14 @@ test.describe('Permission-only Resolution', () => {
       await roomLink.click();
 
       await expect(page).toHaveURL(new RegExp(`${routes.room(roomId)}$`));
-      await expect(page.getByRole('button', { name: 'Join Room' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Join room' })).toBeVisible();
       await expect(page.getByTestId('room-join-preview')).toContainText(description);
       await expect(page.getByTestId('room-join-preview')).toContainText('In Lobby');
       await expect(page.getByLabel('Room members')).toContainText('1 member');
       await expect(page.getByText(hiddenBody)).toHaveCount(0);
       await expect(page.locator('dialog[open]')).toHaveCount(0);
 
-      await page.getByRole('button', { name: 'Join Room' }).click();
+      await page.getByRole('button', { name: 'Join room' }).click();
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
 
       const body = `Posted after inline join ${Date.now()}`;
@@ -771,10 +771,10 @@ test.describe('Permission-only Resolution', () => {
       await loginUser(page, member.login, member.password);
 
       await page.goto(routes.messageLink(roomId, target!.id));
-      await expect(page.getByRole('button', { name: 'Join Room' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Join room' })).toBeVisible();
       await expect(page).toHaveURL(new RegExp(`${routes.messageLink(roomId, target!.id)}$`));
 
-      await page.getByRole('button', { name: 'Join Room' }).click();
+      await page.getByRole('button', { name: 'Join room' }).click();
       await expect(page).toHaveURL(new RegExp(`${routes.room(roomId)}$`));
       await expect(page.getByText(targetBody)).toBeVisible();
     });
@@ -1086,7 +1086,7 @@ test.describe('Permission-only Resolution', () => {
       await expect(page.getByText('You do not have permission to join this room.')).toBeVisible();
       await expect(page.getByRole('link', { name: 'Return to Server' })).toBeVisible();
       await expect(page.locator('dialog[open]')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Join Room' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Join room' })).toHaveCount(0);
       await expect(page.getByTestId('room-join-preview')).toHaveCount(0);
       await expect(page.getByText(restrictedDescription)).toHaveCount(0);
       await expect(page.getByLabel('Room members')).toHaveCount(0);

@@ -37,7 +37,9 @@ async function expectNoAccessibilityViolations(
     }
   });
 
-  const builder = new AxeBuilder({ page }).withTags(wcagTags);
+  // Approved zoom policy for #3088: the app limits page zoom to prevent iOS
+  // focus zoom. Exempt only this viewport rule; keep all other WCAG checks.
+  const builder = new AxeBuilder({ page }).withTags(wcagTags).disableRules(['meta-viewport']);
   if (include) builder.include(include);
   const { violations } = await builder.analyze();
 
@@ -156,6 +158,7 @@ test.describe('Route accessibility', () => {
       ['threads list', routes.threads],
       ['notifications', routes.notifications],
       ['server overview', routes.serverOverview],
+      ['server information', '/chat/-/info'],
       ['server directory', '/chat/servers'],
       ['search', '/chat/-/search?q=scan'],
       ['OAuth consent', '/oauth/consent']
@@ -215,6 +218,10 @@ test.describe('Route accessibility', () => {
       ['neighbours', routes.serverAdmin('neighbors')],
       ['security', routes.serverAdminSecurity],
       ['system', routes.serverAdminSystem],
+      ['system streams', `${routes.serverAdminSystem}/streams`],
+      ['system projections', `${routes.serverAdminSystem}/projections`],
+      ['system workers', `${routes.serverAdminSystem}/workers`],
+      ['system livekit', `${routes.serverAdminSystem}/livekit`],
       ['room layout editor', routes.serverAdminRooms],
       ['room management', `${routes.serverAdminRooms}/${roomId}`],
       ['room members', `${routes.serverAdminRooms}/${roomId}/members`],

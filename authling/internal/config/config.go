@@ -11,7 +11,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"hmans.de/chatto/pkg/appconfig"
+	"github.com/chattocorp/chatto/pkg/appconfig"
 )
 
 const (

@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	"github.com/chattocorp/chatto/pkg/datacrypto"
 	"golang.org/x/crypto/chacha20poly1305"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 const (

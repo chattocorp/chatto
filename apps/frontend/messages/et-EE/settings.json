@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
-          "badge": "Märgis",
+          "badge": "Lugemata sisu täpp",
           "badge_hint": "Lisab ainult neutraalse lugemata sisu täpi. See ei loo teavitust, ei esita heli ega saada tõuketeavitust.",
-          "notification": "Teavitus",
+          "notification": "Rakendusesisene teavitus",
           "push_notification": "Tõuketeavitus"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Sõnumid, mis kasutavad @here, kui sinu olek ei ole võrguühenduseta.",
           "all": "Sõnumid, mis kasutavad @all ruumis, mille liige sa oled.",
           "followed_thread": "Uued vastused lõimedes, mida jälgid.",
-          "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele."
+          "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele.",
+          "room_invitation": "Kutsed ruumidega liitumiseks."
         }
       }
     },

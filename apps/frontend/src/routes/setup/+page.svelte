@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { passwordValidationError } from '$lib/passwordValidation';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -27,6 +28,11 @@
 
     error = '';
     fieldErrors = {};
+    const passwordError = passwordValidationError(password);
+    if (passwordError) {
+      fieldErrors.password = passwordError;
+      return;
+    }
     if (password !== passwordConfirmation) {
       fieldErrors.confirmation = m('common.validation.passwords_match');
       return;
@@ -168,7 +174,7 @@
                       type="password"
                       bind:value={password}
                       autocomplete="new-password"
-                      minlength={8}
+                      placeholder={m('common.password_bytes_placeholder')}
                       required
                       disabled={busy}
                     />

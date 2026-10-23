@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Yükleniyor...",
       "empty": "Eşleşme yok",
-      "clear": "Temizle"
+      "clear": "Temizle",
+      "remove": "{label} seçimini kaldır"
     },
     "expiry": {
       "24h": "24 saat",

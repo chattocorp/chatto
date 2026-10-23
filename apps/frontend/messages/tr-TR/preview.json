@@ -1,9 +1,9 @@
 {
   "preview": {
     "dismiss": "Önizlemeyi kapat",
-    "delete": "Önizlemeyi sil",
-    "open_link": "Bağlantıyı aç",
-    "copy_url": "URL'yi kopyala",
+    "delete": "Önizlemeyi silin",
+    "open_link": "Bağlantıyı açın",
+    "copy_url": "URL'yi kopyalayın",
     "url_copied": "URL panoya kopyalandı",
     "copy_url_failed": "URL kopyalanamadı",
     "show_content": "İçeriği göster",
@@ -11,7 +11,7 @@
     "youtube_title": "YouTube videosu",
     "youtube_dismiss": "Videoyu kapat",
     "youtube_delete": "Videoyu sil",
-    "youtube_open": "YouTube'da aç",
-    "youtube_delete_embed": "Yerleştirmeyi sil"
+    "youtube_open": "YouTube'da açın",
+    "youtube_delete_embed": "Yerleştirmeyi silin"
   }
 }

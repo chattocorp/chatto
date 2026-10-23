@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
-import { highestLimitUsage, overallHealth, systemHealthChecks } from './systemHealth';
+import {
+  highestLimitUsage,
+  liveKitWebhooksRejected,
+  overallHealth,
+  systemHealthChecks
+} from './systemHealth';
 
 function projection(overrides: Partial<AdminSystemInfo['projections'][number]> = {}) {
   return {
@@ -85,6 +90,24 @@ function info(overrides: Partial<AdminSystemInfo> = {}): AdminSystemInfo {
       latestDeletionSequence: '0'
     },
     durableWorkers: [worker('healthy'), worker('inactive')],
+    livekit: liveKit(),
+    ...overrides
+  };
+}
+
+function liveKit(overrides: Partial<AdminSystemInfo['livekit']> = {}): AdminSystemInfo['livekit'] {
+  return {
+    connectionState: 'not_configured',
+    connectionError: '',
+    enabled: false,
+    configured: false,
+    url: '',
+    apiKey: '',
+    separateWebhookKey: false,
+    webhookUrl: '',
+    insecureUrl: false,
+    lastWebhookAt: null,
+    lastRejectedWebhookAt: null,
     ...overrides
   };
 }
@@ -237,5 +260,53 @@ describe('highestLimitUsage', () => {
         streamsUsed: 1
       })
     ).toBe(0.25);
+  });
+});
+
+describe('voice calls health check', () => {
+  const voiceCalls = (livekit: AdminSystemInfo['livekit']) =>
+    systemHealthChecks(info({ livekit })).find((check) => check.id === 'voice_calls');
+
+  it('omits the check when LiveKit is not configured or not reported', () => {
+    expect(voiceCalls(liveKit())).toBeUndefined();
+    expect(voiceCalls(liveKit({ connectionState: 'unavailable' }))).toBeUndefined();
+  });
+
+  it('reports a failed LiveKit API check as critical', () => {
+    for (const connectionState of ['unreachable', 'unauthorized', 'error'] as const) {
+      expect(voiceCalls(liveKit({ connectionState, configured: true }))).toEqual({
+        id: 'voice_calls',
+        status: 'critical',
+        detail: { kind: `livekit_${connectionState}` }
+      });
+    }
+  });
+
+  it('warns about an insecure URL and rejected webhooks, otherwise ok', () => {
+    const ok = liveKit({ connectionState: 'ok', configured: true });
+
+    expect(voiceCalls(ok)?.status).toBe('ok');
+    expect(voiceCalls({ ...ok, insecureUrl: true })?.detail).toEqual({
+      kind: 'livekit_insecure_url'
+    });
+    expect(
+      voiceCalls({ ...ok, lastRejectedWebhookAt: new Date('2026-07-10T12:00:00Z') })?.detail
+    ).toEqual({ kind: 'livekit_webhooks_rejected' });
+  });
+});
+
+describe('liveKitWebhooksRejected', () => {
+  const earlier = new Date('2026-07-10T11:00:00Z');
+  const later = new Date('2026-07-10T12:00:00Z');
+
+  it('is true only when the last webhook was rejected', () => {
+    expect(liveKitWebhooksRejected(liveKit())).toBe(false);
+    expect(liveKitWebhooksRejected(liveKit({ lastRejectedWebhookAt: earlier }))).toBe(true);
+    expect(
+      liveKitWebhooksRejected(liveKit({ lastWebhookAt: earlier, lastRejectedWebhookAt: later }))
+    ).toBe(true);
+    expect(
+      liveKitWebhooksRejected(liveKit({ lastWebhookAt: later, lastRejectedWebhookAt: earlier }))
+    ).toBe(false);
   });
 });

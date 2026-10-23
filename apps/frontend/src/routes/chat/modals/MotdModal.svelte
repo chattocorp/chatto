@@ -12,7 +12,7 @@
   });
 </script>
 
-<Dialog bind:visible title={m('server_settings.motd_label')} {onclose}>
+<Dialog bind:visible title={m('common.message_of_the_day')} {onclose}>
   <div class="prose max-w-none wrap-anywhere" dir="auto">
     {#await html}
       <p class="whitespace-pre-wrap">{motd}</p>

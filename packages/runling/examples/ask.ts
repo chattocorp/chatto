@@ -1,4 +1,4 @@
-import { input as askInput, runAgent, step, concat, task, Type } from 'runling';
+import { runAgent, step, concat, task, Type } from 'runling';
 
 const model = 'openai-codex/gpt-5.6-sol';
 
@@ -7,20 +7,11 @@ export const ask = task(
     name: 'Answer repository question',
     input: Type.Object({
       directory: Type.String({ minLength: 1 }),
-      prompt: Type.String({ description: 'A question about the repository' })
+      prompt: Type.String({ minLength: 1, description: 'A question about the repository' })
     }),
-    output: Type.Object({
-      summary: Type.String(),
-      details: Type.Optional(Type.String()),
-      outputs: Type.Object({ answer: Type.String() })
-    })
+    result: Type.String({ description: 'The answer in Markdown' })
   },
-  async (ctx, { directory, prompt: input }) => {
-    const question =
-      input.trim() === ''
-        ? await askInput(ctx, 'What would you like to know about the repository?')
-        : input;
-
+  async (ctx, { directory, prompt: question }) => {
     const report = await step('Investigating repository', () =>
       runAgent(
         ctx,
@@ -46,12 +37,7 @@ export const ask = task(
       )
     );
 
-    const answer = report.details ?? report.summary;
-    return {
-      summary: report.summary,
-      details: report.details,
-      outputs: { answer }
-    };
+    return report.details ? `${report.summary}\n\n${report.details}` : report.summary;
   }
 );
 

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 )
 
 // badgeQueryFor prepares a Badge query that reads the user's read boundaries
@@ -32,6 +34,12 @@ func (m *NotificationOccurrenceModel) badgeQueryFor(ctx context.Context, userID,
 // boundaries; no per-user Badge state is stored. An empty
 // thread root includes every thread of the room.
 func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context, userID, roomID, threadRootEventID string) (bool, error) {
+	if threadRootEventID == "" {
+		invited, err := m.invitationBadge(ctx, userID, roomID)
+		if err != nil || invited {
+			return invited, err
+		}
+	}
 	query, err := m.badgeQueryFor(ctx, userID, roomID, threadRootEventID)
 	if err != nil {
 		return false, err
@@ -128,6 +136,22 @@ func (c *ChattoCore) badgeRoomStates(ctx context.Context, userID string, scope N
 	}); err != nil {
 		return nil, err
 	}
+	for _, invitation := range c.roomInvitations.projection.Projection().all() {
+		if invitation.RecipientID != userID || !invitation.pending(time.Now()) {
+			continue
+		}
+		if scope.Kind == NotificationPolicyScopeRoom && scope.ID != invitation.RoomID {
+			continue
+		}
+		if scope.Kind == NotificationPolicyScopeRoomGroup && c.roomModel.roomGroupForRoom(invitation.RoomID) != scope.ID {
+			continue
+		}
+		unread, err := c.notificationOccurrences.invitationBadge(ctx, userID, invitation.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		states[invitation.RoomID] = states[invitation.RoomID] || unread
+	}
 	return states, nil
 }
 
@@ -161,4 +185,19 @@ func (c *ChattoCore) withBadgeRoomHints(ctx context.Context, userID string, scop
 	}
 	c.publishNotificationUnreadInvalidations(ctx, invalidations)
 	return nil
+}
+
+// invitationBadge derives attention from the pending invitation itself. Unlike
+// message activity it needs no membership and ends when handled or expired.
+func (m *NotificationOccurrenceModel) invitationBadge(ctx context.Context, userID, roomID string) (bool, error) {
+	invitation, ok := m.core.roomInvitations.projection.Projection().pending(roomID, userID, m.now())
+	if !ok {
+		return false, nil
+	}
+	payload := &notificationv1.RoomInvitationReceived{RoomId: roomID, InvitationId: invitation.ID}
+	signal := &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomInvitationReceived{RoomInvitationReceived: payload}}
+	if m.core.GetEffectiveNotificationModeForSignal(userID, roomID, signal) != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		return false, nil
+	}
+	return m.invitationVisible(ctx, userID, payload)
 }

@@ -17,6 +17,12 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('$lib/navigation', () => ({
+  segmentToServerId: (segment: string) => (segment === '-' ? 'server-1' : 'remote-server'),
+  serverIdToSegment: (serverId: string) =>
+    serverId === 'remote-server' ? 'chat.example.test' : '-'
+}));
+
 vi.mock('$app/paths', () => ({
   assets: '',
   base: '',
@@ -43,7 +49,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 
 const baseProps = {
   roomId: 'room-1',
-  serverSegment: '-',
+  serverId: 'server-1',
   threadRootEventId: 'thread-1',
   reactions: [],
   action: buildAction(),
@@ -117,7 +123,7 @@ describe('MessageMetaBar', () => {
     const { container } = render(MessageMetaBar, {
       props: {
         ...baseProps,
-        serverSegment: 'chat.example.test',
+        serverId: 'remote-server',
         channelEchoEventId: 'echo-1',
         edited: true
       }
@@ -164,12 +170,12 @@ describe('MessageMetaBar', () => {
     expect(link.textContent?.trim()).toContain('Thread');
   });
 
-  it('uses a neutral dot for Badge unread and lets notification orange win', () => {
+  it('uses a neutral dot for unread activity and lets notification orange win', () => {
     const badge = render(MessageMetaBar, {
       props: { ...baseProps, replyCount: 1, hasThreadUnread: true }
     });
     const badgeDot = q(badge.container, '[data-testid="thread-unread-dot"]')!;
-    expect(badgeDot.classList).toContain('bg-neutral-action');
+    expect(badgeDot.classList).toContain('bg-text');
     expect(q(badge.container, '[data-testid="thread-notification-dot"]')).toBeNull();
     badge.unmount();
 

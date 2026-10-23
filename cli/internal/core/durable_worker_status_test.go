@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/internal/notificationstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 )
 
 func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
@@ -102,8 +102,8 @@ func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) 
 	t.Parallel()
 
 	statuses := durableWorkerAdminStatuses(nil, true)
-	if len(statuses) != 8 {
-		t.Fatalf("statuses len = %d, want 8", len(statuses))
+	if len(statuses) != 9 {
+		t.Fatalf("statuses len = %d, want 9", len(statuses))
 	}
 	for _, status := range statuses {
 		if status.Health != DurableWorkerHealthUnavailable {

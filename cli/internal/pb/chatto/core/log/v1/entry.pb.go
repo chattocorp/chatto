@@ -279,9 +279,9 @@ const file_chatto_core_log_v1_entry_proto_rawDesc = "" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSEVERITY_INFO\x10\x01\x12\x14\n" +
 	"\x10SEVERITY_WARNING\x10\x02\x12\x12\n" +
-	"\x0eSEVERITY_ERROR\x10\x03B\xc5\x01\n" +
+	"\x0eSEVERITY_ERROR\x10\x03B\xd6\x01\n" +
 	"\x16com.chatto.core.log.v1B\n" +
-	"EntryProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/log/v1;logv1\xa2\x02\x03CCL\xaa\x02\x12Chatto.Core.Log.V1\xca\x02\x12Chatto\\Core\\Log\\V1\xe2\x02\x1eChatto\\Core\\Log\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Log::V1b\x06proto3"
+	"EntryProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1;logv1\xa2\x02\x03CCL\xaa\x02\x12Chatto.Core.Log.V1\xca\x02\x12Chatto\\Core\\Log\\V1\xe2\x02\x1eChatto\\Core\\Log\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Log::V1b\x06proto3"
 
 var (
 	file_chatto_core_log_v1_entry_proto_rawDescOnce sync.Once

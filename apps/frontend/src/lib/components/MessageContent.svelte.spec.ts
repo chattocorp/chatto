@@ -10,7 +10,7 @@ import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
-  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null))
+  segmentToServerId: vi.fn((segment: string): string | null => (segment === '-' ? 'origin' : null))
 }));
 
 vi.mock('$lib/client', async () => ({
@@ -101,7 +101,7 @@ beforeEach(() => {
   mocks.goto.mockReset();
   mocks.segmentToServerId.mockReset();
   mocks.segmentToServerId.mockImplementation((segment: string) =>
-    segment === '-' ? 'origin' : null
+    segment === '-' ? 'origin' : segment === 'chat.chatto.run' ? 'chatto-run' : null
   );
   vi.spyOn(window, 'open').mockImplementation(() => null);
 });
@@ -216,19 +216,19 @@ describe('renderMarkdown', () => {
 
     it('auto-links www-prefixed bare domains', async () => {
       const html = await renderMarkdown('Visit www.example.com today');
-      expect(html).toContain('href="http://www.example.com"');
+      expect(html).toContain('href="https://www.example.com"');
       expect(html).toContain('>www.example.com</a>');
     });
 
-    it('auto-links bare domains with .dev TLD', async () => {
+    it('auto-links www URLs with .dev TLD', async () => {
       const html = await renderMarkdown('Check www.hmans.dev');
-      expect(html).toContain('href="http://www.hmans.dev"');
+      expect(html).toContain('href="https://www.hmans.dev"');
       expect(html).toContain('>www.hmans.dev</a>');
     });
 
-    it('auto-links bare domains with .io TLD', async () => {
+    it('keeps bare domains with .io TLD as plain text', async () => {
       const html = await renderMarkdown('Try app.example.io');
-      expect(html).toContain('href="http://app.example.io"');
+      expect(html).toBe('<p>Try app.example.io</p>\n');
     });
 
     it('applies security attributes to bare-domain auto-links', async () => {
@@ -240,13 +240,13 @@ describe('renderMarkdown', () => {
     it('does not add new-window attributes to allow-listed same-origin chat URLs', async () => {
       const href = `${window.location.origin}/chat/-/${channelRoomId}`;
       const html = await renderMarkdown(`[room](${href})`);
-      expect(html).toContain(`href="${href}"`);
+      expect(html).toContain(`href="/chat/-/${channelRoomId}"`);
       expect(html).not.toContain('target="_blank"');
       expect(html).not.toContain('rel="noopener noreferrer"');
     });
 
     it('keeps new-window attributes on non-allow-listed same-origin URLs', async () => {
-      const href = `${window.location.origin}/chat/-/settings`;
+      const href = `${window.location.origin}/settings`;
       const html = await renderMarkdown(`[settings](${href})`);
       expect(html).toContain(`href="${href}"`);
       expect(html).toContain('target="_blank"');
@@ -744,7 +744,7 @@ describe('MessageContent component', () => {
   });
 
   it('opens same-origin non-allow-listed links in a new window', async () => {
-    const href = `${window.location.origin}/chat/-/settings`;
+    const href = `${window.location.origin}/settings`;
     const { container } = renderMessage(`[settings](${href})`);
 
     await expect.poll(() => q(container, 'a')).toBeTruthy();
@@ -909,4 +909,21 @@ describe('MessageContent component', () => {
       expect(span.getAttribute('data-role-name')).toBe('admin');
     });
   });
+});
+
+it('hands explicit mailto links to the browser mail handler', async () => {
+  const href = 'mailto:foo@bar.com';
+  const { container } = renderMessage(href);
+  await expect.poll(() => container.querySelector('a')?.getAttribute('href')).toBe(href);
+  const anchor = container.querySelector('a')!;
+  expect(anchor.hasAttribute('target')).toBe(false);
+  let preventedByMessage = true;
+  const intercept = (event: MouseEvent) => {
+    preventedByMessage = event.defaultPrevented;
+    event.preventDefault(); // Avoid launching a mail application during the test.
+  };
+  document.addEventListener('click', intercept, { once: true });
+  await userEvent.click(anchor);
+  expect(preventedByMessage).toBe(false);
+  expect(window.open).not.toHaveBeenCalled();
 });

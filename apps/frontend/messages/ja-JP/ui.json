@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "読み込み中...",
       "empty": "一致するものはありません",
-      "clear": "クリア"
+      "clear": "クリア",
+      "remove": "{label}を削除"
     },
     "expiry": {
       "24h": "24時間",

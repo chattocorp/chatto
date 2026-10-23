@@ -7,7 +7,7 @@ export interface TokenUsage {
   cacheRead: number;
   /** Input tokens written to the prompt cache. */
   cacheWrite: number;
-  /** Provider/model-aware cost in US dollars, when reported by Pi. */
+  /** Provider/model-aware cost in US dollars, when reported by the provider. */
   cost?: number;
   /** Some recorded tokens have no reported price. */
   costIncomplete?: boolean;

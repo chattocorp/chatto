@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Копіювати посилання на кімнату",
     "show_rooms_in_group": "Показати більше кімнат у {group} ({count})",
     "hide_rooms_in_group": "Приховати кімнати в {group}, до яких ви не приєдналися",
     "more_rooms": "Ще {count}",
@@ -27,6 +28,12 @@
     "add_to_group": "Додати до {group}",
     "group_settings": "Налаштування для {group}",
     "server_actions": "Дії для {server}",
-    "room_actions": "Дії для #{room}"
+    "room_actions": "Дії для #{room}",
+    "open_group_settings": "Відкрити налаштування групи",
+    "open_room_settings": "Відкрити налаштування кімнати",
+    "activity_now": "зараз",
+    "older_conversations": "Старі розмови",
+    "show_older_conversations": "Показати старі ({count})",
+    "show_fewer_conversations": "Показати менше"
   }
 }

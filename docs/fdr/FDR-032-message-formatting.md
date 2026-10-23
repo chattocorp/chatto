@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -9,6 +9,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ## Behavior
 
+- Automatic links require `www.` or an allowed protocol: `https://`, `http://`, or `mailto:`. Bare domains, filenames, email addresses without `mailto:`, and protocol-relative URLs stay plain text. Explicit Markdown links also allow root-relative paths that start with one `/`, such as `[room](/chat/example.com/R8rLgzhPkYja7Gs)`. These paths do not produce link previews, and the visual editor preserves them. Other protocols stay unlinked. This rule prevents filenames such as `agents.md` and `foo.py` from becoming links. The source editor uses the same prefix rule for URL highlighting. Selecting a `mailto:` link opens the configured mail application.
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
@@ -20,8 +21,9 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
-- Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. Unlabelled and unsupported languages remain plain code.
-- Each rendered code block has a button to copy its code without the Markdown fence, line numbers, or display-only tab spacing.
+- Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. In the visual editor, pasting into an unlabelled code block or leaving a changed block starts language detection. A successful guess becomes the block's saved language and appears in the language selector. Users can override the guess, including with **TEXT** for plain text. Detection uses a fixed set of preferred languages and does not change blocks merely opened for editing. Unlabelled blocks without a match and unsupported languages remain plain code. Detection does not delay sending.
+- Rendered code blocks use the visual editor's spacing without line numbers. Each block has a button to copy its code without the Markdown fence or display-only tab spacing.
+- The message menu offers **Copy message text** to copy the full Markdown source. When text is selected wholly within that message body, **Copy selected text** appears immediately above it and copies only the selected text. A selection outside the message or across messages does not show this action. The menu keeps the selected text when it opens, even if focus changes.
 - Right-clicking a link in a message body opens the message menu. **Copy Link** copies that link's URL; **Copy Message Link** copies the message permalink.
 - The app applies the editor choice to every registered Chatto server. It does not sync this App Preference to other browsers or devices.
 - The app applies the sending keys to every registered Chatto server. Return sends by default. People can select the platform modifier plus Return instead.

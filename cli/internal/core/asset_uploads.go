@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/assets"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/assets"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -121,7 +121,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 	if !validSHA256Hex(input.SHA256) {
 		return nil, invalidArgument("sha256 must be lowercase hexadecimal SHA-256")
 	}
-	if err := m.checkUploadSize(contentType, input.Size); err != nil {
+	if err := m.checkUploadSize(input.Size); err != nil {
 		return nil, err
 	}
 	if err := m.authorizeUploadForSession(ctx, input.ActorID, input.RoomID, input.Operator); err != nil {
@@ -443,11 +443,8 @@ func CanonicalContentType(declared string) (string, bool) {
 	return canonical, true
 }
 
-func (m *AssetUploadModel) checkUploadSize(contentType string, size int64) error {
+func (m *AssetUploadModel) checkUploadSize(size int64) error {
 	maxSize := m.core.AssetsConfig().MaxUploadSize
-	if strings.HasPrefix(contentType, "video/") && m.core.VideoMaxUploadSize > 0 {
-		maxSize = m.core.VideoMaxUploadSize
-	}
 	if size > maxSize {
 		return fmt.Errorf("attachment exceeds maximum size of %d bytes: %w", maxSize, ErrInvalidArgument)
 	}

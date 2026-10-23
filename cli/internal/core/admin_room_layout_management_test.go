@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestAdminRoomLayoutManagementAuthorization(t *testing.T) {
@@ -27,13 +27,13 @@ func TestAdminRoomLayoutManagementAuthorization(t *testing.T) {
 	}
 	sourceGroupID := groups[0].Id
 
-	if _, err := core.AdminCreateRoomGroup(ctx, actor.Id, "Managed", ""); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.RoomLayout().AdminCreateRoomGroup(ctx, actor.Id, "Managed", ""); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("AdminCreateRoomGroup without room.manage error = %v, want ErrPermissionDenied", err)
 	}
 	if err := core.GrantUserPermission(ctx, SystemActorID, actor.Id, PermRoomManage); err != nil {
 		t.Fatalf("GrantUserPermission room.manage: %v", err)
 	}
-	targetGroup, err := core.AdminCreateRoomGroup(ctx, actor.Id, "Managed", "")
+	targetGroup, err := core.RoomLayout().AdminCreateRoomGroup(ctx, actor.Id, "Managed", "")
 	if err != nil {
 		t.Fatalf("AdminCreateRoomGroup with room.manage: %v", err)
 	}
@@ -41,24 +41,24 @@ func TestAdminRoomLayoutManagementAuthorization(t *testing.T) {
 		t.Fatalf("ClearUserPermissionState room.manage: %v", err)
 	}
 
-	if _, err := core.AdminCreateSidebarLink(ctx, actor.Id, sourceGroupID, "Docs", "/docs"); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.RoomLayout().AdminCreateSidebarLink(ctx, actor.Id, sourceGroupID, "Docs", "/docs"); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("AdminCreateSidebarLink without source room.manage error = %v, want ErrPermissionDenied", err)
 	}
 	if err := core.GrantGroupPermission(ctx, SystemActorID, sourceGroupID, RoleEveryone, PermRoomManage); err != nil {
 		t.Fatalf("GrantGroupPermission source room.manage: %v", err)
 	}
-	link, err := core.AdminCreateSidebarLink(ctx, actor.Id, sourceGroupID, "Docs", "/docs")
+	link, err := core.RoomLayout().AdminCreateSidebarLink(ctx, actor.Id, sourceGroupID, "Docs", "/docs")
 	if err != nil {
 		t.Fatalf("AdminCreateSidebarLink with source room.manage: %v", err)
 	}
 
-	if _, err := core.AdminMoveSidebarLinkToGroup(ctx, actor.Id, link.Id, targetGroup.Id); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.RoomLayout().AdminMoveSidebarLinkToGroup(ctx, actor.Id, link.Id, targetGroup.Id); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("AdminMoveSidebarLinkToGroup without target room.manage error = %v, want ErrPermissionDenied", err)
 	}
 	if err := core.GrantGroupPermission(ctx, SystemActorID, targetGroup.Id, RoleEveryone, PermRoomManage); err != nil {
 		t.Fatalf("GrantGroupPermission target room.manage: %v", err)
 	}
-	movedLink, err := core.AdminMoveSidebarLinkToGroup(ctx, actor.Id, link.Id, targetGroup.Id)
+	movedLink, err := core.RoomLayout().AdminMoveSidebarLinkToGroup(ctx, actor.Id, link.Id, targetGroup.Id)
 	if err != nil {
 		t.Fatalf("AdminMoveSidebarLinkToGroup with source and target room.manage: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestAdminRoomLayoutManagementAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	movedRoom, err := core.AdminMoveRoomToGroup(ctx, actor.Id, room.Id, targetGroup.Id)
+	movedRoom, err := core.RoomLayout().AdminMoveRoomToGroup(ctx, actor.Id, room.Id, targetGroup.Id)
 	if err != nil {
 		t.Fatalf("AdminMoveRoomToGroup with source and target room.manage: %v", err)
 	}
@@ -92,19 +92,19 @@ func TestAdminRelativeRoomLayoutMoves(t *testing.T) {
 	if err := core.GrantUserPermission(ctx, SystemActorID, actor.Id, PermRoomManage); err != nil {
 		t.Fatalf("GrantUserPermission room.manage: %v", err)
 	}
-	first, err := core.AdminCreateRoomGroup(ctx, actor.Id, "Relative First", "")
+	first, err := core.RoomLayout().AdminCreateRoomGroup(ctx, actor.Id, "Relative First", "")
 	if err != nil {
 		t.Fatalf("AdminCreateRoomGroup first: %v", err)
 	}
-	second, err := core.AdminCreateRoomGroup(ctx, actor.Id, "Relative Second", "")
+	second, err := core.RoomLayout().AdminCreateRoomGroup(ctx, actor.Id, "Relative Second", "")
 	if err != nil {
 		t.Fatalf("AdminCreateRoomGroup second: %v", err)
 	}
-	third, err := core.AdminCreateRoomGroup(ctx, actor.Id, "Relative Third", "")
+	third, err := core.RoomLayout().AdminCreateRoomGroup(ctx, actor.Id, "Relative Third", "")
 	if err != nil {
 		t.Fatalf("AdminCreateRoomGroup third: %v", err)
 	}
-	if err := core.AdminMoveRoomGroup(ctx, actor.Id, third.Id, first.Id); err != nil {
+	if err := core.RoomLayout().AdminMoveRoomGroup(ctx, actor.Id, third.Id, first.Id); err != nil {
 		t.Fatalf("AdminMoveRoomGroup: %v", err)
 	}
 	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
@@ -140,14 +140,14 @@ func TestAdminRelativeRoomLayoutMoves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom second target: %v", err)
 	}
-	link, err := core.AdminCreateSidebarLink(ctx, actor.Id, first.Id, "Relative docs", "/relative-docs")
+	link, err := core.RoomLayout().AdminCreateSidebarLink(ctx, actor.Id, first.Id, "Relative docs", "/relative-docs")
 	if err != nil {
 		t.Fatalf("AdminCreateSidebarLink: %v", err)
 	}
 
 	roomRef := &evtv1.SidebarGroupEntry{Kind: evtv1.SidebarGroupEntry_ROOM, Id: movingRoom.Id}
 	beforeSecond := &evtv1.SidebarGroupEntry{Kind: evtv1.SidebarGroupEntry_ROOM, Id: secondTargetRoom.Id}
-	if _, err := core.AdminMoveSidebarItem(ctx, actor.Id, roomRef, second.Id, beforeSecond); err != nil {
+	if _, err := core.RoomLayout().AdminMoveSidebarItem(ctx, actor.Id, roomRef, second.Id, beforeSecond); err != nil {
 		t.Fatalf("AdminMoveSidebarItem room across groups: %v", err)
 	}
 	target, err := core.GetRoomGroup(ctx, second.Id)
@@ -165,7 +165,7 @@ func TestAdminRelativeRoomLayoutMoves(t *testing.T) {
 
 	linkRef := &evtv1.SidebarGroupEntry{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: link.Id}
 	beforeFirst := &evtv1.SidebarGroupEntry{Kind: evtv1.SidebarGroupEntry_ROOM, Id: firstTargetRoom.Id}
-	if _, err := core.AdminMoveSidebarItem(ctx, actor.Id, linkRef, second.Id, beforeFirst); err != nil {
+	if _, err := core.RoomLayout().AdminMoveSidebarItem(ctx, actor.Id, linkRef, second.Id, beforeFirst); err != nil {
 		t.Fatalf("AdminMoveSidebarItem link across groups: %v", err)
 	}
 	target, err = core.GetRoomGroup(ctx, second.Id)
@@ -178,7 +178,7 @@ func TestAdminRelativeRoomLayoutMoves(t *testing.T) {
 	}
 
 	secondTargetRef := &evtv1.SidebarGroupEntry{Kind: evtv1.SidebarGroupEntry_ROOM, Id: secondTargetRoom.Id}
-	if _, err := core.AdminMoveSidebarItem(ctx, actor.Id, secondTargetRef, second.Id, beforeFirst); err != nil {
+	if _, err := core.RoomLayout().AdminMoveSidebarItem(ctx, actor.Id, secondTargetRef, second.Id, beforeFirst); err != nil {
 		t.Fatalf("AdminMoveSidebarItem within group: %v", err)
 	}
 	wantTargetOrder = []string{
@@ -198,7 +198,7 @@ func TestAdminRelativeRoomLayoutMoves(t *testing.T) {
 	if err := core.DenyGroupPermission(ctx, SystemActorID, second.Id, RoleEveryone, PermRoomManage); err != nil {
 		t.Fatalf("DenyGroupPermission target room.manage: %v", err)
 	}
-	if _, err := core.AdminMoveSidebarItem(ctx, actor.Id, linkRef, second.Id, beforeSecond); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.RoomLayout().AdminMoveSidebarItem(ctx, actor.Id, linkRef, second.Id, beforeSecond); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("no-op placement after authorization loss error = %v, want ErrPermissionDenied", err)
 	}
 }

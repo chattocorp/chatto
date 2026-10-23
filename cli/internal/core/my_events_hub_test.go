@@ -5,16 +5,20 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/authctx"
-	"hmans.de/chatto/internal/evtstream"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
@@ -154,7 +158,7 @@ func TestMyEventsHubDeliversRoomGroupFactAfterProjection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StreamMyEvents: %v", err)
 	}
-	group, err := core.CreateRoomGroup(ctx, viewer.Id, "Engineering", "Product engineering")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, viewer.Id, "Engineering", "Product engineering")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -185,8 +189,15 @@ func TestMyEventsHubDeliversRoomGroupFactAfterProjection(t *testing.T) {
 func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	t.Parallel()
 
-	core, nc := setupTestCore(t)
+	// Keep the server so that the test can read this connection's
+	// subscriptions from it.
+	ns, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
+	core, err := NewChattoCore(ctx, nc, testCoreConfig())
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startCoreServices(t, core)
 
 	author, err := core.CreateUser(ctx, SystemActorID, "hub-author", "Hub Author", "password123")
 	if err != nil {
@@ -212,7 +223,7 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("myEvents hub did not become ready")
 	}
-	baselineSubscriptions := nc.NumSubscriptions()
+	baselineSubscriptions := liveSubscriptionCount(t, ns, nc)
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stream1, err := core.StreamMyEventsWithOptions(streamCtx, viewer.Id, StreamMyEventsOptions{})
@@ -223,8 +234,8 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StreamMyEvents second session: %v", err)
 	}
-	if got := nc.NumSubscriptions(); got != baselineSubscriptions {
-		t.Fatalf("NATS subscriptions after opening streams = %d, want %d", got, baselineSubscriptions)
+	if got := liveSubscriptionCount(t, ns, nc); got != baselineSubscriptions {
+		t.Fatalf("live NATS subscriptions after opening streams = %d, want %d", got, baselineSubscriptions)
 	}
 
 	core.myEventsModel.hub.mu.Lock()
@@ -244,6 +255,37 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	if event1 != event2 {
 		t.Fatal("sessions received different decoded event pointers")
 	}
+}
+
+// liveSubscriptionCount returns the number of subscriptions that nc has on
+// ns for the realtime live subjects. It does not use nc.NumSubscriptions:
+// durable workers on the same connection open and close an inbox
+// subscription for each JetStream pull, so the total changes at any time.
+func liveSubscriptionCount(t *testing.T, ns *server.Server, nc *nats.Conn) int {
+	t.Helper()
+	// Flush, so that the server has processed every SUB that nc sent.
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush NATS connection: %v", err)
+	}
+	cid, err := nc.GetClientID()
+	if err != nil {
+		t.Fatalf("NATS client ID: %v", err)
+	}
+	connz, err := ns.Connz(&server.ConnzOptions{CID: cid, SubscriptionsDetail: true})
+	if err != nil {
+		t.Fatalf("NATS connection info: %v", err)
+	}
+	if len(connz.Conns) != 1 {
+		t.Fatalf("NATS connections with client ID %d = %d, want 1", cid, len(connz.Conns))
+	}
+	liveSyncRoot := strings.TrimSuffix(subjects.LiveSyncAllEvents(), ">")
+	count := 0
+	for _, sub := range connz.Conns[0].SubsDetail {
+		if strings.HasPrefix(sub.Subject, evtstream.LiveSubjectRoot) || strings.HasPrefix(sub.Subject, liveSyncRoot) {
+			count++
+		}
+	}
+	return count
 }
 
 func TestMyEventsHubDeliversServerMOTDChangedEvent(t *testing.T) {

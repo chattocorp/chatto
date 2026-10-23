@@ -4,8 +4,8 @@ import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
-import tlds from 'tlds';
-import { classifyMessageBodyChatLink } from '$lib/messageLinks';
+import { configureMarkdownLinks } from './markdownLinks';
+import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
 
@@ -349,7 +349,7 @@ function renderCodeFence(code: string, rawLanguage: string): string {
   const lineHtml = lines.map((line) => `<span class="line">${line}</span>`).join('');
 
   // Copy the parser's code content before display-only newline and tab changes.
-  return `<pre class="hljs markdown-code" data-language="${escapeAttribute(displayLanguage)}" data-copy-source="${escapeAttribute(code)}"><code class="language-${escapeAttribute(displayLanguage)}">${lineHtml}</code>${renderCodeActions(displayLanguage)}</pre>`;
+  return `<pre class="hljs markdown-code" data-language="${escapeAttribute(displayLanguage)}" data-copy-source="${escapeAttribute(code)}"><code class="language-${escapeAttribute(displayLanguage)}" tabindex="0">${lineHtml}</code>${renderCodeActions(displayLanguage)}</pre>`;
 }
 
 function normalizeCodeLanguage(language: string | null | undefined): string {
@@ -440,9 +440,7 @@ function initialize(): void {
     highlight: renderCodeFence
   });
 
-  // Update linkify-it's TLD list so bare-domain URLs with newer TLDs
-  // (.dev, .app, .io, etc.) are auto-linked
-  md.linkify.tlds(tlds);
+  configureMarkdownLinks(md);
 
   // markdown-it pads short table rows to the header width. Without a guard, a
   // tiny table source can therefore expand into hundreds of thousands of DOM
@@ -497,7 +495,7 @@ function initialize(): void {
   md.renderer.rules.paragraph_close = renderParagraphClose;
   md.renderer.rules.code_block = (tokens, idx) => {
     const code = tokens[idx].content;
-    return `<pre class="markdown-code" data-copy-source="${escapeAttribute(code)}"><code>${escapeHtml(code)}</code>${renderCodeActions()}</pre>\n`;
+    return `<pre class="markdown-code" data-copy-source="${escapeAttribute(code)}"><code tabindex="0">${escapeHtml(code)}</code>${renderCodeActions()}</pre>\n`;
   };
 
   // Customize link rendering for security
@@ -510,25 +508,15 @@ function initialize(): void {
   md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
     const token = tokens[idx];
     const hrefIndex = token.attrIndex('href');
-    let allowedSameTabChatLink = false;
-
     if (hrefIndex >= 0) {
       const href = token.attrs![hrefIndex][1];
-
-      // Only allow http and https URLs
-      if (!href.startsWith('http://') && !href.startsWith('https://')) {
-        // Replace dangerous URLs with empty href
-        token.attrs![hrefIndex][1] = '#';
-      } else {
-        allowedSameTabChatLink = classifyMessageBodyChatLink(href) !== null;
+      if (!/^mailto:/i.test(href)) {
+        const target = renderedLinkTarget(href);
+        token.attrSet('data-content-href', href);
+        token.attrSet('href', target.href);
+        if (target.target) token.attrSet('target', target.target);
+        if (target.rel) token.attrSet('rel', target.rel);
       }
-    }
-
-    // External and non-allow-listed links open out-of-band. Known same-origin
-    // chat routes intentionally keep normal same-tab navigation semantics.
-    if (!allowedSameTabChatLink) {
-      token.attrSet('target', '_blank');
-      token.attrSet('rel', 'noopener noreferrer');
     }
 
     return defaultLinkRender(tokens, idx, options, env, self);

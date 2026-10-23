@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/assets"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/pkg/signedurl"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/assets"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/signedurl"
 )
 
 const (
@@ -144,9 +144,6 @@ func (c *MediaModel) uploadAttachmentBinary(
 	} else {
 		assetsCfg := c.AssetsConfig()
 		maxSize := assetsCfg.MaxUploadSize
-		if strings.HasPrefix(contentType, "video/") && c.VideoMaxUploadSize > 0 {
-			maxSize = c.VideoMaxUploadSize
-		}
 		var err error
 		content, err = io.ReadAll(io.LimitReader(reader, maxSize+1))
 		if err != nil {

@@ -76,10 +76,10 @@ Authling is a separate product from Chatto:
 The repository-level `go.work` file supports local development across Authling
 and Chatto. Authling must not import Chatto domain or `internal` packages.
 Reusable event-sourcing mechanics live in the unstable shared
-[`hmans.de/chatto/pkg/events`](../pkg/events/README.md) module, while embedded
-NATS lifecycle mechanics live in
-[`hmans.de/chatto/pkg/natsruntime`](../pkg/natsruntime/README.md). Authling
-consumes shared modules only for concrete runtime needs.
+[`github.com/chattocorp/chatto/pkg/events`](../pkg/events/README.md) module,
+while embedded NATS lifecycle mechanics live in
+[`github.com/chattocorp/chatto/pkg/natsruntime`](../pkg/natsruntime/README.md).
+Authling consumes shared modules only for concrete runtime needs.
 
 Authling is incubated in this repository temporarily. Once the shared framework
 can be consumed through a stable, versioned boundary, Authling is intended to
@@ -199,6 +199,26 @@ Mailpit receives SMTP on port 1025 and shows captured messages at
 `AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and
 `AUTHLING_HTTP_PUBLIC_URL` to its externally visible origin. The checked-in
 configuration declares a loopback HTTP origin for local development.
+
+### Paseo
+
+Start the **authling** service in Paseo to run Authling independently at the
+service's public URL. The `mise paseo` task requires `PASEO_PORT` and
+`PASEO_URL`; Paseo supplies them. It binds HTTP to loopback and trusts the
+proxy's forwarded host and scheme headers. The machine's proxy supplies HTTPS.
+
+Data stays in `authling/.context/paseo/<issuer-hash>/nats/`. A new listener port
+does not create a new identity store. A changed public URL uses a separate
+store because the issuer of an existing store cannot change. This state is
+separate from normal terminal and Conductor development state.
+
+The service does not start Mailpit or configure a relying party. Email is
+disabled by default, so signup and email recovery require SMTP configuration.
+Set `AUTHLING_SMTP_ENABLED=true` and the `AUTHLING_SMTP_*` connection settings
+in the service environment to enable email. Stop Authling through Paseo when
+you finish.
+
+### Password policy and reverse proxies
 
 Local passwords require ten Unicode characters by default. Configure
 `authentication.password_minimum_length` (or

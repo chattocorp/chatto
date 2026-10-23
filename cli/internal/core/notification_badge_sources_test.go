@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // badgeTestFixture drives a NotificationDecisionProjection with stream
@@ -429,6 +429,25 @@ func TestBadgeUnretractedQueryCountsTheRetractedMessage(t *testing.T) {
 	}
 }
 
+// followState returns a user's latest explicit follow state for a thread.
+func (b *notificationBadgeSources) followState(userID, roomID, threadRootEventID string) ThreadFollowState {
+	user, userKnown := b.ids.Lookup(userID)
+	thread, threadKnown := b.threadKey(roomID, threadRootEventID)
+	if !userKnown || !threadKnown {
+		return ThreadFollowStateNone
+	}
+	return b.followStates[badgeFollowKey{user: user, badgeThreadKey: thread}].public()
+}
+
+// replyCount returns the number of posted replies of a thread root.
+func (b *notificationBadgeSources) replyCount(threadRootEventID string) uint64 {
+	thread, ok := b.eventIDs.Lookup(threadRootEventID)
+	if !ok {
+		return 0
+	}
+	return b.replyCounts[thread]
+}
+
 func threadFollowEvent(userID, rootID string, follow bool) *evtv1.Event {
 	if follow {
 		return &evtv1.Event{Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: rootID, UserId: userID}}}
@@ -445,9 +464,9 @@ func threadState(t *testing.T, p *NotificationDecisionProjection, userID string)
 		replies   uint64
 	)
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		state = snapshot.threadFollowState(userID, "R1", "ROOT")
+		state = snapshot.badges.followState(userID, "R1", "ROOT")
 		followers = snapshot.threadFollowerIDs("R1", "ROOT")
-		replies = snapshot.threadReplyCount("ROOT")
+		replies = snapshot.badges.replyCount("ROOT")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)

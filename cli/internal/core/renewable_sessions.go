@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -26,6 +26,13 @@ const (
 	resourceRefreshTokenPrefix = "cht_RRT_"
 	accessTokenPrefix          = "cht_AT"
 	refreshRecoveryClockSkew   = time.Minute
+	// generationUseGrace is the time after an access token's issue during
+	// which its use does not mark the generation as used. Browsers write
+	// device storage to disk in batches, a few seconds after a script stores
+	// a value. A client that uses a new pair at once and is then ended by the
+	// operating system can restart with the previous pair. Inside this grace
+	// the server still treats that previous pair as a lost response.
+	generationUseGrace = 30 * time.Second
 )
 
 var refreshRequestIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -77,10 +84,18 @@ type RenewableSession struct {
 	// recovery nonce. The raw nonce must not enter runtime state or backups.
 	LastRefreshRequestVerifier string    `json:"last_refresh_request_verifier,omitempty"`
 	LastRotatedAt              time.Time `json:"last_rotated_at,omitzero"`
-	FreshAuthAt                time.Time `json:"fresh_auth_at,omitzero"`
-	FreshAuthMethod            string    `json:"fresh_auth_method,omitempty"`
-	FreshAuthSource            string    `json:"fresh_auth_source,omitempty"`
-	PrivilegedModeExpiresAt    time.Time `json:"privileged_mode_expires_at,omitzero"`
+	// UsedGeneration is the highest generation that a client has shown it
+	// holds: its access token passed validation, or its refresh token rotated
+	// successfully. No client used a generation newer than a stale refresh
+	// generation at or above this value, so that client lost the rotation
+	// responses, and refresh rotates again instead of revoking. Nil means that the record predates
+	// this tracking, or that a replica without it rewrote the record; refresh
+	// then treats every stale generation outside exact recovery as reuse.
+	UsedGeneration          *uint64   `json:"used_generation,omitempty"`
+	FreshAuthAt             time.Time `json:"fresh_auth_at,omitzero"`
+	FreshAuthMethod         string    `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource         string    `json:"fresh_auth_source,omitempty"`
+	PrivilegedModeExpiresAt time.Time `json:"privileged_mode_expires_at,omitzero"`
 }
 
 func (c *ChattoCore) bearerAccessTokenTTL() time.Duration {
@@ -467,6 +482,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}
 
+		lostResponse := false
 		if presentedGeneration != session.CurrentGeneration {
 			if presentedGeneration+1 == session.CurrentGeneration &&
 				refreshRequestVerifierMatches(session.LastRefreshRequestVerifier, requestVerifier) &&
@@ -482,16 +498,26 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 					return c.credentialsForGeneration(sessionID, session, session.LastRotatedAt), nil
 				}
 			}
-			if err := c.revokeRenewableSession(ctx, sessionID, "refresh_token_reuse"); err != nil {
-				return BearerSessionCredentials{}, err
+			// No newer generation was ever used, so the client did not receive
+			// the newer rotations. This happens when a mobile browser suspends
+			// or ends the page after the server committed a rotation, or loses
+			// the stored response before it reaches disk. Rotate again from
+			// the current generation. The previous newer pair stays unused;
+			// whichever pair a client uses first makes the other one stale.
+			lostResponse = presentedGeneration < session.CurrentGeneration &&
+				session.UsedGeneration != nil && *session.UsedGeneration <= presentedGeneration
+			if !lostResponse {
+				if err := c.revokeRenewableSession(ctx, sessionID, "refresh_token_reuse"); err != nil {
+					return BearerSessionCredentials{}, err
+				}
+				return BearerSessionCredentials{}, ErrRefreshTokenReused
 			}
-			return BearerSessionCredentials{}, ErrRefreshTokenReused
-		}
-		if refreshRequestVerifierMatches(session.LastRefreshRequestVerifier, requestVerifier) {
+		} else if refreshRequestVerifierMatches(session.LastRefreshRequestVerifier, requestVerifier) {
 			return BearerSessionCredentials{}, ErrRefreshRequestIDInvalid
 		}
 
 		next := session
+		next.UsedGeneration = maxUsedGeneration(session.UsedGeneration, presentedGeneration)
 		next.CurrentGeneration++
 		next.LastRefreshRequestVerifier = requestVerifier
 		next.LastRotatedAt = now
@@ -527,9 +553,64 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 			!confirmed.LastRotatedAt.Equal(now) {
 			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}
+		if lostResponse {
+			c.logger.Info("Rotated bearer session again after a lost refresh response")
+		}
 		return c.credentialsForGeneration(sessionID, next, now), nil
 	}
 	return BearerSessionCredentials{}, fmt.Errorf("rotate renewable session: too much contention")
+}
+
+// maxUsedGeneration returns a new used-generation marker that includes
+// generation. It never lowers an existing marker.
+func maxUsedGeneration(used *uint64, generation uint64) *uint64 {
+	if used != nil && *used >= generation {
+		generation = *used
+	}
+	return &generation
+}
+
+// markRenewableSessionGenerationUsed records that a client used the access
+// token of generation, issued at issuedAt. A use inside generationUseGrace
+// does not count yet; a later use of the same token records it. Access-token
+// validation calls it with a session from
+// a possibly lagging replica, so it writes only when that copy does not show
+// the mark yet, and then decides again through the stream leader. Refresh
+// relies on the mark to tell a lost rotation response from a copied refresh
+// credential, so a failed write fails the request instead of being ignored.
+func (c *ChattoCore) markRenewableSessionGenerationUsed(ctx context.Context, sessionID string, observed RenewableSession, generation uint64, issuedAt, now time.Time) error {
+	if observed.UsedGeneration != nil && *observed.UsedGeneration >= generation {
+		return nil
+	}
+	grace := generationUseGrace
+	if c.generationUseGraceOverride != nil {
+		grace = *c.generationUseGraceOverride
+	}
+	if now.Sub(issuedAt) < grace {
+		return nil
+	}
+	for range 8 {
+		session, entry, err := c.validateRenewableSession(ctx, sessionID, now)
+		if err != nil {
+			return err
+		}
+		if session.UsedGeneration != nil && *session.UsedGeneration >= generation {
+			return nil
+		}
+		session.UsedGeneration = maxUsedGeneration(session.UsedGeneration, generation)
+		value, err := json.Marshal(session)
+		if err != nil {
+			return fmt.Errorf("marshal used renewable session: %w", err)
+		}
+		if _, err := c.updateRuntimeStateUntil(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), session.ExpiresAt, now); err != nil {
+			if jetstreamutil.IsSequenceConflict(err) {
+				continue
+			}
+			return fmt.Errorf("mark renewable session generation used: %w", err)
+		}
+		return nil
+	}
+	return fmt.Errorf("mark renewable session generation used: too much contention")
 }
 
 func (c *ChattoCore) revokeRenewableSession(ctx context.Context, sessionID, reason string) error {

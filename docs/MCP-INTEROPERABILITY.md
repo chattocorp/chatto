@@ -1,7 +1,7 @@
 # MCP Interoperability Checks
 
-**Last checked:** 2026-10-08
-**Status:** Experimental; conformance is incomplete.
+**Last checked:** 2026-10-10
+**Status:** Experimental; application checks do not establish full conformance.
 
 This record tracks [issue #2214](https://github.com/chattocorp/chatto/issues/2214).
 Use it with [ADR-085](adr/ADR-085-agent-integration-through-mcp.md) and
@@ -11,15 +11,23 @@ contains client setup and security boundaries.
 
 ## Protocol and host matrix
 
-Checks used a real local Chatto server, synthetic accounts, and a separate
-test room on macOS. Browser sign-in and consent used Chrome DevTools MCP.
-Codex calls used the app-server API without a model turn.
+Checks on 2026-10-10 used an isolated local Chatto development server on Linux,
+synthetic accounts, and the seeded general channel. Browser sign-in and consent
+used Playwright. Codex calls used the app-server API without a model turn.
 
-| Client            | Version                      | Result                                                                                                                                                                                                                                         |
-| ----------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Codex CLI         | `0.160.1`                    | Protected-resource and issuer discovery, public CIMD, browser consent, S256 PKCE exchange, seven-tool discovery, and join/post/read/leave succeeded. Calls after a two-second access lifetime succeeded without new consent.                   |
-| MCP Inspector CLI | `2.9.0`, modern protocol era | The same flow and tools succeeded with a locally served native CIMD document. Calls after a two-second access lifetime succeeded with `--stored-auth-only`.                                                                                    |
-| Claude Code       | `2.1.291`                    | Discovery produced the correct resource and scopes. Authorization stopped at callback validation. Its CIMD omits native application type and registers a portless localhost callback; the client requests a runtime port. No token was issued. |
+| Client            | Version                      | Result                                                                                                                                                                                                                       |
+| ----------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codex CLI         | `0.162.0`                    | Protected-resource and issuer discovery, public CIMD, browser consent, S256 PKCE exchange, seven-tool discovery, and all seven tool calls succeeded. Calls after a two-second access lifetime succeeded without new consent. |
+| MCP Inspector CLI | `2.9.0`, modern protocol era | The same flow and tools succeeded with a locally served native CIMD document. Calls after access expiry and a server restart succeeded with `--stored-auth-only`.                                                            |
+| Claude Code       | `2.1.295`                    | Discovery produced the resource and scopes, and the client requested S256 PKCE. Chatto rejected its localhost callback with `400 invalid_request` before consent. No token was issued.                                       |
+
+Inspector's default room-read grant exposed only three tools. The full-catalog
+repeat set all four scopes in the session config's `oauth.scopes` string.
+This test environment required `MCP_INSPECTOR_SECRET_STORE=file` and a private
+`MCP_STORAGE_DIR` under `.context/` to retain credentials between CLI processes;
+without persistent credentials, `--stored-auth-only` required new authorization.
+These are synthetic test credentials, not a recommendation to move normal
+host credentials out of the operating system's credential store.
 
 Calls after the short access lifetime establish refresh behavior: an expired
 access token alone cannot authenticate the endpoint. Inspector's older
@@ -32,7 +40,19 @@ Recheck each host version before release; this matrix is not a promise for
 all host versions or deployment topologies. Public HTTPS and reverse-proxy
 host checks still require a release-environment run.
 
-## Repeat the official conformance check
+## Repeat the application protocol checks
+
+The default runs two scenarios from the pinned official suite:
+
+- `tools-list`: tool discovery, name validation, deterministic order, and wire schemas.
+- `http-header-validation`: request-header validation against the discovered catalog.
+
+Both use Chatto's real tools. Header validation is pending and unscored in the
+upstream frozen requirement set; it is still useful application coverage.
+These checks do not establish full MCP conformance or verify OAuth.
+On 2026-10-10, both selected scenarios passed: four catalog/schema checks and
+14 header/schema checks. The default command exited with status 0; the explicit
+full diagnostic run still exited with status 1.
 
 Start an isolated development server from the repository root:
 
@@ -53,7 +73,7 @@ MCP URL and a credential file for a test account. Never use production
 credentials or message content for this check. Stop `mise dev` after the run.
 
 The task pins the official `@modelcontextprotocol/conformance` package to
-`0.2.0-alpha.12` and uses its frozen `2026-07-28` requirement set. The stable
+`0.2.0-alpha.12` and runs the selected scenarios at `2026-07-28`. The stable
 `0.1.16` package does not contain this requirement set. Results go to
 `.context/mcp-conformance-results/`. Set `CHATTO_MCP_RESULTS_DIR` for a separate
 run. Keep raw results private; review them before sharing.
@@ -75,6 +95,48 @@ CHATTO_MCP_SCENARIO=tools-list mise test-mcp-conformance
 
 ### Current conformance results
 
+The full suite expects a purpose-built server with its test fixtures. The
+[upstream integration guide](https://github.com/modelcontextprotocol/conformance/blob/main/SDK_INTEGRATION.md#example-server-pattern)
+points to an everything-server, and the
+[Go SDK runner configuration](https://github.com/modelcontextprotocol/conformance/blob/main/src/sdk-runner/known-sdks.ts)
+builds `conformance/everything-server`. Selecting a protocol requirement set
+does not adapt these fixtures to Chatto's catalog.
+
+For a full-suite diagnostic run, set `CHATTO_MCP_FULL_SUITE=1` with the URL and
+credential-file variables, and leave `CHATTO_MCP_SCENARIO` unset. This selects
+the frozen `2026-07-28` requirement set and preserves its failure exit status. Neither mode
+uses an expected-failure baseline. A full-suite failure caused by absent test
+fixtures is not evidence of a Chatto defect.
+
+On 2026-10-10, the pinned suite ran against an isolated `mise dev` server
+at commit `54e9c436887c4a10e5bbe3a58bb49fe2d3bbc0a1`, with a synthetic bot
+credential. The required scenarios reported 70 successful checks, 35 failures,
+three skipped checks, four warnings, and one informational result. The command
+exited with status 1. The required failures have these causes:
+
+| Cause                                            | Failed checks | Interpretation                                                                                                                                                      |
+| ------------------------------------------------ | ------------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Absent fixture tools or input-required workflows |            21 | The suite cannot exercise the expected behavior with Chatto's catalog. These checks remain unmeasured.                                                              |
+| Absent prompt, resource, or completion methods   |            13 | Chatto does not advertise these capabilities. The scenarios call them without a capability check, including three caching checks.                                   |
+| Relay Host/Origin policy                         |             1 | The DNS-rebinding scenario sends an Origin header on its valid-localhost probe. The relay rejects all Origin headers with `403` before Chatto receives the request. |
+
+The DNS-rebinding scenario's rejected-host success also measures the relay,
+not Chatto. Neither result proves Chatto's Host/Origin behavior. Do not weaken
+the relay's browser protection to make this scenario pass. Check that boundary
+directly against Chatto.
+
+The suite also ran 13 extension or pending scenarios that do not contribute to
+the `2026-07-28` conformance result. They reported 28 successful checks,
+36 failures, and one skipped check. Thus, the suite's combined summary of
+98 successful checks and 71 failures includes unscored checks. Do not use that
+summary as the required-profile result.
+
+This failure review found no demonstrated Chatto defect. It does not establish
+conformance: fixture-dependent checks remain unmeasured, and the required
+suite still fails. Raw results are in the local, gitignored
+`.context/mcp-verification/conformance/` directory; they are not release
+artifacts. The development server was stopped after the run.
+
 - `tools-list` passes tool discovery, tool-name validation, deterministic
   order, and wire-schema checks.
 - `caching` passes tool-list caching and wire-schema checks. Three checks fail
@@ -94,9 +156,9 @@ empty prompt list without advertising prompts. Chatto now rejects absent
 resource, prompt, and completion methods with `404` / `-32601`. Its descriptor
 advertises tools without logging or catalog-change subscriptions.
 
-No expected-failure baseline hides these results. The task keeps its nonzero
-exit status when a required check fails. A fixture-aware application profile
-or an upstream suite change is still needed before conformance can pass.
+The full diagnostic run keeps its nonzero exit status when a required check
+fails. The default checks establish only the selected application behavior;
+they do not turn the full diagnostic result into a conformance pass.
 Do not add diagnostic tools to Chatto's public catalog only to satisfy SDK
 fixture checks.
 
@@ -194,6 +256,11 @@ cores and HTTP listeners with one NATS store. It verifies:
   canaries. A successful identity call returns the private display name without
   logging it or the account's credential, login, or password canaries.
 
+On 2026-10-10, `mise x -- go test -tags test_endpoints
+./internal/http_server -run 'TestMCP' -timeout 180s` passed from `cli/`.
+This includes the cross-replica, expired-credential, and request-log checks.
+It is a targeted test run, not a full backend test run or a new host-flow audit.
+
 The existing core block-event test also verifies rejection on another replica
 before best-effort token cleanup. Existing OAuth tests cover consent, PKCE,
 resource binding, refresh rotation, and code exchange. The SDK's default
@@ -220,10 +287,18 @@ The local server debug logs from the complete host flows contained no message,
 test login/email/password, access-token, authorization-code, or OAuth-query
 canaries. HTTP request logging was checked separately by the request-log test.
 
+The 2026-10-10 local repeat checked server debug logs, Codex diagnostics, and a
+metrics scrape after successful host flows and rejected OAuth requests. None
+contained the test message, login/display-name, password, credential,
+authorization-code, secret, or complete-query canaries. Inspector tool responses
+were stored separately as private test output. This check did not include a
+deployment's reverse-proxy logs or establish that every possible private value
+is absent from diagnostics.
+
 ## Release checklist
 
-- [ ] Rerun the pinned suite and resolve or explicitly classify each required
-      failure. Record unmeasured checks separately from passed checks.
+- [ ] Run the selected application protocol checks. Record the scenario names,
+      suite version, and results without claiming full conformance.
 - [ ] Repeat the host matrix against public HTTPS and the deployment's proxy.
       Verify the Claude Code blocker again or complete its flow after a host fix.
 - [ ] Run cross-replica revocation and client-blocking HTTP tests.

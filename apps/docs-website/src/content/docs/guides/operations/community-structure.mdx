@@ -49,6 +49,24 @@ member sees the group, the description, and a preview of the members. The
 member does not see messages, files, or activity. Rooms that the member cannot
 join do not show this preview.
 
+## Direct Messages in the Sidebar
+
+The expanded **DMs** section shows conversations with a message in the last
+seven days, including thread replies. Conversations with unread activity,
+notifications that need attention, or active calls stay visible. The current
+conversation also stays visible.
+
+Select **Show older (N)** to see the rest. Select **Show less**
+to restore the recent list. Older conversations also remain in the Quick
+Switcher. This filter does not archive or delete messages. If the server does
+not supply an activity time, the conversation stays visible.
+
+A DM without a notification badge shows the time since its latest message in
+minutes (`min`), hours (`h`), or days (`d`). Thread replies count. Hover over
+the age to see the full date and time. An unknown activity time has no age.
+Narrow sidebars hide ages to leave more space for names. Notification badges
+stay visible.
+
 ## Universal Rooms
 
 Make a room universal when all members who can join it must be members.
@@ -82,9 +100,16 @@ member list when you restrict a room.
 ## Slow Mode
 
 Open **Server Admin → Rooms → [room] → General → Slow Mode**. Select an
-interval from 5 seconds to 6 hours, or **Off**. Each member has one timer for
-the room. Root messages, thread replies, and attachment-only messages all use
-it.
+interval from 5 seconds to 6 hours, or **Off**, for each setting:
+
+- **Channel slow mode** limits new root messages per member.
+- **Thread slow mode** limits each member separately in each thread. The root
+  message starts both timers for its author. Replies change only that thread's
+  timer. Attachment-only messages follow the same rules.
+
+For a bug-report channel, use a channel interval of 30 seconds and set thread
+slow mode to Off. Members can then answer follow-up questions immediately.
+Both settings apply to existing threads. Reply echoes do not start another timer.
 
 A change applies immediately. Chatto measures from the member's last
 successful post, also when that post is older than the setting. While members
@@ -94,6 +119,12 @@ Members with `room.manage` or `message.manage` are exempt. Slow Mode is not
 available in direct messages. It does not make a room read-only: for that,
 deny `message.post`, `message.post-in-thread`, and
 `message.post-in-interactions`.
+
+Existing channels keep their previous interval for both settings after the
+upgrade, with independent timers. Complete the server upgrade before you rely
+on this behavior. Older clients can show an inaccurate thread countdown;
+update them to see the independent timers. New clients connected to an older
+server keep its single shared-timer setting.
 
 ## Threading Mode
 
@@ -120,13 +151,18 @@ Pin messages that members need again, such as announcements, frequent answers,
 or decisions.
 
 - To pin or unpin, open the action menu of a message and select
-  **Pin message** or **Unpin message**. You need `room.manage`. There is no
-  separate pin permission.
+  **Pin message** or **Unpin message**. You need `message.pin`. To pin a
+  message, you must also be able to read it. This permission does not require
+  privileged mode or room management access.
 - To see pins, select the pin icon in the room header. The **Pins** sidebar
   shows the full messages, newest pin first. Select a pin to open the
   original message.
 - A dot on the pin icon shows a new pin since you last opened the sidebar in
   this browser.
+
+Grant `message.pin` at server, room-group, or room scope to the roles or
+accounts that need it. New servers grant it to Admin and Moderator. On an
+existing server, grant it explicitly; `room.manage` no longer grants pin access.
 
 Edits to a message show in its pin. When you delete a message, Chatto removes
 its pin. Direct messages have no pins. Archived rooms keep their pins, but you

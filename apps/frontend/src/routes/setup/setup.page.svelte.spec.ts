@@ -87,6 +87,29 @@ describe('first-run wizard', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/login', { invalidateAll: true });
   });
 
+  it.each(['a'.repeat(73), 'a'.repeat(128), '😀'.repeat(18) + 'a', '😀'.repeat(32)])(
+    'rejects an overlength password and accepts a multibyte correction',
+    async (password) => {
+      mocks.complete.mockResolvedValue(undefined);
+      const view = renderSetup();
+      await view.getByLabelText('Server name').fill('Community');
+      await view.getByLabelText('Username', { exact: true }).fill('founder');
+      await view.getByLabelText('Display name').fill('Founder');
+      await view.getByLabelText('Password', { exact: true }).fill(password);
+      await view.getByLabelText('Confirm Password', { exact: true }).fill(password);
+      await view.getByRole('button', { name: 'Finish setup' }).click();
+      await expect.element(view.getByRole('alert')).toHaveTextContent('72 UTF-8 bytes');
+      expect(mocks.complete).not.toHaveBeenCalled();
+      await view.getByLabelText('Password', { exact: true }).fill('😀😀');
+      await view.getByLabelText('Confirm Password', { exact: true }).fill('😀😀');
+      await view.getByRole('button', { name: 'Finish setup' }).click();
+      expect(mocks.complete).toHaveBeenCalledWith(
+        window.location.origin,
+        expect.objectContaining({ password: '😀😀' })
+      );
+    }
+  );
+
   it('rejects mismatched confirmation without submitting credentials', async () => {
     const view = renderSetup();
     await view.getByLabelText('Server name').fill('Community');

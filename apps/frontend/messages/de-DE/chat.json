@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
-      "list_title": "Letzte Aktivität",
       "clear_read": "Gelesene löschen",
       "empty_title": "Keine Benachrichtigungen",
       "empty_body": "Du bist auf dem neuesten Stand!",
@@ -19,14 +18,15 @@
       "unread": "Ungelesen",
       "activity": "Neue Aktivität",
       "summary": {
-        "direct_message": "{actor} hat dir eine Direktnachricht gesendet.",
-        "reaction": "{actor} hat mit „{emoji}“ auf deine Nachricht in {channel} reagiert.",
-        "reaction_group": "{actor} und andere haben mit „{emoji}“ auf deine Nachricht in {channel} reagiert.",
-        "reply": "{actor} hat auf deine Nachricht geantwortet.",
-        "mention": "{actor} hat dich erwähnt.",
-        "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst.",
-        "new_message": "{actor} hat eine neue Nachricht gepostet.",
-        "activity": "{actor} hat dir eine Benachrichtigung gesendet."
+        "direct_message": "{actor} hat dir eine Direktnachricht gesendet",
+        "reaction": "{actor} hat mit {emoji} auf deine Nachricht reagiert",
+        "reaction_group": "{actor} und andere haben mit {emoji} auf deine Nachricht reagiert",
+        "reply": "{actor} hat auf deine Nachricht geantwortet",
+        "mention": "{actor} hat dich erwähnt",
+        "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst",
+        "new_message": "{actor} hat eine neue Nachricht gepostet",
+        "activity": "{actor} hat dir eine Benachrichtigung gesendet",
+        "room_invitation": "{actor} hat dich in einen Raum eingeladen"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Benutzerprofil",
-      "send_message": "Nachricht senden",
+      "send_message": "Unterhaltung öffnen",
       "view_profile": "Profil anzeigen",
       "profile_requires_direct_message": "Eine Direktnachricht ist erforderlich, um dieses Profil anzusehen.",
       "manage_bot": "Bot verwalten",
       "view_in_admin": "In der Serveradministration anzeigen",
       "copy_user_id": "Benutzer-ID kopieren"
     },
+    "server_info": {
+      "title": "Serverinformationen",
+      "details": "Serverdetails"
+    },
+    "compatibility": {
+      "title": "Kompatibilität",
+      "view": "Kompatibilität anzeigen",
+      "limited": "Ältere Serverversion",
+      "supported": "Keine bekannten Kompatibilitätsprobleme",
+      "affected": "Betroffene Funktionen",
+      "requires": "Erfordert {version} oder neuer",
+      "thread_views_title": "Thread-Ansichten werden nur eingeschränkt unterstützt",
+      "thread_views_description": "Gefolgte Threads und von dir gestartete Threads werden auf diesem Server möglicherweise nicht getrennt angezeigt.",
+      "independent_slow_mode_title": "Unabhängiger langsamer Modus ist nicht verfügbar",
+      "independent_slow_mode_description": "Dieser Server verwendet eine gemeinsame Wartezeit für Kanalnachrichten und Thread-Antworten.",
+      "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren."
+    },
     "server_gutter": {
       "move_up": "Nach oben verschieben",
       "move_down": "Nach unten verschieben",
       "add_server": "Server hinzufügen",
-      "log_in": "Bei diesem Server anmelden",
-      "sign_out": "Von diesem Server abmelden",
+      "log_in": "Beim Server anmelden",
+      "sign_out": "Vom Server abmelden",
       "version": "Version {version}",
       "unreachable": "Server nicht erreichbar",
       "connection_unavailable": "Verbindung nicht verfügbar",
-      "compatibility_server_too_old": "Dieser Server muss auf Chatto 0.5 oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
+      "compatibility_server_too_old": "Dieser Server muss auf Chatto {version} oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
       "compatibility_unknown": "Diese App kann die Kompatibilität anhand der Serverversion nicht bestimmen.",
       "go_to_notifications_count": {
         "one": "Zu {count} Benachrichtigung",
@@ -90,9 +107,16 @@
       "body": "Melde dich an, um auf diesem Server Nachrichten zu lesen und zu senden."
     },
     "threads": {
-      "title": "Meine Threads",
-      "subtitle": "Threads, denen du folgst",
-      "list_title": "Gefolgte Threads",
+      "sort_label": "Threads sortieren",
+      "sort_activity": "Aktivität",
+      "sort_created": "Alter",
+      "tab_started": "Meine",
+      "tab_followed": "Gefolgt",
+      "tab_label": "Thread-Ansicht",
+      "empty_mine_title": "Keine von dir gestarteten Threads",
+      "empty_mine_body": "Threads, die du startest und denen du folgst, erscheinen hier.",
+      "title": "Threads",
+      "subtitle": "Neue Aktivitäten in deinen Threads",
       "filter_label": "Threads filtern",
       "filter_all": "Alle",
       "filter_unread": "Ungelesen",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Gehört",
       "open_card": "Profilkarte von {name} öffnen"
+    },
+    "management_nav": {
+      "general": "Allgemein",
+      "neighbors": "Nachbarn",
+      "members": "Mitglieder",
+      "rooms": "Räume",
+      "moderation": "Moderation",
+      "permissions": "Berechtigungen",
+      "security": "Sicherheit",
+      "event_log": "Ereignisprotokoll",
+      "system": "System",
+      "back_to_server": "Zurück zum Server",
+      "invitations": "Einladungslinks"
     }
   }
 }

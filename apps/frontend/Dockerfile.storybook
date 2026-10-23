@@ -4,19 +4,19 @@ RUN corepack enable
 WORKDIR /src
 
 COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches patches
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/api-types/package.json packages/api-types/package.json
-COPY packages/lingua/package.json packages/lingua/package.json
+COPY packages/translatto/package.json packages/translatto/package.json
 COPY packages/chatto-client/package.json packages/chatto-client/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter chatto-frontend...
 
 COPY apps/frontend apps/frontend
 COPY packages/api-types packages/api-types
-COPY packages/lingua packages/lingua
+COPY packages/translatto packages/translatto
 COPY packages/chatto-client packages/chatto-client
-# This filtered image does not install root tooling; pnpm orders its dependencies.
-RUN pnpm --filter 'chatto-frontend^...' build && pnpm --filter chatto-frontend build-storybook
+RUN pnpm --filter chatto-frontend build-storybook
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 

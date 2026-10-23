@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func (s *accountService) GetPresencePreference(ctx context.Context, req *connect.Request[apiv1.GetPresencePreferenceRequest]) (*connect.Response[apiv1.GetPresencePreferenceResponse], error) {

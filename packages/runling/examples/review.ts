@@ -1,4 +1,4 @@
-import { agent, exec, step, concat, task, Type } from 'runling';
+import { createAgentSession, exec, step, concat, task, Type } from 'runling';
 
 const model = 'openai-codex/gpt-5.6-sol';
 const thinkingLevel = 'medium';
@@ -25,19 +25,15 @@ export const review = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ description: 'Optional review focus' })
     }),
-    output: Type.Object({
-      summary: Type.String(),
-      details: Type.Optional(Type.String()),
-      outputs: Type.Optional(Type.Object({ review: Type.String() }))
-    })
+    result: Type.String({ description: 'The review in Markdown' })
   },
   async (ctx, { directory, prompt: input }) => {
     const status = await exec`git status --short`.cwd(directory).text();
-    if (status.trim() === '') return { summary: 'No changes to review' };
+    if (status.trim() === '') return 'No changes to review';
 
     const diff = await exec`git diff HEAD --stat --patch --no-ext-diff`.cwd(directory).text();
 
-    await using orchestrator = await agent({
+    await using orchestrator = await createAgentSession({
       cwd: directory,
       model,
       thinkingLevel,
@@ -102,11 +98,7 @@ export const review = task(
       )
     );
 
-    return {
-      summary: report.summary,
-      details: report.details,
-      outputs: { review: report.details ?? report.summary }
-    };
+    return report.details ?? report.summary;
   }
 );
 

@@ -195,8 +195,8 @@ authorization, live events, backup and restore, and backend tests.
   Check identity immediately before and after the capture barrier; never hold
   the projection apply barrier across NATS or other external I/O.
 - Keep the package dependency direction application/core code ->
-  `internal/evtstream` -> the `hmans.de/chatto/pkg/events` shared module.
-  Chatto's `evtv1.Event` codec,
+  `internal/evtstream` -> the `github.com/chattocorp/chatto/pkg/events` shared
+  module. Chatto's `evtv1.Event` codec,
   aggregate subjects, event tokens, typed publisher/projector constructors, and
   envelope-aware effect consumers belong in `internal/evtstream`.
   The framework lives in the independently versioned `../pkg/events` module.
@@ -210,22 +210,23 @@ authorization, live events, backup and restore, and backend tests.
   contracts with non-Chatto envelopes. Do not add generic framework surface
   merely to shorten Chatto wiring.
 - Keep embedded NATS process mechanics behind the independently versioned
-  `hmans.de/chatto/pkg/natsruntime` module from ADR-058. Chatto retains its
-  configuration, listener, authentication, monitoring, logging, storage, and
-  deployment policy in `internal/embedded_nats`; the shared module must not
-  import Chatto packages.
+  `github.com/chattocorp/chatto/pkg/natsruntime` module from ADR-058. Chatto
+  retains its configuration, listener, authentication, monitoring, logging,
+  storage, and deployment policy in `internal/embedded_nats`; the shared module
+  must not import Chatto packages.
 - Keep raw XChaCha20-Poly1305 and 256-bit key-wrapping primitives behind the
-  independently versioned `hmans.de/chatto/pkg/datacrypto` module from
-  ADR-060. Chatto retains its associated-data formats, legacy cipher path,
+  independently versioned `github.com/chattocorp/chatto/pkg/datacrypto` module
+  from ADR-060. Chatto retains its associated-data formats, legacy cipher path,
   key references and hierarchy, envelope serialization, storage, KMS, cache,
   rotation, and cryptographic-erasure policy in `internal/encryption`; the
   shared module must not import Chatto packages.
 - Keep TOML file loading and struct-tagged environment overrides behind the
-  independently versioned `hmans.de/chatto/pkg/appconfig` module from ADR-061.
-  Chatto retains its configuration schema, environment names, compatibility
-  aliases, defaults, normalization, validation, generated examples, and CLI
-  flag policy in `internal/config` and `cmd`; the shared module must not import
-  Chatto packages or tighten existing configuration compatibility implicitly.
+  independently versioned `github.com/chattocorp/chatto/pkg/appconfig` module
+  from ADR-061. Chatto retains its configuration schema, environment names,
+  compatibility aliases, defaults, normalization, validation, generated
+  examples, and CLI flag policy in `internal/config` and `cmd`; the shared
+  module must not import Chatto packages or tighten existing configuration
+  compatibility implicitly.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,
@@ -468,6 +469,25 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   background. When an earlier removal is still running, the move fails and
   the server ignores the error. The new stream then recovers the old
   messages. `testutil.ResetChattoJetStream` shows how to remove them.
+- Prevent timing races in tests that use background work:
+  - Wait for the condition that you assert, for example with `WaitCurrent` on
+    the owning projection or materializer. Do not use `time.Sleep` to wait for
+    background work.
+  - A wait helper must return only on the expected result. Fail on every other
+    error. A helper that accepts any error as success can hide a context
+    deadline.
+  - Start a `testContext(t)` deadline after slow fixture setup. Otherwise the
+    setup uses the deadline of the operation under test.
+  - Do not count all subscriptions on a connection. Durable workers open and
+    close an inbox subscription for each JetStream pull. Count only the
+    subjects that the test is about.
+  - Give each simulated replica its own connection with `newReplicaConn` or
+    `startReplica`, as in production. Replicas that share one connection seldom
+    lag each other, and a stopped core's pull can stay open for a short time.
+  - Do not let a running worker and the test process the same facts. Use a
+    core without that worker when the test does the work itself.
+  - Do not poll an object store `List` while writers change the store. A
+    concurrent replacement can stop the listing for 5 seconds.
 - Treat fixture and setup errors as fatal before using returned values. Never
   discard an error from helpers such as `CreateRoom` or `CreateUser` and then
   dereference the result; fail the test at the setup call instead.
@@ -521,8 +541,9 @@ server.
 
 - Start a server only after the servers that it contacts at boot are
   listening. Otherwise its first background pass can fail.
-- Sign in as the bootstrap user in Chrome DevTools MCP to verify client
-  behavior. Use the network request list to verify which origins the client
+- Sign in as the bootstrap user with an available browser tool suited to the
+  task, such as Playwright MCP or Chrome DevTools MCP, to verify client
+  behavior. Inspect network requests to verify which origins the client
   contacts.
 - Stop every server process before you hand control back to the user.
 

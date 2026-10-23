@@ -24,8 +24,9 @@ Provides server diagnostics for the admin system page.
 
 ### GetSystemInfo
 
-Returns broker, JetStream, and projection diagnostics. Requires the
-server owner role.
+Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
+the server owner role. The call checks the LiveKit server API, so it can
+take up to five seconds when LiveKit does not reply.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo
@@ -51,3 +52,4 @@ Owner-only operational diagnostics for the Chatto server.
 | `asset_cleanup` | [`AdminAssetCleanupStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminAssetCleanupStatus) | Recoverable physical deletion worker health. |
 | `durable_workers` | repeated [`AdminDurableWorkerStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminDurableWorkerStatus) | Known durable worker queues and their current broker-derived health. |
 | `projections_available` | `optional bool` | Whether projection diagnostics were collected successfully. |
+| `livekit` | [`AdminLiveKitStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminLiveKitStatus) | LiveKit voice and video call setup diagnostics. |

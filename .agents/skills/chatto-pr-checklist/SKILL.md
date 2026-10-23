@@ -12,6 +12,8 @@ Review the complete branch diff against the target branch.
   and public docs within the task.
 - For public API or protocol changes, use
   [chatto-api-compatibility](../chatto-api-compatibility/SKILL.md).
+- For frontend changes, use
+  [chatto-frontend-review](../chatto-frontend-review/SKILL.md).
 - Follow root `AGENTS.md` for commit titles, PR status, and issue links.
 
 For a review-only request, report findings without edits. Report only items

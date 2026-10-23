@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Märguanded",
       "subtitle": "Siin on, mis on uut",
-      "list_title": "Hiljutine tegevus",
       "clear_read": "Kustuta loetud",
       "empty_title": "Märguandeid pole",
       "empty_body": "Olete kõik kinni!",
@@ -19,14 +18,15 @@
       "unread": "Lugemata",
       "activity": "Uus tegevus",
       "summary": {
-        "direct_message": "{actor} saatis sulle otsesõnumi.",
-        "reaction": "{actor} reageeris emotikoniga „{emoji}” sinu sõnumile kanalis {channel}.",
-        "reaction_group": "{actor} ja teised reageerisid emotikoniga „{emoji}” sinu sõnumile kanalis {channel}.",
-        "reply": "{actor} vastas sinu sõnumile.",
-        "mention": "{actor} mainis sind.",
-        "followed_thread": "{actor} vastas lõimes, mida jälgid.",
-        "new_message": "{actor} postitas uue sõnumi.",
-        "activity": "{actor} saatis sulle teavituse."
+        "direct_message": "{actor} saatis sulle otsesõnumi",
+        "reaction": "{actor} reageeris emotikoniga {emoji} sinu sõnumile",
+        "reaction_group": "{actor} ja teised reageerisid emotikoniga {emoji} sinu sõnumile",
+        "reply": "{actor} vastas sinu sõnumile",
+        "mention": "{actor} mainis sind",
+        "followed_thread": "{actor} vastas lõimes, mida jälgid",
+        "new_message": "{actor} postitas uue sõnumi",
+        "activity": "{actor} saatis sulle teavituse",
+        "room_invitation": "{actor} kutsus sind ruumi"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Kasutajaprofiil",
-      "send_message": "Saada sõnum",
+      "send_message": "Avage vestlus",
       "view_profile": "Vaata profiili",
       "profile_requires_direct_message": "Selle profiili vaatamiseks on vaja privaatsõnumit.",
       "manage_bot": "Halda botti",
       "view_in_admin": "Vaata serveri halduses",
       "copy_user_id": "Kopeeri kasutaja ID"
     },
+    "server_info": {
+      "title": "Serveri teave",
+      "details": "Serveri üksikasjad"
+    },
+    "compatibility": {
+      "title": "Ühilduvus",
+      "view": "Vaata ühilduvust",
+      "limited": "Vanem serveri versioon",
+      "supported": "Teadaolevaid ühilduvusprobleeme pole",
+      "affected": "Mõjutatud funktsioonid",
+      "requires": "Nõuab versiooni {version} või uuemat",
+      "thread_views_title": "Lõimevaadete tugi on piiratud",
+      "thread_views_description": "Jälgitavaid lõimi ja Teie alustatud lõimi ei pruugita selles serveris eraldi kuvada.",
+      "independent_slow_mode_title": "Sõltumatu aeglane režiim pole saadaval",
+      "independent_slow_mode_description": "See server kasutab kanalisõnumite ja lõimevastuste jaoks ühist ooteaega.",
+      "upgrade": "Täieliku toe saamiseks paluge serveri administraatoril uuendada versioonile {version} või uuemale."
+    },
     "server_gutter": {
       "move_up": "Liigutage üles",
       "move_down": "Liigutage alla",
       "add_server": "Lisa server",
-      "log_in": "Logi sellesse serverisse sisse",
-      "sign_out": "Logi sellest serverist välja",
+      "log_in": "Logige serverisse sisse",
+      "sign_out": "Logige serverist välja",
       "version": "Versioon {version}",
       "unreachable": "Server pole kättesaadav",
       "connection_unavailable": "Ühendus pole saadaval",
-      "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto 0.5 või uuemale, enne kui see rakendus saab ühenduse luua.",
+      "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto {version} või uuemale, enne kui see rakendus saab ühenduse luua.",
       "compatibility_unknown": "See rakendus ei saa serveri versiooni järgi ühilduvust kindlaks teha.",
       "go_to_notifications_count": {
         "one": "Ava {count} teatis",
@@ -90,9 +107,16 @@
       "body": "Logige sisse, et selles serveris sõnumeid lugeda ja saata."
     },
     "threads": {
-      "title": "Minu lõimed",
-      "subtitle": "Lõimed, mida jälgite",
-      "list_title": "Jälgitavad lõimed",
+      "sort_label": "Järjesta lõimed",
+      "sort_activity": "Tegevus",
+      "sort_created": "Vanus",
+      "tab_started": "Minu",
+      "tab_followed": "Jälgitavad",
+      "tab_label": "Lõimede vaade",
+      "empty_mine_title": "Te pole lõimesid alustanud",
+      "empty_mine_body": "Siin kuvatakse lõimed, mille olete alustanud ja mida jälgite.",
+      "title": "Lõimed",
+      "subtitle": "Uus tegevus teie lõimedes",
       "filter_label": "Filtreeri niidid",
       "filter_all": "Kõik",
       "filter_unread": "Lugemata",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Omanik",
       "open_card": "Ava kasutaja {name} profiilikaart"
+    },
+    "management_nav": {
+      "general": "Kindral",
+      "neighbors": "Naabrid",
+      "members": "liikmed",
+      "rooms": "Toad",
+      "moderation": "Mõõdukus",
+      "permissions": "load",
+      "security": "Turvalisus",
+      "event_log": "Sündmuste logi",
+      "system": "Süsteem",
+      "back_to_server": "Tagasi serverisse",
+      "invitations": "Kutselingid"
     }
   }
 }

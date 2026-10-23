@@ -1,17 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import {
-  agent,
-  exec,
-  log,
-  step,
-  concat,
-  randomId,
-  task,
-  Type,
-  type WorkflowContext,
-  type WorkflowResult
-} from 'runling';
+import { createAgentSession, exec, log, step, concat, task, Type, type TaskContext } from 'runling';
 import { implement } from './implement.ts';
 import { review } from './review.ts';
 
@@ -21,13 +10,13 @@ const thinkingLevel = 'medium';
 
 // Ground generated PR copy in both the agent's intent and the committed diff.
 export const describePullRequest = (
-  ctx: WorkflowContext,
+  ctx: TaskContext,
   directory: string,
   implementationSummary: string,
   committedChange: string
 ) =>
   step('Describe pull request', async () => {
-    await using writer = await agent({
+    await using writer = await createAgentSession({
       cwd: directory,
       model,
       thinkingLevel,
@@ -57,9 +46,8 @@ export const describePullRequest = (
     };
   });
 
-export const postReview = (directory: string, pullRequestUrl: string, result: WorkflowResult) =>
+export const postReview = (directory: string, pullRequestUrl: string, body: string) =>
   step('Post review', async () => {
-    const body = result.details ?? result.summary;
     await exec`gh pr comment ${pullRequestUrl} --body ${body}`.cwd(directory);
   });
 
@@ -90,18 +78,15 @@ const makePullRequest = task(
       directory: Type.String({ minLength: 1 }),
       prompt: Type.String({ description: 'The requested code change' })
     }),
-    output: Type.Object({
-      summary: Type.String(),
-      outputs: Type.Object({
-        branchName: Type.String(),
-        pullRequestUrl: Type.String()
-      })
+    result: Type.Object({
+      branchName: Type.String(),
+      pullRequestUrl: Type.String()
     })
   },
   async (ctx, { directory, prompt: input }) => {
     await exec`gh auth status`.cwd(directory);
 
-    const worktreeId = randomId();
+    const worktreeId = crypto.randomUUID().slice(0, 8);
     const branchName = `runling/${worktreeId}`;
     const worktreesPath = resolve(directory, worktreesDirectory);
     const worktreePath = resolve(worktreesPath, worktreeId);
@@ -116,7 +101,7 @@ const makePullRequest = task(
 
     // Review the complete staged change before capturing it in a commit.
     await exec`git add --all`.cwd(worktreePath);
-    const reviewResult = await review(ctx, { directory: worktreePath, prompt: '' });
+    const reviewBody = await review(ctx, { directory: worktreePath, prompt: '' });
     await exec`git commit -m ${implementationSummary}`.cwd(worktreePath);
 
     // Describe exactly what will appear in the pull request.
@@ -135,18 +120,13 @@ const makePullRequest = task(
         .cwd(worktreePath)
         .quiet();
     const pullRequestUrl = createdPullRequest.stdout.toString().trim();
-    await postReview(worktreePath, pullRequestUrl, reviewResult);
+    await postReview(worktreePath, pullRequestUrl, reviewBody);
 
     // Failed runs intentionally retain their worktree for inspection.
     await exec`git worktree remove ${worktreePath}`.cwd(directory);
 
-    return {
-      summary: `Opened ${pullRequestUrl}`,
-      outputs: {
-        branchName,
-        pullRequestUrl
-      }
-    };
+    log.success(`Opened ${pullRequestUrl}`);
+    return { branchName, pullRequestUrl };
   }
 );
 

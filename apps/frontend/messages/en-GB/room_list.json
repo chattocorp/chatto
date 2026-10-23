@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Copy room link",
     "show_rooms_in_group": "Show more rooms in {group} ({count})",
     "hide_rooms_in_group": "Hide unjoined rooms in {group}",
     "more_rooms": "{count} more",
@@ -21,12 +22,18 @@
     "mark_as_read": "Mark as read",
     "remove_server": "Remove server",
     "leave_room": "Leave room",
-    "copy_room_id": "Copy Room ID",
-    "copy_server_hostname": "Copy Server Hostname",
+    "copy_room_id": "Copy room ID",
+    "copy_server_hostname": "Copy server hostname",
     "room_settings": "Room settings",
     "add_to_group": "Add to {group}",
     "group_settings": "Settings for {group}",
     "server_actions": "Actions for {server}",
-    "room_actions": "Actions for #{room}"
+    "room_actions": "Actions for #{room}",
+    "open_group_settings": "Open group settings",
+    "open_room_settings": "Open room settings",
+    "activity_now": "now",
+    "older_conversations": "Older conversations",
+    "show_older_conversations": "Show older ({count})",
+    "show_fewer_conversations": "Show less"
   }
 }

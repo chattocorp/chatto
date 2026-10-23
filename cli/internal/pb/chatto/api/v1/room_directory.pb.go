@@ -147,11 +147,16 @@ type RoomViewerState struct {
 	HasUnread bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
 	// Effective room-scoped permission decisions after room state constraints.
 	Permissions []*PermissionGrant `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Earliest time the current user may create another message. Absent when
+	// Earliest time the current user may create another root message. Absent when
 	// slow mode is disabled, expired, or bypassed by moderation permissions.
 	SlowModeNextPostAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=slow_mode_next_post_at,json=slowModeNextPostAt,proto3" json:"slow_mode_next_post_at,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Pending invitation for this viewer; does not grant access to room content.
+	Invitation *RoomInvitation `protobuf:"bytes,5,opt,name=invitation,proto3" json:"invitation,omitempty"`
+	// Whether current permissions and room state allow joining without an invitation,
+	// even if already a member. Absent on servers that do not report this decision.
+	CanRejoin     *bool `protobuf:"varint,6,opt,name=can_rejoin,json=canRejoin,proto3,oneof" json:"can_rejoin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoomViewerState) Reset() {
@@ -212,6 +217,20 @@ func (x *RoomViewerState) GetSlowModeNextPostAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *RoomViewerState) GetInvitation() *RoomInvitation {
+	if x != nil {
+		return x.Invitation
+	}
+	return nil
+}
+
+func (x *RoomViewerState) GetCanRejoin() bool {
+	if x != nil && x.CanRejoin != nil {
+		return *x.CanRejoin
+	}
+	return false
+}
+
 // Room metadata plus state and capabilities resolved for the authenticated
 // viewer.
 type RoomWithViewerState struct {
@@ -226,6 +245,14 @@ type RoomWithViewerState struct {
 	MemberUserIds []string `protobuf:"bytes,15,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
 	// Whether this DM has received a root message. Absent for channel rooms.
 	HasMessageHistory *bool `protobuf:"varint,16,opt,name=has_message_history,json=hasMessageHistory,proto3,oneof" json:"has_message_history,omitempty"`
+	// Creation time of the latest ordinary DM message, including thread replies.
+	// Edits and retractions do not change this value; historical imports are excluded.
+	// Absent for other room kinds, no ordinary messages, or no message.read permission.
+	// Older servers can omit this field. Absence does not prove inactivity.
+	LastMessageAt *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=last_message_at,json=lastMessageAt,proto3" json:"last_message_at,omitempty"`
+	// Creation time of the latest ordinary DM root message, excluding thread replies.
+	// Uses the same visibility, import, and absence rules as last_message_at.
+	LastRootMessageAt *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=last_root_message_at,json=lastRootMessageAt,proto3" json:"last_root_message_at,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -286,6 +313,20 @@ func (x *RoomWithViewerState) GetHasMessageHistory() bool {
 		return *x.HasMessageHistory
 	}
 	return false
+}
+
+func (x *RoomWithViewerState) GetLastMessageAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastMessageAt
+	}
+	return nil
+}
+
+func (x *RoomWithViewerState) GetLastRootMessageAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastRootMessageAt
+	}
+	return nil
 }
 
 // Sidebar link metadata for room group navigation.
@@ -1143,18 +1184,26 @@ var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x01\n" +
+	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a$chatto/api/v1/room_invitations.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x02\n" +
 	"\x0fRoomViewerState\x12\x1b\n" +
 	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x1d\n" +
 	"\n" +
 	"has_unread\x18\x02 \x01(\bR\thasUnread\x12@\n" +
 	"\vpermissions\x18\x03 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\x12N\n" +
-	"\x16slow_mode_next_post_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x12slowModeNextPostAt\"\xc2\x03\n" +
+	"\x16slow_mode_next_post_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x12slowModeNextPostAt\x12=\n" +
+	"\n" +
+	"invitation\x18\x05 \x01(\v2\x1d.chatto.api.v1.RoomInvitationR\n" +
+	"invitation\x12\"\n" +
+	"\n" +
+	"can_rejoin\x18\x06 \x01(\bH\x00R\tcanRejoin\x88\x01\x01B\r\n" +
+	"\v_can_rejoin\"\xd3\x04\n" +
 	"\x13RoomWithViewerState\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\x12A\n" +
 	"\fviewer_state\x18\x0e \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerState\x12&\n" +
 	"\x0fmember_user_ids\x18\x0f \x03(\tR\rmemberUserIds\x123\n" +
-	"\x13has_message_history\x18\x10 \x01(\bH\x00R\x11hasMessageHistory\x88\x01\x01B\x16\n" +
+	"\x13has_message_history\x18\x10 \x01(\bH\x00R\x11hasMessageHistory\x88\x01\x01\x12B\n" +
+	"\x0flast_message_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\rlastMessageAt\x12K\n" +
+	"\x14last_root_message_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\x11lastRootMessageAtB\x16\n" +
 	"\x14_has_message_historyJ\x04\b\x02\x10\x0eR\tis_memberR\n" +
 	"has_unreadR\rcan_list_roomR\rcan_join_roomR\x10can_post_messageR\x12can_post_in_threadR\n" +
 	"can_attachR\tcan_reactR\x10can_echo_messageR\x19can_manage_others_messageR\x0fcan_manage_roomR\x14can_ban_room_members\"E\n" +
@@ -1218,8 +1267,8 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\fGetRoomGroup\x12\".chatto.api.v1.GetRoomGroupRequest\x1a#.chatto.api.v1.GetRoomGroupResponse\x12i\n" +
 	"\x12BatchGetRoomGroups\x12(.chatto.api.v1.BatchGetRoomGroupsRequest\x1a).chatto.api.v1.BatchGetRoomGroupsResponse\x12H\n" +
 	"\aGetRoom\x12\x1d.chatto.api.v1.GetRoomRequest\x1a\x1e.chatto.api.v1.GetRoomResponse\x12Z\n" +
-	"\rBatchGetRooms\x12#.chatto.api.v1.BatchGetRoomsRequest\x1a$.chatto.api.v1.BatchGetRoomsResponseB\xae\x01\n" +
-	"\x11com.chatto.api.v1B\x12RoomDirectoryProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\rBatchGetRooms\x12#.chatto.api.v1.BatchGetRoomsRequest\x1a$.chatto.api.v1.BatchGetRoomsResponseB\xbf\x01\n" +
+	"\x11com.chatto.api.v1B\x12RoomDirectoryProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_room_directory_proto_rawDescOnce sync.Once
@@ -1258,47 +1307,51 @@ var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(*BatchGetRoomsResponse)(nil),      // 19: chatto.api.v1.BatchGetRoomsResponse
 	(*PermissionGrant)(nil),            // 20: chatto.api.v1.PermissionGrant
 	(*timestamppb.Timestamp)(nil),      // 21: google.protobuf.Timestamp
-	(*Room)(nil),                       // 22: chatto.api.v1.Room
-	(*PageRequest)(nil),                // 23: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                   // 24: chatto.api.v1.PageInfo
+	(*RoomInvitation)(nil),             // 22: chatto.api.v1.RoomInvitation
+	(*Room)(nil),                       // 23: chatto.api.v1.Room
+	(*PageRequest)(nil),                // 24: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                   // 25: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
 	20, // 0: chatto.api.v1.RoomViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
 	21, // 1: chatto.api.v1.RoomViewerState.slow_mode_next_post_at:type_name -> google.protobuf.Timestamp
-	22, // 2: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
-	2,  // 3: chatto.api.v1.RoomWithViewerState.viewer_state:type_name -> chatto.api.v1.RoomViewerState
-	3,  // 4: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
-	4,  // 5: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	20, // 6: chatto.api.v1.RoomGroupViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
-	5,  // 7: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
-	6,  // 8: chatto.api.v1.RoomGroup.viewer_state:type_name -> chatto.api.v1.RoomGroupViewerState
-	0,  // 9: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
-	1,  // 10: chatto.api.v1.ListRoomsRequest.archive_filter:type_name -> chatto.api.v1.RoomArchiveFilter
-	23, // 11: chatto.api.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
-	3,  // 12: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
-	24, // 13: chatto.api.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
-	7,  // 14: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	7,  // 15: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
-	7,  // 16: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	3,  // 17: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.RoomWithViewerState
-	3,  // 18: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
-	8,  // 19: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
-	10, // 20: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
-	12, // 21: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
-	14, // 22: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
-	16, // 23: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
-	18, // 24: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
-	9,  // 25: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
-	11, // 26: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
-	13, // 27: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
-	15, // 28: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
-	17, // 29: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
-	19, // 30: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
-	25, // [25:31] is the sub-list for method output_type
-	19, // [19:25] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	22, // 2: chatto.api.v1.RoomViewerState.invitation:type_name -> chatto.api.v1.RoomInvitation
+	23, // 3: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
+	2,  // 4: chatto.api.v1.RoomWithViewerState.viewer_state:type_name -> chatto.api.v1.RoomViewerState
+	21, // 5: chatto.api.v1.RoomWithViewerState.last_message_at:type_name -> google.protobuf.Timestamp
+	21, // 6: chatto.api.v1.RoomWithViewerState.last_root_message_at:type_name -> google.protobuf.Timestamp
+	3,  // 7: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
+	4,  // 8: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	20, // 9: chatto.api.v1.RoomGroupViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
+	5,  // 10: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
+	6,  // 11: chatto.api.v1.RoomGroup.viewer_state:type_name -> chatto.api.v1.RoomGroupViewerState
+	0,  // 12: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
+	1,  // 13: chatto.api.v1.ListRoomsRequest.archive_filter:type_name -> chatto.api.v1.RoomArchiveFilter
+	24, // 14: chatto.api.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
+	3,  // 15: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
+	25, // 16: chatto.api.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
+	7,  // 17: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	7,  // 18: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
+	7,  // 19: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	3,  // 20: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.RoomWithViewerState
+	3,  // 21: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
+	8,  // 22: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
+	10, // 23: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
+	12, // 24: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
+	14, // 25: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
+	16, // 26: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
+	18, // 27: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
+	9,  // 28: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
+	11, // 29: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
+	13, // 30: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
+	15, // 31: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
+	17, // 32: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
+	19, // 33: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
+	28, // [28:34] is the sub-list for method output_type
+	22, // [22:28] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_directory_proto_init() }
@@ -1307,8 +1360,10 @@ func file_chatto_api_v1_room_directory_proto_init() {
 		return
 	}
 	file_chatto_api_v1_permissions_proto_init()
+	file_chatto_api_v1_room_invitations_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_rooms_proto_init()
+	file_chatto_api_v1_room_directory_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_api_v1_room_directory_proto_msgTypes[1].OneofWrappers = []any{}
 	file_chatto_api_v1_room_directory_proto_msgTypes[3].OneofWrappers = []any{
 		(*RoomGroupItem_Room)(nil),

@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Panoya kopyalanamadı. Metni seçin ve elle kopyalayın.",
     "cancel": "İptal",
     "close_sidebar": "Kenar çubuğunu kapat",
     "or": "veya",
@@ -21,11 +22,12 @@
     "password_placeholder": "Şifreniz",
     "email_placeholder": "sen@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "En az 8 karakter",
+    "password_bytes_placeholder": "8–72 UTF-8 baytı",
     "password_confirm_placeholder": "Şifreyi tekrar girin",
     "validation": {
       "email": "Lütfen geçerli bir e-posta adresi girin",
-      "password_min": "En az 8 karakter olmalı",
+      "password_min_bytes": "En az 8 UTF-8 baytı kullanın. Bazı karakterler birden fazla bayt kullanır.",
+      "password_max": "En fazla 72 UTF-8 baytı kullanın. Bazı karakterler birden fazla bayt kullanır.",
       "username_min": "En az 2 karakter olmalı",
       "username_max": "En fazla 32 karakter olmalı",
       "username_charset": "Yalnızca harfler, sayılar, noktalar, kısa çizgiler, alt çizgiler",
@@ -53,6 +55,11 @@
     "saved": "Kaydedildi!",
     "rooms": "Odalar",
     "copy_to_clipboard": "Panoya kopyala",
-    "copied_to_clipboard": "Panoya kopyalandı"
+    "copied_to_clipboard": "Panoya kopyalandı",
+    "user_search_placeholder": "Oturum açma bilgilerine veya görünen ada göre arayın...",
+    "no_users": "Kullanıcı bulunamadı",
+    "user_id": "Kullanıcı Kimliği",
+    "reason": "Sebep",
+    "message_of_the_day": "Günün Mesajı"
   }
 }

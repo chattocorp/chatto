@@ -87,8 +87,8 @@ const file_chatto_core_runtime_state_v1_message_post_proto_rawDesc = "" +
 	"\x10MessagePostClaim\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12/\n" +
-	"\x13request_fingerprint\x18\x02 \x01(\fR\x12requestFingerprintB\x8c\x02\n" +
-	" com.chatto.core.runtime_state.v1B\x10MessagePostProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x13request_fingerprint\x18\x02 \x01(\fR\x12requestFingerprintB\x9d\x02\n" +
+	" com.chatto.core.runtime_state.v1B\x10MessagePostProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_message_post_proto_rawDescOnce sync.Once

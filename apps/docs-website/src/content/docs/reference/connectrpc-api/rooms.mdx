@@ -155,9 +155,10 @@ mask stay unchanged.
 | `name` | `optional string` | New visible 1–30-code-point Unicode room name, when changing it. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
-| `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
+| `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](/reference/connectrpc-api/types/#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -310,6 +311,9 @@ Starts a direct-message room for the current human user and the requested
 participant set, or fetches its existing DM. message.post is required
 only when the DM must be created. A valid request from a bot receives
 PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
+New DMs support the caller and at most one other user. New group DMs
+receive INVALID_ARGUMENT; use a channel room instead. Existing group
+DMs can still be fetched.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/StartDM
@@ -323,6 +327,9 @@ Request to start a direct-message room for a human caller, or fetch an
 existing one. A human caller can fetch an existing DM without message.post.
 A valid request from a bot receives PERMISSION_DENIED, including when the
 room already exists.
+New DMs have at most two distinct participants, including the caller.
+Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
+for new group conversations. Existing group DMs remain accessible.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -668,7 +675,7 @@ Current pinned messages in one channel room.
 
 ### CreatePinnedMessage
 
-Pins a current message. The caller must have room.manage and must be able
+Pins a current message. The caller must have message.pin and must be able
 to read the message. Repeating an existing pin is idempotent. Direct-message
 rooms are rejected.
 
@@ -703,7 +710,7 @@ Result of pinning a message.
 
 ### DeletePinnedMessage
 
-Removes a current pin. The caller must have room.manage. Removing a
+Removes a current pin. The caller must have message.pin. Removing a
 missing pin is idempotent. Direct-message rooms are rejected.
 
 ```http

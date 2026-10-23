@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"hmans.de/chatto/internal/encryption"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // RoomTimelineReads returns the operation-level model for user-facing room
@@ -22,6 +22,12 @@ func (c *ChattoCore) RoomTimelineReads() *RoomTimelineReadModel {
 type RoomTimelineReadModel struct {
 	core  *ChattoCore
 	rooms *RoomModel
+}
+
+// newRoomTimelineReadModel returns a RoomTimelineReadModel. core supplies
+// body hydration and the remaining timeline helpers (see ADR-115).
+func newRoomTimelineReadModel(core *ChattoCore, rooms *RoomModel) *RoomTimelineReadModel {
+	return &RoomTimelineReadModel{core: core, rooms: rooms}
 }
 
 // MessageHydrationState returns detached projection metadata for rendering one
@@ -331,6 +337,13 @@ func (s *RoomTimelineReadModel) threadRootEvent(ctx context.Context, kind RoomKi
 		return nil, fmt.Errorf("thread root event not found: %w", ErrNotFound)
 	}
 	return &RoomEvent{Event: event, Sequence: seq}, nil
+}
+
+// roomEvent hydrates one room-visible event without authorization. It returns
+// nil when the event is absent, is in another room, or is a hidden echo. The
+// caller must already have authorized the read.
+func (s *RoomTimelineReadModel) roomEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {
+	return s.core.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 }
 
 func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {

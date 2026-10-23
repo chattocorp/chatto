@@ -1,7 +1,5 @@
-import type { InputHandler } from './input.ts';
-import { spawn, type Run } from './spawn.ts';
-import { currentRunlingActivity, emitRunlingEvent } from './events.ts';
-import { isJsonObject, type JsonValue } from './runtime.ts';
+import { invoke } from './invocation.ts';
+import type { AnyTask, TaskInput, TaskInvocation } from './task.ts';
 import {
   accumulateTokenUsage,
   emptyTokenUsage,
@@ -18,67 +16,69 @@ export class WorkflowAbortError extends Error {
   }
 }
 
-/** Identifies the run that a workflow context belongs to. */
+/** Identifies the run that a task context belongs to. */
 export interface RunIdentity {
   /** The run's stable ID. */
   id: string;
   /** The run's human-readable name, such as `funky-comics-8426`. Older runs have none. */
   reference?: string;
+  /** The server re-entered an open root from a snapshot. No prior input is replayed by the host. */
+  resumed?: boolean;
+  /** Host-owned files for this run. The server removes this directory with expired history.
+   * Absent when the host does not provide persistent run storage. */
+  filesDirectory?: string;
 }
 
-export type TextHandler = (text: string) => void | Promise<void>;
+/**
+ * What a running task can do. `Steering` comes from the parent; `Output` streams back to it.
+ * The host is the parent of a workflow's top-level task.
+ */
+export interface TaskContext<Steering = unknown, Output = unknown> {
+  /** Mutable JSON data. The server snapshots the root task's object.
+   * Children get a fresh, unsaved object; pass selected sub-objects as input to share state. */
+  readonly state: WorkflowState;
+  /** Start a task as a child. Exchange messages with it through the returned handle.
+   * A direct call, `await task(ctx, input)`, starts the task and waits for its result. */
+  start<T extends AnyTask>(task: T, input: TaskInput<T>): TaskInvocation<T>;
 
-export interface WorkflowContext<Incoming = never, Update = unknown> {
-  /** Run a function concurrently with its own inbox, output, and cancellation.
-   * Capture task input in the callback: ctx.spawn(ctx => work(ctx, input)).
-   * Additional arguments remain supported for compatibility. */
-  spawn<ChildIncoming, ChildUpdate, Args extends unknown[], Result>(
-    run: (ctx: WorkflowContext<ChildIncoming, ChildUpdate>, ...args: Args) => Result,
-    ...args: Args
-  ): Run<ChildIncoming, ChildUpdate, Awaited<Result>>;
-  /** Incoming values for a spawned task; empty for a normal context. */
-  readonly inbox: AsyncIterable<Incoming>;
+  /** Steering from the parent. One consumer only. Ends when the parent closes steering. */
+  readonly steering: AsyncIterable<Steering>;
 
-  /** Queue an update for the spawning parent; no-op on a normal context. */
-  emit(update: Update): Promise<void>;
-
-  /** Deliver user-facing text. Await the handler to wait for delivery. */
-  onText?: TextHandler;
-
-  /** Handle questions from this context. Hosts can supply the initial handler. */
-  onInput?: InputHandler;
+  /** Send a message to the parent. Rejects when the message does not match the task's
+   * `output` schema, or when the parent does not read its output and the buffer is full. */
+  emit(message: Output): Promise<void>;
 
   /** Signals cancellation to agents and other cooperative work. */
   readonly signal: AbortSignal;
 
-  /** The run of this context. Spawned tasks share their parent's run. Absent for direct task
+  /** The run of this context. Child tasks share their parent's run. Absent for direct task
    * calls and for hosts that do not record runs. */
   readonly run?: RunIdentity;
 
-  /** Abort this workflow and throw its abort error. The first reason is retained. */
+  /** Abort the workflow run and throw its abort error. The first reason is retained. */
   abort(reason?: string): never;
 
-  /** A shared read-only view of all usage recorded in this execution. */
+  /** A shared read-only view of all usage recorded in this run. */
   readonly usage: Readonly<TokenUsage>;
 
   /** Add one usage increment, including any reported cost in US dollars. */
   recordUsage(usage: TokenUsageInput): void;
-
-  /** Publish a JSON snapshot for this task in the run inspector. This does not message its parent. */
-  publishState(state: { [key: string]: JsonValue }): void;
 }
 
-/** Create an independent context for direct task calls. */
-export function createWorkflowContext(): WorkflowContext {
-  return createObservedWorkflowContext();
+/** Application-owned recovery data. Store JSON-compatible values only. */
+export type WorkflowState = Record<string, unknown>;
+
+/** Create a context without a parent, for example to call a task in a test or a script. */
+export function createTaskContext(): TaskContext<never, unknown> {
+  return createRootContext();
 }
 
-/** Internal bridge from context accounting to runner events. */
-export function createObservedWorkflowContext(
+/** Internal: the host context of a run. Its steering is empty and its updates are discarded. */
+export function createRootContext(
   onUsage?: (usage: TokenUsage) => void,
   cancellation?: AbortSignal,
   run?: RunIdentity
-): WorkflowContext {
+): TaskContext<never, unknown> {
   const total = emptyTokenUsage();
   const controller = new AbortController();
   const signal = cancellation
@@ -107,15 +107,13 @@ export function createObservedWorkflowContext(
   });
 
   return {
-    // Use the receiving context so context overrides and nested children keep their signal.
-    spawn(run, ...args) {
-      return spawn(this, run, ...args);
+    state: {},
+    // Use the receiving context, so that children get the signal of their own parent.
+    start(task, input) {
+      return invoke(this, task, input) as TaskInvocation<typeof task>;
     },
-    // Direct calls do not allocate channels or retain emitted updates.
-    inbox: { async *[Symbol.asyncIterator]() {} },
+    steering: { async *[Symbol.asyncIterator]() {} },
     async emit() {},
-    onInput: undefined,
-    onText: undefined,
     signal,
     ...(run ? { run } : {}),
     usage,
@@ -131,23 +129,6 @@ export function createObservedWorkflowContext(
       if (!hasValidTokenCounts(usage)) return;
       accumulateTokenUsage(total, usage);
       onUsage?.({ ...total });
-    },
-
-    publishState(state) {
-      const taskId = currentRunlingActivity();
-      if (!taskId) throw new Error('Task state can only be published inside a task');
-      if (!isJsonObject(state)) {
-        throw new TypeError('Task state must be a JSON object');
-      }
-      const encoded = JSON.stringify(state);
-      if (!encoded) throw new TypeError('Task state must be a JSON object');
-      if (encoded.length > 16_000) throw new Error('Task state exceeds the JSON size limit');
-      const snapshot: unknown = JSON.parse(encoded);
-      if (!isJsonObject(snapshot)) {
-        throw new TypeError('Task state must be a JSON object');
-      }
-      // Detach the event from mutable task data before the journal writes it.
-      emitRunlingEvent({ type: 'task.state', taskId, state: snapshot });
     }
   };
 }

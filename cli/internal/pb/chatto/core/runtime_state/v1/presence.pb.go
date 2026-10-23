@@ -7,9 +7,9 @@
 package runtimestatev1
 
 import (
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -84,8 +84,8 @@ const file_chatto_core_runtime_state_v1_presence_proto_rawDesc = "" +
 	"+chatto/core/runtime_state/v1/presence.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1cchatto/api/v1/presence.proto\"g\n" +
 	"\x12PresencePreference\x125\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\x12\x1a\n" +
-	"\brevision\x18\x02 \x01(\tR\brevisionB\x89\x02\n" +
-	" com.chatto.core.runtime_state.v1B\rPresenceProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\brevision\x18\x02 \x01(\tR\brevisionB\x9a\x02\n" +
+	" com.chatto.core.runtime_state.v1B\rPresenceProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_presence_proto_rawDescOnce sync.Once

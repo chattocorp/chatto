@@ -9,9 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -65,6 +66,10 @@ type PendingExternalIdentityFlow struct {
 	BoundUserID     string    `json:"bound_user_id,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 	InvitationID    string    `json:"invitation_id,omitempty"`
+	// Groups and GroupsKnown carry the provider groups claim to account
+	// creation for group role sync. Flows from older versions have neither.
+	Groups      []string `json:"groups,omitempty"`
+	GroupsKnown bool     `json:"groups_known,omitempty"`
 }
 
 func (c *ChattoCore) externalIdentityCreateTokenKey(token string) string {
@@ -331,10 +336,13 @@ func (c *ChattoCore) ConfirmPendingExternalIdentityLink(ctx context.Context, flo
 // authentication projections. The raw issuer and subject require an account-
 // owner or operator response boundary; they must not be logged.
 func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID string) ([]ExternalIdentity, error) {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
+	// Wait before the account check, so a replica that has not yet applied the
+	// user's creation does not reject it. The fixed filter keeps the unvalidated
+	// user ID out of the subject.
+	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", evtstream.UserSubjectFilter()); err != nil {
 		return nil, err
 	}
-	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}
 	return c.userModel.externalIdentities(userID), nil
@@ -376,53 +384,134 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 	if actorID == "" {
 		return ErrNotAuthenticated
 	}
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return err
-	}
 	userID = strings.TrimSpace(userID)
 	subjectHash = strings.TrimSpace(subjectHash)
 	if userID == "" || subjectHash == "" {
 		return ErrInvalidArgument
 	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
+	unlink := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
 		UserExternalIdentityUnlinked: &evtv1.UserExternalIdentityUnlinkedEvent{
 			UserId:                      userID,
 			SubjectHash:                 subjectHash,
 			PreserveExistingCredentials: true,
 		},
 	}})
-	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
-		_, ok, err := c.userModel.user(ctx, userID)
+	unlinkSubject := evtstream.UserAggregate(userID).SubjectFor(unlink)
+	userFilter := evtstream.UserSubjectFilter()
+	rbacFilter := evtstream.RBACSubjectFilter()
+
+	// The unlink and the revocation of the group roles that its provider gave
+	// commit in one atomic batch with user and RBAC OCC. A failure therefore
+	// cannot leave an unlinked account with the provider's roles.
+	var source ProviderRoleSource
+	for attempt := range maxUserMutationRetries {
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userFilter)
+		if err != nil {
+			return fmt.Errorf("read user OCC filter seq: %w", err)
+		}
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
+		if err != nil {
+			return fmt.Errorf("read RBAC OCC filter seq: %w", err)
+		}
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userFilter, userSeq)); err != nil {
+			return fmt.Errorf("wait for user projection: %w", err)
+		}
+		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
+			return fmt.Errorf("wait for user auth projection: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
+			return fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+		// Check the account after the projection wait, so a replica that has
+		// not yet applied the user's creation does not reject it.
+		unlinked, err := c.checkExternalIdentityDisconnect(ctx, userID, subjectHash, policy)
 		if err != nil {
 			return err
 		}
-		if !ok {
-			return ErrNotFound
-		}
-		identities := c.userModel.externalIdentities(userID)
-		found := false
-		remainingIdentity := false
-		for _, identity := range identities {
-			if identity.SubjectHash == subjectHash {
-				found = true
-				continue
-			}
-			if policy == nil || policy.AllowsIdentity(identity) {
-				remainingIdentity = true
+
+		entries := []evtstream.BatchEntry{{Subject: unlinkSubject, Event: unlink, Expect: events.ExpectFilterSeq(userFilter, userSeq)}}
+		// Another identity with the same issuer keeps the account under that
+		// provider's group role sync, so its roles stay.
+		source = ProviderRoleSource{ProviderID: unlinked.ProviderID, Issuer: unlinked.Issuer}
+		if !hasOtherIssuerIdentity(c.userModel.externalIdentities(userID), unlinked) {
+			for _, roleName := range c.rbacModel.providerAssignments(userID, unlinked.Issuer) {
+				entries = append(entries, source.revokedEntry(userID, roleName))
 			}
 		}
-		if !found {
-			return ErrExternalIdentityNotFound
+		if len(entries) > 1 {
+			entries[1].Expect = events.ExpectFilterSeq(rbacFilter, rbacSeq)
 		}
-		_, hasPassword := c.userModel.passwordHash(userID)
-		passwordAvailable := hasPassword && (policy == nil || policy.PasswordLoginEnabled)
-		if !passwordAvailable && !remainingIdentity {
-			return ErrExternalIdentityLastMethod
+
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			// A concurrent group role sync can commit a grant after the batch
+			// read the RBAC state. Check again; the check waits until the
+			// unlink is visible. It runs before the waits below, which end with
+			// the request. The unlink is committed, so a failed check is
+			// logged, not returned.
+			if err := c.revokeProviderGroupRolesWithoutIdentity(ctx, userID, source); err != nil {
+				c.logger.Error("Provider group role check after unlink failed", "provider_id", source.ProviderID, "user_id", userID, "error", err)
+			}
+			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(unlinkSubject, seqs[0])); err != nil {
+				return fmt.Errorf("wait for user projection: %w", err)
+			}
+			if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(unlinkSubject, seqs[0])); err != nil {
+				return fmt.Errorf("wait for user auth projection: %w", err)
+			}
+			if last := len(entries) - 1; last > 0 {
+				if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(entries[last].Subject, seqs[last])); err != nil {
+					return fmt.Errorf("wait for RBAC projection: %w", err)
+				}
+			}
+			return nil
 		}
-		return nil
-	})
-	if err != nil {
-		return err
+		if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
 	}
-	return nil
+	return fmt.Errorf("external identity unlink OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
+}
+
+// checkExternalIdentityDisconnect returns the identity to unlink. It refuses
+// removal when no sign-in method that policy enables would remain.
+func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string, policy *ExternalIdentitySignInPolicy) (ExternalIdentity, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return ExternalIdentity{}, err
+	}
+	var unlinked ExternalIdentity
+	found := false
+	remainingIdentity := false
+	for _, identity := range c.userModel.externalIdentities(userID) {
+		if identity.SubjectHash == subjectHash {
+			found = true
+			unlinked = identity
+			continue
+		}
+		if policy == nil || policy.AllowsIdentity(identity) {
+			remainingIdentity = true
+		}
+	}
+	if !found {
+		return ExternalIdentity{}, ErrExternalIdentityNotFound
+	}
+	_, hasPassword := c.userModel.passwordHash(userID)
+	passwordAvailable := hasPassword && (policy == nil || policy.PasswordLoginEnabled)
+	if !passwordAvailable && !remainingIdentity {
+		return ExternalIdentity{}, ErrExternalIdentityLastMethod
+	}
+	return unlinked, nil
+}
+
+// hasOtherIssuerIdentity reports whether identities contain another identity
+// with the same issuer as identity. The issuer is the identity namespace of a
+// provider, also for links made under an older provider ID.
+func hasOtherIssuerIdentity(identities []ExternalIdentity, identity ExternalIdentity) bool {
+	return slices.ContainsFunc(identities, func(other ExternalIdentity) bool {
+		return other.Issuer == identity.Issuer && other.SubjectHash != identity.SubjectHash
+	})
 }

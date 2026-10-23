@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 )
 
 func TestChattoCore_GetRoomLastEvent(t *testing.T) {
@@ -72,7 +72,7 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	userID := NewUserID()
 
 	// Initially: empty (never read)
-	id, err := core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
+	id, err := core.readStateModel.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id: %v", err)
 	}
@@ -81,10 +81,10 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	}
 
 	// Set and read back
-	if err := core.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Eabcdefghij012"); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Eabcdefghij012"); err != nil {
 		t.Fatalf("Failed to set last read event id: %v", err)
 	}
-	id, err = core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
+	id, err = core.readStateModel.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id after set: %v", err)
 	}
@@ -93,10 +93,10 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	}
 
 	// Overwrite
-	if err := core.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Exyzxyzxyzxyz9"); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Exyzxyzxyzxyz9"); err != nil {
 		t.Fatalf("Failed to update last read event id: %v", err)
 	}
-	id, err = core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
+	id, err = core.readStateModel.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id after update: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestChattoCore_AdvanceLastReadEventIDDoesNotRegress(t *testing.T) {
 		t.Fatalf("JoinRoom reader: %v", err)
 	}
 
-	advance, err := core.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id)
+	advance, err := core.readStateModel.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id)
 	if err != nil {
 		t.Fatalf("AdvanceLastReadEventID stale first: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestChattoCore_AdvanceLastReadEventIDDoesNotRegress(t *testing.T) {
 	if advance.CurrentEventID != second.Id {
 		t.Fatalf("CurrentEventID = %q, want %q", advance.CurrentEventID, second.Id)
 	}
-	got, err := core.GetLastReadEventID(ctx, KindChannel, reader.Id, room.Id)
+	got, err := core.readStateModel.GetLastReadEventID(ctx, KindChannel, reader.Id, room.Id)
 	if err != nil {
 		t.Fatalf("GetLastReadEventID after stale advance: %v", err)
 	}
@@ -146,10 +146,10 @@ func TestChattoCore_AdvanceLastReadEventIDDoesNotRegress(t *testing.T) {
 		t.Fatalf("last read marker regressed to %q, want %q", got, second.Id)
 	}
 
-	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, "Edoesnotexist"); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, "Edoesnotexist"); err != nil {
 		t.Fatalf("SetLastReadEventID stale marker: %v", err)
 	}
-	advance, err = core.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id)
+	advance, err = core.readStateModel.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, first.Id)
 	if err != nil {
 		t.Fatalf("AdvanceLastReadEventID stale recovery: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestChattoCore_LastReadEventID_LazyInitCaughtUp(t *testing.T) {
 	// where no `room_read_event` entry exists for them) should be lazy-
 	// initialized to the room's current last event, not treated as unread.
 	stranger, _ := core.CreateUser(ctx, "system", "stranger", "stranger", "password123")
-	got, err := core.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)
+	got, err := core.readStateModel.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)
 	if err != nil {
 		t.Fatalf("GetLastReadEventID error: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestChattoCore_LastReadEventID_LazyInitCaughtUp(t *testing.T) {
 
 	// The marker should now be persisted — a second read returns the same
 	// value without re-running the init.
-	got2, err := core.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)
+	got2, err := core.readStateModel.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Second GetLastReadEventID error: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestChattoCore_LastReadEventID_LazyInitEmptyRoom(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "empty-user", "empty-user", "password123")
 
-	got, err := core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
+	got, err := core.readStateModel.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("GetLastReadEventID error: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestChattoCore_PostMessagePreservesRoomReadState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if readID, _, err := core.PeekLastReadEventID(ctx, poster.Id, room.Id); err != nil || readID != "" {
+	if readID, _, err := core.readStateModel.PeekLastReadEventID(ctx, poster.Id, room.Id); err != nil || readID != "" {
 		t.Fatalf("posting advanced the initial room marker: readID=%q err=%v", readID, err)
 	}
 	if _, err := core.ReadState().MarkRoomAsRead(ctx, poster.Id, room.Id, anchor.Id); err != nil {
@@ -351,7 +351,7 @@ func TestChattoCore_PostMessagePreservesRoomReadState(t *testing.T) {
 	if unread, err := core.HasUnread(ctx, KindChannel, poster.Id, room.Id); err != nil || !unread {
 		t.Fatalf("Badge after poster reply = (%v, %v), want (true, nil)", unread, err)
 	}
-	readID, exists, err := core.PeekLastReadEventID(ctx, poster.Id, room.Id)
+	readID, exists, err := core.readStateModel.PeekLastReadEventID(ctx, poster.Id, room.Id)
 	if err != nil || !exists || readID != anchor.Id {
 		t.Fatalf("poster Message Read Cursor = (%q, %v, %v), want %q", readID, exists, err, anchor.Id)
 	}
@@ -399,14 +399,14 @@ func TestChattoCore_HasUnread_RoomMessageOffKeepsCursorWithoutBadge(t *testing.T
 	if hasUnread, err := core.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || hasUnread {
 		t.Fatalf("Badge attention with Room messages Off = (%v, %v), want (false, nil)", hasUnread, err)
 	}
-	readID, exists, err := core.PeekLastReadEventID(ctx, recipient.Id, room.Id)
+	readID, exists, err := core.readStateModel.PeekLastReadEventID(ctx, recipient.Id, room.Id)
 	if err != nil || !exists || readID != "" {
 		t.Fatalf("stored read cursor = (%q, %v, %v), want empty join sentinel", readID, exists, err)
 	}
 	if _, err := core.ReadState().MarkRoomAsRead(ctx, recipient.Id, room.Id, posted.Id); err != nil {
 		t.Fatalf("advance independent read cursor: %v", err)
 	}
-	readID, exists, err = core.PeekLastReadEventID(ctx, recipient.Id, room.Id)
+	readID, exists, err = core.readStateModel.PeekLastReadEventID(ctx, recipient.Id, room.Id)
 	if err != nil || !exists || readID != posted.Id {
 		t.Fatalf("advanced read cursor = (%q, %v, %v), want %q", readID, exists, err, posted.Id)
 	}
@@ -450,20 +450,20 @@ func TestChattoCore_ReadStateUsesLatestReadableInteractionRoot(t *testing.T) {
 	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated newer root", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage unrelated root: %v", err)
 	}
-	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != first.GetId() {
+	if latest, _, exists, err := chatto.readStateModel.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != first.GetId() {
 		t.Fatalf("latest readable event after unrelated root = %q, %v, %v; want %q", latest, exists, err, first.GetId())
 	}
 	second, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-unread-reader second", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage second related root: %v", err)
 	}
-	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != second.GetId() {
+	if latest, _, exists, err := chatto.readStateModel.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != second.GetId() {
 		t.Fatalf("latest readable event after related root = %q, %v, %v; want %q", latest, exists, err, second.GetId())
 	}
 	if _, err := chatto.ReadState().MarkRoomAsRead(ctx, reader.GetId(), room.GetId(), ""); err != nil {
 		t.Fatalf("MarkRoomAsRead latest readable root: %v", err)
 	}
-	if marker, err := chatto.GetLastReadEventID(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || marker != second.GetId() {
+	if marker, err := chatto.readStateModel.GetLastReadEventID(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || marker != second.GetId() {
 		t.Fatalf("read marker = %q, %v; want %q (first was %q)", marker, err, second.GetId(), first.GetId())
 	}
 	reply, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "related reply echoed to the channel", nil, second.GetId(), "", nil, true)
@@ -474,7 +474,7 @@ func TestChattoCore_ReadStateUsesLatestReadableInteractionRoot(t *testing.T) {
 	if !ok {
 		t.Fatal("channel echo was not projected")
 	}
-	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != echoID {
+	if latest, _, exists, err := chatto.readStateModel.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != echoID {
 		t.Fatalf("latest readable event = %q, %v, %v; want channel echo %q", latest, exists, err, echoID)
 	}
 	if _, err := chatto.ReadState().MarkRoomAsRead(ctx, reader.GetId(), room.GetId(), ""); err != nil {
@@ -487,7 +487,7 @@ func TestChattoCore_ReadStateUsesLatestReadableInteractionRoot(t *testing.T) {
 	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated reply echoed to the channel", nil, unrelated.GetId(), "", nil, true); err != nil {
 		t.Fatalf("PostMessage unrelated channel echo: %v", err)
 	}
-	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != echoID {
+	if latest, _, exists, err := chatto.readStateModel.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != echoID {
 		t.Fatalf("latest readable event after unrelated echo = %q, %v, %v; want %q", latest, exists, err, echoID)
 	}
 }
@@ -721,7 +721,7 @@ func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 
 	// Force the read marker to reference a non-existent event ID — the
 	// "marker pointed at a deleted message" scenario.
-	if err := core.SetLastReadEventID(ctx, KindChannel, user.Id, room.Id, "Edoesnotexist"); err != nil {
+	if err := core.readStateModel.SetLastReadEventID(ctx, KindChannel, user.Id, room.Id, "Edoesnotexist"); err != nil {
 		t.Fatalf("SetLastReadEventID error: %v", err)
 	}
 
@@ -769,7 +769,7 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 		t.Fatalf("wait for seeded marker: %v", err)
 	}
 
-	got, err := core.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)
+	got, err := core.readStateModel.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)
 	if err != nil {
 		t.Fatalf("GetLastReadEventID error: %v", err)
 	}

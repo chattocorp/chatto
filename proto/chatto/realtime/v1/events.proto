@@ -109,6 +109,8 @@ message RoomUniversalChangedEvent {
 message RoomSlowModeChangedEvent {
   string room_id = 1;
   uint32 slow_mode_seconds = 2;
+  // Independent interval within each thread. Zero disables it.
+  optional uint32 thread_slow_mode_seconds = 3;
 }
 
 // RoomThreadingModeChangedEvent reports the current room threading policy.
@@ -377,3 +379,12 @@ message NotificationUnreadStateChangedEvent {
 message RoomReadStateChangedEvent {
   string room_id = 1;
 }
+
+// An invitation created. Delivered only to its sender and recipient.
+message RoomInvitationCreatedEvent { string room_id = 1; string invitation_id = 2; }
+
+// An invitation accepted. Delivered only to its sender and recipient.
+message RoomInvitationAcceptedEvent { string room_id = 1; string invitation_id = 2; }
+
+// An invitation declined. Delivered only to its sender and recipient.
+message RoomInvitationDeclinedEvent { string room_id = 1; string invitation_id = 2; }

@@ -24,7 +24,7 @@ When `clickable` is set, each row links to the member's Server Admin page.
     users,
     loading = false,
     clickable = true,
-    emptyMessage = m('admin.users.empty'),
+    emptyMessage = m('common.no_users'),
     totalCount = users.length,
     hasMore = false,
     loadingMore = false,

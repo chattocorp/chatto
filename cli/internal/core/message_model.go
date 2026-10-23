@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // MessagePostInput describes one user-facing message post operation.
@@ -452,12 +452,19 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 		}
 	}
 
-	if kind == KindChannel && room.GetSlowModeSeconds() > 0 {
+	if kind == KindChannel && (room.GetSlowModeSeconds() > 0 || EffectiveThreadSlowModeSeconds(room) > 0) {
 		bypasses, err := s.bypassesSlowMode(ctx, input.ActorID, kind, room.Id)
 		if err != nil {
 			return nil, err
 		}
-		if nextPostAt := s.slowModeNextPostAt(room, input.ActorID, bypasses, time.Now()); !nextPostAt.IsZero() {
+		now := time.Now()
+		var nextPostAt time.Time
+		if input.ThreadRootEventID != "" {
+			nextPostAt = s.threadSlowModeNextPostAt(room, input.ThreadRootEventID, input.ActorID, bypasses, now)
+		} else {
+			nextPostAt = s.slowModeNextPostAt(room, input.ActorID, bypasses, now)
+		}
+		if !nextPostAt.IsZero() {
 			return nil, &SlowModeActiveError{NextPostAt: nextPostAt}
 		}
 	}
@@ -545,15 +552,74 @@ func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypa
 	if room == nil || KindOfRoom(room) != KindChannel || room.GetSlowModeSeconds() == 0 || bypasses {
 		return time.Time{}
 	}
-	latest, ok := s.core.roomModel.latestOriginalPostAt(room.GetId(), actorID)
+	latest, ok := s.core.roomModel.latestRootPostAt(room.GetId(), actorID)
 	if !ok {
 		return time.Time{}
 	}
-	next := latest.Add(time.Duration(room.GetSlowModeSeconds()) * time.Second)
+	return slowModeDeadline(latest, room.GetSlowModeSeconds(), now)
+}
+
+// EffectiveThreadSlowModeSeconds preserves the interval of legacy room facts.
+// New configuration facts store an explicit thread interval, including zero.
+func EffectiveThreadSlowModeSeconds(room *evtv1.Room) uint32 {
+	if room == nil {
+		return 0
+	}
+	if room.ThreadSlowModeSeconds == nil {
+		return room.GetSlowModeSeconds()
+	}
+	return room.GetThreadSlowModeSeconds()
+}
+
+func (s *MessageModel) threadSlowModeNextPostAt(room *evtv1.Room, threadID, actorID string, bypasses bool, now time.Time) time.Time {
+	if room == nil || KindOfRoom(room) != KindChannel || EffectiveThreadSlowModeSeconds(room) == 0 || bypasses {
+		return time.Time{}
+	}
+	latest, ok := s.core.roomModel.latestThreadPostAt(room.GetId(), threadID, actorID)
+	if !ok {
+		return time.Time{}
+	}
+	return slowModeDeadline(latest, EffectiveThreadSlowModeSeconds(room), now)
+}
+
+// slowModeDeadline returns zero at or after the exact cooldown boundary.
+func slowModeDeadline(latest time.Time, seconds uint32, now time.Time) time.Time {
+	next := latest.Add(time.Duration(seconds) * time.Second)
 	if !now.Before(next) {
 		return time.Time{}
 	}
 	return next
+}
+
+// ThreadSlowModeNextPostAt resolves the caller's deadline after the read path
+// has authorized access to the room and canonical thread.
+func (s *MessageModel) ThreadSlowModeNextPostAt(ctx context.Context, roomID, threadID, actorID string) (time.Time, error) {
+	read, err := s.ThreadSlowModeReader(ctx, roomID, actorID)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return read(threadID), nil
+}
+
+// ThreadSlowModeReader resolves configuration and exemptions once for one
+// response. The caller must authorize room and thread access separately. Do
+// not cache this reader across requests: settings and permissions can change.
+func (s *MessageModel) ThreadSlowModeReader(ctx context.Context, roomID, actorID string) (func(string) time.Time, error) {
+	room, err := s.core.roomModel.GetRoom(ctx, KindChannel, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if EffectiveThreadSlowModeSeconds(room) == 0 {
+		return func(string) time.Time { return time.Time{} }, nil
+	}
+	bypasses, err := s.bypassesSlowMode(ctx, actorID, KindOfRoom(room), roomID)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	return func(threadID string) time.Time {
+		return s.threadSlowModeNextPostAt(room, threadID, actorID, bypasses, now)
+	}, nil
 }
 
 // UpdateMessage edits an existing message. Authorization: actor must be a room

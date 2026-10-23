@@ -1406,7 +1406,7 @@ func TestContentAuthorizationReadsOneServerContentViewGeneration(t *testing.T) {
 			return err
 		},
 		"room ban and RBAC check": func(ctx context.Context, core *ChattoCore) error {
-			_, err := core.CanJoinRoomAt(ctx, SystemActorID, KindChannel, "missing-room")
+			_, err := core.authorization.CanJoinRoomAt(ctx, SystemActorID, KindChannel, "missing-room")
 			return err
 		},
 		"message and interaction check": func(ctx context.Context, core *ChattoCore) error {

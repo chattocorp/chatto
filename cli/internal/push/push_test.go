@@ -17,15 +17,15 @@ import (
 	"time"
 	"unicode/utf8"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/pushendpoint"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/pushendpoint"
 )
 
 type contextBlockingHTTPClient struct {
@@ -1304,5 +1304,24 @@ func TestOccurrencePayloadCleanupIdentity(t *testing.T) {
 	if decoded.ServerOrigin != payload.ServerOrigin || decoded.Notification.Data.ServerOrigin != payload.ServerOrigin ||
 		decoded.RecipientID != payload.RecipientID || decoded.Notification.Data.RecipientID != payload.RecipientID {
 		t.Fatal("legacy and declarative payloads must carry identical cleanup identity")
+	}
+}
+
+func TestRoomInvitationPayloadUsesRoomOnlyURL(t *testing.T) {
+	t.Parallel()
+	occurrence := &notificationv1.NotificationOccurrence{
+		Id: "notification", RecipientId: "recipient",
+		Signal:         &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomInvitationReceived{RoomInvitationReceived: &notificationv1.RoomInvitationReceived{RoomId: "private-room", InvitationId: "invitation"}}},
+		AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+	}
+	payload := BuildPayloadFromOccurrence(occurrence, "Alice", "https://chat.example", &PayloadContext{RoomName: "private"})
+	if payload.URL != "https://chat.example/chat/-/private-room" {
+		t.Fatalf("URL = %q", payload.URL)
+	}
+	if payload.Title != "Alice invited you to #private" {
+		t.Fatalf("title = %q", payload.Title)
+	}
+	if payload.Tag != "invitation-invitation" {
+		t.Fatalf("tag = %q", payload.Tag)
 	}
 }

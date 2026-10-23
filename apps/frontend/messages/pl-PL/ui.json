@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Ładowanie...",
       "empty": "Brak dopasowań",
-      "clear": "Wyczyść"
+      "clear": "Wyczyść",
+      "remove": "Usuń {label}"
     },
     "expiry": {
       "24h": "24 godziny",

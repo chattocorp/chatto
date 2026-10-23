@@ -5,7 +5,16 @@ description: All environment variables for configuring Chatto.
 
 import EnvVar from '../../../components/EnvVar.astro';
 
-Every `chatto.toml` setting can be overridden with an environment variable. The naming pattern is `CHATTO_{SECTION}_{KEY}` in uppercase.
+Environment variables override the corresponding `chatto.toml` settings. Use the
+names listed here; not every name follows the same section pattern. Check for
+unknown or deprecated names with `chatto config check --config chatto.toml`.
+See [Check configuration](/guides/operations/server-operations/#check-configuration).
+
+Defaults below apply when a setting is omitted. `chatto init` also writes setup
+choices: port `4000`, URL `http://localhost:4000`, embedded NATS enabled with data
+directory `./data`, the asset worker enabled, SMTP port `587`, and random secrets.
+Set the same choices and provide secrets for an equivalent ENV-only deployment.
+Commented values are examples; they do not override runtime defaults.
 
 ## General
 
@@ -23,8 +32,16 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Public URL of the server, used for absolute links, public API asset URLs, and OAuth redirects. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
 </EnvVar>
 
-<EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port" default="4000">
-  Port to listen on.
+<EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port">
+  Port to listen on. Required without built-in TLS. With TLS, an omitted port uses
+  `443`. `chatto init` writes `4000`.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_BIND_ADDRESS" toml="webserver.bind_address">
+  Address to listen on, without a port. Empty binds all interfaces. Set this to
+  `127.0.0.1` to accept connections only from the same machine, for example through
+  a local reverse proxy. This also applies to the HTTP challenge and redirect
+  listener when built-in TLS is enabled.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" toml="webserver.cookie_signing_secret" required>
@@ -223,7 +240,7 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE" toml="core.assets.max_upload_size" default="25 MB">
-  Max upload size for images and non-video files (e.g., `25MB`, `25 MiB`). Videos use a separate limit — see `CHATTO_VIDEO_MAX_UPLOAD_SIZE`.
+  Maximum upload size for all files, including images, GIFs, and videos (e.g., `25MB`, `25 MiB`). Video upload enablement does not change this limit.
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_ASSETS_STORAGE_BACKEND" toml="core.assets.storage_backend" default="nats">
@@ -281,8 +298,8 @@ environment variables from your configuration. These settings no longer have an 
 
 ### Embedded Server
 
-<EnvVar name="CHATTO_NATS_EMBEDDED_ENABLED" toml="nats.embedded.enabled" default="true">
-  Enable the embedded NATS server. Set to `false` when connecting to an external NATS server.
+<EnvVar name="CHATTO_NATS_EMBEDDED_ENABLED" toml="nats.embedded.enabled" default="false">
+  Enable the embedded NATS server. `chatto init` writes `true`. Set to `false` when connecting to an external NATS server.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_PORT" toml="nats.embedded.port" default="0">
@@ -297,8 +314,9 @@ environment variables from your configuration. These settings no longer have an 
   NATS monitoring/stats HTTP port. Set to `0` to disable. Useful for debugging with the NATS dashboard.
 </EnvVar>
 
-<EnvVar name="CHATTO_NATS_EMBEDDED_DATA_DIR" toml="nats.embedded.data_dir" default="./data">
-  JetStream data directory for the embedded server.
+<EnvVar name="CHATTO_NATS_EMBEDDED_DATA_DIR" toml="nats.embedded.data_dir">
+  JetStream data directory for the embedded server. Set an explicit persistent
+  directory. `chatto init` writes `./data`.
 </EnvVar>
 
 <EnvVar name="CHATTO_NATS_EMBEDDED_SYNC_INTERVAL" toml="nats.embedded.sync_interval" default="NATS default">
@@ -391,7 +409,7 @@ External login providers are configured as repeated `[[auth.providers]]` tables 
 Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
 
 <EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
-  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `TOKEN_ENDPOINT_AUTH_METHOD`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `TOKEN_ENDPOINT_AUTH_METHOD`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, `ALLOWED_GROUPS`, `GROUPS_CLAIM`, and `GROUP_ROLES`. `GROUP_ROLES` takes space-separated `group:role` pairs, the same as the TOML value. `SCOPES` and `ALLOWED_GROUPS` take comma-separated lists. An empty `ALLOWED_GROUPS` value is an error. Use `chatto.toml` for group names that contain commas. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
 </EnvVar>
 
 For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
@@ -418,6 +436,8 @@ to use public-client authentication without a secret, or discovery-selected
 Basic/POST with a secret. See [token authentication configuration](/guides/integrations/external-login-providers/#configuration).
 
 For a CIMD-capable OIDC provider, set `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_ID` to `{webserver.url}/oauth/client-metadata.json` and omit `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_SECRET`. Chatto then publishes the public client metadata at that URL. See the [External Login Providers guide](/guides/integrations/external-login-providers/#cimd-public-clients) for an example.
+
+To allow only the members of some groups of an OIDC provider, set `allowed_groups`. To give roles to group members, set `group_roles`. See [Map groups to roles](/guides/integrations/external-login-providers/#map-groups-to-roles). See [Restrict who can sign in](/guides/integrations/external-login-providers/#restrict-who-can-sign-in).
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 
@@ -541,8 +561,8 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
   Allow video uploads and enqueue their derivative processing. At least one embedded or standalone asset-processing worker must have `ffmpeg` and `ffprobe` available.
 </EnvVar>
 
-<EnvVar name="CHATTO_VIDEO_MAX_UPLOAD_SIZE" toml="video.max_upload_size" default="100 MB">
-  Max upload size for video files (e.g., `100MB`, `200 MiB`). Only applies when video uploads are enabled. Non-video files use `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` instead.
+<EnvVar name="CHATTO_VIDEO_MAX_UPLOAD_SIZE" toml="video.max_upload_size" default="unset">
+  Deprecated. Set `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` to the desired limit for all files, then remove this setting. While this setting is present, the larger of it and the general limit applies to all files, even when video uploads are disabled. An absent general limit uses its 25 MB default. The old implicit 100 MB video default no longer applies.
 </EnvVar>
 
 ## LiveKit (Voice & Video Calls)
@@ -561,10 +581,6 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 
 <EnvVar name="CHATTO_LIVEKIT_API_SECRET" toml="livekit.api_secret">
   LiveKit API secret for signing JWT tokens. Keep this confidential.
-</EnvVar>
-
-<EnvVar name="CHATTO_LIVEKIT_WEBHOOK_URL" toml="livekit.webhook_url">
-  URL where LiveKit sends webhook events. Defaults to `{webserver.url}/webhooks/livekit`.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_SERVER_ID" toml="livekit.server_id">

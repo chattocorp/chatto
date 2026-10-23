@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/chattocorp/chatto/cli/internal/encryption"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/encryption"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type snapshotProjection interface {
@@ -76,13 +76,13 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{configSnapshotContractID, "v3", &projectionv1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &projectionv1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &projectionv1.MentionablesProjectionSnapshot{}},
-		{notificationDecisionSnapshotContractID, "v2", &projectionv1.NotificationDecisionProjectionSnapshot{}},
+		{notificationDecisionSnapshotContractID, "v3", &projectionv1.NotificationDecisionProjectionSnapshot{}},
 		{notificationSnapshotContractID, "v2", &projectionv1.NotificationProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v2", &projectionv1.RBACProjectionSnapshot{}},
-		{reactionSnapshotContractID, "v1", &projectionv1.ReactionProjectionSnapshot{}},
+		{reactionSnapshotContractID, "v2", &projectionv1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v2", &projectionv1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v9", &projectionv1.RoomTimelineProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v10", &projectionv1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v3", &projectionv1.ThreadProjectionSnapshot{}},
 		{userSnapshotContractID, "v4", &projectionv1.UserProfileProjectionSnapshot{}},
 	}
@@ -226,6 +226,33 @@ func TestRoomDirectorySnapshotPreservesUnknownThreadingMode(t *testing.T) {
 	assertRawMode(roundTrip)
 }
 
+func TestRoomDirectorySnapshotPreservesThreadSlowModePresence(t *testing.T) {
+	t.Parallel()
+	for _, explicit := range []bool{false, true} {
+		p := NewRoomDirectoryProjection()
+		require.NoError(t, p.Catalog.Apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+			RoomId: "R", Name: "slow-mode", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
+		}}}, 1))
+		event := roomSlowModeChangedEvent("R", 30)
+		if explicit {
+			event.GetRoomSlowModeChanged().ThreadSlowModeSeconds = new(uint32(0))
+		}
+		require.NoError(t, p.Catalog.Apply(event, 2))
+		data, err := p.Snapshot()
+		require.NoError(t, err)
+		restored := NewRoomDirectoryProjection()
+		require.NoError(t, restored.Restore(data))
+		room, ok := restored.Catalog.Get("R")
+		require.True(t, ok)
+		require.Equal(t, explicit, room.ThreadSlowModeSeconds != nil)
+		if explicit {
+			require.Zero(t, EffectiveThreadSlowModeSeconds(room))
+		} else {
+			require.Equal(t, uint32(30), EffectiveThreadSlowModeSeconds(room))
+		}
+	}
+}
+
 func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	t.Parallel()
 
@@ -359,7 +386,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		{"rbac", func() snapshotProjection { return NewRBACProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RBACProjection)
 			p.roles["member"] = &evtv1.Role{Name: "member", DisplayName: "Member"}
-			p.assignments["U1"] = map[string]struct{}{"member": {}}
+			p.assignments["U1"] = map[string]string{"member": "", "moderator": "company"}
 			p.decisions[rbacDecisionKey{scope: ScopeServer, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessagePost}] = DecisionAllow
 			p.decisions[rbacDecisionKey{scope: ScopeDM, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessageRead}] = DecisionDeny
 			p.replayGuard.highestSeq = 41
@@ -379,8 +406,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v2-", "server_config": "v3-", "room_group_layout": "v1-",
-		"notification_decisions": "v2-", "notifications": "v2-",
-		"room_timeline": "v9-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
+		"notification_decisions": "v3-", "notifications": "v2-",
+		"room_timeline": "v10-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v2-",
 		"content_keys": "v1-", "rbac": "v2-", "mentionables": "v2-", "users": "v4-",
 	}
 	for _, tt := range tests {

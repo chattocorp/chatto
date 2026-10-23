@@ -13,8 +13,8 @@ concurrent requests, and operators must be able to recover derived state
 without maintaining a second durable source of truth.
 
 The repository provides an independently versioned but unstable
-application-neutral event-sourcing module at `hmans.de/chatto/pkg/events`. As
-described by root
+application-neutral event-sourcing module at
+`github.com/chattocorp/chatto/pkg/events`. As described by root
 [ADR-056](../../../docs/adr/ADR-056-extractable-nats-event-sourcing-framework.md),
 the framework already owns opaque JetStream event-log access, optimistic
 concurrency control (OCC) with an explicit unguarded path for
@@ -89,8 +89,9 @@ before returning.
 
 ### Framework boundary
 
-Authling will consume the application-neutral `hmans.de/chatto/pkg/events`
-incubation module. The shared module owns:
+Authling will consume the application-neutral
+`github.com/chattocorp/chatto/pkg/events` incubation module. The shared module
+owns:
 
 - opaque event-log reads, OCC-guarded writes, and atomic append mechanics;
 - ordered projection replay, readiness, failure, and shutdown lifecycles;

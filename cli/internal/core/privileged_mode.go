@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // PrivilegedModeWindow is the fixed lifetime of one explicit activation.

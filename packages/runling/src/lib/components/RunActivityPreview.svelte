@@ -3,11 +3,14 @@
   let { activity }: { activity?: RunActivity | null } = $props();
   let label = $derived(
     activity?.waiting
-      ? `${activity.pendingInputs ?? 1} ${(activity.pendingInputs ?? 1) === 1 ? 'input' : 'inputs'} pending`
+      ? activity.waits === 1
+        ? 'Waiting for a message'
+        : `${activity.waits} tasks wait for a message`
       : (activity?.step ?? activity?.label ?? 'Waiting for activity…')
   );
   let detail = $derived(
-    activity?.preview ?? (activity?.label !== label ? activity?.label : undefined)
+    activity?.preview ??
+      (activity?.waiting ? activity.step : activity?.label !== label ? activity?.label : undefined)
   );
 </script>
 

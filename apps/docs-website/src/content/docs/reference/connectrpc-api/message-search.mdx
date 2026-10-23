@@ -87,6 +87,7 @@ Request to search current message bodies visible to the authenticated user.
 | `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
 | `scope` | [`MessageSearchScope`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchScope) | Candidate scope. Followed threads are selected before result pagination. |
 | `group_by` | [`MessageSearchGroupBy`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchGroupBy) | Result grouping. The server deduplicates threads before pagination. |
+| `root_author_filter` | [`ThreadRootAuthorFilter`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadRootAuthorFilter) | Select root authors within FOLLOWED_THREADS before search and pagination. Other scopes require UNSPECIFIED. This does not restrict reply authors; author_id and from: still select the authors of matching messages. |
 
 
 <a id="chatto-api-v1-SearchMessagesResponse"></a>

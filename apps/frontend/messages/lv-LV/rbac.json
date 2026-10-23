@@ -146,41 +146,6 @@
       "other": "Citi",
       "call": "Zvani"
     },
-    "permission_descriptions": {
-      "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
-      "server_manage_neighbors": "Pārvaldīt publisko kaimiņu katalogu",
-      "room_create": "Izveidojiet jaunas telpas",
-      "room_join": "Pievienojieties esošajām telpām",
-      "room_list": "Skatīt telpas direktorijā. Lietotājam var atļaut redzēt telpu (piemēram, pieprasīt piekļuvi), neļaujot tai pievienoties.",
-      "room_manage": "Rediģējiet telpas iestatījumus un atļaujas un dzēsiet telpas",
-      "room_remove_member": "Noņemt dalībniekus no telpām un vajadzības gadījumā apturēt atkārtotu pievienošanos",
-      "message_read": "Lasīt visas ziņas istabās. Noņemot šo atļauju, ierobežota piekļuve joprojām ir iespējama, ja message.read-interactions ir piešķirta atsevišķi.",
-      "message_read_interactions": "Lasīt pilnus pavedienus, kurus izveidojāt vai kuros cits lietotājs jūs tieši pieminēja",
-      "message_post": "Publicēt ziņojumus un atbildes pavedienos un sākt privātas sarunas",
-      "message_post_interactions": "Atbildēt pavedienos, kurus sākāt, kuros jūs tieši pieminēja vai kuros saņēmāt privātu ziņojumu",
-      "message_post_in_thread": "Publicējiet atbildes pavedienā",
-      "message_attach": "Pievienojiet ziņojumiem failus",
-      "message_echo": "Izliekot ziņojumu pavedienā, ievietojiet ziņojumu arī galvenajā kanālā",
-      "message_manage": "Rediģēt un dzēst citu lietotāju ziņojumus",
-      "message_react": "Pievienojiet un noņemiet reakcijas uz ziņojumiem",
-      "role_manage": "Izveidojiet, rediģējiet, dzēsiet un pārkārtojiet lomas un to atļaujas",
-      "role_assign": "Piešķiriet un atsauciet lietotājiem lomas",
-      "admin_view_users": "Skatiet lietotāju lapu admin",
-      "admin_view_system": "Skatiet projekcijas diagnostiku admin",
-      "admin_view_audit": "Skatiet audita žurnālu admin",
-      "user_delete_any": "Dzēst cita lietotāja kontu",
-      "user_delete_self": "Izdzēsiet savu kontu",
-      "user_invite": "Izveidojiet un pārvaldiet uzaicinājumu saites",
-      "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
-      "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu",
-      "bot_create": "Izveidot sev piederošus botu kontus",
-      "bot_manage": "Skatīt un pārvaldīt visus botu kontus",
-      "call_start": "Sākt zvanu (nepieciešama arī call.join atļauja)",
-      "call_join": "Pievienoties notiekošam zvanam",
-      "call_voice": "Izmantot mikrofonu zvanos",
-      "call_camera": "Izmantot kameru zvanos",
-      "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio"
-    },
     "permission_help": {
       "server_manage": "Ļauj kontam mainīt servera nosaukumu, aprakstu, logotipu un citus servera iestatījumus. Tā ļauj arī mainīt publisko kaimiņu katalogu. Piešķiriet to tikai cilvēkiem, kas var runāt visa servera vārdā.",
       "server_manage_neighbors": "Ļauj kontam pievienot, mainīt un noņemt ierakstus publiskajā kaimiņu katalogā. Tā neļauj mainīt citus servera iestatījumus.",
@@ -196,6 +161,7 @@
       "message_post_in_thread": "Ļauj kontam atbildēt katrā pavedienā, ko tas var lasīt, bet ne publicēt jaunas ziņas telpā. message.post atļauja ietver arī šo atļauju, tāpēc aizliegums šeit neaptur šo kontu atbildes.",
       "message_attach": "Ļauj kontam pievienot failus jaunām ziņām. Aizliedziet to, lai telpā apturētu augšupielādes, bet joprojām atļautu teksta ziņas.",
       "message_echo": "Ļauj kontam parādīt pavediena atbildi arī telpas laika joslā, lai to redzētu arī tie, kas pavedienam neseko.",
+      "message_pin": "Ļauj jums piespraust un atspraust ziņojumus kanālu telpās, nepārvaldot telpu.",
       "message_manage": "Ļauj kontam rediģēt vai dzēst citu kontu ziņas. Savas ziņas ikviens vienmēr var rediģēt un dzēst bez šīs atļaujas. Kontus ar šo atļauju neierobežo lēnais režīms. Tiešajā ziņā to var izmantot tikai dalībnieki.",
       "message_react": "Ļauj kontam pievienot un noņemt reakcijas ziņām, ko tas var lasīt.",
       "role_manage": "Ļauj kontam izveidot, mainīt, kārtot un dzēst lomas un to atļauju iestatījumus. Ar šo atļauju konts var mainīt, ko drīkst darīt katra servera loma. Piešķiriet to tikai cilvēkiem, kuriem uzticat visu serveri.",
@@ -213,7 +179,8 @@
       "call_join": "Ļauj kontam pievienoties notiekošam zvanam, arī tikai kā klausītājam. Lai sūtītu audio vai video, vajadzīga call.voice, call.camera vai call.screenshare.",
       "call_voice": "Ļauj kontam zvanos sūtīt mikrofona audio. Bez tās konts joprojām var klausīties.",
       "call_camera": "Ļauj kontam zvanos sūtīt kameras video.",
-      "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice."
+      "call_screenshare": "Ļauj kontam zvanos kopīgot ekrānu, logu, cilni vai lietotni kopā ar audio. Tā neļauj sūtīt mikrofona audio; tam vajadzīga call.voice.",
+      "room_invite": "Uzaicināt servera dalībniekus uz istabām, kurām esat pievienojies."
     }
   }
 }

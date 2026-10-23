@@ -33,10 +33,13 @@
       "access_denied": "Je hebt geen toestemming om deel te nemen aan deze chatruimte."
     },
     "leave": {
-      "title": "Verlaat de kamer",
-      "action": "Verlaat de kamer",
-      "prompt": "Weet je zeker dat je #{room} wilt verlaten? Je kunt later weer meedoen.",
-      "failed": "Kan de kamer niet verlaten"
+      "title": "Ruimte verlaten",
+      "action": "Ruimte verlaten",
+      "prompt": "Weet je zeker dat je #{room} wilt verlaten?",
+      "failed": "Kan de kamer niet verlaten",
+      "join_later": "Je kunt later weer meedoen.",
+      "need_invite": "Je hebt een nieuwe uitnodiging nodig om aan deze kamer deel te nemen.",
+      "rejoin_unknown": "Je hebt mogelijk een nieuwe uitnodiging nodig om weer deel te nemen."
     },
     "directory": {
       "universal_title": "Universele kamers worden automatisch samengevoegd",
@@ -59,7 +62,8 @@
       "join_group_failed": "Kan niet deelnemen aan de groep",
       "left": "Links #{room}",
       "left_generic": "Linkerkamer",
-      "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?"
+      "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?",
+      "invited": "Uitgenodigd"
     },
     "server": {
       "remove_title": "Server verwijderen",
@@ -97,7 +101,8 @@
         "edit": "Bericht bewerken",
         "more": "Meer acties",
         "edit_short": "Bewerken",
-        "copy_text": "Kopieer tekst",
+        "copy_text": "Berichttekst kopiëren",
+        "copy_selected_text": "Geselecteerde tekst kopiëren",
         "copy_text_failed": "Tekst kopiëren mislukt",
         "copy_link": "Kopieer link",
         "copy_message_link": "Kopieer berichtlink",
@@ -106,7 +111,8 @@
         "message_link_copied": "Berichtlink gekopieerd",
         "copy_link_failed": "Kan link niet kopiëren",
         "image_copied": "Afbeelding gekopieerd",
-        "copy_image_failed": "Kan afbeelding niet kopiëren"
+        "copy_image_failed": "Kan afbeelding niet kopiëren",
+        "view_reactions": "Reacties bekijken"
       },
       "meta": {
         "echo": "Echo",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Weet je zeker dat je deze vastzetting wilt verwijderen?",
       "loading": "Vastgezette berichten laden...",
       "empty_title": "Geen vastgezette berichten",
-      "empty_description": "Kamerbeheerders kunnen hier belangrijke berichten vastzetten.",
+      "empty_description": "Vastgemaakte berichten verschijnen hier.",
       "error_title": "Vastgezette berichten niet beschikbaar",
       "error_description": "Vastgezette berichten konden niet worden geladen. Probeer het zo opnieuw.",
       "update_failed": "Kon het vastgezette bericht niet bijwerken"
@@ -255,6 +261,81 @@
     "jump_to_present": "Ga naar heden",
     "jump_failed": "Kan niet naar dat bericht springen.",
     "unread_separator": "Nieuwe berichten",
-    "close_extras": "Kamerextra's sluiten"
+    "close_extras": "Kamerextra's sluiten",
+    "dm": {
+      "deleted_user_notice": "De andere gebruiker is verwijderd."
+    },
+    "management": {
+      "room_name_too_long": "De naam van de ruimte mag niet langer zijn dan 30 tekens",
+      "room_name_invalid": "De naam van de ruimte mag geen regeleinden of besturingstekens bevatten",
+      "create_room": "Kamer maken",
+      "reorder_groups_failed": "Kan groepen niet opnieuw rangschikken: {error}",
+      "room_created": "Kamer gemaakt",
+      "link_updated": "Link bijgewerkt",
+      "link_created": "Link gemaakt",
+      "save_link_failed": "Kan link niet opslaan: {error}",
+      "group_deleted": "Groep verwijderd",
+      "delete_group_failed": "Kan groep: {error} niet verwijderen",
+      "link_deleted": "Link verwijderd",
+      "delete_link_failed": "Kan link niet verwijderen: {error}",
+      "room_archived": "Ruimte gearchiveerd",
+      "archive_room_failed": "Kan ruimte niet archiveren: {error}",
+      "drag_room": "Sleep om de ruimte opnieuw te ordenen",
+      "drag_link": "Sleep om de link opnieuw te ordenen",
+      "drag_group": "Sleep om de groep opnieuw te ordenen",
+      "new_room": "Kamer maken",
+      "new_link": "Link maken",
+      "delete_group": "Groep verwijderen",
+      "edit_link": "Link bewerken",
+      "delete_link": "Link verwijderen",
+      "create_link": "Link maken",
+      "label": "Label",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com of /docs",
+      "delete_group_prompt": "Weet u zeker dat u de set {name} wilt verwijderen?",
+      "delete_link_prompt": "Weet u zeker dat u {label} wilt verwijderen?",
+      "archive_room": "Kamer archiveren",
+      "archive_room_prompt": "Weet je zeker dat je #{room} wilt archiveren? Leden hebben geen toegang meer tot deze kamer.",
+      "group_created": "Groep gemaakt",
+      "create_group_failed": "Kan groep niet maken: {error}",
+      "group_name": "Groepsnaam",
+      "group_name_placeholder": "bijvoorbeeld Algemeen, Projecten, Teams",
+      "create_group": "Groep maken",
+      "new_group": "Nieuwe groep",
+      "threading_mode_required": "Verplicht",
+      "threading_mode_encouraged": "Aangemoedigd",
+      "threading_mode_enabled": "Ingeschakeld",
+      "threading_mode_disabled": "Uitgeschakeld"
+    },
+    "moderation": {
+      "removing": "Verwijderen...",
+      "remove_action": "Uit kamer verwijderen",
+      "lift_title": "Schorsing van {user} opheffen",
+      "lift": "Schorsing opheffen",
+      "lifting": "Opheffen...",
+      "no_suspension": "Geen schorsing — opnieuw deelnemen mogelijk",
+      "indefinite": "Onbepaald",
+      "remove_title": "{user} uit de kamer verwijderen",
+      "suspension_period": "Duur van schorsing"
+    },
+    "invitation": {
+      "invite": "Lid uitnodigen",
+      "invited": "Je bent uitgenodigd",
+      "sent": "Uitnodigingen verzonden",
+      "expires": "Verloopt op {date}",
+      "unavailable": "Je kunt deze uitnodiging momenteel niet accepteren. Je kunt deze nog wel weigeren.",
+      "accept": "Uitnodiging accepteren",
+      "decline": "Weigeren",
+      "title": "Leden uitnodigen voor #{room}",
+      "description": "Kies wie je wilt uitnodigen. Uitgenodigde gebruikers ontvangen een melding en hebben zeven dagen om te accepteren of te weigeren.",
+      "members": "Leden",
+      "send": "Uitnodigingen verzenden",
+      "failed": "Kan {name} niet uitnodigen: {error}",
+      "already_member": "Al in deze kamer",
+      "invited_by": "Je bent uitgenodigd door",
+      "decline_title": "Uitnodiging afwijzen?",
+      "decline_join_later": "Je kunt later aan deze kamer deelnemen.",
+      "decline_need_invite": "Je hebt een nieuwe uitnodiging nodig om aan deze kamer deel te nemen."
+    }
   }
 }

@@ -22,47 +22,31 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     type PermissionState
   } from './permissionMutations';
   import SubjectPermissionsMatrix, {
-    type MatrixData,
     type MatrixScope,
     type CellState
   } from './SubjectPermissionsMatrix.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { createInfiniteQuery, queryClient } from '$lib/query/client';
+  import { createQuery, queryClient } from '$lib/query/client';
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
-
-  import { mergePermissionPages } from './permissionPages';
-  import type { PermissionScopePage } from '@chatto/client/api/permissions';
-
-  type Matrix = MatrixData & { page: PermissionScopePage; roleName: string };
 
   let { roleName }: { roleName: string } = $props();
 
   const serverScope = useServerScope();
 
-  const matrixQuery = createInfiniteQuery(() => {
+  const matrixQuery = createQuery(() => {
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     const activeRoleName = roleName;
     return {
       queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, activeRoleName),
-      initialPageParam: 0,
-      getNextPageParam: (last: Matrix | null, pages: (Matrix | null)[]) =>
-        last?.page.hasMore
-          ? pages.reduce((count, page) => count + (page?.scopes.length ?? 0), 0)
-          : undefined,
-      queryFn: ({ signal, pageParam }) =>
-        activeConnection.getAPI(createPermissionAPI).getRolePermissionMatrix(activeRoleName, {
-          signal,
-          page: { limit: 20, offset: pageParam }
-        })
+      queryFn: ({ signal }) =>
+        activeConnection
+          .getAPI(createPermissionAPI)
+          .getRolePermissionMatrix(activeRoleName, { signal })
     };
   });
 
-  const data = $derived<Matrix | null>(
-    mergePermissionPages(
-      (matrixQuery.data?.pages ?? []).filter((page): page is Matrix => page !== null)
-    )
-  );
+  const data = $derived(matrixQuery.data ?? null);
   const loading = $derived(matrixQuery.isPending);
   const loadError = $derived(matrixQuery.error ? errorMessage(matrixQuery.error) : null);
   const session = createSessionGuard(serverScope);
@@ -132,10 +116,8 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   <Hint tone="danger">{visibleMutationError ?? loadError}</Hint>
 {/if}
 
-{#if matrixQuery.isFetchNextPageError}
-  <Button variant="secondary" onclick={() => matrixQuery.fetchNextPage()}
-    >{m('common.retry')}</Button
-  >
+{#if matrixQuery.isError}
+  <Button variant="secondary" onclick={() => matrixQuery.refetch()}>{m('common.retry')}</Button>
 {/if}
 
 {#if !loading && !data}
@@ -144,9 +126,6 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   <SubjectPermissionsMatrix
     data={data ?? { applicablePermissions: [], scopes: [], cells: [] }}
     {loading}
-    hasMore={matrixQuery.hasNextPage && !matrixQuery.isFetchNextPageError}
-    loadingMore={matrixQuery.isFetching}
-    onLoadMore={() => matrixQuery.fetchNextPage()}
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
     subjectKind={m('rbac.permissions.cell.role_subject')}

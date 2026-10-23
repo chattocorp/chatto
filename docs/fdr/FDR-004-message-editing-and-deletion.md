@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-10-02
+**Last reviewed:** 2026-10-12
 
 ## Overview
 
@@ -33,10 +33,12 @@ attachments and initially leave a "[Message deleted]" placeholder.
   metadata row, after thread controls and before the echo link and reactions.
   This label is not a control and is hidden for deleted messages.
 - Deletions remove the message body and all attachments. The client removes the
-  row immediately when no visible context remains.
+  row immediately when no visible context remains, except in a DM whose other
+  participant was deleted.
 - Attachment bytes are deleted only when the durable asset owner is the exact message being changed; a duplicate reference left by an older vulnerable server is removed without damaging the owning message.
 - A deleted-message placeholder remains visible only while the message has a
-  current attachment or link preview, a reaction, or a reply in its thread.
+  current attachment or link preview, a reaction, or a reply in its thread, or
+  when the other DM participant was deleted.
 - Being a reply, a message inside a thread, or a channel echo does not by itself keep a deleted-message placeholder visible.
 - Deleting an already-deleted message is a no-op.
 - Editing a message does not re-resolve mentions. Mentions and mention notifications remain tied to the original posted message.
@@ -105,10 +107,13 @@ body from EVT.
 **Decision:** The client immediately removes deleted-message placeholders that
 have no visible attachments, previews, reactions, or thread replies. The same
 rule applies to deleted replies, thread messages, channel echoes, and
-attachment-only messages after removal of their final attachment.
+attachment-only messages after removal of their final attachment. A DM whose
+other participant was deleted keeps these placeholders in its room and thread
+timelines. See [FDR-007](FDR-007-direct-messages.md).
 **Why:** A placeholder has value only when visible conversation state still
 refers to the deleted message. An empty placeholder adds noise and does not help
-the reader.
+the reader. In a DM with a deleted user, placeholders help the remaining
+participant understand the conversation after the other user's messages are gone.
 **Tradeoff:** A deletion can create an immediate gap in a timeline. Replies that
 merely point at a deleted message do not retain its placeholder unless the
 message's thread summary contains a reply.

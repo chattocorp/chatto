@@ -18,36 +18,34 @@ test('repeated shutdown signals flush an idle conversation with a completed chil
         `
       import { RunStore } from ${JSON.stringify(new URL('../lib/server/run-store.ts', import.meta.url).href)};
       import { installShutdown } from ${JSON.stringify(new URL('./shutdown.ts', import.meta.url).href)};
-      import { createAgentTasks, runAgentConversation } from "runling/agents";
-      import { task, emptyTokenUsage } from "runling";
+      import { task, Type } from "runling";
       import { setTimeout as delay } from "node:timers/promises";
       const store = new RunStore(process.argv[1]);
       await store.init();
+      // Stands in for the HTTP server, which keeps the process alive until shutdown.
+      const server = setInterval(() => {}, 1000);
       installShutdown(async () => {
+        clearInterval(server);
         setTimeout(() => process.kill(process.pid, "SIGINT"), 5);
         setTimeout(() => process.kill(process.pid, "SIGTERM"), 10);
         await store.close();
       });
-      await store.start("conversation", task(async ctx => {
-        const tasks = createAgentTasks(ctx);
-        let turns = 0;
-        const owner = { steer: async () => false, async runOutcome() {
-          if (++turns === 1) tasks.start("child", async () => "evidence", undefined);
-          return { outcome: "completed", summary: "", usage: emptyTokenUsage() };
-        } };
+      const child = task({ name: "Child", input: Type.Null(), result: Type.String() }, async () => "evidence");
+      await store.start("conversation", task({ name: "Conversation", input: Type.Null(), result: Type.Null() }, async ctx => {
+        await child(ctx, null);
         try {
-          await runAgentConversation(ctx, owner, "Investigate", {
-            notifications: tasks.notifications, keepAlive: () => tasks.active,
-            onBusy(busy) { if (!busy && turns === 2 && !ctx.signal.aborted) setTimeout(() => process.kill(process.pid, "SIGINT"), 1); },
-          });
-        } finally { await tasks.dispose(); await delay(50, undefined, { ref: false }); }
-      }), undefined, "source");
+          // The conversation is idle: it waits for the next message from the host.
+          setTimeout(() => process.kill(process.pid, "SIGINT"), 1);
+          for await (const _ of ctx.steering) {}
+        } finally { await delay(50, undefined, { ref: false }); }
+        return null;
+      }), null, "source");
     `,
         directory
       ],
       { timeout: 10_000 }
     );
-    const [file] = await readdir(directory);
+    const [file] = (await readdir(directory)).filter((file) => file.endsWith('.jsonl'));
     const records = (await readFile(join(directory, file!), 'utf8'))
       .trim()
       .split('\n')
@@ -56,7 +54,7 @@ test('repeated shutdown signals flush an idle conversation with a completed chil
     expect(records.filter((record) => record.type === 'finished')).toHaveLength(1);
     expect(
       records.some(
-        (record) => record.event?.type === 'input.finished' && record.event.reason === 'cancelled'
+        (record) => record.event?.type === 'wait.finished' && record.event.status === 'closed'
       )
     ).toBe(true);
   } finally {

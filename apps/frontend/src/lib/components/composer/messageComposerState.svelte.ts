@@ -1,4 +1,4 @@
-import { tick, untrack } from 'svelte';
+import { onDestroy, tick, untrack, type Snippet } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import type {
@@ -30,6 +30,7 @@ import {
 } from './editorTypes';
 import { LinkPreviewState } from './linkPreviews.svelte';
 import { ComposerSubmissionState, type PreparedPost } from './submission.svelte';
+import type { DraftReplies } from '$lib/state/server/draftReplies';
 
 const emptyFormattingState: ComposerFormattingState = {
   bold: false,
@@ -77,14 +78,24 @@ export type MessageComposerProps = {
   mentionPriorityUserIds?: ReadonlySet<string>;
   getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
+  /**
+   * Inline status badges, such as the typing indicator. The composer places
+   * them before slow mode in a shared row on the input edge. Content must
+   * shrink to fit; it must not position itself absolutely. The disabled-input
+   * dimming does not apply to this row.
+   */
+  inputStatus?: Snippet;
 };
 
 type MessageComposerDependencies = {
+  draftReplies: DraftReplies;
   getRoomId: () => string;
   getThreadRootEventId: () => string | undefined;
   getCanPost: () => boolean;
   getCanAttach: () => boolean;
   getSlowModeBlocked: () => boolean;
+  /** Draw attention to the cooldown after an explicit blocked send attempt. */
+  onSlowModeBlocked?: () => void;
   getCanCreateThread: () => boolean;
   getCreateThreadRequired: () => boolean;
   getCreateThreadDefault: () => boolean;
@@ -158,6 +169,10 @@ export class MessageComposerState {
 
   constructor(dependencies: MessageComposerDependencies) {
     this.#dependencies = dependencies;
+    dependencies.context.focus = () => this.focus();
+    onDestroy(() => {
+      dependencies.context.focus = undefined;
+    });
     this.attachments = new AttachmentsState(() => dependencies.serverInfo);
     this.linkPreviews = new LinkPreviewState(dependencies.getLinkPreviewAPI);
     this.autocomplete = new AutocompleteState(
@@ -172,8 +187,7 @@ export class MessageComposerState {
       loadMentionRoles: () => dependencies.mentionRolesStore.load(),
       getMentionRoleNames: () => this.mentionRoles.map((role) => role.name),
       onPostSuccess: (post, event) => this.#handlePostSuccess(post, event),
-      onPostError: dependencies.onPostError,
-      onEditSuccess: (input) => this.#handleEditSuccess(input)
+      onPostError: dependencies.onPostError
     });
 
     void dependencies.mentionRolesStore.load();
@@ -244,12 +258,12 @@ export class MessageComposerState {
     return this.#dependencies.getCanAttach() && this.attachments.selectedFiles.length > 0;
   }
 
+  /** Allow send attempts during cooldown so submit can explain the block. */
   get canSubmit(): boolean {
     return (
       !this.submission.loading &&
       !this.submission.roleMentionCheckLoading &&
       !this.inputDisabled &&
-      (this.isEditing || !this.#dependencies.getSlowModeBlocked()) &&
       this.attachments.pendingCount === 0 &&
       (hasVisibleContent(this.message) || this.hasSendableAttachments || this.isEditing)
     );
@@ -271,6 +285,7 @@ export class MessageComposerState {
   }
 
   focus(): void {
+    if (this.inputDisabled) return;
     const api = this.editorApi;
     if (!api) {
       this.#focusRequested = true;
@@ -278,8 +293,9 @@ export class MessageComposerState {
     }
 
     this.#focusRequested = false;
+    // Let the action sheet unmount and restore its old focus before focusing the editor.
     tick().then(() => {
-      if (this.editorApi === api) api.focus();
+      if (this.editorApi === api && !this.inputDisabled) api.focus();
     });
   }
 
@@ -309,9 +325,13 @@ export class MessageComposerState {
       this.submission.pendingRoleMentionConfirmation ||
       this.pendingThreadDestinationConfirmation ||
       this.inputDisabled ||
-      (!this.isEditing && this.#dependencies.getSlowModeBlocked()) ||
       this.attachments.pendingCount > 0
     ) {
+      return;
+    }
+    if (!this.isEditing && this.#dependencies.getSlowModeBlocked()) {
+      this.#dependencies.onSlowModeBlocked?.();
+      this.focus();
       return;
     }
     await (this.isEditing ? this.#editMessage() : this.#createMessage());
@@ -548,6 +568,7 @@ export class MessageComposerState {
     const activeDraftWasSent = this.draftKey === post.draftKey;
     const stashedFiles = this.draft.discardFiles(post.draftKey);
     this.draft.clearText(post.draftKey);
+    this.#dependencies.draftReplies.clearDraft(post.draftKey);
     if (activeDraftWasSent) {
       const api = this.editorApi;
       this.#resetEditor();
@@ -583,14 +604,6 @@ export class MessageComposerState {
   #dropEdit(): void {
     this.#editSeededForEvent = '';
     this.alsoSendToChannel = false;
-    this.editState.cancelEdit();
-  }
-
-  #handleEditSuccess(input: UpdateMessageInput): void {
-    // A room or thread switch can cancel the edit while its save is in flight.
-    // The composer then shows another draft or edit, so keep it.
-    if (this.editState.eventId !== input.eventId) return;
-    this.#resetEditor();
     this.editState.cancelEdit();
   }
 
@@ -644,7 +657,17 @@ export class MessageComposerState {
     if (body) input.body = body;
     // Omit unchanged placement so text edits do not request echo authority.
     if (echoStateChanged) input.alsoSendToChannel = this.alsoSendToChannel;
-    await this.submission.editMessage(input);
+    const api = this.editorApi;
+    const draftKey = this.draftKey;
+    const saved = await this.submission.editMessage(input);
+    // A room or thread switch can cancel the edit while its save is in flight.
+    // Keep any draft or edit that has since taken its place.
+    if (!saved || this.draftKey !== draftKey || this.editState.eventId !== eventId) return;
+    this.cancelEdit();
+    // Submission has cleared loading and the editor is editable again.
+    if (api && this.editorApi === api && !this.inputDisabled) {
+      api.focus();
+    }
   }
 
   #handleEnter(event: KeyboardEvent): boolean {
@@ -654,7 +677,7 @@ export class MessageComposerState {
     const usesModifier = event.metaKey || event.ctrlKey;
     if (this.#dependencies.getComposerSendMode() === 'modifier-enter') {
       if (!usesModifier) return false;
-      if (this.canSubmit) void this.submit();
+      if (!event.repeat && this.canSubmit) void this.submit();
       return true;
     }
 
@@ -663,7 +686,7 @@ export class MessageComposerState {
       return true;
     }
     if (prefersTouchActions()) return false;
-    if (this.canSubmit) void this.submit();
+    if (!event.repeat && this.canSubmit) void this.submit();
     return true;
   }
 

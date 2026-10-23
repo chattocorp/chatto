@@ -1,4 +1,8 @@
-// Tests must not create private temporary directories or change TMPDIR for the test process.
+// Fake conversation and worker agents do not need a scratch working directory.
+// Classifier internals and real agent sessions still use Runling's private storage.
 import { vi } from 'vitest';
 
-vi.mock('./private-temp.ts', () => ({ usePrivateTempDirectory: async () => '' }));
+vi.mock('runling', async (original) => ({
+  ...(await original<typeof import('runling')>()),
+  usePrivateTempDirectory: async () => ''
+}));

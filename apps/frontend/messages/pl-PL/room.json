@@ -35,8 +35,11 @@
     "leave": {
       "title": "Opuść pokój",
       "action": "Opuść pokój",
-      "prompt": "Czy na pewno chcesz opuścić #{room}? Możesz dołączyć później.",
-      "failed": "Nie udało się opuścić pokoju"
+      "prompt": "Czy na pewno chcesz opuścić #{room}?",
+      "failed": "Nie udało się opuścić pokoju",
+      "join_later": "Możesz dołączyć później.",
+      "need_invite": "Aby dołączyć do tego pokoju, będziesz potrzebować nowego zaproszenia.",
+      "rejoin_unknown": "Do ponownego dołączenia może być potrzebne nowe zaproszenie."
     },
     "directory": {
       "universal_title": "Pokoje uniwersalne łączą się automatycznie",
@@ -59,7 +62,8 @@
       "join_group_failed": "Nie udało się dołączyć do grupy",
       "left": "W lewo #{room}",
       "left_generic": "Opuścił pokój",
-      "leave_confirm": "Czy na pewno chcesz opuścić #{room}?"
+      "leave_confirm": "Czy na pewno chcesz opuścić #{room}?",
+      "invited": "Zaproszono"
     },
     "server": {
       "remove_title": "Usuń serwer",
@@ -97,7 +101,8 @@
         "edit": "Edytuj wiadomość",
         "more": "Więcej akcji",
         "edit_short": "Edytuj",
-        "copy_text": "Kopiuj tekst",
+        "copy_text": "Kopiuj tekst wiadomości",
+        "copy_selected_text": "Kopiuj zaznaczony tekst",
         "copy_text_failed": "Nie udało się skopiować tekstu",
         "copy_link": "Skopiuj link",
         "copy_message_link": "Skopiuj link do wiadomości",
@@ -106,7 +111,8 @@
         "message_link_copied": "Skopiowano link do wiadomości",
         "copy_link_failed": "Nie udało się skopiować linku",
         "image_copied": "Obraz skopiowany",
-        "copy_image_failed": "Nie udało się skopiować obrazu"
+        "copy_image_failed": "Nie udało się skopiować obrazu",
+        "view_reactions": "Zobacz reakcje"
       },
       "meta": {
         "echo": "Echo",
@@ -242,7 +248,7 @@
       "unpin_prompt": "Czy na pewno chcesz usunąć przypięcie tej wiadomości?",
       "loading": "Ładowanie przypiętych wiadomości...",
       "empty_title": "Brak przypiętych wiadomości",
-      "empty_description": "Zarządzający pokojem mogą przypinać tutaj ważne wiadomości.",
+      "empty_description": "Przypięte wiadomości pojawiają się tutaj.",
       "error_title": "Przypięte wiadomości są niedostępne",
       "error_description": "Nie udało się załadować przypiętych wiadomości. Spróbuj ponownie za chwilę.",
       "update_failed": "Nie udało się zaktualizować przypiętej wiadomości"
@@ -262,6 +268,81 @@
     "jump_to_present": "Przejdź do prezentacji",
     "jump_failed": "Nie można przejść do tej wiadomości.",
     "unread_separator": "Nowe wiadomości",
-    "close_extras": "Zamknij dodatki do pokoju"
+    "close_extras": "Zamknij dodatki do pokoju",
+    "dm": {
+      "deleted_user_notice": "Drugi użytkownik został usunięty."
+    },
+    "management": {
+      "room_name_too_long": "Nazwa pokoju nie może przekraczać 30 znaków",
+      "room_name_invalid": "Nazwa pokoju nie może zawierać podziałów wiersza ani znaków sterujących",
+      "create_room": "Utwórz pokój",
+      "reorder_groups_failed": "Nie udało się zmienić kolejności grup: {error}",
+      "room_created": "Pokój został utworzony",
+      "link_updated": "Link zaktualizowany",
+      "link_created": "Link utworzony",
+      "save_link_failed": "Nie udało się zapisać linku: {error}",
+      "group_deleted": "Grupa usunięta",
+      "delete_group_failed": "Nie udało się usunąć grupy: {error}",
+      "link_deleted": "Link usunięty",
+      "delete_link_failed": "Nie udało się usunąć linku: {error}",
+      "room_archived": "Pokój zarchiwizowany",
+      "archive_room_failed": "Nie udało się zarchiwizować pokoju: {error}",
+      "drag_room": "Przeciągnij, aby zmienić kolejność pokoju",
+      "drag_link": "Przeciągnij, aby zmienić kolejność linku",
+      "drag_group": "Przeciągnij, aby zmienić kolejność grupy",
+      "new_room": "Utwórz pokój",
+      "new_link": "Utwórz link",
+      "delete_group": "Usuń grupę",
+      "edit_link": "Edytuj link",
+      "delete_link": "Usuń link",
+      "create_link": "Utwórz link",
+      "label": "Etykieta",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com lub /docs",
+      "delete_group_prompt": "Czy na pewno chcesz usunąć zestaw {name}?",
+      "delete_link_prompt": "Czy na pewno chcesz usunąć {label}?",
+      "archive_room": "Archiwizuj pokój",
+      "archive_room_prompt": "Czy na pewno chcesz zarchiwizować #{room}? Członkowie nie będą już mieli dostępu do tego pokoju.",
+      "group_created": "Grupa utworzona",
+      "create_group_failed": "Nie udało się utworzyć grupy: {error}",
+      "group_name": "Nazwa grupy",
+      "group_name_placeholder": "np. Ogólne, Projekty, Zespoły",
+      "create_group": "Utwórz grupę",
+      "new_group": "Nowa grupa",
+      "threading_mode_required": "Wymagany",
+      "threading_mode_encouraged": "Zalecany",
+      "threading_mode_enabled": "Włączony",
+      "threading_mode_disabled": "Wyłączony"
+    },
+    "moderation": {
+      "removing": "Usuwanie...",
+      "remove_action": "Usuń z pokoju",
+      "lift_title": "Cofnij zawieszenie użytkownika {user}",
+      "lift": "Cofnij zawieszenie",
+      "lifting": "Cofanie...",
+      "no_suspension": "Bez zawieszenia — może dołączyć ponownie",
+      "indefinite": "Bezterminowo",
+      "remove_title": "Usuń {user} z pokoju",
+      "suspension_period": "Okres zawieszenia"
+    },
+    "invitation": {
+      "invite": "Zaproś członka",
+      "invited": "Masz zaproszenie",
+      "sent": "Zaproszenia wysłane",
+      "expires": "Wygasa {date}",
+      "unavailable": "Nie możesz teraz przyjąć tego zaproszenia. Nadal możesz je odrzucić.",
+      "accept": "Przyjmij zaproszenie",
+      "decline": "Odrzuć",
+      "title": "Zaproś członków do #{room}",
+      "description": "Wybierz, kogo chcesz zaprosić. Zaproszeni użytkownicy otrzymają powiadomienie i będą mieć siedem dni na przyjęcie lub odrzucenie zaproszenia.",
+      "members": "Członkowie",
+      "send": "Wyślij zaproszenia",
+      "failed": "Nie udało się zaprosić {name}: {error}",
+      "already_member": "Już jest w tym pokoju",
+      "invited_by": "Zaproszenie od",
+      "decline_title": "Odrzucić zaproszenie?",
+      "decline_join_later": "Możesz dołączyć do tego pokoju później.",
+      "decline_need_invite": "Aby dołączyć do tego pokoju, będziesz potrzebować nowego zaproszenia."
+    }
   }
 }

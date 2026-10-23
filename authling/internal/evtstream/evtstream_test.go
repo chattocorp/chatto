@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/natsruntime"
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
+	"github.com/chattocorp/chatto/authling/internal/storage"
+	"github.com/chattocorp/chatto/pkg/events"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/natsruntime"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
-	"hmans.de/authling/internal/storage"
-	"hmans.de/chatto/pkg/events"
 )
 
 func TestAppendAccountCreatedUsesAggregateOCC(t *testing.T) {

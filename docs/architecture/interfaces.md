@@ -53,6 +53,13 @@ fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries
 
+`webserver.bind_address` selects the address for the main HTTP or HTTPS
+listener and the optional ACME HTTP listener. An empty value listens on all
+interfaces. The configured address does not change the public URL or proxy
+trust policy. See [process configuration](../../cli/internal/config/process.go),
+[server startup](../../cli/cmd/run.go), and
+[HTTP listener lifecycle](../../cli/internal/http_server/server.go).
+
 The server recognizes the official mobile OAuth client
 `eu.chattocorp.chatto.mobile` with the exact callback
 `eu.chattocorp.chatto.mobile:/oauth/callback`. This built-in registration needs
@@ -167,7 +174,7 @@ uses the existing thread projection; it adds no durable events or runtime keys.
 ConnectRPC and MCP `post_message` delegate this key to `MessageModel`.
 Exact retries retain the message ID for
 30 minutes; changed arguments fail. See
-[ADR-115](../adr/ADR-115-message-post-idempotency.md).
+[ADR-117](../adr/ADR-117-message-post-idempotency.md).
 
 `MessageService.CreateMessage` accepts attachment descriptions keyed by an asset
 ID in the same request. `MessageService.SetAttachmentDescription` replaces or
@@ -210,11 +217,12 @@ another account. These operations validate stable request-time authorization
 inputs, use OCC on the target user aggregate, and then return the ready user
 projection.
 
-`AdminPermissionService` uses the same scope pagination for role/user matrix
-and decision reads. The core selects at most 100 scopes before cell evaluation
-and loads parent-group rules independently of the page. Scope enumeration still
-scans the directory. Bot reads filter room visibility before pagination and
-counts. See [permission scope selection](../../cli/internal/core/permission_scope_page.go).
+`AdminPermissionService` returns complete role and user permission matrices in
+one response. Decision lists select at most 100 scopes before cell evaluation.
+Both forms support an exact scope filter and load parent-group rules outside
+that filter. Scope enumeration scans the directory. Bot reads filter room
+visibility before scope selection and counts. See
+[permission scope selection](../../cli/internal/core/permission_scope_page.go).
 
 `RoomService.ListMembers` returns active membership IDs in stable ID order.
 An empty search reads lifecycle and membership metadata without profile
@@ -274,6 +282,11 @@ them by ID, and hydrates viewer state only for the selected page. Archive discov
 permissions. Room-group and realtime navigation snapshots keep their default
 active-room scope.
 
+Room viewer state reports optional `can_rejoin` independently of current
+membership. It uses the current join authorization and active channel state;
+the `room.join` action decision still requires the viewer to be a non-member.
+Older servers omit this value, so clients must not treat absence as a denial.
+
 `RoomService.AddMember` and `RemoveMember` accept room managers, account
 managers, bot owners, and human bot managers. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.
@@ -320,7 +333,10 @@ realtime requests.
 policy scopes. Its batch read accepts at most 100 scopes, removes duplicates in
 first-seen order, and omits missing or inaccessible resource scopes.
 `NotificationService` owns occurrence reads and triage only; policy reads and
-writes use `NotificationPolicyService`.
+writes use `NotificationPolicyService`. A pending invitation also permits access
+to that room's notification preferences. Invitation occurrences carry a room
+summary, invitation ID, and expiry, without a message target. Current invitation
+eligibility controls visibility independently of message access.
 
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive
@@ -338,7 +354,7 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 | `chatto.operator.v1` | `OperatorUserService`    | Root-equivalent account and external identity management over the private Unix socket              |
 | `chatto.operator.v1` | `OperatorRoomService`    | Root-equivalent channel lookup, creation, and explicit membership add over the private Unix socket |
 | `chatto.operator.v1` | `OperatorAssetService`   | Root-equivalent attachment upload for a mapped author over the private Unix socket                 |
-| `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message import over the private Unix socket                             |
+| `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message, thread, and reaction import over the private Unix socket       |
 | `chatto.operator.v1` | `OperatorSeedService`    | Private Unix socket; compiled only with `bootstrap` or `test_endpoints`                            |
 
 The [operator identity handlers](../../cli/internal/connectapi/operator_external_identities.go)
@@ -381,15 +397,23 @@ the continuation and bind it to the viewer and complete public request.
 `MessageSearchService.SearchMessages` accepts independent `FOLLOWED_THREADS`
 scope and `THREAD` grouping. Message search retains its defaults. All modes
 share parsing, structured filters, availability, and cursor sealing.
-`MessageSearchReadModel` sends the complete followed-root set when requested.
+`MessageSearchReadModel` sends the followed-root set when requested, restricted
+by `root_author_filter` when selected. `ThreadService.ListFollowedThreads`
+applies the same root-author filter before pagination and total counts. Both
+paths read the root message author from the timeline projection; unspecified preserves the combined
+feed. Search cursors bind the filter with the rest of the request.
 For groups it validates matching body revisions, excludes resolved roots on
 subsequent queries, and restarts the provider cursor when exclusions change.
 This avoids scanning every matching reply. Provider pages contain at most 100
 hits and the complete grouped operation has a 30-second deadline. Exact totals
-and activity sorting require enumeration of all matching groups.
+and thread-date sorting require enumeration of all matching groups.
 The model rechecks current follow state and access before group pagination.
 Relevance and newest order use the best valid matching message; activity order
-uses current thread metadata. Both modes return `MessageSearchResult`: a
+uses current thread metadata. Creation order uses the indexed root message date,
+independent of the matching message. `ListFollowedThreads` also supports
+creation order; unspecified order retains latest activity first. Both paths
+sort before pagination, put unknown dates last, and break date ties by thread
+identity. All search modes return `MessageSearchResult`: a
 matching message and score, plus `ThreadSearchContext` for grouped results.
 The context reports actual viewer follow state. A root without replies is a group.
 The sealed group cursor carries a distinct-thread offset; message cursors carry
@@ -517,3 +541,9 @@ call also requires `call.start`. Tokens encode `call.voice`, `call.camera`, and
 `call.screenshare`. Member-only observer reads and leaving do not require these
 permissions. Room viewer-state permission rows expose the five actions through
 existing room reads and realtime reconciliation.
+
+## RoomInvitationService
+
+The authenticated public `chatto.api.v1.RoomInvitationService` provides create,
+get, batch-get, list, accept, and decline operations. Only the sender and
+recipient can read an invitation. Only the recipient can respond.

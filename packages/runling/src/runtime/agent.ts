@@ -1,10 +1,12 @@
-import type { WorkflowContext } from './context.ts';
+import type { TaskContext } from './context.ts';
+import { usePrivateTempDirectory } from './private-temp.ts';
 import { requireDirectory } from './directory.ts';
+import { executionServices } from './execution.ts';
 import { stripVTControlCharacters } from 'node:util';
 import { dirname } from 'node:path';
 import { rm } from 'node:fs/promises';
 import {
-  createAgentSession,
+  createAgentSession as createPiAgentSession,
   convertToLlm,
   DefaultResourceLoader,
   defineTool,
@@ -12,6 +14,7 @@ import {
   type AgentSessionEvent,
   type ExtensionAPI,
   type InlineExtension,
+  type ToolDefinition,
   ModelRuntime,
   SessionManager,
   SettingsManager
@@ -28,7 +31,7 @@ import {
 import { createTrustExtension, type TrustPolicy } from '../../extensions/trust.ts';
 import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import { randomId } from './id.ts';
-import { log, withLogSource } from './log.ts';
+import { log, logMarkdown, withLogSource } from './log.ts';
 import { parseModelReference } from './model.ts';
 import { displayPath, displayText } from './paths.ts';
 import { RUNLING_SYSTEM_PROMPT, formatAgentInstructions } from './system-prompt.ts';
@@ -92,6 +95,10 @@ export type AgentResult = AgentReport & {
 export type CompletedAgentReport = AgentResult & { outcome: 'completed' };
 /** A named or anonymous pi extension instantiated for one agent session. */
 export type AgentExtension = InlineExtension;
+/** A tool that an agent extension registers. */
+export type AgentTool = ToolDefinition;
+/** Define an agent tool and keep the type of its parameters for `execute`. */
+export const defineAgentTool = defineTool;
 /** The API available while configuring an agent-local extension. */
 export type AgentExtensionAPI = ExtensionAPI;
 
@@ -116,27 +123,13 @@ export interface AgentResourceOptions {
  */
 export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
-/** Safe provider lifecycle information; excludes upstream errors and request content. */
-export type AgentStatus =
-  | { type: 'retrying'; attempt: number; maxAttempts: number; delayMs: number }
-  | { type: 'blocked'; reason: 'provider_error' }
-  | { type: 'working' };
+/** A tool operation category for journal events. */
+type ToolOperation = 'read' | 'search' | 'edit' | 'command' | 'other';
+/** A safe tool failure category. Unknown means the tool did not provide a recognized cause. */
+type ToolFailure = 'not_found' | 'permission_denied' | 'invalid_arguments' | 'timeout' | 'unknown';
 
-/** Tool lifecycle facts without arguments, paths, commands, or tool output. */
-export interface AgentActivity {
-  type: 'tool';
-  /** Registered tool identifier; no arguments or output. */
-  toolName?: string;
-  operation: 'read' | 'search' | 'edit' | 'command' | 'other';
-  phase: 'started' | 'succeeded' | 'failed';
-  /** Failures since this operation last succeeded, within the current interaction. */
-  failures: number;
-  /** Safe failure category. Unknown means the tool did not provide a recognized cause. */
-  error?: 'not_found' | 'permission_denied' | 'invalid_arguments' | 'timeout' | 'unknown';
-}
-
-/** Categorize errors locally; never forward raw tool output to the supervisor. */
-export function toolFailureCategory(result: unknown): NonNullable<AgentActivity['error']> {
+/** Categorize tool errors for logs without their raw output. */
+export function toolFailureCategory(result: unknown): ToolFailure {
   const value = result as
     { content?: Array<{ type?: string; text?: string }>; details?: { code?: string } } | undefined;
   const message = [
@@ -183,18 +176,12 @@ export interface RunAgentOptions {
   /** Replace Pi's default coding-agent prompt. Instructions and Runling outcome rules still apply. */
   systemPrompt?: string;
   cwd: string;
-  /** Text agents finish naturally; report agents must call report_outcome (default). */
+  /** Text agents finish naturally and return their final text; report agents must call
+   * report_outcome (default). */
   output?: 'text' | 'report';
-  /** Deliver only normally stopped assistant messages, excluding tool-call preambles.
-   * Defaults to all completed assistant messages. Logs retain intermediate text. */
-  textDelivery?: 'all' | 'final';
-  /** Text mode only: end the interaction after a successful direct call to one of these tools, without another
-   * provider request. The current tool batch finishes first. Text agents accept an empty result;
-   * applications can deliver structured tool results themselves. Use sequential execution on a
-   * terminal tool when later calls in the same batch must observe application completion gates. */
-  terminalTools?: readonly string[];
-  /** Text mode only: accept a normally stopped assistant turn with no text. Provider errors still fail. */
-  allowEmptyResponse?: boolean;
+  /** In text mode, permit silence without an explicit terminating tool result.
+   * Defaults to false. Provider errors still fail the turn. */
+  allowEmptyText?: boolean;
   /** Built-in and extension tools to expose. `report_outcome` is added in report mode. */
   tools?: readonly string[];
   resources?: AgentResourceOptions;
@@ -202,10 +189,6 @@ export interface RunAgentOptions {
   extensions?: readonly AgentExtension[];
   /** Observe the raw pi event stream for this agent session. */
   onEvent?: (event: AgentSessionEvent) => void;
-  /** Observe provider retries and recovery without parsing raw provider errors. */
-  onStatus?: (status: AgentStatus) => void;
-  /** Observe safe tool activity independently of model-authored progress. */
-  onActivity?: (activity: AgentActivity) => void;
   /** Abort an active model turn. */
   signal?: AbortSignal;
   /** Block selected tools after untrusted content enters this agent's context. */
@@ -231,7 +214,7 @@ export interface RunAgentOptions {
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
 
 export interface AgentRunOptions {
-  /** Observe completed assistant text messages during this interaction (not reasoning or tool output). */
+  /** Receive completed assistant text during this interaction (not reasoning or tool output). */
   onText?: (text: string) => void;
   /** Abort this model turn without disposing the agent. */
   signal?: AbortSignal;
@@ -242,13 +225,13 @@ export interface RunlingAgent extends AsyncDisposable {
   readonly id: string;
   /** Run one turn and require it to complete successfully. */
   run(
-    ctx: WorkflowContext<unknown>,
+    ctx: TaskContext<any, any>,
     prompt: string,
     options?: AgentRunOptions
   ): Promise<CompletedAgentReport>;
   /** Run one turn and return any reported outcome. */
   runOutcome(
-    ctx: WorkflowContext<unknown>,
+    ctx: TaskContext<any, any>,
     prompt: string,
     options?: AgentRunOptions
   ): Promise<AgentResult>;
@@ -293,14 +276,14 @@ function highlightToolAction(tool: string, description: string): string {
 }
 
 export async function runAgent(
-  ctx: WorkflowContext<unknown>,
+  ctx: TaskContext<any, any>,
   prompt: string,
   options: RunAgentOptions
 ): Promise<AgentResult> {
   const { signal, ...createOptions } = options;
   ctx.signal.throwIfAborted();
   signal?.throwIfAborted();
-  const instance = await agent(createOptions);
+  const instance = await createAgentSession(createOptions);
 
   try {
     return await instance.runOutcome(ctx, prompt, { signal });
@@ -343,7 +326,9 @@ function commentaryText(content: readonly ContentPart[]): string {
     .join('\n');
 }
 
-export async function agent(options: AgentOptions): Promise<RunlingAgent> {
+/** Create a live agent session for a custom conversation loop. The caller owns disposal. */
+export async function createAgentSession(options: AgentOptions): Promise<RunlingAgent> {
+  await usePrivateTempDirectory();
   return createRunlingAgent(options);
 }
 
@@ -352,8 +337,6 @@ async function createRunlingAgent(
   history: Parameters<typeof convertToLlm>[0] = [],
   inheritedUntrusted = false
 ): Promise<RunlingAgent> {
-  if (options.terminalTools?.length && options.output !== 'text')
-    throw new Error('terminalTools requires text output mode');
   const inheritedMessages = convertToLlm(structuredClone(history));
   const agentId = randomId();
   const color = takeAgentColor();
@@ -368,7 +351,8 @@ async function createRunlingAgent(
   const writeAgentLog = (
     level: 'debug' | 'error' | 'info' | 'success',
     message: string,
-    showProgress = true
+    showProgress = true,
+    markdown = false
   ) => {
     if (showProgress && level !== 'debug') progress(message);
     if (level !== 'debug' || log.level === 'debug') {
@@ -379,17 +363,24 @@ async function createRunlingAgent(
       });
     }
     withLogSource({ type: 'agent', id: agentId }, () =>
-      log.withColor(color, () => log[level](prefixLog(message)))
+      log.withColor(color, () =>
+        markdown ? logMarkdown(prefixLog('').trimEnd(), message) : log[level](prefixLog(message))
+      )
     );
   };
   const agentLog = {
     debug: (message: string) => writeAgentLog('debug', message),
     error: (message: string) => writeAgentLog('error', message),
     info: (message: string) => writeAgentLog('info', message),
+    markdown: (message: string) => writeAgentLog('info', message, true, true),
     success: (message: string) => writeAgentLog('success', message)
   };
-  let terminalToolCompleted = false;
-  const terminalTools = new Set(options.terminalTools ?? []);
+  // Preserve reply events for journals and observers even when the host owns their display.
+  const logReply = (message: string, markdown = false) => {
+    const write = () => writeAgentLog('info', message, true, markdown);
+    if (executionServices()?.printAgentReplies === false) log.withDestination('silent', write);
+    else write();
+  };
   let activeReport: AgentReport | undefined;
   let reports: AgentReport[] = [];
 
@@ -422,7 +413,17 @@ async function createRunlingAgent(
   const agentDir = options.resources?.agentDir ?? getAgentDir();
   const modelRuntime = await ModelRuntime.create();
   const modelReference = parseModelReference(options.model);
-  const model = modelRuntime.getModel(modelReference.provider, modelReference.id);
+  let model = modelRuntime.getModel(modelReference.provider, modelReference.id);
+  // Refresh only the missing model's provider. Known models need no network lookup.
+  if (model === undefined && process.env.PI_OFFLINE === undefined) {
+    await modelRuntime.refresh({
+      providers: [modelReference.provider],
+      allowNetwork: true,
+      force: true,
+      signal: AbortSignal.timeout(5_000)
+    });
+    model = modelRuntime.getModel(modelReference.provider, modelReference.id);
+  }
 
   if (model === undefined) {
     throw new Error(`Model ${options.model} is unavailable`);
@@ -507,7 +508,7 @@ async function createRunlingAgent(
   for (const message of inheritedMessages) {
     sessionManager.appendMessage(message);
   }
-  const { session } = await createAgentSession({
+  const { session } = await createPiAgentSession({
     cwd,
     model,
     thinkingLevel: options.thinkingLevel,
@@ -551,15 +552,6 @@ async function createRunlingAgent(
     for (const file of codemodeFiles) void rm(file, { force: true }).catch(() => {});
   };
 
-  // Pi's tool-result terminate hint applies only when every result in a batch is terminal.
-  // An application completion tool must also end a mixed batch, after all results are recorded.
-  const finishBatch = session.agent.finishTurn;
-  session.agent.finishTurn = async (turn, signal) => {
-    const decision = await finishBatch?.(turn, signal);
-    if (terminalToolCompleted) return { action: 'end' };
-    return decision ?? undefined;
-  };
-
   const runOutcome: RunlingAgent['runOutcome'] = async (
     ctx,
     prompt,
@@ -578,20 +570,20 @@ async function createRunlingAgent(
     interactionSignal = signal;
     acceptingSteering = true;
     activeReport = undefined;
-    terminalToolCompleted = false;
     reports = [];
     let finalText: string | undefined;
     let finalTextError: string | undefined;
-    let reportedProviderBlock = false;
-    let finalTextStopped = false;
+    // Match Pi's batch termination rule, but only successful results count as completion.
+    let toolsTerminated: boolean | undefined;
     const usage = emptyTokenUsage();
     let turn = 0;
+    // Pi starts its agent loop again after a provider retry. It is still the same interaction.
+    let started = false;
     let lastTextUpdate = -Infinity;
     let preparingReport = false;
     const toolStartedAt = new Map<string, number>();
-    const failures = new Map<AgentActivity['operation'], number>();
-    const activity = (tool: string, phase: AgentActivity['phase'], result?: unknown) => {
-      const operation: AgentActivity['operation'] =
+    const activity = (tool: string, phase: 'started' | 'succeeded' | 'failed') => {
+      const operation: ToolOperation =
         tool === 'read'
           ? 'read'
           : ['grep', 'find', 'ls'].includes(tool)
@@ -601,18 +593,8 @@ async function createRunlingAgent(
               : tool === 'bash'
                 ? 'command'
                 : 'other';
-      if (phase === 'failed') failures.set(operation, (failures.get(operation) ?? 0) + 1);
-      if (phase === 'succeeded') failures.set(operation, 0);
       const toolName = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(tool) ? tool : undefined;
       emitRunlingEvent({ type: 'agent.tool', agentId, operation, phase, toolName });
-      options.onActivity?.({
-        type: 'tool',
-        operation,
-        phase,
-        toolName,
-        failures: failures.get(operation) ?? 0,
-        ...(phase === 'failed' ? { error: toolFailureCategory(result) } : {})
-      });
     };
 
     const unsubscribe = session.subscribe(
@@ -624,17 +606,9 @@ async function createRunlingAgent(
           steering.delete(event.message);
           activeReport = undefined;
           finalText = undefined;
-          finalTextStopped = false;
           preparingReport = false;
           delivered(true);
         }
-        if (
-          event.type === 'tool_execution_end' &&
-          !event.isError &&
-          !event.parentToolCallId &&
-          terminalTools.has(event.toolName)
-        )
-          terminalToolCompleted = true;
         options.onEvent?.(event);
 
         if (event.type === 'message_update') {
@@ -662,7 +636,8 @@ async function createRunlingAgent(
           }
         }
 
-        if (event.type === 'agent_start') {
+        if (event.type === 'agent_start' && !started) {
+          started = true;
           emitRunlingEvent({
             type: 'agent.started',
             agentId,
@@ -674,6 +649,7 @@ async function createRunlingAgent(
         }
 
         if (event.type === 'turn_start') {
+          toolsTerminated = undefined;
           turn++;
           agentLog.debug(`Turn ${turn} started`);
         }
@@ -692,11 +668,16 @@ async function createRunlingAgent(
           agentLog.info(highlightToolAction(event.toolName, action));
         }
 
+        if (event.type === 'tool_execution_end' && !event.parentToolCallId) {
+          toolsTerminated =
+            (toolsTerminated ?? true) && !event.isError && event.result?.terminate === true;
+        }
+
         if (event.type === 'tool_execution_end' && event.toolName !== 'report_outcome') {
           const startedAt = toolStartedAt.get(event.toolCallId);
           toolStartedAt.delete(event.toolCallId);
           if (!event.parentToolCallId)
-            activity(event.toolName, event.isError ? 'failed' : 'succeeded', event.result);
+            activity(event.toolName, event.isError ? 'failed' : 'succeeded');
           const duration =
             startedAt === undefined ? '' : ` in ${formatDuration(performance.now() - startedAt)}`;
 
@@ -750,12 +731,6 @@ async function createRunlingAgent(
         }
 
         if (event.type === 'auto_retry_start') {
-          options.onStatus?.({
-            type: 'retrying',
-            attempt: event.attempt,
-            maxAttempts: event.maxAttempts,
-            delayMs: event.delayMs
-          });
           agentLog.info(
             `Retrying agent in ${formatDelay(event.delayMs)} ` +
               `(attempt ${event.attempt}/${event.maxAttempts}): ${toSingleLine(event.errorMessage)}`
@@ -765,13 +740,9 @@ async function createRunlingAgent(
         if (event.type === 'auto_retry_end') {
           if (event.success) {
             finalTextError = undefined;
-            reportedProviderBlock = false;
-            options.onStatus?.({ type: 'working' });
             agentLog.success(`Agent recovered after ${formatAttempts(event.attempt)}`);
           } else {
             finalTextError = 'Agent provider failed after retries';
-            reportedProviderBlock = true;
-            options.onStatus?.({ type: 'blocked', reason: 'provider_error' });
             agentLog.error(
               `Agent retry failed after ${formatAttempts(event.attempt)}: ${toSingleLine(event.finalError ?? 'Unknown error')}`
             );
@@ -779,7 +750,6 @@ async function createRunlingAgent(
         }
 
         if (event.type === 'message_end' && event.message.role === 'assistant') {
-          finalTextStopped = event.message.stopReason === 'stop';
           finalTextError =
             event.message.stopReason === 'error' || event.message.stopReason === 'aborted'
               ? event.message.errorMessage || 'Agent response failed'
@@ -791,19 +761,15 @@ async function createRunlingAgent(
           // Reasoning summaries are often the only account of what the agent is doing.
           for (const part of event.message.content)
             if (part.type === 'thinking' && !part.redacted && part.thinking.trim())
-              agentLog.info(`${log.highlight('Thinking')} ${part.thinking.trim()}`);
-          if (finalText.trim()) agentLog.info(finalText);
+              agentLog.markdown(`**Thinking**\n\n${part.thinking.trim()}`);
+          if (finalText.trim()) logReply(finalText, true);
 
           accumulateTokenUsage(usage, event.message.usage);
           ctx.recordUsage(event.message.usage);
           emitRunlingEvent({ type: 'agent.usage', agentId, usage: { ...usage } });
           agentLog.debug(`Tokens: ${formatTokenUsage(usage)}`);
-          if (
-            finalText.trim() &&
-            (options.textDelivery !== 'final' ||
-              (finalTextStopped && !event.message.content.some((part) => part.type === 'toolCall')))
-          )
-            onText?.(finalText);
+          // A message that failed or was aborted can hold partial text; a retry follows.
+          if (finalText.trim() && !finalTextError) onText?.(finalText);
         }
       })
     );
@@ -814,51 +780,15 @@ async function createRunlingAgent(
     let result: AgentResult | undefined;
 
     try {
-      result = await log.withColor(color, async (): Promise<AgentResult> => {
-        signal?.throwIfAborted();
-        await session.prompt(prompt);
-        signal?.throwIfAborted();
-
-        // A transport failure is not a report-format error. Do not start a new
-        // model request after the provider has exhausted its retry budget.
-        if (finalTextError) {
-          if (!reportedProviderBlock)
-            options.onStatus?.({ type: 'blocked', reason: 'provider_error' });
-          return {
-            outcome: 'failed',
-            failureReason: 'provider_error',
-            summary: providerFailureSummary(finalTextError),
-            usage
-          };
-        }
-        if (textOutput && terminalToolCompleted)
-          return { outcome: 'completed', summary: '', usage };
-        if (textOutput) {
-          // Text delivery happens through onText. The result is for the caller,
-          // not a second message to send to the user.
-          if (!finalText?.trim()) {
-            if (options.allowEmptyResponse && finalTextStopped)
-              return { outcome: 'completed', summary: '', usage };
-            return { outcome: 'failed', summary: 'Agent finished without a text response', usage };
-          }
-          return { outcome: 'completed', summary: finalText, usage };
-        }
-
-        if (activeReport === undefined) {
-          agentLog.info(
-            finalText !== undefined && containsMalformedToolCall(finalText)
-              ? 'Retrying malformed outcome report'
-              : 'Retrying missing outcome report'
-          );
-          finalText = undefined;
-          acceptingSteering = true;
-          await session.prompt(
-            'Finish the original task by calling report_outcome with the truthful outcome. Use native tool calling; do not respond with plain text.'
-          );
+      result = await withLogSource({ type: 'agent', id: agentId }, () =>
+        log.withColor(color, async (): Promise<AgentResult> => {
           signal?.throwIfAborted();
+          await session.prompt(prompt);
+          signal?.throwIfAborted();
+
+          // A transport failure is not a report-format error. Do not start a new
+          // model request after the provider has exhausted its retry budget.
           if (finalTextError) {
-            if (!reportedProviderBlock)
-              options.onStatus?.({ type: 'blocked', reason: 'provider_error' });
             return {
               outcome: 'failed',
               failureReason: 'provider_error',
@@ -866,43 +796,75 @@ async function createRunlingAgent(
               usage
             };
           }
-        }
-
-        if (activeReport !== undefined) {
-          // Steering can reopen an interaction after a valid report. Preserve
-          // that evidence even if the next report only refers back to it.
-          let details = activeReport.details;
-          if (reports.length > 1) {
-            details = reports
-              .map((report, index) => {
-                const label =
-                  index === reports.length - 1
-                    ? 'latest; supersedes earlier conclusions'
-                    : 'earlier findings';
-                const body = report.details
-                  ? `${report.summary}\n\n${report.details}`
-                  : report.summary;
-
-                return `Report ${index + 1} (${label}):\n${body}`;
-              })
-              .join('\n\n');
+          if (textOutput) {
+            // The final text is the result. onText already delivered it during the turn.
+            if (!finalText?.trim() && !options.allowEmptyText && !toolsTerminated)
+              return {
+                outcome: 'failed',
+                summary: 'Agent finished without a text response',
+                usage
+              };
+            return { outcome: 'completed', summary: finalText ?? '', usage };
           }
 
-          agentLog.info(details?.trim() || activeReport.summary);
-          return { ...activeReport, ...(details !== undefined ? { details } : {}), usage };
-        }
+          if (activeReport === undefined) {
+            agentLog.info(
+              finalText !== undefined && containsMalformedToolCall(finalText)
+                ? 'Retrying malformed outcome report'
+                : 'Retrying missing outcome report'
+            );
+            finalText = undefined;
+            acceptingSteering = true;
+            await session.prompt(
+              'Finish the original task by calling report_outcome with the truthful outcome. Use native tool calling; do not respond with plain text.'
+            );
+            signal?.throwIfAborted();
+            if (finalTextError) {
+              return {
+                outcome: 'failed',
+                failureReason: 'provider_error',
+                summary: providerFailureSummary(finalTextError),
+                usage
+              };
+            }
+          }
 
-        if (finalText !== undefined && finalText.trim() !== '') {
-          agentLog.debug(`Discarding unreported final text: ${toSingleLine(finalText)}`);
-        }
+          if (activeReport !== undefined) {
+            // Steering can reopen an interaction after a valid report. Preserve
+            // that evidence even if the next report only refers back to it.
+            let details = activeReport.details;
+            if (reports.length > 1) {
+              details = reports
+                .map((report, index) => {
+                  const label =
+                    index === reports.length - 1
+                      ? 'latest; supersedes earlier conclusions'
+                      : 'earlier findings';
+                  const body = report.details
+                    ? `${report.summary}\n\n${report.details}`
+                    : report.summary;
 
-        return {
-          outcome: 'failed',
-          summary: 'Agent finished without a valid outcome report',
-          failureReason: 'missing_outcome',
-          usage
-        };
-      });
+                  return `Report ${index + 1} (${label}):\n${body}`;
+                })
+                .join('\n\n');
+            }
+
+            logReply(details?.trim() || activeReport.summary);
+            return { ...activeReport, ...(details !== undefined ? { details } : {}), usage };
+          }
+
+          if (finalText !== undefined && finalText.trim() !== '') {
+            agentLog.debug(`Discarding unreported final text: ${toSingleLine(finalText)}`);
+          }
+
+          return {
+            outcome: 'failed',
+            summary: 'Agent finished without a valid outcome report',
+            failureReason: 'missing_outcome',
+            usage
+          };
+        })
+      );
       return result;
     } finally {
       signal?.removeEventListener('abort', abort);

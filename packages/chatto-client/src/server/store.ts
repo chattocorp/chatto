@@ -140,6 +140,7 @@ export class ServerStateStore {
   #privacyCleanupFailed = false;
   /** Set by {@link dispose}; the store then reads no session. */
   #disposed = false;
+  #invitationExpiryTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #realtime: EventBusManager;
   /** Stable canonical reducer installed before a projection transport starts. */
   readonly realtimeProjectionHandler: ProjectionHandler = (update) => {
@@ -340,7 +341,8 @@ export class ServerStateStore {
     this.serverInfo = new ServerInfoState(
       registration.url,
       publicServerInfoLoader,
-      () => this.projection.serverState
+      () => this.projection.serverState,
+      originServer
     );
     this.notifications = new NotificationStore(notificationAPI);
     this.roomList = new RoomListView(this.projection, this.realtimeSync);
@@ -473,6 +475,7 @@ export class ServerStateStore {
       return;
     }
     const generation = this.#realtimeProjectionGeneration;
+    const transportGeneration = this.realtimeSync.transportGeneration;
     this.#catchUpResourceReads++;
     const batches = await Promise.all(
       (
@@ -562,7 +565,7 @@ export class ServerStateStore {
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
     }
-    await this.waitForRealtimeReconciliation();
+    await this.waitForRealtimeReconciliation(transportGeneration);
     this.requireCurrentRealtimeProjection(generation);
   }
 
@@ -573,6 +576,7 @@ export class ServerStateStore {
     authorizationRefreshGeneration: number
   ): Promise<void> {
     const generation = this.#realtimeProjectionGeneration;
+    const transportGeneration = this.realtimeSync.transportGeneration;
     const requireCurrent = () => {
       this.requireCurrentRealtimeProjection(generation);
       if (
@@ -597,18 +601,27 @@ export class ServerStateStore {
       }
     });
     await this.hydrateProjectedDMUsers(cursor, generation, requireCurrent);
-    await this.waitForRealtimeReconciliation();
+    await this.waitForRealtimeReconciliation(transportGeneration);
     requireCurrent();
   }
 
-  /** Wait for queued event reads without starting catch-up resource reads. */
-  async waitForRealtimeReconciliation(): Promise<void> {
+  /**
+   * Wait for queued event reads without starting catch-up resource reads.
+   * Only the current transport may consume a failure. Catch-up callers keep
+   * the generation from before their auxiliary reads, since a reconnect can
+   * replace their transport during those reads. An obsolete waiter returns
+   * without granting its transport permission to advance the cursor.
+   */
+  async waitForRealtimeReconciliation(
+    transportGeneration = this.realtimeSync.transportGeneration
+  ): Promise<void> {
     const generation = this.#realtimeProjectionGeneration;
     while (
       this.#resourceRefreshes.size > 0 ||
       this.#userRefresh ||
       this.#projectionReconciliations.size > 0
     ) {
+      if (transportGeneration !== this.realtimeSync.transportGeneration) return;
       await Promise.all([
         ...this.#resourceRefreshes.values(),
         ...(this.#userRefresh ? [this.#userRefresh] : []),
@@ -617,6 +630,7 @@ export class ServerStateStore {
       ]);
       this.requireCurrentRealtimeProjection(generation);
     }
+    if (transportGeneration !== this.realtimeSync.transportGeneration) return;
     if (this.#reconciliationError) {
       const error = this.#reconciliationError;
       this.#reconciliationError = null;
@@ -721,10 +735,13 @@ export class ServerStateStore {
   }
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
-  private clearRoomAccess(roomId: string, forgetStores = false): void {
+  private clearRoomAccess(roomId: string, forgetStores = false, invitationId?: string): void {
     this.#rooms.loaded(roomId)?.members?.resetProjectionState();
     this.projection.removeRoomCalls(roomId);
-    this.notifications.clearRoom(roomId);
+    if (this.notifications.clearRoom(roomId, invitationId)) {
+      // Its creation hint may have arrived before the invitation directory row.
+      this.refreshRealtimeResource('notifications');
+    }
     this.clearRoomMessageAccess(roomId, forgetStores);
     this.#emitRoomAccessLost({ roomId, messagesOnly: false, removed: forgetStores });
   }
@@ -841,8 +858,10 @@ export class ServerStateStore {
           break;
         }
         case 'rooms':
+          this.scheduleInvitationExpiry();
           for (const [roomId, room] of this.projection.rooms) {
-            if (room.viewerState?.isMember === false) this.clearRoomAccess(roomId);
+            if (room.viewerState?.isMember === false)
+              this.clearRoomAccess(roomId, false, room.viewerState.invitation?.id);
             else if (room.viewerState?.isMember === true) this.restoreRoomAccess(roomId);
           }
           for (const roomId of previousRoomIds) {
@@ -970,7 +989,7 @@ export class ServerStateStore {
     for (const roomId of ids) {
       const next = nextRooms.get(roomId);
       if (!next?.viewerState?.isMember) {
-        this.clearRoomAccess(roomId);
+        this.clearRoomAccess(roomId, false, next?.viewerState?.invitation?.id);
         continue;
       }
       const previous = this.projection.rooms.get(roomId);
@@ -994,7 +1013,20 @@ export class ServerStateStore {
       );
       // Snapshot catch-up owns the first full-access timeline read.
       if (!previous && canReadAllMessages && this.#realtimeSnapshotPending) continue;
-      if (previous && messageAccess(previous) === messageAccess(next)) continue;
+      if (previous && messageAccess(previous) === messageAccess(next)) {
+        const bypassesSlowMode = (room: RoomWithViewerState) =>
+          room.viewerState?.permissions.some(
+            (grant) =>
+              grant.granted &&
+              (grant.permission === 'room.manage' || grant.permission === 'message.manage')
+          ) ?? false;
+        if (bypassesSlowMode(previous) !== bypassesSlowMode(next)) {
+          // Losing an exemption activates the last successful post in each
+          // thread. Refresh deadlines without clearing readable messages.
+          this.#timelines.refreshWindows(roomId, null, false, cursor);
+        }
+        continue;
+      }
       // Rebuild only affected plaintext stores. Their owners and surrounding
       // page stay mounted, and their request generations fence old responses.
       this.clearRoomMessageAccess(roomId);
@@ -1011,6 +1043,35 @@ export class ServerStateStore {
         );
       }
     }
+  }
+
+  /** Refresh invitation visibility at its deadline, including while the room is idle. */
+  private scheduleInvitationExpiry(): void {
+    clearTimeout(this.#invitationExpiryTimer);
+    this.#invitationExpiryTimer = undefined;
+    if (this.#disposed) return;
+    let deadline = Infinity;
+    for (const room of this.projection.rooms.values()) {
+      const expiry = room.viewerState?.invitation?.expiresAt?.toDate().getTime();
+      if (expiry !== undefined) deadline = Math.min(deadline, expiry);
+    }
+    if (!Number.isFinite(deadline)) return;
+    const generation = this.#realtimeProjectionGeneration;
+    this.#invitationExpiryTimer = setTimeout(
+      () => {
+        this.#invitationExpiryTimer = undefined;
+        if (this.#disposed || generation !== this.#realtimeProjectionGeneration) return;
+        for (const [roomId, room] of this.projection.rooms) {
+          const expiry = room.viewerState?.invitation?.expiresAt?.toDate().getTime();
+          if (!room.viewerState?.isMember && expiry !== undefined && expiry <= Date.now()) {
+            this.notifications.clearRoom(roomId);
+          }
+        }
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+      },
+      Math.min(2_147_483_647, Math.max(1000, deadline - Date.now() + 50))
+    );
   }
 
   /** Fail closed at the failed resource, without discarding unrelated state. */
@@ -1323,6 +1384,9 @@ export class ServerStateStore {
           this.refreshRealtimeResource('rooms');
         }
         return;
+      case 'roomInvitationCreated':
+      case 'roomInvitationAccepted':
+      case 'roomInvitationDeclined':
       case 'roomCreated':
       case 'roomUpdated':
       case 'roomArchived':
@@ -1331,17 +1395,27 @@ export class ServerStateStore {
       case 'roomSlowModeChanged':
       case 'roomThreadingModeChanged':
       case 'userJoinedRoom':
-        if (payload.case === 'roomUniversalChanged' && roomId)
+        if (payload.case === 'roomUniversalChanged' && roomId) {
           this.#rooms.loaded(roomId)?.members?.resetProjectionState();
+          // Effective membership can expose a call that started before access.
+          this.refreshRealtimeResource('activeCalls');
+        }
         if (payload.case === 'userJoinedRoom') {
           if (roomId && event.actorId) {
             this.updateRoomMembership(roomId, event.actorId, true);
             this.refreshRealtimeUsers([event.actorId]);
+            if (event.actorId === this.realtimeViewerId()) {
+              this.refreshRealtimeResource('activeCalls');
+            }
           }
           this.#timelines.refreshWindows(roomId, event.id || null);
         }
         if (payload.case === 'roomThreadingModeChanged') {
           this.#timelines.refreshWindows(roomId, event.id || null);
+        }
+        if (payload.case === 'roomSlowModeChanged') {
+          // A settings event is not an anchor in any thread timeline.
+          this.#timelines.refreshWindows(roomId, null);
         }
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
@@ -1498,6 +1572,7 @@ export class ServerStateStore {
     // does not stop the privacy cleanup below.
     this.#events.dispose.emit();
     this.#disposed = true;
+    clearTimeout(this.#invitationExpiryTimer);
     this.#realtime.getBus(this.serverId)?.clearReducer(this.realtimeProjectionHandler);
     this.currentUser.reset();
     this.#timelines.reset();

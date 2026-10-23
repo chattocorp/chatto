@@ -421,9 +421,8 @@ func TransformImageWithOptions(data []byte, width, height int, fit FitMode, opti
 	if options.JPEGQuality < 1 || options.JPEGQuality > 100 {
 		return nil, fmt.Errorf("invalid JPEG quality: %d", options.JPEGQuality)
 	}
-	if int64(len(data)) > DefaultMaxUploadSize {
-		return nil, fmt.Errorf("image exceeds maximum size of %d bytes", DefaultMaxUploadSize)
-	}
+	// Stored assets already passed their upload byte limit. Decoder work is
+	// bounded by dimensions, pixels, and frames, not by the encoded file size.
 	if err := validateDecodedImageSize(data); err != nil {
 		return nil, err
 	}

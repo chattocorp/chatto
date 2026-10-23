@@ -1,7 +1,7 @@
 /** Opt-in open-web search (Tavily) and page reading (Cloudflare Browser Run). */
 import { setTimeout } from 'node:timers/promises';
 import { Type } from 'runling';
-import { defineAgentExtension } from 'runling/agents';
+import { defineAgentExtension } from 'runling';
 import { ConfigurationError, setting } from './settings.ts';
 
 /** Host-owned web access credentials. Each capability is enabled only when its credentials are set. */
@@ -210,12 +210,14 @@ export interface WebToolHooks {
   onWebContent(urls: readonly string[]): void;
   /** Reserve one search or page read. Returns false when the research request has none left. */
   take(kind: 'search' | 'browse'): boolean;
+  /** Whether `browsePage` may read this URL. Without it, every URL is allowed. */
+  allowUrl?(url: string): boolean;
 }
 
 /** Register the enabled web tools. */
 export function webExtension(
   settings: WebSettings,
-  { onWebContent, take }: WebToolHooks,
+  { onWebContent, take, allowUrl }: WebToolHooks,
   request: typeof fetch = fetch
 ) {
   const result = (value: unknown) => ({
@@ -268,6 +270,10 @@ export function webExtension(
           url: Type.String({ description: 'Absolute HTTP or HTTPS URL' })
         }),
         async execute(_id, { url }, signal) {
+          if (allowUrl && !allowUrl(url))
+            throw new Error(
+              'You can only read pages from search results or links that people posted. Search for the page first.'
+            );
           if (!take('browse'))
             throw new Error(
               'The page limit for this research request is reached. Report what you found.'

@@ -61,6 +61,103 @@ describe('MatrixTable', () => {
     }
   );
 
+  it('uses the pane width before the first resize callback in a scaled preview', () => {
+    const host = document.createElement('div');
+    host.style.width = '600px';
+    host.style.transform = 'scale(1.25)';
+    host.style.transformOrigin = 'top left';
+    document.body.append(host);
+    try {
+      const { container } = render(MatrixTableTestHarness, { target: host });
+      flushSync();
+
+      expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
+      const label = container.querySelector<HTMLElement>('[data-test-row-heading="mentions"]')!;
+      expect(label.parentElement!.getBoundingClientRect().width).toBeCloseTo(
+        host.getBoundingClientRect().width
+      );
+    } finally {
+      host.remove();
+    }
+  });
+
+  it.each(['ltr', 'rtl'])(
+    'keeps a complete 205-column matrix usable in a fractional-width pane in %s',
+    async (direction) => {
+      const host = document.createElement('div');
+      host.style.width = '319.5px';
+      host.style.height = '512px';
+      host.style.display = 'flex';
+      host.style.flexDirection = 'column';
+      host.dir = direction;
+      document.body.append(host);
+      try {
+        const { container } = render(MatrixTableTestHarness, {
+          target: host,
+          props: {
+            rows: [
+              { id: 'mentions', label: 'Mentions' },
+              { id: 'replies', label: 'Replies' },
+              { id: 'reactions', label: 'Reactions' }
+            ],
+            columns: Array.from({ length: 205 }, (_, index) => ({
+              id: `room-${index}`,
+              label: `Room ${index + 1}`,
+              kind: 'room' as const
+            })),
+            stickyHeader: true,
+            fillHeight: true
+          }
+        });
+        await expect.poll(() => container.querySelectorAll('tbody tr').length).toBe(6);
+        expect(container.querySelectorAll('tbody button')).toHaveLength(615);
+        expect(container.querySelectorAll('th[data-test-column]')).toHaveLength(205);
+
+        const viewport = container.querySelector<HTMLElement>(
+          '.data-table-viewport [role="region"]'
+        )!;
+        const label = container.querySelector<HTMLElement>('[data-test-row-heading="reactions"]')!;
+        const labelBox = label.parentElement!;
+        const labelStart = labelBox.getBoundingClientRect().left;
+        expect(labelBox.getBoundingClientRect().width).toBeCloseTo(319.5);
+
+        const lastCell = container.querySelector<HTMLElement>(
+          '[data-test-cell="reactions:room-204"]'
+        )!;
+        const lastButton = lastCell.querySelector('button')!;
+        lastButton.focus();
+        flushSync();
+
+        await expect.poll(() => Math.abs(viewport.scrollLeft)).toBeGreaterThan(0);
+        expect(labelBox.getBoundingClientRect().left).toBeCloseTo(labelStart);
+        const cellBounds = lastButton.getBoundingClientRect();
+        const viewportBounds = viewport.getBoundingClientRect();
+        expect(cellBounds.left).toBeGreaterThanOrEqual(viewportBounds.left);
+        expect(cellBounds.right).toBeLessThanOrEqual(viewportBounds.right);
+        expect(cellBounds.bottom).toBeLessThanOrEqual(viewportBounds.bottom);
+        expect(lastCell.getAttribute('headers')?.split(' ')).toEqual([
+          label.closest('th')!.id,
+          container.querySelector('[data-test-column="room-204"]')!.id
+        ]);
+        expect(lastCell.className).toContain('bg-action/15');
+
+        // Hover takes precedence, then keyboard highlighting returns when it ends.
+        const hovered = container.querySelector<HTMLElement>(
+          '[data-test-cell="mentions:room-203"]'
+        )!;
+        hovered.dispatchEvent(new MouseEvent('mouseenter'));
+        flushSync();
+        expect(hovered.className).toContain('bg-action/15');
+        expect(lastCell.className).not.toContain('bg-action/15');
+        hovered.dispatchEvent(new MouseEvent('mouseleave'));
+        flushSync();
+        expect(lastCell.className).toContain('bg-action/15');
+      } finally {
+        host.remove();
+      }
+    }
+  );
+
   it('renders domain-neutral rows, columns, attributes, and rotated headings', () => {
     const { container } = render(MatrixTableTestHarness);
 

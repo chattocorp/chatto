@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // ============================================================================
 // REACTION EVENTS (room-scoped, durable in EVT)
@@ -29,6 +29,10 @@ message ReactionAddedEvent {
 
   // The emoji used for the reaction (shortcode name)
   string emoji = 4;
+  // Historical reactor. Empty uses the envelope actor for ordinary reactions.
+  string user_id = 5;
+  // Preserve reaction state without notification or realtime activity.
+  bool historical_import = 6;
 }
 
 message ReactionRemovedEvent {

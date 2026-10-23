@@ -11,6 +11,26 @@ async function settle() {
   flushSync();
 }
 
+/**
+ * Waits until web fonts are loaded and the scroller geometry stays the same
+ * for several frames. A late web-font swap can change the layout, and scroll
+ * anchoring or clamping then changes `scrollTop` without any user action.
+ */
+async function settleLayout(scroll: HTMLElement) {
+  const geometry = () => `${scroll.scrollHeight} ${scroll.scrollTop}`;
+  let stableFrames = 0;
+  let previous = geometry();
+  for (let frame = 0; frame < 300 && stableFrames < 5; frame++) {
+    await document.fonts.ready;
+    await new Promise(requestAnimationFrame);
+    const current = geometry();
+    stableFrames =
+      current === previous && document.fonts.status === 'loaded' ? stableFrames + 1 : 0;
+    previous = current;
+  }
+  expect(stableFrames, 'layout did not settle').toBe(5);
+}
+
 it('keeps focus inside visible accent swatches after scrolling', async () => {
   const screen = render(AppearancePage);
   // Match the constrained flex column used by the settings route.
@@ -21,11 +41,10 @@ it('keeps focus inside visible accent swatches after scrolling', async () => {
   const heading = screen.getByRole('heading', { name: 'Appearance', exact: true }).element();
   const violet = screen.container.querySelector<HTMLInputElement>('input[value="violet"]')!;
   // Let initial layout and scroll anchoring finish before the user scrolls.
-  await document.fonts.ready;
-  await new Promise(requestAnimationFrame);
+  await settleLayout(scroll);
   scroll.scrollTop +=
     violet.parentElement!.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 200;
-  await new Promise(requestAnimationFrame);
+  await settleLayout(scroll);
   expect(scroll.scrollTop).toBeGreaterThan(0);
 
   for (const color of ['violet', 'pink', 'amber', 'grey']) {

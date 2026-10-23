@@ -7,8 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestRoomThreadingModeConfigurationAndLegacyDefault(t *testing.T) {
@@ -85,8 +86,7 @@ func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
 		ActorID: user.Id, RoomID: room.Id, Body: "automatic required thread",
 	})
 	require.NoError(t, err, "automatic required roots need only message.post")
-	metadata, err := chatto.GetThreadMetadata(ctx, KindChannel, room.Id, root.Event.Id)
-	require.NoError(t, err)
+	metadata := chatto.GetThreadMetadata(root.Event.Id)
 	require.True(t, metadata.Exists)
 
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
@@ -136,8 +136,7 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 
 	root, err := chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "ordinary encouraged root"})
 	require.NoError(t, err)
-	metadata, err := chatto.GetThreadMetadata(ctx, KindChannel, room.Id, root.Event.Id)
-	require.NoError(t, err)
+	metadata := chatto.GetThreadMetadata(root.Event.Id)
 	require.False(t, metadata.Exists, "encouraged must not create a thread for every quick root post")
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "allowed flat reply", InReplyTo: root.Event.Id,
@@ -205,7 +204,8 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 	t.Parallel()
 
-	chatto, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	chatto := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "echo-policy-race-user", "Echo Policy Race User", "password123")
 	require.NoError(t, err)
@@ -219,9 +219,7 @@ func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
 		ActorID: user.Id, RoomID: room.Id, Body: "thread root", CreateThread: true,
 	})
 	require.NoError(t, err)
-	replica, err := NewChattoCore(ctx, nc, chatto.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
+	replica := startReplica(t, ns, chatto.config)
 
 	echoAttempts := 0
 	reply, err := chatto.PostMessage(

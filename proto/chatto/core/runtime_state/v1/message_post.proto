@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.runtime_state.v1;
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
 
 // MessagePostClaim is an immutable 30-minute RUNTIME_STATE mapping for one
 // account-scoped send key. Its presence reserves an identity; only the message

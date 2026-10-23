@@ -6,13 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/events"
 )
 
 func TestOAuthClientAccessDeniedWatchersAreClientTargetedAndRaceFree(t *testing.T) {
@@ -288,28 +287,14 @@ func TestOAuthClientPolicyRejectsUnknownClientAndInvalidPolicy(t *testing.T) {
 func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *testing.T) {
 	t.Parallel()
 
-	ns, firstNC := testutil.StartNATS(t)
-	secondNC, err := nats.Connect(nats.DefaultURL, nats.InProcessServer(ns))
-	if err != nil {
-		t.Fatalf("connect second replica to NATS: %v", err)
-	}
-	t.Cleanup(secondNC.Close)
-
+	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
 		SecretKey: "oauth-client-replica-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "oauth-client-replica-signing-secret"},
 	}
-	first, err := NewChattoCore(ctx, firstNC, cfg)
-	if err != nil {
-		t.Fatalf("create first replica: %v", err)
-	}
-	startCoreServices(t, first)
-	second, err := NewChattoCore(ctx, secondNC, cfg)
-	if err != nil {
-		t.Fatalf("create second replica: %v", err)
-	}
-	startCoreServices(t, second)
+	first := startReplica(t, ns, cfg)
+	second := startReplica(t, ns, cfg)
 
 	admin := invitationAdmin(t, first)
 	member, err := first.CreateUser(ctx, SystemActorID, "oauth-client-replica-member", "OAuth Client Replica Member", "password123")

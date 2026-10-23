@@ -283,7 +283,6 @@ Effects run synchronously when the outermost write ends.
 
 ```sh
 mise test-chatto-client   # type checks, lint, and tests
-mise build-chatto-client  # compile dist/ for Node hosts
 ```
 
 `src/types.ts` and `src/types/admin.ts` are generated from

@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/stretchr/testify/require"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 func TestRoomDirectoryPagination(t *testing.T) {

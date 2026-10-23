@@ -20,9 +20,9 @@ export class ServerAdminRoomsPage {
     return this.page.getByRole('button', { name: 'New Group' });
   }
 
-  /** The "New Room" button on a specific group's header. */
+  /** The "Create room" button on a specific group's header. */
   newRoomButton(groupName: string): Locator {
-    return this.groupHeaderRow(groupName).getByRole('button', { name: 'New Room' });
+    return this.groupHeaderRow(groupName).getByRole('button', { name: 'Create room' });
   }
 
   /** The dialog element (used for create/edit/archive/delete modals) */
@@ -38,6 +38,13 @@ export class ServerAdminRoomsPage {
   /** The room description input on a room's General settings page. */
   get roomSettingsDescriptionInput(): Locator {
     return this.page.locator('#room-settings-description');
+  }
+
+  /** Save action for name and description, independent of the other settings forms. */
+  get roomDetailsSaveButton(): Locator {
+    return this.page
+      .locator('form', { has: this.roomSettingsNameInput })
+      .getByRole('button', { name: 'Save changes' });
   }
 
   // --- Room Row Helpers ---
@@ -95,7 +102,7 @@ export class ServerAdminRoomsPage {
   /** Archive a room via admin UI: clicks Archive, then confirms the dialog. */
   async archiveRoom(roomName: string): Promise<void> {
     await this.clickArchive(roomName);
-    await this.dialog.getByRole('button', { name: 'Archive Room' }).click();
+    await this.dialog.getByRole('button', { name: 'Archive room' }).click();
   }
 
   /** Click the Unarchive button on an archived room row (opens confirmation dialog). */
@@ -128,7 +135,7 @@ export class ServerAdminRoomsPage {
       await this.roomSettingsDescriptionInput.fill(description);
     }
 
-    await this.page.getByRole('button', { name: 'Save changes' }).click();
+    await this.roomDetailsSaveButton.click();
     await expect(this.page.getByText('Room updated')).toBeVisible();
   }
 
@@ -178,7 +185,7 @@ export class ServerAdminRoomsPage {
   async deleteGroup(groupName: string): Promise<void> {
     await this.groupHeaderRow(groupName).getByTitle('Delete group').click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByRole('button', { name: 'Delete Group' }).click();
+    await this.dialog.getByRole('button', { name: 'Delete group' }).click();
   }
 
   // --- Room Creation ---

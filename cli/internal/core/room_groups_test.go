@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 func groupIDOfTestGroupEvent(t *testing.T, event *evtv1.Event) string {
@@ -48,7 +48,7 @@ func TestCreateRoomGroup(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	set, err := core.CreateRoomGroup(ctx, "actor", "Engineering", "Eng team rooms")
+	set, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Engineering", "Eng team rooms")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup failed: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestCreateRoomGroup_TrimsName(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	set, err := core.CreateRoomGroup(ctx, "actor", "  General  ", "")
+	set, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "  General  ", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup failed: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestCreateRoomGroup_EmptyNameRejected(t *testing.T) {
 	ctx := testContext(t)
 
 	for _, name := range []string{"", "   ", "\t"} {
-		_, err := core.CreateRoomGroup(ctx, "actor", name, "")
+		_, err := core.roomLayout.CreateRoomGroup(ctx, "actor", name, "")
 		if !errors.Is(err, ErrRoomGroupNameEmpty) {
 			t.Errorf("CreateRoomGroup(%q) error = %v, want ErrRoomGroupNameEmpty", name, err)
 		}
@@ -134,7 +134,7 @@ func TestRoomGroupMetadataLengthLimits(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("create accepts values at max length", func(t *testing.T) {
-		set, err := core.CreateRoomGroup(
+		set, err := core.roomLayout.CreateRoomGroup(
 			ctx,
 			"actor",
 			strings.Repeat("n", MaxRoomGroupNameLength),
@@ -149,21 +149,21 @@ func TestRoomGroupMetadataLengthLimits(t *testing.T) {
 	})
 
 	t.Run("create rejects over-limit name", func(t *testing.T) {
-		_, err := core.CreateRoomGroup(ctx, "actor", strings.Repeat("n", MaxRoomGroupNameLength+1), "")
+		_, err := core.roomLayout.CreateRoomGroup(ctx, "actor", strings.Repeat("n", MaxRoomGroupNameLength+1), "")
 		assertStringLengthError(t, err, "room group name", MaxRoomGroupNameLength)
 	})
 
 	t.Run("create rejects over-limit description", func(t *testing.T) {
-		_, err := core.CreateRoomGroup(ctx, "actor", "Group", strings.Repeat("d", MaxRoomGroupDescriptionLength+1))
+		_, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Group", strings.Repeat("d", MaxRoomGroupDescriptionLength+1))
 		assertStringLengthError(t, err, "room group description", MaxRoomGroupDescriptionLength)
 	})
 
 	t.Run("update rejects over-limit metadata", func(t *testing.T) {
-		set, err := core.CreateRoomGroup(ctx, "actor", "Short", "")
+		set, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Short", "")
 		if err != nil {
 			t.Fatalf("CreateRoomGroup: %v", err)
 		}
-		_, err = core.UpdateRoomGroup(ctx, "actor", set.Id, "Short", strings.Repeat("d", MaxRoomGroupDescriptionLength+1))
+		_, err = core.roomLayout.UpdateRoomGroup(ctx, "actor", set.Id, "Short", strings.Repeat("d", MaxRoomGroupDescriptionLength+1))
 		assertStringLengthError(t, err, "room group description", MaxRoomGroupDescriptionLength)
 	})
 }
@@ -174,8 +174,8 @@ func TestUpdateRoomGroup(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	set, _ := core.CreateRoomGroup(ctx, "actor", "Old Name", "old desc")
-	updated, err := core.UpdateRoomGroup(ctx, "actor", set.Id, "New Name", "new desc")
+	set, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Old Name", "old desc")
+	updated, err := core.roomLayout.UpdateRoomGroup(ctx, "actor", set.Id, "New Name", "new desc")
 	if err != nil {
 		t.Fatalf("UpdateRoomGroup failed: %v", err)
 	}
@@ -193,15 +193,15 @@ func TestUpdateRoomGroupFieldsPreservesOmittedConcurrentField(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	group, err := core.CreateRoomGroup(ctx, SystemActorID, "Original", "original description")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Original", "original description")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
-	if _, err := core.UpdateRoomGroup(ctx, SystemActorID, group.GetId(), "Original", "newer description"); err != nil {
+	if _, err := core.roomLayout.UpdateRoomGroup(ctx, SystemActorID, group.GetId(), "Original", "newer description"); err != nil {
 		t.Fatalf("concurrent UpdateRoomGroup: %v", err)
 	}
 	name := "Renamed"
-	updated, err := core.UpdateRoomGroupFields(ctx, SystemActorID, group.GetId(), &name, nil)
+	updated, err := core.roomLayout.UpdateRoomGroupFields(ctx, SystemActorID, group.GetId(), &name, nil)
 	if err != nil {
 		t.Fatalf("UpdateRoomGroupFields: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestUpdateRoomGroup_NotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.UpdateRoomGroup(ctx, "actor", "nonexistent", "x", "")
+	_, err := core.roomLayout.UpdateRoomGroup(ctx, "actor", "nonexistent", "x", "")
 	if !errors.Is(err, ErrRoomGroupNotFound) {
 		t.Errorf("UpdateRoomGroup on missing set: err = %v, want ErrRoomGroupNotFound", err)
 	}
@@ -228,7 +228,7 @@ func TestGetRoomGroup(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	created, _ := core.CreateRoomGroup(ctx, "actor", "Engineering", "")
+	created, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Engineering", "")
 	got, err := core.GetRoomGroup(ctx, created.Id)
 	if err != nil {
 		t.Fatalf("GetRoomGroup failed: %v", err)
@@ -256,8 +256,8 @@ func TestDeleteRoomGroup_Empty(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	set, _ := core.CreateRoomGroup(ctx, "actor", "Empty", "")
-	if err := core.DeleteRoomGroup(ctx, "actor", set.Id); err != nil {
+	set, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Empty", "")
+	if err := core.roomLayout.DeleteRoomGroup(ctx, "actor", set.Id); err != nil {
 		t.Fatalf("DeleteRoomGroup failed: %v", err)
 	}
 
@@ -291,13 +291,13 @@ func TestDeleteRoomGroup_RejectsNonEmpty(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	set, _ := core.CreateRoomGroup(ctx, "actor", "WithRooms", "")
+	set, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "WithRooms", "")
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
-	if err := core.MoveRoomToGroup(ctx, "actor", room.Id, set.Id); err != nil {
+	if err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, set.Id); err != nil {
 		t.Fatalf("MoveRoomToGroup failed: %v", err)
 	}
 
-	err := core.DeleteRoomGroup(ctx, "actor", set.Id)
+	err := core.roomLayout.DeleteRoomGroup(ctx, "actor", set.Id)
 	if !errors.Is(err, ErrRoomGroupHasRooms) {
 		t.Errorf("DeleteRoomGroup on populated set: err = %v, want ErrRoomGroupHasRooms", err)
 	}
@@ -309,7 +309,7 @@ func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
 	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
-		group, _ := core.CreateRoomGroup(ctx, "actor", "Race", "")
+		group, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Race", "")
 
 		start := make(chan struct{})
 		createDone := make(chan error, 1)
@@ -321,7 +321,7 @@ func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
 		}()
 		go func() {
 			<-start
-			deleteDone <- core.DeleteRoomGroup(ctx, "actor", group.Id)
+			deleteDone <- core.roomLayout.DeleteRoomGroup(ctx, "actor", group.Id)
 		}()
 		close(start)
 
@@ -349,7 +349,7 @@ func TestMoveRoomToGroupReportsDeletedRoomAsErrNotFound(t *testing.T) {
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	target, err := core.CreateRoomGroup(ctx, "actor", "Target", "")
+	target, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Target", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -357,11 +357,11 @@ func TestMoveRoomToGroupReportsDeletedRoomAsErrNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := core.DeleteRoom(ctx, "actor", KindChannel, room.Id); err != nil {
+	if err := core.roomCommands.DeleteRoom(ctx, "actor", KindChannel, room.Id); err != nil {
 		t.Fatalf("DeleteRoom: %v", err)
 	}
 
-	err = core.MoveRoomToGroup(ctx, "actor", room.Id, target.Id)
+	err = core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, target.Id)
 	if !errors.Is(err, ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("MoveRoomToGroup error = %v, want ErrNotFound and not jetstream.ErrKeyNotFound", err)
 	}
@@ -373,7 +373,7 @@ func TestMoveRoomAndDeleteRoomCannotLeaveStaleGroupMembership(t *testing.T) {
 	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
-		target, _ := core.CreateRoomGroup(ctx, "actor", "Target", "")
+		target, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Target", "")
 		room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "race-room", "")
 
 		start := make(chan struct{})
@@ -381,11 +381,11 @@ func TestMoveRoomAndDeleteRoomCannotLeaveStaleGroupMembership(t *testing.T) {
 		deleteDone := make(chan error, 1)
 		go func() {
 			<-start
-			moveDone <- core.MoveRoomToGroup(ctx, "actor", room.Id, target.Id)
+			moveDone <- core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, target.Id)
 		}()
 		go func() {
 			<-start
-			deleteDone <- core.DeleteRoom(ctx, "actor", KindChannel, room.Id)
+			deleteDone <- core.roomCommands.DeleteRoom(ctx, "actor", KindChannel, room.Id)
 		}()
 		close(start)
 
@@ -414,11 +414,11 @@ func TestMoveRoomToSet(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	setA, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	setB, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
+	setA, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	setB, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "B", "")
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 
-	if err := core.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
+	if err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
 		t.Fatalf("MoveRoomToGroup A failed: %v", err)
 	}
 
@@ -428,7 +428,7 @@ func TestMoveRoomToSet(t *testing.T) {
 	}
 
 	// Move to set B; room should leave A
-	if err := core.MoveRoomToGroup(ctx, "actor", room.Id, setB.Id); err != nil {
+	if err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, setB.Id); err != nil {
 		t.Fatalf("MoveRoomToGroup B failed: %v", err)
 	}
 
@@ -449,7 +449,7 @@ func TestMoveRoomToSet_TargetNotFound(t *testing.T) {
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
-	err := core.MoveRoomToGroup(ctx, "actor", room.Id, "nonexistent")
+	err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, "nonexistent")
 	if !errors.Is(err, ErrRoomGroupNotFound) {
 		t.Errorf("err = %v, want ErrRoomGroupNotFound", err)
 	}
@@ -461,19 +461,19 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSource(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	setA, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	setB, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
-	setC, _ := core.CreateRoomGroup(ctx, "actor", "C", "")
+	setA, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	setB, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "B", "")
+	setC, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "C", "")
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 
-	if err := core.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
+	if err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
 		t.Fatalf("MoveRoomToGroup A failed: %v", err)
 	}
-	if err := core.MoveRoomToGroup(ctx, "other-actor", room.Id, setB.Id); err != nil {
+	if err := core.roomLayout.MoveRoomToGroup(ctx, "other-actor", room.Id, setB.Id); err != nil {
 		t.Fatalf("MoveRoomToGroup B failed: %v", err)
 	}
 
-	err := core.MoveRoomToGroupFromSource(ctx, "actor", room.Id, setA.Id, setC.Id)
+	err := core.roomLayout.MoveRoomToGroupFromSource(ctx, "actor", room.Id, setA.Id, setC.Id)
 	if !errors.Is(err, ErrRoomMoveSourceChanged) {
 		t.Fatalf("MoveRoomToGroupFromSource err = %v, want ErrRoomMoveSourceChanged", err)
 	}
@@ -496,12 +496,8 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
-	core := &ChattoCore{
-		nc:             harness.nc,
-		logger:         testCoreLogger(),
-		EventPublisher: harness.publisher,
-	}
-	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	model := &RoomLayoutModel{logger: testCoreLogger(), publisher: harness.publisher, policy: &AuthorizationModel{}}
+	model.rooms = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*evtv1.Event{
 		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
@@ -523,13 +519,13 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 			}
 		}
 	}
-	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-source" {
+	if got := model.rooms.roomGroupForRoom("R1"); got != "G-source" {
 		t.Fatalf("test setup source group = %q, want stale G-source", got)
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- core.MoveRoomToGroupFromSource(ctx, "actor", "R1", "G-source", "G-target")
+		errCh <- model.MoveRoomToGroupFromSource(ctx, "actor", "R1", "G-source", "G-target")
 	}()
 
 	select {
@@ -542,10 +538,10 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	if err := <-errCh; !errors.Is(err, ErrRoomMoveSourceChanged) {
 		t.Fatalf("MoveRoomToGroupFromSource after OCC retry err = %v, want ErrRoomMoveSourceChanged", err)
 	}
-	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-other" {
+	if got := model.rooms.roomGroupForRoom("R1"); got != "G-other" {
 		t.Fatalf("room source after rejected move = %q, want G-other", got)
 	}
-	target, ok := core.roomModel.roomGroup("G-target")
+	target, ok := model.rooms.roomGroup("G-target")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
@@ -562,12 +558,8 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
-	core := &ChattoCore{
-		nc:             harness.nc,
-		logger:         testCoreLogger(),
-		EventPublisher: harness.publisher,
-	}
-	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	model := &RoomLayoutModel{logger: testCoreLogger(), publisher: harness.publisher, policy: &AuthorizationModel{}}
+	model.rooms = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	created := newEvent("actor", &evtv1.Event{
 		Event: &evtv1.Event_RoomGroupCreated{
@@ -577,13 +569,13 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 	if _, err := harness.publisher.AppendEventually(ctx, evtstream.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
 		t.Fatalf("append group-created event: %v", err)
 	}
-	if _, ok := core.roomModel.roomGroup("G-late"); ok {
+	if _, ok := model.rooms.roomGroup("G-late"); ok {
 		t.Fatal("test setup expected group projection to start stale")
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- core.MoveRoomToGroup(ctx, "actor", "R-late", "G-late")
+		errCh <- model.MoveRoomToGroup(ctx, "actor", "R-late", "G-late")
 	}()
 
 	select {
@@ -597,7 +589,7 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 		t.Fatalf("MoveRoomToGroup after projection catch-up: %v", err)
 	}
 
-	group, ok := core.roomModel.roomGroup("G-late")
+	group, ok := model.rooms.roomGroup("G-late")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
@@ -614,12 +606,8 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
-	core := &ChattoCore{
-		nc:             harness.nc,
-		logger:         testCoreLogger(),
-		EventPublisher: harness.publisher,
-	}
-	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	model := &RoomLayoutModel{logger: testCoreLogger(), publisher: harness.publisher, policy: &AuthorizationModel{}}
+	model.rooms = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*evtv1.Event{
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
@@ -640,13 +628,13 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 			}
 		}
 	}
-	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-target" {
+	if got := model.rooms.roomGroupForRoom("R1"); got != "G-target" {
 		t.Fatalf("test setup source group = %q, want stale G-target", got)
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- core.MoveRoomToGroup(ctx, "actor", "R1", "G-target")
+		errCh <- model.MoveRoomToGroup(ctx, "actor", "R1", "G-target")
 	}()
 
 	select {
@@ -660,14 +648,14 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 		t.Fatalf("MoveRoomToGroup after stale no-op catch-up: %v", err)
 	}
 
-	target, ok := core.roomModel.roomGroup("G-target")
+	target, ok := model.rooms.roomGroup("G-target")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
 	if len(target.RoomIds) != 1 || target.RoomIds[0] != "R1" {
 		t.Fatalf("target room IDs = %v, want [R1]", target.RoomIds)
 	}
-	other, ok := core.roomModel.roomGroup("G-other")
+	other, ok := model.rooms.roomGroup("G-other")
 	if !ok {
 		t.Fatal("other group missing after catch-up")
 	}
@@ -682,13 +670,13 @@ func TestMoveRoomToSet_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	set, _ := core.CreateRoomGroup(ctx, "actor", "S", "")
+	set, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "S", "")
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 
-	if err := core.MoveRoomToGroup(ctx, "actor", room.Id, set.Id); err != nil {
+	if err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, set.Id); err != nil {
 		t.Fatalf("first move failed: %v", err)
 	}
-	if err := core.MoveRoomToGroup(ctx, "actor", room.Id, set.Id); err != nil {
+	if err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, set.Id); err != nil {
 		t.Fatalf("second move (idempotent) failed: %v", err)
 	}
 
@@ -704,12 +692,12 @@ func TestMoveRoomToSet_ConcurrentMovesLeaveSingleAssignment(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	setA, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	setB, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
+	setA, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	setB, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "B", "")
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 
 	for i := range 25 {
-		if err := core.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
+		if err := core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, setA.Id); err != nil {
 			t.Fatalf("reset move to A failed: %v", err)
 		}
 
@@ -721,7 +709,7 @@ func TestMoveRoomToSet_ConcurrentMovesLeaveSingleAssignment(t *testing.T) {
 			go func(target string) {
 				defer wg.Done()
 				<-start
-				errs <- core.MoveRoomToGroup(ctx, "actor", room.Id, target)
+				errs <- core.roomLayout.MoveRoomToGroup(ctx, "actor", room.Id, target)
 			}(target)
 		}
 		close(start)
@@ -757,9 +745,9 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	group, _ := core.CreateRoomGroup(ctx, "actor", "Links", "")
+	group, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Links", "")
 	room, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "general", "")
-	link, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", "https://example.com/docs")
+	link, err := core.roomLayout.CreateSidebarLink(ctx, "actor", group.Id, "Docs", "https://example.com/docs")
 	if err != nil {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
@@ -778,7 +766,7 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 		t.Fatalf("second entry = %+v, want link %s", got.GetEntries()[1], link.Id)
 	}
 
-	updated, err := core.UpdateSidebarLink(ctx, "actor", link.Id, "Documentation", "https://example.com/reference")
+	updated, err := core.roomLayout.UpdateSidebarLink(ctx, "actor", link.Id, "Documentation", "https://example.com/reference")
 	if err != nil {
 		t.Fatalf("UpdateSidebarLink: %v", err)
 	}
@@ -786,7 +774,7 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 		t.Fatalf("updated link = %+v", updated)
 	}
 
-	if err := core.ReorderSidebarItemsInGroup(ctx, "actor", group.Id, []*evtv1.SidebarGroupEntry{
+	if err := core.roomLayout.ReorderSidebarItemsInGroup(ctx, "actor", group.Id, []*evtv1.SidebarGroupEntry{
 		{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: link.Id},
 		{Kind: evtv1.SidebarGroupEntry_ROOM, Id: room.Id},
 	}); err != nil {
@@ -800,7 +788,7 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 		t.Fatalf("room_ids after mixed reorder = %v, want [%s]", got.GetRoomIds(), room.Id)
 	}
 
-	if err := core.DeleteSidebarLink(ctx, "actor", link.Id); err != nil {
+	if err := core.roomLayout.DeleteSidebarLink(ctx, "actor", link.Id); err != nil {
 		t.Fatalf("DeleteSidebarLink: %v", err)
 	}
 	got, _ = core.GetRoomGroup(ctx, group.Id)
@@ -845,17 +833,17 @@ func TestSidebarLinkURLsAcceptAbsoluteHTTPAndServerLocalPaths(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			core, _ := setupTestCore(t)
 			ctx := testContext(t)
-			group, err := core.CreateRoomGroup(ctx, "actor", "Links", "")
+			group, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Links", "")
 			if err != nil {
 				t.Fatalf("CreateRoomGroup: %v", err)
 			}
 
-			link, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", tc.createURL)
+			link, err := core.roomLayout.CreateSidebarLink(ctx, "actor", group.Id, "Docs", tc.createURL)
 			if err != nil {
 				t.Fatalf("CreateSidebarLink(%q): %v", tc.createURL, err)
 			}
 
-			updated, err := core.UpdateSidebarLink(ctx, "actor", link.Id, "Docs Updated", tc.updateURL)
+			updated, err := core.roomLayout.UpdateSidebarLink(ctx, "actor", link.Id, "Docs Updated", tc.updateURL)
 			if err != nil {
 				t.Fatalf("UpdateSidebarLink(%q): %v", tc.updateURL, err)
 			}
@@ -871,7 +859,7 @@ func TestSidebarLinkURLsRejectUnsafeOrMalformedTargets(t *testing.T) {
 
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	group, err := core.CreateRoomGroup(ctx, "actor", "Links", "")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Links", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -891,7 +879,7 @@ func TestSidebarLinkURLsRejectUnsafeOrMalformedTargets(t *testing.T) {
 		{name: "over length path", rawURL: tooLongPath, tooLong: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", tc.rawURL)
+			_, err := core.roomLayout.CreateSidebarLink(ctx, "actor", group.Id, "Docs", tc.rawURL)
 			if err == nil {
 				t.Fatalf("CreateSidebarLink(%q) succeeded, want error", tc.rawURL)
 			}
@@ -914,14 +902,14 @@ func TestMoveSidebarLinkToGroup(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	source, _ := core.CreateRoomGroup(ctx, "actor", "Source", "")
-	target, _ := core.CreateRoomGroup(ctx, "actor", "Target", "")
-	link, err := core.CreateSidebarLink(ctx, "actor", source.Id, "Status", "https://status.example.com")
+	source, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Source", "")
+	target, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Target", "")
+	link, err := core.roomLayout.CreateSidebarLink(ctx, "actor", source.Id, "Status", "https://status.example.com")
 	if err != nil {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
 
-	if err := core.MoveSidebarLinkToGroup(ctx, "actor", link.Id, target.Id); err != nil {
+	if err := core.roomLayout.MoveSidebarLinkToGroup(ctx, "actor", link.Id, target.Id); err != nil {
 		t.Fatalf("MoveSidebarLinkToGroup: %v", err)
 	}
 
@@ -941,19 +929,19 @@ func TestSidebarLinkCreateAndGroupDeleteDoNotBothWin(t *testing.T) {
 	for i := range 30 {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
-		group, _ := core.CreateRoomGroup(ctx, "actor", "Race", "")
+		group, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Race", "")
 
 		start := make(chan struct{})
 		createDone := make(chan error, 1)
 		deleteDone := make(chan error, 1)
 		go func() {
 			<-start
-			_, err := core.CreateSidebarLink(ctx, "actor", group.Id, "Docs", "https://example.com/docs")
+			_, err := core.roomLayout.CreateSidebarLink(ctx, "actor", group.Id, "Docs", "https://example.com/docs")
 			createDone <- err
 		}()
 		go func() {
 			<-start
-			deleteDone <- core.DeleteRoomGroup(ctx, "actor", group.Id)
+			deleteDone <- core.roomLayout.DeleteRoomGroup(ctx, "actor", group.Id)
 		}()
 		close(start)
 
@@ -980,9 +968,9 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	source, _ := core.CreateRoomGroup(ctx, "actor", "Source", "")
-	target, _ := core.CreateRoomGroup(ctx, "actor", "Target", "")
-	link, err := core.CreateSidebarLink(ctx, "actor", source.Id, "Old", "https://old.example.com")
+	source, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Source", "")
+	target, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Target", "")
+	link, err := core.roomLayout.CreateSidebarLink(ctx, "actor", source.Id, "Old", "https://old.example.com")
 	if err != nil {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
@@ -991,7 +979,7 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 	if staleSnapshot.Link == nil {
 		t.Fatal("expected stale move snapshot to include sidebar link")
 	}
-	if _, err := core.UpdateSidebarLink(ctx, "actor", link.Id, "New", "https://new.example.com"); err != nil {
+	if _, err := core.roomLayout.UpdateSidebarLink(ctx, "actor", link.Id, "New", "https://new.example.com"); err != nil {
 		t.Fatalf("UpdateSidebarLink: %v", err)
 	}
 
@@ -1028,7 +1016,7 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 		t.Fatalf("stale move err = %v, want ErrConflict", err)
 	}
 
-	if err := core.MoveSidebarLinkToGroup(ctx, "actor", link.Id, target.Id); err != nil {
+	if err := core.roomLayout.MoveSidebarLinkToGroup(ctx, "actor", link.Id, target.Id); err != nil {
 		t.Fatalf("MoveSidebarLinkToGroup: %v", err)
 	}
 
@@ -1057,11 +1045,11 @@ func TestReorderRoomGroups(t *testing.T) {
 	seedGroups, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	seedID := seedGroups[0].Id
 
-	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	b, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
-	c, _ := core.CreateRoomGroup(ctx, "actor", "C", "")
+	a, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	b, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "B", "")
+	c, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "C", "")
 
-	if err := core.ReorderRoomGroups(ctx, "actor", []string{c.Id, a.Id, b.Id, seedID}); err != nil {
+	if err := core.roomLayout.ReorderRoomGroups(ctx, "actor", []string{c.Id, a.Id, b.Id, seedID}); err != nil {
 		t.Fatalf("ReorderRoomGroups failed: %v", err)
 	}
 
@@ -1081,11 +1069,11 @@ func TestReorderRoomGroups_RejectsIncompleteList(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	_, _ = core.CreateRoomGroup(ctx, "actor", "B", "")
+	a, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	_, _ = core.roomLayout.CreateRoomGroup(ctx, "actor", "B", "")
 
 	// Missing the seed group + one of the created groups.
-	err := core.ReorderRoomGroups(ctx, "actor", []string{a.Id})
+	err := core.roomLayout.ReorderRoomGroups(ctx, "actor", []string{a.Id})
 	if !errors.Is(err, ErrRoomGroupOrderMismatch) {
 		t.Errorf("err = %v, want ErrRoomGroupOrderMismatch", err)
 	}
@@ -1147,8 +1135,8 @@ func TestReorderRoomGroups_RejectsUnknownID(t *testing.T) {
 
 	seedGroups, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	seedID := seedGroups[0].Id
-	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	err := core.ReorderRoomGroups(ctx, "actor", []string{seedID, a.Id, "unknown"})
+	a, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	err := core.roomLayout.ReorderRoomGroups(ctx, "actor", []string{seedID, a.Id, "unknown"})
 	if !errors.Is(err, ErrRoomGroupOrderMismatch) {
 		t.Errorf("err = %v, want ErrRoomGroupOrderMismatch", err)
 	}
@@ -1160,7 +1148,7 @@ func TestReorderRoomsInGroupPersistsOrder(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	group, err := core.CreateRoomGroup(ctx, "actor", "Group", "")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, "actor", "Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -1169,7 +1157,7 @@ func TestReorderRoomsInGroupPersistsOrder(t *testing.T) {
 	r3, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "gamma", "")
 
 	want := []string{r3.Id, r2.Id, r1.Id}
-	if err := core.ReorderRoomsInGroup(ctx, "actor", group.Id, want); err != nil {
+	if err := core.roomLayout.ReorderRoomsInGroup(ctx, "actor", group.Id, want); err != nil {
 		t.Fatalf("ReorderRoomsInGroup: %v", err)
 	}
 	got, err := core.GetRoomGroup(ctx, group.Id)
@@ -1187,7 +1175,7 @@ func TestReorderRoomsInGroupRejectsSetMismatch(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	group, _ := core.CreateRoomGroup(ctx, "actor", "Group", "")
+	group, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "Group", "")
 	a, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "a", "")
 	b, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "b", "")
 
@@ -1197,7 +1185,7 @@ func TestReorderRoomsInGroupRejectsSetMismatch(t *testing.T) {
 		"duplicate room": {a.Id, a.Id},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if err := core.ReorderRoomsInGroup(ctx, "actor", group.Id, order); !errors.Is(err, ErrRoomGroupOrderMismatch) {
+			if err := core.roomLayout.ReorderRoomsInGroup(ctx, "actor", group.Id, order); !errors.Is(err, ErrRoomGroupOrderMismatch) {
 				t.Fatalf("ReorderRoomsInGroup() error = %v, want ErrRoomGroupOrderMismatch", err)
 			}
 		})

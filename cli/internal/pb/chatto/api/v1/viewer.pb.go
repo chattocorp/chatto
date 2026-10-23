@@ -831,8 +831,8 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\rViewerService\x12N\n" +
 	"\tGetViewer\x12\x1f.chatto.api.v1.GetViewerRequest\x1a .chatto.api.v1.GetViewerResponse\x12u\n" +
 	"\x16ActivatePrivilegedMode\x12,.chatto.api.v1.ActivatePrivilegedModeRequest\x1a-.chatto.api.v1.ActivatePrivilegedModeResponse\x12{\n" +
-	"\x18DeactivatePrivilegedMode\x12..chatto.api.v1.DeactivatePrivilegedModeRequest\x1a/.chatto.api.v1.DeactivatePrivilegedModeResponseB\xa7\x01\n" +
-	"\x11com.chatto.api.v1B\vViewerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x18DeactivatePrivilegedMode\x12..chatto.api.v1.DeactivatePrivilegedModeRequest\x1a/.chatto.api.v1.DeactivatePrivilegedModeResponseB\xb8\x01\n" +
+	"\x11com.chatto.api.v1B\vViewerProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_viewer_proto_rawDescOnce sync.Once

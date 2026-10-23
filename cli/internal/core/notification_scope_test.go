@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 )
 
 func TestNotificationUnreadScopeIsolationAndExpiry(t *testing.T) {

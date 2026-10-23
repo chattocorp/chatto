@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	http "net/http"
 	strings "strings"
 )
@@ -65,13 +65,13 @@ type AdminPermissionServiceClient interface {
 	// role.manage; group and room scopes require role.manage or effective
 	// room.manage at the requested resource.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
-	// Gets one page of a role's permission matrix. Requires role.manage. Returns
+	// Gets a complete role permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
 	// Lists one role's permission decisions as resource-oriented rows. Requires
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
-	// Gets one page of a user's permission matrix. Human targets require
+	// Gets a complete user permission matrix. Human targets require
 	// user.manage-permissions; bot targets require ownership or bot.manage.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
@@ -214,13 +214,13 @@ type AdminPermissionServiceHandler interface {
 	// role.manage; group and room scopes require role.manage or effective
 	// room.manage at the requested resource.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
-	// Gets one page of a role's permission matrix. Requires role.manage. Returns
+	// Gets a complete role permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
 	// Lists one role's permission decisions as resource-oriented rows. Requires
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
-	// Gets one page of a user's permission matrix. Human targets require
+	// Gets a complete user permission matrix. Human targets require
 	// user.manage-permissions; bot targets require ownership or bot.manage.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)

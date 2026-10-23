@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import type { AgentExtensionAPI } from 'runling/agents';
+import type { AgentExtensionAPI } from 'runling';
 import { browseWeb, searchWeb, webExtension, webSettings, webTools } from './web.ts';
 import { ConfigurationError } from './settings.ts';
 

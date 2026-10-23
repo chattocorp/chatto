@@ -38,7 +38,7 @@
   provideUserProfiles();
 
   const roomId = 'room-design';
-  const serverSegment = '-';
+  const serverId = 'storybook';
   const threadRootEventId = 'evt-root';
 
   const threadParticipants: UserAvatarUserView[] = [
@@ -112,7 +112,7 @@
 {#snippet metaBar(replyCount = 2)}
   <MessageMetaBar
     {roomId}
-    {serverSegment}
+    {serverId}
     {threadRootEventId}
     {reactions}
     {action}

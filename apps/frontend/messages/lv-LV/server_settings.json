@@ -12,7 +12,6 @@
     "no_banner": "Nav iestatīts baneris",
     "name_label": "Vārds",
     "description_label": "Apraksts",
-    "motd_label": "Dienas ziņa",
     "welcome_message_label": "Sveiciena ziņa",
     "name_empty": "Vārda lauks nedrīkst būt tukšs",
     "name_trim": "Nosaukuma sākumā vai beigās nedrīkst būt atstarpes",

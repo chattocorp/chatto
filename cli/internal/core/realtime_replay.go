@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/publiccursor"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/publiccursor"
-	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -94,7 +94,7 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 	if err != nil {
 		return false, fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	info, err := c.storage.serverEvtStream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return false, fmt.Errorf("read EVT stream info: %w", err)
 	}
@@ -121,7 +121,7 @@ func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor s
 	if err != nil {
 		return fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	info, err := c.storage.serverEvtStream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("read EVT stream info: %w", err)
 	}
@@ -148,7 +148,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 	if err != nil {
 		return RealtimeReplayPlan{}, fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	info, err := stream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return RealtimeReplayPlan{}, fmt.Errorf("read EVT stream info: %w", err)
 	}
@@ -247,7 +247,9 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				// it removes state that the client could have retained before the
 				// gap. Other visibility changes need a new snapshot because current
 				// state cannot prove that this viewer saw the earlier room.
-				if eventClosesUserRoomVisibility(&event, userID) {
+				if sender, recipient, invitation := roomInvitationParticipants(&event); invitation && (sender == userID || recipient == userID) {
+					// Invitation facts are participant-scoped, not membership-scoped.
+				} else if eventClosesUserRoomVisibility(&event, userID) {
 					// Continue and deliver the closing fact.
 				} else if eventChangesRoomVisibility(&event) || isRoomDirectoryProjectionEvent(&event) {
 					plan.Reset = true

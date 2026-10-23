@@ -33,6 +33,7 @@ jobs:
       chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
       desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
       authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
+      translatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.translatto == 'true' }}
       runling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
       chattobot: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chattobot == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
@@ -63,6 +64,11 @@ jobs:
               - 'cli/go.{mod,sum}'
               - 'authling/**'
               - 'pkg/**'
+              - '!**/CHANGELOG.md'
+            translatto:
+              - 'packages/translatto/**'
+              - '.release-please-config.json'
+              - '.release-please-manifest.json'
               - '!**/CHANGELOG.md'
             runling:
               - 'packages/runling/**'
@@ -100,6 +106,27 @@ jobs:
               - '!{docs,.agents,.claude,.conductor}/**'
               - '!*.md'
               - '!.release-please-manifest.json'
+
+  test-translatto-package:
+    needs: changes
+    if: ${{ needs.changes.outputs.translatto == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+      - run: mise x -- pnpm --filter @chatto/translatto check
+      - run: mise x -- pnpm --filter @chatto/translatto test
+      - run: mise x -- pnpm --filter @chatto/translatto test:package
+        env:
+          TRANSLATTO_RELEASE_DIR: ${{ runner.temp }}/translatto-release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: translatto-package
+          path: ${{ runner.temp }}/translatto-release/*.tgz
+          if-no-files-found: error
 
   test-runling:
     needs: changes
@@ -238,6 +265,9 @@ jobs:
       - name: Check workflows and shell scripts
         run: mise lint-actions
 
+      - name: Test development launchers and routing
+        run: mise test-dev-tooling
+
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
@@ -336,9 +366,27 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # The threshold check compares the PR head with its merge base.
+          fetch-depth: 0
 
       - name: Setup environment
         uses: ./.github/actions/setup
+
+      - name: Test server compatibility label check
+        run: mise x -- node --test tools/check-server-compatibility.test.mjs
+
+      - name: Test Slack importer
+        run: mise x -- python3 -B -m unittest discover -s tools -p 'test_slack*.py'
+
+      - name: Check server compatibility threshold labels
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
+          mise x -- node tools/check-server-compatibility.mjs
 
       # Breaking checks compare a pull request with its target branch. A push
       # has already passed them as a pull request, and labels that acknowledge
@@ -613,6 +661,23 @@ jobs:
       - uses: ./.github/actions/setup-playwright
         with:
           working-directory: authling
+      - name: Configure Docker Hub mirror for conformance containers
+        # Compose pulls images through Docker, outside the BuildKit configuration.
+        run: |
+          sudo python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("/etc/docker/daemon.json")
+          config = json.loads(path.read_text()) if path.exists() else {}
+          mirrors = config.get("registry-mirrors", [])
+          config["registry-mirrors"] = ["https://mirror.gcr.io"] + [
+              mirror for mirror in mirrors if mirror != "https://mirror.gcr.io"
+          ]
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(config) + "\n")
+          PY
+          sudo systemctl restart docker
       - name: Run official provider and client checks
         run: mise test-oidc-conformance
       - name: Upload outcome summary only
@@ -869,6 +934,13 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          # Start BuildKit from the mirror before its registry configuration applies.
+          driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1
+          # Try the public mirror first to reduce Docker Hub rate limits.
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3

@@ -9,10 +9,10 @@ import (
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/connectapi"
+	"github.com/chattocorp/chatto/cli/internal/search"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/authctx"
-	"hmans.de/chatto/internal/connectapi"
-	"hmans.de/chatto/internal/search"
 )
 
 const connectAPIPrefix = connectapi.Prefix

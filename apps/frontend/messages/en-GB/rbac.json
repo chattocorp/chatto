@@ -146,41 +146,6 @@
       "other": "Other",
       "call": "Calls"
     },
-    "permission_descriptions": {
-      "server_manage": "Update server settings (name, description, logo)",
-      "server_manage_neighbors": "Manage the public Neighbor directory",
-      "room_create": "Create new rooms",
-      "room_join": "Join existing rooms",
-      "room_list": "See rooms in the directory. A user can be allowed to see a room (e.g. to request access) without being allowed to join it.",
-      "room_manage": "Edit a room's settings and permissions, and delete rooms",
-      "room_remove_member": "Remove members from rooms and optionally suspend rejoining",
-      "message_read": "Read all messages in rooms. Removing this permission still allows limited access if message.read-interactions is granted separately.",
-      "message_read_interactions": "Read complete threads that you authored or where another user directly mentioned you",
-      "message_post": "Post messages and thread replies, and start DMs",
-      "message_post_interactions": "Reply in threads you started, where you were directly mentioned, or where you received a DM",
-      "message_post_in_thread": "Post replies inside a thread",
-      "message_attach": "Attach files to messages",
-      "message_echo": "When posting in a thread, also surface the message in the main channel",
-      "message_manage": "Edit and delete other users' messages",
-      "message_react": "Add and remove reactions on messages",
-      "role_manage": "Create, edit, delete, and reorder roles and their permission grants",
-      "role_assign": "Assign and revoke roles for users",
-      "admin_view_users": "View the users page in admin",
-      "admin_view_system": "View projection diagnostics in admin",
-      "admin_view_audit": "View the audit log in admin",
-      "user_delete_any": "Delete another user's account",
-      "user_delete_self": "Delete your own account",
-      "user_invite": "Create and manage invite links",
-      "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
-      "user_manage_permissions": "Edit direct per-user permission overrides",
-      "bot_create": "Create bot accounts that you own",
-      "bot_manage": "View and manage every bot account",
-      "call_start": "Start a call (also requires call.join)",
-      "call_join": "Join an active call",
-      "call_voice": "Use the microphone in calls",
-      "call_camera": "Use the camera in calls",
-      "call_screenshare": "Share a screen or application, including captured audio"
-    },
     "permission_help": {
       "server_manage": "Allows an account to change the server name, description, logo, and other server settings. It also allows changes to the public Neighbor directory. Give it only to people who can speak for the whole server.",
       "server_manage_neighbors": "Allows an account to add, change, and remove entries in the public Neighbor directory. It does not allow changes to other server settings.",
@@ -196,6 +161,7 @@
       "message_post_in_thread": "Allows an account to reply in each thread that it can read, but not to post new messages in the room. An allow for message.post also includes this permission, so a deny here does not stop replies from those accounts.",
       "message_attach": "Allows an account to attach files to new messages. Deny it to stop uploads in a room but still allow text messages.",
       "message_echo": "Allows an account to show a thread reply in the room timeline too, so that people who do not follow the thread also see it.",
+      "message_pin": "Allows an account to pin and unpin messages in channel rooms without managing the room.",
       "message_manage": "Allows an account to edit or delete messages from other accounts. People can always edit and delete their own messages without this permission. Accounts with this permission are not limited by Slow Mode. In a DM, only participants can use it.",
       "message_react": "Allows an account to add and remove reactions on the messages that it can read.",
       "role_manage": "Allows an account to create, change, order, and delete roles and their permission settings. With this permission, an account can change what every role on the server can do. Give it only to people you trust with the whole server.",
@@ -213,7 +179,8 @@
       "call_join": "Allows an account to join an active call, also only as a listener. Sending audio or video needs call.voice, call.camera, or call.screenshare.",
       "call_voice": "Allows an account to send microphone audio in calls. Without it, the account can still listen.",
       "call_camera": "Allows an account to send camera video in calls.",
-      "call_screenshare": "Allows an account to share a screen, window, tab, or application in calls, with its audio. It does not allow microphone audio; that needs call.voice."
+      "call_screenshare": "Allows an account to share a screen, window, tab, or application in calls, with its audio. It does not allow microphone audio; that needs call.voice.",
+      "room_invite": "Invite server members to rooms that you have joined."
     }
   }
 }

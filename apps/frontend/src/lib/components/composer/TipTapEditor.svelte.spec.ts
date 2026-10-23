@@ -6,6 +6,32 @@ import TipTapEditor from './TipTapEditor.svelte';
 import MarkdownEditor from './MarkdownEditor.svelte';
 import type { ComposerEditorApi } from './editorTypes';
 import { renderInlineMarkdown } from '$lib/markdown';
+const navigation = vi.hoisted(() => ({ goto: vi.fn() }));
+vi.mock('$app/navigation', () => ({ goto: navigation.goto, pushState: vi.fn() }));
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    servers: [{ id: 'remote', url: 'https://bar.com' }],
+    isOriginServer: () => false,
+    getServer: () => ({ id: 'remote', url: 'https://bar.com' })
+  }
+}));
+
+it('opens a registered Chatto link from the composer through local routing', async () => {
+  const readyApis: ComposerEditorApi[] = [];
+  render(TipTapEditor, {
+    props: {
+      placeholder: 'Write a message',
+      onReady: (api: ComposerEditorApi) => readyApis.push(api)
+    }
+  });
+  await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+  readyApis[0].setContent('<https://bar.com/chat/-/overview>');
+  readyApis[0].focus('end');
+  await expect.element(page.getByRole('button', { name: 'Open link', exact: true })).toBeVisible();
+  await userEvent.click(page.getByRole('button', { name: 'Open link', exact: true }));
+  expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
+});
 
 describe('Composer footnote editing', () => {
   it.each([
@@ -693,7 +719,13 @@ describe('TipTapEditor Markdown autolinks', () => {
     expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://example.com/pasted');
   });
 
-  it('uses a regular Markdown link after its destination changes', async () => {
+  it.each([
+    'https://example.com/changed',
+    'mailto:foo@bar.com',
+    '/chat/chat.chatto.run/R8rLgzhPkYja7Gs',
+    'ftp://example.com/file',
+    'javascript:alert(1)'
+  ])('applies the protocol policy when its destination changes to %s', async (destination) => {
     const readyApis: ComposerEditorApi[] = [];
     const updates: string[] = [];
     render(TipTapEditor, {
@@ -708,13 +740,47 @@ describe('TipTapEditor Markdown autolinks', () => {
 
     api.setContent('<https://example.com/original>');
     api.focus('end');
+    // TipTap focuses on the next animation frame; wait before editing another input.
+    await expect.element(page.getByRole('textbox', { name: 'Write a message' })).toHaveFocus();
     const linkInput = page.getByRole('textbox', { name: 'Link URL' });
     await expect.element(linkInput).toBeVisible();
-    await userEvent.fill(linkInput, 'https://example.com/changed');
+    await userEvent.fill(linkInput, destination);
     await userEvent.tab();
 
     await vi.waitFor(() =>
-      expect(updates.at(-1)).toBe('[https://example.com/original](https://example.com/changed)')
+      expect(updates.at(-1)).toBe(
+        /^(?:https:|mailto:|\/)/.test(destination)
+          ? `[https://example.com/original](${destination})`
+          : 'https://example.com/original'
+      )
     );
+  });
+});
+
+describe('visual editor bare email addresses', () => {
+  it('keeps typed, pasted, and restored email addresses plain', async () => {
+    const apis: ComposerEditorApi[] = [];
+    const { container } = render(TipTapEditor, {
+      props: { placeholder: 'Email editor', onReady: (api) => apis.push(api) }
+    });
+    await vi.waitFor(() => expect(apis).toHaveLength(1));
+    const textbox = page.getByRole('textbox', { name: 'Email editor' });
+    await textbox.fill('foo@bar.com');
+    await userEvent.keyboard(' ');
+    expect(container.querySelector('.tiptap a')).toBeNull();
+    apis[0].setContent('foo@bar.com');
+    expect(container.querySelector('.tiptap a')).toBeNull();
+    apis[0].setContent('');
+    const transfer = new DataTransfer();
+    transfer.setData('text/plain', 'foo@bar.com');
+    textbox.element().dispatchEvent(
+      new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: transfer
+      })
+    );
+    await vi.waitFor(() => expect(textbox.element().textContent).toContain('foo@bar.com'));
+    expect(container.querySelector('.tiptap a')).toBeNull();
   });
 });

@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestCIMDDocumentForConfiguredPublicOIDCClient(t *testing.T) {
@@ -271,11 +271,12 @@ func TestPublicOIDCClientUsesTokenRequestParameters(t *testing.T) {
 	issuer := newNoEmailOIDCIssuer(t, "https://chat.example"+cimdPath)
 	defer issuer.Close()
 
-	var provider oidcProvider
-	if err := provider.init(issuer.URL(), "https://chat.example"+cimdPath, "", "https://chat.example/callback", []string{"openid"}, ""); err != nil {
+	provider := oidcProvider{httpClient: newProviderHTTPClient()}
+	discovery, err := provider.init(issuer.URL(), "https://chat.example"+cimdPath, "", "https://chat.example/callback", []string{"openid"}, "")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if provider.oauth2Config.Endpoint.AuthStyle != oauth2.AuthStyleInParams {
-		t.Fatalf("AuthStyle = %d, want token request parameters", provider.oauth2Config.Endpoint.AuthStyle)
+	if discovery.oauth2Config.Endpoint.AuthStyle != oauth2.AuthStyleInParams {
+		t.Fatalf("AuthStyle = %d, want token request parameters", discovery.oauth2Config.Endpoint.AuthStyle)
 	}
 }

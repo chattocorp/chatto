@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-	. "hmans.de/chatto/pkg/events"
 )
 
 // largeBatchProjection keeps every startup event in one pending batch until

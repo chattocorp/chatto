@@ -123,7 +123,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
       await expect(knownUser).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(switcherResults(dialog)).toHaveCount(1);
       await knownUser.click();
-      await expect(page).toHaveURL(new RegExp(`/chat/-/${roomId}$`));
+      await expect(page).toHaveURL(new RegExp(`/chat/-/user/${userB.id}$`));
       const reopened = await openSwitcher(page);
       await switcherInput(reopened).fill(userB.login);
 
@@ -140,7 +140,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
           startedDMs.push(request.url());
       });
       await result.click();
-      await expect(page).toHaveURL(new RegExp(`/chat/-/${roomId}$`));
+      await expect(page).toHaveURL(new RegExp(`/chat/-/user/${userB.id}$`));
       await expect(page.getByText(body, { exact: true })).toBeVisible();
 
       expect(memberSearches).toEqual([]);

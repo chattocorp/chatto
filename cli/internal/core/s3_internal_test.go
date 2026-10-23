@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/config"
 )
 
 func TestS3ClientUsesRequiredOnlyRequestChecksums(t *testing.T) {

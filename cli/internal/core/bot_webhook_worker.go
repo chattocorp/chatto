@@ -16,13 +16,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/evtstream"
-	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 const (

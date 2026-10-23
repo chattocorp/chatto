@@ -6,7 +6,7 @@ import type { CurrentUser } from '../api/viewer.js';
 type StoreMock = {
   currentUser: { user?: CurrentUser; loading: boolean };
   isAuthenticated: boolean;
-  serverInfo: { isSupportedVersion: boolean };
+  serverInfo: { canConnect: boolean };
   realtimeSync: { serverId: string };
   realtimeProjectionHandler?: () => void;
 };
@@ -94,7 +94,7 @@ function store(serverId: string, overrides: Partial<StoreMock> = {}): StoreMock 
   return {
     currentUser: { loading: false },
     isAuthenticated: false,
-    serverInfo: { isSupportedVersion: true },
+    serverInfo: { canConnect: true },
     realtimeSync: { serverId: `${serverId}-sync` },
     realtimeProjectionHandler: vi.fn(),
     ...overrides
@@ -232,7 +232,7 @@ describe('startClientRuntime', () => {
       store('remote', {
         currentUser: { user: { id: 'remote-user' } as CurrentUser, loading: false },
         isAuthenticated: true,
-        serverInfo: { isSupportedVersion: false }
+        serverInfo: { canConnect: false }
       })
     );
     await vi.waitFor(() =>
@@ -248,7 +248,7 @@ describe('startClientRuntime', () => {
       store('remote', {
         currentUser: { user: { id: 'remote-user' } as CurrentUser, loading: false },
         isAuthenticated: true,
-        serverInfo: { isSupportedVersion: true }
+        serverInfo: { canConnect: true }
       })
     );
     await vi.waitFor(() =>

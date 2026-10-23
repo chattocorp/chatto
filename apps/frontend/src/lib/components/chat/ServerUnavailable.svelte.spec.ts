@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
-import { MINIMUM_SUPPORTED_SERVER_VERSION } from '@chatto/client/server/compatibility';
+import { MINIMUM_CONNECTABLE_SERVER_VERSION } from '@chatto/client/server/compatibility';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({ pushState: vi.fn() }));
 
-vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -43,7 +43,7 @@ describe('ServerUnavailable', () => {
       .toHaveTextContent('0.5.0-beta.7');
     await expect
       .element(page.getByTestId('server-unavailable-required-version'))
-      .toHaveTextContent(`${MINIMUM_SUPPORTED_SERVER_VERSION} or newer`);
+      .toHaveTextContent(`${MINIMUM_CONNECTABLE_SERVER_VERSION} or newer`);
   });
 
   it('omits an empty server version when the version is unknown', async () => {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/wneessen/go-mail"
 
-	"hmans.de/chatto/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 func TestMailer_Send_Disabled(t *testing.T) {

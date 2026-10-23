@@ -195,7 +195,7 @@ owner reassignment and deletion actions.
     {/snippet}
     <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
       <div>
-        <dt class="text-muted">{m('admin.members.user_id')}</dt>
+        <dt class="text-muted">{m('common.user_id')}</dt>
         <dd class="mt-1"><CopyId value={bot.id} /></dd>
       </div>
       <div>
@@ -244,7 +244,7 @@ owner reassignment and deletion actions.
   <UserCombobox
     id="reassign-bot-owner"
     label={m('settings.bots.owner')}
-    placeholder={m('admin.members.search_placeholder')}
+    placeholder={m('common.user_search_placeholder')}
     humanOnly
     allowFreeform={false}
     bind:value={reassignOwnerUserId}

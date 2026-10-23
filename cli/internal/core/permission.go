@@ -57,6 +57,9 @@ const (
 	// it directly.
 	PermRoomJoin Permission = "room.join"
 
+	// PermRoomInvite allows members to invite human accounts to a channel room.
+	PermRoomInvite Permission = "room.invite"
+
 	// PermRoomList allows seeing a room in the directory and elsewhere
 	// the server enumerates rooms (e.g. group "Join all" affordances).
 	// Default-granted at server scope so the directory works out of the
@@ -117,6 +120,10 @@ const (
 	// (editing or deleting). Authors editing or deleting their own messages do
 	// NOT need this permission; it is always allowed.
 	PermMessageManage Permission = "message.manage"
+
+	// PermMessagePin allows pinning and unpinning messages in channel rooms.
+	// It does not grant room management or message read access.
+	PermMessagePin Permission = "message.pin"
 
 	// PermMessageReact allows adding/removing reactions to messages.
 	PermMessageReact Permission = "message.react"
@@ -204,6 +211,7 @@ var allPermissions = []PermissionMetadata{
 	// Room
 	{Permission: PermRoomCreate, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup}, RequiresPrivilegedMode: true},
 	{Permission: PermRoomJoin, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomInvite, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 	{Permission: PermRoomMemberRemove, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
@@ -223,6 +231,7 @@ var allPermissions = []PermissionMetadata{
 	{Permission: PermMessagePostInInteractions, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 	{Permission: PermMessageAttach, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 	{Permission: PermMessageManage, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}, RequiresPrivilegedMode: true},
+	{Permission: PermMessagePin, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermMessageReact, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 	{Permission: PermMessageEcho, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 
@@ -419,6 +428,7 @@ func DefaultEveryonePermissions() []Permission {
 func DefaultModeratorPermissions() []Permission {
 	return []Permission{
 		PermMessageManage,
+		PermMessagePin,
 		PermRoomMemberRemove,
 	}
 }
@@ -435,8 +445,10 @@ func DefaultAdminPermissions() []Permission {
 		PermRoomJoin,
 		PermRoomList,
 		PermRoomManage,
+		PermRoomInvite,
 		PermRoomMemberRemove,
 		PermMessageManage,
+		PermMessagePin,
 		PermRoleManage,
 		PermRoleAssign,
 		PermAdminUsersView,

@@ -1,4 +1,4 @@
-import { createWorkflowContext } from 'runling';
+import { createTaskContext } from 'runling';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { type Exec } from 'runling';
 import * as git from 'runling/git';
@@ -122,7 +122,7 @@ describe('implement workflow', () => {
     });
 
     await expect(
-      implement(createWorkflowContext(), {
+      implement(createTaskContext(), {
         directory: runling.cwd ?? '/project',
         prompt: 'Make the change'
       })
@@ -135,7 +135,7 @@ describe('implement workflow', () => {
     const setup = runtimeWith();
 
     await expect(
-      implement(createWorkflowContext(), {
+      implement(createTaskContext(), {
         directory: setup.runling.cwd ?? '/project',
         prompt: 'Make the change'
       })
@@ -176,7 +176,7 @@ describe('implement workflow', () => {
     TestShellError = setup.TestShellError;
 
     await expect(
-      implement(createWorkflowContext(), {
+      implement(createTaskContext(), {
         directory: setup.runling.cwd ?? '/project',
         prompt: 'Make the change'
       })
@@ -204,7 +204,7 @@ describe('implement workflow', () => {
     });
 
     await expect(
-      implement(createWorkflowContext(), {
+      implement(createTaskContext(), {
         directory: runling.cwd ?? '/project',
         prompt: 'Make the change'
       })
@@ -238,7 +238,7 @@ describe('implement workflow', () => {
     TestShellError = setup.TestShellError;
 
     await expect(
-      implement(createWorkflowContext(), {
+      implement(createTaskContext(), {
         directory: setup.runling.cwd ?? '/project',
         prompt: 'Make the change'
       })
@@ -263,9 +263,8 @@ vi.mock('runling', async (importOriginal) => {
   const actual = await importOriginal<typeof import('runling')>();
   return {
     ...actual,
-    agent: (options: unknown) => mocks.current.agent(options),
+    createAgentSession: (options: unknown) => mocks.current.agent(options),
     runAgent: (_ctx: unknown, ...args: unknown[]) => mocks.current.runAgent(...args),
-    input: (_ctx: unknown, ...args: unknown[]) => mocks.current.input(...args),
     step: (name: string, work: () => unknown) => mocks.current.step(name, work),
     log: { info: (message: string) => mocks.current.log?.info(message) },
     exec: (...args: unknown[]) => {

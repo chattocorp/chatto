@@ -112,7 +112,7 @@ export function runLogRows(events: RunlingEvent[]): LogRow[] {
         break;
       }
       case 'command.started':
-      case 'input.requested': {
+      case 'wait.started': {
         const parentTask = activityTasks.get(event.activityId ?? '');
         if (parentTask) activityTasks.set(event.id, parentTask);
         break;
@@ -120,16 +120,20 @@ export function runLogRows(events: RunlingEvent[]): LogRow[] {
       case 'task.linked':
         channelTasks.set(event.channelId, event.taskId);
         break;
-      case 'task.activity': {
+      case 'message.sent': {
+        // Show the messages between the host and the top-level task. Messages between tasks
+        // stay on the timeline.
+        if (event.activityId !== undefined) break;
         const taskId = channelTasks.get(event.channelId);
+        const payload =
+          event.payload.length > 2000 ? `${event.payload.slice(0, 2000)}…` : event.payload;
+        const target = taskId ? taskReference(taskId) : 'workflow';
         addActivity(
           id,
           event.timestamp,
-          `${taskId ? taskReference(taskId) : 'Task'} · ${event.message}`,
-          event.level ?? 'info',
-          taskId
-            ? (taskDepths.get(taskId) ?? childDepth(event.activityId)) + 1
-            : childDepth(event.activityId),
+          `${event.direction === 'input' ? 'Message to' : 'Update from'} ${target} · ${payload}`,
+          'info',
+          0,
           taskId
         );
         break;

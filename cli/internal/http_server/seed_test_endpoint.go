@@ -6,8 +6,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/core"
 )
 
 func registerSeedEndpoint(auth *gin.RouterGroup, s *HTTPServer) {

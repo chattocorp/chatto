@@ -2,8 +2,7 @@
 @component
 
 Name and description of a room. The fields change together, so they submit as
-one form with a Save button. The owner keys this form by room identity and by
-successful name or description saves, which reseeds the drafts.
+one form with Save and Discard actions. A successful save resets only this form.
 -->
 <script lang="ts">
   import { DraftField } from '$lib/components/settings/DraftField.svelte';
@@ -36,14 +35,29 @@ successful name or description saves, which reseeds the drafts.
     const validationError = roomNameValidationError(normalizedName);
     if (validationError === 'empty') return m('admin.rooms_admin.room_name_empty');
     if (validationError === 'too_long') {
-      return m('admin.rooms_admin.room_name_too_long');
+      return m('room.management.room_name_too_long');
     }
-    if (validationError === 'invalid') return m('admin.rooms_admin.room_name_invalid');
+    if (validationError === 'invalid') return m('room.management.room_name_invalid');
     return undefined;
   });
   const changed = $derived(
     normalizedName !== name.original || trimmedDescription !== description.original
   );
+
+  /** Includes unnormalised input so navigation and Discard also protect invalid drafts. */
+  const edited = $derived(
+    name.value !== name.original || description.value !== description.original
+  );
+
+  /** Lets the page guard navigation without copying the section's draft state. */
+  export function hasChanges(): boolean {
+    return edited || saving;
+  }
+
+  function discard(): void {
+    name.value = room.name;
+    description.value = room.description ?? '';
+  }
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -54,7 +68,7 @@ successful name or description saves, which reseeds the drafts.
     );
     saving = true;
     try {
-      await onSave(patch);
+      if (await onSave(patch)) discard();
     } finally {
       saving = false;
     }
@@ -83,7 +97,10 @@ successful name or description saves, which reseeds the drafts.
       disabled={saving}
       placeholder={m('admin.rooms_admin.room_description_placeholder')}
     />
-    <div class="flex justify-end">
+    <div class="flex justify-end gap-2">
+      <Button variant="secondary" disabled={saving || !edited} onclick={discard}>
+        {m('admin.rooms_admin.settings.discard_changes')}
+      </Button>
       <Button
         type="submit"
         loading={saving}

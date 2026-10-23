@@ -8,9 +8,9 @@ import (
 	"os/exec"
 
 	"github.com/charmbracelet/log"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // processRequest is the in-process shape passed to the worker after the

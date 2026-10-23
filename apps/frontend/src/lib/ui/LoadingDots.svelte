@@ -1,10 +1,9 @@
 <!--
 @component
 
-Three pulsing dots for a pending conversation timeline. Timelines use dots
-instead of `LoadingFog` because their content grows from the bottom and has
-no stable size to reserve. The dots appear after a short delay, so fast loads
-do not flash them. When the user requests less motion, the dots stay still.
+Three pulsing dots for a pending conversation timeline or server sidebar.
+The dots appear after a short delay, so fast loads do not flash them.
+When the user requests less motion, the dots stay still.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';

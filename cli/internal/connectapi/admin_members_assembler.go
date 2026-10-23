@@ -3,9 +3,9 @@ package connectapi
 import (
 	"context"
 
-	"hmans.de/chatto/internal/core"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
 // assembleAdminMembers reads the shared presence snapshot once per batch.

@@ -13,6 +13,7 @@ const { mocks } = vi.hoisted(() => ({
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
     leaveRoom: vi.fn(),
+    leaveRoomDirectory: [] as Array<{ id: string; viewerCanRejoin?: boolean }>,
     deleteMessage: vi.fn(),
     deleteAttachment: vi.fn(),
     deleteLinkPreview: vi.fn(),
@@ -258,10 +259,16 @@ beforeEach(() => {
     type: 'logout'
   };
   mocks.leaveRoom.mockResolvedValue(undefined);
+  mocks.leaveRoomDirectory = [];
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
   mocks.tryGetStore.mockReturnValue({
+    roomList: {
+      get rooms() {
+        return mocks.leaveRoomDirectory;
+      }
+    },
     applyLocalMessageMutation: mocks.applyLocalMessageMutation
   });
   mocks.mutation.mockReturnValue({
@@ -631,6 +638,22 @@ describe('ModalContainer remove server modal', () => {
 });
 
 describe('ModalContainer leave room modal', () => {
+  it.each([true, false, undefined])('explains rejoining with permission=%s', async (canRejoin) => {
+    mocks.modal = { type: 'leaveRoom', serverId: 'remote', roomId: 'room-1', roomName: 'General' };
+    mocks.leaveRoomDirectory = [{ id: 'room-1', viewerCanRejoin: canRejoin }];
+    const { container } = render(ModalContainer);
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain(
+        canRejoin === undefined
+          ? 'You may need a new invitation to rejoin.'
+          : canRejoin
+            ? 'You can rejoin later.'
+            : 'You will need a new invitation to join this room.'
+      )
+    );
+    expect(mocks.leaveRoom).not.toHaveBeenCalled();
+  });
+
   it('leaves the room and returns to the modal server', async () => {
     mocks.modal = {
       type: 'leaveRoom',
@@ -640,7 +663,7 @@ describe('ModalContainer leave room modal', () => {
     };
 
     const { container } = render(ModalContainer);
-    clickButton(container, 'Leave Room');
+    clickButton(container, 'Leave room');
 
     await vi.waitFor(() => {
       expect(mocks.leaveRoom).toHaveBeenCalledWith('room-1');

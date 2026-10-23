@@ -12,14 +12,14 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/authctx"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
@@ -398,6 +398,11 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 		Password: "newpassword456",
 	})); errorCode(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ChangePassword code = %v, want unauthenticated", errorCode(err))
+	}
+	for _, password := range []string{strings.Repeat("a", 73), strings.Repeat("a", 128), strings.Repeat("😀", 18) + "a", strings.Repeat("😀", 32)} {
+		if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{Password: password})); errorCode(err) != connect.CodeInvalidArgument || !errors.Is(err, core.ErrPasswordTooLong) {
+			t.Fatalf("overlength ChangePassword = %v", err)
+		}
 	}
 	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty ChangePassword code = %v, want invalid_argument", errorCode(err))
@@ -918,6 +923,19 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty UpdateUserProfile code = %v, want invalid_argument", errorCode(err))
 	}
+	for _, password := range []string{strings.Repeat("a", 72), strings.Repeat("😀", 18)} {
+		if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{UserId: target.Id, Password: password})); err != nil {
+			t.Fatalf("72-byte ChangeUserPassword = %v", err)
+		}
+		if err := env.core.VerifyUserPassword(env.ctx, target.Id, password); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, password := range []string{strings.Repeat("a", 73), strings.Repeat("a", 128), strings.Repeat("😀", 18) + "a", strings.Repeat("😀", 32)} {
+		if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{UserId: target.Id, Password: password})); errorCode(err) != connect.CodeInvalidArgument || !errors.Is(err, core.ErrPasswordTooLong) {
+			t.Fatalf("overlength ChangeUserPassword = %v", err)
+		}
+	}
 	if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId: target.Id,
 	})); errorCode(err) != connect.CodeInvalidArgument {
@@ -1226,6 +1244,9 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoomMemberRemove); err != nil {
 		t.Fatalf("GrantUserPermission room.remove-member: %v", err)
 	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermMessagePin); err != nil {
+		t.Fatalf("GrantUserPermission message.pin: %v", err)
+	}
 	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
 	if _, err := env.adminUsers.GetMember(roleAssignerCtx, connect.NewRequest(&adminv1.GetMemberRequest{
 		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
@@ -1381,8 +1402,8 @@ func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
 	if runtime.GetLivekitUrl() != "wss://livekit.example.test" {
 		t.Fatalf("LivekitUrl = %q, want configured URL", runtime.GetLivekitUrl())
 	}
-	if runtime.GetMaxUploadSize() <= 0 || runtime.GetMaxVideoUploadSize() <= 0 {
-		t.Fatalf("upload sizes = %d/%d, want positive values", runtime.GetMaxUploadSize(), runtime.GetMaxVideoUploadSize())
+	if runtime.GetMaxUploadSize() <= 0 || runtime.GetMaxVideoUploadSize() != runtime.GetMaxUploadSize() {
+		t.Fatalf("upload sizes = %d/%d, want equal positive values", runtime.GetMaxUploadSize(), runtime.GetMaxVideoUploadSize())
 	}
 	if runtime.GetMessageEditWindowSeconds() != int32(core.MessageEditWindow/time.Second) {
 		t.Fatalf("MessageEditWindowSeconds = %d, want %d", runtime.GetMessageEditWindowSeconds(), int32(core.MessageEditWindow/time.Second))

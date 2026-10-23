@@ -201,6 +201,23 @@ Effective decision for one permission key.
 | `permission` | `string` | Stable permission key, such as "server.manage". |
 | `granted` | `bool` | Whether the permission is currently granted. |
 
+<a id="chatto-api-v1-RoomInvitation"></a>
+
+### RoomInvitation
+
+An invitation visible only to its sender and recipient.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+| `room_id` | `string` | No field description provided. |
+| `sender_id` | `string` | No field description provided. |
+| `recipient_id` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `status` | [`RoomInvitationStatus`](#chatto-api-v1-RoomInvitationStatus) | No field description provided. |
+| `can_accept` | `bool` | True only for the recipient while current room and sender rules permit acceptance. |
+
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
 ### ImageTransformOptions
@@ -460,6 +477,7 @@ canonical thread has been established.
 | Field | Type | Description |
 | --- | --- | --- |
 | `can_reply_in_thread` | `optional bool` | Whether the viewer can reply in this message's canonical thread, including starting the first reply to a root. Includes read access, room policy, and broad or interaction-scoped posting authority. Absent when not resolved. |
+| `thread_slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest reply time in this message's canonical thread, including when the root has no replies. Absent when disabled, expired, or bypassed. |
 
 <a id="chatto-api-v1-ThreadSummary"></a>
 
@@ -486,6 +504,7 @@ Viewer-specific follow and reply-read state for one message thread.
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `has_unread_replies` | `optional bool` | True when the thread contains replies after the current user's read cursor, when known. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the viewer may reply. Absent when disabled, expired, or bypassed. The root message starts its author's thread cooldown. |
 
 <a id="chatto-api-v1-Asset"></a>
 
@@ -708,8 +727,9 @@ Public room metadata returned by room commands.
 | `archived` | `bool` | True when the room is archived and hidden from active room lists. |
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
-| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between message posts. Channel rooms only; zero means slow mode is disabled. |
-| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for this channel room. Direct-message rooms report UNSPECIFIED because they do not support threads. |
+| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 
 <a id="chatto-api-v1-RoomSummary"></a>
 
@@ -788,7 +808,9 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
-| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another root message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | Pending invitation for this viewer; does not grant access to room content. |
+| `can_rejoin` | `optional bool` | Whether current permissions and room state allow joining without an invitation, even if already a member. Absent on servers that do not report this decision. |
 
 <a id="chatto-api-v1-RoomWithViewerState"></a>
 
@@ -803,6 +825,8 @@ viewer.
 | `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
 | `member_user_ids` | `repeated string` | Complete participant user IDs for a DM, including participants whose accounts were deleted. Clients show those as deleted users. Empty for channel rooms. |
 | `has_message_history` | `optional bool` | Whether this DM has received a root message. Absent for channel rooms. |
+| `last_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM message, including thread replies. Edits and retractions do not change this value; historical imports are excluded. Absent for other room kinds, no ordinary messages, or no message.read permission. Older servers can omit this field. Absence does not prove inactivity. |
+| `last_root_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM root message, excluding thread replies. Uses the same visibility, import, and absence rules as last_message_at. |
 
 <a id="chatto-api-v1-SidebarLink"></a>
 
@@ -1050,6 +1074,32 @@ Safe summary of one recorded outbound webhook failure.
 | `completed_at` | `google.protobuf.Timestamp` | Time the retained failure was recorded. |
 | `source_event_id` | `string` | Source message ID associated with this delivery. |
 
+<a id="chatto-api-v1-FollowedThread"></a>
+
+### FollowedThread
+
+One followed thread for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
+| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
+| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
+
+<a id="chatto-api-v1-ThreadFollowState"></a>
+
+### ThreadFollowState
+
+Current follow state for one thread and viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `following` | `bool` | True when the current user follows the thread. |
+
 <a id="chatto-api-v1-MessageSearchResult"></a>
 
 ### MessageSearchResult
@@ -1168,6 +1218,7 @@ Presence is significant: absent fields inherit in a stored policy.
 | `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | **Deprecated.** Deprecated compatibility slot. Use room_messages at room scope. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
+| `room_invitations` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for invitations to join a channel room. |
 
 <a id="chatto-api-v1-NotificationMessageReference"></a>
 
@@ -1194,7 +1245,7 @@ One exact Notifications 2.0 source occurrence.
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
 | `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
-| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
 <a id="chatto-api-v1-NotificationPolicy"></a>
@@ -1220,7 +1271,7 @@ group.
 | --- | --- | --- |
 | `scope.server` | `google.protobuf.Empty` | Selects the authenticated viewer's server-wide policy. |
 | `scope.room_group_id` | `string` | Selects one existing room group's policy. |
-| `scope.room_id` | `string` | Selects one room's policy and requires current room membership. |
+| `scope.room_id` | `string` | Selects one room's policy. Requires membership or a pending invitation. |
 
 <a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
 
@@ -1254,6 +1305,7 @@ navigation semantics for them.
 | `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | **Deprecated.** No field description provided. |
 | `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
 | `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
+| `kind.room_invitation_received` | [`RoomInvitationReceived`](#chatto-api-v1-RoomInvitationReceived) | No field description provided. |
 
 <a id="chatto-api-v1-ReactionReceived"></a>
 
@@ -1286,6 +1338,19 @@ A message mentioning a role held by the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 | `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+<a id="chatto-api-v1-RoomInvitationReceived"></a>
+
+### RoomInvitationReceived
+
+An invitation to join a room. Its destination is the room, not a message.
+Attention ends when the invitation is handled or reaches the containing
+NotificationOccurrence's expires_at deadline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | No field description provided. |
+| `invitation_id` | `string` | Stable invitation identifier. |
 
 <a id="chatto-api-v1-RoomMessageReceived"></a>
 
@@ -1320,35 +1385,9 @@ Authenticated server runtime settings used by clients.
 | `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
 | `livekit_url` | `optional string` | Optional LiveKit URL for voice and video calls. |
 | `video_processing_enabled` | `bool` | Whether video processing is enabled. |
-| `max_upload_size` | `int64` | Maximum general upload size in bytes. |
-| `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
+| `max_upload_size` | `int64` | Maximum upload size in bytes for all files, including GIFs and videos. |
+| `max_video_upload_size` | `int64` | **Deprecated.** Deprecated alias of max_upload_size. Both fields have the same value. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
-
-<a id="chatto-api-v1-FollowedThread"></a>
-
-### FollowedThread
-
-One followed thread for the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
-| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
-| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
-| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
-
-<a id="chatto-api-v1-ThreadFollowState"></a>
-
-### ThreadFollowState
-
-Current follow state for one thread and viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
-| `following` | `bool` | True when the current user follows the thread. |
 
 <a id="chatto-api-v1-ActiveCall"></a>
 
@@ -1441,6 +1480,33 @@ Broker-derived health for one known durable worker queue.
 | `redelivered_count` | `string` | Redelivered messages that remain unacknowledged. |
 | `last_delivered_sequence` | `string` | Latest EVT stream sequence delivered to this queue. |
 | `ack_floor_sequence` | `string` | Highest contiguous EVT stream sequence acknowledged by this queue. |
+
+<a id="chatto-admin-v1-AdminLiveKitStatus"></a>
+
+### AdminLiveKitStatus
+
+LiveKit voice and video call setup as seen by the Chatto server that
+handled the request. The response never includes the API secret or the
+webhook signing secret.
+
+Chatto calls the LiveKit server API once for each request to check
+reachability and credentials. Webhook times come from the memory of the
+Chatto server that handled the request. They reset when that server
+restarts, and other servers in a cluster keep their own times.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `enabled` | `bool` | Whether `livekit.enabled` is set. |
+| `configured` | `bool` | Whether LiveKit is enabled and the URL, API key, and API secret are all set. |
+| `url` | `string` | Configured LiveKit server URL that clients connect to. |
+| `api_key` | `string` | Configured LiveKit API key. This is an identifier, not a secret. |
+| `separate_webhook_key` | `bool` | Whether webhooks use a signing key that differs from `api_key`. |
+| `webhook_url` | `string` | URL that LiveKit must send webhooks to. Empty when the public server URL is not set. |
+| `connection_state` | [`AdminLiveKitConnectionState`](#chatto-admin-v1-AdminLiveKitConnectionState) | Result of the LiveKit server API check. |
+| `connection_error` | `string` | Error detail when the check fails. Never contains secrets. |
+| `insecure_url` | `bool` | True when `url` uses unencrypted `ws://` or `http://` and the public server URL host is not a loopback address or a `.localhost` name. |
+| `last_webhook_at` | `google.protobuf.Timestamp` | Time of the last webhook with a valid signature that this server received. |
+| `last_rejected_webhook_at` | `google.protobuf.Timestamp` | Time of the last webhook that this server rejected because of an invalid signature. |
 
 <a id="chatto-admin-v1-AdminNatsConsumerInfo"></a>
 
@@ -1746,7 +1812,7 @@ One explicit decision encountered while explaining a permission.
 
 ### RolePermissionMatrix
 
-Permission matrix for one role within a scope page.
+Complete permission matrix for one role at the matching scopes.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1810,7 +1876,7 @@ Role permission matrix for one tier.
 
 ### UserPermissionMatrix
 
-Permission matrix for one user within a scope page.
+Complete permission matrix for one user at the matching scopes.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1929,6 +1995,20 @@ Scope of effective authority. Channel scopes never include direct messages.
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP` | `2` | A channel room group. |
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
+
+<a id="chatto-api-v1-RoomInvitationStatus"></a>
+
+### RoomInvitationStatus
+
+Current lifecycle state. Expiry does not extend when the invitation is read.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_INVITATION_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `ROOM_INVITATION_STATUS_PENDING` | `1` | No value description provided. |
+| `ROOM_INVITATION_STATUS_ACCEPTED` | `2` | No value description provided. |
+| `ROOM_INVITATION_STATUS_DECLINED` | `3` | No value description provided. |
+| `ROOM_INVITATION_STATUS_EXPIRED` | `4` | No value description provided. |
 
 <a id="chatto-api-v1-ImageFitMode"></a>
 
@@ -2059,6 +2139,30 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
 
+<a id="chatto-api-v1-ThreadOrder"></a>
+
+### ThreadOrder
+
+Ordering for followed threads. Equal dates use a stable thread identity order.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_ORDER_UNSPECIFIED` | `0` | Use newest activity first. |
+| `THREAD_ORDER_ACTIVITY` | `1` | Use newest activity first. |
+| `THREAD_ORDER_CREATED` | `2` | Use newest root-message creation first. Unknown creation dates come last. |
+
+<a id="chatto-api-v1-ThreadRootAuthorFilter"></a>
+
+### ThreadRootAuthorFilter
+
+Selects threads by the author of their root message, not their replies.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED` | `0` | Include all root authors. |
+| `THREAD_ROOT_AUTHOR_FILTER_VIEWER` | `1` | Include only roots authored by the authenticated viewer. |
+| `THREAD_ROOT_AUTHOR_FILTER_OTHERS` | `2` | Include only roots authored by other users. |
+
 <a id="chatto-api-v1-MessageSearchGroupBy"></a>
 
 ### MessageSearchGroupBy
@@ -2082,6 +2186,7 @@ Ordering for message or grouped-thread search results.
 | `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Highest message score first; grouped results use their best matching message. |
 | `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Newest matching message first, also when results are grouped. |
 | `MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY` | `3` | Return threads with the most recent activity first. Requires thread grouping. |
+| `MESSAGE_SEARCH_ORDER_THREAD_CREATED` | `4` | Newest root-message creation first, with unknown dates last. Requires thread grouping. Older servers can reject this order. |
 
 <a id="chatto-api-v1-MessageSearchScope"></a>
 
@@ -2181,6 +2286,21 @@ Operator-facing state derived from a durable consumer.
 | `ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED` | `4` | An acknowledgement is pending, but broker state cannot prove whether a handler is active or the delivery is awaiting recovery after a crash. |
 | `ADMIN_DURABLE_WORKER_HEALTH_STALLED` | `5` | The consumer exists but has neither a waiting pull nor an ack-pending delivery. |
 | `ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE` | `6` | The required consumer is unavailable. |
+
+<a id="chatto-admin-v1-AdminLiveKitConnectionState"></a>
+
+### AdminLiveKitConnectionState
+
+Result of the LiveKit server API check.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_UNSPECIFIED` | `0` | Unknown state. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED` | `1` | LiveKit is not configured, so Chatto did not do the check. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_OK` | `2` | LiveKit accepted the API call with the configured key and secret. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_UNREACHABLE` | `3` | Chatto could not connect to the LiveKit server URL. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED` | `4` | LiveKit rejected the configured API key or secret. |
+| `ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR` | `5` | The server at the URL replied with an unexpected error. |
 
 <a id="chatto-admin-v1-InviteLinkStatus"></a>
 

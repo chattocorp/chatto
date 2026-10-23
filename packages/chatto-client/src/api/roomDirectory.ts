@@ -12,7 +12,17 @@ import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '../util/roomThreading.js';
 
+/** Pending invitation metadata does not grant room-content access. */
+export type ViewerRoomInvitation = {
+  id: string;
+  senderId: string;
+  expiresAt: Date;
+  viewerCanAccept: boolean;
+};
+
 export type DirectoryRoomSummary = {
+  invitation?: ViewerRoomInvitation;
+  canInvite?: boolean;
   id: string;
   name: string;
   description: string | null;
@@ -20,12 +30,20 @@ export type DirectoryRoomSummary = {
   archived: boolean;
   isUniversal: boolean;
   slowModeSeconds: number;
+  /** Undefined for the legacy shared cooldown; zero disables thread cooldowns. */
+  threadSlowModeSeconds?: number;
   threadingMode: RoomThreadingMode;
   slowModeNextPostAt: string | null;
   isMember: boolean;
   hasUnread: boolean;
+  /** Latest ordinary DM post, including replies; null when unavailable. */
+  lastMessageAt?: string | null;
+  /** Latest ordinary DM root post; null when unavailable. */
+  lastRootMessageAt?: string | null;
   canReadMessages: boolean | null;
   canJoinRoom: boolean;
+  /** Joining authority without an invitation, including current members; absent on older servers. */
+  canRejoin?: boolean;
   canManageRoom: boolean;
 };
 
@@ -37,6 +55,8 @@ export type DirectoryRoomDetails = DirectoryRoomSummary & {
   canAttach: boolean;
   canReact: boolean;
   canEchoMessage: boolean;
+  /** Server-authorized pin mutations; pinning also requires access to the message. */
+  canPinMessages: boolean;
   canManageOthersMessage: boolean;
   canBanRoomMembers: boolean;
 };
@@ -77,6 +97,7 @@ const RoomPermission = {
   BanMember: 'room.remove-member',
   CreateRoom: 'room.create',
   EchoMessage: 'message.echo',
+  PinMessages: 'message.pin',
   JoinRoom: 'room.join',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
@@ -168,6 +189,7 @@ export function mapDirectoryRoomDetails(
     canAttach: hasRoomPermission(entry.viewerState, RoomPermission.Attach),
     canReact: hasRoomPermission(entry.viewerState, RoomPermission.React),
     canEchoMessage: hasRoomPermission(entry.viewerState, RoomPermission.EchoMessage),
+    canPinMessages: hasRoomPermission(entry.viewerState, RoomPermission.PinMessages),
     canManageOthersMessage: hasRoomPermission(entry.viewerState, RoomPermission.ManageMessage),
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom),
     canBanRoomMembers: hasRoomPermission(entry.viewerState, RoomPermission.BanMember)
@@ -177,6 +199,17 @@ export function mapDirectoryRoomDetails(
 export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
   if (!entry.room) return null;
   return {
+    invitation: entry.viewerState?.invitation?.expiresAt
+      ? {
+          id: entry.viewerState.invitation.id,
+          senderId: entry.viewerState.invitation.senderId,
+          expiresAt: entry.viewerState.invitation.expiresAt.toDate(),
+          viewerCanAccept: entry.viewerState.invitation.canAccept
+        }
+      : undefined,
+    canInvite:
+      entry.viewerState?.permissions.some((p) => p.permission === 'room.invite' && p.granted) ??
+      false,
     id: entry.room.id,
     name: entry.room.name,
     description: entry.room.description || null,
@@ -184,15 +217,19 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
     slowModeSeconds: entry.room.slowModeSeconds ?? 0,
+    threadSlowModeSeconds: entry.room.threadSlowModeSeconds,
     threadingMode: normalizeRoomThreadingMode(entry.room.kind, entry.room.threadingMode),
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
+    lastMessageAt: entry.lastMessageAt?.toDate().toISOString() ?? null,
+    lastRootMessageAt: entry.lastRootMessageAt?.toDate().toISOString() ?? null,
     canReadMessages: anyRoomPermissionDecision(entry.viewerState, [
       RoomPermission.ReadMessages,
       RoomPermission.ReadInteractions
     ]),
     canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
+    canRejoin: entry.viewerState?.canRejoin,
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };
 }

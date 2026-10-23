@@ -3,6 +3,7 @@ import { ansiColor, terminalColors } from './ansi.ts';
 import { stripVTControlCharacters } from 'node:util';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { emitRunlingEvent } from './events.ts';
+import { renderMarkdown } from './markdown.ts';
 
 function paint(color: string, text: string) {
   if (!terminalColors(destinationStorage.getStore() === 'stderr' ? process.stderr : process.stdout))
@@ -31,12 +32,16 @@ const depthStorage = new AsyncLocalStorage<number>();
 const colorStorage = new AsyncLocalStorage<string>();
 type LogDestination = 'stdout' | 'stderr' | 'silent';
 interface LogSource {
-  type: 'agent' | 'command' | 'input';
+  type: 'agent' | 'command';
   id: string;
 }
 
 const destinationStorage = new AsyncLocalStorage<LogDestination>();
 const sourceStorage = new AsyncLocalStorage<LogSource>();
+
+/** Start host-run logs at the root, without the dispatching task's indentation, color, or agent. */
+export const withRootLog = <T>(work: () => T): T =>
+  depthStorage.exit(() => colorStorage.exit(() => sourceStorage.exit(work)));
 
 function indent(): string {
   return INDENT_UNIT.repeat(depthStorage.getStore() ?? 0);
@@ -46,7 +51,8 @@ function write(
   level: 'debug' | 'info' | 'success' | 'error',
   message: string,
   defaultColor: string,
-  source?: 'step'
+  source?: 'step',
+  markdown?: { label: string; text: string }
 ): void {
   const color = colorStorage.getStore() ?? defaultColor;
   const contextualSource = sourceStorage.getStore();
@@ -66,10 +72,20 @@ function write(
   const symbol =
     level === 'success' ? '✓' : level === 'error' ? '✗' : level === 'debug' ? '·' : '●';
   const stderr = level === 'error' || destination === 'stderr';
-  const colored = terminalColors(stderr ? process.stderr : process.stdout);
+  const stream = stderr ? process.stderr : process.stdout;
+  const colored = terminalColors(stream);
   const ansi = ansiColor(color);
   const marker = colored && ansi ? `${ansi}${symbol}\x1b[0m` : symbol;
-  const body = colored ? message : stripVTControlCharacters(message);
+  // Render only for a terminal. Journals and pipes retain the original Markdown.
+  // The label gets its own line so it does not consume the answer's first-line width.
+  const rendered =
+    markdown && stream.isTTY
+      ? `${markdown.label ? `${markdown.label}\n\n` : ''}${renderMarkdown(
+          stripVTControlCharacters(markdown.text),
+          Math.max(1, (stream.columns || 80) - indent().length - 2)
+        )}\n`
+      : message;
+  const body = colored ? rendered : stripVTControlCharacters(rendered);
   // Continuation lines align with the first line's text, under the marker.
   const line = `${indent()}${marker} ${body.replace(/\n/g, `\n${indent()}  `)}`;
   if (stderr) {
@@ -79,13 +95,19 @@ function write(
   }
 }
 
-export const logStep = (message: string): void => write('info', message, 'dodgerblue', 'step');
+/** Steps inside agent tools retain the agent's label in terminal output. */
+export const logStep = (message: string): void => {
+  const source = sourceStorage.getStore();
+  const prefix = source?.type === 'agent' ? `${log.colorize(`[${source.id}]`)} ` : '';
+  write('info', `${prefix}${message}`, 'dodgerblue', 'step');
+};
+
+/** Show a labeled Markdown block on terminals, retaining its source text in log events. */
+export const logMarkdown = (label: string, text: string): void =>
+  write('info', label ? `${label} ${text}` : text, 'dodgerblue', undefined, { label, text });
 
 export const logCommand = (id: string, message: string): void =>
   withLogSource({ type: 'command', id }, () => log.info(message));
-
-export const logInput = (id: string, level: 'info' | 'success' | 'error', message: string): void =>
-  withLogSource({ type: 'input', id }, () => log[level](message));
 
 export const withLogSource = <T>(source: LogSource, work: LoggedWork<T>): T =>
   sourceStorage.run(source, work);

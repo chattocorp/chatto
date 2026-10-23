@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Ne eblis kopii al la tondujo. Elektu la tekston kaj kopiu ĝin permane.",
     "cancel": "Nuligi",
     "close_sidebar": "Fermu flankbreton",
     "or": "aŭ",
@@ -21,11 +22,12 @@
     "password_placeholder": "Via pasvorto",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "Almenaŭ 8 signoj",
+    "password_bytes_placeholder": "8–72 UTF-8-bajtoj",
     "password_confirm_placeholder": "Enigu pasvorton denove",
     "validation": {
       "email": "Bonvolu enigi validan retadreson",
-      "password_min": "Devas esti almenaŭ 8 signoj",
+      "password_min_bytes": "Uzu almenaŭ 8 UTF-8-bajtojn. Iuj signoj uzas pli ol unu bajton.",
+      "password_max": "Uzu maksimume 72 UTF-8-bajtojn. Iuj signoj uzas pli ol unu bajton.",
       "username_min": "Devas esti almenaŭ 2 signoj",
       "username_max": "Devas esti maksimume 32 signoj",
       "username_charset": "Nur literoj, ciferoj, punktoj, streketoj, substrekoj",
@@ -53,6 +55,11 @@
     "saved": "Konservite!",
     "rooms": "Ĉambroj",
     "copy_to_clipboard": "Kopiu al tondujo",
-    "copied_to_clipboard": "Kopiita al tondujo"
+    "copied_to_clipboard": "Kopiita al tondujo",
+    "user_search_placeholder": "Serĉu per ensaluto aŭ montra nomo...",
+    "no_users": "Neniuj uzantoj trovitaj",
+    "user_id": "Uzanto-identigilo",
+    "reason": "Kialo",
+    "message_of_the_day": "Mesaĝo de la Tago"
   }
 }

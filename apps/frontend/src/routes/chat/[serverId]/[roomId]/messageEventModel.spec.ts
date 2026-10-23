@@ -103,15 +103,15 @@ describe('embeddedMessageLinks', () => {
   it('keeps only the first five Chatto message links', () => {
     const body = Array.from(
       { length: 7 },
-      (_, index) => `https://chat.example.test/chat/server/room/m/message-${index}`
+      (_, index) => `https://chat.example.test/chat/server/R123456789abcde/m/E123456789abcd${index}`
     ).join(' ');
 
     expect(embeddedMessageLinks(body).map((link) => link.messageId)).toEqual([
-      'message-0',
-      'message-1',
-      'message-2',
-      'message-3',
-      'message-4'
+      'E123456789abcd0',
+      'E123456789abcd1',
+      'E123456789abcd2',
+      'E123456789abcd3',
+      'E123456789abcd4'
     ]);
   });
 });
@@ -139,7 +139,13 @@ describe('buildMessageReplyPreview', () => {
         deletedName: 'Deleted user',
         getDisplayName: (actor) => actor.displayName
       })
-    ).toEqual({ name: 'a message', body: null, actor: null, deleted: false });
+    ).toEqual({
+      name: 'a message',
+      body: null,
+      attachmentSummary: null,
+      actor: null,
+      deleted: false
+    });
 
     const activeActor = {
       id: 'user-1',
@@ -161,7 +167,13 @@ describe('buildMessageReplyPreview', () => {
         deletedName: 'Deleted user',
         getDisplayName: (actor) => actor.displayName
       })
-    ).toEqual({ name: 'Ada', body: 'Original', actor: activeActor, deleted: false });
+    ).toEqual({
+      name: 'Ada',
+      body: 'Original',
+      attachmentSummary: null,
+      actor: activeActor,
+      deleted: false
+    });
 
     expect(
       buildMessageReplyPreview({
@@ -175,7 +187,66 @@ describe('buildMessageReplyPreview', () => {
         deletedName: 'Deleted user',
         getDisplayName: (actor) => actor.displayName
       })
-    ).toEqual({ name: 'Deleted user', body: null, actor: null, deleted: true });
+    ).toEqual({
+      name: 'Deleted user',
+      body: null,
+      attachmentSummary: null,
+      actor: null,
+      deleted: true
+    });
+  });
+
+  const attachment = (contentType: string, id = 'attachment-1') => ({
+    id,
+    filename: 'upload',
+    contentType,
+    width: 0,
+    height: 0
+  });
+  const preview = (overrides: Partial<MessagePostedPayload>) =>
+    buildMessageReplyPreview({
+      target: { id: 'reply', createdAt: '2026-07-29T12:00:00.000Z', event: message(overrides) },
+      missingName: 'a message',
+      deletedName: 'Deleted user',
+      getDisplayName: (actor) => actor.displayName
+    });
+
+  it.each([null, '', ' \n\t '])('uses attachments when the body is %j', (body) => {
+    expect(preview({ body, attachments: [attachment('image/png')] })).toMatchObject({
+      body: null,
+      attachmentSummary: { kind: 'image', count: 1 }
+    });
+    expect(preview({ body, attachments: [] })).toMatchObject({
+      body: null,
+      attachmentSummary: null
+    });
+  });
+
+  it.each([
+    ['image/gif', 'image'],
+    ['video/mp4', 'video'],
+    ['audio/ogg', 'audio'],
+    ['application/pdf', 'file'],
+    ['', 'file']
+  ])('summarises one %s attachment as %s', (contentType, kind) => {
+    expect(preview({ body: '', attachments: [attachment(contentType)] }).attachmentSummary).toEqual(
+      { kind, count: 1 }
+    );
+  });
+
+  it('counts multiple attachments, including mixed types', () => {
+    expect(
+      preview({
+        body: '',
+        attachments: [attachment('image/png'), attachment('video/mp4', 'attachment-2')]
+      }).attachmentSummary
+    ).toEqual({ kind: 'attachments', count: 2 });
+  });
+
+  it('preserves original text and gives it priority over attachments', () => {
+    expect(
+      preview({ body: '  A caption  ', attachments: [attachment('image/png')] })
+    ).toMatchObject({ body: '  A caption  ', attachmentSummary: null });
   });
 });
 

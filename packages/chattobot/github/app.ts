@@ -6,15 +6,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ConfigurationError, setting } from '../settings.ts';
 
-/** Repository permissions that ChattoBot requests. The App installation must grant each of them. */
+/** Permissions that ChattoBot requests. The App installation must grant each of them. */
 export type GitHubPermissions = Partial<
   Record<
     'issues' | 'actions' | 'pull_requests' | 'checks' | 'statuses' | 'metadata',
     'read' | 'write'
   >
->;
+> & { issue_fields?: 'read' };
 
-/** Read access for every command that is not an approved write. A command that the host
+/** Read access for every command classified as a read. A command that the host
  * classifies wrongly as a read then fails at GitHub instead of changing anything. */
 export const READ_PERMISSIONS: GitHubPermissions = {
   issues: 'read',
@@ -34,9 +34,9 @@ export interface GitHubSettings {
   repository: string;
 }
 
-/** Read the optional GitHub App settings. `CHATTO_GITHUB_REPOSITORY` defaults to the
- * implementation repository. Throws a ConfigurationError that names settings, never values. */
-export function githubSettings(fallbackRepository?: string): GitHubSettings | undefined {
+/** Read the optional GitHub App settings. Throws a ConfigurationError that names settings,
+ * never values. */
+export function githubSettings(): GitHubSettings | undefined {
   const clientId = setting('CHATTO_GITHUB_APP_CLIENT_ID');
   const keyFile = setting('CHATTO_GITHUB_APP_PRIVATE_KEY_FILE');
   if (!clientId && !keyFile) return;
@@ -56,11 +56,9 @@ export function githubSettings(fallbackRepository?: string): GitHubSettings | un
       'CHATTO_GITHUB_APP_PRIVATE_KEY_FILE must name a readable GitHub App private key (.pem)'
     );
   }
-  const repository = setting('CHATTO_GITHUB_REPOSITORY') ?? fallbackRepository;
+  const repository = setting('CHATTO_GITHUB_REPOSITORY');
   if (!repository || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository))
-    throw new ConfigurationError(
-      'CHATTO_GITHUB_REPOSITORY must be owner/repo when CHATTO_IMPLEMENTATION_REPOSITORY is unset'
-    );
+    throw new ConfigurationError('CHATTO_GITHUB_REPOSITORY must be owner/repo');
   return { clientId, privateKey, repository };
 }
 

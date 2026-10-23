@@ -8,7 +8,6 @@
     "notifications": {
       "title": "通知",
       "subtitle": "最新动态",
-      "list_title": "最近动态",
       "clear_read": "清除已读",
       "empty_title": "暂无通知",
       "empty_body": "你已查看所有通知！",
@@ -19,14 +18,15 @@
       "unread": "未读",
       "activity": "新动态",
       "summary": {
-        "direct_message": "{actor} 给你发了一条私信。",
-        "reaction": "{actor} 在 {channel} 中用“{emoji}”回应了你的消息。",
-        "reaction_group": "{actor} 和其他用户在 {channel} 中用“{emoji}”回应了你的消息。",
-        "reply": "{actor} 回复了你的消息。",
-        "mention": "{actor} 提到了你。",
-        "followed_thread": "{actor} 回复了你关注的主题。",
-        "new_message": "{actor} 发布了一条新消息。",
-        "activity": "{actor} 向你发送了一条通知。"
+        "direct_message": "{actor} 给你发了一条私信",
+        "reaction": "{actor} 用 {emoji} 回应了你的消息",
+        "reaction_group": "{actor} 和其他用户用 {emoji} 回应了你的消息",
+        "reply": "{actor} 回复了你的消息",
+        "mention": "{actor} 提到了你",
+        "followed_thread": "{actor} 回复了你关注的主题",
+        "new_message": "{actor} 发布了一条新消息",
+        "activity": "{actor} 向你发送了一条通知",
+        "room_invitation": "{actor} 邀请你加入房间"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "用户个人资料",
-      "send_message": "发送消息",
+      "send_message": "打开会话",
       "view_profile": "查看个人资料",
       "profile_requires_direct_message": "查看此个人资料需要有私信会话。",
       "manage_bot": "管理机器人",
       "view_in_admin": "在服务器管理中查看",
       "copy_user_id": "复制用户 ID"
     },
+    "server_info": {
+      "title": "服务器信息",
+      "details": "服务器详细信息"
+    },
+    "compatibility": {
+      "title": "兼容性",
+      "view": "查看兼容性",
+      "limited": "较旧的服务器版本",
+      "supported": "没有已知的兼容性问题",
+      "affected": "受影响的功能",
+      "requires": "需要 {version} 或更新版本",
+      "thread_views_title": "话题视图的支持有限",
+      "thread_views_description": "此服务器可能无法分别列出你关注的话题和你发起的话题。",
+      "independent_slow_mode_title": "独立慢速模式不可用",
+      "independent_slow_mode_description": "此服务器对频道消息和话题回复使用共用的冷却时间。",
+      "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。"
+    },
     "server_gutter": {
       "move_up": "向上移动",
       "move_down": "向下移动",
       "add_server": "添加服务器",
-      "log_in": "登录此服务器",
-      "sign_out": "退出此服务器",
+      "log_in": "登录服务器",
+      "sign_out": "退出服务器",
       "version": "版本 {version}",
       "unreachable": "无法访问服务器",
       "connection_unavailable": "连接不可用",
-      "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。",
+      "compatibility_server_too_old": "此应用需要服务器升级到 Chatto {version} 或更高版本后才能连接。",
       "compatibility_unknown": "此应用无法根据服务器版本确定兼容性。",
       "go_to_notifications_count": {
         "one": "前往查看 {count} 条通知",
@@ -90,9 +107,16 @@
       "body": "登录后即可在此服务器上阅读和发送消息。"
     },
     "threads": {
-      "title": "我的话题串",
-      "subtitle": "你关注的话题串",
-      "list_title": "关注的话题串",
+      "sort_label": "话题排序",
+      "sort_activity": "活动",
+      "sort_created": "创建时间",
+      "tab_started": "我的",
+      "tab_followed": "已关注",
+      "tab_label": "话题视图",
+      "empty_mine_title": "你尚未发起话题",
+      "empty_mine_body": "你发起并关注的话题将显示在这里。",
+      "title": "话题串",
+      "subtitle": "你的话题串中的新动态",
       "filter_label": "筛选话题串",
       "filter_all": "全部",
       "filter_unread": "未读",
@@ -141,6 +165,19 @@
       },
       "owned_by": "所有者",
       "open_card": "打开 {name} 的个人资料卡"
+    },
+    "management_nav": {
+      "general": "常规",
+      "neighbors": "邻居",
+      "members": "成员",
+      "rooms": "聊天室",
+      "moderation": "内容管理",
+      "permissions": "权限",
+      "security": "安全",
+      "event_log": "事件日志",
+      "system": "系统",
+      "back_to_server": "返回服务器",
+      "invitations": "邀请链接"
     }
   }
 }

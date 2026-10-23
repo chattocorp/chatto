@@ -23,7 +23,9 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { Compartment, EditorSelection, EditorState, Prec, Transaction } from '@codemirror/state';
   import { EditorView, keymap, placeholder as editorPlaceholder } from '@codemirror/view';
   import { tags } from '@lezer/highlight';
-  import { Autolink, Table } from '@lezer/markdown';
+  import { Table } from '@lezer/markdown';
+  import { sourceAutolinks } from './sourceAutolinks';
+  import { sourceLinkHighlighting, sourceLinkSyntax } from './sourceLinkHighlighting';
   import { m } from '$lib/i18n/messages';
   import { codeFenceHighlighting } from './codeFenceHighlighting';
   import type {
@@ -73,19 +75,13 @@ the same API as the visual editor while keeping the stored Markdown visible.
   };
 
   const markdownHighlightStyle = HighlightStyle.define([
-    { tag: tags.heading, color: 'var(--color-text)', fontWeight: '600' },
-    { tag: tags.strong, fontWeight: '700' },
-    { tag: tags.emphasis, fontStyle: 'italic' },
-    { tag: [tags.link, tags.url], color: 'var(--color-link)', textDecoration: 'underline' },
-    { tag: tags.list, color: 'var(--color-text)' },
-    { tag: tags.quote, color: 'var(--color-muted)' },
-    {
-      tag: tags.monospace,
-      color: 'var(--color-text)',
-      backgroundColor: 'var(--color-surface-emphasized)',
-      fontFamily: 'var(--font-mono)'
-    },
-    { tag: [tags.processingInstruction, tags.punctuation], color: 'var(--color-muted)' }
+    { tag: tags.heading, class: 'cm-format-heading' },
+    { tag: tags.strong, class: 'cm-format-strong' },
+    { tag: tags.emphasis, class: 'cm-format-emphasis' },
+    { tag: [tags.link, tags.url], class: 'cm-format-link' },
+    { tag: tags.quote, class: 'cm-format-quote' },
+    { tag: tags.monospace, class: 'cm-format-code' },
+    { tag: [tags.processingInstruction, tags.punctuation], class: 'cm-format-marker' }
   ]);
 
   const markdownTheme = EditorView.theme({
@@ -211,11 +207,12 @@ the same API as the visual editor while keeping the stored Markdown visible.
           ]),
           markdown({
             base: commonmarkLanguage,
-            extensions: [Table, Autolink],
+            extensions: [Table, sourceAutolinks, sourceLinkSyntax],
             completeHTMLTags: false,
             pasteURLAsLink: true
           }),
           syntaxHighlighting(markdownHighlightStyle),
+          sourceLinkHighlighting,
           codeFenceHighlighting,
           markdownTheme,
           EditorView.lineWrapping,
@@ -271,6 +268,15 @@ the same API as the visual editor while keeping the stored Markdown visible.
           editorView.dispatch({ selection: EditorSelection.cursor(cursor), scrollIntoView: true });
         }
         editorView.focus();
+        // Native dialog teardown can leave CodeMirror's cached DOM selection
+        // ahead of the browser selection. Restore the editor's selection now,
+        // before a later selectionchange can replace it with the start position.
+        const selection = editorView.state.selection.main;
+        const anchor = editorView.domAtPos(selection.anchor);
+        const head = editorView.domAtPos(selection.head);
+        editorView.contentDOM.ownerDocument
+          .getSelection()
+          ?.setBaseAndExtent(anchor.node, anchor.offset, head.node, head.offset);
       },
       performEnter: () => {
         if (destroyed) return;

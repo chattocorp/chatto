@@ -10,10 +10,14 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -22,9 +26,6 @@ import (
 	josejwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/markbates/goth"
 	gothgithub "github.com/markbates/goth/providers/github"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
@@ -143,7 +144,7 @@ func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
 	gothgithub.EmailURL = server.URL
 	t.Cleanup(func() { gothgithub.EmailURL = oldEmailURL })
 
-	email, err := fetchGitHubVerifiedPrimaryEmail(t.Context(), "token-1")
+	email, err := fetchGitHubVerifiedPrimaryEmail(t.Context(), newProviderHTTPClient(), "token-1")
 	if err != nil {
 		t.Fatalf("fetchGitHubVerifiedPrimaryEmail: %v", err)
 	}
@@ -523,6 +524,188 @@ func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
 	}
 }
 
+// The group restriction applies to new identities, to linked accounts at each
+// sign-in, and to identity links.
+func TestProviderGroupRestrictionAppliesToEverySignInAndLink(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "restricted", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret", AutoProvision: new(true),
+			AllowedGroups: []string{"chat-users"},
+		}}
+		s.setupOIDCRoutes()
+	})
+	inGroup := func(group string) {
+		issuer.tokenClaims = map[string]any{"name": "Restricted User", "preferred_username": "restricted", "groups": []any{group}}
+	}
+	const denied = "/login?error=provider_access_denied"
+
+	issuer.SetSubject("restricted-new")
+	inGroup("other")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); location != denied {
+		t.Fatalf("new identity outside group Location = %q, want %q", location, denied)
+	}
+	inGroup("chat-users")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); !strings.HasPrefix(location, "/sso/confirm?") {
+		t.Fatalf("new identity in group Location = %q, want account confirmation", location)
+	}
+
+	linked, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "restricted-linked", "Restricted Linked", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), "restricted", config.AuthProviderTypeOpenIDConnect, issuer.URL(), "restricted-linked", linked.Id); err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("restricted-linked")
+	inGroup("other")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); location != denied {
+		t.Fatalf("linked account outside group Location = %q, want %q", location, denied)
+	}
+	inGroup("chat-users")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "restricted", "/chat"); location != "/chat" {
+		t.Fatalf("linked account in group Location = %q, want /chat", location)
+	}
+
+	target, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "restricted-target", "Restricted Target", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	linkStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "restricted", "/chat/-/settings/account", target.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("restricted-link")
+	inGroup("other")
+	linkLocation := startNoEmailOIDC(t, client, ts.URL, "restricted", url.Values{"intent": {"link"}, "link_start": {linkStart}})
+	if location := finishNoEmailOIDCCallback(t, client, ts.URL, "restricted", authStateFromLocation(t, linkLocation)); location != "/chat/-/settings/account?error=provider_access_denied" {
+		t.Fatalf("link outside group Location = %q, want account settings error", location)
+	}
+	if identities, err := chattoCore.ExternalIdentitiesForUser(t.Context(), target.Id); err != nil || len(identities) != 0 {
+		t.Fatalf("ExternalIdentitiesForUser = %v, %v; want no link", identities, err)
+	}
+}
+
+// group_roles applies at sign-in, at identity links, and carries the groups
+// to account creation. Only provider assignments are revoked.
+func TestProviderGroupRolesSyncAtSignInAndLink(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "company", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret", AutoProvision: new(true),
+			GroupRoles: "chat-mods:moderator",
+		}}
+		s.setupOIDCRoutes()
+	})
+	inGroups := func(groups ...any) {
+		// A present, empty list differs from a missing claim.
+		issuer.tokenClaims = map[string]any{"name": "Group User", "preferred_username": "group-user", "groups": append([]any{}, groups...)}
+	}
+	hasModerator := func(userID string) bool {
+		t.Helper()
+		roles, err := chattoCore.GetUserRoles(t.Context(), userID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return slices.Contains(roles, core.RoleModerator)
+	}
+
+	// A new identity carries its mapped groups, and no others, to account creation.
+	issuer.SetSubject("group-new")
+	inGroups("chat-mods", "unmapped-team")
+	location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat")
+	confirmURL, err := url.Parse(location)
+	if err != nil || confirmURL.Path != "/sso/confirm" {
+		t.Fatalf("new identity Location = %q, want account confirmation", location)
+	}
+	flow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), confirmURL.Query().Get("token"))
+	if err != nil || !flow.GroupsKnown || !slices.Equal(flow.Groups, []string{"chat-mods"}) {
+		t.Fatalf("pending flow groups = %v (known %v), %v", flow.Groups, flow.GroupsKnown, err)
+	}
+
+	// Sign-in grants and later revokes the provider assignment.
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "group-linked", "Group Linked", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), "company", config.AuthProviderTypeOpenIDConnect, issuer.URL(), "group-linked", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("group-linked")
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"); location != "/chat" || !hasModerator(user.Id) {
+		t.Fatalf("sign-in in group Location = %q, moderator = %v", location, hasModerator(user.Id))
+	}
+	inGroups()
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"); location != "/chat" || hasModerator(user.Id) {
+		t.Fatalf("sign-in without group Location = %q, moderator = %v", location, hasModerator(user.Id))
+	}
+
+	// Linking the provider grants the role to the linked account.
+	target, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "group-target", "Group Target", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	linkStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "company", "/chat/-/settings/account", target.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("group-link")
+	inGroups("chat-mods")
+	linkLocation := startNoEmailOIDC(t, client, ts.URL, "company", url.Values{"intent": {"link"}, "link_start": {linkStart}})
+	if location := finishNoEmailOIDCCallback(t, client, ts.URL, "company", authStateFromLocation(t, linkLocation)); location != "/chat/-/settings/account" || !hasModerator(target.Id) {
+		t.Fatalf("link Location = %q, moderator = %v", location, hasModerator(target.Id))
+	}
+}
+
+// A denied sign-in revokes the roles that the provider gave and grants none.
+func TestProviderGroupRolesRevokedWhenSignInDenied(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "company", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret",
+			AllowedGroups: []string{"chat-users"}, GroupRoles: "chat-mods:moderator",
+		}}
+		s.setupOIDCRoutes()
+	})
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "denied-member", "Denied Member", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), "company", config.AuthProviderTypeOpenIDConnect, issuer.URL(), "denied-member", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	issuer.SetSubject("denied-member")
+	hasModerator := func() bool {
+		t.Helper()
+		roles, err := chattoCore.GetUserRoles(t.Context(), user.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return slices.Contains(roles, core.RoleModerator)
+	}
+	issuer.tokenClaims = map[string]any{"name": "Denied", "preferred_username": "denied", "groups": []any{"chat-users", "chat-mods"}}
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"); location != "/chat" || !hasModerator() {
+		t.Fatalf("allowed sign-in Location = %q, moderator = %v", location, hasModerator())
+	}
+	// Still in the mapped group, but no longer allowed to sign in.
+	issuer.tokenClaims = map[string]any{"name": "Denied", "preferred_username": "denied", "groups": []any{"chat-mods"}}
+	if location := completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"); location != "/login?error=provider_access_denied" || hasModerator() {
+		t.Fatalf("denied sign-in Location = %q, moderator = %v", location, hasModerator())
+	}
+}
+
 func TestLegacyOIDCRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -660,6 +843,15 @@ func startNoEmailOIDC(t *testing.T, client *http.Client, baseURL, providerID str
 	if scope := authURL.Query().Get("scope"); scope != "openid profile" {
 		t.Fatalf("provider start scope = %q, want openid profile", scope)
 	}
+	if authURL.Query().Get("nonce") == "" {
+		t.Fatalf("provider start Location = %q, missing nonce", location)
+	}
+	// Visit the issuer as the browser would, so it binds the nonce to the code.
+	authorizeResp, err := client.Get(location)
+	if err != nil {
+		t.Fatalf("GET issuer authorization: %v", err)
+	}
+	authorizeResp.Body.Close()
 	return location
 }
 
@@ -716,6 +908,12 @@ type noEmailOIDCIssuer struct {
 	tokenCheck       func(*http.Request) bool
 	extraKeys        []any
 	omitSigningKey   bool
+	// nonce is the ID-token nonce. Authorization requests replace it.
+	nonce string
+	// blockPath names an endpoint that does not answer before Close.
+	blockPath       string
+	blockedRequests atomic.Int32
+	release         chan struct{}
 }
 
 func newNoEmailOIDCIssuer(t *testing.T, clientID string) *noEmailOIDCIssuer {
@@ -728,12 +926,15 @@ func newNoEmailOIDCIssuer(t *testing.T, clientID string) *noEmailOIDCIssuer {
 		key:      key,
 		clientID: clientID,
 		subject:  "subject",
+		nonce:    "test-nonce",
+		release:  make(chan struct{}),
 	}
 	issuer.server = httptest.NewServer(http.HandlerFunc(issuer.ServeHTTP))
 	return issuer
 }
 
 func (i *noEmailOIDCIssuer) Close() {
+	close(i.release)
 	i.server.Close()
 }
 
@@ -750,6 +951,11 @@ func (i *noEmailOIDCIssuer) UserInfoRequests() int {
 }
 
 func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if i.blockPath != "" && r.URL.Path == i.blockPath {
+		i.blockedRequests.Add(1)
+		<-i.release
+		return
+	}
 	switch r.URL.Path {
 	case "/.well-known/openid-configuration":
 		w.Header().Set("Content-Type", "application/json")
@@ -765,6 +971,7 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(metadata)
 	case "/authorize":
+		i.nonce = r.URL.Query().Get("nonce")
 		http.Redirect(w, r, r.URL.Query().Get("redirect_uri")+"?state="+url.QueryEscape(r.URL.Query().Get("state"))+"&code=test-code", http.StatusTemporaryRedirect)
 	case "/token":
 		i.tokenRequests++
@@ -834,7 +1041,11 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 	if profileClaims == nil {
 		profileClaims = map[string]any{"name": "No Email User", "preferred_username": "no-email-user"}
 	}
-	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).Serialize()
+	builder := josejwt.Signed(signer).Claims(claims).Claims(profileClaims)
+	if i.nonce != "" {
+		builder = builder.Claims(map[string]any{"nonce": i.nonce})
+	}
+	raw, err := builder.Serialize()
 	if err != nil {
 		panic(err)
 	}

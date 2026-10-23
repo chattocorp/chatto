@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 /**
- * Run the official MCP server suite against an authenticated Chatto endpoint.
+ * Run official MCP application protocol checks against a Chatto endpoint.
+ * The full SDK fixture suite is an explicit diagnostic option, not the default.
  * The suite has no bearer-header option. A temporary loopback relay adds the
  * credential from a file, while the production endpoint still validates it.
  * This relay does not verify OAuth or the target's Host/Origin protection.
@@ -16,6 +17,24 @@ import path from 'node:path';
 
 const suiteVersion = '0.2.0-alpha.12';
 const scenario = process.env.CHATTO_MCP_SCENARIO;
+const fullSuite = process.env.CHATTO_MCP_FULL_SUITE;
+if (fullSuite !== undefined && fullSuite !== '1') {
+  throw new Error('CHATTO_MCP_FULL_SUITE must be 1 or unset.');
+}
+if (fullSuite && scenario) {
+  throw new Error('Choose CHATTO_MCP_FULL_SUITE or CHATTO_MCP_SCENARIO, not both.');
+}
+// These scenarios discover the application's real tools. Fixture-dependent
+// scenarios cannot establish whether Chatto's catalog works. Header validation
+// is pending in the upstream requirement set, but is useful application coverage.
+const runs = fullSuite
+  ? [['--requirements', '2026-07-28']]
+  : (scenario ? [scenario] : ['tools-list', 'http-header-validation']).map((name) => [
+      '--scenario',
+      name,
+      '--spec-version',
+      '2026-07-28'
+    ]);
 let target;
 try {
   target = new URL(
@@ -85,30 +104,45 @@ await new Promise((resolve, reject) => {
 });
 const relayHost = `127.0.0.1:${relay.address().port}`;
 
-const child = spawn(
-  'pnpm',
-  [
-    'dlx',
-    `@modelcontextprotocol/conformance@${suiteVersion}`,
-    'server',
-    '--url',
-    `http://${relayHost}/mcp`,
-    ...(scenario
-      ? ['--scenario', scenario, '--spec-version', '2026-07-28']
-      : ['--requirements', '2026-07-28']),
-    '--output-dir',
-    outputDir
-  ],
-  { stdio: 'inherit' }
-);
-const stop = () => child.kill('SIGTERM');
+let child;
+let stopped = false;
+const stop = () => {
+  stopped = true;
+  child?.kill('SIGTERM');
+};
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);
 try {
-  process.exitCode = await new Promise((resolve, reject) => {
-    child.once('error', reject);
-    child.once('exit', (code) => resolve(code ?? 1));
-  });
+  console.log(
+    fullSuite
+      ? 'Running the full SDK fixture suite for diagnostics; Chatto does not provide its fixtures.'
+      : 'Running selected application protocol checks; this is not full MCP conformance.'
+  );
+  process.exitCode = 0;
+  for (const selection of runs) {
+    if (stopped) break;
+    child = spawn(
+      'pnpm',
+      [
+        'dlx',
+        `@modelcontextprotocol/conformance@${suiteVersion}`,
+        'server',
+        '--url',
+        `http://${relayHost}/mcp`,
+        ...selection,
+        '--output-dir',
+        outputDir
+      ],
+      { stdio: 'inherit' }
+    );
+    const code = await new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', (code) => resolve(code ?? 1));
+    });
+    // Run both checks, but never let a later success hide an earlier failure.
+    if (code !== 0) process.exitCode = code;
+  }
+  if (stopped) process.exitCode = 1;
 } finally {
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);

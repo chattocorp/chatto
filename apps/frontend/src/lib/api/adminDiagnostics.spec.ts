@@ -1,7 +1,8 @@
 import { protoInt64, Timestamp } from '@bufbuild/protobuf';
 import {
   AdminAssetCleanupHealth,
-  AdminDurableWorkerHealth
+  AdminDurableWorkerHealth,
+  AdminLiveKitConnectionState
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -155,7 +156,19 @@ describe('getAdminSystemInfo', () => {
           lastDeliveredSequence: '44',
           ackFloorSequence: '41'
         }
-      ]
+      ],
+      livekit: {
+        enabled: true,
+        configured: true,
+        url: 'ws://livekit.example',
+        apiKey: 'key',
+        separateWebhookKey: true,
+        webhookUrl: 'https://chat.example/webhooks/livekit',
+        connectionState: AdminLiveKitConnectionState.UNAUTHORIZED,
+        connectionError: 'twirp error unauthenticated',
+        insecureUrl: true,
+        lastWebhookAt: Timestamp.fromDate(new Date('2026-07-10T12:00:00Z'))
+      }
     });
 
     const info = await getAdminSystemInfo(config());
@@ -198,6 +211,19 @@ describe('getAdminSystemInfo', () => {
         ackFloorSequence: '41'
       }
     ]);
+    expect(info.livekit).toEqual({
+      connectionState: 'unauthorized',
+      connectionError: 'twirp error unauthenticated',
+      enabled: true,
+      configured: true,
+      url: 'ws://livekit.example',
+      apiKey: 'key',
+      separateWebhookKey: true,
+      webhookUrl: 'https://chat.example/webhooks/livekit',
+      insecureUrl: true,
+      lastWebhookAt: new Date('2026-07-10T12:00:00Z'),
+      lastRejectedWebhookAt: null
+    });
   });
 
   it('maps missing nested sections to empty defaults', async () => {
@@ -216,6 +242,7 @@ describe('getAdminSystemInfo', () => {
     expect(info.statsAvailable).toBe(false);
     expect(info.projections).toEqual([]);
     expect(info.projectionsAvailable).toBe(true);
+    expect(info.livekit.connectionState).toBe('unavailable');
     expect(info.assetCleanup).toEqual({
       available: false,
       health: 'unavailable',

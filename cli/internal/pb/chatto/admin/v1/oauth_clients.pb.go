@@ -8,11 +8,11 @@ package adminv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -608,8 +608,8 @@ const file_chatto_admin_v1_oauth_clients_proto_rawDesc = "" +
 	"\x17AdminOAuthClientService\x12g\n" +
 	"\x10ListOAuthClients\x12(.chatto.admin.v1.ListOAuthClientsRequest\x1a).chatto.admin.v1.ListOAuthClientsResponse\x12a\n" +
 	"\x0eGetOAuthClient\x12&.chatto.admin.v1.GetOAuthClientRequest\x1a'.chatto.admin.v1.GetOAuthClientResponse\x12|\n" +
-	"\x17UpdateOAuthClientPolicy\x12/.chatto.admin.v1.UpdateOAuthClientPolicyRequest\x1a0.chatto.admin.v1.UpdateOAuthClientPolicyResponseB\xbb\x01\n" +
-	"\x13com.chatto.admin.v1B\x11OauthClientsProtoP\x01Z3hmans.de/chatto/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
+	"\x17UpdateOAuthClientPolicy\x12/.chatto.admin.v1.UpdateOAuthClientPolicyRequest\x1a0.chatto.admin.v1.UpdateOAuthClientPolicyResponseB\xcc\x01\n" +
+	"\x13com.chatto.admin.v1B\x11OauthClientsProtoP\x01ZDgithub.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
 
 var (
 	file_chatto_admin_v1_oauth_clients_proto_rawDescOnce sync.Once

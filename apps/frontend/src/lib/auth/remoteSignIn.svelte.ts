@@ -13,7 +13,7 @@ export function isRemoteSignInPending(serverId: string): boolean {
 }
 
 /**
- * The **Log in to this server** action for a registered remote server. The
+ * The **Log in to server** action for a registered remote server. The
  * gutter menu, the signed-out view, and the reconnect notice share it, so only
  * one sign-in for a server runs at a time. Shows a toast when sign-in fails.
  * Call this synchronously from the user's action, so the browser allows the

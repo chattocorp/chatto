@@ -1,11 +1,12 @@
 package core
 
 import (
+	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestNewRoomModelWiresDependencies(t *testing.T) {
@@ -302,5 +303,50 @@ func TestRoomModelWaitForReactions(t *testing.T) {
 
 	if !reactions.HasReaction("E-message", "sparkles", "U-reactor") {
 		t.Fatal("reaction projection did not catch up")
+	}
+}
+
+// Catalog reads must work with only their projection owner and return detached
+// values, so a caller cannot change state observed by another service.
+func TestRoomModelCatalogReadsWithoutCore(t *testing.T) {
+	t.Parallel()
+	directory := NewRoomDirectoryProjection()
+	groups := NewRoomGroupLayoutProjection()
+	model := newRoomModel(detachedTestProjectionHandle(directory), detachedTestProjectionHandle(groups), events.ProjectionHandle[*RoomTimelineProjection]{}, events.ProjectionHandle[*ThreadProjection]{}, events.ProjectionHandle[*ReactionProjection]{})
+	ctx := testContext(t)
+	if err := directory.Apply(newEvent("actor", roomCreatedEvent("R-one", "original", "", evtv1.RoomKind_ROOM_KIND_CHANNEL)), 1); err != nil {
+		t.Fatal(err)
+	}
+	for i, event := range []*evtv1.Event{
+		groupCreatedEvent("G-one", "Group", ""),
+		roomAddedToGroupEvent("G-one", "R-one"),
+	} {
+		if err := groups.Apply(newEvent("actor", event), uint64(i+2)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	room, err := model.GetRoom(ctx, KindChannel, "R-one")
+	if err != nil || room.GetGroupId() != "G-one" {
+		t.Fatalf("group hydration: room=%v err=%v", room, err)
+	}
+	room.Name = "changed by caller"
+	listed, err := model.ListRooms(ctx, KindChannel)
+	if err != nil || len(listed) != 1 || listed[0].GetName() != "original" || listed[0].GetGroupId() != "G-one" {
+		t.Fatalf("detached room reads: rooms=%v err=%v", listed, err)
+	}
+	if _, err := model.GetRoom(ctx, KindDM, "R-one"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("wrong kind: %v", err)
+	}
+	if _, err := model.FindRoomByID(ctx, "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing room: %v", err)
+	}
+	group, err := model.GetRoomGroup(ctx, "G-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	group.Name = "changed by caller"
+	ordered, err := model.ListRoomGroupsOrdered(ctx, KindChannel)
+	if err != nil || len(ordered) != 1 || ordered[0].GetName() != "Group" {
+		t.Fatalf("detached group reads: groups=%v err=%v", ordered, err)
 	}
 }

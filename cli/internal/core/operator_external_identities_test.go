@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestOperatorIdentityUnlinkCountsOnlyConfiguredMethods(t *testing.T) {
@@ -35,13 +36,10 @@ func TestOperatorIdentityUnlinkCountsOnlyConfiguredMethods(t *testing.T) {
 
 func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T) {
 	t.Parallel()
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
-	second, err := NewChattoCore(ctx, nc, first.config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	startCoreServices(t, second)
+	first := startReplica(t, ns, testCoreConfig())
+	second := startReplica(t, ns, testCoreConfig())
 	users := make([]string, 2)
 	for i, login := range []string{"claim-first", "claim-second"} {
 		user, err := first.CreateUser(ctx, SystemActorID, login, login, "")
@@ -115,11 +113,7 @@ func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T)
 		t.Fatalf("unlink outcomes = %d successes, %d protected", successes, conflicts)
 	}
 	// A fresh replica cold-replays the facts and retains exactly one method.
-	replayed, err := NewChattoCore(ctx, nc, first.config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	startCoreServices(t, replayed)
+	replayed := startReplica(t, ns, testCoreConfig())
 	identities, err := replayed.ExternalIdentitiesForUser(ctx, owner.Id)
 	if err != nil || len(identities) != 1 {
 		t.Fatalf("replayed identities = %v, %v", identities, err)

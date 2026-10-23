@@ -7,7 +7,7 @@
   --composer-code-comment: #6e7781;
   --composer-code-keyword: #b4232c;
   --composer-code-string: #0a3069;
-  --composer-code-title: #8250df;
+  --composer-code-title: #7040c0;
   --composer-code-literal: #0550ae;
   --composer-code-attribute: #953800;
   --prose-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
@@ -132,6 +132,13 @@
     font-style: italic;
   }
 
+  /* Emphasis reverses the quote's italics; code stays upright. */
+  & blockquote em,
+  & blockquote code,
+  & blockquote pre {
+    font-style: normal;
+  }
+
   & blockquote > * {
     margin-block: 0;
   }
@@ -155,21 +162,19 @@
   }
 
   /* Keep code scrolling inside the block so the controls stay fixed. */
-  & pre.hljs {
-    @apply relative overflow-hidden border border-surface-emphasized py-2 shadow-xs;
-    background-color: transparent !important;
+  & pre.markdown-code {
+    @apply relative overflow-hidden border border-surface-emphasized px-3 py-2 shadow-xs;
+    background: transparent;
     color: var(--composer-code-text);
     line-height: 1.5;
-  }
-
-  & pre.markdown-code {
-    @apply relative overflow-hidden border border-surface-emphasized shadow-xs;
-    padding-block-end: 1.5rem;
   }
 
   & pre.markdown-code > code {
     display: block;
     overflow-x: auto;
+    line-height: inherit;
+    /* Allow the final characters to scroll clear of the language and copy controls. */
+    padding-inline-end: 5.5rem;
   }
 
   & pre.markdown-code > .markdown-code-actions {
@@ -181,23 +186,11 @@
     @apply text-xs tracking-wide text-muted uppercase;
   }
 
-  /* Line numbers */
-  & pre.hljs code {
-    counter-reset: line;
-    display: block;
-    overflow-x: auto;
+  /* Preserve highlighted lines without a separate number gutter. */
+  & pre.markdown-code .line {
+    @apply block;
     line-height: inherit;
-  }
-
-  & pre.hljs .line {
-    @apply block pl-12;
-    line-height: inherit;
-  }
-
-  & pre.hljs .line::before {
-    counter-increment: line;
-    content: counter(line);
-    @apply -ml-12 inline-block w-8 pr-4 text-right text-muted/50 select-none;
+    min-height: 1lh;
   }
 
   & .hljs-comment,

@@ -6,11 +6,11 @@ package http_server
 import (
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 )
 
 // projectRealtimeEvent explicitly maps one durable EVT event to the independent
@@ -48,6 +48,15 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		return projectRealtimePermissionChange(target, viewerID, e.RbacPermissionDenied.GetSubject())
 	case *evtv1.Event_RbacPermissionCleared:
 		return projectRealtimePermissionChange(target, viewerID, e.RbacPermissionCleared.GetSubject())
+	case *evtv1.Event_RoomInvitationCreated:
+		v := e.RoomInvitationCreated
+		target.Event = &realtimev1.RealtimeEvent_RoomInvitationCreated{RoomInvitationCreated: &realtimev1.RoomInvitationCreatedEvent{RoomId: v.GetRoomId(), InvitationId: v.GetInvitationId()}}
+	case *evtv1.Event_RoomInvitationAccepted:
+		v := e.RoomInvitationAccepted
+		target.Event = &realtimev1.RealtimeEvent_RoomInvitationAccepted{RoomInvitationAccepted: &realtimev1.RoomInvitationAcceptedEvent{RoomId: v.GetRoomId(), InvitationId: v.GetInvitationId()}}
+	case *evtv1.Event_RoomInvitationDeclined:
+		v := e.RoomInvitationDeclined
+		target.Event = &realtimev1.RealtimeEvent_RoomInvitationDeclined{RoomInvitationDeclined: &realtimev1.RoomInvitationDeclinedEvent{RoomId: v.GetRoomId(), InvitationId: v.GetInvitationId()}}
 	case *evtv1.Event_RoomCreated:
 		v := e.RoomCreated
 		target.Event = &realtimev1.RealtimeEvent_RoomCreated{RoomCreated: &realtimev1.RoomCreatedEvent{RoomId: v.GetRoomId(), Name: v.GetName(), Description: v.GetDescription(), Kind: realtimeRoomKind(v.GetKind()), Universal: v.GetUniversal(), ThreadingMode: realtimeRoomThreadingMode(v.GetThreadingMode())}}
@@ -65,7 +74,11 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_RoomUniversalChanged{RoomUniversalChanged: &realtimev1.RoomUniversalChangedEvent{RoomId: v.GetRoomId(), Universal: v.GetUniversal()}}
 	case *evtv1.Event_RoomSlowModeChanged:
 		v := e.RoomSlowModeChanged
-		target.Event = &realtimev1.RealtimeEvent_RoomSlowModeChanged{RoomSlowModeChanged: &realtimev1.RoomSlowModeChangedEvent{RoomId: v.GetRoomId(), SlowModeSeconds: v.GetSlowModeSeconds()}}
+		threadSeconds := v.GetSlowModeSeconds()
+		if v.ThreadSlowModeSeconds != nil {
+			threadSeconds = v.GetThreadSlowModeSeconds()
+		}
+		target.Event = &realtimev1.RealtimeEvent_RoomSlowModeChanged{RoomSlowModeChanged: &realtimev1.RoomSlowModeChangedEvent{RoomId: v.GetRoomId(), SlowModeSeconds: v.GetSlowModeSeconds(), ThreadSlowModeSeconds: &threadSeconds}}
 	case *evtv1.Event_RoomThreadingModeChanged:
 		v := e.RoomThreadingModeChanged
 		target.Event = &realtimev1.RealtimeEvent_RoomThreadingModeChanged{RoomThreadingModeChanged: &realtimev1.RoomThreadingModeChangedEvent{RoomId: v.GetRoomId(), ThreadingMode: realtimeRoomThreadingMode(v.GetThreadingMode())}}
@@ -117,6 +130,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_MessageUnpinned{MessageUnpinned: &realtimev1.MessageUnpinnedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId()}}
 	case *evtv1.Event_ThreadCreated:
 		v := e.ThreadCreated
+		if v.GetHistoricalImport() {
+			return nil
+		}
 		target.Event = &realtimev1.RealtimeEvent_ThreadCreated{ThreadCreated: &realtimev1.ThreadCreatedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId()}}
 	case *evtv1.Event_AssetProcessingStarted:
 		v := e.AssetProcessingStarted
@@ -161,6 +177,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: false}}
 	case *evtv1.Event_ReactionAdded:
 		v := e.ReactionAdded
+		if v.GetHistoricalImport() {
+			return nil
+		}
 		target.Event = &realtimev1.RealtimeEvent_ReactionAdded{ReactionAdded: &realtimev1.ReactionAddedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId(), Emoji: v.GetEmoji()}}
 	case *evtv1.Event_ReactionRemoved:
 		v := e.ReactionRemoved

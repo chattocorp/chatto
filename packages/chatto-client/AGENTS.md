@@ -64,9 +64,27 @@ examples use it. See
 ## Modules And Exports
 
 - Relative imports use `.js` extensions (NodeNext).
-- Every module is importable as `@chatto/client/<path>`. The `@chatto/source`
-  export condition resolves to TypeScript source for workspace consumers; Node
-  hosts use `dist/`. Run `mise build-chatto-client` before Node consumers.
+- Every module is importable as `@chatto/client/<path>`. The exports point to
+  TypeScript source, and the package has no build (ADR-116). Consumers load it
+  through a compiling tool; plain Node cannot load it. Consumers type-check
+  the source with their own settings. `tsconfig.strict.json` applies
+  ChattoBot's stricter settings, such as `noUncheckedIndexedAccess`, to the
+  production source; the package check runs it.
+- Consumers and how they load the source:
+
+  | Consumer                                | Loader              |
+  | --------------------------------------- | ------------------- |
+  | `apps/frontend`: app, Vitest, Storybook | Vite                |
+  | `apps/frontend`: type checks            | svelte-check        |
+  | `apps/frontend/e2e`: Node bot test      | `node --import tsx` |
+  | Client package tests                    | Vitest              |
+  | ChattoBot: `runling serve`              | jiti                |
+  | ChattoBot: tests                        | Vitest              |
+  | Runling bot example: `runling serve`    | jiti                |
+  | Runling bot example: tests              | `node --import tsx` |
+
+  Before you add a consumer, make sure that it uses a tool that compiles
+  TypeScript.
 - The root entry has the public API: `createClient`, `Server`,
   `createApi`, the request helpers, and their types. `src/types.ts` and
   `src/types/admin.ts` re-export `@chatto/api-types`; regenerate them with

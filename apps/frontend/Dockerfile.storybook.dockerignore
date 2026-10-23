@@ -6,6 +6,8 @@
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
+!patches/
+!patches/**
 !LICENSES/
 !LICENSES/Apache-2.0.txt
 !LICENSES/MIT.txt
@@ -16,8 +18,8 @@
 !packages/
 !packages/api-types/
 !packages/api-types/**
-!packages/lingua/
-!packages/lingua/**
+!packages/translatto/
+!packages/translatto/**
 !packages/chatto-client/
 !packages/chatto-client/**
 
@@ -32,7 +34,7 @@ apps/frontend/.DS_Store
 apps/frontend/**/.DS_Store
 packages/api-types/dist
 packages/api-types/node_modules
-packages/lingua/dist
-packages/lingua/node_modules
+packages/translatto/dist
+packages/translatto/node_modules
 packages/chatto-client/dist
 packages/chatto-client/node_modules

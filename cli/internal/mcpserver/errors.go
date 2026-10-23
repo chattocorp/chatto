@@ -16,8 +16,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // toolErrorOutput is the common error branch of every tool's output schema.

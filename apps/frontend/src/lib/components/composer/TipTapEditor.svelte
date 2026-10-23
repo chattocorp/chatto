@@ -15,6 +15,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
+  import { openRenderedLink } from '$lib/navigation/renderedLink';
+  import { isAllowedMarkdownLink } from '$lib/markdownLinks';
   import { tick, untrack } from 'svelte';
   import { Editor } from '@tiptap/core';
   import { Slice } from '@tiptap/pm/model';
@@ -268,7 +270,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   function normalizeHref(href: string) {
     const trimmed = href.trim();
     if (!trimmed) return '';
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (isAllowedMarkdownLink(trimmed)) return trimmed;
+    // Never turn an unsupported protocol into a misleading HTTPS destination.
+    if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return '';
     return `https://${trimmed}`;
   }
 
@@ -314,7 +318,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     const href = normalizeHref(activeLinkHref ?? '');
     if (!href) return;
 
-    window.open(href, '_blank', 'noopener,noreferrer');
+    openRenderedLink(href);
   }
 
   function buildApi(e: Editor): ComposerEditorApi {
@@ -717,17 +721,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     margin: 0;
   }
 
-  :global(.tiptap-editor .ProseMirror strong) {
-    font-weight: 600;
-  }
-
-  :global(.tiptap-editor .ProseMirror a) {
-    color: var(--color-link);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    overflow-wrap: break-word;
-  }
-
   :global(.tiptap-editor .ProseMirror .composer-footnote-ref) {
     cursor: pointer;
     color: var(--color-muted);
@@ -791,14 +784,15 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   :global(.tiptap-editor .ProseMirror blockquote) {
-    --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
-    --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
-
     border-inline-start: 3px solid var(--composer-quote-border);
     padding-block: 0.35em;
     padding-inline-start: 0.9em;
-    color: var(--composer-quote-text);
-    font-style: italic;
+  }
+
+  /* Code blocks stay upright inside quotes. */
+  :global(.tiptap-editor .ProseMirror blockquote code),
+  :global(.tiptap-editor .ProseMirror blockquote pre) {
+    font-style: normal;
   }
 
   :global(.tiptap-editor .ProseMirror blockquote > *) {
@@ -807,16 +801,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   :global(.tiptap-editor .ProseMirror blockquote > * + *) {
     margin-top: 0.45em;
-  }
-
-  :global(.tiptap-editor .ProseMirror code:not(pre code)) {
-    border-radius: 0.25rem;
-    background: var(--color-surface-emphasized);
-    padding: 0.125rem 0.375rem;
-    font-family: var(--font-mono);
-    font-size: 0.9em;
-    direction: ltr;
-    unicode-bidi: isolate;
   }
 
   :global(.tiptap-editor .ProseMirror pre) {
@@ -926,17 +910,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror .hljs-variable),
   :global(.tiptap-editor .ProseMirror .hljs-template-variable) {
     color: var(--composer-code-attribute);
-  }
-
-  :global(.tiptap-editor .ProseMirror h1),
-  :global(.tiptap-editor .ProseMirror h2),
-  :global(.tiptap-editor .ProseMirror h3),
-  :global(.tiptap-editor .ProseMirror h4),
-  :global(.tiptap-editor .ProseMirror h5),
-  :global(.tiptap-editor .ProseMirror h6) {
-    font-size: inherit;
-    font-weight: 600;
-    text-decoration: underline;
   }
 
   /* Placeholder styling via the Placeholder extension */

@@ -10,7 +10,7 @@ local to the footer.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { resolve } from '$app/paths';
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { on } from 'svelte/events';
   import type { MessagePostedPayload } from '@chatto/client/timeline/timelineEvents';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -29,7 +29,7 @@ local to the footer.
 
   let {
     roomId,
-    serverSegment,
+    serverId,
     threadRootEventId,
     reactions,
     edited = false,
@@ -48,7 +48,7 @@ local to the footer.
     isEchoEvent = false
   }: {
     roomId: string;
-    serverSegment: string;
+    serverId: string;
     threadRootEventId?: string | null;
     reactions: ReactionSummary[];
     /** Show the edited status before reactions. */
@@ -168,11 +168,7 @@ local to the footer.
   <!-- Echo "Thread" indicator -->
   {#if isEchoEvent && onOpenThread && threadRootEventId}
     <a
-      href={resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: serverSegment,
-        roomId,
-        threadId: threadRootEventId
-      })}
+      href={conversationPath(serverId, roomId, { threadId: threadRootEventId })}
       class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
@@ -185,11 +181,7 @@ local to the footer.
   <!-- Thread reply button -->
   {#if (threadExists || replyCount > 0) && onOpenThread && threadRootEventId}
     <a
-      href={resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: serverSegment,
-        roomId,
-        threadId: threadRootEventId
-      })}
+      href={conversationPath(serverId, roomId, { threadId: threadRootEventId })}
       class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
@@ -274,11 +266,7 @@ local to the footer.
 
   {#if channelEchoEventId}
     <a
-      href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverSegment,
-        roomId,
-        messageId: channelEchoEventId
-      })}
+      href={conversationPath(serverId, roomId, { messageId: channelEchoEventId })}
       class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
       title={m('room.message.meta.echoed_to_channel')}
       {@attach threadLinkGestureBoundary}

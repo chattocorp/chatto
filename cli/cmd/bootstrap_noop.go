@@ -5,8 +5,8 @@ package cmd
 import (
 	"context"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 func init() {

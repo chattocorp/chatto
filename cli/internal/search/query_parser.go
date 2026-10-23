@@ -41,11 +41,15 @@ type querySyntaxPart struct {
 	EndPos lexer.Position
 }
 
+// queryWhitespace matches Unicode White_Space, consistent with strings.TrimSpace.
+// Both lexer rules use the same set so bare tokens cannot consume separators.
+const queryWhitespace = `\t-\r\x{0085}\p{Z}`
+
 var querySyntaxParser = participle.MustBuild[querySyntax](
 	participle.Lexer(lexer.MustSimple([]lexer.SimpleRule{
-		{Name: "Whitespace", Pattern: `[ \t\n\r]+`},
+		{Name: "Whitespace", Pattern: `[` + queryWhitespace + `]+`},
 		{Name: "Quoted", Pattern: `"(?s:[^"\\]|\\.)*"`},
-		{Name: "Bare", Pattern: `[^ \t\n\r"]+`},
+		{Name: "Bare", Pattern: `[^` + queryWhitespace + `"]+`},
 	})),
 	participle.Elide("Whitespace"),
 )

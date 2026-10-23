@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Herdar",
           "off": "Desativado",
-          "badge": "Indicador",
+          "badge": "Ponto de conteúdo não lido",
           "badge_hint": "Adiciona apenas um ponto neutro de conteúdo não lido. Não cria uma notificação, reproduz um som nem envia uma notificação push.",
-          "notification": "Notificação",
+          "notification": "Notificação na aplicação",
           "push_notification": "Notificação push"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Mensagens que usam @here quando a sua presença não está offline.",
           "all": "Mensagens que usam @all numa sala da qual faz parte.",
           "followed_thread": "Novas respostas nos tópicos que segue.",
-          "reaction": "Reações que outros membros adicionam às suas mensagens."
+          "reaction": "Reações que outros membros adicionam às suas mensagens.",
+          "room_invitation": "Convites para entrar em salas."
         }
       }
     },

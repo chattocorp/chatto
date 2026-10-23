@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Ärv",
           "off": "Av",
-          "badge": "Markering",
+          "badge": "Prick för oläst innehåll",
           "badge_hint": "Lägger bara till en neutral prick för oläst innehåll. Skapar ingen avisering, spelar inget ljud och skickar ingen pushavisering.",
-          "notification": "Avisering",
+          "notification": "Avisering i appen",
           "push_notification": "Pushavisering"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Meddelanden som använder @here när din närvaro inte är offline.",
           "all": "Meddelanden som använder @all i ett rum som du är medlem i.",
           "followed_thread": "Nya svar i trådar som du följer.",
-          "reaction": "Reaktioner som andra medlemmar lägger till i dina meddelanden."
+          "reaction": "Reaktioner som andra medlemmar lägger till i dina meddelanden.",
+          "room_invitation": "Inbjudningar att gå med i rum."
         }
       }
     },

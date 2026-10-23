@@ -164,12 +164,15 @@
     {
       "name": "handle in bare-domain URL",
       "body": "see social.5f9.de/@jollyorc/1",
-      "mentions": []
+      "mentions": [
+        "jollyorc"
+      ]
     },
     {
       "name": "handle in bare-domain URL with path",
       "body": "mastodon.social/@alice and @bob",
       "mentions": [
+        "alice",
         "bob"
       ]
     },
@@ -205,6 +208,7 @@
       "name": "handle in bare-domain URL with port",
       "body": "example.com:8443/@alice @bob",
       "mentions": [
+        "alice",
         "bob"
       ]
     },
@@ -219,9 +223,19 @@
       "mentions": []
     },
     {
+      "name": "handle in unsupported explicit link label",
+      "body": "[@alice](ftp://example.com/file)",
+      "mentions": []
+    },
+    {
+      "name": "handle in nested unsupported URL",
+      "body": "blob:https://example.com/@alice",
+      "mentions": []
+    },
+    {
       "name": "handle in ftp URL",
       "body": "ftp://example.com/@alice",
-      "mentions": []
+      "mentions": ["alice"]
     },
     {
       "name": "handle after an unsupported scheme",
@@ -234,6 +248,8 @@
       "name": "handle in protocol-relative URL",
       "body": "//example.com/@alice and (//localhost/@carol) @bob",
       "mentions": [
+        "alice",
+        "carol",
         "bob"
       ]
     },
@@ -254,12 +270,16 @@
     {
       "name": "protocol-relative URL with a pseudo top-level domain",
       "body": "//foo.local/@alice",
-      "mentions": []
+      "mentions": [
+        "alice"
+      ]
     },
     {
       "name": "handle in emphasized bare-domain URL",
       "body": "*example.com/@alice*",
-      "mentions": []
+      "mentions": [
+        "alice"
+      ]
     },
     {
       "name": "handle after a local host name",
@@ -280,6 +300,7 @@
       "body": "@alice https://example.com/@bob\nsocial.5f9.de/@carol @dora\n\n@erin",
       "mentions": [
         "alice",
+        "carol",
         "dora",
         "erin"
       ]

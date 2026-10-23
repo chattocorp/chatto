@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
@@ -15,8 +15,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 ## Behavior
 
 - A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks, and clicks on user names in system events such as joins, leaves, and call starts, and on the avatar of a single-user system event).
-- Starting a DM with another user navigates to the resulting two-person DM room. If that conversation already exists, the user lands in it rather than creating a duplicate.
-- Human users can start a DM with themselves. The product does not let users create group DMs, even though the underlying room model and public API can represent a larger fixed participant set.
+- A user's page at `/chat/<server>/user/<userId>` shows their profile and the viewing user's direct conversation with them. Opening the page finds or creates that conversation. The URL keeps the target user's ID, including after account deletion.
+- Thread and message links use the same user-page prefix. Old DM entry links and one-to-one room links redirect to the user page and preserve their destinations.
+- Human users can start a DM with themselves. New DMs have at most two distinct participants, including the caller. The API rejects new group DMs. Existing group conversations remain accessible through room URLs.
 - A bot cannot call `RoomService.StartDM`. This rule applies to self-DMs, new
   DMs, group DMs, and DMs that already exist. A human must start a DM that
   includes a bot. The bot then needs explicit DM-scoped message grants.
@@ -24,6 +25,33 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - Selecting **Send message** or a quick-switcher user result first opens that recipient's DM destination. The destination creates or finds the room, shows a loading state until room data is available, and then opens the conversation. A failed attempt stays at the destination with a retry action. Opening a user menu does not create a room.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
+- The expanded DM section shows conversations with a message in the last seven
+  days. Thread replies count. Unread conversations, conversations with
+  notifications that need attention, the current conversation, and conversations
+  with active calls stay visible regardless of age.
+- If these rules show fewer than three conversations, the section adds the
+  most recently active older conversations until three are visible. If fewer
+  than three conversations have message history, it shows all of them.
+- **Show older (N)** appears only when more conversations are hidden and shows
+  those conversations. **Show less** restores the seven-day filter with the
+  minimum of three conversations. This display choice is local to
+  the sidebar and does not archive conversations. The Quick Switcher still
+  includes older conversations. The collapsed section keeps its attention rules.
+- When a DM has no notification badge, its row shows the elapsed time since
+  the latest message, including replies: `now` for less than one minute, then
+  `min`, `h`, or `d`. The unread dot
+  and active call indicator remain visible. Unknown activity times have no age.
+  The full date and time appear on hover. Narrow sidebar rows hide ages to
+  leave more space for names; notification badges stay visible.
+- A conversation with an unknown activity time stays visible. Edits, reactions,
+  reads, and retractions do not change its posting activity.
+- Right-click or touch long-press on a one-to-one DM sidebar row opens the
+  other participant's user menu. A self-DM opens the current user's menu.
+  These menus offer **Copy User ID**, with no room actions. **Send Message**
+  opens the selected conversation when the viewer can start DMs. A deleted
+  partner is shown as **[deleted user]**, with no **Send Message** action.
+  Group DMs keep the conversation menu. If participant data is not ready,
+  the row keeps the conversation menu until the user can be identified.
 - The sidebar, room header, My Threads, and Quick Switcher show a self-DM
   with the current account's display name and a localized **You** badge when
   participant data is available. The badge uses the account ID, so text in
@@ -32,15 +60,21 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   participant. The other participant keeps the conversation and sees the
   deleted participant as **[deleted user]** with a deleted-user avatar. The DM
   is never shown as a self-DM and has no **You** badge. Posting rules do not
-  change.
+  change. The timeline keeps deleted-message placeholders, including those
+  without attachments, previews, reactions, or thread replies. A notice above
+  the timeline states that the other user has been deleted.
 - Active DM navigation uses message history to include and order DMs for their
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.
 - `RoomDirectoryService.ListRooms` returns accessible empty DMs as authorized
   room state. Each DM `RoomWithViewerState` contains its participant user IDs,
   including deleted accounts, and an optional `has_message_history` value.
-  Navigation hides a DM only when
-  that value is explicitly false. An absent value is unknown and stays visible.
+  Navigation hides an empty DM when that value is explicitly false. An absent
+  value is unknown. The sidebar then applies its activity and attention rules.
+  Readable DMs also include `last_message_at` for roots and replies and
+  `last_root_message_at` for roots only. Both exclude historical imports and
+  remain unchanged by edits and retractions. Servers without these fields
+  remain connectable; clients do not interpret absent times as old activity.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - A user can discover a DM only when they are a participant. The main timeline
   also needs `message.read`. An interaction thread can instead use
@@ -94,7 +128,7 @@ of a channel name.
 ### 4. Deterministic room IDs
 
 **Decision:** A DM room ID is a hash of the sorted participant user IDs.
-**Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID, so the same two users always land in the same DM without a database lookup. The more general participant-set model remains an implementation capability rather than a product promise.
+**Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID, so the same two users always land in the same DM without a database lookup. Stored group conversations keep their IDs, but new conversations are limited to two participants.
 **Tradeoff:** DM membership is fixed at creation. The product has no way to add participants to a conversation or turn a one-to-one DM into a group conversation; users who need a shared conversation with more people use a channel room.
 
 ### 5. Per-server conversation scope with combined notifications
@@ -155,6 +189,18 @@ someone else's conversation.
 **Tradeoff:** A deleted account remains in DM membership indexes. Read paths
 that list active accounts already omit deleted users. The conversation stays
 writable; a read-only DM state is not part of this decision.
+
+### 10. Derive sidebar visibility from activity
+
+**Decision:** Use a fixed seven-day window and existing attention state, with
+a minimum of three conversations when available.
+Keep the complete conversation directory available to navigation and search.
+**Why:** This reduces long sidebar lists without a per-conversation archive
+choice that must be stored and shared across clients. Seven days includes a
+normal working week. The minimum keeps recent contacts available when no
+conversation has activity in that window.
+**Tradeoff:** Old unread conversations remain visible. The cutoff is not
+configurable.
 
 ## Permissions
 

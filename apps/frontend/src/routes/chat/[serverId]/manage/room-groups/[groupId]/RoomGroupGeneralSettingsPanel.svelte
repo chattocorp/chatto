@@ -24,6 +24,11 @@
     name.value.trim() !== name.original || description.value.trim() !== description.original
   );
 
+  /** Reports the live draft state to the section's navigation guard. */
+  export function hasChanges(): boolean {
+    return changed;
+  }
+
   function save(event: SubmitEvent): void {
     event.preventDefault();
     if (saving || !name.value.trim() || !changed) return;
@@ -37,11 +42,11 @@
   }
 </script>
 
-<Panel title={m('admin.nav.general')} icon="iconify icon-[uil--setting]">
+<Panel title={m('chat.management_nav.general')} icon="iconify icon-[uil--setting]">
   <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
     <TextInput
       id="room-group-settings-name"
-      label={m('admin.rooms_admin.group_name')}
+      label={m('room.management.group_name')}
       bind:value={name.value}
       required
       maxlength={80}

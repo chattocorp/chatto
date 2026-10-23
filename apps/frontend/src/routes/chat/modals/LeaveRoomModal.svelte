@@ -4,7 +4,7 @@
   import type { LeaveRoomModalState } from '$lib/modal';
   import { serverIdToSegment } from '$lib/navigation';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
-  import { serverConnectionManager } from '$lib/client';
+  import { serverConnectionManager, serverRegistry } from '$lib/client';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -19,6 +19,11 @@
   } = $props();
 
   let leaving = $state(false);
+  const canRejoin = $derived(
+    serverRegistry
+      .tryGetStore(modal.serverId)
+      ?.roomList.rooms.find((room) => room.id === modal.roomId)?.viewerCanRejoin
+  );
 
   async function leaveRoom() {
     leaving = true;
@@ -47,5 +52,14 @@
   onconfirm={leaveRoom}
   {onclose}
 >
-  {m('room.leave.prompt', { room: modal.roomName })}
+  <p>{m('room.leave.prompt', { room: modal.roomName })}</p>
+  <p class="mt-2">
+    {m(
+      canRejoin === undefined
+        ? 'room.leave.rejoin_unknown'
+        : canRejoin
+          ? 'room.leave.join_later'
+          : 'room.leave.need_invite'
+    )}
+  </p>
 </ConfirmDialog>

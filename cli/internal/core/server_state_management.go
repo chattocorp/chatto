@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type ServerConfigUpdateInput struct {

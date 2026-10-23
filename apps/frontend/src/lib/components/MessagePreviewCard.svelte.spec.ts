@@ -1,26 +1,26 @@
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
+import { Code, ConnectError } from '@connectrpc/connect';
 import '../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
-import type { MessageLink } from '$lib/messageLinks';
+import type { MessageLink } from '$lib/chatLinks';
 
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
 import type { RefreshedAttachmentUrls } from '@chatto/client/attachments/attachmentUrls';
 
-const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock, registryState } =
-  vi.hoisted(() => ({
-    getRoomEventsAroundMock: vi.fn(),
-    timelineResults: [] as unknown[],
-    refreshAssetUrlsMock: vi.fn(),
-    // Reactive server records, so tests can change session state under a mounted card.
-    registryState: {} as {
-      servers: Map<string, Record<string, unknown>>;
-      stores: Map<string, Record<string, unknown>>;
-      connections: Map<string, { queryScope: string; getAPI: unknown }>;
-    }
-  }));
+const { getMessageMock, messageResults, refreshAssetUrlsMock, registryState } = vi.hoisted(() => ({
+  getMessageMock: vi.fn(),
+  messageResults: [] as unknown[],
+  refreshAssetUrlsMock: vi.fn(),
+  // Reactive server records, so tests can change session state under a mounted card.
+  registryState: {} as {
+    servers: Map<string, Record<string, unknown>>;
+    stores: Map<string, Record<string, unknown>>;
+    connections: Map<string, { queryScope: string; getAPI: unknown }>;
+  }
+}));
 
 function testImageUrl(label: string): string {
   return `data:image/svg+xml,${encodeURIComponent(
@@ -44,7 +44,7 @@ vi.mock(
 
 vi.mock('@chatto/client/api/roomTimeline', () => ({
   createRoomTimelineAPI: vi.fn(() => ({
-    getRoomEventsAround: getRoomEventsAroundMock
+    getMessage: getMessageMock
   }))
 }));
 
@@ -86,32 +86,23 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 function link(): MessageLink {
   return {
-    serverSegment: '-',
     serverId: 'server_1',
     roomId: 'room_1',
     messageId: 'event_1'
   };
 }
 
-function previewPage(event: unknown) {
+function previewEvent(event: unknown) {
   return {
-    events: [
-      {
-        id: 'event_1',
-        createdAt: '2027-05-29T15:00:00Z',
-        actor: null,
-        event
-      }
-    ],
-    startCursor: null,
-    endCursor: null,
-    hasOlder: false,
-    hasNewer: false
+    id: 'event_1',
+    createdAt: '2027-05-29T15:00:00Z',
+    actor: null,
+    event
   };
 }
 
 function previewResult(thumbnailUrl: string) {
-  return previewPage({
+  return previewEvent({
     kind: TimelineEventKind.MessagePosted,
     body: null,
     attachments: [
@@ -130,7 +121,7 @@ function previewResult(thumbnailUrl: string) {
 }
 
 function bodyPreviewResult(body: string) {
-  return previewPage({
+  return previewEvent({
     kind: TimelineEventKind.MessagePosted,
     body,
     attachments: []
@@ -138,7 +129,7 @@ function bodyPreviewResult(body: string) {
 }
 
 function videoPreviewResult(videoThumbnailUrl: string | null) {
-  return previewPage({
+  return previewEvent({
     kind: TimelineEventKind.MessagePosted,
     body: null,
     attachments: [
@@ -241,16 +232,60 @@ beforeEach(() => {
     name: 'Test Server',
     token: null
   });
-  getRoomEventsAroundMock.mockReset();
+  getMessageMock.mockReset();
   refreshAssetUrlsMock.mockReset();
-  timelineResults.length = 0;
-  getRoomEventsAroundMock.mockImplementation(() => Promise.resolve(timelineResults.shift()));
+  messageResults.length = 0;
+  getMessageMock.mockImplementation(() => Promise.resolve(messageResults.shift()));
   refreshAssetUrlsMock.mockResolvedValue(new Map());
 });
 
 describe('MessagePreviewCard', () => {
+  it('hides a message when access is denied', async () => {
+    getMessageMock.mockRejectedValue(new ConnectError('Access denied', Code.PermissionDenied));
+    const { container } = render(MessagePreviewCard, { props: { link: link() } });
+    await vi.waitFor(() => expect(getMessageMock).toHaveBeenCalled());
+    await tick();
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
+  });
+
+  it('shows attachments as one text line without thumbnails in compact mode', async () => {
+    messageResults.push(previewResult(testImageUrl('compact')));
+    const { container } = render(MessagePreviewCard, { props: { link: link(), compact: true } });
+
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[data-testid="message-preview-attachment-summary"]')?.textContent
+      ).toContain('Image')
+    );
+    expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
+  });
+
+  it('renders an attachment-only thread reply', async () => {
+    messageResults.push(previewResult(testImageUrl('thread reply')));
+    const { container } = render(MessagePreviewCard, {
+      props: { link: { ...link(), threadRootEventId: 'thread_1' } }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('Image'));
+    expect(getMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: 'room_1',
+        eventId: 'event_1'
+      })
+    );
+  });
+
+  it.each([
+    null,
+    previewEvent({ kind: TimelineEventKind.MessagePosted, body: '', attachments: [] })
+  ])('hides unavailable or empty messages', async (result) => {
+    messageResults.push(result);
+    const { container } = render(MessagePreviewCard, { props: { link: link() } });
+    await vi.waitFor(() => expect(getMessageMock).toHaveBeenCalledOnce());
+    await tick();
+    expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
+  });
   it('preserves the preview when an equivalent link object replaces the prop', async () => {
-    timelineResults.push(bodyPreviewResult('Stable preview'));
+    messageResults.push(bodyPreviewResult('Stable preview'));
     const { container, rerender } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
@@ -262,13 +297,13 @@ describe('MessagePreviewCard', () => {
 
     await rerender({ link: link() });
 
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(getMessageMock).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
     expect(card.textContent).toContain('Stable preview');
   });
 
   it('keeps the rendered preview when server session state changes', async () => {
-    timelineResults.push(bodyPreviewResult('Resumed preview'));
+    messageResults.push(bodyPreviewResult('Resumed preview'));
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
@@ -285,16 +320,16 @@ describe('MessagePreviewCard', () => {
     });
     await tick();
 
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(getMessageMock).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
     expect(card.textContent).toContain('Resumed preview');
   });
 
   it('reloads the preview when the server store is replaced', async () => {
-    timelineResults.push(bodyPreviewResult('First account preview'));
+    messageResults.push(bodyPreviewResult('First account preview'));
     const second = deferred<ReturnType<typeof bodyPreviewResult>>();
-    getRoomEventsAroundMock
-      .mockImplementationOnce(() => Promise.resolve(timelineResults.shift()))
+    getMessageMock
+      .mockImplementationOnce(() => Promise.resolve(messageResults.shift()))
       .mockReturnValueOnce(second.promise);
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -306,7 +341,7 @@ describe('MessagePreviewCard', () => {
     registryState.stores.set('server_1', testStore());
     await tick();
 
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(2);
+    expect(getMessageMock).toHaveBeenCalledTimes(2);
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
     second.resolve(bodyPreviewResult('Second account preview'));
     await vi.waitFor(() => expect(container.textContent).toContain('Second account preview'));
@@ -314,14 +349,14 @@ describe('MessagePreviewCard', () => {
 
   it('preserves an outstanding request when an equivalent link object arrives', async () => {
     const pending = deferred<ReturnType<typeof bodyPreviewResult>>();
-    getRoomEventsAroundMock.mockReturnValueOnce(pending.promise);
+    getMessageMock.mockReturnValueOnce(pending.promise);
     const { container, rerender } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
-    await vi.waitFor(() => expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(getMessageMock).toHaveBeenCalledTimes(1));
 
     await rerender({ link: link() });
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(getMessageMock).toHaveBeenCalledTimes(1);
     pending.resolve(bodyPreviewResult('Pending preview'));
 
     await vi.waitFor(() => expect(container.textContent).toContain('Pending preview'));
@@ -332,21 +367,21 @@ describe('MessagePreviewCard', () => {
     ['room', { roomId: 'room_2' }],
     ['message', { messageId: 'event_2' }]
   ] as const)('clears the preview when the %s target changes', async (_field, change) => {
-    timelineResults.push(bodyPreviewResult('Previous preview'));
+    messageResults.push(bodyPreviewResult('Previous preview'));
     const { container, rerender } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
     await vi.waitFor(() => expect(container.textContent).toContain('Previous preview'));
-    getRoomEventsAroundMock.mockReturnValue(new Promise(() => {}));
+    getMessageMock.mockReturnValue(new Promise(() => {}));
 
     await rerender({ link: { ...link(), ...change } });
 
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBeNull();
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes('serverId' in change ? 1 : 2);
+    expect(getMessageMock).toHaveBeenCalledTimes('serverId' in change ? 1 : 2);
   });
 
   it('keeps the preview when only the thread of the link changes', async () => {
-    timelineResults.push(bodyPreviewResult('Thread preview'));
+    messageResults.push(bodyPreviewResult('Thread preview'));
     const { container, rerender } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
@@ -358,18 +393,18 @@ describe('MessagePreviewCard', () => {
 
     await rerender({ link: { ...link(), threadRootEventId: 'thread_2' } });
 
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1);
+    expect(getMessageMock).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="message-preview-card"]')).toBe(card);
   });
 
   it('reads with a cancellable request', async () => {
-    timelineResults.push(bodyPreviewResult('Bounded preview'));
+    messageResults.push(bodyPreviewResult('Bounded preview'));
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
     await vi.waitFor(() => expect(container.textContent).toContain('Bounded preview'));
 
-    expect(getRoomEventsAroundMock).toHaveBeenCalledWith(
+    expect(getMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: 'room_1',
         eventId: 'event_1',
@@ -380,12 +415,12 @@ describe('MessagePreviewCard', () => {
 
   it('ignores a late response after the target changes', async () => {
     const previous = deferred<ReturnType<typeof bodyPreviewResult>>();
-    getRoomEventsAroundMock.mockReturnValueOnce(previous.promise);
+    getMessageMock.mockReturnValueOnce(previous.promise);
     const { container, rerender } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
-    await vi.waitFor(() => expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(1));
-    timelineResults.push(bodyPreviewResult('Current preview'));
+    await vi.waitFor(() => expect(getMessageMock).toHaveBeenCalledTimes(1));
+    messageResults.push(bodyPreviewResult('Current preview'));
 
     await rerender({ link: { ...link(), roomId: 'room_2' } });
     await vi.waitFor(() => expect(container.textContent).toContain('Current preview'));
@@ -395,11 +430,11 @@ describe('MessagePreviewCard', () => {
 
     expect(container.textContent).toContain('Current preview');
     expect(container.textContent).not.toContain('Obsolete preview');
-    expect(getRoomEventsAroundMock).toHaveBeenCalledTimes(2);
+    expect(getMessageMock).toHaveBeenCalledTimes(2);
   });
 
   it('renders a deleted author as an italicized placeholder', async () => {
-    timelineResults.push(bodyPreviewResult('A deleted user message'));
+    messageResults.push(bodyPreviewResult('A deleted user message'));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -413,7 +448,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('renders fitted linked message markdown without scroll fades', async () => {
-    timelineResults.push(
+    messageResults.push(
       bodyPreviewResult('# Release notes\n\n- **Breaking** change\n- More details')
     );
 
@@ -452,7 +487,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('shows only the applicable fade at each edge of an overflowing linked message', async () => {
-    timelineResults.push(
+    messageResults.push(
       bodyPreviewResult(
         Array.from({ length: 30 }, (_, index) => `Paragraph ${index + 1}`).join('\n\n')
       )
@@ -487,7 +522,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
-    timelineResults.push(previewResult(testImageUrl('old-image')));
+    messageResults.push(previewResult(testImageUrl('old-image')));
     refreshAssetUrlsMock.mockResolvedValueOnce(refreshResult(testImageUrl('fresh-image')));
 
     const { container } = render(MessagePreviewCard, {
@@ -514,7 +549,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
-    timelineResults.push(previewResult(testImageUrl('old-image')));
+    messageResults.push(previewResult(testImageUrl('old-image')));
     const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
     refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
@@ -541,7 +576,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('renders video attachment thumbnails for linked message previews', async () => {
-    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
+    messageResults.push(videoPreviewResult(testImageUrl('old-video')));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -557,7 +592,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('refreshes video attachment thumbnail asset URLs after image load failure', async () => {
-    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
+    messageResults.push(videoPreviewResult(testImageUrl('old-video')));
     refreshAssetUrlsMock.mockResolvedValueOnce(videoRefreshResult(testImageUrl('fresh-video')));
 
     const { container } = render(MessagePreviewCard, {
@@ -579,7 +614,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
-    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
+    messageResults.push(videoPreviewResult(testImageUrl('old-video')));
     const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
     refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
@@ -606,7 +641,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
-    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
+    messageResults.push(videoPreviewResult(testImageUrl('old-video')));
     refreshAssetUrlsMock.mockResolvedValueOnce(videoRefreshResult(testImageUrl('fresh-video')));
 
     const { container } = render(MessagePreviewCard, {

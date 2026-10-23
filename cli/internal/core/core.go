@@ -7,16 +7,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 // ============================================================================
@@ -39,6 +39,10 @@ type ChattoCore struct {
 	eventReader               *evtstream.Reader
 	configModel               *ConfigModel
 	roomModel                 *RoomModel
+	authorization             *AuthorizationModel
+	roomMemberships           *RoomMembershipModel
+	roomInvitations           *RoomInvitationModel
+	roomLayout                *RoomLayoutModel
 	roomCommands              *RoomCommandModel
 	roomDirectoryReads        *RoomDirectoryReadModel
 	messageModel              *MessageModel
@@ -63,6 +67,7 @@ type ChattoCore struct {
 	presenceModel             *PresenceModel
 	mediaModel                *MediaModel
 	callModel                 *CallModel
+	liveKitDiagnostics        liveKitDiagnostics
 	assetModel                *AssetModel
 	assetUploadModel          *AssetUploadModel
 	keyShredding              *UserKeyShreddingModel
@@ -77,11 +82,6 @@ type ChattoCore struct {
 	natsRecoveryState         atomic.Int32
 	natsRecoveryStartedAt     atomic.Int64
 	natsRecoveredReconnects   atomic.Uint64
-
-	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
-	// When set (> 0), video attachments use this limit instead of the asset limit.
-	// Set this after ChattoCore is created, from VideoConfig.
-	VideoMaxUploadSize int64
 
 	// VideoUploadsEnabled makes message commits enqueue durable processing work
 	// for accepted video-shaped attachments. Worker placement is configured
@@ -119,6 +119,10 @@ type ChattoCore struct {
 	// during startup — most notably SeedDefaultRooms in cmd/run.go —
 	// block on this via WaitForBoot.
 	bootDone chan struct{}
+
+	// generationUseGraceOverride replaces generationUseGrace when it is not
+	// nil. Only tests set it.
+	generationUseGraceOverride *time.Duration
 }
 
 // Run starts every background component owned by the core, including
@@ -369,7 +373,7 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)
 	}
-	if _, err := c.storage.serverEvtStream.Info(ctx); err != nil {
+	if _, err := c.currentEventStreamInfo(ctx); err != nil {
 		return fmt.Errorf("EVT not ready: %w", err)
 	}
 	if err := c.ProjectionHealthError(); err != nil {

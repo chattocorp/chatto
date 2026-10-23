@@ -87,7 +87,7 @@ test('room settings reject a description exceeding the maximum length', async ({
 
   const longDescription = 'a'.repeat(501);
   await serverAdminRoomsPage.roomSettingsDescriptionInput.fill(longDescription);
-  await page.getByRole('button', { name: 'Save changes' }).click();
+  await serverAdminRoomsPage.roomDetailsSaveButton.click();
 
   await chatPage.expectValidationError('room description must be 500 characters or less');
 });
@@ -111,7 +111,7 @@ test('can leave room immediately after creating it', async ({ page, chatPage }) 
   await expect(page.getByText(`Are you sure you want to leave`)).toBeVisible();
 
   // Confirm leave
-  await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
   // Should navigate away from the room to a different URL
   // Use a function predicate to wait for URL to change from the current room

@@ -17,6 +17,37 @@ const groups = [
 ] as Parameters<typeof notificationPolicyColumns>[1];
 
 describe('notificationPolicyColumns', () => {
+  it('includes invited channels for room invitation preferences without exposing uninvited rooms', () => {
+    const invited = {
+      ...rooms[2]!,
+      viewerInvitation: {
+        id: 'invite',
+        senderId: 'sender',
+        expiresAt: new Date(),
+        viewerCanAccept: true
+      }
+    };
+    const columns = notificationPolicyColumns(
+      'Server',
+      groups,
+      [rooms[0]!, rooms[1]!, invited, rooms[3]!],
+      ''
+    );
+    expect(columns.map((column) => column.key)).toContain('room:r3');
+    expect(
+      notificationPolicyCellApplicable(
+        'roomInvitations',
+        columns.find((column) => column.key === 'room:r3')!
+      )
+    ).toBe(true);
+    expect(
+      notificationPolicyCellApplicable(
+        'roomInvitations',
+        columns.find((column) => column.key === 'room:d1')!
+      )
+    ).toBe(false);
+  });
+
   it('orders server, groups with member channels, ungrouped channels, then DMs', () => {
     expect(
       notificationPolicyColumns('Server', groups, rooms, '').map((column) => column.key)

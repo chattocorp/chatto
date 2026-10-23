@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 func TestMessagePostRejectsAttachmentUploadedByAnotherRoomMember(t *testing.T) {
@@ -102,17 +103,16 @@ func TestDeletingLegacyMessageAliasDoesNotDeleteCanonicalAsset(t *testing.T) {
 func TestConcurrentMessagePostsAttachAssetOnceAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	chatto, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	chatto := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, _, room := setupAttachmentOwnershipUsers(t, chatto, ctx, "attachment-race")
 	attachment := uploadRoomAttachmentForUser(t, chatto, ctx, user.Id, room.Id, "race.png")
 
-	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	replica := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	require.NoError(t, err)
-	startCoreServices(t, replica)
 
 	cores := []*ChattoCore{chatto, replica}
 	ready := make(chan struct{}, len(cores))

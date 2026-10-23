@@ -62,11 +62,13 @@ function attachmentState(item: RoomFileItem) {
 function sameAttachmentState(current: RoomFileItem[], replacement: RoomFileItem[]): boolean {
   return (
     current.length === replacement.length &&
-    current.every(
-      (item, index) =>
-        JSON.stringify(attachmentState(item)) ===
-        JSON.stringify(attachmentState(replacement[index]))
-    )
+    current.every((item, index) => {
+      const other = replacement[index];
+      return (
+        other !== undefined &&
+        JSON.stringify(attachmentState(item)) === JSON.stringify(attachmentState(other))
+      );
+    })
   );
 }
 

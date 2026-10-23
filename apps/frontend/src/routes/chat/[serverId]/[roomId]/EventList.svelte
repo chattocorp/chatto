@@ -30,7 +30,6 @@
   import SystemEventGroup from './SystemEventGroup.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import UnreadSeparator from './UnreadSeparator.svelte';
-  import TypingIndicator from './TypingIndicator.svelte';
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import {
@@ -61,6 +60,7 @@
     messageStore,
     events,
     showStartMarker = true,
+    showTombstones = false,
     // Threading - only root messages can open threads
     onOpenThread,
     onOpenCall,
@@ -70,9 +70,6 @@
     emptyMessage = m('room.message.empty'),
     // Event ID of the first unread message (for showing the unread separator)
     unreadAfterEventId = null,
-    // Typing indicator
-    typingUserIds = [],
-    typingMembers = [],
     onScrollToEventComplete,
     onReachedBottom,
     onJumpToPresent,
@@ -87,6 +84,8 @@
     messageStore: MessagesStore;
     events: TimelineEventView[];
     showStartMarker?: boolean;
+    /** Keep empty deleted-message rows when the DM partner was deleted. */
+    showTombstones?: boolean;
     // Threading
     onOpenThread?: OpenThreadHandler;
     onOpenCall?: () => void;
@@ -97,9 +96,6 @@
     // Event ID of the first unread message (for showing the unread separator).
     // The timeline lands on it once per entry unless the user moves first.
     unreadAfterEventId?: string | null;
-    // Typing indicator
-    typingUserIds?: string[];
-    typingMembers?: RoomMember[];
     /** Reports whether a jump-to-message request found and highlighted its target. */
     onScrollToEventComplete?: (
       landed: boolean,
@@ -204,7 +200,9 @@
       return true;
     })
   );
-  let filteredEvents = $derived(visibleTombstoneEvents(timelineEvents));
+  let filteredEvents = $derived(
+    showTombstones ? timelineEvents : visibleTombstoneEvents(timelineEvents)
+  );
   // The message that owns the open action overlay, while the timeline shows it as a message.
   const actionOverlayEvent = $derived.by(() => {
     const eventId = actionOverlays.current?.eventId;
@@ -1040,8 +1038,6 @@
       {/if}
     </div>
   </ScrollFader>
-
-  <TypingIndicator {typingUserIds} members={typingMembers} profiles={stores.projection.users} />
 
   {#if !viewport.shouldScrollToBottom}
     <button

@@ -6,6 +6,19 @@
       "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--headless", "--isolated"],
       "enabled": true
     },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@latest",
+        "--headless",
+        "--isolated",
+        "--output-dir",
+        ".context/playwright-mcp"
+      ],
+      "enabled": true
+    },
     "svelte": {
       "type": "remote",
       "url": "https://mcp.svelte.dev/mcp",

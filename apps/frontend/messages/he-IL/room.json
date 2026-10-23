@@ -36,8 +36,11 @@
     "leave": {
       "title": "עזוב את החדר",
       "action": "עזוב את החדר",
-      "prompt": "האם אתה בטוח שברצונך לעזוב את #{room}? אתה יכול להצטרף שוב מאוחר יותר.",
-      "failed": "נכשל ביציאה מהחדר"
+      "prompt": "האם אתה בטוח שברצונך לעזוב את #{room}?",
+      "failed": "נכשל ביציאה מהחדר",
+      "join_later": "אתה יכול להצטרף שוב מאוחר יותר.",
+      "need_invite": "כדי להצטרף לחדר הזה תידרש הזמנה חדשה.",
+      "rejoin_unknown": "ייתכן שתידרש הזמנה חדשה כדי להצטרף שוב."
     },
     "directory": {
       "universal_title": "חדרים אוניברסליים מצטרפים אוטומטית",
@@ -60,7 +63,8 @@
       "join_group_failed": "נכשל ההצטרפות לקבוצה",
       "left": "עזבת את #{room}",
       "left_generic": "עזבת את החדר",
-      "leave_confirm": "האם אתה בטוח שאתה רוצה לעזוב את #{room}?"
+      "leave_confirm": "האם אתה בטוח שאתה רוצה לעזוב את #{room}?",
+      "invited": "הוזמנת"
     },
     "server": {
       "remove_title": "הסר שרת",
@@ -91,14 +95,15 @@
         "add_reaction": "הוסף תגובה",
         "more_reactions": "תגובות נוספות",
         "reactions": "תגובות",
-        "reply": "תגובה",
+        "reply": "השב",
         "reply_room": "מענה בחדר",
-        "reply_thread": "תשובה בשרשור",
+        "reply_thread": "השב בשרשור",
         "open_thread": "פתח שרשור",
         "edit": "ערוך הודעה",
         "more": "פעולות נוספות",
         "edit_short": "עריכה",
-        "copy_text": "העתק טקסט",
+        "copy_text": "העתק את טקסט ההודעה",
+        "copy_selected_text": "העתק טקסט נבחר",
         "copy_text_failed": "נכשל בהעתקת טקסט",
         "copy_link": "העתק קישור",
         "copy_message_link": "העתק קישור להודעה",
@@ -107,7 +112,8 @@
         "message_link_copied": "קישור ההודעה הועתק",
         "copy_link_failed": "העתקת הקישור נכשלה",
         "image_copied": "התמונה הועתקה",
-        "copy_image_failed": "העתקת התמונה נכשלה"
+        "copy_image_failed": "העתקת התמונה נכשלה",
+        "view_reactions": "הצג תגובות"
       },
       "meta": {
         "echo": "הד",
@@ -239,7 +245,7 @@
       "unpin_prompt": "האם להסיר את ההצמדה של הודעה זו?",
       "loading": "ההודעות המוצמדות נטענות...",
       "empty_title": "אין הודעות מוצמדות",
-      "empty_description": "מנהלי החדר יכולים להצמיד כאן הודעות חשובות.",
+      "empty_description": "הודעות מוצמדות מופיעות כאן.",
       "error_title": "הודעות מוצמדות אינן זמינות",
       "error_description": "לא ניתן לטעון את ההודעות המוצמדות. נסו שוב בעוד רגע.",
       "update_failed": "לא ניתן לעדכן את ההודעה המוצמדת"
@@ -259,6 +265,81 @@
     "jump_to_present": "קפוץ להצגה",
     "jump_failed": "לא ניתן לקפוץ להודעה זו.",
     "unread_separator": "הודעות חדשות",
-    "close_extras": "סגור את תוספות החדר"
+    "close_extras": "סגור את תוספות החדר",
+    "dm": {
+      "deleted_user_notice": "המשתמש השני נמחק."
+    },
+    "management": {
+      "room_name_too_long": "שם החדר לא יכול לעלות על 30 תווים",
+      "room_name_invalid": "שם החדר לא יכול להכיל מעברי שורה או תווי בקרה",
+      "create_room": "צור חדר",
+      "reorder_groups_failed": "נכשל בהזמנה מחדש של קבוצות: {error}",
+      "room_created": "החדר נוצר",
+      "link_updated": "הקישור עודכן",
+      "link_created": "הקישור נוצר",
+      "save_link_failed": "נכשל בשמירת הקישור: {error}",
+      "group_deleted": "הקבוצה נמחקה",
+      "delete_group_failed": "נכשל במחיקת הקבוצה: {error}",
+      "link_deleted": "הקישור נמחק",
+      "delete_link_failed": "נכשל מחיקת הקישור: {error}",
+      "room_archived": "חדר בארכיון",
+      "archive_room_failed": "נכשל בארכיון החדר: {error}",
+      "drag_room": "גרור כדי לסדר מחדש את החדר",
+      "drag_link": "גרור כדי לסדר מחדש את הקישור",
+      "drag_group": "גרור כדי לסדר מחדש את הקבוצה",
+      "new_room": "צור חדר",
+      "new_link": "צור קישור",
+      "delete_group": "מחק קבוצה",
+      "edit_link": "עריכת קישור",
+      "delete_link": "מחק קישור",
+      "create_link": "צור קישור",
+      "label": "תווית",
+      "url": "כתובת URL",
+      "link_url_placeholder": "https://docs.example.com או /docs",
+      "delete_group_prompt": "האם אתה בטוח שברצונך למחוק את הסט {name}?",
+      "delete_link_prompt": "האם אתה בטוח שברצונך למחוק את {label}?",
+      "archive_room": "העבר חדר לארכיון",
+      "archive_room_prompt": "האם אתה בטוח שברצונך לאחסן #{room} בארכיון? חברים לא יוכלו יותר לגשת לחדר הזה.",
+      "group_created": "הקבוצה נוצרה",
+      "create_group_failed": "נכשל ביצירת הקבוצה: {error}",
+      "group_name": "שם קבוצה",
+      "group_name_placeholder": "למשל, כללי, פרויקטים, צוותים",
+      "create_group": "צור קבוצה",
+      "new_group": "קבוצה חדשה",
+      "threading_mode_required": "נדרש",
+      "threading_mode_encouraged": "מומלץ",
+      "threading_mode_enabled": "מופעל",
+      "threading_mode_disabled": "מושבת"
+    },
+    "moderation": {
+      "removing": "מסיר...",
+      "remove_action": "הסרה מהחדר",
+      "lift_title": "ביטול ההשעיה של {user}",
+      "lift": "ביטול השעיה",
+      "lifting": "מבטל...",
+      "no_suspension": "ללא השעיה — אפשר להצטרף שוב",
+      "indefinite": "ללא הגבלת זמן",
+      "remove_title": "הסרת {user} מהחדר",
+      "suspension_period": "משך ההשעיה"
+    },
+    "invitation": {
+      "invite": "הזמן חבר",
+      "invited": "הוזמנת לחדר",
+      "sent": "ההזמנות נשלחו",
+      "expires": "בתוקף עד {date}",
+      "unavailable": "לא ניתן לקבל את ההזמנה כרגע. עדיין ניתן לדחות אותה.",
+      "accept": "קבל הזמנה",
+      "decline": "דחה",
+      "title": "הזמן חברים אל #{room}",
+      "description": "בחרו את מי להזמין. המשתמשים שהוזמנו יקבלו התראה ויהיו להם שבעה ימים לקבל או לדחות את ההזמנה.",
+      "members": "חברים",
+      "send": "שלח הזמנות",
+      "failed": "לא ניתן להזמין את {name}: {error}",
+      "already_member": "כבר בחדר הזה",
+      "invited_by": "הוזמנת על ידי",
+      "decline_title": "לדחות את ההזמנה?",
+      "decline_join_later": "אפשר להצטרף לחדר הזה מאוחר יותר.",
+      "decline_need_invite": "כדי להצטרף לחדר הזה תידרש הזמנה חדשה."
+    }
   }
 }

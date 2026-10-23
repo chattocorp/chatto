@@ -1,4 +1,4 @@
-import { createWorkflowContext } from './context.ts';
+import { createTaskContext } from './context.ts';
 import { ansiColor } from './ansi.ts';
 import { AsyncResource } from 'node:async_hooks';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -24,6 +24,17 @@ let createdSessions: any[] = [];
 let abortCalls = 0;
 let disposed = false;
 let modelAvailable = true;
+let modelAvailableAfterRefresh = false;
+const refreshModels = vi.fn(
+  async (_options: {
+    providers: string[];
+    allowNetwork: boolean;
+    force: boolean;
+    signal: AbortSignal;
+  }) => {
+    modelAvailable = modelAvailableAfterRefresh;
+  }
+);
 
 vi.doMock('@earendil-works/pi-coding-agent', async () => {
   const actual = await vi.importActual<typeof import('@earendil-works/pi-coding-agent')>(
@@ -33,7 +44,8 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
     convertToLlm: actual.convertToLlm,
     ModelRuntime: {
       create: async () => ({
-        getModel: () => (modelAvailable ? fakeModel : undefined)
+        getModel: () => (modelAvailable ? fakeModel : undefined),
+        refresh: refreshModels
       })
     },
     DefaultResourceLoader: class {
@@ -101,8 +113,14 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
   };
 });
 
-const { agent, AgentOutcomeError, answerText, describeTool, runAgent, toolFailureCategory } =
-  await import('./agent.ts');
+const {
+  createAgentSession,
+  AgentOutcomeError,
+  answerText,
+  describeTool,
+  runAgent,
+  toolFailureCategory
+} = await import('./agent.ts');
 
 test.each([
   ['ENOENT: private path', 'not_found'],
@@ -134,6 +152,9 @@ beforeEach(() => {
   abortCalls = 0;
   disposed = false;
   modelAvailable = true;
+  modelAvailableAfterRefresh = false;
+  refreshModels.mockClear();
+  vi.unstubAllEnvs();
 });
 
 async function reportOutcome(report: {
@@ -203,7 +224,7 @@ test('streams bounded text previews, throttles deltas, and shows tools without d
     await observeRunlingEvents(
       (e) => events.push(e),
       () =>
-        runAgent(createWorkflowContext(), 'Test', {
+        runAgent(createTaskContext(), 'Test', {
           cwd: '/project',
           model: 'anthropic/claude-opus-4-5'
         })
@@ -248,7 +269,7 @@ test('previews report-only output such as the joke workflow', async () => {
   await observeRunlingEvents(
     (e) => events.push(e),
     () =>
-      runAgent(createWorkflowContext(), 'Write a joke', {
+      runAgent(createTaskContext(), 'Write a joke', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5',
         tools: []
@@ -307,14 +328,14 @@ describe('runAgent', () => {
     };
 
     try {
-      await runAgent(createWorkflowContext(), 'Do the first thing', {
+      await runAgent(createTaskContext(), 'Do the first thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       });
       const firstAgentColors = withColor.mock.calls.map((call) => call[0]);
       withColor.mockClear();
 
-      await runAgent(createWorkflowContext(), 'Do the second thing', {
+      await runAgent(createTaskContext(), 'Do the second thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       });
@@ -343,7 +364,7 @@ describe('runAgent', () => {
     };
 
     try {
-      await runAgent(createWorkflowContext(), 'Do the thing', {
+      await runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       });
@@ -385,7 +406,7 @@ describe('runAgent', () => {
     };
 
     try {
-      await runAgent(createWorkflowContext(), 'Do the thing', {
+      await runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       });
@@ -440,7 +461,7 @@ describe('runAgent', () => {
     };
 
     try {
-      await runAgent(createWorkflowContext(), 'Do the thing', {
+      await runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       });
@@ -497,7 +518,7 @@ describe('runAgent', () => {
     };
 
     try {
-      await runAgent(createWorkflowContext(), 'Do the thing', {
+      await runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       });
@@ -520,7 +541,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
 
-    await runAgent(createWorkflowContext(), 'Do the thing', {
+    await runAgent(createTaskContext(), 'Do the thing', {
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       onEvent: (event) => events.push(event.type)
@@ -558,7 +579,7 @@ describe('runAgent', () => {
     };
 
     try {
-      await runAgent(createWorkflowContext(), 'Do the thing', {
+      await runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       });
@@ -584,7 +605,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
 
-    await runAgent(createWorkflowContext(), 'Do the thing', {
+    await runAgent(createTaskContext(), 'Do the thing', {
       model: 'anthropic/claude-opus-4-5',
       cwd: '/tmp/project',
       resources: { agentDir: '/tmp/custom-agent' }
@@ -597,14 +618,18 @@ describe('runAgent', () => {
     expect(resourceOptions.settingsManager).toBe(sessionOptions.settingsManager);
   });
 
-  test('a session file keeps the conversation for a later agent, but not for a fork', async () => {
+  test('a session file keeps the conversation for a later createAgentSession, but not for a fork', async () => {
     const { mkdtemp, readFile, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
     const directory = await mkdtemp(join(tmpdir(), 'runling-session-'));
     const sessionFile = join(directory, 'worker.jsonl');
     try {
-      const first = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      const first = await createAgentSession({
+        model: 'anthropic/claude-opus-4-5',
+        cwd: '.',
+        sessionFile
+      });
       const manager = sessionOptions.sessionManager;
       manager.appendMessage({ role: 'user', content: 'Add /shrug', timestamp: 1 });
       manager.appendMessage({
@@ -624,7 +649,11 @@ describe('runAgent', () => {
       first.dispose();
       expect(await readFile(sessionFile, 'utf8')).toContain('Reading the composer.');
 
-      const resumed = await agent({ model: 'anthropic/claude-opus-4-5', cwd: '.', sessionFile });
+      const resumed = await createAgentSession({
+        model: 'anthropic/claude-opus-4-5',
+        cwd: '.',
+        sessionFile
+      });
       expect(
         sessionOptions.sessionManager
           .buildSessionContext()
@@ -635,7 +664,7 @@ describe('runAgent', () => {
       fork.dispose();
       resumed.dispose();
       await expect(
-        agent({
+        createAgentSession({
           model: 'anthropic/claude-opus-4-5',
           cwd: '.',
           sessionFile,
@@ -657,7 +686,7 @@ describe('runAgent', () => {
     };
 
     await expect(
-      runAgent(createWorkflowContext(), 'Do the thing', {
+      runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       })
@@ -674,7 +703,7 @@ describe('runAgent', () => {
     promptImplementation = async () => emitAssistantText('I could not finish');
 
     await expect(
-      runAgent(createWorkflowContext(), 'Do the thing', {
+      runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       })
@@ -697,7 +726,7 @@ describe('runAgent', () => {
     };
 
     await expect(
-      runAgent(createWorkflowContext(), 'Do the thing', {
+      runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       })
@@ -731,7 +760,7 @@ describe('runAgent', () => {
 
     try {
       await expect(
-        runAgent(createWorkflowContext(), 'Do the thing', {
+        runAgent(createTaskContext(), 'Do the thing', {
           cwd: '/project',
           model: 'anthropic/claude-opus-4-5'
         })
@@ -758,7 +787,7 @@ describe('runAgent', () => {
   });
 
   test('records usage into the workflow-wide totals', async () => {
-    const ctx = createWorkflowContext();
+    const ctx = createTaskContext();
     promptImplementation = async () => {
       emitAssistantUsage({ input: 10, output: 5, cacheRead: 0, cacheWrite: 0 });
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
@@ -800,7 +829,7 @@ describe('runAgent', () => {
       observeRunlingEvents(
         (e) => events.push(e),
         () =>
-          runAgent(createWorkflowContext(), 'Do the thing', {
+          runAgent(createTaskContext(), 'Do the thing', {
             cwd: '/project',
             model: 'anthropic/claude-opus-4-5'
           })
@@ -814,7 +843,7 @@ describe('runAgent', () => {
   });
 
   test('records tokens and cost as each model turn completes', async () => {
-    const ctx = createWorkflowContext();
+    const ctx = createTaskContext();
     promptImplementation = async () => {
       emitAssistantUsage({
         input: 10,
@@ -850,7 +879,7 @@ describe('runAgent', () => {
     };
 
     await expect(
-      runAgent(createWorkflowContext(), 'Do the thing', {
+      runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       })
@@ -874,7 +903,7 @@ describe('runAgent', () => {
     };
 
     await expect(
-      runAgent(createWorkflowContext(), 'Do the thing', {
+      runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5'
       })
@@ -883,7 +912,7 @@ describe('runAgent', () => {
   });
 
   test('records usage when prompting fails', async () => {
-    const ctx = createWorkflowContext();
+    const ctx = createTaskContext();
     promptImplementation = async () => {
       emitAssistantUsage({
         input: 10,
@@ -906,11 +935,48 @@ describe('runAgent', () => {
     });
   });
 
+  test('discovers a missing model by refreshing only its provider', async () => {
+    modelAvailable = false;
+    modelAvailableAfterRefresh = true;
+    await using agent = await createAgentSession({
+      cwd: '/project',
+      model: 'openrouter/deepseek/deepseek-v4.1-flash-1017'
+    });
+    expect(refreshModels).toHaveBeenCalledExactlyOnceWith({
+      providers: ['openrouter'],
+      allowNetwork: true,
+      force: true,
+      signal: expect.any(AbortSignal)
+    });
+    expect(sessionCreations).toBe(1);
+  });
+
+  test('known models need no catalog refresh', async () => {
+    await using agent = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
+    expect(refreshModels).not.toHaveBeenCalled();
+  });
+
+  test('offline mode rejects a missing model without network discovery', async () => {
+    vi.stubEnv('PI_OFFLINE', '1');
+    modelAvailable = false;
+    await expect(
+      createAgentSession({
+        cwd: '/project',
+        model: 'openrouter/missing'
+      })
+    ).rejects.toThrow('Model openrouter/missing is unavailable');
+    expect(refreshModels).not.toHaveBeenCalled();
+    expect(sessionOptions).toBeUndefined();
+  });
+
   test('rejects unavailable models before creating a session', async () => {
     modelAvailable = false;
 
     await expect(
-      runAgent(createWorkflowContext(), 'Do the thing', {
+      runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/missing'
       })
@@ -923,7 +989,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
 
-    await runAgent(createWorkflowContext(), 'Do the thing', {
+    await runAgent(createTaskContext(), 'Do the thing', {
       cwd: '/project',
       model: 'openai-codex/gpt-5.6-sol',
       thinkingLevel: 'medium'
@@ -937,7 +1003,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
 
-    await runAgent(createWorkflowContext(), 'Do the thing', {
+    await runAgent(createTaskContext(), 'Do the thing', {
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5'
     });
@@ -950,7 +1016,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
 
-    await runAgent(createWorkflowContext(), 'Research the topic', {
+    await runAgent(createTaskContext(), 'Research the topic', {
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5'
     });
@@ -980,7 +1046,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
 
-    await runAgent(createWorkflowContext(), 'Implement the change', {
+    await runAgent(createTaskContext(), 'Implement the change', {
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       extensions: [localExtension],
@@ -999,7 +1065,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Fetched' });
     };
 
-    await runAgent(createWorkflowContext(), 'Read a public URL', {
+    await runAgent(createTaskContext(), 'Read a public URL', {
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       tools: ['web_fetch'],
@@ -1029,7 +1095,7 @@ describe('runAgent', () => {
       await reportOutcome({ outcome: 'completed', summary: 'Reviewed' });
     };
 
-    await runAgent(createWorkflowContext(), 'Review', {
+    await runAgent(createTaskContext(), 'Review', {
       model: 'anthropic/claude-opus-4-5',
       cwd: '/tmp/project',
       tools: ['read'],
@@ -1066,7 +1132,7 @@ describe('runAgent', () => {
     promptImplementation = async () => controller.abort('Stopped');
 
     await expect(
-      runAgent(createWorkflowContext(), 'Do the thing', {
+      runAgent(createTaskContext(), 'Do the thing', {
         cwd: '/project',
         model: 'anthropic/claude-opus-4-5',
         signal: controller.signal
@@ -1079,7 +1145,7 @@ describe('runAgent', () => {
 
 describe('agent', () => {
   test('forks the current conversation into an independent session', async () => {
-    const instance = await agent({
+    const instance = await createAgentSession({
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       tools: ['read']
@@ -1127,7 +1193,7 @@ describe('agent', () => {
           handlers.get('tool_result')!({ type: 'tool_result', toolName, isError, content: [] })
       };
     };
-    const instance = await agent({
+    const instance = await createAgentSession({
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       tools: ['search', 'implement', 'read'],
@@ -1178,7 +1244,10 @@ describe('agent', () => {
   });
 
   test('does not install the trust extension without a policy', async () => {
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
     try {
       expect(
         resourceOptions.extensionFactories.some(
@@ -1191,7 +1260,10 @@ describe('agent', () => {
   });
 
   test('keeps inherited summaries in Pi history across further compaction', async () => {
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
     createdSessions[0].agent.state.messages = [
       {
         role: 'compactionSummary',
@@ -1222,14 +1294,14 @@ describe('agent', () => {
   });
 
   test('does not fork a running or disposed agent', async () => {
-    let instance: Awaited<ReturnType<typeof agent>>;
+    let instance: Awaited<ReturnType<typeof createAgentSession>>;
     promptImplementation = async () => {
       await expect(instance.fork()).rejects.toThrow('already running');
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
-    instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    instance = await createAgentSession({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
 
-    await instance.run(createWorkflowContext(), 'Work');
+    await instance.run(createTaskContext(), 'Work');
     instance.dispose();
 
     await expect(instance.fork()).rejects.toThrow('has been disposed');
@@ -1239,15 +1311,18 @@ describe('agent', () => {
     promptImplementation = async (prompt) => {
       await reportOutcome({ outcome: 'completed', summary: prompt });
     };
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
       expect(instance.id).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
-      await expect(instance.run(createWorkflowContext(), 'Investigate')).resolves.toMatchObject({
+      await expect(instance.run(createTaskContext(), 'Investigate')).resolves.toMatchObject({
         outcome: 'completed',
         summary: 'Investigate'
       });
-      await expect(instance.run(createWorkflowContext(), 'Implement')).resolves.toMatchObject({
+      await expect(instance.run(createTaskContext(), 'Implement')).resolves.toMatchObject({
         outcome: 'completed',
         summary: 'Implement'
       });
@@ -1270,14 +1345,17 @@ describe('agent', () => {
           : { outcome: 'blocked', summary: 'Second result' }
       );
     };
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
-      await expect(instance.run(createWorkflowContext(), 'First')).resolves.toMatchObject({
+      await expect(instance.run(createTaskContext(), 'First')).resolves.toMatchObject({
         outcome: 'completed',
         summary: 'First result'
       });
-      await expect(instance.runOutcome(createWorkflowContext(), 'Second')).resolves.toMatchObject({
+      await expect(instance.runOutcome(createTaskContext(), 'Second')).resolves.toMatchObject({
         outcome: 'blocked',
         summary: 'Second result'
       });
@@ -1294,13 +1372,14 @@ describe('agent', () => {
       });
       await reportOutcome({ outcome: 'completed', summary: 'Done' });
     };
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
-      const first = instance.run(createWorkflowContext(), 'First');
-      await expect(instance.run(createWorkflowContext(), 'Second')).rejects.toThrow(
-        'already running'
-      );
+      const first = instance.run(createTaskContext(), 'First');
+      await expect(instance.run(createTaskContext(), 'Second')).rejects.toThrow('already running');
       release?.();
       await first;
     } finally {
@@ -1309,10 +1388,13 @@ describe('agent', () => {
   });
 
   test('rejects runs after disposal', async () => {
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
     instance.dispose();
 
-    await expect(instance.run(createWorkflowContext(), 'Too late')).rejects.toThrow(
+    await expect(instance.run(createTaskContext(), 'Too late')).rejects.toThrow(
       'has been disposed'
     );
   });
@@ -1320,18 +1402,21 @@ describe('agent', () => {
   test('can run again after an aborted turn', async () => {
     const controller = new AbortController();
     promptImplementation = async () => controller.abort('Stopped');
-    const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    const instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
       await expect(
-        instance.run(createWorkflowContext(), 'First', { signal: controller.signal })
+        instance.run(createTaskContext(), 'First', { signal: controller.signal })
       ).rejects.toBe('Stopped');
       expect(disposed).toBe(false);
 
       promptImplementation = async () => {
         await reportOutcome({ outcome: 'completed', summary: 'Recovered' });
       };
-      await expect(instance.run(createWorkflowContext(), 'Second')).resolves.toMatchObject({
+      await expect(instance.run(createTaskContext(), 'Second')).resolves.toMatchObject({
         outcome: 'completed',
         summary: 'Recovered'
       });
@@ -1342,7 +1427,10 @@ describe('agent', () => {
 
   test('supports automatic disposal', async () => {
     {
-      await using instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+      await using instance = await createAgentSession({
+        cwd: '/project',
+        model: 'anthropic/claude-opus-4-5'
+      });
       expect(disposed).toBe(false);
       expect(instance.id).toBeTypeOf('string');
     }
@@ -1354,10 +1442,13 @@ describe('agent', () => {
     promptImplementation = async () => {
       await reportOutcome({ outcome: 'blocked', summary: 'Need input' });
     };
-    await using instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+    await using instance = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
 
     try {
-      await instance.run(createWorkflowContext(), 'Do the thing');
+      await instance.run(createTaskContext(), 'Do the thing');
       throw new Error('Expected run to fail');
     } catch (error) {
       expect(error).toBeInstanceOf(AgentOutcomeError);
@@ -1373,22 +1464,25 @@ describe('agent', () => {
 
 test('requires an explicit directory before creating an agent', async () => {
   // @ts-expect-error Agents require an explicit directory.
-  await expect(agent({ model: 'anthropic/claude-opus-4-5' })).rejects.toThrow(
+  await expect(createAgentSession({ model: 'anthropic/claude-opus-4-5' })).rejects.toThrow(
     'An explicit directory is required'
   );
-  await expect(agent({ model: 'anthropic/claude-opus-4-5', cwd: '' })).rejects.toThrow(
+  await expect(createAgentSession({ model: 'anthropic/claude-opus-4-5', cwd: '' })).rejects.toThrow(
     'An explicit directory is required'
   );
 });
 
 test('attributes each reusable agent interaction to its supplied context', async () => {
-  const first = createWorkflowContext();
-  const second = createWorkflowContext();
+  const first = createTaskContext();
+  const second = createTaskContext();
   promptImplementation = async () => {
     emitAssistantUsage({ ...emptyUsage, input: 10, cost: { total: 0.25 } });
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   try {
     const one = await instance.run(first, 'First');
     const two = await instance.runOutcome(second, 'Second');
@@ -1405,13 +1499,16 @@ test('attributes each reusable agent interaction to its supplied context', async
 });
 
 test('records fork usage only in the context passed to the fork interaction', async () => {
-  const parentContext = createWorkflowContext();
-  const childContext = createWorkflowContext();
+  const parentContext = createTaskContext();
+  const childContext = createTaskContext();
   promptImplementation = async () => {
     emitAssistantUsage({ ...emptyUsage, input: 10, cost: { total: 0.25 } });
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   try {
     await instance.run(parentContext, 'Investigate');
     const fork = await instance.fork();
@@ -1431,7 +1528,7 @@ test('records fork usage only in the context passed to the fork interaction', as
 });
 
 test('retains usage recorded before cancellation without counting it again', async () => {
-  const ctx = createWorkflowContext();
+  const ctx = createTaskContext();
   const controller = new AbortController();
   promptImplementation = async () => {
     emitAssistantUsage({ ...emptyUsage, input: 10, cost: { total: 0.25 } });
@@ -1448,7 +1545,7 @@ test('retains usage recorded before cancellation without counting it again', asy
 });
 
 test('context abort stops an active agent even with a separate call signal', async () => {
-  const ctx = createWorkflowContext();
+  const ctx = createTaskContext();
   const external = new AbortController();
   promptImplementation = async () => {
     emitAssistantUsage({ ...emptyUsage, input: 10, cost: { total: 0.25 } });
@@ -1471,7 +1568,7 @@ test('context abort stops an active agent even with a separate call signal', asy
 });
 
 test('does not create an agent for an aborted context', async () => {
-  const ctx = createWorkflowContext();
+  const ctx = createTaskContext();
   try {
     ctx.abort('Already stopped');
   } catch {}
@@ -1485,9 +1582,12 @@ test('does not create an agent for an aborted context', async () => {
 });
 
 test('reusable agents reject an aborted context but accept a fresh context', async () => {
-  const stopped = createWorkflowContext();
-  const fresh = createWorkflowContext();
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const stopped = createTaskContext();
+  const fresh = createTaskContext();
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   try {
     promptImplementation = async () => {
       try {
@@ -1509,7 +1609,7 @@ test('reusable agents reject an aborted context but accept a fresh context', asy
 });
 
 test('per-call cancellation leaves the workflow context usable', async () => {
-  const ctx = createWorkflowContext();
+  const ctx = createTaskContext();
   const external = new AbortController();
   promptImplementation = async () => {
     external.abort('This call only');
@@ -1534,9 +1634,12 @@ test('steers an active interaction and invalidates its earlier report on deliver
       await reportOutcome({ outcome: 'completed', summary: 'Revised plan' });
     }
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   expect(await instance.steer('idle')).toBe(false);
-  const run = instance.runOutcome(createWorkflowContext(), 'Plan');
+  const run = instance.runOutcome(createTaskContext(), 'Plan');
   await vi.waitFor(() => expect(promptCalls).toBe(1));
   const delivery = instance.steer('Include tests');
   const message = createdSessions[0].agent.steer.mock.calls[0][0];
@@ -1556,8 +1659,11 @@ test('returns undelivered steering at completion and does not carry it to anothe
     await gate.promise;
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
-  const run = instance.runOutcome(createWorkflowContext(), 'First');
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
+  const run = instance.runOutcome(createTaskContext(), 'First');
   const queued = instance.steer('Late feedback');
   eventHandler?.({ type: 'agent_end', messages: [] });
   expect(await instance.steer('Too late')).toBe(false);
@@ -1565,7 +1671,7 @@ test('returns undelivered steering at completion and does not carry it to anothe
   await run;
   expect(await queued).toBe(false);
   expect(createdSessions[0].agent.clearSteeringQueue).toHaveBeenCalledOnce();
-  await instance.runOutcome(createWorkflowContext(), 'Second');
+  await instance.runOutcome(createTaskContext(), 'Second');
   expect(createdSessions[0].agent.steer).toHaveBeenCalledOnce();
   instance.dispose();
 });
@@ -1573,8 +1679,11 @@ test('returns undelivered steering at completion and does not carry it to anothe
 test('settles pending steering on disposal and refuses steering after cancellation', async () => {
   const gate = Promise.withResolvers<void>();
   promptImplementation = () => gate.promise;
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
-  const ctx = createWorkflowContext();
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
+  const ctx = createTaskContext();
   const run = instance.runOutcome(ctx, 'Plan');
   const rejected = expect(run).rejects.toThrow('stop');
   const pending = instance.steer('Feedback');
@@ -1596,9 +1705,12 @@ test('forwards completed assistant text during the interaction, excluding reason
     await gate.promise;
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  const instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
   const onText = vi.fn();
-  const run = instance.runOutcome(createWorkflowContext(), 'Plan', { onText });
+  const run = instance.runOutcome(createTaskContext(), 'Plan', { onText });
   eventHandler?.({
     type: 'message_end',
     message: {
@@ -1618,7 +1730,7 @@ test('forwards completed assistant text during the interaction, excluding reason
   expect(onText.mock.calls).toEqual([['Here is the joke.']]);
   gate.resolve();
   await run;
-  await instance.runOutcome(createWorkflowContext(), 'Next');
+  await instance.runOutcome(createTaskContext(), 'Next');
   expect(onText).toHaveBeenCalledOnce();
   instance.dispose();
 });
@@ -1632,8 +1744,11 @@ test('retains earlier findings when a later report refers back to them, without 
     });
     await reportOutcome({ outcome: 'completed', summary: 'See the preceding outcome.' });
   };
-  await using worker = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
-  const result = await worker.runOutcome(createWorkflowContext(), 'Investigate');
+  await using worker = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
+  const result = await worker.runOutcome(createTaskContext(), 'Investigate');
   expect(result.summary).toBe('See the preceding outcome.');
   expect(result.details).toContain('Edit locales.ts and messages/bar.json.');
   expect(result.details).toContain('latest; supersedes earlier conclusions');
@@ -1641,12 +1756,12 @@ test('retains earlier findings when a later report refers back to them, without 
   promptImplementation = async () => {
     await reportOutcome({ outcome: 'completed', summary: 'Unrelated task' });
   };
-  const next = await worker.runOutcome(createWorkflowContext(), 'Other');
+  const next = await worker.runOutcome(createTaskContext(), 'Other');
   expect(next.details).toBeUndefined();
 });
 
 test('custom system prompt replaces the coding persona and retains workflow instructions', async () => {
-  await using instance = await agent({
+  await using instance = await createAgentSession({
     cwd: '/project',
     model: 'anthropic/claude-opus-4-5',
     systemPrompt: 'You are a chat assistant.',
@@ -1673,8 +1788,11 @@ test('expired provider login returns a safe actionable failure without report re
       }
     });
   };
-  await using instance = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5' });
-  const result = await instance.runOutcome(createWorkflowContext(), 'Work');
+  await using instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
+  const result = await instance.runOutcome(createTaskContext(), 'Work');
   expect(result).toMatchObject({
     outcome: 'failed',
     failureReason: 'provider_error',
@@ -1685,19 +1803,150 @@ test('expired provider login returns a safe actionable failure without report re
   expect(JSON.stringify(result)).not.toContain('private credential');
 });
 
+test.each(['root', 'child', 'report'])(
+  'the CLI keeps run details and only prints the root answer with a %s agent',
+  async (kind) => {
+    const { mkdir, mkdtemp, readFile, readdir, rm, writeFile } = await import('node:fs/promises');
+    const { fileURLToPath } = await import('node:url');
+    const { join } = await import('node:path');
+    const { runRunling } = await import('./runner.ts');
+    const { step } = await import('./step.ts');
+    const scratch = fileURLToPath(new URL('../../../../.context/', import.meta.url));
+    // A clean checkout, including CI, does not have the gitignored scratch directory yet.
+    await mkdir(scratch, { recursive: true });
+    const directory = await mkdtemp(join(scratch, 'agent-cli-'));
+    const runtime = fileURLToPath(new URL('./index.ts', import.meta.url));
+    const workflow = join(directory, 'workflow.ts');
+    const markdown = '## Answer once\n\n1. **First issue**\n2. Second issue';
+    const reply = kind === 'root' ? markdown : 'Intermediate agent answer';
+    const options = `{ name: 'Test agent', cwd: '.', model: 'anthropic/claude-opus-4-5' }`;
+    await writeFile(
+      workflow,
+      `import { agent, createAgentSession, task, Type } from ${JSON.stringify(runtime)};
+    export default ${
+      kind === 'root'
+        ? `agent(${options})`
+        : `task({ name: 'Root', input: Type.String(), result: Type.String() }, async (ctx, input) => {
+      ${kind === 'child' ? `await agent(${options})(ctx, input);` : `await using session = await createAgentSession(${options}); await session.runOutcome(ctx, input);`}
+      return ${JSON.stringify(markdown)};
+    })`
+    };`
+    );
+    promptImplementation = async () => {
+      eventHandler?.({
+        type: 'tool_execution_start',
+        toolName: 'gh',
+        toolCallId: 'gh-call',
+        args: {}
+      });
+      await step('Executing: gh api', async () => {});
+      if (kind === 'report') await reportOutcome({ outcome: 'completed', summary: reply });
+      else emitAssistantText(reply);
+    };
+    const print = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(directory);
+    const stdout = process.stdout;
+    const terminal = vi.spyOn(process, 'stdout', 'get').mockReturnValue(
+      new Proxy(stdout, {
+        get(target, key, receiver) {
+          if (key === 'isTTY') return true;
+          if (key === 'columns') return 80;
+          return Reflect.get(target, key, receiver);
+        }
+      })
+    );
+    const exitCode = process.exitCode;
+    try {
+      await runRunling(workflow, 'List issues', { json: false, verbose: false });
+      const output = print.mock.calls.map(([line]) => stripAnsi(line)).join('\n');
+      const answers = print.mock.calls
+        .map(([line]) => stripAnsi(line))
+        .filter((line) => line.includes('Answer once'));
+      expect(answers).toHaveLength(1);
+      expect(answers[0]).toMatch(/^Answer once/);
+      expect(stripAnsi(print.mock.calls.at(-1)![0])).toBe(answers[0]);
+      expect(print.mock.calls.at(-2)![0]).toBe('');
+      expect(output).toContain('Runling starting run');
+      expect(output).toContain(kind === 'report' ? 'Root' : 'Test agent');
+      expect(output).toContain('Token usage:');
+      expect(output).toContain('Using gh');
+      const agentId = output.match(/\[([^\]]+)\] Using gh/)?.[1];
+      expect(agentId).toBeDefined();
+      expect(output).toContain(`[${agentId}] Executing: gh api`);
+      expect(output).toContain('Finished in');
+      expect(output).toContain('journal: .runling/runs/');
+      expect(output).toContain('First issue');
+      expect(output).not.toContain('**');
+      expect(output).not.toContain('Type a line');
+      expect(output).not.toContain('Intermediate agent answer');
+      const [journal] = await readdir(join(directory, '.runling/runs'));
+      const records = (await readFile(join(directory, '.runling/runs', journal!), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(records.at(-1)).toMatchObject({
+        type: 'finished',
+        status: 'completed',
+        output: markdown
+      });
+      expect(records).toContainEqual(
+        expect.objectContaining({
+          type: 'event',
+          event: expect.objectContaining({
+            type: 'log',
+            source: 'agent',
+            message: expect.stringContaining(reply)
+          })
+        })
+      );
+      expect(disposed).toBe(true);
+    } finally {
+      process.exitCode = exitCode;
+      terminal.mockRestore();
+      cwd.mockRestore();
+      print.mockRestore();
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+);
+
+test('the agent task uses the session API and disposes it after forwarding text', async () => {
+  const { agent } = await import('./agent-task.ts');
+  const { runWorkflow } = await import('./runner.ts');
+  promptImplementation = async () => {
+    emitAssistantText('Task answer');
+  };
+  const worker = agent({
+    name: 'Direct agent',
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5'
+  });
+  const replies: unknown[] = [];
+  const result = await runWorkflow(worker, {
+    input: 'Hello',
+    onUpdate: (reply) => {
+      replies.push(reply);
+    }
+  });
+  expect(result).toMatchObject({ ok: true, output: 'Task answer' });
+  expect(replies).toEqual(['Task answer']);
+  expect(sessionOptions.customTools).toEqual([]);
+  expect(disposed).toBe(true);
+});
+
 test('text mode delivers a natural response once without report tools or retries', async () => {
   const text = vi.fn();
   promptImplementation = async () => {
     emitAssistantText('Hello!');
   };
-  const bot = await agent({
+  const bot = await createAgentSession({
     cwd: '/project',
     model: 'anthropic/claude-opus-4-5',
     tools: [],
     output: 'text'
   });
   try {
-    const result = await bot.run(createWorkflowContext(), 'Hi', { onText: text });
+    const result = await bot.run(createTaskContext(), 'Hi', { onText: text });
     expect(result).toMatchObject({ outcome: 'completed', summary: 'Hello!' });
     expect(text.mock.calls).toEqual([['Hello!']]);
     expect(promptCalls).toBe(1);
@@ -1709,41 +1958,49 @@ test('text mode delivers a natural response once without report tools or retries
   }
 });
 
-test('final text delivery excludes tool preambles and failed responses', async () => {
-  const text = vi.fn();
-  promptImplementation = async () => {
-    for (const stopReason of ['toolUse', 'error', 'aborted'] as const) {
-      eventHandler?.({
-        type: 'message_end',
-        message: {
-          role: 'assistant',
-          content: [{ type: 'text', text: "I'm implementing it now." }],
-          stopReason,
-          usage: emptyUsage
-        }
-      });
-    }
-    eventHandler?.({
-      type: 'message_end',
-      message: {
-        role: 'assistant',
-        content: [{ type: 'text', text: 'The tool refused; no work started.' }],
-        stopReason: 'stop',
-        usage: emptyUsage
+test('renders assistant replies as terminal Markdown without changing the result or journal', async () => {
+  const stdout = process.stdout;
+  const stream = vi.spyOn(process, 'stdout', 'get').mockReturnValue(
+    new Proxy(stdout, {
+      get(target, key, receiver) {
+        if (key === 'isTTY') return true;
+        if (key === 'columns') return 60;
+        return Reflect.get(target, key, receiver);
       }
-    });
-  };
-  const bot = await agent({
-    cwd: '/project',
-    model: 'anthropic/claude-opus-4-5',
-    output: 'text',
-    textDelivery: 'final'
-  });
+    })
+  );
+  const print = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const markdown = '## Latest issues\n\n1. **Fix reconnect**';
+  const events: RunlingEvent[] = [];
+  promptImplementation = async () => emitAssistantText(markdown);
   try {
-    await bot.run(createWorkflowContext(), 'Look it up', { onText: text });
-    expect(text.mock.calls).toEqual([['The tool refused; no work started.']]);
+    const result = await observeRunlingEvents(
+      (event) => events.push(event),
+      () =>
+        runAgent(createTaskContext(), 'List issues', {
+          cwd: '/project',
+          model: 'anthropic/claude-opus-4-5',
+          output: 'text'
+        })
+    );
+    expect(result.summary).toBe(markdown);
+    const reply = print.mock.calls
+      .map(([line]) => stripAnsi(line))
+      .find((line) => line.includes('Latest issues'));
+    expect(reply).toMatch(/^● \[[^\]]+\]\n/);
+    expect(reply).toContain('Fix reconnect');
+    expect(reply).not.toContain('##');
+    expect(reply).not.toContain('**');
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'log',
+        source: 'agent',
+        message: expect.stringContaining(markdown)
+      })
+    );
   } finally {
-    bot.dispose();
+    print.mockRestore();
+    stream.mockRestore();
   }
 });
 
@@ -1753,9 +2010,13 @@ test('text mode keeps progress delivery but returns only the final response', as
     emitAssistantText('Checking the page.');
     emitAssistantText('Here is the answer.');
   };
-  const bot = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5', output: 'text' });
+  const bot = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
   try {
-    expect((await bot.run(createWorkflowContext(), 'Look it up', { onText: text })).summary).toBe(
+    expect((await bot.run(createTaskContext(), 'Look it up', { onText: text })).summary).toBe(
       'Here is the answer.'
     );
     expect(text.mock.calls).toEqual([['Checking the page.'], ['Here is the answer.']]);
@@ -1767,7 +2028,6 @@ test('text mode keeps progress delivery but returns only the final response', as
 test.each(['initial', 'report-repair'])(
   'provider exhaustion in %s does not trigger another report request',
   async (phase) => {
-    const statuses: unknown[] = [];
     promptImplementation = async () => {
       if (phase === 'report-repair' && promptCalls === 1) return;
       eventHandler?.({
@@ -1784,26 +2044,21 @@ test.each(['initial', 'report-repair'])(
         finalError: 'secret upstream request'
       });
     };
-    const result = await runAgent(createWorkflowContext(), 'Investigate', {
+    const result = await runAgent(createTaskContext(), 'Investigate', {
       cwd: '/project',
-      model: 'anthropic/claude-opus-4-5',
-      onStatus: (status) => statuses.push(status)
+      model: 'anthropic/claude-opus-4-5'
     });
     expect(result.outcome).toBe('failed');
     expect(result.failureReason).toBe('provider_error');
     expect(promptCalls).toBe(phase === 'initial' ? 1 : 2);
-    expect(statuses).toEqual([
-      { type: 'retrying', attempt: 2, maxAttempts: 2, delayMs: 4000 },
-      { type: 'blocked', reason: 'provider_error' }
-    ]);
-    expect(JSON.stringify({ statuses, result })).not.toContain('secret');
+    expect(JSON.stringify(result)).not.toContain('secret');
   }
 );
 
-test('tool activity excludes raw arguments and results and counts failures until success', async () => {
-  const onActivity = vi.fn();
+test('tool events exclude raw arguments and results', async () => {
+  const events: RunlingEvent[] = [];
   promptImplementation = async () => {
-    for (const isError of [true, true, false, true]) {
+    for (const isError of [true, false]) {
       eventHandler?.({
         type: 'tool_execution_start',
         toolCallId: 'edit',
@@ -1820,29 +2075,74 @@ test('tool activity excludes raw arguments and results and counts failures until
     }
     await reportOutcome({ outcome: 'completed', summary: 'Done' });
   };
-  await runAgent(createWorkflowContext(), 'Investigate', {
+  await observeRunlingEvents(
+    (event) => events.push(event),
+    () =>
+      runAgent(createTaskContext(), 'Investigate', {
+        cwd: '/project',
+        model: 'anthropic/claude-opus-4-5'
+      })
+  );
+  const tools = events.filter((event) => event.type === 'agent.tool');
+  expect(tools.map(({ toolName, operation, phase }) => ({ toolName, operation, phase }))).toEqual([
+    { toolName: 'edit', operation: 'edit', phase: 'started' },
+    { toolName: 'edit', operation: 'edit', phase: 'failed' },
+    { toolName: 'edit', operation: 'edit', phase: 'started' },
+    { toolName: 'edit', operation: 'edit', phase: 'succeeded' }
+  ]);
+  expect(JSON.stringify(tools)).not.toMatch(/private|secret/);
+});
+
+test('a provider retry stays one interaction and does not deliver the failed text', async () => {
+  const events: RunlingEvent[] = [];
+  promptImplementation = async () => {
+    eventHandler?.({ type: 'agent_start' });
+    eventHandler?.({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Partial answer' }],
+        stopReason: 'error',
+        errorMessage: 'WebSocket error',
+        usage: emptyUsage
+      }
+    });
+    eventHandler?.({
+      type: 'auto_retry_start',
+      attempt: 1,
+      maxAttempts: 3,
+      delayMs: 2000,
+      errorMessage: 'WebSocket error'
+    });
+    // Pi starts its agent loop again for the retry.
+    eventHandler?.({ type: 'agent_start' });
+    eventHandler?.({ type: 'auto_retry_end', success: true, attempt: 1 });
+    eventHandler?.({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Full answer' }],
+        stopReason: 'stop',
+        usage: emptyUsage
+      }
+    });
+  };
+  const onText = vi.fn();
+  await using instance = await createAgentSession({
     cwd: '/project',
     model: 'anthropic/claude-opus-4-5',
-    onActivity
+    output: 'text'
   });
-  expect(
-    onActivity.mock.calls
-      .filter(([event]) => event.phase !== 'started')
-      .map(([event]) => event.failures)
-  ).toEqual([1, 2, 0, 1]);
-  expect(onActivity).toHaveBeenCalledWith({
-    type: 'tool',
-    toolName: 'edit',
-    operation: 'edit',
-    phase: 'failed',
-    failures: 2,
-    error: 'unknown'
-  });
-  expect(JSON.stringify(onActivity.mock.calls)).not.toMatch(/private|secret/);
+  const result = await observeRunlingEvents(
+    (event) => events.push(event),
+    () => instance.runOutcome(createTaskContext(), 'Investigate', { onText })
+  );
+  expect(result).toMatchObject({ outcome: 'completed', summary: 'Full answer' });
+  expect(onText.mock.calls).toEqual([['Full answer']]);
+  expect(events.filter((event) => event.type === 'agent.started')).toHaveLength(1);
 });
 
 test('a successful provider retry can still produce a valid report', async () => {
-  const onStatus = vi.fn();
   promptImplementation = async () => {
     eventHandler?.({
       type: 'message_end',
@@ -1860,15 +2160,13 @@ test('a successful provider retry can still produce a valid report', async () =>
   };
   expect(
     (
-      await runAgent(createWorkflowContext(), 'Investigate', {
+      await runAgent(createTaskContext(), 'Investigate', {
         cwd: '/project',
-        model: 'anthropic/claude-opus-4-5',
-        onStatus
+        model: 'anthropic/claude-opus-4-5'
       })
     ).outcome
   ).toBe('completed');
   expect(promptCalls).toBe(1);
-  expect(onStatus).toHaveBeenLastCalledWith({ type: 'working' });
 });
 
 test.each(['error', 'aborted', 'empty'])(
@@ -1885,7 +2183,7 @@ test.each(['error', 'aborted', 'empty'])(
         }
       });
     };
-    const result = await runAgent(createWorkflowContext(), 'Hi', {
+    const result = await runAgent(createTaskContext(), 'Hi', {
       cwd: '/project',
       model: 'anthropic/claude-opus-4-5',
       output: 'text'
@@ -1895,9 +2193,111 @@ test.each(['error', 'aborted', 'empty'])(
   }
 );
 
+test.each([
+  { name: 'one terminating tool', results: [true], completed: true },
+  { name: 'all tools terminate', results: [true, true], completed: true },
+  { name: 'mixed batch', results: [true, false], completed: false },
+  { name: 'mixed batch in reverse order', results: [false, true], completed: false },
+  { name: 'failed terminating tool', results: [true], toolError: true, completed: false },
+  { name: 'provider failure', results: [true], providerError: true, completed: false },
+  { name: 'later empty turn', results: [true], laterTurn: true, completed: false },
+  { name: 'nested result alone', results: [true], nested: true, completed: false }
+])('text mode handles $name without allowing arbitrary silence', async (scenario) => {
+  promptImplementation = async () => {
+    eventHandler?.({ type: 'turn_start' });
+    eventHandler?.({
+      type: 'message_end',
+      message: { role: 'assistant', content: [], usage: emptyUsage, stopReason: 'toolUse' }
+    });
+    scenario.results.forEach((terminate, index) =>
+      eventHandler?.({
+        type: 'tool_execution_end',
+        toolCallId: `tool-${index}`,
+        toolName: 'finish',
+        result: { terminate },
+        isError: scenario.toolError ?? false,
+        ...(scenario.nested ? { parentToolCallId: 'parent' } : {})
+      })
+    );
+    if (scenario.laterTurn) eventHandler?.({ type: 'turn_start' });
+    if (scenario.providerError)
+      eventHandler?.({
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [],
+          usage: emptyUsage,
+          stopReason: 'error',
+          errorMessage: 'Provider failed'
+        }
+      });
+  };
+  const result = await runAgent(createTaskContext(), 'Complete through a tool', {
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
+  expect(result.outcome).toBe(scenario.completed ? 'completed' : 'failed');
+  if (scenario.completed) expect(result.summary).toBe('');
+});
+
+test('tool completion does not carry into the next interaction of a session', async () => {
+  const bot = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
+  try {
+    promptImplementation = async () => {
+      eventHandler?.({
+        type: 'tool_execution_end',
+        toolCallId: 'finish',
+        toolName: 'finish',
+        result: { terminate: true },
+        isError: false
+      });
+    };
+    expect((await bot.runOutcome(createTaskContext(), 'Finish')).outcome).toBe('completed');
+    promptImplementation = async () => {};
+    expect((await bot.runOutcome(createTaskContext(), 'Another request')).outcome).toBe('failed');
+  } finally {
+    bot.dispose();
+  }
+});
+
+test.each(['stop', 'error', 'aborted'])(
+  'allowEmptyText accepts silence but preserves provider failures: %s',
+  async (stopReason) => {
+    promptImplementation = async () => {
+      eventHandler?.({
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [],
+          stopReason,
+          errorMessage: stopReason === 'stop' ? undefined : 'Provider failed'
+        }
+      });
+    };
+    const result = await runAgent(createTaskContext(), 'Update the reaction silently', {
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5',
+      output: 'text',
+      allowEmptyText: true
+    });
+    expect(result.outcome).toBe(stopReason === 'stop' ? 'completed' : 'failed');
+    if (stopReason === 'stop') expect(result.summary).toBe('');
+    expect(promptCalls).toBe(1);
+  }
+);
+
 test('text mode retains usage accounting and resets response state between turns', async () => {
-  const ctx = createWorkflowContext();
-  const bot = await agent({ cwd: '/project', model: 'anthropic/claude-opus-4-5', output: 'text' });
+  const ctx = createTaskContext();
+  const bot = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text'
+  });
   promptImplementation = async () => {
     eventHandler?.({
       type: 'message_end',
@@ -1921,142 +2321,3 @@ test('text mode retains usage accounting and resets response state between turns
     bot.dispose();
   }
 });
-
-test.each(['stop', 'error', 'aborted', 'length', 'missing'])(
-  'optional silent turns preserve provider outcome: %s',
-  async (reason) => {
-    const text = vi.fn();
-    promptImplementation = async () => {
-      if (reason === 'missing') return;
-      eventHandler?.({
-        type: 'message_end',
-        message: {
-          role: 'assistant',
-          content: [],
-          stopReason: reason,
-          errorMessage: reason === 'error' || reason === 'aborted' ? 'Provider failed' : undefined
-        }
-      });
-    };
-    const bot = await agent({
-      cwd: '/project',
-      model: 'anthropic/claude-opus-4-5',
-      output: 'text',
-      allowEmptyResponse: true
-    });
-    try {
-      const result = await bot.runOutcome(createWorkflowContext(), 'Wait for background work', {
-        onText: text
-      });
-      expect(result.outcome).toBe(reason === 'stop' ? 'completed' : 'failed');
-      if (reason === 'stop') expect(result.summary).toBe('');
-      expect(text).not.toHaveBeenCalled();
-    } finally {
-      bot.dispose();
-    }
-  }
-);
-
-test('a silent delegation turn keeps its child alive and reports its eventual completion', async () => {
-  const { createAgentTasks } = await import('./agents/tasks.ts');
-  const { runAgentConversation } = await import('./agents/conversation.ts');
-  const { createChannel } = await import('./channel.ts');
-  const ctx = {
-    ...createWorkflowContext(),
-    inbox: createChannel<string>(),
-    emit: vi.fn(async (_text: string) => {})
-  };
-  const tasks = createAgentTasks(ctx);
-  const finish = Promise.withResolvers<string>();
-  let childSignal: AbortSignal | undefined;
-  let turns = 0;
-  promptImplementation = async () => {
-    if (++turns === 1) {
-      tasks.start(
-        'Investigation',
-        async (child) => {
-          childSignal = child.signal;
-          return finish.promise;
-        },
-        undefined
-      );
-      eventHandler?.({
-        type: 'message_end',
-        message: { role: 'assistant', content: [], stopReason: 'stop' }
-      });
-    } else emitAssistantText('Investigation complete.');
-  };
-  const bot = await agent({
-    cwd: '/project',
-    model: 'anthropic/claude-opus-4-5',
-    output: 'text',
-    allowEmptyResponse: true
-  });
-  const busy = vi.fn();
-  const running = runAgentConversation(ctx, bot, 'Investigate', {
-    notifications: tasks.notifications,
-    keepAlive: () => tasks.active,
-    timeout: 0.02,
-    onBusy: busy
-  });
-  try {
-    await vi.waitFor(() => expect(busy).toHaveBeenCalledWith(false));
-    expect(childSignal?.aborted).toBe(false);
-    expect(ctx.emit).not.toHaveBeenCalled();
-    finish.resolve('Evidence found');
-    await expect(running).resolves.toBe('Investigation complete.');
-    expect(ctx.emit).toHaveBeenCalledExactlyOnceWith('Investigation complete.');
-    expect(turns).toBe(2);
-  } finally {
-    finish.resolve('done');
-    await tasks.dispose();
-    bot.dispose();
-    await running.catch(() => {});
-  }
-});
-
-test.each([
-  { isError: false, parentToolCallId: undefined, stops: true },
-  { isError: true, parentToolCallId: undefined, stops: false },
-  { isError: false, parentToolCallId: 'script', stops: false }
-])(
-  'terminal tools stop a mixed batch only on direct success: %j',
-  async ({ isError, parentToolCallId, stops }) => {
-    const instance = await agent({
-      cwd: '/project',
-      model: 'anthropic/claude-opus-4-5',
-      output: 'text',
-      terminalTools: ['finish']
-    });
-    promptImplementation = async () => {
-      // A nonterminal read followed by a terminal tool: Pi's all-results hint alone
-      // would continue this batch. Exercise the actual finishTurn hook Runling installs.
-      for (const toolName of ['read', 'finish'])
-        eventHandler?.({
-          type: 'tool_execution_end',
-          toolCallId: toolName,
-          toolName,
-          isError: toolName === 'finish' && isError,
-          parentToolCallId,
-          result: { content: [], details: {} }
-        });
-      expect(await createdSessions.at(-1).agent.finishTurn({}, undefined)).toEqual(
-        stops ? { action: 'end' } : undefined
-      );
-    };
-    try {
-      const result = await instance.runOutcome(createWorkflowContext(), 'Select a final result');
-      expect(result.outcome).toBe(stops ? 'completed' : 'failed');
-      expect(result.summary).toBe(stops ? '' : 'Agent finished without a text response');
-      // Completion is interaction-local; it must not stop the next user turn.
-      promptImplementation = async () => {
-        expect(await createdSessions.at(-1).agent.finishTurn({}, undefined)).toBeUndefined();
-      };
-      expect((await instance.runOutcome(createWorkflowContext(), 'Next turn')).outcome).toBe(
-        'failed'
-      );
-    } finally {
-      instance.dispose();
-    }
-  }
-);

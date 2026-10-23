@@ -8,8 +8,8 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // HistoricalMessageInput is one operator import. The source script owns
@@ -23,6 +23,10 @@ type HistoricalMessageInput struct {
 	AttachmentAssetIDs []string
 	Body               string
 	LinkPreview        *evtv1.LinkPreview
+	// ThreadRootEventID places a reply explicitly; InReplyTo stays attribution only.
+	ThreadRootEventID string
+	// CreateThread establishes an empty thread on the new root without a follow.
+	CreateThread bool
 }
 
 // ImportHistoricalMessage appends a source-time message without user posting
@@ -31,6 +35,9 @@ type HistoricalMessageInput struct {
 func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input HistoricalMessageInput) (*evtv1.Event, error) {
 	if input.RoomID == "" || input.AuthorID == "" || input.CreatedAt.IsZero() {
 		return nil, invalidArgument("room_id, author_id, and created_at are required")
+	}
+	if input.CreateThread && input.ThreadRootEventID != "" {
+		return nil, invalidArgument("create_thread and thread_root_event_id are mutually exclusive")
 	}
 	if err := timestamppb.New(input.CreatedAt).CheckValid(); err != nil {
 		return nil, invalidArgument("created_at is invalid")
@@ -72,6 +79,16 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 		if room.Archived {
 			return ErrRoomArchived
 		}
+		if input.ThreadRootEventID != "" {
+			root, err := c.GetRoomEventByEventID(attemptCtx, KindChannel, input.RoomID, input.ThreadRootEventID)
+			if err != nil {
+				return err
+			}
+			posted := root.GetMessagePosted()
+			if posted == nil || posted.GetInThread() != "" || posted.GetEchoOfEventId() != "" || c.roomModel.messageTombstoned(input.ThreadRootEventID) {
+				return invalidArgument("thread_root_event_id must identify a root message in the same room")
+			}
+		}
 		if input.InReplyTo != "" {
 			target, err := c.GetRoomEventByEventID(attemptCtx, KindChannel, input.RoomID, input.InReplyTo)
 			if err != nil {
@@ -112,7 +129,7 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 	})
 	postedEvent := newEvent(SystemActorID, &evtv1.Event{Id: messageID, CreatedAt: createdAt,
 		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
-			RoomId: input.RoomID, InReplyTo: input.InReplyTo, AuthorId: input.AuthorID, HistoricalImport: true,
+			RoomId: input.RoomID, InReplyTo: input.InReplyTo, InThread: input.ThreadRootEventID, AuthorId: input.AuthorID, HistoricalImport: true,
 		}},
 	})
 	attachedEvents := make([]*evtv1.Event, 0, len(assetIDs))
@@ -132,8 +149,26 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 			}
 		}
 	}
-	_, err := c.appendMessageWithOptionalThreadCreated(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
-		nil, "", false, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
+	var threadCreated *evtv1.Event
+	if input.CreateThread || input.ThreadRootEventID != "" {
+		rootID := input.ThreadRootEventID
+		if input.CreateThread {
+			rootID = messageID
+		}
+		threadCreated = newEvent(SystemActorID, &evtv1.Event{CreatedAt: createdAt,
+			Event: &evtv1.Event_ThreadCreated{ThreadCreated: &evtv1.ThreadCreatedEvent{
+				RoomId: input.RoomID, ThreadRootEventId: rootID, HistoricalImport: true,
+			}},
+		})
+	}
+	var err error
+	if input.CreateThread {
+		_, err = c.appendRootMessageWithThread(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
+			threadCreated, nil, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
+	} else {
+		_, err = c.appendMessageWithOptionalThreadCreated(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
+			threadCreated, input.ThreadRootEventID, false, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("import historical message: %w", err)
 	}

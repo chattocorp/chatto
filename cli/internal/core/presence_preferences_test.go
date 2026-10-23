@@ -7,15 +7,16 @@ import (
 	"testing"
 	"time"
 
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 func TestPresencePreferenceOverridesEveryDevice(t *testing.T) {
@@ -94,13 +95,12 @@ func TestPresencePreferenceRejectsDelayedReadsAndClearsDeletedState(t *testing.T
 func TestPresencePreferenceSharedAcrossReplicasAndRestart(t *testing.T) {
 	t.Parallel()
 
-	c, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	p, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE, "")
 	require.NoError(t, err)
-	replica, err := NewChattoCore(ctx, nc, c.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
+	replica := startReplica(t, ns, c.config)
 	loaded, err := replica.GetPresencePreference(ctx, "user")
 	require.NoError(t, err)
 	require.Equal(t, p, loaded)
@@ -208,11 +208,10 @@ func TestPresencePreferenceSignalIsPrivateAndTransient(t *testing.T) {
 func TestPresencePreferenceConcurrentReplacementAcrossReplicas(t *testing.T) {
 	t.Parallel()
 
-	c, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	c := startReplica(t, ns, testCoreConfig())
+	replica := startReplica(t, ns, c.config)
 	ctx := testContext(t)
-	replica, err := NewChattoCore(ctx, nc, c.config)
-	require.NoError(t, err)
-	startCoreServices(t, replica)
 	initial, err := c.SetPresencePreference(ctx, "user", apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE, "")
 	require.NoError(t, err)
 	start := make(chan struct{})

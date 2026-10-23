@@ -35,8 +35,11 @@
     "leave": {
       "title": "Atstāj istabu",
       "action": "Atstāj istabu",
-      "prompt": "Vai tiešām vēlaties atstāt #{room}? Varat pievienoties vēlāk.",
-      "failed": "Neizdevās atstāt telpu"
+      "prompt": "Vai tiešām vēlaties atstāt #{room}?",
+      "failed": "Neizdevās atstāt telpu",
+      "join_later": "Varat pievienoties vēlāk.",
+      "need_invite": "Lai pievienotos šai istabai, būs vajadzīgs jauns uzaicinājums.",
+      "rejoin_unknown": "Lai pievienotos vēlreiz, iespējams, būs vajadzīgs jauns uzaicinājums."
     },
     "directory": {
       "universal_title": "Universālās telpas tiek apvienotas automātiski",
@@ -59,7 +62,8 @@
       "join_group_failed": "Neizdevās pievienoties grupai",
       "left": "Pa kreisi #{room}",
       "left_generic": "Kreisā istaba",
-      "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?"
+      "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?",
+      "invited": "Uzaicināts"
     },
     "server": {
       "remove_title": "Noņemt serveri",
@@ -97,7 +101,8 @@
         "edit": "Rediģēt ziņojumu",
         "more": "Vairāk darbību",
         "edit_short": "Rediģēt",
-        "copy_text": "Kopēt tekstu",
+        "copy_text": "Kopēt ziņojuma tekstu",
+        "copy_selected_text": "Kopēt atlasīto tekstu",
         "copy_text_failed": "Neizdevās nokopēt tekstu",
         "copy_link": "Kopēt saiti",
         "copy_message_link": "Kopēt ziņojuma saiti",
@@ -106,7 +111,8 @@
         "message_link_copied": "Ziņojuma saite nokopēta",
         "copy_link_failed": "Neizdevās nokopēt saiti",
         "image_copied": "Attēls nokopēts",
-        "copy_image_failed": "Neizdevās nokopēt attēlu"
+        "copy_image_failed": "Neizdevās nokopēt attēlu",
+        "view_reactions": "Skatiet reakcijas"
       },
       "meta": {
         "echo": "Atbalss",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Vai tiešām vēlaties noņemt šīs ziņas piespraudi?",
       "loading": "Ielādē piespraustās ziņas...",
       "empty_title": "Nav piespraustu ziņu",
-      "empty_description": "Telpas pārvaldnieki šeit var piespraust svarīgas ziņas.",
+      "empty_description": "Šeit tiek parādīti piespraustie ziņojumi.",
       "error_title": "Piespraustās ziņas nav pieejamas",
       "error_description": "Neizdevās ielādēt piespraustās ziņas. Mēģiniet vēlreiz pēc brīža.",
       "update_failed": "Neizdevās atjaunināt piesprausto ziņu"
@@ -255,6 +261,81 @@
     "jump_to_present": "Pāriet uz klāt",
     "jump_failed": "Nevarēja pāriet uz šo ziņojumu.",
     "unread_separator": "Jaunas ziņas",
-    "close_extras": "Aizvērt telpas ekstras"
+    "close_extras": "Aizvērt telpas ekstras",
+    "dm": {
+      "deleted_user_notice": "Otrs lietotājs ir dzēsts."
+    },
+    "management": {
+      "room_name_too_long": "Telpas nosaukums nedrīkst pārsniegt 30 rakstzīmes",
+      "room_name_invalid": "Telpas nosaukumā nedrīkst būt rindiņu pārtraukumi vai vadības rakstzīmes",
+      "create_room": "Izveidojiet istabu",
+      "reorder_groups_failed": "Neizdevās pārkārtot grupas: {error}",
+      "room_created": "Telpa izveidota",
+      "link_updated": "Saite atjaunināta",
+      "link_created": "Saite izveidota",
+      "save_link_failed": "Neizdevās saglabāt saiti: {error}",
+      "group_deleted": "Grupa izdzēsta",
+      "delete_group_failed": "Neizdevās izdzēst grupu: {error}",
+      "link_deleted": "Saite izdzēsta",
+      "delete_link_failed": "Neizdevās izdzēst saiti: {error}",
+      "room_archived": "Telpa arhivēta",
+      "archive_room_failed": "Neizdevās arhivēt telpu: {error}",
+      "drag_room": "Velciet, lai pārkārtotu telpu",
+      "drag_link": "Velciet, lai pārkārtotu saiti",
+      "drag_group": "Velciet, lai pārkārtotu grupu",
+      "new_room": "Izveidojiet istabu",
+      "new_link": "Izveidojiet saiti",
+      "delete_group": "Dzēst grupu",
+      "edit_link": "Rediģēt saiti",
+      "delete_link": "Dzēst saiti",
+      "create_link": "Izveidojiet saiti",
+      "label": "Etiķete",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com vai /docs",
+      "delete_group_prompt": "Vai tiešām vēlaties dzēst kopu {name}?",
+      "delete_link_prompt": "Vai tiešām vēlaties dzēst {label}?",
+      "archive_room": "Arhivējiet istabu",
+      "archive_room_prompt": "Vai tiešām vēlaties arhivēt #{room}? Dalībnieki vairs nevarēs piekļūt šai telpai.",
+      "group_created": "Grupa izveidota",
+      "create_group_failed": "Neizdevās izveidot grupu: {error}",
+      "group_name": "Grupas nosaukums",
+      "group_name_placeholder": "piem., Vispārīgi, Projekti, Komandas",
+      "create_group": "Izveidot grupu",
+      "new_group": "Jauna grupa",
+      "threading_mode_required": "Obligāts",
+      "threading_mode_encouraged": "Ieteicams",
+      "threading_mode_enabled": "Iespējots",
+      "threading_mode_disabled": "Atspējots"
+    },
+    "moderation": {
+      "removing": "Noņem...",
+      "remove_action": "Noņemt no telpas",
+      "lift_title": "Atcelt lietotāja {user} apturējumu",
+      "lift": "Atcelt apturējumu",
+      "lifting": "Atceļ...",
+      "no_suspension": "Bez apturējuma — var pievienoties atkal",
+      "indefinite": "Bez termiņa",
+      "remove_title": "Noņemt {user} no telpas",
+      "suspension_period": "Apturējuma ilgums"
+    },
+    "invitation": {
+      "invite": "Uzaicināt dalībnieku",
+      "invited": "Jūs esat uzaicināts",
+      "sent": "Uzaicinājumi nosūtīti",
+      "expires": "Derīgs līdz {date}",
+      "unavailable": "Pašlaik jūs nevarat pieņemt šo uzaicinājumu. Jūs joprojām varat to noraidīt.",
+      "accept": "Pieņemt uzaicinājumu",
+      "decline": "Noraidīt",
+      "title": "Uzaicināt dalībniekus uz #{room}",
+      "description": "Izvēlieties, ko vēlaties uzaicināt. Uzaicinātie lietotāji saņems paziņojumu un varēs pieņemt vai noraidīt uzaicinājumu septiņu dienu laikā.",
+      "members": "Dalībnieki",
+      "send": "Sūtīt uzaicinājumus",
+      "failed": "Neizdevās uzaicināt {name}: {error}",
+      "already_member": "Jau ir šajā istabā",
+      "invited_by": "Tevi uzaicināja",
+      "decline_title": "Noraidīt uzaicinājumu?",
+      "decline_join_later": "Šai istabai vari pievienoties vēlāk.",
+      "decline_need_invite": "Lai pievienotos šai istabai, būs vajadzīgs jauns uzaicinājums."
+    }
   }
 }

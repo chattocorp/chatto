@@ -1,3 +1,4 @@
+import { QueryObserver } from '@tanstack/svelte-query';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -100,6 +101,75 @@ describe('room member queries', () => {
       existing.map((candidate) => candidate.id),
       { signal }
     );
+  });
+
+  it('continues paging past excluded invitation recipients', async () => {
+    const bot = member('bot', { isBot: true });
+    const human = member('human');
+    const listUsers = vi
+      .fn()
+      .mockImplementation((_search, _limit, offset) =>
+        Promise.resolve(offset === 0 ? page([bot], 2, true) : page([human], 2, false))
+      );
+    const batchGetRoomMembers = vi.fn().mockResolvedValue([]);
+    await expect(
+      listEligibleRoomMembers(
+        { listUsers, batchGetRoomMembers },
+        'room-1',
+        '',
+        1,
+        undefined,
+        (user) => !user.isBot
+      )
+    ).resolves.toEqual([human]);
+    expect(listUsers).toHaveBeenCalledTimes(2);
+    expect(batchGetRoomMembers).toHaveBeenCalledOnce();
+  });
+
+  it('refreshes an open invitation search after removal and invalidates closed pickers', async () => {
+    const connection = { queryScope: 'session-1' };
+    const key = [
+      ...directoryQueryKeys.eligibleRoomMembers('server-1', connection, 'room-1', 'bob', 20),
+      'human-invitations'
+    ];
+    const closed = directoryQueryKeys.eligibleRoomMembers(
+      'server-1',
+      { queryScope: 'session-2' },
+      'room-1',
+      'b',
+      20
+    );
+    const unrelated = directoryQueryKeys.roomMembers('server-1', connection, 'other-room');
+    let isMember = true;
+    const queryFn = vi.fn(async () =>
+      listEligibleRoomMembers(
+        {
+          listUsers: async () => page([member('bob')]),
+          batchGetRoomMembers: async () => (isMember ? [member('bob')] : [])
+        },
+        'room-1',
+        'bob'
+      )
+    );
+    const observer = new QueryObserver(queryClient, {
+      queryKey: key,
+      queryFn,
+      staleTime: Infinity
+    });
+    const stop = observer.subscribe(() => {});
+    try {
+      await vi.waitFor(() => expect(observer.getCurrentResult().isSuccess).toBe(true));
+      expect(observer.getCurrentResult().data).toEqual([]);
+      queryClient.setQueryData(closed, []);
+      queryClient.setQueryData(unrelated, data(page([member('bob')])));
+      isMember = false;
+      await queryCaches.roomMembers!.refreshRoom('server-1', 'room-1');
+      expect(observer.getCurrentResult().data).toEqual([member('bob')]);
+      expect(queryClient.getQueryState(closed)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(unrelated)?.isInvalidated).toBe(false);
+    } finally {
+      stop();
+    }
   });
 
   it('clears a removed room before its authorization is revalidated', async () => {

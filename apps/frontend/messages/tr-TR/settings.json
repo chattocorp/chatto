@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",
-          "badge": "Rozet",
+          "badge": "Okunmamış içerik noktası",
           "badge_hint": "Yalnızca okunmamış içerik için nötr bir nokta ekler. Bildirim oluşturmaz, ses çalmaz veya anlık bildirim göndermez.",
-          "notification": "Bildirim",
+          "notification": "Uygulama içi bildirim",
           "push_notification": "Anlık bildirim"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Durumunuz çevrimdışı değilken @here kullanan mesajlar.",
           "all": "Üyesi olduğunuz bir odada @all kullanan mesajlar.",
           "followed_thread": "Takip ettiğiniz ileti dizilerindeki yeni yanıtlar.",
-          "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler."
+          "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler.",
+          "room_invitation": "Odalara katılma davetleri."
         }
       }
     },

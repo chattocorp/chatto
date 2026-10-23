@@ -7,10 +7,10 @@
 package runtimestatev1
 
 import (
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	v1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -161,8 +161,8 @@ const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\x11fresh_auth_method\x18\b \x01(\tR\x0ffreshAuthMethod\x12*\n" +
 	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSource\x12W\n" +
 	"\x1aprivileged_mode_expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\x17privilegedModeExpiresAtB\x88\x02\n" +
-	" com.chatto.core.runtime_state.v1B\fSessionProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	" \x01(\v2\x1a.google.protobuf.TimestampR\x17privilegedModeExpiresAtB\x99\x02\n" +
+	" com.chatto.core.runtime_state.v1B\fSessionProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_session_proto_rawDescOnce sync.Once

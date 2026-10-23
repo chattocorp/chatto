@@ -10,12 +10,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
@@ -241,13 +241,14 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 func TestUserKeyShreddingWorkerHandsOffInterruptedRequestToAnotherReplica(t *testing.T) {
 	t.Parallel()
 
-	_, nc := testutil.StartNATS(t)
+	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	}
-	first, err := NewChattoCore(ctx, nc, cfg)
+	firstNC := newReplicaConn(t, ns)
+	first, err := NewChattoCore(ctx, firstNC, cfg)
 	require.NoError(t, err)
 
 	firstCtx, stopFirst := context.WithCancel(context.Background())
@@ -280,7 +281,7 @@ func TestUserKeyShreddingWorkerHandsOffInterruptedRequestToAnotherReplica(t *tes
 		t.Fatal("first replica did not start key shredding")
 	}
 
-	second, err := NewChattoCore(ctx, nc, cfg)
+	second, err := NewChattoCore(ctx, newReplicaConn(t, ns), cfg)
 	require.NoError(t, err)
 	secondCtx, stopSecond := context.WithCancel(context.Background())
 	secondDone := make(chan error, 1)
@@ -304,7 +305,9 @@ func TestUserKeyShreddingWorkerHandsOffInterruptedRequestToAnotherReplica(t *tes
 	case <-time.After(5 * time.Second):
 		t.Fatal("first core did not hand off interrupted key shredding")
 	}
-	require.NoError(t, nc.Flush(), "flush first replica's negative acknowledgement")
+	require.NoError(t, firstNC.Flush(), "flush first replica's negative acknowledgement")
+	// Close the connection of the stopped core, as a process exit does.
+	firstNC.Close()
 
 	completionSubject := evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserKeyShredded)
 	waitForRecoveryTest(t, 5*time.Second, func() bool {

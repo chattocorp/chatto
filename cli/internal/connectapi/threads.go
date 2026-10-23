@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
 const (
@@ -23,7 +24,7 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 	}
 
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultFollowedThreadLimit, maxFollowedThreadLimit)
-	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, req.Msg.GetIncludeDirectMessageThreads(), req.Msg.GetUnreadOnly(), limit, offset)
+	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, req.Msg.GetIncludeDirectMessageThreads(), req.Msg.GetUnreadOnly(), limit, offset, core.ThreadRootAuthorFilter(req.Msg.GetRootAuthorFilter()), core.ThreadOrder(req.Msg.GetOrder()))
 	if err != nil {
 		return nil, err
 	}

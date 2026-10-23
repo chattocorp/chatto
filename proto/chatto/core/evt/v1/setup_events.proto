@@ -1,6 +1,6 @@
 syntax = "proto3";
 package chatto.core.evt.v1;
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // Records eligibility for first-run setup before a new server seeds defaults.
 // Only an empty EVT history may acquire this fact. Envelope tags: 950-959.

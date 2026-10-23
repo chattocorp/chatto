@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Kopiëren naar het klembord is mislukt. Selecteer de tekst en kopieer deze handmatig.",
     "cancel": "Annuleren",
     "close_sidebar": "Zijbalk sluiten",
     "or": "of",
@@ -21,11 +22,12 @@
     "password_placeholder": "Je wachtwoord",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "Minimaal 8 tekens",
+    "password_bytes_placeholder": "8–72 UTF-8-bytes",
     "password_confirm_placeholder": "Voer het wachtwoord opnieuw in",
     "validation": {
       "email": "Voer een geldig e-mailadres in",
-      "password_min": "Moet minimaal 8 tekens lang zijn",
+      "password_min_bytes": "Gebruik minstens 8 UTF-8-bytes. Sommige tekens gebruiken meer dan één byte.",
+      "password_max": "Gebruik maximaal 72 UTF-8-bytes. Sommige tekens gebruiken meer dan één byte.",
       "username_min": "Moet minimaal 2 tekens lang zijn",
       "username_max": "Mag maximaal 32 tekens lang zijn",
       "username_charset": "Alleen letters, cijfers, punten, streepjes en onderstrepingstekens",
@@ -53,6 +55,11 @@
     "saved": "Opgeslagen!",
     "rooms": "Kamers",
     "copy_to_clipboard": "Kopiëren naar klembord",
-    "copied_to_clipboard": "Gekopieerd naar klembord"
+    "copied_to_clipboard": "Gekopieerd naar klembord",
+    "user_search_placeholder": "Zoeken op login of weergavenaam...",
+    "no_users": "Geen gebruikers gevonden",
+    "user_id": "Gebruikers-ID",
+    "reason": "Reden",
+    "message_of_the_day": "Bericht van de dag"
   }
 }

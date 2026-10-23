@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-	. "hmans.de/chatto/pkg/events"
 )
 
 type codecTestEvent struct {

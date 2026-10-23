@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -23,6 +23,8 @@ provider supplies results.
   available registered server and merge their top results by provider score.
 - Plain words are combined as required terms. Quoted text searches for an exact
   phrase, and an explicit `AND` is accepted between terms.
+- Unicode whitespace, including non-breaking spaces in pasted text, separates
+  terms and filters. Whitespace inside quoted text does not split tokens.
 - Relevance favours literal word matches while adding lower-ranked recall from
   the operator-selected Bleve language analyzers, CJK token matching when its
   analyzer is selected, and conservative one-character spelling mistakes in
@@ -34,17 +36,19 @@ provider supplies results.
 - Structured filters support a room (`in:`), author (`from:`), messages before
   or after a date, and messages with attachments. Any recognized filter can be
   used on its own without an additional word or phrase.
-- My Threads uses the same query syntax to search only accessible followed
-  threads, including DM threads. It returns one row per matching thread in
-  activity order. Both views use one search API, with message results as the
-  default and explicit thread scope and grouping for My Threads. Scope and
+- Threads uses the same query syntax to search only accessible followed
+  threads within the selected root-author tab, including DM threads. Root-author
+  selection does not restrict the authors of matching replies. It returns one
+  row per matching thread in activity order. Both views use one search API, with
+  message results as the default and explicit thread scope and grouping for
+  Threads. Scope and
   grouping are independent: integrations can group all accessible matches or
   request individual matches within followed threads. Grouped relevance uses
   the best matching message; newest order uses the newest matching message.
   Activity order includes nonmatching replies. A root without replies is also
   a group. See FDR-044.
 - Search is available as a server-level page reached from the server sidebar
-  between Overview and My Threads, and as a room-sidebar tab that searches only
+  between Overview and Threads, and as a room-sidebar tab that searches only
   the current room or direct-message conversation.
 - Below 768px viewport width, the server-level page shows the query and sort
   controls directly below the page title, followed by results without panel
@@ -206,7 +210,7 @@ result where the viewer does not have current read authority.
   (public API stability tiers), ADR-053 (versioned NATS service namespaces),
   ADR-054 (optional projection persistence), ADR-055 (pluggable message search
   over NATS), ADR-080 (explicit message-read permissions), ADR-082 (derived
-  thread interactions)
+  thread interactions), [ADR-115](../adr/ADR-115-in-process-domain-services.md) (in-process domain services)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-014 (Jump to Present),
   FDR-015 (Quick Switcher), FDR-019 (Room Lifecycle), FDR-032 (Message
   Formatting), FDR-039 (Message Access & Interactions)

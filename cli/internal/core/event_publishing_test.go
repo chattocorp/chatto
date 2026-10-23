@@ -13,11 +13,11 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
@@ -147,7 +147,7 @@ func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
 	if _, _, err := core.FindOrCreateDM(ctx, user.Id, []string{other.Id}); err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	if err := core.DeleteRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+	if err := core.roomCommands.DeleteRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
 		t.Fatalf("DeleteRoom: %v", err)
 	}
 

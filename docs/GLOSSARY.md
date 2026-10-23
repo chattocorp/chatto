@@ -24,6 +24,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Server Sidebar** — The wider sidebar to the right of the Server Gutter. It controls the position, mobile slide, size, and current-user footer of a server pane. App Preferences uses the same shell without the server footer. The sidebar contains the server banner and room list, the unified Settings navigation, or the App Preferences navigation. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
 
+**Room invitation** — A request for an existing human server member to join a channel room. It appears in the room list and welcome screen, expires after seven days, and grants membership only after acceptance. It is distinct from a server invite link. See [FDR-051](fdr/FDR-051-room-invitations.md).
+
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — _Room View_ is the canonical name.
 
 **Message Header** — Line above a non-compact message body that contains the author identity, time, and other message metadata.
@@ -33,6 +35,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 **Room Sidebar** — Right-hand pane scoped to the current room. Hosts room-specific extras such as the member list today and future surfaces like files or calls. Implemented in `apps/frontend/src/routes/chat/[serverId]/[roomId]/RoomSidebar.svelte`.
 
 **Member List** — Room Sidebar panel that lists and searches the members of the current room.
+
+**User Page** — A user's page at `/chat/<server>/user/<userId>`. It shows their profile and the viewing user's direct conversation with them. See [FDR-007](fdr/FDR-007-direct-messages.md).
 
 **Profile View** — Complete public user profile shown in the current Room Sidebar. Context-menu profiles are temporary subviews of the Member List, with a back arrow to return to Members. One-to-one DMs also provide a profile through their header and desktop default view. See [FDR-022](fdr/FDR-022-user-profile.md).
 
@@ -123,7 +127,7 @@ another address does not change the selection. See
 
 **Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-077](adr/ADR-077-persistent-notification-list.md).
 
-**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Badge, Notification, or Push notification. Badge adds only a neutral unread dot. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Unread dot, In-app notification, or Push notification. Unread dot adds only a neutral unread dot. In-app notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Push Subscription** — One browser's Web Push registration for one account on one server, stored by that server. Each server has its own subscription in each browser. A subscription expires 180 days after its most recent save; the client saves it again while the device uses Chatto. See [FDR-013](fdr/FDR-013-web-push-notifications.md).
 

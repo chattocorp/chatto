@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
 import { RealtimeResourceUpdate } from '../api/realtimeResources.js';
-import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import {
+  ListRoomsResponse,
+  RoomWithViewerState,
+  RoomViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
+import { Timestamp } from '@bufbuild/protobuf';
 import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.js';
@@ -108,6 +114,98 @@ describe('ServerProjectionStore', () => {
       })
     );
     expect(store.rooms.get('dm')?.hasMessageHistory).toBe(true);
+  });
+
+  it('advances DM activity for roots and replies without regressing on duplicate or older facts', () => {
+    const store = new ServerProjectionStore();
+    const at = (seconds: number) => Timestamp.fromDate(new Date(seconds * 1000));
+    store.rooms.set(
+      'dm',
+      new RoomWithViewerState({
+        room: new Room({ id: 'dm', kind: RoomKind.DM }),
+        viewerState: new RoomViewerState({
+          isMember: true,
+          permissions: [new PermissionGrant({ permission: 'message.read', granted: true })]
+        }),
+        hasMessageHistory: false
+      })
+    );
+    const post = (seconds: number, threadRootEventId = '') =>
+      store.apply(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            createdAt: at(seconds),
+            event: {
+              case: 'messagePosted',
+              value: new MessagePostedEvent({ roomId: 'dm', threadRootEventId })
+            }
+          })
+        })
+      );
+    post(10);
+    expect(store.rooms.get('dm')?.hasMessageHistory).toBe(true);
+    expect(store.rooms.get('dm')?.lastMessageAt).toEqual(at(10));
+    expect(store.rooms.get('dm')?.lastRootMessageAt).toEqual(at(10));
+    post(20, 'root');
+    post(20, 'root');
+    post(5);
+    expect(store.rooms.get('dm')?.lastMessageAt).toEqual(at(20));
+    expect(store.rooms.get('dm')?.lastRootMessageAt).toEqual(at(10));
+    post(30);
+    expect(store.rooms.get('dm')?.lastMessageAt).toEqual(at(30));
+    expect(store.rooms.get('dm')?.lastRootMessageAt).toEqual(at(30));
+  });
+
+  it('does not infer broad DM activity from interaction-only replies', () => {
+    const store = new ServerProjectionStore();
+    store.rooms.set(
+      'dm',
+      new RoomWithViewerState({
+        room: new Room({ id: 'dm', kind: RoomKind.DM }),
+        viewerState: new RoomViewerState({
+          isMember: true,
+          permissions: [
+            new PermissionGrant({ permission: 'message.read', granted: false }),
+            new PermissionGrant({ permission: 'message.read-interactions', granted: true })
+          ]
+        })
+      })
+    );
+    store.apply(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          createdAt: Timestamp.now(),
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'dm', threadRootEventId: 'root' })
+          }
+        })
+      })
+    );
+    expect(store.rooms.get('dm')?.lastMessageAt).toBeUndefined();
+    expect(store.rooms.get('dm')?.lastRootMessageAt).toBeUndefined();
+  });
+
+  it('does not replace or reorder the room directory for a channel reply', () => {
+    const store = new ServerProjectionStore();
+    const channel = new RoomWithViewerState({
+      room: new Room({ id: 'channel', kind: RoomKind.CHANNEL })
+    });
+    store.rooms.set('first', new RoomWithViewerState({ room: new Room({ id: 'first' }) }));
+    store.rooms.set('channel', channel);
+    store.apply(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          createdAt: Timestamp.now(),
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'channel', threadRootEventId: 'root' })
+          }
+        })
+      })
+    );
+    expect([...store.rooms.keys()]).toEqual(['first', 'channel']);
+    expect(store.rooms.get('channel')).toBe(channel);
   });
 
   describe('active calls', () => {

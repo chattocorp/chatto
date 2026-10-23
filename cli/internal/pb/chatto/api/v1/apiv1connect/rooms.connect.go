@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	http "net/http"
 	strings "strings"
 )
@@ -133,6 +133,9 @@ type RoomServiceClient interface {
 	// participant set, or fetches its existing DM. message.post is required
 	// only when the DM must be created. A valid request from a bot receives
 	// PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
+	// New DMs support the caller and at most one other user. New group DMs
+	// receive INVALID_ARGUMENT; use a channel room instead. Existing group
+	// DMs can still be fetched.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
@@ -174,11 +177,11 @@ type RoomServiceClient interface {
 	// pins from threads that the caller cannot read. Direct-message rooms do not
 	// support pins.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
-	// Pins a current message. The caller must have room.manage and must be able
+	// Pins a current message. The caller must have message.pin and must be able
 	// to read the message. Repeating an existing pin is idempotent. Direct-message
 	// rooms are rejected.
 	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
-	// Removes a current pin. The caller must have room.manage. Removing a
+	// Removes a current pin. The caller must have message.pin. Removing a
 	// missing pin is idempotent. Direct-message rooms are rejected.
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
@@ -575,6 +578,9 @@ type RoomServiceHandler interface {
 	// participant set, or fetches its existing DM. message.post is required
 	// only when the DM must be created. A valid request from a bot receives
 	// PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
+	// New DMs support the caller and at most one other user. New group DMs
+	// receive INVALID_ARGUMENT; use a channel room instead. Existing group
+	// DMs can still be fetched.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
@@ -616,11 +622,11 @@ type RoomServiceHandler interface {
 	// pins from threads that the caller cannot read. Direct-message rooms do not
 	// support pins.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
-	// Pins a current message. The caller must have room.manage and must be able
+	// Pins a current message. The caller must have message.pin and must be able
 	// to read the message. Repeating an existing pin is idempotent. Direct-message
 	// rooms are rejected.
 	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
-	// Removes a current pin. The caller must have room.manage. Removing a
+	// Removes a current pin. The caller must have message.pin. Removing a
 	// missing pin is idempotent. Direct-message rooms are rejected.
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or

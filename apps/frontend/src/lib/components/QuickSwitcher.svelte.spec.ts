@@ -1,3 +1,4 @@
+import '../../app.css';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -53,7 +54,7 @@ const mocks = vi.hoisted(() => ({
     serverInfo: {
       name: 'Workspace Server',
       iconUrl: null,
-      isSupportedVersion: true
+      canConnect: true
     },
     permissions: {
       canStartDMs: true
@@ -342,7 +343,7 @@ beforeEach(() => {
   mocks.store.messageSearch.privacyRevision = 0;
   mocks.store.messageSearch.subscribePrivacyInvalidation.mockClear();
   mocks.privacyListeners = [];
-  mocks.store.serverInfo.isSupportedVersion = true;
+  mocks.store.serverInfo.canConnect = true;
   mocks.servers.splice(1);
   mocks.query.mockClear();
 });
@@ -360,6 +361,14 @@ afterAll(() => {
 });
 
 describe('QuickSwitcher', () => {
+  it('focuses the search input with text large enough to avoid iOS focus zoom', async () => {
+    const { container } = await renderOpenSwitcher();
+    const search = input(container);
+
+    await expect.element(search).toHaveFocus();
+    expect(Number.parseFloat(getComputedStyle(search).fontSize)).toBeGreaterThanOrEqual(16);
+  });
+
   it('opens with server, destination, room, and DM results from mocked data', async () => {
     const { container } = await renderOpenSwitcher();
 
@@ -604,7 +613,7 @@ describe('QuickSwitcher', () => {
     expect(container.textContent).toContain('Cedar Person');
     expect(mocks.listUsers).not.toHaveBeenCalled();
     resultButtons(container)[0].click();
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/known'));
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/user/known'));
   });
 
   it('finds a bot loaded only by the room directory and opens its DM', async () => {
@@ -629,7 +638,7 @@ describe('QuickSwitcher', () => {
     expect(container.textContent).toContain('BOT');
     expect(mocks.listUsers).not.toHaveBeenCalled();
     resultButtons(container)[0].click();
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm/test-bot'));
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/-/user/test-bot'));
   });
 
   it('updates cached profiles and respects removal markers and session cleanup', async () => {
@@ -801,7 +810,7 @@ describe('QuickSwitcher', () => {
     setSearch(container, 'cedar');
     expect(resultButtons(container)).toHaveLength(2);
     resultButtons(container)[1].click();
-    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/second/dm/known'));
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat/second/user/known'));
   });
 
   it('matches bot conversations by login and marks their names', async () => {

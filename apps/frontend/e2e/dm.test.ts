@@ -9,21 +9,81 @@ import {
 import { withServerUser } from './fixtures/serverUser';
 import { DMPage } from './pages/DMPage';
 import { RoomPage } from './pages/RoomPage';
-import { postMessageViaConnect } from './fixtures/connectHelpers';
+import { postMessageViaConnect, getIdsFromUrlViaConnect } from './fixtures/connectHelpers';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
 /**
- * Direct Messages — post-#330 phase 3 shape. DMs are rooms on the Server,
- * appear in the primary-server sidebar alongside channels, and use the same
- * `/chat/{instanceSegment}/{roomId}` URL shape. The dedicated /chat/dm
- * inbox is gone for the time being.
- *
- * These tests pin the regressions we just fixed (silent post + reload-redirect)
- * and the basic sidebar integration so future work doesn't quietly undo them.
+ * Direct messages use user-page URLs and room identities in the API.
+ * Cover message delivery, redirects, reloads, permissions, and sidebar state.
  */
 
-test.describe('Direct Messages (room-shaped)', () => {
+test.describe('Direct Messages on user pages', () => {
+  test('the same user link opens a separate conversation for each viewer', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await withServerUser(browser, serverURL, async ({ user: target }) => {
+      await page.goto(routes.user(target.id!));
+      const first = new RoomPage(page);
+      const privateBody = `First viewer private message ${Date.now()}`;
+      await first.sendMessage(privateBody);
+      const firstRoom = await getIdsFromUrlViaConnect(page);
+      await withServerUser(browser, serverURL, async ({ page: other }) => {
+        await other.goto(routes.user(target.id!));
+        const second = new RoomPage(other);
+        await expect(second.messageInput).toBeVisible();
+        const secondRoom = await getIdsFromUrlViaConnect(other);
+        expect(secondRoom.roomId).not.toBe(firstRoom.roomId);
+        await expect(second.getMessage(privateBody).locator).toHaveCount(0);
+        const otherBody = `Second viewer private message ${Date.now()}`;
+        await second.sendMessage(otherBody);
+        await expect(first.getMessage(otherBody).locator).toHaveCount(0);
+      });
+      await page.goto(`${routes.room(firstRoom.roomId)}?source=bookmark#profile`);
+      await expect(page).toHaveURL(
+        `${serverURL}${routes.user(target.id!)}?source=bookmark#profile`
+      );
+      await page.goto(`/chat/-/dm/${target.id}?source=old#profile`);
+      await expect(page).toHaveURL(`${serverURL}${routes.user(target.id!)}?source=old#profile`);
+      await page.goBack();
+      await expect(page).toHaveURL(
+        `${serverURL}${routes.user(target.id!)}?source=bookmark#profile`
+      );
+    });
+  });
+  test('right-clicking a DM sidebar row opens the partner user menu', async ({
+    page,
+    browser,
+    serverURL,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await withServerUser(browser, serverURL, async ({ user: partner }) => {
+      const dmPage = new DMPage(page);
+      const conversation = await dmPage.startConversation(partner.login);
+      await conversation.sendMessage('Sidebar user menu regression');
+      const row = dmPage.getConversation(partner.displayName);
+      await expect(row).toBeVisible();
+      const conversationURL = page.url();
+      await row.click({ button: 'right' });
+
+      const profile = page.getByRole('dialog', { name: 'User profile' });
+      await expect(profile).toBeVisible();
+      await expect(profile.getByText(partner.displayName, { exact: true })).toBeVisible();
+      await expect(profile.getByText(`@${partner.login}`, { exact: true })).toBeVisible();
+      await expect(profile.getByTestId('copy-user-id')).toBeVisible();
+      await expect(page.getByTestId('copy-room-id')).toHaveCount(0);
+      await expect(profile.getByRole('button', { name: 'Mark as read' })).toHaveCount(0);
+      await expect(page).toHaveURL(conversationURL);
+      await page.keyboard.press('Escape');
+      await expect(profile).not.toBeVisible();
+    });
+  });
+
   test('Send message navigates before creating a hidden DM and delivers its first message', async ({
     page,
     chatPage,
@@ -61,9 +121,9 @@ test.describe('Direct Messages (room-shaped)', () => {
           const profile = page.getByRole('dialog', { name: 'User profile' });
           await expect(profile).toBeVisible();
           expect(requestedAt).toBe('');
-          await profile.getByRole('button', { name: 'Send Message', exact: true }).click();
-          await expect(page).toHaveURL(new RegExp(`/chat/-/dm/${userB.id}$`));
-          await expect.poll(() => requestedAt).toBe(`/chat/-/dm/${userB.id}`);
+          await profile.getByRole('button', { name: 'Open conversation', exact: true }).click();
+          await expect(page).toHaveURL(new RegExp(`/chat/-/user/${userB.id}$`));
+          await expect.poll(() => requestedAt).toBe(`/chat/-/user/${userB.id}`);
           await expect(page.getByRole('status', { name: 'Loading...', exact: true })).toBeVisible();
         } finally {
           release();
@@ -117,19 +177,23 @@ test.describe('Direct Messages (room-shaped)', () => {
     // Two users on the same server.
     const userA = await createAndLoginTestUser(page);
 
-    await withServerUser(browser, serverURL, async ({ page: page2 }) => {
+    await withServerUser(browser, serverURL, async ({ page: page2, user: userB }) => {
       // User B starts a DM with User A and seeds a message so the DM is in
       // User A's merged sidebar (the active DM-room list filters empty rooms).
-      // The conversation ID is deterministic across the two users — pull it
-      // from B's URL once the room loads.
+      // Fetch the room identity separately from the user-page URL.
       const dmPageB = new DMPage(page2);
       const roomB = await dmPageB.startConversation(userA.login);
       await roomB.sendMessage('seed from B');
-      const conversationId = page2.url().split('/').pop()!;
+      const response = await page2.request.post('/api/connect/chatto.api.v1.RoomService/StartDM', {
+        headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' },
+        data: { participantIds: [userA.id] }
+      });
+      expect(response.ok()).toBe(true);
+      const conversationId = (await response.json()).room.id as string;
 
       // User A navigates to the DM via the channel-shaped URL.
       await page.goto(routes.room(conversationId));
-      await page.waitForURL(routes.patterns.anyRoom);
+      await page.waitForURL(routes.user(userB.id!));
 
       // Bug #1 (the silent post): the server's realtime subscription must
       // carry DM events too, so MessagePostedEvent reaches the room timeline
@@ -155,7 +219,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     });
   });
 
-  test('a DM with messages renders in the primary-server sidebar and links to /chat/{seg}/{id}', async ({
+  test('a DM with messages links to the other user page in the sidebar', async ({
     page,
     browser,
     serverURL
@@ -184,11 +248,10 @@ test.describe('Direct Messages (room-shaped)', () => {
         .filter({ has: page.getByText(userB.displayName, { exact: true }) });
       await expect(dmLink).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // Click it: the URL must be the channel-shaped /chat/-/{roomId}, not
-      // the legacy /chat/dm/... path.
+      // The sidebar link selects the other user's page.
       await dmLink.click();
-      await page.waitForURL(routes.patterns.anyRoom);
-      expect(page.url()).not.toContain('/chat/dm/');
+      await page.waitForURL(routes.user(userB.id!));
+      await expect(dmLink).toHaveAttribute('href', routes.user(userB.id!));
     });
   });
 

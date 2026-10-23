@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type AdminRoomManagementDetails struct {
@@ -20,19 +20,19 @@ type AdminRoomGroupManagementDetails struct {
 	CanManagePermissions bool
 }
 
-func (c *ChattoCore) GetAdminRoom(ctx context.Context, actorID, roomID string) (*AdminRoomManagementDetails, error) {
+func (m *RoomLayoutModel) GetAdminRoom(ctx context.Context, actorID, roomID string) (*AdminRoomManagementDetails, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	room, err := c.GetRoom(ctx, KindChannel, roomID)
+	room, err := m.rooms.GetRoom(ctx, KindChannel, roomID)
 	if err != nil {
 		return nil, err
 	}
-	canManageRoom, err := c.PermResolver().HasRoomPermission(ctx, actorID, KindChannel, roomID, PermRoomManage)
+	canManageRoom, err := m.policy.resolver.HasRoomPermission(ctx, actorID, KindChannel, roomID, PermRoomManage)
 	if err != nil {
 		return nil, err
 	}
-	canManageRoles, err := c.CanManageRoles(ctx, actorID)
+	canManageRoles, err := m.policy.CanManageRoles(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,19 +46,19 @@ func (c *ChattoCore) GetAdminRoom(ctx context.Context, actorID, roomID string) (
 	}, nil
 }
 
-func (c *ChattoCore) GetAdminRoomGroup(ctx context.Context, actorID, groupID string) (*AdminRoomGroupManagementDetails, error) {
+func (m *RoomLayoutModel) GetAdminRoomGroup(ctx context.Context, actorID, groupID string) (*AdminRoomGroupManagementDetails, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	group, err := c.GetRoomGroup(ctx, groupID)
+	group, err := m.rooms.GetRoomGroup(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
-	canManageGroup, err := c.CanManageRoomGroup(ctx, actorID, groupID)
+	canManageGroup, err := m.policy.CanManageRoomGroup(ctx, actorID, groupID)
 	if err != nil {
 		return nil, err
 	}
-	canManageRoles, err := c.CanManageRoles(ctx, actorID)
+	canManageRoles, err := m.policy.CanManageRoles(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,122 +72,122 @@ func (c *ChattoCore) GetAdminRoomGroup(ctx context.Context, actorID, groupID str
 	}, nil
 }
 
-func (c *ChattoCore) AdminCreateRoomGroup(ctx context.Context, actorID, name, description string) (*evtv1.RoomGroup, error) {
-	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
+func (m *RoomLayoutModel) AdminCreateRoomGroup(ctx context.Context, actorID, name, description string) (*evtv1.RoomGroup, error) {
+	if err := m.policy.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.createRoomGroup(ctx, actorID, name, description, c.anyRoomAuthorityCheck(ctx, actorID))
+	return m.createRoomGroup(ctx, actorID, name, description, m.anyRoomAuthorityCheck(ctx, actorID))
 }
 
-func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*evtv1.RoomGroup, error) {
-	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
+func (m *RoomLayoutModel) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*evtv1.RoomGroup, error) {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
 	if name == nil && description == nil {
 		return nil, fmt.Errorf("%w: provide at least one room group field to update", ErrInvalidArgument)
 	}
-	return c.updateRoomGroupFields(ctx, actorID, groupID, name, description, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
+	return m.updateRoomGroupFields(ctx, actorID, groupID, name, description, m.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (c *ChattoCore) AdminDeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
-	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
+func (m *RoomLayoutModel) AdminDeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return err
 	}
-	return c.deleteRoomGroup(ctx, actorID, groupID, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
+	return m.deleteRoomGroup(ctx, actorID, groupID, m.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (c *ChattoCore) AdminReorderRoomGroups(ctx context.Context, actorID string, orderedGroupIDs []string) error {
-	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
+func (m *RoomLayoutModel) AdminReorderRoomGroups(ctx context.Context, actorID string, orderedGroupIDs []string) error {
+	if err := m.policy.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return err
 	}
-	return c.reorderRoomGroups(ctx, actorID, orderedGroupIDs, c.anyRoomAuthorityCheck(ctx, actorID))
+	return m.reorderRoomGroups(ctx, actorID, orderedGroupIDs, m.anyRoomAuthorityCheck(ctx, actorID))
 }
 
 // AdminMoveRoomGroup places one group before another group, or last when
 // beforeGroupID is empty. The server recomputes the complete order on an OCC
 // conflict so callers can submit relative intent from a filtered UI.
-func (c *ChattoCore) AdminMoveRoomGroup(ctx context.Context, actorID, groupID, beforeGroupID string) error {
-	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
+func (m *RoomLayoutModel) AdminMoveRoomGroup(ctx context.Context, actorID, groupID, beforeGroupID string) error {
+	if err := m.policy.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return err
 	}
-	return c.placeRoomGroup(ctx, actorID, groupID, beforeGroupID, c.anyRoomAuthorityCheck(ctx, actorID))
+	return m.placeRoomGroup(ctx, actorID, groupID, beforeGroupID, m.anyRoomAuthorityCheck(ctx, actorID))
 }
 
-func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*evtv1.Room, error) {
+func (m *RoomLayoutModel) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*evtv1.Room, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
 	for range maxMoveRoomToGroupRetries {
-		room, err := c.GetRoom(ctx, KindChannel, roomID)
+		room, err := m.rooms.GetRoom(ctx, KindChannel, roomID)
 		if err != nil {
 			return nil, err
 		}
 		sourceGroupID := room.GetGroupId()
-		if err := c.requireCanManageRoomGroup(ctx, actorID, sourceGroupID); err != nil {
+		if err := m.policy.requireCanManageRoomGroup(ctx, actorID, sourceGroupID); err != nil {
 			return nil, err
 		}
-		if err := c.requireCanManageRoomGroup(ctx, actorID, targetGroupID); err != nil {
+		if err := m.policy.requireCanManageRoomGroup(ctx, actorID, targetGroupID); err != nil {
 			return nil, err
 		}
 		authorize := func(sourceGroupID, targetGroupID string) error {
-			return c.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, targetGroupID)()
+			return m.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, targetGroupID)()
 		}
-		if err := c.moveRoomToGroup(ctx, actorID, roomID, sourceGroupID, targetGroupID, true, authorize); err != nil {
+		if err := m.moveRoomToGroup(ctx, actorID, roomID, sourceGroupID, targetGroupID, true, authorize); err != nil {
 			if errors.Is(err, ErrRoomMoveSourceChanged) {
 				continue
 			}
 			return nil, err
 		}
-		return c.GetRoom(ctx, KindChannel, roomID)
+		return m.rooms.GetRoom(ctx, KindChannel, roomID)
 	}
 	return nil, fmt.Errorf("move room source authorization retry exhausted: %w", ErrRoomMoveSourceChanged)
 }
 
-func (c *ChattoCore) AdminReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
-	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
+func (m *RoomLayoutModel) AdminReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
-	if err := c.reorderSidebarItemsInGroup(ctx, actorID, groupID, orderedEntries, c.roomGroupAuthorityCheck(ctx, actorID, groupID)); err != nil {
+	if err := m.reorderSidebarItemsInGroup(ctx, actorID, groupID, orderedEntries, m.roomGroupAuthorityCheck(ctx, actorID, groupID)); err != nil {
 		return nil, err
 	}
-	return c.GetRoomGroup(ctx, groupID)
+	return m.rooms.GetRoomGroup(ctx, groupID)
 }
 
 // AdminMoveSidebarItem places one room or sidebar link in a destination group.
 // Each OCC attempt validates the source and destination authorization inputs
 // with a stable request-time read.
-func (c *ChattoCore) AdminMoveSidebarItem(ctx context.Context, actorID string, item *evtv1.SidebarGroupEntry, targetGroupID string, before *evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) AdminMoveSidebarItem(ctx context.Context, actorID string, item *evtv1.SidebarGroupEntry, targetGroupID string, before *evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
 	authorize := func(sourceGroupID, destinationGroupID string) error {
-		return c.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, destinationGroupID)()
+		return m.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, destinationGroupID)()
 	}
-	if err := c.placeSidebarItem(ctx, actorID, item, targetGroupID, before, authorize); err != nil {
+	if err := m.placeSidebarItem(ctx, actorID, item, targetGroupID, before, authorize); err != nil {
 		return nil, err
 	}
-	return c.GetRoomGroup(ctx, targetGroupID)
+	return m.rooms.GetRoomGroup(ctx, targetGroupID)
 }
 
-func (c *ChattoCore) AdminCreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*evtv1.SidebarLink, error) {
-	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
+func (m *RoomLayoutModel) AdminCreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*evtv1.SidebarLink, error) {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
-	return c.createSidebarLink(ctx, actorID, groupID, label, rawURL, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
+	return m.createSidebarLink(ctx, actorID, groupID, label, rawURL, m.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*evtv1.SidebarLink, error) {
-	groupID, err := c.sidebarLinkGroup(ctx, linkID)
+func (m *RoomLayoutModel) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*evtv1.SidebarLink, error) {
+	groupID, err := m.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
 	if label == nil && rawURL == nil {
 		return nil, fmt.Errorf("%w: provide at least one sidebar link field to update", ErrInvalidArgument)
 	}
-	group, err := c.GetRoomGroup(ctx, groupID)
+	group, err := m.rooms.GetRoomGroup(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,38 +203,38 @@ func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID
 	if rawURL != nil {
 		nextURL = *rawURL
 	}
-	return c.updateSidebarLinkInGroup(ctx, actorID, groupID, linkID, nextLabel, nextURL, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
+	return m.updateSidebarLinkInGroup(ctx, actorID, groupID, linkID, nextLabel, nextURL, m.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (c *ChattoCore) AdminDeleteSidebarLink(ctx context.Context, actorID, linkID string) error {
-	groupID, err := c.sidebarLinkGroup(ctx, linkID)
+func (m *RoomLayoutModel) AdminDeleteSidebarLink(ctx context.Context, actorID, linkID string) error {
+	groupID, err := m.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return err
 	}
-	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return err
 	}
-	return c.deleteSidebarLinkInGroup(ctx, actorID, groupID, linkID, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
+	return m.deleteSidebarLinkInGroup(ctx, actorID, groupID, linkID, m.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (c *ChattoCore) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) (*evtv1.SidebarLink, error) {
-	sourceGroupID, err := c.sidebarLinkGroup(ctx, linkID)
+func (m *RoomLayoutModel) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) (*evtv1.SidebarLink, error) {
+	sourceGroupID, err := m.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.requireCanManageRoomGroup(ctx, actorID, sourceGroupID); err != nil {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, sourceGroupID); err != nil {
 		return nil, err
 	}
-	if err := c.requireCanManageRoomGroup(ctx, actorID, targetGroupID); err != nil {
+	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, targetGroupID); err != nil {
 		return nil, err
 	}
 	authorize := func(sourceGroupID, targetGroupID string) error {
-		return c.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, targetGroupID)()
+		return m.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, targetGroupID)()
 	}
-	if err := c.moveSidebarLinkBetweenGroups(ctx, actorID, linkID, sourceGroupID, targetGroupID, authorize); err != nil {
+	if err := m.moveSidebarLinkBetweenGroups(ctx, actorID, linkID, sourceGroupID, targetGroupID, authorize); err != nil {
 		return nil, err
 	}
-	targetGroup, err := c.GetRoomGroup(ctx, targetGroupID)
+	targetGroup, err := m.rooms.GetRoomGroup(ctx, targetGroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -243,32 +243,4 @@ func (c *ChattoCore) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, l
 		return nil, ErrSidebarLinkNotFound
 	}
 	return link, nil
-}
-
-func (c *ChattoCore) requireCanManageAnyRoom(ctx context.Context, actorID string) error {
-	if err := requireAuthenticatedActor(actorID); err != nil {
-		return err
-	}
-	ok, err := c.CanManageAnyRoom(ctx, actorID)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrPermissionDenied
-	}
-	return nil
-}
-
-func (c *ChattoCore) requireCanManageRoomGroup(ctx context.Context, actorID, groupID string) error {
-	if err := requireAuthenticatedActor(actorID); err != nil {
-		return err
-	}
-	ok, err := c.CanManageRoomGroup(ctx, actorID, groupID)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrPermissionDenied
-	}
-	return nil
 }

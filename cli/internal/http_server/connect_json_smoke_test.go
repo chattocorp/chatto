@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
 )
 
 // TestConnectJSONIntegrationSmoke exercises a client workflow through the real

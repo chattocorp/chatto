@@ -1,6 +1,6 @@
 # ADR-001: Process-local TypeScript workflows
 
-**Status:** Accepted
+**Status:** Amended by ADR-010
 **Date:** 2026-09-22
 
 ## Context
@@ -10,6 +10,10 @@ agents. It is an independent product. Applications need ordinary functions and
 explicit lifecycle control without a distributed scheduler or a required datastore.
 
 ## Decision
+
+[ADR-010](ADR-010-workflow-state-snapshots.md) adds server-owned snapshots and
+root re-entry. The process-local execution limits below still apply; journals
+alone remain insufficient for recovery.
 
 Workflows and tasks are TypeScript functions. Schemas can validate task inputs
 and outputs. Execution, channels, and active agent sessions belong to the current
@@ -22,7 +26,8 @@ unless the process that writes it is still alive; it does not resume the
 workflow.
 Graceful server shutdown also marks unfinished runs interrupted; explicit user
 cancellation remains cancelled. The server does not restore application state,
-agent sessions, or JavaScript execution from journals.
+agent sessions, or JavaScript execution from journals. ADR-010 adds a separate
+state snapshot for root re-entry; it does not turn journals into continuations.
 
 Cancellation uses abort signals and cooperative cleanup. It cannot force arbitrary
 JavaScript to stop or undo external effects. Runling does not coordinate replicas

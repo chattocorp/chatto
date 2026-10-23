@@ -29,25 +29,25 @@ describe('extractURLs', () => {
     });
   });
 
-  describe('bare-domain URLs', () => {
+  describe('URLs without a protocol', () => {
     it('detects www-prefixed URLs', () => {
       expect(extractURLs('Visit www.example.com')).toEqual(['https://www.example.com']);
     });
 
-    it('detects bare domains with common TLDs', () => {
-      expect(extractURLs('Visit example.com')).toEqual(['https://example.com']);
+    it('ignores bare domains with common TLDs', () => {
+      expect(extractURLs('Visit example.com')).toEqual([]);
     });
 
     it('detects bare domains with newer TLDs like .dev', () => {
       expect(extractURLs('check www.hmans.dev')).toEqual(['https://www.hmans.dev']);
     });
 
-    it('detects bare domains with .io TLD', () => {
-      expect(extractURLs('try app.example.io')).toEqual(['https://app.example.io']);
+    it('ignores bare domains with .io TLD', () => {
+      expect(extractURLs('try app.example.io')).toEqual([]);
     });
 
-    it('detects bare domains with .app TLD', () => {
-      expect(extractURLs('see myapp.app')).toEqual(['https://myapp.app']);
+    it('ignores bare domains with .app TLD', () => {
+      expect(extractURLs('see myapp.app')).toEqual([]);
     });
 
     it('detects bare domains with paths', () => {
@@ -61,6 +61,14 @@ describe('extractURLs', () => {
       expect(urls[0]).toMatch(/^https:\/\//);
     });
   });
+
+  it.each(['agents.md', 'readme.md', 'foo.py', '//example.com', 'user@example.com'])(
+    'does not fetch a preview for %s',
+    (text) => {
+      expect(extractURLs(text)).toEqual([]);
+      expect(extractURLs(`${text} https://example.com`)).toEqual(['https://example.com']);
+    }
+  );
 
   describe('deduplication and limits', () => {
     it('returns at most maxURLs results', () => {
@@ -138,11 +146,11 @@ describe('extractURLs', () => {
 
     it('does not suppress escaped or bare-domain unmatched angle syntax', () => {
       expect(extractURLs('\\<https://example.com/story')).toEqual(['https://example.com/story']);
-      expect(extractURLs('<example.com')).toEqual(['https://example.com']);
+      expect(extractURLs('<example.com')).toEqual([]);
     });
 
     it('does not treat angle-wrapped bare domains as suppressed autolinks', () => {
-      expect(extractURLs('<example.com>')).toEqual(['https://example.com']);
+      expect(extractURLs('<example.com>')).toEqual([]);
       expect(extractURLs('<www.example.com>')).toEqual(['https://www.example.com']);
     });
 
@@ -177,6 +185,12 @@ describe('extractURLs', () => {
       expect(extractURLs('Read [the docs](https://example.com/docs)')).toEqual([
         'https://example.com/docs'
       ]);
+    });
+
+    it('skips root-relative links and continues to the next web URL', () => {
+      expect(
+        extractURLs('[room](/chat/chat.chatto.run/R8rLgzhPkYja7Gs) https://example.com/docs')
+      ).toEqual(['https://example.com/docs']);
     });
 
     it('preserves order around excluded markdown regions', () => {
@@ -215,4 +229,20 @@ describe('parseYouTubeVideoID', () => {
     expect(isYouTubeURL('https://youtu.be/dQw4w9WgXcQ')).toBe(true);
     expect(isYouTubeURL('https://example.com/watch?v=dQw4w9WgXcQ')).toBe(false);
   });
+});
+
+it.each([
+  'ftp://example.com/file',
+  'ftps://example.com/file',
+  'ssh://example.com',
+  'tel:+123456789',
+  'sms:+123456789',
+  'vscode://file/test',
+  'file:///etc/passwd',
+  'data:text/html,test',
+  'javascript:alert(1)',
+  'blob:https://example.com/id',
+  'mailto:foo@example.com'
+])('never fetches previews for %s', (url) => {
+  expect(extractURLs(`${url} [label](${url})`, 10)).toEqual([]);
 });

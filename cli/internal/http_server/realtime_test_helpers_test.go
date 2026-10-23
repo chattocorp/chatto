@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/connectapi"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/connectapi"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/testutil"
 )
 
 type wsTestEnv struct {

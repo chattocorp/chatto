@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { ThreadRootAuthorFilter } from "./threads_pb.js";
 import { Message as Message$1, ThreadSummary } from "./message_types_pb.js";
 import { RoomTimelineIncludes } from "./room_timeline_pb.js";
 import { RoomSummary } from "./rooms_pb.js";
@@ -42,6 +43,14 @@ export enum MessageSearchOrder {
    * @generated from enum value: MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY = 3;
    */
   THREAD_ACTIVITY = 3,
+
+  /**
+   * Newest root-message creation first, with unknown dates last. Requires thread
+   * grouping. Older servers can reject this order.
+   *
+   * @generated from enum value: MESSAGE_SEARCH_ORDER_THREAD_CREATED = 4;
+   */
+  THREAD_CREATED = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(MessageSearchOrder)
 proto3.util.setEnumType(MessageSearchOrder, "chatto.api.v1.MessageSearchOrder", [
@@ -49,6 +58,7 @@ proto3.util.setEnumType(MessageSearchOrder, "chatto.api.v1.MessageSearchOrder", 
   { no: 1, name: "MESSAGE_SEARCH_ORDER_RELEVANCE" },
   { no: 2, name: "MESSAGE_SEARCH_ORDER_NEWEST" },
   { no: 3, name: "MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY" },
+  { no: 4, name: "MESSAGE_SEARCH_ORDER_THREAD_CREATED" },
 ]);
 
 /**
@@ -264,6 +274,15 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
    */
   groupBy = MessageSearchGroupBy.UNSPECIFIED;
 
+  /**
+   * Select root authors within FOLLOWED_THREADS before search and pagination.
+   * Other scopes require UNSPECIFIED. This does not restrict reply authors;
+   * author_id and from: still select the authors of matching messages.
+   *
+   * @generated from field: chatto.api.v1.ThreadRootAuthorFilter root_author_filter = 12;
+   */
+  rootAuthorFilter = ThreadRootAuthorFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<SearchMessagesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -283,6 +302,7 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
     { no: 9, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "scope", kind: "enum", T: proto3.getEnumType(MessageSearchScope) },
     { no: 11, name: "group_by", kind: "enum", T: proto3.getEnumType(MessageSearchGroupBy) },
+    { no: 12, name: "root_author_filter", kind: "enum", T: proto3.getEnumType(ThreadRootAuthorFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchMessagesRequest {

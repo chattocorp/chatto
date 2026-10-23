@@ -33,10 +33,13 @@
       "access_denied": "Du har inte behörighet att gå med i det här rummet."
     },
     "leave": {
-      "title": "Lämna rummet",
-      "action": "Lämna rummet",
-      "prompt": "Är du säker på att du vill lämna #{room}? Du kan gå med igen senare.",
-      "failed": "Det gick inte att lämna rummet"
+      "title": "Lämna rum",
+      "action": "Lämna rum",
+      "prompt": "Är du säker på att du vill lämna #{room}?",
+      "failed": "Det gick inte att lämna rummet",
+      "join_later": "Du kan gå med igen senare.",
+      "need_invite": "Du behöver en ny inbjudan för att gå med i det här rummet.",
+      "rejoin_unknown": "Du kan behöva en ny inbjudan för att gå med igen."
     },
     "directory": {
       "universal_title": "Universalrum ansluts automatiskt",
@@ -59,7 +62,8 @@
       "join_group_failed": "Det gick inte att gå med i gruppen",
       "left": "Vänster #{room}",
       "left_generic": "Vänster rummet",
-      "leave_confirm": "Är du säker på att du vill lämna #{room}?"
+      "leave_confirm": "Är du säker på att du vill lämna #{room}?",
+      "invited": "Inbjuden"
     },
     "server": {
       "remove_title": "Ta bort server",
@@ -97,7 +101,8 @@
         "edit": "Redigera meddelande",
         "more": "Fler åtgärder",
         "edit_short": "Redigera",
-        "copy_text": "Kopiera text",
+        "copy_text": "Kopiera meddelandetext",
+        "copy_selected_text": "Kopiera markerad text",
         "copy_text_failed": "Det gick inte att kopiera texten",
         "copy_link": "Kopiera länk",
         "copy_message_link": "Kopiera meddelandelänk",
@@ -106,7 +111,8 @@
         "message_link_copied": "Meddelandelänken har kopierats",
         "copy_link_failed": "Det gick inte att kopiera länken",
         "image_copied": "Bilden har kopierats",
-        "copy_image_failed": "Det gick inte att kopiera bilden"
+        "copy_image_failed": "Det gick inte att kopiera bilden",
+        "view_reactions": "Visa reaktioner"
       },
       "meta": {
         "echo": "Eko",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Vill du verkligen ta bort den här fästningen?",
       "loading": "Läser in fästa meddelanden...",
       "empty_title": "Inga fästa meddelanden",
-      "empty_description": "Rumsansvariga kan fästa viktiga meddelanden här.",
+      "empty_description": "Fästa meddelanden visas här.",
       "error_title": "Fästa meddelanden är inte tillgängliga",
       "error_description": "Det gick inte att läsa in fästa meddelanden. Försök igen om en stund.",
       "update_failed": "Det gick inte att uppdatera det fästa meddelandet"
@@ -255,6 +261,81 @@
     "jump_to_present": "Hoppa till Present",
     "jump_failed": "Det gick inte att hoppa till det meddelandet.",
     "unread_separator": "Nya meddelanden",
-    "close_extras": "Stäng extra rum"
+    "close_extras": "Stäng extra rum",
+    "dm": {
+      "deleted_user_notice": "Den andra användaren har raderats."
+    },
+    "management": {
+      "room_name_too_long": "Rumsnamnet får inte överstiga 30 tecken",
+      "room_name_invalid": "Rumsnamnet får inte innehålla radbrytningar eller kontrolltecken",
+      "create_room": "Skapa rum",
+      "reorder_groups_failed": "Det gick inte att omordna grupper: {error}",
+      "room_created": "Rum skapat",
+      "link_updated": "Länken uppdaterad",
+      "link_created": "Länk skapad",
+      "save_link_failed": "Det gick inte att spara länken: {error}",
+      "group_deleted": "Grupp raderad",
+      "delete_group_failed": "Det gick inte att ta bort gruppen: {error}",
+      "link_deleted": "Länken raderad",
+      "delete_link_failed": "Det gick inte att ta bort länken: {error}",
+      "room_archived": "Rum arkiverat",
+      "archive_room_failed": "Det gick inte att arkivera rum: {error}",
+      "drag_room": "Dra för att ändra ordning på rummet",
+      "drag_link": "Dra för att ändra ordning på länken",
+      "drag_group": "Dra för att ändra ordning på gruppen",
+      "new_room": "Skapa rum",
+      "new_link": "Skapa länk",
+      "delete_group": "Ta bort grupp",
+      "edit_link": "Redigera länk",
+      "delete_link": "Ta bort länk",
+      "create_link": "Skapa länk",
+      "label": "Etikett",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com eller /docs",
+      "delete_group_prompt": "Är du säker på att du vill ta bort uppsättningen {name}?",
+      "delete_link_prompt": "Är du säker på att du vill ta bort {label}?",
+      "archive_room": "Arkivera rum",
+      "archive_room_prompt": "Är du säker på att du vill arkivera #{room}? Medlemmar kommer inte längre att kunna komma åt det här rummet.",
+      "group_created": "Grupp skapad",
+      "create_group_failed": "Det gick inte att skapa gruppen: {error}",
+      "group_name": "Gruppnamn",
+      "group_name_placeholder": "t.ex. Allmänt, Projekt, Team",
+      "create_group": "Skapa grupp",
+      "new_group": "Ny grupp",
+      "threading_mode_required": "Krävs",
+      "threading_mode_encouraged": "Rekommenderat",
+      "threading_mode_enabled": "Aktiverat",
+      "threading_mode_disabled": "Inaktiverat"
+    },
+    "moderation": {
+      "removing": "Tar bort...",
+      "remove_action": "Ta bort från rummet",
+      "lift_title": "Häv avstängningen för {user}",
+      "lift": "Häv avstängning",
+      "lifting": "Häver...",
+      "no_suspension": "Ingen avstängning — kan gå med igen",
+      "indefinite": "Tills vidare",
+      "remove_title": "Ta bort {user} från rummet",
+      "suspension_period": "Avstängningens längd"
+    },
+    "invitation": {
+      "invite": "Bjud in medlem",
+      "invited": "Du har blivit inbjuden",
+      "sent": "Inbjudningar skickade",
+      "expires": "Upphör {date}",
+      "unavailable": "Du kan inte acceptera denna inbjudan just nu. Du kan fortfarande avböja den.",
+      "accept": "Acceptera inbjudan",
+      "decline": "Avböj",
+      "title": "Bjud in medlemmar till #{room}",
+      "description": "Välj vilka du vill bjuda in. Inbjudna användare får en avisering och har sju dagar på sig att acceptera eller avböja.",
+      "members": "Medlemmar",
+      "send": "Skicka inbjudningar",
+      "failed": "Kunde inte bjuda in {name}: {error}",
+      "already_member": "Redan i det här rummet",
+      "invited_by": "Du har blivit inbjuden av",
+      "decline_title": "Avböja inbjudan?",
+      "decline_join_later": "Du kan gå med i det här rummet senare.",
+      "decline_need_invite": "Du behöver en ny inbjudan för att gå med i det här rummet."
+    }
   }
 }

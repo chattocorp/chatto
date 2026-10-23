@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats.go"
-	"hmans.de/chatto/internal/runtimeunit"
-	"hmans.de/chatto/internal/testutil"
 )
 
 type failingRuntimeUnit struct {

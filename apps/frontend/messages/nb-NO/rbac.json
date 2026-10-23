@@ -146,41 +146,6 @@
       "other": "Annet",
       "call": "Samtaler"
     },
-    "permission_descriptions": {
-      "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
-      "server_manage_neighbors": "Administrer den offentlige nabokatalogen",
-      "room_create": "Opprett nye rom",
-      "room_join": "Bli med i eksisterende rom",
-      "room_list": "Se rom i katalogen. En bruker kan få lov til å se et rom (f.eks. for å be om tilgang) uten å få lov til å bli med i det.",
-      "room_manage": "Rediger et roms innstillinger og tillatelser, og slett rom",
-      "room_remove_member": "Fjern medlemmer fra rom og steng dem ute ved behov",
-      "message_read": "Les alle meldinger i rom. Fjerning av denne tillatelsen gir fortsatt begrenset tilgang hvis message.read-interactions er gitt separat.",
-      "message_read_interactions": "Les hele tråder som du opprettet, eller der en annen bruker nevnte deg direkte",
-      "message_post": "Publisere meldinger og trådsvar og starte direktemeldinger",
-      "message_post_interactions": "Svare i tråder du startet, der du ble nevnt direkte eller mottok en direktemelding",
-      "message_post_in_thread": "Legg inn svar i en tråd",
-      "message_attach": "Legg ved filer til meldinger",
-      "message_echo": "Når du poster i en tråd, må du også vise meldingen i hovedkanalen",
-      "message_manage": "Rediger og slett andre brukeres meldinger",
-      "message_react": "Legg til og fjern reaksjoner på meldinger",
-      "role_manage": "Opprett, rediger, slett og omorganiser roller og deres tillatelser",
-      "role_assign": "Tildel og tilbakekall roller for brukere",
-      "admin_view_users": "Se brukersiden i admin",
-      "admin_view_system": "Se projeksjonsdiagnostikk i admin",
-      "admin_view_audit": "Se revisjonslogg på admin",
-      "user_delete_any": "Slett en annen brukers konto",
-      "user_delete_self": "Slett din egen konto",
-      "user_invite": "Opprett og administrer invitasjonslenker",
-      "user_manage_accounts": "Opprett brukere, rediger kontoidentitet, tilbakestill passord, legg ved bekreftede e-poster og fjern påloggingsavkjølinger",
-      "user_manage_permissions": "Rediger direkte overstyringer av tillatelser per bruker",
-      "bot_create": "Opprett botkontoer som du eier",
-      "bot_manage": "Vis og administrer alle botkontoer",
-      "call_start": "Starte en samtale (krever også call.join)",
-      "call_join": "Bli med i en pågående samtale",
-      "call_voice": "Bruke mikrofonen i samtaler",
-      "call_camera": "Bruke kameraet i samtaler",
-      "call_screenshare": "Dele en skjerm eller et program, inkludert innspilt lyd"
-    },
     "permission_help": {
       "server_manage": "Lar en konto endre servernavn, beskrivelse, logo og andre serverinnstillinger. Den tillater også endringer i den offentlige nabokatalogen. Gi den bare til personer som kan tale for hele serveren.",
       "server_manage_neighbors": "Lar en konto legge til, endre og fjerne oppføringer i den offentlige nabokatalogen. Den tillater ikke endringer i andre serverinnstillinger.",
@@ -196,6 +161,7 @@
       "message_post_in_thread": "Lar en konto svare i hver tråd den kan lese, men ikke sende nye meldinger i rommet. En tillatelse for message.post omfatter også denne, så et avslag her stopper ikke svar fra disse kontoene.",
       "message_attach": "Lar en konto legge ved filer i nye meldinger. Nekt den for å stoppe opplastinger i et rom, men fortsatt tillate tekstmeldinger.",
       "message_echo": "Lar en konto vise et trådsvar også i rommets tidslinje, slik at personer som ikke følger tråden, også ser det.",
+      "message_pin": "Lar deg feste og løsne meldinger i kanalrom uten å administrere rommet.",
       "message_manage": "Lar en konto redigere eller slette meldinger fra andre kontoer. Alle kan alltid redigere og slette sine egne meldinger uten denne tillatelsen. Kontoer med denne tillatelsen begrenses ikke av sakte modus. I en direktemelding kan bare deltakerne bruke den.",
       "message_react": "Lar en konto legge til og fjerne reaksjoner på meldinger den kan lese.",
       "role_manage": "Lar en konto opprette, endre, ordne og slette roller og tillatelsesinnstillingene deres. Med denne tillatelsen kan en konto endre hva hver rolle på serveren kan gjøre. Gi den bare til personer du betror hele serveren.",
@@ -213,7 +179,8 @@
       "call_join": "Lar en konto bli med i en pågående samtale, også bare som lytter. For å sende lyd eller video kreves call.voice, call.camera eller call.screenshare.",
       "call_voice": "Lar en konto sende mikrofonlyd i samtaler. Uten den kan kontoen fortsatt lytte.",
       "call_camera": "Lar en konto sende kameravideo i samtaler.",
-      "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice."
+      "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice.",
+      "room_invite": "Inviter servermedlemmer til rom du har blitt med i."
     }
   }
 }

@@ -16,6 +16,7 @@ authority. Only the owner and bot managers can open it.
 <!-- Keep the matrix owner while the bot read is pending. -->
 {#if detail.isPending || detail.canOperateBot}
   <UserPermissionsMatrix
+    fillHeight
     userId={detail.botId}
     subjectKind={m('settings.bots.singular')}
     ownerCapped

@@ -513,6 +513,46 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
+  it('defers background access renewal while the page is hidden', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockRenewServerAuthentication.mockResolvedValue('renewed-token');
+    const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    const setVisibility = (value: DocumentVisibilityState) => {
+      Object.defineProperty(document, 'visibilityState', { value, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    const client = new ServerConnection(
+      makeConfig({
+        token: 'my-token',
+        serverId: 'remote-1',
+        accessTokenExpiresAt: 31_000
+      })
+    );
+
+    try {
+      setVisibility('hidden');
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
+
+      setVisibility('visible');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+      expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
+
+      // A return to visible without a deferred renewal does not renew again.
+      setVisibility('hidden');
+      setVisibility('visible');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+    } finally {
+      client.dispose();
+      if (originalVisibility) {
+        Object.defineProperty(document, 'visibilityState', originalVisibility);
+      }
+    }
+  });
+
   it('renews before the current session window ends', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);

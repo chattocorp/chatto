@@ -103,18 +103,23 @@ describe('useRoomData projection selector', () => {
         canReadMessages: true,
         canPostMessage: true,
         canReact: true,
-        canManageRoom: false
+        canManageRoom: false,
+        canPinMessages: false
       });
       const live = projectedRoom('channel', RoomKind.CHANNEL);
+      live.viewerState.permissions.push({ permission: 'message.pin', granted: true });
       mocks.store.projection.rooms.set('channel', live);
       expect(selected.roomData).toMatchObject({
         room: { name: 'channel' },
         canReadMessages: true,
-        canPostMessage: true
+        canPostMessage: true,
+        canManageRoom: false,
+        canPinMessages: true
       });
       live.viewerState.permissions = [{ permission: 'message.read', granted: false }];
       mocks.store.projection.rooms.set('channel', { ...live });
       expect(selected.roomData?.canReadMessages).toBe(false);
+      expect(selected.roomData?.canPinMessages).toBe(false);
     });
     destroy();
   });

@@ -3,7 +3,7 @@ package connectapi
 import (
 	"connectrpc.com/connect"
 	"context"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
 func (s *messageService) ListReactionUsers(ctx context.Context, req *connect.Request[apiv1.ListReactionUsersRequest]) (*connect.Response[apiv1.ListReactionUsersResponse], error) {

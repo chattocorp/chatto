@@ -1,19 +1,31 @@
-import { isSchemaTask, type Task } from './workflow.ts';
-import type { WorkflowContext } from './context.ts';
+import { isTask, type AnyTask, type Task, type TaskInput, type TaskSteering } from './task.ts';
 import { toJsonSchema, isWorkflowSchema, type WorkflowSchema } from './schema.ts';
 
-export type WebhookTask<Input, Output> = (ctx: WorkflowContext, input: Input) => Output;
-
+/** The ID of a run that a delivery started. */
 export interface StartedRun {
   id: string;
 }
 
+/** A run that a router started. The router can keep it and send it more messages later, for
+ * example the next message of a chat conversation. */
+export interface RunHandle<Steering = unknown> extends StartedRun {
+  /** Validate a message and queue it for the run's top-level task. Rejects when the run has
+   * finished or the message is invalid. */
+  steer(message: Steering): Promise<void>;
+  /** Tell the top-level task that no more messages come. */
+  closeSteering(): void;
+  /** Cancel the run. Its tasks receive the abort signal and finish their cleanup. */
+  cancel(): void;
+  /** Resolves when the run has finished, whatever its result. */
+  readonly finished: Promise<void>;
+}
+
 /** Host services for one delivery. Starting a run waits only for registration. */
 export interface WebhookContext {
-  start<Input, Output>(
-    task: WebhookTask<Input, Output>,
-    options: { input: Input }
-  ): Promise<StartedRun>;
+  start<T extends AnyTask>(
+    task: T,
+    options: { input: TaskInput<T> }
+  ): Promise<RunHandle<TaskSteering<T>>>;
 }
 
 /** A route may start any number of workflows or handle the delivery itself. */
@@ -26,18 +38,14 @@ export type WebhookRouter<Input = unknown> = ((ctx: WebhookContext, input: Input
 };
 
 /** Always register one run with this task as its root. */
-export function startWorkflow<Input, Output>(
-  rootTask: WebhookTask<Input, Output>
-): WebhookRouter<Input> {
-  const route: WebhookRouter<Input> = async (ctx, input) => {
+export function startWorkflow<T extends AnyTask>(rootTask: T): WebhookRouter<TaskInput<T>> {
+  const route: WebhookRouter<TaskInput<T>> = async (ctx, input) => {
     await ctx.start(rootTask, { input });
   };
 
   route.label = rootTask.name;
-  if (isSchemaTask(rootTask)) {
-    route.input = rootTask.input;
-    route.output = rootTask.output;
-  }
+  route.input = rootTask.input;
+  route.output = rootTask.result;
   return route;
 }
 
@@ -46,6 +54,9 @@ export interface WebConfig<
 > {
   webhooks: Webhooks;
   sources?: Record<string, EventSource>;
+  /** Stable keys for roots that can recover from saved state. Register the same task object
+   * that routers start. Renaming a key leaves its saved workflows interrupted. */
+  workflows?: Record<string, AnyTask>;
 }
 
 /** Host services for a source generation. State survives reloads of the same source name. */
@@ -53,8 +64,17 @@ export interface EventSourceContext {
   signal: AbortSignal;
   /** Process-local adapter state. Removed when the source is removed. Never serialized. */
   state: Map<string, unknown>;
+  /** Current runs owned by this source, including recovered roots. Use their original input
+   * to rebuild application routing. Queued messages and adapter state are not restored. */
+  runs(): SourceRun[];
   /** Route one delivery and wait for all initiated registrations. Throws on routing failure. */
   dispatch<Input>(router: WebhookRouter<Input>, input: Input): Promise<StartedRun[]>;
+}
+
+/** A live run and the original input needed to rebuild a source's routing table. */
+export interface SourceRun extends RunHandle {
+  workflow: string;
+  input: unknown;
 }
 
 /** Run until aborted; settle only after releasing sockets, timers, and pending deliveries. */
@@ -63,7 +83,25 @@ export type EventSource = (ctx: EventSourceContext) => Promise<void>;
 /** Preserve names and concrete router types in configuration. */
 export function defineWebConfig<
   const Webhooks extends Record<string, WebhookRouter<any>> = Record<string, WebhookRouter<any>>
->(config: { webhooks?: Webhooks; sources?: Record<string, EventSource> }): WebConfig<Webhooks> {
+>(config: {
+  webhooks?: Webhooks;
+  sources?: Record<string, EventSource>;
+  workflows?: Record<string, AnyTask>;
+}): WebConfig<Webhooks> {
+  if (config.workflows !== undefined) {
+    if (
+      !config.workflows ||
+      typeof config.workflows !== 'object' ||
+      Array.isArray(config.workflows)
+    )
+      throw new TypeError('workflows must be a map of root tasks');
+    const tasks = new Set<AnyTask>();
+    for (const [key, task] of Object.entries(config.workflows)) {
+      if (!key.trim() || !isTask(task) || tasks.has(task))
+        throw new TypeError('Each workflow must have a unique key and task');
+      tasks.add(task);
+    }
+  }
   if (
     config.sources !== undefined &&
     (typeof config.sources !== 'object' || config.sources === null || Array.isArray(config.sources))
@@ -113,10 +151,10 @@ export function describeRouterSchemas(route: WebhookRouter<any>) {
 }
 
 /** Get JSON Schema descriptions for a task. */
-export function describeTaskSchemas(task: Pick<Task, 'input' | 'output'>) {
+export function describeTaskSchemas(task: Pick<Task, 'input' | 'result'>) {
   return {
     input: toJsonSchema(task.input, 'input'),
-    output: toJsonSchema(task.output, 'output')
+    output: toJsonSchema(task.result, 'output')
   };
 }
 

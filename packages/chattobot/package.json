@@ -13,19 +13,25 @@
     "dev": "pnpm run build:dependencies && runling serve --watch",
     "start": "pnpm run build:dependencies && runling serve",
     "check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:github": "runling run tasks/evaluate-github.ts",
+    "eval:docs": "runling run tasks/evaluate-docs.ts",
+    "eval:intake": "runling run tasks/evaluate-intake.ts",
+    "eval:style": "CHATTO_EVAL_STYLE=1 node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run tasks/conversation-style-eval.test.ts",
+    "eval:paseo": "CHATTO_EVAL_PASEO=1 node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run tasks/paseo-eval.test.ts"
   },
   "dependencies": {
+    "@chatto/api-types": "workspace:*",
     "@chatto/client": "workspace:*",
+    "@getpaseo/client": "^0.11.4",
     "linkedom": "^0.18.13",
     "runling": "workspace:*"
   },
   "devDependencies": {
     "@bufbuild/protobuf": "^1.10.1",
-    "@chatto/api-types": "workspace:*",
     "@connectrpc/connect": "^1.7.0",
     "@types/node": "^22",
-    "typescript": "~5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^3.2.0"
   }
 }

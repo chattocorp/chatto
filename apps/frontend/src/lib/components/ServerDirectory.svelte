@@ -176,7 +176,7 @@ dialog shows it directly on its work plane. See FDR-042.
     return (
       !findServerByUrl(origin) &&
       profile !== null &&
-      evaluateServerCompatibility({ serverVersion: profile.version }).status !== 'supported'
+      evaluateServerCompatibility({ serverVersion: profile.version }).status === 'unsupported'
     );
   }
 

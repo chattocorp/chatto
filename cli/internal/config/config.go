@@ -6,10 +6,13 @@ import (
 	"net/mail"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 
-	"hmans.de/chatto/pkg/appconfig"
-	"hmans.de/chatto/pkg/natsauth"
+	"github.com/c2h5oh/datasize"
+	"github.com/chattocorp/chatto/cli/internal/assets"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
+	"github.com/chattocorp/chatto/pkg/appconfig"
 )
 
 // ChattoConfig is the canonical aggregate configuration decoded from TOML and
@@ -41,6 +44,15 @@ type ChattoConfig struct {
 // ApplyDefaults fills derived config values that are safe to compute from other
 // fields. Keep validation separate so Validate can remain a pure check.
 func (c *ChattoConfig) ApplyDefaults() {
+	// Older operators set two limits. Use their maximum for every attachment
+	// until the operator removes the deprecated video setting.
+	if c.Video.MaxUploadSize > 0 {
+		generalLimit := datasize.ByteSize(c.Core.Assets.MaxUploadSize)
+		if generalLimit == 0 {
+			generalLimit = datasize.ByteSize(assets.DefaultMaxUploadSize)
+		}
+		c.Core.Assets.MaxUploadSize = ByteSize(max(generalLimit, c.Video.MaxUploadSize))
+	}
 	if c.NATS.Embedded.Enabled && c.NATS.Embedded.Port > 0 {
 		if c.NATS.Client.URL == "" {
 			c.NATS.Client.URL = embeddedNATSClientURL(c.NATS.Embedded)
@@ -59,9 +71,6 @@ func (c *ChattoConfig) ApplyDefaults() {
 
 	if c.LiveKit.ServerID == "" {
 		c.LiveKit.ServerID = c.LiveKit.InstanceID
-	}
-	if c.LiveKit.Enabled && c.LiveKit.WebhookURL == "" && c.Webserver.URL != "" {
-		c.LiveKit.WebhookURL = strings.TrimRight(c.Webserver.URL, "/") + "/webhooks/livekit"
 	}
 
 	for i := range c.Bootstrap.Users {
@@ -297,6 +306,9 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
+	// A role can be mapped by one provider only, so one provider owns its
+	// automatic assignments.
+	mappedRoleProviders := make(map[string]string)
 	for i, provider := range c.Auth.Providers {
 		prefix := fmt.Sprintf("auth.providers[%d]", i)
 		if c.Webserver.URL == "" {
@@ -336,6 +348,32 @@ func (c *ChattoConfig) Validate() error {
 			default:
 				errs = append(errs, prefix+".token_endpoint_auth_method must be client_secret_basic, client_secret_post, or none")
 			}
+		}
+		if provider.Type != AuthProviderTypeOpenIDConnect && (len(provider.AllowedGroups) > 0 || provider.GroupsClaim != "" || strings.TrimSpace(provider.GroupRoles) != "") {
+			errs = append(errs, prefix+".allowed_groups, groups_claim, and group_roles are only supported for OIDC")
+		}
+		groupRoles, err := ParseGroupRoles(provider.GroupRoles)
+		if err != nil {
+			errs = append(errs, prefix+"."+err.Error())
+		}
+		for _, mapping := range groupRoles {
+			if IsReservedGroupRole(mapping.Role) {
+				errs = append(errs, fmt.Sprintf("%s.group_roles must not map to the %s role", prefix, mapping.Role))
+			}
+			if otherProvider, mapped := mappedRoleProviders[mapping.Role]; mapped && otherProvider != provider.ID {
+				errs = append(errs, fmt.Sprintf("%s.group_roles maps role %q, which provider %q also maps", prefix, mapping.Role, otherProvider))
+			}
+			mappedRoleProviders[mapping.Role] = provider.ID
+		}
+		if slices.Contains(provider.AllowedGroups, "") {
+			errs = append(errs, prefix+".allowed_groups entries must not be empty")
+		}
+		// A padded entry can never match an exact group name.
+		if slices.ContainsFunc(provider.AllowedGroups, func(group string) bool { return strings.TrimSpace(group) != group }) {
+			errs = append(errs, prefix+".allowed_groups entries must not contain leading or trailing spaces")
+		}
+		if provider.GroupsClaim != "" && strings.TrimSpace(provider.GroupsClaim) != provider.GroupsClaim {
+			errs = append(errs, prefix+".groups_claim must not contain leading or trailing spaces")
 		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
 			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")

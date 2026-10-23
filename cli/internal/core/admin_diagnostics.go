@@ -14,6 +14,7 @@ type AdminDiagnostics struct {
 	ProjectionsAvailable bool
 	AssetCleanup         AssetCleanupAdminStatus
 	DurableWorkers       []DurableWorkerAdminStatus
+	LiveKit              LiveKitAdminStatus
 }
 
 func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*AdminDiagnostics, error) {
@@ -27,6 +28,11 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 	if !isOwner {
 		return nil, ErrPermissionDenied
 	}
+
+	// The LiveKit check waits for a remote server, so it runs while the other
+	// diagnostics are collected.
+	liveKitStatus := make(chan LiveKitAdminStatus, 1)
+	go func() { liveKitStatus <- c.liveKitAdminStatus(ctx) }()
 
 	accountInfo, err := c.GetAccountInfo(ctx)
 	if err != nil {
@@ -64,5 +70,6 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 		ProjectionsAvailable: projectionsAvailable,
 		AssetCleanup:         assetCleanup,
 		DurableWorkers:       durableWorkerAdminStatuses(jetStreamStats, c.VideoUploadsEnabled),
+		LiveKit:              <-liveKitStatus,
 	}, nil
 }

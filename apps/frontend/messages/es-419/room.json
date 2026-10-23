@@ -33,10 +33,13 @@
       "access_denied": "No tienes permiso para unirte a esta sala."
     },
     "leave": {
-      "title": "Salir de la habitación",
-      "action": "Salir de la habitación",
-      "prompt": "¿Estás seguro de que quieres salir de #{room}? Puedes volver a unirte más tarde.",
-      "failed": "No se pudo salir de la habitación"
+      "title": "Salir de la sala",
+      "action": "Salir de la sala",
+      "prompt": "¿Estás seguro de que quieres salir de #{room}?",
+      "failed": "No se pudo salir de la habitación",
+      "join_later": "Puedes volver a unirte más tarde.",
+      "need_invite": "Necesitarás una nueva invitación para unirte a esta sala.",
+      "rejoin_unknown": "Es posible que necesites una nueva invitación para volver a unirte."
     },
     "directory": {
       "universal_title": "Las salas universales se unen automáticamente",
@@ -59,7 +62,8 @@
       "join_group_failed": "No se pudo unir al grupo",
       "left": "Izquierda #{room}",
       "left_generic": "Sala izquierda",
-      "leave_confirm": "¿Estás seguro de que quieres salir de #{room}?"
+      "leave_confirm": "¿Estás seguro de que quieres salir de #{room}?",
+      "invited": "Invitado"
     },
     "server": {
       "remove_title": "Eliminar servidor",
@@ -97,7 +101,8 @@
         "edit": "Editar mensaje",
         "more": "Más acciones",
         "edit_short": "Editar",
-        "copy_text": "Copiar texto",
+        "copy_text": "Copiar texto del mensaje",
+        "copy_selected_text": "Copiar texto seleccionado",
         "copy_text_failed": "No se pudo copiar el texto",
         "copy_link": "Copiar enlace",
         "copy_message_link": "Copiar enlace del mensaje",
@@ -106,7 +111,8 @@
         "message_link_copied": "Enlace del mensaje copiado",
         "copy_link_failed": "No se pudo copiar el enlace",
         "image_copied": "Imagen copiada",
-        "copy_image_failed": "No se pudo copiar la imagen"
+        "copy_image_failed": "No se pudo copiar la imagen",
+        "view_reactions": "Ver reacciones"
       },
       "meta": {
         "echo": "Eco",
@@ -235,7 +241,7 @@
       "unpin_prompt": "¿Seguro que quieres quitar este mensaje fijado?",
       "loading": "Cargando mensajes fijados...",
       "empty_title": "No hay mensajes fijados",
-      "empty_description": "Los administradores de la sala pueden fijar mensajes importantes aquí.",
+      "empty_description": "Los mensajes fijados aparecen aquí.",
       "error_title": "Mensajes fijados no disponibles",
       "error_description": "No se pudieron cargar los mensajes fijados. Inténtalo de nuevo en un momento.",
       "update_failed": "No se pudo actualizar el mensaje fijado"
@@ -255,6 +261,81 @@
     "jump_to_present": "Saltar al presente",
     "jump_failed": "No se pudo saltar a ese mensaje.",
     "unread_separator": "Mensajes nuevos",
-    "close_extras": "Cerrar extras de habitación"
+    "close_extras": "Cerrar extras de habitación",
+    "dm": {
+      "deleted_user_notice": "El otro usuario fue eliminado."
+    },
+    "management": {
+      "room_name_too_long": "El nombre de la habitación no puede exceder los 30 caracteres",
+      "room_name_invalid": "El nombre de la sala no puede contener saltos de línea ni caracteres de control",
+      "create_room": "Crear sala",
+      "reorder_groups_failed": "No se pudo reordenar los grupos: {error}",
+      "room_created": "Sala creada",
+      "link_updated": "Enlace actualizado",
+      "link_created": "Enlace creado",
+      "save_link_failed": "No se pudo guardar el enlace: {error}",
+      "group_deleted": "Grupo eliminado",
+      "delete_group_failed": "No se pudo eliminar el grupo: {error}",
+      "link_deleted": "Enlace eliminado",
+      "delete_link_failed": "No se pudo eliminar el enlace: {error}",
+      "room_archived": "Sala archivada",
+      "archive_room_failed": "No se pudo archivar la sala: {error}",
+      "drag_room": "Arrastrar para reordenar sala",
+      "drag_link": "Arrastrar para reordenar enlace",
+      "drag_group": "Arrastrar para reordenar grupo",
+      "new_room": "Crear sala",
+      "new_link": "Crear enlace",
+      "delete_group": "Eliminar grupo",
+      "edit_link": "Editar enlace",
+      "delete_link": "Eliminar enlace",
+      "create_link": "Crear enlace",
+      "label": "Etiqueta",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com o /docs",
+      "delete_group_prompt": "¿Estás seguro de que deseas eliminar el conjunto {name}?",
+      "delete_link_prompt": "¿Estás seguro de que deseas eliminar {label}?",
+      "archive_room": "Archivar sala",
+      "archive_room_prompt": "¿Estás seguro de que deseas archivar #{room}? Los miembros ya no podrán acceder a esta sala.",
+      "group_created": "Grupo creado",
+      "create_group_failed": "No se pudo crear el grupo: {error}",
+      "group_name": "Nombre del grupo",
+      "group_name_placeholder": "por ejemplo, General, Proyectos, Equipos",
+      "create_group": "Crear Grupo",
+      "new_group": "Nuevo grupo",
+      "threading_mode_required": "Obligatorio",
+      "threading_mode_encouraged": "Recomendado",
+      "threading_mode_enabled": "Activado",
+      "threading_mode_disabled": "Desactivado"
+    },
+    "moderation": {
+      "removing": "Quitando...",
+      "remove_action": "Quitar de la sala",
+      "lift_title": "Levantar la suspensión de {user}",
+      "lift": "Levantar suspensión",
+      "lifting": "Levantando...",
+      "no_suspension": "Sin suspensión — puede volver a entrar",
+      "indefinite": "Indefinida",
+      "remove_title": "Quitar a {user} de la sala",
+      "suspension_period": "Duración de la suspensión"
+    },
+    "invitation": {
+      "invite": "Invitar a un miembro",
+      "invited": "Has recibido una invitación",
+      "sent": "Invitaciones enviadas",
+      "expires": "Vence el {date}",
+      "unavailable": "No puedes aceptar esta invitación en este momento. Todavía puedes rechazarla.",
+      "accept": "Aceptar invitación",
+      "decline": "Rechazar",
+      "title": "Invitar a miembros a #{room}",
+      "description": "Elige a quién quieres invitar. Los usuarios invitados recibirán una notificación y tendrán siete días para aceptar o rechazar.",
+      "members": "Miembros",
+      "send": "Enviar invitaciones",
+      "failed": "No se pudo invitar a {name}: {error}",
+      "already_member": "Ya está en esta sala",
+      "invited_by": "Has recibido una invitación de",
+      "decline_title": "¿Rechazar invitación?",
+      "decline_join_later": "Puedes unirte a esta sala más tarde.",
+      "decline_need_invite": "Necesitarás una nueva invitación para unirte a esta sala."
+    }
   }
 }

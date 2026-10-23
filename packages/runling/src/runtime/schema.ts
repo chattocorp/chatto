@@ -111,3 +111,25 @@ export function toJsonSchema(
   if (!isJsonSchema(exported)) throw new TypeError(`Task ${boundary} JSON Schema is invalid`);
   return exported;
 }
+
+/** Validate a value at a task boundary and return the schema's parsed value. Without a schema,
+ * the value is returned as it is. */
+export async function parseBoundary(
+  name: string,
+  boundary: 'input' | 'result' | 'steering' | 'output' | 'message' | 'update',
+  schema: WorkflowSchema | undefined,
+  value: unknown
+): Promise<unknown> {
+  if (schema === undefined) return value;
+  const result = await validateSchema(schema, value);
+  if (result.issues) throw new TypeError(validationMessage(name, boundary, result.issues));
+  return result.value;
+}
+
+const validationMessage = (name: string, boundary: string, issues: SchemaIssue[]) => {
+  const details = issues
+    .slice(0, 3)
+    .map(({ path, message }) => `${path}: ${message}`)
+    .join('; ');
+  return `Task ${JSON.stringify(name)} ${boundary} is invalid${details === '' ? '' : `: ${details}`}`;
+};

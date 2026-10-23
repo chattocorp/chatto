@@ -1,18 +1,17 @@
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { accountNameToken } from '@chatto/client/timeline/accountName';
   import { serverUi } from '$lib/state/server/serverUi';
-  import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import {
-    ActivityListRow,
     EmptyState,
+    HeaderIconButton,
     LoadingFog,
     PageTitle,
     PaneContent,
     PaneHeader,
-    Panel,
     ScrollFader
   } from '$lib/ui';
   import { Button } from '$lib/ui/form';
@@ -26,12 +25,17 @@
     type NotificationGroupItem,
     type NotificationOccurrenceItem
   } from '@chatto/client/api/notifications';
-  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import {
+    prepareUiForNotificationTarget,
+    navigateNotification
+  } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { serverRegistry } from '$lib/client';
   import { serverIdToSegment } from '$lib/navigation';
-  import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
+  import { serverDisplayName } from '@chatto/client/server/state';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
+  import NotificationRow from './NotificationRow.svelte';
+  import type { ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import {
     formatRelativeTime,
     groupByActivityDate,
@@ -44,7 +48,8 @@
 
   type ServerGroup = {
     serverId: string;
-    serverHostname: string;
+    /** Server marker data for multi-server mode. */
+    server: ActivityServer;
     timeFormatSettings: TimeFormatSettings;
     group: NotificationGroupItem;
   };
@@ -80,7 +85,7 @@
         return stores.isAuthenticated && stores.notifications.error !== null;
       })
   );
-  const showServerHostname = $derived(
+  const showServerMarker = $derived(
     serverRegistry.servers.filter(
       (instance) => serverRegistry.getStore(instance.id).isAuthenticated
     ).length > 1
@@ -189,9 +194,7 @@
   ): NotificationOccurrenceItem[] {
     const notifications = serverRegistry.getStore(serverId).notifications;
     return occurrences
-      .filter(
-        (occurrence) => !occurrence.room || !notifications.revokedRoomIds.has(occurrence.room.id)
-      )
+      .filter((occurrence) => notifications.canDisplayOccurrence(occurrence))
       .map((occurrence) =>
         occurrence.actor && notifications.scrubbedUserIds.has(occurrence.actor.id)
           ? { ...occurrence, actor: null }
@@ -210,6 +213,11 @@
         } catch {
           hostname = instance.url;
         }
+        const server = {
+          name: serverDisplayName(stores.serverInfo, instance.name),
+          hostname,
+          logoUrl: stores.serverInfo.iconUrl ?? instance.iconUrl ?? null
+        };
         return groupNotificationOccurrences(
           visibleOccurrencesForServer(instance.id, stores.notifications.occurrences).filter(
             (occurrence) =>
@@ -217,7 +225,7 @@
           )
         ).map((group): ServerGroup => ({
           serverId: instance.id,
-          serverHostname: hostname,
+          server,
           timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
           group
         }));
@@ -283,17 +291,7 @@
       await goto(resolve('/chat/[serverId]', { serverId: serverIdSegment }));
       return;
     }
-    if (occurrence.threadRootId) {
-      await goto(
-        resolve('/chat/[serverId]/[roomId]/[threadId]', {
-          serverId: serverIdSegment,
-          roomId,
-          threadId: occurrence.threadRootId
-        })
-      );
-      return;
-    }
-    await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverIdSegment, roomId }));
+    await goto(conversationPath(serverId, roomId, { threadId: occurrence.threadRootId }));
   }
 
   function occurrenceSummary(group: NotificationGroupItem): string {
@@ -311,13 +309,12 @@
           group.occurrences
             .map((item) => item.reactionEmoji)
             .filter((emoji): emoji is string => Boolean(emoji))
-            .map((emoji) => getEmojiByName(emoji) ?? emoji)
+            .map(renderEmoji)
         )
       ];
       const emoji = emojis.join(' ');
-      const channel = reactionOccurrence.room?.name ?? occurrence.room?.name;
-      if (emoji && channel) {
-        const values = { actor: reactionActor, emoji, channel: `#${channel}` };
+      if (emoji) {
+        const values = { actor: reactionActor, emoji };
         const participants = new Set(
           group.occurrences.map((item) => item.actor?.id ?? 'deleted-user')
         );
@@ -328,6 +325,9 @@
       return m('chat.notifications.summary.activity', { actor: reactionActor });
     }
     if (!actor) return m('chat.notifications.activity');
+    if (signalKind === NotificationSignalKind.ROOM_INVITATION) {
+      return m('chat.notifications.summary.room_invitation', { actor });
+    }
     if (signalKind === NotificationSignalKind.DIRECT_MESSAGE) {
       return m('chat.notifications.summary.direct_message', { actor });
     }
@@ -355,20 +355,37 @@
   }
 
   function summaryAccounts(group: NotificationGroupItem) {
-    const occurrence = group.openTarget;
-    const actor =
-      occurrence?.signalKind === NotificationSignalKind.REACTION
-        ? (group.occurrences.find((item) => item.actor)?.actor ?? occurrence.actor)
-        : occurrence?.actor;
+    const actor = primaryActor(group);
     return actor ? [{ name: actor.displayName, identity: actor }] : [];
   }
 
-  function notificationActors(group: NotificationGroupItem): NotificationActor[] {
-    const actors = new SvelteMap<string, NotificationActor>();
-    for (const occurrence of group.occurrences) {
-      if (occurrence.actor) actors.set(occurrence.actor.id, occurrence.actor);
+  /** The actor shown as the row avatar: the summary's named actor, when still visible. */
+  function primaryActor(group: NotificationGroupItem): NotificationActor | null {
+    const occurrence = group.openTarget;
+    if (occurrence?.signalKind === NotificationSignalKind.REACTION) {
+      return group.occurrences.find((item) => item.actor)?.actor ?? null;
     }
-    return [...actors.values()].slice(0, 3);
+    return occurrence?.actor ?? null;
+  }
+
+  /** Room shown on the metadata line, for every cause. */
+  function groupRoomName(group: NotificationGroupItem): string | null {
+    return (
+      group.openTarget?.room?.name ??
+      group.occurrences.find((item) => item.room)?.room?.name ??
+      null
+    );
+  }
+
+  /** First reaction emoji of a reaction group, for the avatar badge. */
+  function badgeEmoji(group: NotificationGroupItem): string | null {
+    const name = group.occurrences.find((item) => item.reactionEmoji)?.reactionEmoji;
+    return name ? renderEmoji(name) : null;
+  }
+
+  /** Stored reaction emoji names render as their emoji when known. */
+  function renderEmoji(name: string): string {
+    return getEmojiByName(name) ?? name;
   }
 
   async function openGroup(item: ServerGroup) {
@@ -389,7 +406,9 @@
           occurrence.unread ? occurrence.id : null
         );
       }
-      await navigateToDestination(item.serverId, occurrence);
+      await navigateNotification(stores, occurrence, () =>
+        navigateToDestination(item.serverId, occurrence)
+      );
     } catch (error) {
       console.error('Failed to open notification:', error);
       toast.error(m('common.error.network'));
@@ -473,136 +492,94 @@
 <PageTitle title={m('chat.notifications.title')} />
 
 <div class="pane-page">
-  <PaneHeader title={m('chat.notifications.title')} subtitle={m('chat.notifications.subtitle')} />
+  <PaneHeader title={m('chat.notifications.title')} subtitle={m('chat.notifications.subtitle')}>
+    {#snippet actions()}
+      {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
+        <HeaderIconButton
+          icon="icon-[uil--trash-alt]"
+          tone="danger"
+          label={m('chat.notifications.clear_read')}
+          disabled={dismissingRead || loadingMore || hasPendingMutation}
+          onclick={dismissRead}
+        />
+      {/if}
+    {/snippet}
+  </PaneHeader>
 
   <PaneContent fillHeight>
-    <Panel title={m('chat.notifications.list_title')} noPadding fillHeight>
-      {#snippet actions()}
-        {#if readOccurrenceBatches.length > 0 || hasMore || dismissingRead}
-          <Button
-            variant="danger-secondary"
-            size="sm"
-            disabled={dismissingRead || loadingMore || hasPendingMutation}
-            label={m('chat.notifications.clear_read')}
-            onclick={dismissRead}
-          >
-            <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
-            <span>{m('chat.notifications.clear_read')}</span>
-          </Button>
-        {/if}
-      {/snippet}
-      <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
-        <div class="flex min-h-full flex-col">
-          {#if pageError && groups.length === 0}
-            <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
-              <Button variant="secondary" label={m('common.retry')} onclick={retryNotifications}
-                >{m('common.retry')}</Button
-              >
-            </EmptyState>
-          {:else if visibleGroups.length > 0}
-            <div class="selectable-list pb-3" aria-busy={loadingMore}>
-              {#each dateSections as section (section.key)}
-                <section aria-labelledby={`notification-date-${section.key}`}>
-                  <DaySeparator
-                    id={`notification-date-${section.key}`}
-                    label={section.label}
-                    testId="notification-date-heading"
+    <!-- Rows bring their own inset; cancel the page gutter so it is not doubled. -->
+    <ScrollFader top bottom keyboardFocusable={false} class="-mx-1 min-h-0 flex-1 max-md:-mx-4">
+      <div class="flex min-h-full flex-col">
+        {#if pageError && groups.length === 0}
+          <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
+            <Button variant="secondary" label={m('common.retry')} onclick={retryNotifications}
+              >{m('common.retry')}</Button
+            >
+          </EmptyState>
+        {:else if visibleGroups.length > 0}
+          <div class="selectable-list pb-3" aria-busy={loadingMore}>
+            {#each dateSections as section (section.key)}
+              <section aria-labelledby={`notification-date-${section.key}`}>
+                <DaySeparator
+                  id={`notification-date-${section.key}`}
+                  label={section.label}
+                  testId="notification-date-heading"
+                />
+                {#each section.items as item (rowKey(item))}
+                  {@const occurrence = item.group.openTarget}
+                  {@const targetSupported = occurrence?.targetSupported !== false}
+                  {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
+                  {@const actor = primaryActor(item.group)}
+                  {@const emoji = isReaction ? badgeEmoji(item.group) : null}
+                  {@const roomName = groupRoomName(item.group)}
+                  {@const mutationPending =
+                    dismissingRead || pendingMutationKeys.has(mutationKey(item))}
+                  <NotificationRow
+                    summary={occurrenceSummary(item.group)}
+                    summaryAccounts={summaryAccounts(item.group)}
+                    {actor}
+                    signalKind={occurrence?.signalKind}
+                    reactionEmoji={emoji}
+                    {roomName}
+                    time={formatRelativeTime(
+                      item.group.latestAt,
+                      item.timeFormatSettings,
+                      activeLocale
+                    )}
+                    unread={item.group.unread}
+                    important={item.group.unread &&
+                      item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
+                    interactive={targetSupported}
+                    pending={mutationPending}
+                    server={showServerMarker ? item.server : null}
+                    onopen={() => openGroup(item)}
+                    ondismiss={() => dismiss(item)}
                   />
-                  {#each section.items as item (rowKey(item))}
-                    {@const occurrence = item.group.openTarget}
-                    {@const targetSupported = occurrence?.targetSupported !== false}
-                    {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
-                    {@const actors = notificationActors(item.group)}
-                    {@const mutationPending =
-                      dismissingRead || pendingMutationKeys.has(mutationKey(item))}
-                    <ActivityListRow
-                      interactive={targetSupported}
-                      pending={mutationPending}
-                      disabled={mutationPending || !targetSupported}
-                      dimmed={!item.group.unread}
-                      important={item.group.unread &&
-                        item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
-                      onclick={() => openGroup(item)}
-                      rowAttributes={{
-                        'data-testid': 'notification-group',
-                        'data-notification-state': item.group.unread ? 'unread' : 'read',
-                        'data-notification-attention': item.group.unread
-                          ? item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                            ? 'important'
-                            : 'ambient'
-                          : 'none'
-                      }}
-                    >
-                      {#snippet leading()}
-                        <UserAvatarStack users={actors} testId="notification-actor-stack" />
-                      {/snippet}
-                      {#if item.group.unread}
-                        <span class="sr-only">{m('chat.notifications.unread')}</span>
-                      {/if}
-                      <span class="min-w-0 flex-1" data-testid="notification-content">
-                        <bdi class="block font-medium max-md:wrap-anywhere md:truncate" dir="auto">
-                          <AccountNameTokens
-                            text={occurrenceSummary(item.group)}
-                            accounts={summaryAccounts(item.group)}
-                          />
-                        </bdi>
-                        <span class="block text-sm text-muted max-md:wrap-anywhere md:truncate">
-                          {#if showServerHostname}{item.serverHostname}<span
-                              class="mx-1.5"
-                              aria-hidden="true">·</span
-                            >{/if}
-                          {#if occurrence?.room?.name && !isReaction}
-                            <bdi dir="auto">#{occurrence.room.name}</bdi><span
-                              class="mx-1.5"
-                              aria-hidden="true">·</span
-                            >
-                          {/if}{formatRelativeTime(
-                            item.group.latestAt,
-                            item.timeFormatSettings,
-                            activeLocale
-                          )}
-                        </span>
-                      </span>
-                      {#snippet actions()}
-                        <button
-                          type="button"
-                          class="icon-action icon-action-danger"
-                          disabled={mutationPending}
-                          aria-label={m('common.delete')}
-                          title={m('common.delete')}
-                          onclick={() => dismiss(item)}
-                        >
-                          <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"
-                          ></span>
-                        </button>
-                      {/snippet}
-                    </ActivityListRow>
-                  {/each}
-                </section>
-              {/each}
-              {#if pageError}
-                <div
-                  class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted"
-                  role="alert"
+                {/each}
+              </section>
+            {/each}
+            {#if pageError}
+              <div
+                class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted"
+                role="alert"
+              >
+                <span>{m('common.error.network')}</span>
+                <Button variant="secondary" size="sm" label={m('common.retry')} onclick={loadMore}
+                  >{m('common.retry')}</Button
                 >
-                  <span>{m('common.error.network')}</span>
-                  <Button variant="secondary" size="sm" label={m('common.retry')} onclick={loadMore}
-                    >{m('common.retry')}</Button
-                  >
-                </div>
-              {:else if hasMore}
-                <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
-              {/if}
-            </div>
-          {:else if loading}
-            <LoadingFog class="m-3 min-h-32 flex-1" />
-          {:else}
-            <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
-              {m('chat.notifications.empty_body')}
-            </EmptyState>
-          {/if}
-        </div>
-      </ScrollFader>
-    </Panel>
+              </div>
+            {:else if hasMore}
+              <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
+            {/if}
+          </div>
+        {:else if loading}
+          <LoadingFog class="m-3 min-h-32 flex-1" />
+        {:else}
+          <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
+            {m('chat.notifications.empty_body')}
+          </EmptyState>
+        {/if}
+      </div>
+    </ScrollFader>
   </PaneContent>
 </div>

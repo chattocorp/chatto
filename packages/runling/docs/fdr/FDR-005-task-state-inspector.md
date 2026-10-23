@@ -1,7 +1,9 @@
 # FDR-005: Task state in the run inspector
 
-**Status:** Experimental
-**Last reviewed:** 2026-09-24
+**Status:** Retired
+**Last reviewed:** 2026-10-14
+
+> **Retired.** [ADR-009](../adr/ADR-009-task-invocations.md) removed this feature. Runling no longer has `ctx.publishState` or task state in the run inspector. This record keeps the prior design for reference. A task can emit its state as updates; the timeline shows them as messages.
 
 ## Overview
 

@@ -2,17 +2,6 @@ import { expect, test } from 'vitest';
 import { buildTimeline, isActivityActive, activityStatus, type Activity } from './timeline.ts';
 import type { RunlingEvent } from 'runling';
 
-test('a resume boundary stops unfinished activities from the old attempt', () => {
-  const events: RunlingEvent[] = [
-    { type: 'step.started', id: 'old', label: 'Old attempt', timestamp: 0 },
-    { type: 'workflow.resumed', attempt: 2, timestamp: 20 },
-    { type: 'step.started', id: 'new', label: 'Recovered attempt', timestamp: 20 }
-  ];
-  const timeline = buildTimeline(events, 'running');
-  expect(timeline[0]).toMatchObject({ status: 'interrupted', durationMs: 20 });
-  expect(timeline[1]).toMatchObject({ status: 'running', startedAt: 20 });
-});
-
 const task = (overrides: Partial<Activity> = {}): Activity => ({
   id: 'task',
   label: 'Task',
@@ -24,29 +13,10 @@ const task = (overrides: Partial<Activity> = {}): Activity => ({
   ...overrides
 });
 
-test('shows the latest state of each task invocation', () => {
-  const events: RunlingEvent[] = [
-    { type: 'step.started', id: 'parent', label: 'Parent', timestamp: 0 },
-    {
-      type: 'task.state',
-      taskId: 'parent',
-      state: { phase: 'waiting' },
-      activityId: 'parent',
-      timestamp: 1
-    },
-    { type: 'step.started', id: 'child', label: 'Child', activityId: 'parent', timestamp: 2 },
-    { type: 'task.state', taskId: 'child', state: { count: 1 }, activityId: 'child', timestamp: 3 },
-    { type: 'task.state', taskId: 'child', state: { count: 2 }, activityId: 'child', timestamp: 4 }
-  ];
-  const [parent] = buildTimeline(events, 'running');
-  expect(parent?.state).toEqual({ phase: 'waiting' });
-  expect(parent?.children[0]).toMatchObject({ state: { count: 2 }, stateAt: 4 });
-});
-
-test('indicates running leaf work but not input waits or finished tasks', () => {
+test('indicates running leaf work but not waits or finished tasks', () => {
   for (const kind of ['step', 'agent', 'command'] as const)
     expect(isActivityActive(task({ kind }))).toBe(true);
-  expect(isActivityActive(task({ kind: 'input' }))).toBe(false);
+  expect(isActivityActive(task({ kind: 'wait' }))).toBe(false);
   for (const status of ['completed', 'failed', 'blocked', 'interrupted'])
     expect(isActivityActive(task({ status }))).toBe(false);
 });
@@ -65,8 +35,8 @@ test('keeps waiting ancestors quiet and marks parallel children active', () => {
   expect(isActivityActive(parent)).toBe(true);
 });
 
-test('does not animate a step waiting for user input', () => {
-  expect(isActivityActive(task({ children: [task({ kind: 'input' })] }))).toBe(false);
+test('does not animate a task that waits for a message', () => {
+  expect(isActivityActive(task({ children: [task({ kind: 'wait' })] }))).toBe(false);
 });
 
 test('uses formatted logs once without deduplicating genuine repeated messages', () => {
@@ -300,48 +270,37 @@ test('keeps repeated turns of one agent distinct and interrupts unfinished block
   expect(tree[0]?.children.map((node) => node.status)).toEqual(['completed', 'interrupted']);
 });
 
-test('input outcomes retain failure reasons and old journals still render', () => {
+test('a wait is a child activity of the task that waits', () => {
   const events: RunlingEvent[] = [
-    { type: 'input.requested', id: 'q', message: 'Question', timestamp: 0 }
+    { type: 'step.started', id: 'task', label: 'Chat', timestamp: 0 },
+    { type: 'wait.started', id: 'w', channelId: 'c', activityId: 'task', timestamp: 10 }
   ];
-  expect(activityStatus(buildTimeline(events, 'running')[0]!)).toBe('waiting for input');
-  for (const reason of [undefined, 'timeout', 'cancelled'] as const) {
-    const node = buildTimeline(
+  const [running] = buildTimeline(events, 'running');
+  expect(running!.children[0]).toMatchObject({ kind: 'wait', status: 'running', startedAt: 10 });
+  expect(activityStatus(running!.children[0]!)).toBe('waiting for a message');
+  expect(isActivityActive(running!)).toBe(false);
+
+  for (const [status, label] of [
+    ['received', 'message received'],
+    ['closed', 'closed']
+  ] as const) {
+    const [task] = buildTimeline(
       [
         ...events,
-        {
-          type: 'input.finished',
-          id: 'q',
-          status: 'failed',
-          reason,
-          durationMs: 500,
-          timestamp: 500
-        }
+        { type: 'wait.finished', id: 'w', status, durationMs: 500, timestamp: 510 },
+        { type: 'step.finished', id: 'task', status: 'completed', durationMs: 510, timestamp: 510 }
       ],
       'completed'
-    )[0]!;
-    expect(node.durationMs).toBe(500);
-    expect(activityStatus(node)).toBe(reason === 'timeout' ? 'timed out' : (reason ?? 'failed'));
+    );
+    expect(task!.children[0]!.durationMs).toBe(500);
+    expect(activityStatus(task!.children[0]!)).toBe(label);
   }
-  const answered = buildTimeline(
-    [
-      ...events,
-      {
-        type: 'input.finished',
-        id: 'q',
-        status: 'answered',
-        value: 'Yes',
-        durationMs: 400,
-        timestamp: 400
-      }
-    ],
-    'completed'
-  )[0]!;
-  expect(activityStatus(answered)).toBe('answered');
-  expect(answered.logs).toContain('Yes');
+
+  const [stopped] = buildTimeline(events, 'interrupted');
+  expect(stopped!.children[0]!.status).toBe('interrupted');
 });
 
-test('message markers resolve delayed task links and distinguish queue, read, and agent receipts', () => {
+test('message markers resolve delayed task links and distinguish queued and read messages', () => {
   const nodes = buildTimeline(
     [
       { type: 'step.started', id: 'parent', label: 'Coordinator', timestamp: 0 },
@@ -374,16 +333,6 @@ test('message markers resolve delayed task links and distinguish queue, read, an
       { type: 'message.read', id: 'r', timestamp: 4 },
       {
         type: 'message.sent',
-        id: 'a',
-        channelId: 'channel',
-        direction: 'input',
-        payload: 'agent',
-        activityId: 'parent',
-        timestamp: 5
-      },
-      { type: 'message.receipt', id: 'a', consumed: true, timestamp: 6 },
-      {
-        type: 'message.sent',
         id: 'u',
         channelId: 'channel',
         direction: 'update',
@@ -396,93 +345,37 @@ test('message markers resolve delayed task links and distinguish queue, read, an
     'running'
   );
   const messages = nodes[0]!.children[0]!.messages!;
-  expect(messages.map((message) => message.status)).toEqual([
-    'Queued',
-    'Read by task',
-    'Consumed by agent',
-    'Read by task'
-  ]);
+  expect(messages.map((message) => message.status)).toEqual(['Queued', 'Read', 'Read']);
   expect(messages[0]).toMatchObject({ from: 'Coordinator', to: 'Investigator' });
-  expect(messages[3]).toMatchObject({ from: 'Investigator', to: 'Coordinator' });
+  expect(messages[2]).toMatchObject({ from: 'Investigator', to: 'Coordinator' });
 });
 
-test('conversation turns and waits share one lane without doubling usage', () => {
-  const usage = { input: 10, output: 2, cacheRead: 0, cacheWrite: 0 };
-  const events: RunlingEvent[] = [
-    { type: 'step.started', id: 'chat', label: 'Conversation', timestamp: 0 },
-    { type: 'conversation.started', activityId: 'chat', timestamp: 0 },
-    {
-      type: 'agent.started',
-      agentId: 'bot',
-      model: 'luna',
-      color: 'purple',
-      activityId: 'chat',
-      timestamp: 1
-    },
-    {
-      type: 'agent.finished',
-      agentId: 'bot',
-      outcome: 'completed',
-      usage,
-      activityId: 'chat',
-      timestamp: 5
-    },
-    {
-      type: 'input.requested',
-      id: 'wait',
-      message: 'Next message',
-      activityId: 'chat',
-      timestamp: 5
-    },
-    {
-      type: 'input.finished',
-      id: 'wait',
-      status: 'answered',
-      value: 'Hello',
-      durationMs: 5,
-      activityId: 'chat',
-      timestamp: 10
-    },
-    {
-      type: 'agent.started',
-      agentId: 'bot',
-      model: 'luna',
-      color: 'purple',
-      activityId: 'chat',
-      timestamp: 10
-    },
-    {
-      type: 'agent.finished',
-      agentId: 'bot',
-      outcome: 'completed',
-      usage,
-      activityId: 'chat',
-      timestamp: 15
-    },
-    {
-      type: 'input.requested',
-      id: 'waiting',
-      message: 'Next message',
-      activityId: 'chat',
-      timestamp: 15
-    }
-  ];
-  const [chat] = buildTimeline(events, 'running');
-  expect(chat!.children).toEqual([]);
-  expect(chat!.segments?.map((segment) => segment.kind)).toEqual([
-    'agent',
-    'input',
-    'agent',
-    'input'
-  ]);
-  expect(chat!.usage?.input).toBe(20);
-  expect(isActivityActive(chat!)).toBe(false);
-  expect(chat!.logs).toContain('Hello');
-
-  const ordinary = buildTimeline(
-    events.filter((event) => event.type !== 'conversation.started'),
+test('messages from the host show on the top-level task', () => {
+  const [root] = buildTimeline(
+    [
+      { type: 'step.started', id: 'root', label: 'Chat', timestamp: 0 },
+      { type: 'task.linked', channelId: 'host', taskId: 'root', timestamp: 0 },
+      {
+        type: 'message.sent',
+        id: 'm',
+        channelId: 'host',
+        direction: 'input',
+        payload: 'Hello',
+        timestamp: 1
+      },
+      {
+        type: 'message.sent',
+        id: 'u',
+        channelId: 'host',
+        direction: 'update',
+        payload: 'Hi',
+        timestamp: 2
+      }
+    ],
     'running'
-  )[0]!;
-  expect(ordinary.children).toHaveLength(4);
-  expect(ordinary.segments).toBeUndefined();
+  );
+  expect(root!.messages).toEqual([
+    expect.objectContaining({ from: 'Host', to: 'Chat', payload: 'Hello', status: 'Queued' }),
+    expect.objectContaining({ from: 'Chat', to: 'Host', payload: 'Hi' })
+  ]);
 });

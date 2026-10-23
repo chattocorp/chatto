@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 
 // Svelte adapter tests need the client runtime, where effects run. Resolve
 // Svelte with its browser export conditions and compile test modules for it.
-const conditions = ['@chatto/source', 'browser'];
+const conditions = ['browser'];
 
 export default defineConfig({
   plugins: [svelte({ dynamicCompileOptions: () => ({ generate: 'client' }) })],

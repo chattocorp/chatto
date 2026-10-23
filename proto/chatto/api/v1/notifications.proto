@@ -47,6 +47,8 @@ message NotificationDeliveryModes {
   // Delivery mode for root messages posted directly to joined channel rooms.
   // Thread messages and direct messages use their own signal classes.
   optional NotificationDeliveryMode room_messages = 10;
+  // Delivery mode for invitations to join a channel room.
+  optional NotificationDeliveryMode room_invitations = 11;
 }
 
 // Visual importance of an unread notification. This is independent from
@@ -127,6 +129,15 @@ message ReactionReceived {
   string emoji = 2;
 }
 
+// An invitation to join a room. Its destination is the room, not a message.
+// Attention ends when the invitation is handled or reaches the containing
+// NotificationOccurrence's expires_at deadline.
+message RoomInvitationReceived {
+  RoomSummary room = 1;
+  // Stable invitation identifier.
+  string invitation_id = 2;
+}
+
 // Immutable, typed cause and destination of one notification. Clients must
 // preserve unknown variants as generic dismissible rows and must not infer
 // navigation semantics for them.
@@ -142,6 +153,7 @@ message NotificationSignal {
     FollowedRoomActivity followed_room_activity = 8 [deprecated = true];
     ReactionReceived reaction_received = 9;
     RoomMessageReceived room_message_received = 10;
+    RoomInvitationReceived room_invitation_received = 11;
   }
 }
 
@@ -157,7 +169,8 @@ message NotificationOccurrence {
   NotificationSignal signal = 4;
   // Whether this occurrence still contributes unread attention.
   bool unread = 5;
-  // Absolute expiry, 90 days after the source activity.
+  // Absolute expiry: the invitation deadline for room invitations, otherwise
+  // 90 days after source activity. Handled invitations are removed earlier.
   google.protobuf.Timestamp expires_at = 6;
   // Source-time visual importance of this occurrence.
   NotificationAttentionLevel attention_level = 7;
@@ -300,7 +313,7 @@ message NotificationPolicyScope {
     google.protobuf.Empty server = 1;
     // Selects one existing room group's policy.
     string room_group_id = 2 [(buf.validate.field).string.min_len = 1];
-    // Selects one room's policy and requires current room membership.
+    // Selects one room's policy. Requires membership or a pending invitation.
     string room_id = 3 [(buf.validate.field).string.min_len = 1];
   }
 }

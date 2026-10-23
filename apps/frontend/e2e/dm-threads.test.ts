@@ -29,6 +29,8 @@ test.describe('Direct-message threads', () => {
 
       const myThreads = new MyThreadsPage(pageB);
       await myThreads.goto();
+      await expect(myThreads.threadItems).toHaveCount(0);
+      await pageB.getByRole('radio', { name: 'Mine', exact: true }).check();
       const item = myThreads.threadItems.filter({ hasText: rootText });
       await expect(item).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(item).toContainText(userA.displayName);
@@ -66,7 +68,7 @@ test.describe('Direct-message threads', () => {
       await notificationsPage.goto();
       await notificationsPage.expectNotificationCount(1, TIMEOUTS.REALTIME_EVENT);
       await expect(
-        notificationsPage.getNotificationBySummary('replied in a thread you follow.')
+        notificationsPage.getNotificationBySummary('replied in a thread you follow')
       ).toBeVisible();
     });
   });

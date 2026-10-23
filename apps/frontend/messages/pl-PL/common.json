@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Nie udało się skopiować do schowka. Zaznacz tekst i skopiuj go ręcznie.",
     "cancel": "Anuluj",
     "close_sidebar": "Zamknij pasek boczny",
     "or": "lub",
@@ -21,11 +22,12 @@
     "password_placeholder": "Twoje hasło",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "Co najmniej 8 znaków",
+    "password_bytes_placeholder": "8–72 bajty UTF-8",
     "password_confirm_placeholder": "Wprowadź hasło ponownie",
     "validation": {
       "email": "Proszę podać prawidłowy adres e-mail",
-      "password_min": "Musi mieć co najmniej 8 znaków",
+      "password_min_bytes": "Użyj co najmniej 8 bajtów UTF-8. Niektóre znaki zajmują więcej niż jeden bajt.",
+      "password_max": "Użyj najwyżej 72 bajtów UTF-8. Niektóre znaki zajmują więcej niż jeden bajt.",
       "username_min": "Musi zawierać co najmniej 2 znaki",
       "username_max": "Musi mieć maksymalnie 32 znaki",
       "username_charset": "Tylko litery, cyfry, kropki, myślniki, podkreślenia",
@@ -53,6 +55,11 @@
     "saved": "Zapisano!",
     "rooms": "Pokoje",
     "copy_to_clipboard": "Skopiuj do schowka",
-    "copied_to_clipboard": "Skopiowano do schowka"
+    "copied_to_clipboard": "Skopiowano do schowka",
+    "user_search_placeholder": "Szukaj według loginu lub nazwy wyświetlanej...",
+    "no_users": "Nie znaleziono użytkowników",
+    "user_id": "Identyfikator użytkownika",
+    "reason": "Powód",
+    "message_of_the_day": "Wiadomość dnia"
   }
 }

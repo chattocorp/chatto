@@ -14,16 +14,16 @@ import (
 
 	"connectrpc.com/connect"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/evtstream"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 )
 
 func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
@@ -179,6 +179,35 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 	}
 	if state.UseCount != 0 {
 		t.Fatalf("invitation use count = %d, want 0", state.UseCount)
+	}
+}
+
+func TestExternalIdentityAccountCreationSyncsGroupRoles(t *testing.T) {
+	t.Parallel()
+
+	env := newConnectAPITestEnv(t)
+	env.api.config.Auth.Providers = []config.AuthProviderConfig{
+		{ID: "company", Type: config.AuthProviderTypeOpenIDConnect, Label: "Company", GroupRoles: "chat-mods:moderator"},
+	}
+	token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID: "company", ProviderType: config.AuthProviderTypeOpenIDConnect, ProviderLabel: "Company",
+		Issuer: "https://id.example", Subject: "group-member", Groups: []string{"chat-mods"}, GroupsKnown: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+		Token: token, Login: "group-member", DisplayName: "Group Member",
+	}))
+	if err != nil {
+		t.Fatalf("CreateExternalIdentityAccount: %v", err)
+	}
+	roles, err := env.core.GetUserRoles(env.ctx, created.Msg.GetUserId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(roles, core.RoleModerator) {
+		t.Fatalf("roles = %v, want moderator from group_roles", roles)
 	}
 }
 
@@ -1489,8 +1518,40 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if resp.Msg.GetAssetCleanup() == nil {
 		t.Fatal("AssetCleanup = nil")
 	}
-	if len(resp.Msg.GetDurableWorkers()) != 8 {
-		t.Fatalf("DurableWorkers len = %d, want 8", len(resp.Msg.GetDurableWorkers()))
+	if len(resp.Msg.GetDurableWorkers()) != 9 {
+		t.Fatalf("DurableWorkers len = %d, want 9", len(resp.Msg.GetDurableWorkers()))
+	}
+	if got := resp.Msg.GetLivekit().GetConnectionState(); got != adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED {
+		t.Fatalf("Livekit.ConnectionState = %v, want not configured", got)
+	}
+}
+
+func TestAdminLiveKitStatusMapping(t *testing.T) {
+	t.Parallel()
+
+	webhookAt := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	mapped := adminLiveKitStatus(core.LiveKitAdminStatus{
+		Enabled:            true,
+		Configured:         true,
+		URL:                "ws://livekit.example",
+		APIKey:             "key",
+		SeparateWebhookKey: true,
+		WebhookURL:         "https://chat.example/webhooks/livekit",
+		ConnectionState:    core.LiveKitConnectionUnauthorized,
+		ConnectionError:    "twirp error unauthenticated: invalid token",
+		InsecureURL:        true,
+		LastWebhookAt:      webhookAt,
+	})
+	if !mapped.GetEnabled() || !mapped.GetConfigured() || mapped.GetUrl() != "ws://livekit.example" || mapped.GetApiKey() != "key" ||
+		!mapped.GetSeparateWebhookKey() || mapped.GetWebhookUrl() != "https://chat.example/webhooks/livekit" ||
+		mapped.GetConnectionError() == "" || !mapped.GetInsecureUrl() {
+		t.Fatalf("mapped = %+v", mapped)
+	}
+	if mapped.GetConnectionState() != adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED {
+		t.Fatalf("ConnectionState = %v", mapped.GetConnectionState())
+	}
+	if !mapped.GetLastWebhookAt().AsTime().Equal(webhookAt) || mapped.LastRejectedWebhookAt != nil {
+		t.Fatalf("webhook times = %v, %v", mapped.GetLastWebhookAt(), mapped.LastRejectedWebhookAt)
 	}
 }
 
@@ -1676,7 +1737,7 @@ func TestRoomDirectoryServiceListRoomGroupsIncludesSidebarItems(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	groupID := env.defaultRoomGroupID(t)
 	room := env.createJoinedRoom("layout-room")
-	link, err := env.core.CreateSidebarLink(env.ctx, core.SystemActorID, groupID, "Docs", "/docs")
+	link, err := env.core.RoomLayout().CreateSidebarLink(env.ctx, core.SystemActorID, groupID, "Docs", "/docs")
 	if err != nil {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}

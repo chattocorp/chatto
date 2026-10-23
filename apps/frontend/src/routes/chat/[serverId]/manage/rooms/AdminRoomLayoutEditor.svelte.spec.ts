@@ -1,3 +1,9 @@
+import { beforeAll } from 'vitest';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+
+// Standalone management components do not run the route catalog loader.
+beforeAll(() => loadLocaleMessages('en-GB'));
+
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
@@ -237,7 +243,7 @@ describe('AdminRoomLayoutEditor', () => {
     layout.groups = [group('g1', [], 'Lobby')];
     const { container } = renderEditor(layout);
 
-    buttonByText(container, 'New Room').click();
+    buttonByText(container, 'Create room').click();
     flushSync();
     fill(q(container, '#room-name') as HTMLInputElement, 'Design systems');
     buttonByText(container, 'Create and configure').click();

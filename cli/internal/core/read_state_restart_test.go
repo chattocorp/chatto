@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/stretchr/testify/require"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 // A fresh core must finish a read whose durable boundary was saved before
@@ -20,7 +21,10 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			ctx := testContext(t)
-			first, nc := newTestCore(t)
+			ns, _ := testutil.StartNATS(t)
+			firstNC := newReplicaConn(t, ns)
+			first, err := NewChattoCore(ctx, firstNC, testCoreConfig())
+			require.NoError(t, err)
 			stop := startSnapshotTestCore(t, first)
 			t.Cleanup(stop)
 			room, err := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "Read recovery", "")
@@ -61,9 +65,9 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 			covered, coveredOccurrence := create("seen before interruption")
 			_, newerOccurrence := create("not seen")
 			if thread {
-				_, err = first.SetThreadLastReadEventID(ctx, KindChannel, reader.Id, room.Id, threadID, covered.Id)
+				_, err = first.readStateModel.SetThreadLastReadEventID(ctx, KindChannel, reader.Id, room.Id, threadID, covered.Id)
 			} else {
-				_, err = first.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, covered.Id)
+				_, err = first.readStateModel.AdvanceLastReadEventID(ctx, KindChannel, reader.Id, room.Id, covered.Id)
 			}
 			require.NoError(t, err)
 			entry, ok := first.roomModel.timelineEntry(covered.Id)
@@ -78,7 +82,9 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 			require.NoError(t, err)
 			require.False(t, stored.GetRead())
 
-			second, err := NewChattoCore(ctx, nc, first.config)
+			// Close the connection of the stopped core, as a process exit does.
+			firstNC.Close()
+			second, err := NewChattoCore(ctx, newReplicaConn(t, ns), first.config)
 			require.NoError(t, err)
 			stopSecond := startSnapshotTestCore(t, second)
 			defer stopSecond()
@@ -94,7 +100,7 @@ func TestNotificationReadRepairAfterCoreRestart(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, covered.CreatedAt.AsTime(), marker)
 			} else {
-				marker, _, err := second.PeekLastReadEventID(ctx, reader.Id, room.Id)
+				marker, _, err := second.readStateModel.PeekLastReadEventID(ctx, reader.Id, room.Id)
 				require.NoError(t, err)
 				require.Equal(t, covered.Id, marker)
 			}

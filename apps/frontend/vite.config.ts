@@ -3,15 +3,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import {
-  defaultClientConditions,
-  defaultServerConditions,
-  defineConfig,
-  type Plugin,
-  type UserConfig
-} from 'vite';
+import { defineConfig, type Plugin, type UserConfig } from 'vite';
 
-import { catalogSections, isPublicCatalogSection } from './src/lib/i18n/catalogSections.js';
+import { catalogSections, catalogBoundary } from './src/lib/i18n/catalogSections.js';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -27,13 +21,11 @@ function localeCatalogChunkName(moduleId: string): string | null {
   if (!match) return null;
 
   const [, locale, section] = match;
-  if (locale === 'en-GB') return null;
   if (!catalogSections.includes(section as (typeof catalogSections)[number])) return null;
 
-  const boundary = isPublicCatalogSection(section as (typeof catalogSections)[number])
-    ? 'public'
-    : 'chat';
-  return `lingua-${locale}-${boundary}`;
+  const boundary = catalogBoundary(section as (typeof catalogSections)[number]);
+  if (locale === 'en-GB' && boundary !== 'management') return null;
+  return `translatto-${locale}-${boundary}`;
 }
 
 function normalizeHighlightLanguageToken(value: string): string | null {
@@ -187,7 +179,8 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
           name: 'storybook',
           browser: {
             enabled: true,
-            provider: playwright(),
+            // Avoid measuring text contrast during motion-aware entrance transitions.
+            provider: playwright({ contextOptions: { reducedMotion: 'reduce' } }),
             headless: !process.env.SHOW_BROWSER,
             instances: [{ browser: 'chromium' }]
           }
@@ -221,10 +214,6 @@ export default defineConfig(async ({ command }) => {
       }
     },
     resolve: {
-      // Workspace packages expose their TypeScript source under this
-      // condition, so the frontend builds and hot-reloads them without a
-      // separate package build.
-      conditions: ['@chatto/source', ...defaultClientConditions],
       alias: {
         // The lowlight package root re-exports `all`, which imports every
         // highlight.js grammar. We only need createLowlight, so point bundling
@@ -233,7 +222,6 @@ export default defineConfig(async ({ command }) => {
       }
     },
     ssr: {
-      resolve: { conditions: ['@chatto/source', ...defaultServerConditions] },
       // TipTap is browser-only but imported in Svelte components that are
       // compiled for SSR. Bundle them into the SSR output to avoid
       // "could not be resolved" warnings (the code paths are guarded by
@@ -254,7 +242,7 @@ export default defineConfig(async ({ command }) => {
       port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
       host: true,
       allowedHosts: ['fatso.fritz.box', '.orb.local'],
-      // Regional Lingua catalogs live beside the Svelte source tree so the
+      // Regional Translatto catalogs live beside the Svelte source tree so the
       // public and chat section imports can remain independently lazy.
       fs: {
         allow: [

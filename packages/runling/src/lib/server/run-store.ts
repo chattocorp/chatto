@@ -1,8 +1,9 @@
 /** Persist web runs and bridge their lifecycle to live console subscribers. */
-import type { WebhookTask } from 'runling/web';
+import type { RunHandle, SourceRun } from 'runling/web';
+import { parseBoundary } from '../../runtime/schema.ts';
 import { serverLog } from '../../runtime/server-log.ts';
 import { createServerActivityLog } from '../../runtime/server-activity.ts';
-import { mkdir, readdir, appendFile, truncate } from 'node:fs/promises';
+import { mkdir, readdir, appendFile, truncate, rm } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { randomId } from '../../runtime/id.ts';
 import {
@@ -14,12 +15,23 @@ import {
   runOwnerAlive,
   type RunJournal
 } from '../../runtime/run-journal.ts';
-import { runWorkflow, type WorkflowExecution } from 'runling';
+import {
+  createChannel,
+  runWorkflow,
+  type AnyTask,
+  type Channel,
+  type WorkflowExecution
+} from 'runling';
 import { type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
 
 import { summarizeRunActivity } from '../run-activity.ts';
+import { WorkflowStateStore } from '../../runtime/workflow-state.ts';
+import { emptyTokenUsage } from '../../runtime/usage.ts';
 
 const validId = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
+const DAY_MS = 24 * 60 * 60_000;
+/** Retention starts at terminal closure, never at workflow creation or shutdown interruption. */
+const RETENTION_MS = 30 * DAY_MS;
 type Listener = (id: string, record: RunRecord) => void;
 
 function summary(run: RunDetail): RunSummary {
@@ -29,21 +41,7 @@ function summary(run: RunDetail): RunSummary {
 
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
-  if (record.type === 'resumed') {
-    if (includeDetails)
-      run.events.push({
-        type: 'workflow.resumed',
-        attempt: record.attempt,
-        timestamp: run.durationMs ?? 0
-      });
-    Object.assign(run, {
-      status: 'running',
-      attempt: record.attempt,
-      finishedAt: undefined,
-      error: null,
-      output: null
-    });
-  } else if (record.type === 'event') {
+  if (record.type === 'event') {
     if (includeDetails) run.events.push(record.event);
     if (record.event.type === 'usage.updated') run.usage = record.event.usage;
   } else if (record.type === 'finished') {
@@ -60,19 +58,31 @@ export class RunStore {
   private details = new Map<string, RunDetail>();
   private journals = new Map<string, RunJournal>();
   private controllers = new Map<string, AbortController>();
+  /** Messages from the host to each active run's top-level task. */
+  private inboxes = new Map<string, { task: AnyTask; channel: Channel<unknown> }>();
   private executions = new Set<Promise<WorkflowExecution>>();
+  private handles = new Map<string, RunHandle>();
   private listeners = new Set<Listener>();
   private references = new Set<string>();
   private readonly shutdownReason = new Error('Runling server stopped.');
   private closing = false;
+  private workflows: Record<string, AnyTask> = {};
+  private recovery: Promise<void> = Promise.resolve();
+  private nextCleanup = 0;
+  private cleaning?: Promise<void>;
+  /** The only persisted mutable state object owned by this server. */
+  readonly state: WorkflowStateStore;
 
   constructor(
     readonly directory: string,
     private readonly createReference = randomId
-  ) {}
+  ) {
+    this.state = new WorkflowStateStore(resolve(directory, 'state.json'));
+  }
 
   async init(): Promise<void> {
     await mkdir(this.directory, { recursive: true });
+    await this.state.load();
     for (const file of await readdir(this.directory)) {
       const id = file.replace(/\.jsonl$/, '');
       if (!file.endsWith('.jsonl') || !validId.test(id)) continue;
@@ -103,6 +113,136 @@ export class RunStore {
         serverLog('error', 'run.restore_failed', { runId: id, error: cause });
       }
     }
+    await this.cleanup();
+    this.state.start(
+      () => serverLog('error', 'state.save_failed', { message: 'Cannot save workflow state' }),
+      60_000,
+      () => this.cleanup()
+    );
+  }
+
+  /** Resolve saved root keys against current configuration. Re-entry keeps the run ID;
+   * it never recreates child tasks, restores queues, or replays external effects. */
+  restore(workflows: Record<string, AnyTask> = {}): Promise<void> {
+    const next = this.recovery.then(() => this.recover(workflows));
+    this.recovery = next.catch(() => {});
+    return next;
+  }
+
+  /** Run once at startup, then at most daily from the persistence timer.
+   * Failures leave enough journal data to retry and never block normal state saves. */
+  cleanup(): Promise<void> {
+    if (this.cleaning) return this.cleaning;
+    if (this.closing || Date.now() < this.nextCleanup) return Promise.resolve();
+    this.nextCleanup = Date.now() + DAY_MS;
+    this.cleaning = this.purgeExpired()
+      .catch(() => {
+        serverLog('error', 'run.cleanup_failed', { message: 'Cannot clean expired runs' });
+      })
+      .finally(() => {
+        this.cleaning = undefined;
+      });
+    return this.cleaning;
+  }
+
+  /** Read current journals, including CLI runs that finished since startup. Persist removal
+   * from the snapshot before deleting journals, so a crash cannot leave orphaned saved state. */
+  private async purgeExpired(): Promise<void> {
+    const cutoff = Date.now() - RETENTION_MS;
+    const expired: RunDetail[] = [];
+    for (const file of await readdir(this.directory)) {
+      const id = file.replace(/\.jsonl$/, '');
+      if (
+        !file.endsWith('.jsonl') ||
+        !validId.test(id) ||
+        this.controllers.has(id) ||
+        this.journals.has(id)
+      )
+        continue;
+      try {
+        const { run } = await this.read(id, false);
+        if (
+          !run ||
+          !['completed', 'failed', 'cancelled'].includes(run.status) ||
+          !Number.isFinite(run.finishedAt) ||
+          run.finishedAt! >= cutoff
+        )
+          continue;
+        expired.push(run);
+      } catch {
+        serverLog('error', 'run.cleanup_failed', {
+          runId: id,
+          message: 'Cannot clean expired run'
+        });
+      }
+    }
+    if (!expired.length) return;
+    const removed = expired.flatMap(({ id }) => {
+      const saved = this.state.data.workflows[id];
+      delete this.state.data.workflows[id];
+      return saved ? [[id, saved] as const] : [];
+    });
+    try {
+      // Also save an empty snapshot when the last retained run expires.
+      await this.state.save();
+    } catch (error) {
+      for (const [id, saved] of removed) this.state.data.workflows[id] = saved;
+      throw error;
+    }
+    for (const run of expired) {
+      try {
+        await rm(resolve(this.directory, run.id), { recursive: true, force: true });
+        await rm(resolve(this.directory, `${run.id}.jsonl`), { force: true });
+        this.runs.delete(run.id);
+        this.details.delete(run.id);
+        if (run.reference) this.references.delete(run.reference);
+      } catch {
+        serverLog('error', 'run.cleanup_failed', {
+          runId: run.id,
+          message: 'Cannot remove expired run files'
+        });
+      }
+    }
+  }
+
+  private async recover(workflows: Record<string, AnyTask>): Promise<void> {
+    if (this.closing) return;
+    this.workflows = workflows;
+    for (const [id, saved] of Object.entries(this.state.data.workflows)) {
+      if (!saved.open || this.controllers.has(id)) continue;
+      const prior = this.runs.get(id);
+      if (!prior || runOwnerAlive(prior)) continue;
+      // A terminal journal is newer evidence than a periodic snapshot.
+      if (prior.status !== 'interrupted' && prior.status !== 'running') {
+        saved.open = false;
+        continue;
+      }
+      const task =
+        saved.task !== null && Object.hasOwn(workflows, saved.task)
+          ? workflows[saved.task]
+          : undefined;
+      if (!task) {
+        serverLog('warn', 'run.recovery_unavailable', { runId: id });
+        continue;
+      }
+      const { run: previous, end } = await this.read(id, true);
+      if (!previous) continue;
+      await truncate(resolve(this.directory, `${id}.jsonl`), end);
+      const run: RunDetail = {
+        ...previous,
+        pid: process.pid,
+        status: 'running',
+        startedAt: Date.now(),
+        finishedAt: undefined,
+        durationMs: undefined,
+        output: null,
+        error: null,
+        events: [],
+        usage: emptyTokenUsage()
+      };
+      this.journals.set(id, await createRunJournal(this.directory, run, true));
+      this.launch(run, task, saved.input, true);
+    }
   }
 
   list(): RunSummary[] {
@@ -115,9 +255,40 @@ export class RunStore {
       });
   }
 
+  /** Live handles for one source, so it can reconnect thread or session routing after restart. */
+  sourceRuns(name: string): SourceRun[] {
+    return [...this.handles].flatMap(([id, handle]) => {
+      const run = this.details.get(id);
+      const saved = this.state.data.workflows[id];
+      return run?.source === 'source' && run.sourceName === name
+        ? [
+            {
+              ...handle,
+              input: saved ? saved.input : run.input,
+              workflow: saved?.task ?? run.workflow
+            }
+          ]
+        : [];
+    });
+  }
+
   async get(id: string): Promise<RunDetail | undefined> {
     if (!validId.test(id) || !this.runs.has(id)) return undefined;
     return this.details.get(id) ?? (await this.read(id, true)).run;
+  }
+
+  /** Validate a message and queue it for an active run's top-level task. */
+  async send(id: string, message: unknown): Promise<void> {
+    const inbox = this.inboxes.get(id);
+    // A cancelled run's inbox fails with the cancellation reason; report the run state instead.
+    if (!inbox || this.controllers.get(id)?.signal.aborted) throw new RunNotActiveError();
+    await parseBoundary(inbox.task.name, 'message', inbox.task.steering, message);
+    await inbox.channel.send(message);
+  }
+
+  /** Tell an active run's top-level task that no more messages come. */
+  closeSteering(id: string): void {
+    this.inboxes.get(id)?.channel.close();
   }
 
   cancel(id: string): boolean {
@@ -130,12 +301,16 @@ export class RunStore {
   /** Interrupt active workflows and flush their records. Explicit user cancellations stay cancelled. */
   async close(): Promise<void> {
     this.closing = true;
+    this.state.stop();
     // After HTTP and watchers close, cleanup can depend only on unref'ed
     // deadlines. A promise alone does not keep Node alive to flush the journal.
     const keepAlive = setInterval(() => {}, 1000);
     try {
+      await this.recovery;
+      await this.cleaning;
       for (const controller of this.controllers.values()) controller.abort(this.shutdownReason);
       await Promise.allSettled(this.executions);
+      await this.state.close();
     } finally {
       clearInterval(keepAlive);
     }
@@ -149,8 +324,9 @@ export class RunStore {
       end += line.bytes;
       const record = line.record;
       if (!record) continue;
-      if (!run) {
+      if (!run || record.type === 'started') {
         if (record.type !== 'started' || record.run.id !== id) break;
+        lastTimestamp = 0;
         run = includeDetails
           ? record.run
           : {
@@ -193,12 +369,13 @@ export class RunStore {
       });
   }
 
-  async start<Input, Output>(
+  /** Register and start a run. Resolves after registration, with a handle for its messages. */
+  async start(
     webhook: string,
-    workflow: WebhookTask<Input, Output>,
-    input: Input,
+    workflow: AnyTask,
+    input: unknown,
     source: 'webhook' | 'web' | 'source'
-  ) {
+  ): Promise<RunHandle & { completion: Promise<WorkflowExecution> }> {
     if (this.closing) throw new Error('Run store is stopping');
     // Reserve before the first await so concurrent starts cannot share a reference.
     let reference: string | undefined;
@@ -217,18 +394,35 @@ export class RunStore {
       reference
     });
     const { id } = run;
-    const started: RunRecord = { type: 'started', run };
     try {
       this.journals.set(id, await createRunJournal(this.directory, run));
     } catch (error) {
       this.references.delete(reference);
       throw error;
     }
+    const key = Object.entries(this.workflows).find(([, task]) => task === workflow)?.[0];
+    this.state.data.workflows[id] = {
+      task: key ?? null,
+      input: input === undefined ? undefined : run.input,
+      state: {},
+      open: true
+    };
+    return this.launch(run, workflow, input);
+  }
+
+  private launch(
+    run: RunDetail,
+    workflow: AnyTask,
+    input: unknown,
+    resumed = false
+  ): RunHandle & { completion: Promise<WorkflowExecution> } {
+    const { id, webhook, source } = run;
     this.runs.set(id, summary(run));
     this.details.set(id, run);
     const controller = new AbortController();
     this.controllers.set(id, controller);
-    this.publish(id, started);
+    this.inboxes.set(id, { task: workflow, channel: createChannel({ signal: controller.signal }) });
+    this.publish(id, { type: 'started', run });
     serverLog('info', 'run.started', {
       runId: id,
       runReference: run.reference,
@@ -236,31 +430,57 @@ export class RunStore {
       workflow: workflow.name,
       source
     });
-    const completion = this.execute(id, workflow, input, controller.signal);
+    const completion = this.execute(id, workflow, input, controller.signal, resumed);
     this.executions.add(completion);
     void completion.then(
-      () => this.executions.delete(completion),
-      () => this.executions.delete(completion)
+      () => {
+        this.executions.delete(completion);
+        this.handles.delete(id);
+      },
+      () => {
+        this.executions.delete(completion);
+        this.handles.delete(id);
+      }
     );
     // Background runs must always have a rejection handler, even after the HTTP client leaves.
     void completion.catch((cause) =>
       serverLog('error', 'run.error', { runId: id, runReference: run.reference, error: cause })
     );
-    return { id, completion };
+    const handle = {
+      id,
+      completion,
+      steer: (message: unknown) => this.send(id, message),
+      closeSteering: () => this.closeSteering(id),
+      cancel: () => void this.cancel(id),
+      finished: completion.then(
+        () => {},
+        () => {}
+      )
+    };
+    this.handles.set(id, handle);
+    return handle;
   }
 
-  private async execute<Input, Output>(
+  private async execute(
     id: string,
-    workflow: WebhookTask<Input, Output>,
-    input: Input,
-    signal: AbortSignal
+    workflow: AnyTask,
+    input: unknown,
+    signal: AbortSignal,
+    resumed: boolean
   ): Promise<WorkflowExecution> {
     const base = performance.now();
     const activityLog = createServerActivityLog(id, this.runs.get(id)?.reference);
     const execution = await runWorkflow(workflow, {
       input,
+      state: this.state.data.workflows[id]?.state,
       signal,
-      run: { id, reference: this.runs.get(id)?.reference },
+      messages: this.inboxes.get(id)!.channel,
+      run: {
+        id,
+        reference: this.runs.get(id)?.reference,
+        resumed,
+        filesDirectory: resolve(this.directory, id)
+      },
       onEvent: (event) => {
         activityLog(event);
         // A write failure is handled when the finished record is written.
@@ -268,6 +488,8 @@ export class RunStore {
       }
     }).finally(() => activityLog.dispose());
     this.controllers.delete(id);
+    this.inboxes.get(id)?.channel.close();
+    this.inboxes.delete(id);
     const status = signal.aborted
       ? signal.reason === this.shutdownReason
         ? 'interrupted'
@@ -275,6 +497,8 @@ export class RunStore {
       : execution.ok
         ? 'completed'
         : 'failed';
+    if (status !== 'interrupted' && this.state.data.workflows[id])
+      this.state.data.workflows[id]!.open = false;
     try {
       await this.append(id, {
         type: 'finished',
@@ -336,4 +560,12 @@ export function getRunStore(): Promise<RunStore> {
     return store;
   })();
   return state.__runlingRunStore;
+}
+
+/** The run has finished, or this server does not run it. */
+export class RunNotActiveError extends Error {
+  constructor() {
+    super('This run is not running.');
+    this.name = 'RunNotActiveError';
+  }
 }

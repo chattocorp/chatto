@@ -20,6 +20,10 @@ fi
 blocked=false
 check() {
 	local protocol="$1" port="$2" pids pid
+	# Port zero disables the embedded NATS listener.
+	if [[ "$port" == 0 ]]; then
+		return
+	fi
 	if [[ "$protocol" == TCP ]]; then
 		pids="$(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | sort -u || true)"
 	else

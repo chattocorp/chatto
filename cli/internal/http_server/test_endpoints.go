@@ -7,10 +7,10 @@ import (
 	"net/url"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
 )
 
 // createMailer creates a mock mailer when test endpoints are enabled.

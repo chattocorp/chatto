@@ -50,15 +50,15 @@
   function threadingModeLabel(mode: RoomThreadingMode): string {
     switch (mode) {
       case RoomThreadingMode.REQUIRED:
-        return m('admin.rooms_admin.threading_mode_required');
+        return m('room.management.threading_mode_required');
       case RoomThreadingMode.ENCOURAGED:
-        return m('admin.rooms_admin.threading_mode_encouraged');
+        return m('room.management.threading_mode_encouraged');
       case RoomThreadingMode.ENABLED:
-        return m('admin.rooms_admin.threading_mode_enabled');
+        return m('room.management.threading_mode_enabled');
       case RoomThreadingMode.DISABLED:
-        return m('admin.rooms_admin.threading_mode_disabled');
+        return m('room.management.threading_mode_disabled');
       default:
-        return m('admin.rooms_admin.threading_mode_disabled');
+        return m('room.management.threading_mode_disabled');
     }
   }
 

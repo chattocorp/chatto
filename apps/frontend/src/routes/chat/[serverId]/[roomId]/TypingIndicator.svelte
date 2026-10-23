@@ -1,14 +1,14 @@
 <!--
 @component
 
-Floating typing indicator that appears in the lower inline-end corner of a room
-or thread pane. Shows avatars of typing users together with a compact textual
-label that names up to two people and aggregates larger groups
-("A, B and 3 others are typing").
+Typing indicator for the message composer of a room or thread pane. Shows
+avatars of typing users together with a compact textual label that names up to
+two people and aggregates larger groups ("A, B and 3 others are typing").
 
-The indicator is positioned absolutely so its appearance never shifts the
-message list layout, and it announces changes politely to screen readers via a
-`role="status"` region.
+The parent composer status row positions the indicator on the input edge
+without shifting layout. `MessageComposer` supplies the row through its
+`inputStatus` snippet. It
+announces changes politely to screen readers via a `role="status"` region.
 
 **Props:**
 - `typingUserIds` - Array of user IDs currently typing
@@ -25,9 +25,7 @@ message list layout, and it announces changes politely to screen readers via a
 
 <script lang="ts">
   import { accountNameToken } from '@chatto/client/timeline/accountName';
-  import { scale } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
-  import { prefersReducedMotion } from 'svelte/motion';
+  import ComposerStatusBadge from '$lib/components/composer/ComposerStatusBadge.svelte';
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -94,30 +92,20 @@ message list layout, and it announces changes politely to screen readers via a
 </script>
 
 <!-- Keep the live region mounted before text arrives so updates can be announced. -->
-<div
-  role="status"
-  aria-live="polite"
-  aria-atomic="true"
-  class="pointer-events-none absolute inset-x-2 bottom-0 z-10 flex justify-end"
->
+<div role="status" aria-live="polite" aria-atomic="true" class="flex min-w-0">
   {#if activeUserIds.length > 0}
-    <div
-      data-testid="typing-indicator"
-      class="flex max-w-full min-w-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 shadow-md"
-      transition:scale={{
-        duration: prefersReducedMotion.current ? 0 : 150,
-        easing: cubicOut,
-        start: 0.96,
-        opacity: 0
-      }}
-    >
+    <ComposerStatusBadge data-testid="typing-indicator" avatarPadding animate>
       {#each visibleMembers as member (member.id)}
-        <span class="flex shrink-0 items-center" aria-hidden="true" data-testid="typing-avatar">
+        <span
+          class="flex shrink-0 items-center not-first:-ms-1"
+          aria-hidden="true"
+          data-testid="typing-avatar"
+        >
           <UserAvatar user={member} size="xs" useLiveProfile={false} />
         </span>
       {/each}
       {#if label}
-        <span class="typing-label ms-0.5 max-w-64 min-w-0 truncate text-muted">
+        <span class="typing-label max-w-64 min-w-0 truncate text-muted">
           <AccountNameTokens text={label} accounts={labelAccounts} />
         </span>
       {/if}
@@ -133,6 +121,6 @@ message list layout, and it announces changes politely to screen readers via a
         <span class="typing-dot [animation-delay:-300ms]"></span>
         <span class="typing-dot [animation-delay:-400ms]"></span>
       </span>
-    </div>
+    </ComposerStatusBadge>
   {/if}
 </div>

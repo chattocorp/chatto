@@ -1,0 +1,17 @@
+{
+  "preview": {
+    "dismiss": "Απόκρυψη προεπισκόπησης",
+    "delete": "Διαγραφή προεπισκόπησης",
+    "open_link": "Άνοιγμα συνδέσμου",
+    "copy_url": "Αντιγραφή διεύθυνσης URL",
+    "url_copied": "Η διεύθυνση URL αντιγράφηκε στο πρόχειρο",
+    "copy_url_failed": "Αποτυχία αντιγραφής διεύθυνσης URL",
+    "show_content": "Εμφάνιση περιεχομένου",
+    "hide_content": "Απόκρυψη περιεχομένου",
+    "youtube_title": "Βίντεο YouTube",
+    "youtube_dismiss": "Απόκρυψη βίντεο",
+    "youtube_delete": "Διαγραφή βίντεο",
+    "youtube_open": "Άνοιγμα στο YouTube",
+    "youtube_delete_embed": "Διαγραφή ενσωμάτωσης"
+  }
+}

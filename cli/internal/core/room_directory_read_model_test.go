@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
@@ -19,7 +19,7 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
-	group, err := core.CreateRoomGroup(ctx, SystemActorID, "Directory Read", "")
+	group, err := core.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Directory Read", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 		t.Fatalf("BatchGetRoomGroups = %+v, want single group %s", batchGroups, group.Id)
 	}
 
-	joined, err := reads.JoinGroup(ctx, actor.Id, group.Id)
+	joined, err := core.RoomCommands().JoinGroup(ctx, actor.Id, group.Id)
 	if err != nil {
 		t.Fatalf("JoinGroup: %v", err)
 	}

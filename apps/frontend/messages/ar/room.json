@@ -37,10 +37,13 @@
       "access_denied": "ليس لديك إذن بالانضمام إلى هذه الغرفة."
     },
     "leave": {
-      "title": "اترك الغرفة",
-      "action": "اترك الغرفة",
-      "prompt": "هل أنت متأكد أنك تريد مغادرة #{room}؟ يمكنك الانضمام مرة أخرى في وقت لاحق.",
-      "failed": "فشل في مغادرة الغرفة"
+      "title": "مغادرة الغرفة",
+      "action": "مغادرة الغرفة",
+      "prompt": "هل أنت متأكد أنك تريد مغادرة #{room}؟",
+      "failed": "فشل في مغادرة الغرفة",
+      "join_later": "يمكنك الانضمام مرة أخرى في وقت لاحق.",
+      "need_invite": "ستحتاج إلى دعوة جديدة للانضمام إلى هذه الغرفة.",
+      "rejoin_unknown": "قد تحتاج إلى دعوة جديدة للانضمام مرة أخرى."
     },
     "directory": {
       "universal_title": "يتم ضم الغرف العامة تلقائيًا",
@@ -63,7 +66,8 @@
       "join_group_failed": "فشل في الانضمام إلى المجموعة",
       "left": "غادرت #{room}",
       "left_generic": "غادرت الغرفة",
-      "leave_confirm": "هل أنت متأكد أنك تريد مغادرة #{room}؟"
+      "leave_confirm": "هل أنت متأكد أنك تريد مغادرة #{room}؟",
+      "invited": "مدعو"
     },
     "server": {
       "remove_title": "إزالة الخادم",
@@ -101,7 +105,8 @@
         "edit": "تحرير الرسالة",
         "more": "المزيد من الإجراءات",
         "edit_short": "تعديل",
-        "copy_text": "نسخ النص",
+        "copy_text": "نسخ نص الرسالة",
+        "copy_selected_text": "نسخ النص المحدد",
         "copy_text_failed": "فشل في نسخ النص",
         "copy_link": "انسخ الرابط",
         "copy_message_link": "نسخ رابط الرسالة",
@@ -110,7 +115,8 @@
         "message_link_copied": "تم نسخ رابط الرسالة",
         "copy_link_failed": "تعذر نسخ الرابط",
         "image_copied": "تم نسخ الصورة",
-        "copy_image_failed": "تعذر نسخ الصورة"
+        "copy_image_failed": "تعذر نسخ الصورة",
+        "view_reactions": "عرض التفاعلات"
       },
       "meta": {
         "echo": "صدى",
@@ -251,7 +257,7 @@
       "unpin_prompt": "هل أنت متأكد من إزالة تثبيت هذه الرسالة؟",
       "loading": "جارٍ تحميل الرسائل المثبّتة...",
       "empty_title": "لا توجد رسائل مثبّتة",
-      "empty_description": "يمكن لمديري الغرفة تثبيت الرسائل المهمة هنا.",
+      "empty_description": "تظهر الرسائل المثبتة هنا.",
       "error_title": "الرسائل المثبّتة غير متاحة",
       "error_description": "تعذر تحميل الرسائل المثبّتة. حاول مرة أخرى بعد قليل.",
       "update_failed": "تعذر تحديث الرسالة المثبّتة"
@@ -271,6 +277,81 @@
     "jump_to_present": "انتقل إلى الحاضر",
     "jump_failed": "تعذر الانتقال إلى تلك الرسالة.",
     "unread_separator": "رسائل جديدة",
-    "close_extras": "إغلاق إضافات الغرفة"
+    "close_extras": "إغلاق إضافات الغرفة",
+    "dm": {
+      "deleted_user_notice": "تم حذف المستخدم الآخر."
+    },
+    "management": {
+      "room_name_too_long": "لا يمكن أن يتجاوز اسم الغرفة 30 حرفًا",
+      "room_name_invalid": "لا يمكن أن يحتوي اسم الغرفة على فواصل أسطر أو أحرف تحكم",
+      "create_room": "إنشاء غرفة",
+      "reorder_groups_failed": "فشل في إعادة ترتيب المجموعات: {error}",
+      "room_created": "تم إنشاء الغرفة",
+      "link_updated": "تم تحديث الرابط",
+      "link_created": "تم إنشاء الرابط",
+      "save_link_failed": "فشل في حفظ الرابط: {error}",
+      "group_deleted": "تم حذف المجموعة",
+      "delete_group_failed": "فشل في حذف المجموعة: {error}",
+      "link_deleted": "تم حذف الرابط",
+      "delete_link_failed": "فشل في حذف الرابط: {error}",
+      "room_archived": "تمت أرشفة الغرفة",
+      "archive_room_failed": "فشل في أرشفة الغرفة: {error}",
+      "drag_room": "اسحب لإعادة ترتيب الغرفة",
+      "drag_link": "اسحب لإعادة ترتيب الرابط",
+      "drag_group": "اسحب لإعادة ترتيب المجموعة",
+      "new_room": "إنشاء غرفة",
+      "new_link": "إنشاء رابط",
+      "delete_group": "حذف المجموعة",
+      "edit_link": "تعديل الرابط",
+      "delete_link": "حذف الرابط",
+      "create_link": "إنشاء رابط",
+      "label": "التسمية",
+      "url": "عنوان URL",
+      "link_url_placeholder": "https://docs.example.com أو /docs",
+      "delete_group_prompt": "هل أنت متأكد أنك تريد حذف مجموعة {name}؟",
+      "delete_link_prompt": "هل أنت متأكد أنك تريد حذف {label}؟",
+      "archive_room": "أرشفة الغرفة",
+      "archive_room_prompt": "هل أنت متأكد أنك تريد أرشفة #{room}؟ لن يتمكن الأعضاء بعد الآن من الوصول إلى هذه الغرفة.",
+      "group_created": "تم إنشاء المجموعة",
+      "create_group_failed": "فشل في إنشاء المجموعة: {error}",
+      "group_name": "اسم المجموعة",
+      "group_name_placeholder": "، على سبيل المثال، عام، المشاريع، الفرق",
+      "create_group": "إنشاء مجموعة",
+      "new_group": "مجموعة جديدة",
+      "threading_mode_required": "مطلوب",
+      "threading_mode_encouraged": "مُشجَّع",
+      "threading_mode_enabled": "مفعّل",
+      "threading_mode_disabled": "معطّل"
+    },
+    "moderation": {
+      "removing": "جار الإزالة...",
+      "remove_action": "إزالة من الغرفة",
+      "lift_title": "رفع تعليق {user}",
+      "lift": "رفع التعليق",
+      "lifting": "جار الرفع...",
+      "no_suspension": "دون تعليق — يمكنه الانضمام مجددًا",
+      "indefinite": "غير محدد المدة",
+      "remove_title": "إزالة {user} من الغرفة",
+      "suspension_period": "مدة التعليق"
+    },
+    "invitation": {
+      "invite": "دعوة عضو",
+      "invited": "لقد تمت دعوتك",
+      "sent": "تم إرسال الدعوات",
+      "expires": "تنتهي في {date}",
+      "unavailable": "لا يمكنك قبول هذه الدعوة حاليًا. لا يزال بإمكانك رفضها.",
+      "accept": "اقبل الدعوة",
+      "decline": "ارفض",
+      "title": "دعوة أعضاء إلى #{room}",
+      "description": "اختر من تريد دعوته. سيتلقى المستخدمون المدعوون إشعارًا وسيكون لديهم سبعة أيام للقبول أو الرفض.",
+      "members": "الأعضاء",
+      "send": "أرسل الدعوات",
+      "failed": "تعذرت دعوة {name}: {error}",
+      "already_member": "موجود بالفعل في هذه الغرفة",
+      "invited_by": "لقد تمت دعوتك بواسطة",
+      "decline_title": "رفض الدعوة؟",
+      "decline_join_later": "يمكنك الانضمام إلى هذه الغرفة لاحقًا.",
+      "decline_need_invite": "ستحتاج إلى دعوة جديدة للانضمام إلى هذه الغرفة."
+    }
   }
 }

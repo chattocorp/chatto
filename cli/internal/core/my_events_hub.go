@@ -9,14 +9,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -801,7 +801,7 @@ func (h *MyEventsHub) canSeeProjectionRoom(ctx context.Context, userID, roomID s
 	if kind == KindDM {
 		return h.model.core.RoomMembershipExists(ctx, kind, userID, roomID)
 	}
-	return h.model.core.CanSeeRoom(ctx, userID, kind, roomID)
+	return h.model.core.roomDirectoryReads.canSeeRoom(ctx, userID, kind, roomID)
 }
 
 func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *evtv1.Event, seq uint64, bytes int64) {
@@ -946,7 +946,7 @@ func (h *MyEventsHub) captureVisibleRooms(ctx context.Context, userID string) (m
 	return visibleRooms, nil
 }
 
-type roomVisibilitySeqs [9]uint64
+type roomVisibilitySeqs [12]uint64
 
 func (h *MyEventsHub) roomVisibilityTails(ctx context.Context) (roomVisibilitySeqs, uint64, error) {
 	filters := [...]string{
@@ -959,6 +959,9 @@ func (h *MyEventsHub) roomVisibilityTails(ctx context.Context) (roomVisibilitySe
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberRemoved),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberBanned),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberUnbanned),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomInvitationCreated),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomInvitationAccepted),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomInvitationDeclined),
 	}
 	var seqs roomVisibilitySeqs
 	var tail uint64
@@ -1041,7 +1044,7 @@ func eventChangesRoomVisibility(event *evtv1.Event) bool {
 		return false
 	}
 	switch event.Event.(type) {
-	case *evtv1.Event_RoomCreated,
+	case *evtv1.Event_RoomInvitationCreated, *evtv1.Event_RoomInvitationAccepted, *evtv1.Event_RoomInvitationDeclined, *evtv1.Event_RoomCreated,
 		*evtv1.Event_RoomDeleted,
 		*evtv1.Event_RoomArchived,
 		*evtv1.Event_RoomUnarchived,
@@ -1061,6 +1064,9 @@ func eventChangesRoomVisibility(event *evtv1.Event) bool {
 func eventChangesUserRoomVisibility(event *evtv1.Event, userID string) bool {
 	if event == nil {
 		return false
+	}
+	if _, recipient, ok := roomInvitationParticipants(event); ok {
+		return recipient == userID
 	}
 	switch payload := event.Event.(type) {
 	case *evtv1.Event_RoomCreated,

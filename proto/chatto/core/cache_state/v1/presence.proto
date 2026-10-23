@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.cache_state.v1;
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1;cachestatev1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1;cachestatev1";
 
 // UserPresenceStatus indicates a user's online presence status. An absent
 // MEMORY_CACHE record means that the user is offline.

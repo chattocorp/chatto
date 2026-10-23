@@ -1,10 +1,9 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"sync"
 	"testing"
 	"time"
@@ -12,18 +11,20 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
 )
 
 func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	t.Parallel()
 
+	// The alert worker consumes the signal concurrently. This recipient has no
+	// visible room, so the worker resolves the alert as undelivered before any
+	// handler runs. The returned occurrence is current projected state and can
+	// already contain that resolution. The immutable signal records the start
+	// state, so the pending-alert assertion reads the signal.
 	chattoCore, _ := newTestCore(t)
-	chattoCore.SetNotificationAlertHandler(func(context.Context, *notificationv1.NotificationOccurrence) error {
-		return errors.New("hold alert pending for lifecycle assertions")
-	})
 	startCoreServices(t, chattoCore)
 	ctx := testContext(t)
 	model := chattoCore.NotificationOccurrences()
@@ -51,8 +52,8 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	if created.GetId() != wantID || created.GetNotificationStreamSequence() == 0 {
 		t.Fatalf("created occurrence = %+v, want deterministic ID and stream sequence", created)
 	}
-	if created.GetAlertExpiresAt() == nil || !NotificationAlertPending(created) {
-		t.Fatalf("created delivery state = %+v, want pending alert", created)
+	if created.GetAlertExpiresAt() == nil || created.GetRead() {
+		t.Fatalf("created delivery state = %+v, want unread with an alert deadline", created)
 	}
 	storedSignal, err := chattoCore.storage.notificationStream.GetMsg(ctx, created.GetNotificationStreamSequence())
 	if err != nil {
@@ -64,6 +65,9 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	}
 	if got := signalEvent.GetSignalled(); signalEvent.GetNotificationId() != wantID || got.GetSourceEventId() != input.SourceEventID || got.GetSignal() == nil {
 		t.Fatalf("stored immutable signal = %+v", got)
+	}
+	if got := signalEvent.GetSignalled(); got.GetAlertExpiresAt() == nil || got.GetInitiallyRead() {
+		t.Fatalf("stored immutable signal = %+v, want pending alert", got)
 	}
 	duplicate, wasCreated, err := model.Create(ctx, input)
 	if err != nil || wasCreated || duplicate.GetId() != wantID {

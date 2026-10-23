@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "Neizdevās kopēt starpliktuvē. Atlasiet tekstu un kopējiet to manuāli.",
     "cancel": "Atcelt",
     "close_sidebar": "Aizvērt sānjoslu",
     "or": "vai",
@@ -21,11 +22,12 @@
     "password_placeholder": "Jūsu parole",
     "email_placeholder": "tu@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "Vismaz 8 rakstzīmes",
+    "password_bytes_placeholder": "8–72 UTF-8 baiti",
     "password_confirm_placeholder": "Ievadiet paroli vēlreiz",
     "validation": {
       "email": "Lūdzu, ievadiet derīgu e-pasta adresi",
-      "password_min": "Jābūt vismaz 8 rakstzīmēm",
+      "password_min_bytes": "Izmantojiet vismaz 8 UTF-8 baitus. Dažas rakstzīmes aizņem vairāk nekā vienu baitu.",
+      "password_max": "Izmantojiet ne vairāk kā 72 UTF-8 baitus. Dažas rakstzīmes aizņem vairāk nekā vienu baitu.",
       "username_min": "Jābūt vismaz 2 rakstzīmēm",
       "username_max": "Jābūt ne vairāk kā 32 rakstzīmēm",
       "username_charset": "Tikai burti, cipari, punkti, domuzīmes, pasvītras",
@@ -53,6 +55,11 @@
     "saved": "Saglabāts!",
     "rooms": "Istabas",
     "copy_to_clipboard": "Kopēt starpliktuvē",
-    "copied_to_clipboard": "Kopēts starpliktuvē"
+    "copied_to_clipboard": "Kopēts starpliktuvē",
+    "user_search_placeholder": "Meklēt pēc pieteikšanās vai parādāmā vārda...",
+    "no_users": "Nav atrasts neviens lietotājs",
+    "user_id": "Lietotāja ID",
+    "reason": "Iemesls",
+    "message_of_the_day": "Dienas ziņa"
   }
 }

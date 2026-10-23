@@ -93,6 +93,9 @@ variants are additive.
   `MessageService.GetMessage` for attachments, link previews, reactions, pin
   state, and thread details.
 - Edit and retraction events use `message_event_id` for their target message.
+- After a post, refresh the viewer's Slow Mode deadline from the message or
+  thread timeline response. `RoomSlowModeChangedEvent` carries the channel and
+  thread intervals; refresh room state and open thread deadlines when it changes.
 - `mentions` lists each direct user, role, here, or all target once. A direct
   target has `direct.user_id`. `includes_viewer` tells you whether the target
   included you when the message was posted. It keeps this meaning during
@@ -139,6 +142,14 @@ hints. Read the notification list again after you reconnect, and do not use
 this event as a durable bot trigger.
 
 ## Apply the exact snapshot at `E`
+
+DM room resources can include `last_message_at` and `last_root_message_at`.
+The first includes thread replies; the second includes only root posts.
+Both require broad `message.read` permission. After a snapshot, use
+`MessagePostedEvent` and its envelope `created_at` to update these values.
+Do not derive broad activity from events delivered with interaction-only
+access. Edits and retractions do not change posting activity. An absent
+timestamp does not prove inactivity; older servers can omit these fields.
 
 When the server sends `snapshot`, clear the state that it replaces. The frame
 contains these complete resource families:

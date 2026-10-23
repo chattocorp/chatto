@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Kopier romlenken",
     "show_rooms_in_group": "Vis flere rom i {group} ({count})",
     "hide_rooms_in_group": "Skjul rom du ikke har blitt med i i {group}",
     "more_rooms": "{count} flere",
@@ -27,6 +28,12 @@
     "add_to_group": "Legg til i {group}",
     "group_settings": "Innstillinger for {group}",
     "server_actions": "Handlinger for {server}",
-    "room_actions": "Handlinger for #{room}"
+    "room_actions": "Handlinger for #{room}",
+    "open_group_settings": "Åpne gruppeinnstillinger",
+    "open_room_settings": "Åpne rominnstillinger",
+    "activity_now": "nå",
+    "older_conversations": "Eldre samtaler",
+    "show_older_conversations": "Vis eldre ({count})",
+    "show_fewer_conversations": "Vis færre"
   }
 }

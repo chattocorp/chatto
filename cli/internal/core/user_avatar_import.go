@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"hmans.de/chatto/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 )
 
 const (

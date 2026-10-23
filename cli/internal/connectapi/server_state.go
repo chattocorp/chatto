@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"golang.org/x/sync/errgroup"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/parallel"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type serverService struct {
@@ -54,15 +54,11 @@ func (s *serverService) GetRuntimeConfig(ctx context.Context, _ *connect.Request
 
 func serverRuntimeConfig(api *API) *apiv1.ServerRuntimeConfig {
 	maxUploadSize := api.core.AssetsConfig().MaxUploadSize
-	maxVideoUploadSize := maxUploadSize
-	if api.config.Video.Enabled {
-		maxVideoUploadSize = int64(api.config.Video.MaxUploadSizeOrDefault())
-	}
 	runtime := &apiv1.ServerRuntimeConfig{
 		PushNotificationsEnabled: api.config.Push.IsConfigured(),
 		VideoProcessingEnabled:   api.config.Video.Enabled,
 		MaxUploadSize:            maxUploadSize,
-		MaxVideoUploadSize:       maxVideoUploadSize,
+		MaxVideoUploadSize:       maxUploadSize,
 		MessageEditWindowSeconds: int32(core.MessageEditWindow / time.Second),
 	}
 	if api.config.Push.IsConfigured() {

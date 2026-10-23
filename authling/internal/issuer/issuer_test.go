@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 )
 
 func TestProjectionRejectsOutOfOrderSigningKeyHistory(t *testing.T) {

@@ -43,6 +43,52 @@ const effective = {
 };
 
 describe('createNotificationAPI', () => {
+  it('maps an invitation to a room-only target with no fabricated message', () => {
+    const item = notificationOccurrence(
+      new NotificationOccurrence({
+        id: 'invite-notification',
+        unread: true,
+        expiresAt: Timestamp.fromDate(new Date('2026-11-01T00:00:00Z')),
+        signal: {
+          kind: {
+            case: 'roomInvitationReceived',
+            value: {
+              room: { id: 'room', name: 'Private room' },
+              invitationId: 'invitation'
+            }
+          }
+        }
+      })
+    );
+    expect(item).toMatchObject({
+      signalKind: NotificationSignalKind.ROOM_INVITATION,
+      targetSupported: true,
+      room: { id: 'room', name: 'Private room' },
+      eventId: '',
+      threadRootId: null,
+      expiresAt: '2026-11-01T00:00:00.000Z',
+      unread: true
+    });
+  });
+
+  it('maps and patches invitation preferences with ordinary scoped inheritance', async () => {
+    policies.getNotificationPolicy.mockReturnValue({
+      policy: {
+        policy: { effective: { ...effective, roomInvitations: NotificationDeliveryMode.OFF } }
+      }
+    });
+    policies.updateNotificationPolicy.mockReturnValue({ policy: { policy: { effective } } });
+    const api = notificationAPI();
+    expect((await api.getNotificationPolicy()).effective.roomInvitations).toBe(
+      NotificationDeliveryMode.OFF
+    );
+    const updated = await api.updateNotificationPolicy({ roomInvitations: null }, 'room');
+    expect(updated.effective.roomInvitations).toBe(PUSH);
+    expect(receivedRequest(policies.updateNotificationPolicy)).toMatchObject({
+      updateMask: { paths: ['room_invitations'] }
+    });
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
   });

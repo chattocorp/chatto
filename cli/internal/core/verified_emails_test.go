@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 // ============================================================================
@@ -392,20 +392,16 @@ func TestConfiguredOwnerVerificationWaitsForDurableRole(t *testing.T) {
 func TestConfiguredOwnerVerificationFencesServingReplicaRBAC(t *testing.T) {
 	t.Parallel()
 
-	_, nc := testutil.StartNATS(t)
+	ns, _ := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
 		SecretKey: "configured-owner-replica-fence-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "configured-owner-replica-fence-signing-secret"},
 		Owners:    config.OwnersConfig{Emails: []string{"owner@example.com"}},
 	}
-	worker, err := NewChattoCore(ctx, nc, cfg)
-	if err != nil {
-		t.Fatalf("NewChattoCore worker: %v", err)
-	}
-	startCoreServices(t, worker)
+	worker := startReplica(t, ns, cfg)
 
-	serving, err := NewChattoCore(ctx, nc, cfg)
+	serving, err := NewChattoCore(ctx, newReplicaConn(t, ns), cfg)
 	if err != nil {
 		t.Fatalf("NewChattoCore serving: %v", err)
 	}

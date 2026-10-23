@@ -3,7 +3,7 @@ package core
 import (
 	"time"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // Compact projection records store times as Unix nanoseconds in an int64, so

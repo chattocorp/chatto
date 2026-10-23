@@ -68,6 +68,90 @@ function attentionFor(api = makeAPI()) {
 }
 
 describe('NotificationAttention', () => {
+  it.each([NotificationAttentionLevel.AMBIENT, NotificationAttentionLevel.IMPORTANT])(
+    'keeps reaction attention at level %s without activating the thread dot',
+    (attentionLevel) => {
+      const { notifications, attention } = attentionFor();
+      const reaction = {
+        ...mention('reaction'),
+        signalKind: NotificationSignalKind.REACTION,
+        threadRootId: 'thread-root',
+        reactionEmoji: '👍',
+        attentionLevel
+      };
+      const snapshot = snapshotOf([reaction]);
+      snapshot.importantUnreadCount =
+        attentionLevel === NotificationAttentionLevel.IMPORTANT ? 1 : 0;
+      notifications.replaceOccurrenceProjection(snapshot);
+
+      expect(attention.hasThreadNotification('thread-root')).toBe(false);
+      expect(attention.occurrences).toEqual([reaction]);
+      expect(attention.counts.unreadNotificationCount).toBe(1);
+      expect(attention.counts.importantUnreadNotificationCount).toBe(snapshot.importantUnreadCount);
+      expect(attention.counts.roomUnreadCounts).toEqual({ r1: 1 });
+      expect(attention.hasRoomNotification('r1')).toBe(true);
+    }
+  );
+
+  it.each([
+    NotificationSignalKind.DIRECT_MESSAGE,
+    NotificationSignalKind.ROOM_MESSAGE,
+    NotificationSignalKind.DIRECT_MENTION,
+    NotificationSignalKind.REPLY,
+    NotificationSignalKind.ROLE_MENTION,
+    NotificationSignalKind.HERE,
+    NotificationSignalKind.ALL,
+    NotificationSignalKind.FOLLOWED_THREAD,
+    NotificationSignalKind.FOLLOWED_ROOM
+  ])('activates the thread dot for an unread %s message', (signalKind) => {
+    const { notifications, attention } = attentionFor();
+    notifications.occurrences = [
+      { ...mention('message'), signalKind, threadRootId: 'thread-root' }
+    ];
+
+    expect(attention.hasThreadNotification('thread-root')).toBe(true);
+    expect(attention.hasThreadNotification('other-thread')).toBe(false);
+  });
+
+  it('ignores unsupported notification signals on a thread', () => {
+    const { notifications, attention } = attentionFor();
+    notifications.occurrences = [
+      {
+        ...mention('unsupported'),
+        signalKind: NotificationSignalKind.UNSUPPORTED,
+        threadRootId: 'thread-root'
+      }
+    ];
+
+    expect(attention.hasThreadNotification('thread-root')).toBe(false);
+  });
+
+  it('clears the thread dot when its message is read even with an unread reaction', () => {
+    const { views, notifications, attention } = attentionFor();
+    const reaction = {
+      ...mention('reaction'),
+      signalKind: NotificationSignalKind.REACTION,
+      threadRootId: 'thread-root',
+      reactionEmoji: '👍'
+    };
+    const reply = {
+      ...mention('reply'),
+      signalKind: NotificationSignalKind.REPLY,
+      threadRootId: 'thread-root'
+    };
+    notifications.occurrences = [reaction, reply];
+    expect(attention.hasThreadNotification('thread-root')).toBe(true);
+
+    const close = views.register({ roomId: 'r1', threadRootId: 'thread-root' });
+    expect(attention.hasThreadNotification('thread-root')).toBe(false);
+    close();
+    expect(attention.hasThreadNotification('thread-root')).toBe(true);
+
+    notifications.occurrences = [reaction, { ...reply, unread: false }];
+    expect(attention.hasThreadNotification('thread-root')).toBe(false);
+    expect(attention.occurrences).toEqual([reaction]);
+  });
+
   it.each(['before', 'after'])(
     'suppresses viewed thread attention when notifications arrive %s registration',
     (order) => {

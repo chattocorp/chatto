@@ -81,7 +81,8 @@
     "combobox": {
       "loading": "טוען...",
       "empty": "אין התאמות",
-      "clear": "ברור"
+      "clear": "ברור",
+      "remove": "הסר את {label}"
     },
     "expiry": {
       "24h": "24 שעות",

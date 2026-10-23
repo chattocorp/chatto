@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Kopiera rumslänk",
     "show_rooms_in_group": "Visa fler rum i {group} ({count})",
     "hide_rooms_in_group": "Dölj rum du inte har gått med i i {group}",
     "more_rooms": "{count} fler",
@@ -27,6 +28,12 @@
     "add_to_group": "Lägg till i {group}",
     "group_settings": "Inställningar för {group}",
     "server_actions": "Åtgärder för {server}",
-    "room_actions": "Åtgärder för #{room}"
+    "room_actions": "Åtgärder för #{room}",
+    "open_group_settings": "Öppna gruppinställningar",
+    "open_room_settings": "Öppna rumsinställningar",
+    "activity_now": "nu",
+    "older_conversations": "Äldre konversationer",
+    "show_older_conversations": "Visa äldre ({count})",
+    "show_fewer_conversations": "Visa färre"
   }
 }

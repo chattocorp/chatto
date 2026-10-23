@@ -3,7 +3,7 @@
 
 Room directory rendered as a responsive grid of group cards. Each card
 represents one room group from the admin-defined layout; rooms inside
-are compact rows with a join / joined / restricted indicator. The
+are compact rows with a join / joined / invited / restricted indicator. The
 header carries a "Join all" affordance when there's at least one
 joinable, non-joined room left in the group.
 
@@ -173,6 +173,7 @@ store owns only optimistic join/leave state.
 
 {#snippet roomRow(room: DirectoryRoom)}
   {@const joined = directory.isJoined(room.id)}
+  {@const invited = !!room.viewerInvitation}
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
   <!--
@@ -200,7 +201,7 @@ store owns only optimistic join/leave state.
         </div>
       </div>
     {/snippet}
-    {#if joined}
+    {#if joined || invited}
       <a href={roomHref} class="min-w-0 flex-1">
         {@render roomLabel()}
       </a>
@@ -212,7 +213,7 @@ store owns only optimistic join/leave state.
 
     <div class="flex min-w-28 shrink-0 items-center justify-center gap-1">
       {#if joined && room.isUniversal}
-        <Pill tone="action">
+        <Pill tone="action" class="inline-flex items-center gap-1">
           <span aria-hidden="true" class="iconify icon-[uil--globe]"></span>
           {m('room.directory.universal')}
         </Pill>
@@ -250,6 +251,11 @@ store owns only optimistic join/leave state.
             {/if}
           </Button>
         </div>
+      {:else if invited}
+        <Pill tone="action" class="inline-flex items-center gap-1">
+          <span aria-hidden="true" class="iconify icon-[uil--envelope-alt]"></span>
+          {m('room.directory.invited')}
+        </Pill>
       {:else if room.viewerCanJoinRoom || joining}
         <Button
           size="sm"
@@ -266,7 +272,7 @@ store owns only optimistic join/leave state.
           {/if}
         </Button>
       {:else}
-        <Pill tone="muted">
+        <Pill tone="muted" class="inline-flex items-center gap-1">
           <span aria-hidden="true" class="iconify icon-[uil--lock]"></span>
           {m('room.directory.restricted')}
         </Pill>

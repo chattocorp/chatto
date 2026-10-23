@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Meldingen",
       "subtitle": "Dit is wat er nieuw is",
-      "list_title": "Recente activiteit",
       "clear_read": "Gelezen wissen",
       "empty_title": "Geen meldingen",
       "empty_body": "Jullie zijn helemaal in beslag genomen!",
@@ -19,14 +18,15 @@
       "unread": "Ongelezen",
       "activity": "Nieuwe activiteit",
       "summary": {
-        "direct_message": "{actor} heeft je een direct bericht gestuurd.",
-        "reaction": "{actor} heeft met ‘{emoji}’ op je bericht in {channel} gereageerd.",
-        "reaction_group": "{actor} en anderen hebben met ‘{emoji}’ op je bericht in {channel} gereageerd.",
-        "reply": "{actor} heeft op je bericht geantwoord.",
-        "mention": "{actor} heeft je genoemd.",
-        "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt.",
-        "new_message": "{actor} heeft een nieuw bericht geplaatst.",
-        "activity": "{actor} heeft je een melding gestuurd."
+        "direct_message": "{actor} heeft je een direct bericht gestuurd",
+        "reaction": "{actor} heeft met {emoji} op je bericht gereageerd",
+        "reaction_group": "{actor} en anderen hebben met {emoji} op je bericht gereageerd",
+        "reply": "{actor} heeft op je bericht geantwoord",
+        "mention": "{actor} heeft je genoemd",
+        "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt",
+        "new_message": "{actor} heeft een nieuw bericht geplaatst",
+        "activity": "{actor} heeft je een melding gestuurd",
+        "room_invitation": "{actor} heeft je uitgenodigd voor een ruimte"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Gebruikersprofiel",
-      "send_message": "Bericht verzenden",
+      "send_message": "Gesprek openen",
       "view_profile": "Profiel bekijken",
       "profile_requires_direct_message": "Een direct bericht is nodig om dit profiel te bekijken.",
       "manage_bot": "Bot beheren",
       "view_in_admin": "Bekijken in serverbeheer",
       "copy_user_id": "Gebruikers-ID kopiëren"
     },
+    "server_info": {
+      "title": "Serverinformatie",
+      "details": "Servergegevens"
+    },
+    "compatibility": {
+      "title": "Compatibiliteit",
+      "view": "Compatibiliteit bekijken",
+      "limited": "Oudere serverversie",
+      "supported": "Geen bekende compatibiliteitsproblemen",
+      "affected": "Betrokken functies",
+      "requires": "Vereist {version} of nieuwer",
+      "thread_views_title": "Threadweergaven worden beperkt ondersteund",
+      "thread_views_description": "Gevolgde threads en threads die je hebt gestart, worden op deze server mogelijk niet afzonderlijk weergegeven.",
+      "independent_slow_mode_title": "Onafhankelijke langzame modus is niet beschikbaar",
+      "independent_slow_mode_description": "Deze server gebruikt één gedeelde wachttijd voor kanaalberichten en antwoorden in threads.",
+      "upgrade": "Vraag de serverbeheerder om te upgraden naar {version} of nieuwer voor volledige ondersteuning."
+    },
     "server_gutter": {
       "move_up": "Omhoog verplaatsen",
       "move_down": "Omlaag verplaatsen",
       "add_server": "Server toevoegen",
-      "log_in": "Aanmelden bij deze server",
-      "sign_out": "Afmelden bij deze server",
+      "log_in": "Aanmelden bij server",
+      "sign_out": "Afmelden bij server",
       "version": "Versie {version}",
       "unreachable": "Server onbereikbaar",
       "connection_unavailable": "Verbinding niet beschikbaar",
-      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",
+      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto {version} of nieuwer voordat deze app verbinding kan maken.",
       "compatibility_unknown": "Deze app kan de compatibiliteit niet bepalen aan de hand van de serverversie.",
       "go_to_notifications_count": {
         "one": "Ga naar {count} melding",
@@ -90,9 +107,16 @@
       "body": "Meld je aan om berichten op deze server te lezen en te versturen."
     },
     "threads": {
-      "title": "Mijn discussies",
-      "subtitle": "Discussies die je volgt",
-      "list_title": "Gevolgde discussies",
+      "sort_label": "Threads sorteren",
+      "sort_activity": "Activiteit",
+      "sort_created": "Leeftijd",
+      "tab_started": "Van mij",
+      "tab_followed": "Gevolgd",
+      "tab_label": "Threadweergave",
+      "empty_mine_title": "Geen door jou gestarte threads",
+      "empty_mine_body": "Threads die je start en volgt, verschijnen hier.",
+      "title": "Discussies",
+      "subtitle": "Nieuwe activiteit in je discussies",
       "filter_label": "Discussies filteren",
       "filter_all": "Allemaal",
       "filter_unread": "Ongelezen",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Eigenaar",
       "open_card": "Profielkaart van {name} openen"
+    },
+    "management_nav": {
+      "general": "Algemeen",
+      "neighbors": "Buren",
+      "members": "Leden",
+      "rooms": "Kamers",
+      "moderation": "Moderatie",
+      "permissions": "Rechten",
+      "security": "Beveiliging",
+      "event_log": "Gebeurtenislogboek",
+      "system": "Systeem",
+      "back_to_server": "Terug naar de server",
+      "invitations": "Uitnodigingslinks"
     }
   }
 }

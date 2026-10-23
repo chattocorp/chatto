@@ -11,10 +11,10 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 const (
@@ -309,7 +309,7 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	}
 
 	if attempt.roomSeq > 0 {
-		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
+		if err := c.roomModel.waitForPostingState(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
 			return messageAppendAttempt{}, fmt.Errorf("wait for room mutation projections: %w", err)
 		}
 	}
@@ -391,9 +391,13 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 				Subject: messageSubject,
 				Event:   messageEvent,
 			},
-			{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent},
-			{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent},
 		}
+		// Historical roots establish a thread without following it.
+		if threadFollowedEvent != nil {
+			entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent})
+		}
+		threadIndex := len(entries)
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent})
 		baseEntries := len(entries)
 		entries, err = c.prepareMessageAssetBatchEntries(ctx, entries, assetAttachedEvents, processingEvents)
 		if err != nil {
@@ -402,7 +406,7 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			messageSeq := seqs[1]
-			position := events.SubjectPosition(agg.SubjectFor(threadCreatedEvent), seqs[3])
+			position := events.SubjectPosition(agg.SubjectFor(threadCreatedEvent), seqs[threadIndex])
 			if err := c.roomModel.waitForTimeline(ctx, position); err != nil {
 				return messageSeq, err
 			}
@@ -936,10 +940,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		// We check the reply count (already updated above): if 1, this is the first reply.
 		// On subsequent replies, we don't re-add the root author — they can unfollow freely.
 		if rootAuthorID != "" && rootAuthorID != user_id {
-			threadMeta, err := c.GetThreadMetadata(ctx, kind, room_id, inThread)
-			if err != nil {
-				c.logger.Warn("Failed to get thread metadata for root author auto-follow", "error", err, "thread_root_event_id", inThread)
-			} else if threadMeta.ReplyCount == 1 {
+			if c.GetThreadMetadata(inThread).ReplyCount == 1 {
 				if _, err := c.FollowThreadIfNeverSet(ctx, kind, rootAuthorID, room_id, inThread, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR); err != nil {
 					c.logger.Warn("Failed to auto-follow thread for root author", "error", err, "thread_root_event_id", inThread)
 				}

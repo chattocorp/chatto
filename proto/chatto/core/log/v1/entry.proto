@@ -1,7 +1,7 @@
 syntax = "proto3";
 package chatto.core.log.v1;
 import "google/protobuf/timestamp.proto";
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/log/v1;logv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1;logv1";
 
 // Retained operational record. These records are not domain or recovery state.
 message Entry {

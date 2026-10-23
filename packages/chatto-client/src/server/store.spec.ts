@@ -1,3 +1,4 @@
+import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { resetUserStoresForTests } from './users.js';
 import { userProfileFixture } from '../testing/userProfile.js';
@@ -9,7 +10,11 @@ import type { RoomFileItem } from '../api/attachments.js';
 import type { MemberDirectoryPage } from '../api/memberDirectory.js';
 import { createRoomTimelineAPI } from '../api/roomTimeline.js';
 import type { MessageResource } from '../api/messageResources.js';
-import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
+import {
+  Message,
+  MessageAttachment,
+  ThreadSummary
+} from '@chatto/api-types/api/v1/message_types_pb';
 import { messageToTimelineEvent } from '../api/roomTimeline.js';
 import { TimelineEventKind, type TimelineEventView } from '../timeline/timelineEvents.js';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
@@ -64,7 +69,13 @@ import {
   NotificationOccurrencesChangedEvent,
   ThreadViewerStateChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  RealtimeEvent,
+  RealtimeServerFrame,
+  RealtimeCaughtUp,
+  RealtimeRecovery,
+  RealtimeSubscribe
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RoomAccessLoss } from './storeEvents.js';
 import { effect, effectRoot } from '../reactivity/index.js';
 const { apiMocks, eventMocks } = vi.hoisted(() => ({
@@ -355,7 +366,7 @@ class FakeServerConnection {
     };
   }
   setRealtimeConnectionStatus = vi.fn();
-  registerRealtimeReconnect = vi.fn(() => () => {});
+  registerRealtimeReconnect = vi.fn<ServerConnection['registerRealtimeReconnect']>(() => () => {});
   handleAuthenticationRequired = vi.fn();
   forceReconnect = vi.fn();
   query = vi.fn();
@@ -639,6 +650,56 @@ describe('ServerStateStore disposal', () => {
     expect(() => store.dispose()).not.toThrow();
     expect(reset).toHaveBeenCalled();
     expect(logged).toHaveBeenCalled();
+  });
+});
+
+describe('ServerStateStore invitation expiry', () => {
+  it('refreshes room and group visibility when an idle invitation expires', async () => {
+    vi.useFakeTimers();
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        resource: roomResource([
+          new RoomWithViewerState({
+            room: { id: 'invited' },
+            viewerState: {
+              isMember: false,
+              invitation: {
+                id: 'invitation',
+                expiresAt: Timestamp.fromDate(new Date(Date.now() + 5000))
+              }
+            }
+          })
+        ])
+      })
+    );
+    const notification = {
+      id: 'notification',
+      signalKind: 'roomInvitationReceived' as const,
+      invitationId: 'invitation',
+      room: { id: 'invited', name: 'Room' }
+    } as import('../api/notifications.js').NotificationOccurrenceItem;
+    expect(store.notifications.canDisplayOccurrence(notification)).toBe(true);
+    expect(
+      store.notifications.canDisplayOccurrence({
+        ...notification,
+        signalKind: 'roomMessageReceived'
+      })
+    ).toBe(false);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toContain(
+      'notifications'
+    );
+    apiMocks.readRealtimeResource.mockClear();
+    await vi.advanceTimersByTimeAsync(4899);
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(101);
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
+      'rooms',
+      'roomGroups'
+    ]);
+    expect(store.notifications.canDisplayOccurrence(notification)).toBe(false);
+    store.dispose();
   });
 });
 
@@ -1258,6 +1319,39 @@ describe('ServerStateStore privileged mode', () => {
     expect(reloadChanged).toHaveBeenCalledOnce();
     expect(reloadChanged).toHaveBeenCalledWith('privilege-cursor', expect.any(Function));
     expect(reloadUnchanged).not.toHaveBeenCalled();
+  });
+
+  it('refreshes thread cooldowns after an exemption is lost without clearing readable messages', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = (bypass: boolean) =>
+      new RoomWithViewerState({
+        room: { id: 'R1', slowModeSeconds: 30, threadSlowModeSeconds: 60 },
+        viewerState: {
+          isMember: true,
+          permissions: [
+            { permission: 'message.read', granted: true },
+            { permission: 'message.post', granted: true },
+            { permission: 'room.manage', granted: bypass }
+          ]
+        }
+      });
+    store.projection.rooms.set('R1', room(true));
+    const thread = store.rooms.thread('R1', 'ROOT');
+    await flushPromises();
+    const clear = vi.spyOn(thread, 'clearForAccessRevocation');
+    const refresh = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: true
+    });
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'rooms' ? [roomResource([room(false)])] : []
+    );
+    const generation = store.realtimeSync.invalidateAuthorization();
+    await store.completeRealtimeCatchUp('privilege-cursor', generation);
+    expect(refresh).toHaveBeenCalledWith(null, false, 'privilege-cursor', expect.any(Function));
+    expect(clear).not.toHaveBeenCalled();
   });
 
   it('uses full current-value recovery when a snapshot replaces a privilege resume', async () => {
@@ -3035,6 +3129,166 @@ describe('ServerStateStore unified realtime resources', () => {
     await expect(completion).rejects.toBe(failure);
   });
 
+  it.each(['before replacement', 'after replacement'] as const)(
+    'retains the cursor when a shared read fails %s, then repairs the thread on replay',
+    async (failureTiming) => {
+      vi.useFakeTimers();
+      type Socket = ReturnType<NonNullable<Parameters<typeof setRealtimeSocketFactoryForTests>[0]>>;
+      const sockets: Socket[] = [];
+      setRealtimeSocketFactoryForTests(() => {
+        const socket: Socket = {
+          binaryType: 'arraybuffer',
+          readyState: 1,
+          onopen: null,
+          onmessage: null,
+          onerror: null,
+          onclose: null,
+          send: vi.fn(),
+          close: vi.fn((code, reason) => socket.onclose?.({ code, reason }))
+        };
+        sockets.push(socket);
+        return socket;
+      });
+      const receive = async (socket: Socket, frame: RealtimeServerFrame['frame']) => {
+        socket.onmessage?.({ data: new RealtimeServerFrame({ frame }).toBinary() });
+        await flushPromises(30);
+      };
+      const fake = new FakeServerConnection([]);
+      const store = makeStore(fake);
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          resource: roomResource([
+            new RoomWithViewerState({
+              room: { id: 'R1', name: 'Room' },
+              viewerState: {
+                isMember: true,
+                permissions: [{ permission: 'message.read', granted: true }]
+              }
+            })
+          ])
+        })
+      );
+      const messages = store.rooms.messages('R1');
+      await flushPromises(20);
+      const root = new Message({ id: 'ROOT', roomId: 'R1', body: 'Root message' });
+      const initialRoot = messageToTimelineEvent(root, {});
+      expect(initialRoot).not.toBeNull();
+      messages.ingestEvent(initialRoot!);
+      const pending = deferred<MessageResource[]>();
+      apiMocks.readMessages.mockReturnValueOnce(pending.promise);
+      const sync = store.realtimeSync;
+      sync.markCaughtUp('before-thread');
+      const controller = eventBusManager.ensureBus({
+        serverId: store.serverId,
+        connection: fake as unknown as ServerConnection,
+        projectionSupported: true,
+        sync,
+        projectionHandler: store.realtimeProjectionHandler,
+        waitForProjectionReconciliation: () => store.waitForRealtimeReconciliation(),
+        completeProjectionCatchUp: (cursor) => store.completeRealtimeCatchUp(cursor)
+      });
+      const event = new RealtimeEvent({
+        id: 'REPLY',
+        cursor: 'after-thread',
+        event: {
+          case: 'messagePosted',
+          value: new MessagePostedEvent({ roomId: 'R1', threadRootEventId: 'ROOT' })
+        }
+      });
+      controller.setMode('live');
+      sockets[0].onopen?.();
+      await receive(sockets[0], { case: 'event', value: event });
+      await vi.advanceTimersByTimeAsync(10);
+      expect(apiMocks.readMessages).toHaveBeenCalledTimes(1);
+
+      fake.registerRealtimeReconnect.mock.calls[0][0]('tab wake');
+      if (failureTiming === 'before replacement') {
+        pending.reject(new Error('message read failed during wake'));
+        await flushPromises(30);
+        expect(sockets).toHaveLength(1);
+      }
+      await vi.advanceTimersByTimeAsync(0);
+      sockets[1].onopen?.();
+      await receive(sockets[1], { case: 'event', value: event });
+      if (failureTiming === 'after replacement') {
+        pending.reject(new Error('message read failed during wake'));
+      } else {
+        await vi.advanceTimersByTimeAsync(10);
+      }
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(sockets[1].close).toHaveBeenCalledWith(4000, 'resource reconciliation failed');
+      expect(sync.resumeCursor).toBe('before-thread');
+      expect(sync.phase).toBe('stale');
+
+      root.thread = new ThreadSummary({ threadRootEventId: 'ROOT', replyCount: 1 });
+      apiMocks.readMessages.mockResolvedValue([
+        { message: root, timeline: messageToTimelineEvent(root, {}) }
+      ]);
+      await vi.advanceTimersByTimeAsync(1);
+      sockets[2].onopen?.();
+      expect(
+        RealtimeSubscribe.fromBinary(vi.mocked(sockets[2].send).mock.calls[0][0]).resumeCursor
+      ).toBe('before-thread');
+      await receive(sockets[2], { case: 'event', value: event });
+      await vi.advanceTimersByTimeAsync(10);
+      await receive(sockets[2], {
+        case: 'caughtUp',
+        value: new RealtimeCaughtUp({ cursor: 'after-thread', recovery: RealtimeRecovery.RESUMED })
+      });
+      expect(messages.getEventById('ROOT')?.event).toMatchObject({
+        threadExists: true,
+        replyCount: 1
+      });
+      expect(sync.resumeCursor).toBe('after-thread');
+      expect(sync.phase).toBe('ready');
+      expect(fake.setRealtimeConnectionStatus).toHaveBeenLastCalledWith('connected');
+    }
+  );
+
+  it.each(['full', 'privileged'] as const)(
+    'keeps errors for the new transport when an old %s catch-up finishes its auxiliary reads',
+    async (kind) => {
+      vi.useFakeTimers();
+      const store = makeStore(new FakeServerConnection([]));
+      store.rooms.messages('R1');
+      await flushPromises(20);
+      const auxiliaryRead = deferred<RealtimeResourceUpdate[]>();
+      const messageRead = deferred<MessageResource[]>();
+      apiMocks.readRealtimeResource.mockImplementation((family) =>
+        family === 'rooms' ? auxiliaryRead.promise : Promise.resolve([])
+      );
+      apiMocks.readMessages.mockReturnValueOnce(messageRead.promise);
+      const sync = store.realtimeSync;
+      sync.beginCatchUp();
+      const authorizationGeneration =
+        kind === 'privileged' ? sync.invalidateAuthorization() : undefined;
+      const oldCatchUp = store.completeRealtimeCatchUp('before', authorizationGeneration);
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          cursor: 'after',
+          event: new RealtimeEvent({
+            event: {
+              case: 'messageEdited',
+              value: new MessageEditedEvent({ roomId: 'R1', messageEventId: 'ROOT' })
+            }
+          })
+        })
+      );
+      await vi.advanceTimersByTimeAsync(10);
+      expect(apiMocks.readMessages).toHaveBeenCalledOnce();
+
+      sync.beginCatchUp();
+      const failure = new Error('shared message read failed');
+      messageRead.reject(failure);
+      await vi.advanceTimersByTimeAsync(0);
+      auxiliaryRead.resolve([]);
+      await oldCatchUp;
+
+      await expect(store.waitForRealtimeReconciliation()).rejects.toBe(failure);
+    }
+  );
+
   it('waits for cursorless window reads and shared message reads without auxiliary RPCs', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.rooms.messages('R1');
@@ -3439,6 +3693,38 @@ describe('ServerStateStore unified realtime resources', () => {
       'E-THREADING-MODE',
       false,
       undefined,
+      expect.any(Function)
+    );
+  });
+
+  it('refreshes independent thread deadlines without using the settings event as a message anchor', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.rooms.messages('R1');
+    const thread = store.rooms.thread('R1', 'ROOT');
+    const result = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
+    const refreshRoom = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue(result);
+    const refreshThread = vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue(result);
+    await flushPromises();
+    refreshRoom.mockClear();
+    refreshThread.mockClear();
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'settings-cursor',
+        event: new RealtimeEvent({
+          id: 'SETTINGS',
+          event: {
+            case: 'roomSlowModeChanged',
+            value: { roomId: 'R1', slowModeSeconds: 30, threadSlowModeSeconds: 0 }
+          }
+        })
+      })
+    );
+    await flushPromises();
+    expect(refreshRoom).toHaveBeenCalledWith(null, false, 'settings-cursor', expect.any(Function));
+    expect(refreshThread).toHaveBeenCalledWith(
+      null,
+      false,
+      'settings-cursor',
       expect.any(Function)
     );
   });
@@ -4056,13 +4342,97 @@ describe('ServerStateStore boundary events', () => {
 });
 
 describe('ServerStateStore realtime resource hints', () => {
+  it.each(['join', 'universal', 'rejoin'] as const)(
+    'discovers an existing call after gaining room membership through %s',
+    async (transition) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const room = new Room({ id: 'R1', kind: RoomKind.CHANNEL });
+      const call = new ActiveCall({
+        room,
+        callId: 'existing-call',
+        participants: [new CallParticipant({ user: new User({ id: 'U2' }) })]
+      });
+      let isMember = transition === 'rejoin';
+      const rooms = () =>
+        roomResource([
+          new RoomWithViewerState({ room, viewerState: new RoomViewerState({ isMember }) })
+        ]);
+      store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ resource: rooms() }));
+      apiMocks.readRealtimeResource.mockImplementation(async (family) => {
+        if (family === 'rooms') return [rooms()];
+        if (family === 'activeCalls')
+          return [
+            new RealtimeResourceUpdate({
+              resource: {
+                case: 'activeCalls',
+                value: new ListActiveCallsResponse({ calls: [call] })
+              }
+            })
+          ];
+        return [];
+      });
+      if (transition === 'rejoin') {
+        store.projection.activeCalls = [call];
+        isMember = false;
+        store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
+        await store.waitForRealtimeReconciliation();
+      }
+      expect(store.projection.activeCalls).toEqual([]);
+      isMember = true;
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          cursor: 'membership-cursor',
+          event: new RealtimeEvent({
+            actorId: transition === 'universal' ? 'U2' : 'U1',
+            event:
+              transition === 'universal'
+                ? { case: 'roomUniversalChanged', value: { roomId: 'R1', universal: true } }
+                : { case: 'userJoinedRoom', value: { roomId: 'R1' } }
+          })
+        })
+      );
+      await store.waitForRealtimeReconciliation();
+      expect(store.projection.activeCalls).toEqual([call]);
+      expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
+        'activeCalls',
+        'membership-cursor'
+      );
+    }
+  );
+
+  it('keeps the current call when another user joins the room', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const call = new ActiveCall({
+      room: new Room({ id: 'R1' }),
+      callId: 'existing-call',
+      participants: [new CallParticipant({ user: new User({ id: 'U3' }) })]
+    });
+    store.projection.activeCalls = [call];
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          actorId: 'U2',
+          event: { case: 'userJoinedRoom', value: { roomId: 'R1' } }
+        })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    expect(store.projection.activeCalls).toEqual([call]);
+    expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).not.toContain(
+      'activeCalls'
+    );
+  });
+
   it.each([
     ['voiceCallParticipantJoined', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallParticipantLeft', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallStarted', { roomId: 'R1' }, ['activeCalls']],
     ['voiceCallEnded', { roomId: 'R1' }, ['activeCalls']],
     ['roomCreated', { roomId: 'R1' }, ['rooms', 'roomGroups']],
-    ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups', 'activeCalls']],
+    ['roomInvitationCreated', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
+    ['roomInvitationAccepted', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
+    ['roomInvitationDeclined', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
     ['roomThreadingModeChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomDeleted', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomLayoutChanged', {}, ['roomGroups']],

@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 // setupCore spins up an in-process NATS server + ChattoCore for cmd-layer tests.

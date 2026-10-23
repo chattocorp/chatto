@@ -4,29 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/embedded_nats"
+	"github.com/chattocorp/chatto/cli/internal/exporter"
+	"github.com/chattocorp/chatto/cli/internal/http_server"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/push"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
+	searchbleve "github.com/chattocorp/chatto/cli/internal/search/bleve"
+	"github.com/chattocorp/chatto/cli/internal/video"
+	"github.com/chattocorp/chatto/pkg/natsruntime"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/embedded_nats"
-	"hmans.de/chatto/internal/exporter"
-	"hmans.de/chatto/internal/http_server"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/push"
-	"hmans.de/chatto/internal/runtimeunit"
-	searchbleve "hmans.de/chatto/internal/search/bleve"
-	"hmans.de/chatto/internal/video"
-	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
@@ -102,6 +103,9 @@ func runServer(configPath string) {
 	}
 
 	configureLogging(cfg.General)
+	if cfg.Video.MaxUploadSize > 0 {
+		log.Warn("video.max_upload_size / CHATTO_VIDEO_MAX_UPLOAD_SIZE is deprecated; the larger upload limit now applies to all files. Set core.assets.max_upload_size / CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE and remove the video size setting")
+	}
 	log.Info("Starting Chatto", "version", Version)
 	if shouldPrintBanner(cfg.General.LogFormat, isLogOutputTerminal()) {
 		printBanner()
@@ -183,12 +187,9 @@ func runServer(configPath string) {
 		exitCode = 1
 		return
 	}
-	// Set video upload limit if video processing is enabled
-	if cfg.Video.Enabled {
-		chattoCore.VideoMaxUploadSize = int64(cfg.Video.MaxUploadSizeOrDefault())
-		chattoCore.VideoUploadsEnabled = true
-	}
+	chattoCore.VideoUploadsEnabled = cfg.Video.Enabled
 
+	chattoCore.ConfigureLiveKitDiagnostics(cfg.LiveKit, cfg.Webserver.URL)
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
 		log.Error("Failed to configure LiveKit call-state reconciliation", "error", err)
 		exitCode = 1
@@ -264,7 +265,7 @@ func runServer(configPath string) {
 	}
 
 	// Create and run HTTP server
-	addr := fmt.Sprintf(":%d", cfg.Webserver.EffectivePort())
+	addr := net.JoinHostPort(cfg.Webserver.BindAddress, fmt.Sprint(cfg.Webserver.EffectivePort()))
 	httpServer, err := http_server.NewHTTPServer(http_server.HTTPServerConfig{
 		Config:           cfg,
 		NC:               nc,
@@ -474,7 +475,7 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
 			return core.ErrUnsupportedNotificationSignal
 		}
-		if core.NotificationOccurrenceMessageReference(occurrence) == nil {
+		if core.NotificationOccurrenceRoomID(occurrence) == "" {
 			return core.ErrNotificationAlertSuppressed
 		}
 		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, occurrence.GetRecipientId())
@@ -592,6 +593,13 @@ func filterOwnedPushSubscriptions(
 // fetchOccurrencePayloadContext builds a best-effort message preview and room
 // name for an occurrence-backed push payload.
 func fetchOccurrencePayloadContext(ctx context.Context, chattoCore *core.ChattoCore, occurrence *notificationv1.NotificationOccurrence, logger *log.Logger) *push.PayloadContext {
+	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
+		room, err := chattoCore.FindRoomByID(ctx, invitation.GetRoomId())
+		if err != nil {
+			return nil
+		}
+		return &push.PayloadContext{RoomName: room.GetName()}
+	}
 	target := core.NotificationOccurrenceMessageReference(occurrence)
 	if target == nil {
 		return nil

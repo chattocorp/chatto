@@ -5,10 +5,10 @@ Server-local message search. Query text and hydrated results remain transient
 in the active server store so browser Back can restore the current search.
 -->
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import {
     Panel,
     Hint,
@@ -22,12 +22,11 @@ in the active server store so browser Back can restore the current search.
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import type { MessageSearchResult } from '@chatto/client/api/messageSearch';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
-  import { serverIdToSegment } from '$lib/navigation';
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import SearchResults from '$lib/components/search/SearchResults.svelte';
-  import { buildMessageLinkPath } from '$lib/messageLinks';
+  import { buildMessageLinkPath } from '$lib/chatLinks';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
@@ -73,7 +72,6 @@ in the active server store so browser Back can restore the current search.
   }
 
   function navigateToResult(result: MessageSearchResult): void {
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route
     void goto(buildMessageLinkPath(serverId, result.roomId, result.id, result.threadRootEventId));
   }
 </script>
@@ -139,10 +137,7 @@ in the active server store so browser Back can restore the current search.
                   {#snippet headerMeta()}
                     <a
                       class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                      href={resolve('/chat/[serverId]/[roomId]', {
-                        serverId: serverIdToSegment(serverId),
-                        roomId: result.roomId
-                      })}
+                      href={conversationPath(serverId, result.roomId, { store: serverScope.store })}
                     >
                       {#if result.roomKind === RoomKind.DM}
                         {m('room.title.direct_message')}
@@ -152,7 +147,6 @@ in the active server store so browser Back can restore the current search.
                     </a>
                     {#if result.createdAt}
                       <span class="text-xs text-muted" aria-hidden="true">·</span>
-                      <!-- eslint-disable svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route -->
                       <a
                         class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
                         href={buildMessageLinkPath(
@@ -164,7 +158,6 @@ in the active server store so browser Back can restore the current search.
                       >
                         <time datetime={result.createdAt}>{formatTimestamp(result.createdAt)}</time>
                       </a>
-                      <!-- eslint-enable svelte/no-navigation-without-resolve -->
                     {/if}
                   {/snippet}
                 </SearchResult>

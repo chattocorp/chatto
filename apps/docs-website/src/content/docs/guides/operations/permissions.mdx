@@ -52,8 +52,8 @@ roles does not change which setting wins.
 | Role | Defaults on a new server (Server scope) |
 | ---- | --------------------------------------- |
 | `everyone` | `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, `message.echo`, all `call.*` permissions, `user.delete-self` |
-| `moderator` | `message.manage`, `room.remove-member` |
-| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
+| `moderator` | `message.manage`, `message.pin`, `room.remove-member` |
+| `admin` | `server.manage`, `room.create`, `room.manage`, `room.remove-member`, `message.manage`, `message.pin`, `role.manage`, `role.assign`, `admin.view-users`, `admin.view-audit`, `user.invite`, `user.manage-accounts`, `user.manage-permissions`, `user.delete-any`, `bot.create`, `bot.manage` |
 | `owner` | Every permission while privileged mode is active. You cannot edit these settings. |
 
 Moderators and admins get their member permissions from `everyone`. A new
@@ -120,6 +120,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `message.attach` | All | | Attach files to new messages. |
 | `message.react` | All | | Add and remove reactions. |
 | `message.echo` | All | | Echo a thread reply to the room. |
+| `message.pin` | Server, Room group, Room | | Pin and unpin channel messages. Pinning also requires read access to the message. |
 | `message.manage` | All | Yes | Edit or delete messages from other accounts. Remove a thread reply's room echo through the edit checkbox. Adding an echo remains author-only. |
 | `call.start` | All | | Start a call. Also needs `call.join`. |
 | `call.join` | All | | Join a call, also as a listener. |
@@ -267,3 +268,25 @@ Make these changes on an upgraded server:
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
+
+## Room invitations
+
+Grant `room.invite` to let members invite other human server members to their
+rooms. You can grant it for the server, a room group, or one room. Fresh servers
+grant it to the admin role only. On an existing server, grant it explicitly.
+
+To send invitations, open the room menu and select **Invite member**. Select
+one or more members in the dialog. You can remove a selected member before
+you send.
+
+The recipient sees the invited room in its sidebar group. Opening the room
+shows who sent the invitation and when it expires. The recipient has seven days
+to accept or decline. Acceptance bypasses `room.join`, but does not grant
+message or call permissions. The sender must still be a member with
+`room.invite` when the recipient accepts.
+
+Invitations use Push notification by default, subject to device permission and
+Do Not Disturb. Recipients can change the **Room invitations** setting to
+Notification, Badge, or Off. The notification opens the room. Reading or
+deleting it does not respond to the invitation. It disappears after acceptance,
+decline, or expiry.

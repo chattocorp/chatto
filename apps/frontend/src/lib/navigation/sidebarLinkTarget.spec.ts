@@ -1,27 +1,94 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeSidebarLinkURL, sidebarLinkTarget } from './sidebarLinkTarget';
 
+const { registeredURLs } = vi.hoisted(() => ({ registeredURLs: [] as string[] }));
+
+vi.mock('$lib/client', async () => ({
+  ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+  serverRegistry: {
+    isOriginServer: () => false,
+    getServer: (id: string) => ({ id, url: id }),
+    get servers() {
+      return registeredURLs.map((url) => ({ id: url, url }));
+    }
+  }
+}));
+
+beforeEach(() => {
+  vi.stubGlobal('window', { location: { origin: 'https://frontend.example.test' } });
+  registeredURLs.splice(
+    0,
+    registeredURLs.length,
+    'https://remote.example.test',
+    'http://localhost:4000'
+  );
+});
+afterEach(() => vi.unstubAllGlobals());
+
 describe('sidebarLinkTarget', () => {
-  it('resolves server-local paths against the active server base URL', () => {
-    expect(sidebarLinkTarget('/docs', 'https://remote.example.test')).toEqual({
+  it.each(['https://remote.example.test/docs', 'http://remote.example.test:8080/docs'])(
+    'opens non-chat paths externally even on a registered hostname: %s',
+    (url) => {
+      expect(sidebarLinkTarget(url, 'https://active.example.test')).toEqual({
+        valid: true,
+        href: url,
+        target: '_blank',
+        rel: 'noopener noreferrer'
+      });
+    }
+  );
+
+  it('requires registration even when the hostname matches the active server URL', () => {
+    expect(
+      sidebarLinkTarget('https://unknown.example.test/docs', 'https://unknown.example.test')
+    ).toMatchObject({ target: '_blank', rel: 'noopener noreferrer' });
+  });
+
+  it('uses the current catalogue and ignores invalid server URLs', () => {
+    registeredURLs.unshift('not a URL');
+    const url = 'https://remote.example.test/chat/-/R123456789abcde';
+    expect(sidebarLinkTarget(url, null)).toEqual({
       valid: true,
-      href: 'https://remote.example.test/docs'
+      href: '/chat/remote.example.test/R123456789abcde'
+    });
+    registeredURLs.splice(0);
+    expect(sidebarLinkTarget(url, null)).toMatchObject({
+      target: '_blank'
     });
   });
 
-  it('opens absolute URLs on the active server host in the same tab', () => {
+  it('rewrites server-local conversation paths for the active remote server', () => {
+    expect(sidebarLinkTarget('/chat/-/R123456789abcde', 'https://remote.example.test')).toEqual({
+      valid: true,
+      href: '/chat/remote.example.test/R123456789abcde'
+    });
+  });
+  it('resolves server-local paths against the active server base URL', () => {
+    expect(sidebarLinkTarget('/docs', 'https://remote.example.test')).toEqual({
+      valid: true,
+      href: 'https://remote.example.test/docs',
+      target: '_blank',
+      rel: 'noopener noreferrer'
+    });
+  });
+
+  it('opens non-chat URLs on the active server externally', () => {
     expect(
       sidebarLinkTarget('https://remote.example.test/docs', 'https://remote.example.test')
     ).toEqual({
       valid: true,
-      href: 'https://remote.example.test/docs'
+      href: 'https://remote.example.test/docs',
+      target: '_blank',
+      rel: 'noopener noreferrer'
     });
   });
 
-  it('compares hosts with ports intact', () => {
+  it('keeps non-chat links external on every port', () => {
     expect(sidebarLinkTarget('http://localhost:4000/docs', 'http://localhost:4000')).toEqual({
       valid: true,
-      href: 'http://localhost:4000/docs'
+      href: 'http://localhost:4000/docs',
+      target: '_blank',
+      rel: 'noopener noreferrer'
     });
     expect(sidebarLinkTarget('http://localhost:4001/docs', 'http://localhost:4000')).toEqual({
       valid: true,

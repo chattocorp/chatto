@@ -484,8 +484,8 @@ const file_chatto_api_v1_attachments_proto_rawDesc = "" +
 	"\x06assets\x18\x01 \x03(\v2\x14.chatto.api.v1.AssetR\x06assets2\xba\x01\n" +
 	"\fAssetService\x12K\n" +
 	"\bGetAsset\x12\x1e.chatto.api.v1.GetAssetRequest\x1a\x1f.chatto.api.v1.GetAssetResponse\x12]\n" +
-	"\x0eBatchGetAssets\x12$.chatto.api.v1.BatchGetAssetsRequest\x1a%.chatto.api.v1.BatchGetAssetsResponseB\xac\x01\n" +
-	"\x11com.chatto.api.v1B\x10AttachmentsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\x0eBatchGetAssets\x12$.chatto.api.v1.BatchGetAssetsRequest\x1a%.chatto.api.v1.BatchGetAssetsResponseB\xbd\x01\n" +
+	"\x11com.chatto.api.v1B\x10AttachmentsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_attachments_proto_rawDescOnce sync.Once

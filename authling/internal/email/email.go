@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/chattocorp/chatto/authling/internal/config"
 	mail "github.com/wneessen/go-mail"
-	"hmans.de/authling/internal/config"
 )
 
 // Message is one plain-text transactional email.

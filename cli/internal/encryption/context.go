@@ -3,7 +3,7 @@ package encryption
 import (
 	"fmt"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // MessageBodyAAD returns the authenticated context for a persisted v2 message

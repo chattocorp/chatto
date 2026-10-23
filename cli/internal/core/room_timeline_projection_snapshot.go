@@ -8,11 +8,11 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/evtstream"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v9", &projectionv1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v10", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -151,8 +151,8 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.indexEventLocked(index)
 		if entry.IsMessagePost() {
 			restored.messagePostsByRoom[entry.RoomID] = append(restored.messagePostsByRoom[entry.RoomID], uint32(index))
-			if entry.EchoOfEventID == "" && !entry.HistoricalImport && entry.ActorID != "" {
-				restored.latestOriginalPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
+			if entry.InThreadEventID == "" && entry.EchoOfEventID == "" && !entry.HistoricalImport && entry.ActorID != "" {
+				restored.latestRootPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
 			}
 			if entry.EchoOfEventID != "" {
 				restored.echoLinks[entry.EchoOfEventID] = append(restored.echoLinks[entry.EchoOfEventID], entry.EventID)

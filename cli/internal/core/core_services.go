@@ -7,9 +7,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/lease"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/lease"
 )
 
 // assembleCore installs already-constructed infrastructure, projections, and
@@ -70,8 +70,9 @@ func assembleCore(
 	}
 }
 
-// initializeCoreServices attaches models and workers that require the complete
-// ChattoCore facade. It preserves the final construction phase before Run.
+// initializeCoreServices wires operation models and workers before Run. Room
+// models receive their domain owners and shared authorization model. Message
+// hydration and transient delivery retain explicit integration capabilities.
 func initializeCoreServices(
 	ctx context.Context,
 	core *ChattoCore,
@@ -116,19 +117,17 @@ func initializeCoreServices(
 		logger.WithPrefix("core.CredentialUsage"),
 		core.credentialUsageIsActive,
 	)
-	core.roomCommands = &RoomCommandModel{core: core}
-	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
-	core.messageModel = &MessageModel{core: core}
-	core.messageSearchReads = &MessageSearchReadModel{core: core}
-	core.notificationPolicy = &NotificationPolicyModel{core: core}
-	core.roomTimelineReads = &RoomTimelineReadModel{
-		core:  core,
-		rooms: core.roomModel,
-	}
-	core.readStateModel = &ReadStateModel{
-		core:  core,
-		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
-	}
+	// The resolver is constructed before room models capture it. It performs no
+	// reads until the fully assembled core starts serving operations.
+	core.permissionResolver = NewPermissionResolver(core.roomModel, core.userModel, core.rbacModel, core.contentView)
+	core.authorization = newAuthorizationModel(
+		core.roomModel, core.userModel, core.rbacModel, core.permissionResolver,
+		core.EventPublisher, core.contentView, core,
+	)
+	// The owner models below take the notification models as constructor
+	// arguments, so they are constructed first. The occurrence model and the
+	// materializer only capture core here. Alert delivery reads the
+	// materializer, so it must follow it.
 	core.notificationBoundaries = newNotificationBoundaryIndex(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.NotificationBoundaryIndex"),
@@ -143,6 +142,38 @@ func initializeCoreServices(
 	)
 	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationDecisions)
 	core.notificationAlertDelivery = newNotificationAlertDelivery(core)
+	// Owner models receive every collaborator through their constructors, in
+	// dependency order. None of them is assigned a dependency later.
+	core.readStateModel = newReadStateModel(
+		NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
+		core.roomModel, core.authorization, core, core.notificationOccurrences, core.logger,
+	)
+	core.roomMemberships = newRoomMembershipModel(
+		core.roomModel, core.userModel, core.EventPublisher, core.authorization,
+		core.readStateModel, core.callModel, core.notificationMaterializer, core.logger,
+	)
+	core.roomLayout = newRoomLayoutModel(core.roomModel, core.EventPublisher, core.authorization, core.logger)
+	core.roomCommands = newRoomCommandModel(
+		core.roomModel, core.permissionResolver, infra.eventPublisher, core.userModel,
+		core.rbacModel, core.readStateModel, core.authorization, core.roomMemberships,
+		core, core.logger,
+	)
+	core.messageModel = &MessageModel{core: core}
+	core.roomInvitations = &RoomInvitationModel{core: core, projection: projections.roomInvitations}
+	core.roomDirectoryReads = newRoomDirectoryReadModel(
+		core.roomModel, core.permissionResolver, core.messageModel,
+		core.authorization, core.roomMemberships, core.readStateModel, core.roomInvitations,
+	)
+	core.notificationPolicy = &NotificationPolicyModel{core: core}
+	core.roomTimelineReads = newRoomTimelineReadModel(core, core.roomModel)
+	core.threadFollows = newThreadFollowModel(
+		core.roomModel, core.readStateModel, core.EventPublisher, core.authorization,
+		core, core.notificationMaterializer, core.logger,
+	)
+	core.messageSearchReads = newMessageSearchReadModel(
+		core.roomModel, core.userModel, core.roomMemberships, core.authorization,
+		core.roomTimelineReads, core.threadFollows,
+	)
 	core.botWebhooks = newBotWebhookModel(core, projections.botWebhooks)
 	if err := core.botWebhooks.initialize(ctx); err != nil {
 		return fmt.Errorf("initialize bot webhooks: %w", err)
@@ -164,7 +195,6 @@ func initializeCoreServices(
 	if err != nil {
 		return fmt.Errorf("failed to initialize push-subscription cleanup: %w", err)
 	}
-	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
 	core.keyShredding, err = newUserKeyShreddingModel(ctx, core, logger.WithPrefix("core.UserKeyShredding"))
 	if err != nil {
@@ -184,7 +214,6 @@ func initializeCoreServices(
 		return fmt.Errorf("failed to initialize notification alert delivery: %w", err)
 	}
 
-	core.permissionResolver = NewPermissionResolver(core)
 	core.linkPreviewCache = linkpreview.NewCache(infra.storage.runtimeStateKV)
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(&assetsConfig, NewAssetID, core.storeLinkPreviewImage)

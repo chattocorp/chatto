@@ -14,7 +14,7 @@ import (
 	blevequery "github.com/blevesearch/bleve/v2/search/query"
 	"google.golang.org/protobuf/proto"
 
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
 )
 
 var errInvalidCursor = fmt.Errorf("invalid search cursor")

@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Here's what's new",
-      "list_title": "Recent activity",
       "clear_read": "Dismiss read",
       "empty_title": "No notifications",
       "empty_body": "You're all caught up!",
@@ -19,14 +18,15 @@
       "unread": "Unread",
       "activity": "New activity",
       "summary": {
-        "direct_message": "{actor} has sent you a direct message.",
-        "reaction": "{actor} reacted with '{emoji}' to your message in {channel}.",
-        "reaction_group": "{actor} and others reacted with '{emoji}' to your message in {channel}.",
-        "reply": "{actor} replied to your message.",
-        "mention": "{actor} mentioned you.",
-        "followed_thread": "{actor} replied in a thread you follow.",
-        "new_message": "{actor} posted a new message.",
-        "activity": "{actor} sent you a notification."
+        "direct_message": "{actor} sent you a direct message",
+        "reaction": "{actor} reacted with {emoji} to your message",
+        "reaction_group": "{actor} and others reacted with {emoji} to your message",
+        "reply": "{actor} replied to your message",
+        "mention": "{actor} mentioned you",
+        "followed_thread": "{actor} replied in a thread you follow",
+        "new_message": "{actor} posted a new message",
+        "activity": "{actor} sent you a notification",
+        "room_invitation": "{actor} invited you to a room"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "User profile",
-      "send_message": "Send Message",
+      "send_message": "Open conversation",
       "view_profile": "View profile",
       "profile_requires_direct_message": "A direct message is required to view this profile.",
       "manage_bot": "Manage bot",
       "view_in_admin": "View in Server Admin",
-      "copy_user_id": "Copy User ID"
+      "copy_user_id": "Copy user ID"
+    },
+    "server_info": {
+      "title": "Server information",
+      "details": "Server details"
+    },
+    "compatibility": {
+      "title": "Compatibility",
+      "view": "View compatibility",
+      "limited": "Older server version",
+      "supported": "No known compatibility issues",
+      "affected": "Affected features",
+      "requires": "Requires {version} or newer",
+      "thread_views_title": "Thread views have limited support",
+      "thread_views_description": "Followed threads and threads you started may not be listed separately on this server.",
+      "independent_slow_mode_title": "Independent slow mode is unavailable",
+      "independent_slow_mode_description": "This server uses one shared cooldown for channel messages and thread replies.",
+      "upgrade": "For full support, ask the server administrator to upgrade to {version} or newer."
     },
     "server_gutter": {
       "move_up": "Move up",
       "move_down": "Move down",
       "add_server": "Add Server",
-      "log_in": "Log in to this server",
-      "sign_out": "Sign out of this server",
+      "log_in": "Log in to server",
+      "sign_out": "Sign out of server",
       "version": "Version {version}",
       "unreachable": "Server unreachable",
       "connection_unavailable": "Connection unavailable",
-      "compatibility_server_too_old": "This server must be upgraded to Chatto 0.5 or newer before this app can connect.",
+      "compatibility_server_too_old": "This server must be upgraded to Chatto {version} or newer before this app can connect.",
       "compatibility_unknown": "This app cannot determine compatibility from the server version.",
       "go_to_notifications_count": {
         "one": "Go to {count} notification",
@@ -90,9 +107,16 @@
       "body": "Log in to read and send messages on this server."
     },
     "threads": {
-      "title": "My Threads",
-      "subtitle": "Threads you're following",
-      "list_title": "Followed threads",
+      "sort_label": "Sort threads",
+      "sort_activity": "Activity",
+      "sort_created": "Age",
+      "tab_started": "Mine",
+      "tab_followed": "Followed",
+      "tab_label": "Thread view",
+      "empty_mine_title": "No threads started by you",
+      "empty_mine_body": "Threads you start and follow will appear here.",
+      "title": "Threads",
+      "subtitle": "New activity in your threads",
       "filter_label": "Filter threads",
       "filter_all": "All",
       "filter_unread": "Unread",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Owned by",
       "open_card": "Open profile card of {name}"
+    },
+    "management_nav": {
+      "general": "General",
+      "neighbors": "Neighbors",
+      "members": "Members",
+      "rooms": "Rooms",
+      "moderation": "Moderation",
+      "permissions": "Permissions",
+      "security": "Security",
+      "event_log": "Event Log",
+      "system": "System",
+      "back_to_server": "Return to Server",
+      "invitations": "Invite links"
     }
   }
 }

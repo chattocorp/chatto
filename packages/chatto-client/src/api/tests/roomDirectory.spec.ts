@@ -6,12 +6,14 @@ import { createRoomDirectoryAPI } from '../roomDirectory.js';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import { fakeServer, mockService, receivedRequest } from '../../testing/fakeServer.js';
 import { RoomThreadingMode } from '../../util/roomThreading.js';
+import { Timestamp } from '@bufbuild/protobuf';
 
 const Permission = {
   Attach: 'message.attach',
   BanMember: 'room.remove-member',
   CreateRoom: 'room.create',
   EchoMessage: 'message.echo',
+  PinMessages: 'message.pin',
   JoinRoom: 'room.join',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
@@ -33,6 +35,46 @@ function directoryAPI() {
 describe('createRoomDirectoryAPI', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it.each([true, false, undefined])(
+    'preserves rejoin authority %s independently of membership',
+    async (canRejoin) => {
+      mocks.getRoom.mockReturnValue({
+        room: {
+          room: { id: 'joined', kind: RoomKind.CHANNEL },
+          viewerState: {
+            isMember: true,
+            canRejoin,
+            permissions: [{ permission: 'room.join', granted: false }]
+          }
+        }
+      });
+      const room = await directoryAPI().getRoom('joined');
+      expect(room?.canRejoin).toBe(canRejoin);
+      expect(room?.canJoinRoom).toBe(false);
+    }
+  );
+
+  it('maps DM posting timestamps through list, get, and batch reads', async () => {
+    const lastMessageAt = Timestamp.fromDate(new Date('2026-10-20T12:00:00Z'));
+    const lastRootMessageAt = Timestamp.fromDate(new Date('2026-10-10T12:00:00Z'));
+    const entry = {
+      room: { id: 'dm', kind: RoomKind.DM },
+      lastMessageAt,
+      lastRootMessageAt
+    };
+    mocks.listRooms.mockReturnValue({ rooms: [entry] });
+    mocks.getRoom.mockReturnValue({ room: entry });
+    mocks.batchGetRooms.mockReturnValue({ rooms: [entry] });
+    const api = directoryAPI();
+    const expected = {
+      lastMessageAt: '2026-10-20T12:00:00.000Z',
+      lastRootMessageAt: '2026-10-10T12:00:00.000Z'
+    };
+    expect(await api.listRooms(RoomDirectoryScope.DMS)).toMatchObject([expected]);
+    expect(await api.getRoom('dm')).toMatchObject(expected);
+    expect(await api.batchGetRooms(['dm'])).toMatchObject([expected]);
   });
 
   it('collects all directory pages with the same scope and cancels with the caller signal', async () => {
@@ -108,9 +150,13 @@ describe('createRoomDirectoryAPI', () => {
         slowModeSeconds: 0,
         threadingMode: RoomThreadingMode.ENABLED,
         slowModeNextPostAt: null,
+        lastMessageAt: null,
+        lastRootMessageAt: null,
         isMember: true,
         hasUnread: true,
         canReadMessages: null,
+        canInvite: false,
+        invitation: undefined,
         canJoinRoom: false,
         canManageRoom: false
       },
@@ -124,9 +170,13 @@ describe('createRoomDirectoryAPI', () => {
         slowModeSeconds: 0,
         threadingMode: RoomThreadingMode.ENABLED,
         slowModeNextPostAt: null,
+        lastMessageAt: null,
+        lastRootMessageAt: null,
         isMember: true,
         hasUnread: false,
         canReadMessages: null,
+        canInvite: false,
+        invitation: undefined,
         canJoinRoom: true,
         canManageRoom: false
       }
@@ -176,18 +226,41 @@ describe('createRoomDirectoryAPI', () => {
       slowModeSeconds: 0,
       threadingMode: RoomThreadingMode.ENABLED,
       slowModeNextPostAt: null,
+      lastMessageAt: null,
+      lastRootMessageAt: null,
       isMember: true,
       hasUnread: true,
       canReadMessages: true,
+      canInvite: false,
+      invitation: undefined,
       canJoinRoom: false,
       canPostMessage: true,
       canPostInThread: true,
       canAttach: false,
       canReact: true,
       canEchoMessage: true,
+      canPinMessages: false,
       canManageOthersMessage: false,
       canManageRoom: true,
       canBanRoomMembers: false
+    });
+  });
+
+  it('maps pin permission independently of room management', async () => {
+    mocks.getRoom.mockReturnValue({
+      room: {
+        room: { id: 'room-1', kind: RoomKind.CHANNEL },
+        viewerState: roomViewerState({
+          isMember: true,
+          [Permission.PinMessages]: true,
+          hasUnread: false,
+          [Permission.ManageRoom]: false
+        })
+      }
+    });
+    expect(await directoryAPI().getRoom('room-1')).toMatchObject({
+      canPinMessages: true,
+      canManageRoom: false
     });
   });
 

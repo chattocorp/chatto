@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
-	. "hmans.de/chatto/pkg/events"
 )
 
 func lifecycleProjector(js jetstream.JetStream, stream jetstream.Stream, decodeErr error) *Projector {

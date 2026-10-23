@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 )
 
 const discoveryCacheControl = "public, no-cache"

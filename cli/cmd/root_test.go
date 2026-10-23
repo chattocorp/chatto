@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/runtimeunit"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 )
 
 func TestRootHelpShowsBannerAndNoResetCommand(t *testing.T) {

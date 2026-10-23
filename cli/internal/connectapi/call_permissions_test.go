@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 func TestCallPermissionsAcrossAPIEntryPoints(t *testing.T) {

@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Aviseringar",
       "subtitle": "Här är vad som är nytt",
-      "list_title": "Senaste aktivitet",
       "clear_read": "Rensa lästa",
       "empty_title": "Inga aviseringar",
       "empty_body": "Ni är alla ikapp!",
@@ -19,14 +18,15 @@
       "unread": "Oläst",
       "activity": "Ny aktivitet",
       "summary": {
-        "direct_message": "{actor} har skickat ett direktmeddelande till dig.",
-        "reaction": "{actor} reagerade med ”{emoji}” på ditt meddelande i {channel}.",
-        "reaction_group": "{actor} och andra reagerade med ”{emoji}” på ditt meddelande i {channel}.",
-        "reply": "{actor} svarade på ditt meddelande.",
-        "mention": "{actor} nämnde dig.",
-        "followed_thread": "{actor} svarade i en tråd som du följer.",
-        "new_message": "{actor} publicerade ett nytt meddelande.",
-        "activity": "{actor} skickade en avisering till dig."
+        "direct_message": "{actor} har skickat ett direktmeddelande till dig",
+        "reaction": "{actor} reagerade med {emoji} på ditt meddelande",
+        "reaction_group": "{actor} och andra reagerade med {emoji} på ditt meddelande",
+        "reply": "{actor} svarade på ditt meddelande",
+        "mention": "{actor} nämnde dig",
+        "followed_thread": "{actor} svarade i en tråd som du följer",
+        "new_message": "{actor} publicerade ett nytt meddelande",
+        "activity": "{actor} skickade en avisering till dig",
+        "room_invitation": "{actor} bjöd in dig till ett rum"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Användarprofil",
-      "send_message": "Skicka meddelande",
+      "send_message": "Öppna konversation",
       "view_profile": "Visa profil",
       "profile_requires_direct_message": "Ett direktmeddelande krävs för att visa den här profilen.",
       "manage_bot": "Hantera bot",
       "view_in_admin": "Visa i serveradministrationen",
       "copy_user_id": "Kopiera användar-ID"
     },
+    "server_info": {
+      "title": "Serverinformation",
+      "details": "Serveruppgifter"
+    },
+    "compatibility": {
+      "title": "Kompatibilitet",
+      "view": "Visa kompatibilitet",
+      "limited": "Äldre serverversion",
+      "supported": "Inga kända kompatibilitetsproblem",
+      "affected": "Berörda funktioner",
+      "requires": "Kräver {version} eller senare",
+      "thread_views_title": "Trådvyer har begränsat stöd",
+      "thread_views_description": "Följda trådar och trådar som du har startat kanske inte visas separat på den här servern.",
+      "independent_slow_mode_title": "Oberoende långsamt läge är inte tillgängligt",
+      "independent_slow_mode_description": "Den här servern använder en gemensam väntetid för kanalmeddelanden och trådsvar.",
+      "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd."
+    },
     "server_gutter": {
       "move_up": "Flytta upp",
       "move_down": "Flytta ned",
       "add_server": "Lägg till server",
-      "log_in": "Logga in på den här servern",
-      "sign_out": "Logga ut från den här servern",
+      "log_in": "Logga in på servern",
+      "sign_out": "Logga ut från servern",
       "version": "Version {version}",
       "unreachable": "Servern kan inte nås",
       "connection_unavailable": "Anslutningen är inte tillgänglig",
-      "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
+      "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto {version} eller senare innan appen kan ansluta.",
       "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen.",
       "go_to_notifications_count": {
         "one": "Gå till {count} avisering",
@@ -90,9 +107,16 @@
       "body": "Logga in för att läsa och skicka meddelanden på den här servern."
     },
     "threads": {
-      "title": "Mina trådar",
-      "subtitle": "Trådar du följer",
-      "list_title": "Följda trådar",
+      "sort_label": "Sortera trådar",
+      "sort_activity": "Aktivitet",
+      "sort_created": "Ålder",
+      "tab_started": "Mina",
+      "tab_followed": "Följda",
+      "tab_label": "Trådvy",
+      "empty_mine_title": "Inga trådar startade av dig",
+      "empty_mine_body": "Trådar som du startar och följer visas här.",
+      "title": "Trådar",
+      "subtitle": "Ny aktivitet i dina trådar",
       "filter_label": "Filtertrådar",
       "filter_all": "Alla",
       "filter_unread": "Oläst",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Ägs av",
       "open_card": "Öppna profilkortet för {name}"
+    },
+    "management_nav": {
+      "general": "Allmänt",
+      "neighbors": "Grannar",
+      "members": "Medlemmar",
+      "rooms": "Rum",
+      "moderation": "Moderering",
+      "permissions": "Behörigheter",
+      "security": "Säkerhet",
+      "event_log": "Händelselogg",
+      "system": "System",
+      "back_to_server": "Återgå till servern",
+      "invitations": "Inbjudningslänkar"
     }
   }
 }

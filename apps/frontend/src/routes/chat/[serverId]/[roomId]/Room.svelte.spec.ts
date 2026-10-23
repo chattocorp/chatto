@@ -45,8 +45,10 @@ const mocks = vi.hoisted(() => ({
   livekitUrl: null as string | null,
   roomKind: 1,
   dmParticipantIds: ['test-user', 'user-1'] as string[],
+  deletedPartner: false,
   threadingMode: 3,
   canReadMessages: true as boolean | null,
+  typingUserIds: [] as string[],
   canPostMessage: true,
   hasLimitedMessageAccess: false,
   canPostInThread: true,
@@ -150,9 +152,10 @@ vi.mock('$lib/hooks', () => ({
                 id: 'user-1',
                 login: 'userone',
                 displayName: 'User One',
+                deleted: mocks.deletedPartner,
                 presenceStatus: 1
               }
-            ],
+            ].filter((participant) => mocks.dmParticipantIds.includes(participant.id)),
             currentUserId: 'test-user'
           }
         : null,
@@ -173,7 +176,9 @@ vi.mock('$lib/hooks', () => ({
   // ConversationPane uses this only for thread timelines.
   useUnreadMarker: vi.fn(),
   createTypingIndicator: () => ({
-    userIds: [],
+    get userIds() {
+      return mocks.typingUserIds;
+    },
     sendTypingIndicator: vi.fn(),
     resetDebounce: mocks.resetTypingDebounce,
     removeTypingUser: vi.fn()
@@ -206,6 +211,8 @@ vi.mock('$lib/state/globals.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
 }));
@@ -462,8 +469,10 @@ beforeEach(() => {
     return store;
   });
   mocks.dmParticipantIds = ['test-user', 'user-1'];
+  mocks.deletedPartner = false;
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
+  mocks.typingUserIds = [];
   mocks.canPostMessage = true;
   mocks.hasLimitedMessageAccess = false;
   mocks.canPostInThread = true;
@@ -491,6 +500,28 @@ afterEach(async () => {
 });
 
 describe('Room interaction bundles', () => {
+  it.each([
+    [RoomKind.DM, true, ['test-user', 'user-1'], true],
+    [RoomKind.DM, false, ['test-user', 'user-1'], false],
+    [RoomKind.CHANNEL, true, ['test-user', 'user-1'], false],
+    [RoomKind.DM, true, ['test-user'], false],
+    [RoomKind.DM, true, ['test-user', 'unresolved'], false]
+  ])(
+    'shows deleted-partner state only in a deleted-user DM (%s, %s)',
+    async (kind, deleted, participants, visible) => {
+      mocks.roomKind = kind;
+      mocks.deletedPartner = deleted;
+      mocks.dmParticipantIds = participants;
+      const view = render(Room, { props: { roomId: 'room-1' } });
+      await expect
+        .element(view.getByTestId('event-list-show-tombstones'))
+        .toHaveTextContent(String(visible));
+      const notice = view.getByText('The other user has been deleted.', { exact: true });
+      if (visible) await expect.element(notice).toBeVisible();
+      else await expect.element(notice).not.toBeInTheDocument();
+    }
+  );
+
   it('loads channel membership through the canonical member directory', async () => {
     const ensureLoaded = vi
       .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
@@ -579,6 +610,24 @@ describe('Room interaction bundles', () => {
     await expect.element(q(container, '[data-testid="room-event-ids"]')).not.toBeInTheDocument();
     await expect.element(q(container, '[data-testid="emit-returned-post"]')).toBeInTheDocument();
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+  });
+
+  it('shows typing users on the composer only when the viewer can read messages', async () => {
+    mocks.typingUserIds = ['user-1'];
+
+    const readable = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(readable.container, '[data-testid="typing-indicator"]'))
+      .toBeInTheDocument();
+    readable.unmount();
+
+    mocks.canReadMessages = false;
+    const unreadable = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(unreadable.container)
+      .toHaveTextContent('You do not have permission to read messages in this room.');
+    expect(q(unreadable.container, '[data-testid="typing-indicator"]')).toBeNull();
+    expect(q(unreadable.container, '[role="status"][aria-live="polite"]')).toBeNull();
   });
 
   it('shows the limited-access timeline without a conversation start marker', async () => {
@@ -1584,13 +1633,13 @@ describe('Room local message echo', () => {
     );
   });
 
-  it('clears pending in-room reply state when the room changes', async () => {
+  it('restores each room draft reply target when the room changes', async () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
     const { container } = rendered;
 
     await expect
       .element(q(container, '[data-testid="composer-in-reply-to"]'))
-      .toHaveTextContent('');
+      .toHaveTextContent(/^$/);
 
     (q(container, '[data-testid="start-composer-reply"]') as HTMLButtonElement).click();
     await expect
@@ -1601,7 +1650,13 @@ describe('Room local message echo', () => {
 
     await expect
       .element(q(container, '[data-testid="composer-in-reply-to"]'))
-      .toHaveTextContent('');
+      .toHaveTextContent(/^$/);
+
+    await rendered.rerender({ roomId: 'room-1' });
+
+    await expect
+      .element(q(container, '[data-testid="composer-in-reply-to"]'))
+      .toHaveTextContent('reply-target');
   });
 
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {

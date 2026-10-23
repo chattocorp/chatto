@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-10-05
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
@@ -9,6 +9,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ## Behavior
 
+- Automatic URL detection requires `http://`, `https://`, or `www.`. The client uses HTTPS for `www.` URLs. Bare domains and filenames do not trigger preview requests. Explicit Markdown links to HTTP or HTTPS URLs can still trigger a preview.
 - The composer fetches a link preview as soon as the user has typed a complete eligible URL.
 - Only the first eligible URL in a message gets a preview. There is no multi-preview layout.
 - URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
@@ -16,7 +17,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - YouTube URLs get a specialized embed-ready card without scraping the page.
 - Supported public social-post URLs use a native Chatto card populated from provider data. The card can include the provider, author, post text, attached images, an embedded website card, and one quoted post with its own common media. Bluesky and Mastodon are supported providers. Mastodon content warnings and accepted quote posts use the same common fields; warned text and media stay concealed until the reader reveals them, and boosts show the original post without boost attribution. If structured post data is unavailable, the post falls back to a normal link preview.
 - For video and animated-GIF attachments on a social post, the card shows the static thumbnail from the provider as an image. Chatto does not download or play the video. The card does not show audio attachments or video attachments that have no thumbnail.
-- A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
+- A preview shows up in the composer with a dismiss button. The composer shows a compact preview of one row: a thumbnail, the site, and the title. It does not load the YouTube player or show the full social-post card while the user types. A social post with a content warning shows no image or post text in this row. A message-link preview in the composer shows about one line of the message body and shows its attachments as one line of text. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
 - When the server returns a preview to the composer, it also returns a short-lived opaque preview token.
 - When the message is sent, the client sends only the preview token. The server resolves the token to cached, server-fetched metadata and stores that metadata as part of the message body.
 - Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes. Structured social-post fields use the corresponding text, URL, and asset limits, carry at most four images per post, and allow only one quoted-post level.
@@ -44,9 +45,23 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ### 4. SSRF-safe fetcher with connection-time IP validation
 
-**Decision:** All URL fetches go through an HTTP client that blocks private/loopback IP ranges. The IP check happens at connection time, not pre-check, to prevent DNS rebinding.
-**Why:** Without these protections, a maliciously crafted URL could make the server fetch internal services. A pre-fetch DNS lookup is bypassable via rebinding; connection-time enforcement is not.
-**Tradeoff:** Some legitimate internal-network use cases (preview an intranet wiki page) don't work. Operators who need that can disable previews entirely.
+**Decision:** Page and image fetches block private, loopback, shared-address, and
+special-use destinations. The policy includes `100.64.0.0/10`, documentation,
+benchmark, multicast, and reserved ranges. Standard NAT64 ranges
+(`64:ff9b::/96` and `64:ff9b:1::/48`), Teredo, and 6to4 are blocked in full.
+IPv4-mapped IPv6 addresses use the IPv4 policy. Each new connection checks all
+DNS answers and rejects the destination if any answer is blocked. Connections
+use the checked IP directly. Redirects use the same checks.
+
+**Why:** A URL must not let a user make the server contact an internal service.
+Connection-time checks and direct IP dialing prevent a second DNS lookup from
+changing the destination. Translation ranges are blocked because an IPv6
+address in those ranges can lead to a private IPv4 destination.
+
+**Tradeoff:** Intranet previews and previews reached only through standard
+NAT64 translation do not work. Deployment-specific translation routes still
+need network egress controls. Existing cached previews and posted cards keep
+their normal lifetimes; this policy controls new network connections.
 
 ### 5. Preview images are downloaded, resized, and stored as persisted assets
 
@@ -71,6 +86,12 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 **Decision:** Provider adapters resolve recognized public social posts into one bounded snapshot containing common presentation data. A snapshot may include one quoted post, but quotes within that post are omitted. Chatto persists the snapshot and its images, then renders it with native card components. Bluesky and Mastodon use the same snapshot and native card; the existing OpenGraph card remains the fallback. Mastodon normally uses origin-bound oEmbed discovery. Federated proxy permalinks that lack oEmbed metadata instead require origin-bound public instance metadata before Chatto trusts the server's status API.
 **Why:** A provider-neutral snapshot keeps durable message data and the public API independent from any one social network. Native cards stay visually consistent with the timeline, avoid loading a full third-party website inside a message, and prevent client-side provider requests when reading history.
 **Tradeoff:** Chatto deliberately implements only a common subset of social-post presentation. Provider-specific features require explicit additive support, changes made to the original post are not reflected after the snapshot is stored, the current snapshot does not identify who boosted or reposted a post, and a video thumbnail looks the same as a photo because the snapshot does not record the media type.
+
+### 9. The composer shows a compact preview
+
+**Decision:** The composer shows a compact link preview of one row. Posted messages show the full card.
+
+**Rationale:** On a phone, the software keyboard leaves little height for the page. A full preview card with a large image can fill this height and push the text field out of view. The compact preview keeps the text field visible. It also prevents a connection to a third-party player while the user types.
 
 ## Permissions
 

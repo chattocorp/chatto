@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
-	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
-	"hmans.de/chatto/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
+	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestServerSetupPublicAPI(t *testing.T) {

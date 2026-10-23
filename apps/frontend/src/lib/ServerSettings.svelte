@@ -371,7 +371,7 @@
 
         <TextInput
           id="motd"
-          label={m('server_settings.motd_label')}
+          label={m('common.message_of_the_day')}
           bind:value={motd}
           disabled={saving}
           description={m('server_settings.motd_help')}

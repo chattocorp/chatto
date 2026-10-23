@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/parallel"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 func followedThreadsResponse(ctx context.Context, api *API, viewerID string, page *core.FollowedThreadsPage) (*apiv1.ListFollowedThreadsResponse, error) {
@@ -97,7 +97,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		if kind == core.KindDM {
 			// Deleted participants stay DM members and hydrate as deleted-user
 			// references, so the label never turns into a self-DM.
-			memberIDs, err := api.core.ListRoomMemberIDsForList(ctx, viewerID, thread.RoomID)
+			memberIDs, err := api.core.RoomMemberships().ListRoomMemberIDsForList(ctx, viewerID, thread.RoomID)
 			if err != nil {
 				return nil, err
 			}
@@ -114,6 +114,8 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 			h.addUserID(userID)
 		}
 		following := true
+		viewerState := apiThreadViewerState(following, thread.HasUnreadReplies)
+		viewerState.SlowModeNextPostAt = rootMessage.GetViewerState().GetThreadSlowModeNextPostAt()
 		return &apiv1.FollowedThread{
 			RootMessage:                     rootMessage,
 			LatestReply:                     latestReply,
@@ -125,7 +127,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 				LastReplyAt:               lastReplyAt,
 				ParticipantPreviewUserIds: participantPreviewUserIDs,
 				ParticipantCount:          int32(thread.ParticipantCount),
-				ViewerState:               apiThreadViewerState(following, thread.HasUnreadReplies),
+				ViewerState:               viewerState,
 			},
 		}, nil
 	})

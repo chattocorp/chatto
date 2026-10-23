@@ -172,7 +172,7 @@ describe('MobileSidebarChrome', () => {
   });
 
   it.each(['ltr', 'rtl'])(
-    'fills the mobile viewport and follows resizing in %s',
+    'leaves a 3rem backdrop strip and follows resizing in %s',
     async (direction) => {
       document.documentElement.dir = direction;
       await page.viewport(390, 844);
@@ -185,6 +185,12 @@ describe('MobileSidebarChrome', () => {
       flushSync();
       const gutter = q(container, '[data-testid="mobile-sidebar-panel"]')!;
       const pane = q(navigation, '[data-testid="server-sidebar"]')!;
+      const underlyingAction = document.createElement('button');
+      underlyingAction.textContent = 'Underlying action';
+      underlyingAction.style.cssText = 'position: fixed; inset: 0';
+      const onUnderlyingClick = vi.fn();
+      underlyingAction.addEventListener('click', onUnderlyingClick);
+      q(container, '[data-testid="sidebar-child"]')!.append(underlyingAction);
       // Disable transitions so assertions measure the settled drawer geometry.
       gutter.style.transition = 'none';
       pane.style.transition = 'none';
@@ -193,16 +199,23 @@ describe('MobileSidebarChrome', () => {
           await page.viewport(width, 844);
           await expect.poll(() => sidebarNav.panelWidth).toBe(width);
           expect(gutter.getBoundingClientRect().width + pane.getBoundingClientRect().width).toBe(
-            width
+            width - 48
           );
           expect(
             Math.min(gutter.getBoundingClientRect().left, pane.getBoundingClientRect().left)
-          ).toBe(0);
+          ).toBe(direction === 'ltr' ? 0 : 48);
           expect(
             Math.max(gutter.getBoundingClientRect().right, pane.getBoundingClientRect().right)
-          ).toBe(width);
+          ).toBe(direction === 'ltr' ? width - 48 : width);
         }
-        sidebarNav.close();
+        // A real pointer click must hit the exposed backdrop, not the client below it.
+        const x = direction === 'ltr' ? 743 : 24;
+        expect(document.elementFromPoint(x, 200)).toBe(
+          q(container, '[data-testid="mobile-sidebar-backdrop"]')
+        );
+        await page.getByTestId('mobile-sidebar-backdrop').click({ position: { x, y: 100 } });
+        expect(sidebarNav.isOpen).toBe(false);
+        expect(onUnderlyingClick).not.toHaveBeenCalled();
         flushSync();
         // Mouse drawers fade after a short slide rather than crossing the full window.
         expect(getComputedStyle(pane).opacity).toBe('0');

@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
 )
 
 const (

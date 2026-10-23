@@ -35,8 +35,11 @@
     "leave": {
       "title": "離開聊天室",
       "action": "離開聊天室",
-      "prompt": "確定要離開 #{room} 嗎？之後仍可重新加入。",
-      "failed": "無法離開聊天室"
+      "prompt": "確定要離開 #{room} 嗎？",
+      "failed": "無法離開聊天室",
+      "join_later": "之後仍可重新加入。",
+      "need_invite": "你需要新的邀請才能加入此房間。",
+      "rejoin_unknown": "你可能需要新的邀請才能重新加入。"
     },
     "directory": {
       "universal_title": "全員聊天室會自動加入",
@@ -59,7 +62,8 @@
       "join_group_failed": "無法加入群組",
       "left": "已離開 #{room}",
       "left_generic": "已離開聊天室",
-      "leave_confirm": "確定要離開 #{room} 嗎？"
+      "leave_confirm": "確定要離開 #{room} 嗎？",
+      "invited": "已獲邀請"
     },
     "server": {
       "remove_title": "移除伺服器",
@@ -97,7 +101,8 @@
         "edit": "編輯訊息",
         "more": "更多操作",
         "edit_short": "編輯",
-        "copy_text": "複製文字",
+        "copy_text": "複製訊息文字",
+        "copy_selected_text": "複製選取文字",
         "copy_text_failed": "無法複製文字",
         "copy_link": "複製連結",
         "copy_message_link": "複製訊息連結",
@@ -106,7 +111,8 @@
         "message_link_copied": "訊息連結已複製",
         "copy_link_failed": "無法複製連結",
         "image_copied": "圖片已複製",
-        "copy_image_failed": "無法複製圖片"
+        "copy_image_failed": "無法複製圖片",
+        "view_reactions": "查看回應"
       },
       "meta": {
         "echo": "回聲",
@@ -235,7 +241,7 @@
       "unpin_prompt": "確定要取消釘選這則訊息嗎？",
       "loading": "正在載入已釘選訊息...",
       "empty_title": "沒有已釘選訊息",
-      "empty_description": "聊天室管理員可在此釘選重要訊息。",
+      "empty_description": "釘選的訊息會顯示在這裡。",
       "error_title": "已釘選訊息無法使用",
       "error_description": "無法載入已釘選訊息。請稍後再試。",
       "update_failed": "無法更新已釘選訊息"
@@ -255,6 +261,81 @@
     "jump_to_present": "前往最新訊息",
     "jump_failed": "無法前往該訊息。",
     "unread_separator": "新訊息",
-    "close_extras": "關閉聊天室資訊"
+    "close_extras": "關閉聊天室資訊",
+    "dm": {
+      "deleted_user_notice": "對方使用者已被刪除。"
+    },
+    "management": {
+      "room_name_too_long": "聊天室名稱不可超過 30 個字元",
+      "room_name_invalid": "聊天室名稱不能包含換行符號或控制字元",
+      "create_room": "建立聊天室",
+      "reorder_groups_failed": "無法調整群組順序：{error}",
+      "room_created": "聊天室已建立",
+      "link_updated": "連結已更新",
+      "link_created": "連結已建立",
+      "save_link_failed": "無法儲存連結：{error}",
+      "group_deleted": "群組已刪除",
+      "delete_group_failed": "無法刪除群組：{error}",
+      "link_deleted": "連結已刪除",
+      "delete_link_failed": "無法刪除連結：{error}",
+      "room_archived": "聊天室已封存",
+      "archive_room_failed": "無法封存聊天室：{error}",
+      "drag_room": "拖曳以調整聊天室順序",
+      "drag_link": "拖曳以調整連結順序",
+      "drag_group": "拖曳以調整群組順序",
+      "new_room": "建立聊天室",
+      "new_link": "建立連結",
+      "delete_group": "刪除群組",
+      "edit_link": "編輯連結",
+      "delete_link": "刪除連結",
+      "create_link": "建立連結",
+      "label": "標籤",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com 或 /docs",
+      "delete_group_prompt": "確定要刪除群組 {name} 嗎？",
+      "delete_link_prompt": "確定要刪除 {label} 嗎？",
+      "archive_room": "封存聊天室",
+      "archive_room_prompt": "確定要封存 #{room} 嗎？成員將無法再存取此聊天室。",
+      "group_created": "群組已建立",
+      "create_group_failed": "無法建立群組：{error}",
+      "group_name": "群組名稱",
+      "group_name_placeholder": "例如：一般、專案、團隊",
+      "create_group": "建立群組",
+      "new_group": "新增群組",
+      "threading_mode_required": "必須",
+      "threading_mode_encouraged": "建議",
+      "threading_mode_enabled": "已啟用",
+      "threading_mode_disabled": "已停用"
+    },
+    "moderation": {
+      "removing": "正在移出...",
+      "remove_action": "移出聊天室",
+      "lift_title": "解除 {user} 的暫停加入",
+      "lift": "解除暫停",
+      "lifting": "正在解除...",
+      "no_suspension": "不暫停加入 — 可重新加入",
+      "indefinite": "無期限",
+      "remove_title": "將 {user} 移出聊天室",
+      "suspension_period": "暫停期限"
+    },
+    "invitation": {
+      "invite": "邀請成員",
+      "invited": "你已收到邀請",
+      "sent": "邀請已傳送",
+      "expires": "到期時間：{date}",
+      "unavailable": "你目前無法接受此邀請，但仍可拒絕。",
+      "accept": "接受邀請",
+      "decline": "拒絕",
+      "title": "邀請成員加入 #{room}",
+      "description": "選擇你想邀請的使用者。受邀使用者將收到通知，並可在七天內接受或拒絕邀請。",
+      "members": "成員",
+      "send": "傳送邀請",
+      "failed": "無法邀請 {name}：{error}",
+      "already_member": "已在此房間中",
+      "invited_by": "邀請你加入的使用者：",
+      "decline_title": "拒絕邀請？",
+      "decline_join_later": "你可以稍後加入此房間。",
+      "decline_need_invite": "你需要新的邀請才能加入此房間。"
+    }
   }
 }

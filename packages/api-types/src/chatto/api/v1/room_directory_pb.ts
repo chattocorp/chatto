@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PermissionGrant } from "./permissions_pb.js";
+import { RoomInvitation } from "./room_invitations_pb.js";
 import { Room } from "./rooms_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
@@ -122,12 +123,27 @@ export class RoomViewerState extends Message<RoomViewerState> {
   permissions: PermissionGrant[] = [];
 
   /**
-   * Earliest time the current user may create another message. Absent when
+   * Earliest time the current user may create another root message. Absent when
    * slow mode is disabled, expired, or bypassed by moderation permissions.
    *
    * @generated from field: google.protobuf.Timestamp slow_mode_next_post_at = 4;
    */
   slowModeNextPostAt?: Timestamp;
+
+  /**
+   * Pending invitation for this viewer; does not grant access to room content.
+   *
+   * @generated from field: chatto.api.v1.RoomInvitation invitation = 5;
+   */
+  invitation?: RoomInvitation;
+
+  /**
+   * Whether current permissions and room state allow joining without an invitation,
+   * even if already a member. Absent on servers that do not report this decision.
+   *
+   * @generated from field: optional bool can_rejoin = 6;
+   */
+  canRejoin?: boolean;
 
   constructor(data?: PartialMessage<RoomViewerState>) {
     super();
@@ -141,6 +157,8 @@ export class RoomViewerState extends Message<RoomViewerState> {
     { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
     { no: 4, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
+    { no: 5, name: "invitation", kind: "message", T: RoomInvitation },
+    { no: 6, name: "can_rejoin", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomViewerState {
@@ -197,6 +215,24 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
    */
   hasMessageHistory?: boolean;
 
+  /**
+   * Creation time of the latest ordinary DM message, including thread replies.
+   * Edits and retractions do not change this value; historical imports are excluded.
+   * Absent for other room kinds, no ordinary messages, or no message.read permission.
+   * Older servers can omit this field. Absence does not prove inactivity.
+   *
+   * @generated from field: google.protobuf.Timestamp last_message_at = 17;
+   */
+  lastMessageAt?: Timestamp;
+
+  /**
+   * Creation time of the latest ordinary DM root message, excluding thread replies.
+   * Uses the same visibility, import, and absence rules as last_message_at.
+   *
+   * @generated from field: google.protobuf.Timestamp last_root_message_at = 18;
+   */
+  lastRootMessageAt?: Timestamp;
+
   constructor(data?: PartialMessage<RoomWithViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -209,6 +245,8 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
     { no: 14, name: "viewer_state", kind: "message", T: RoomViewerState },
     { no: 15, name: "member_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 16, name: "has_message_history", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 17, name: "last_message_at", kind: "message", T: Timestamp },
+    { no: 18, name: "last_root_message_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomWithViewerState {

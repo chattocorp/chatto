@@ -11,6 +11,19 @@ full-text index in a local directory and builds it from your message history.
 
 ## Enable Search
 
+For a new installation, generate a configuration with search enabled:
+
+```bash
+chatto init --with-search
+chatto run
+```
+
+The flag enables message search and the bundled provider in `chatto.toml`.
+The provider stores its index in `./data/search`. You can combine this flag
+with `--with-livekit` to configure calls too.
+
+For an existing installation, use these settings:
+
 <Tabs>
 <TabItem label="TOML">
 

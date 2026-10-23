@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-14
 
 ## Overview
 
@@ -9,6 +9,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ## Behavior
 
+- Reply attribution shows the original message text when it has non-whitespace text. Otherwise, one attachment shows an icon and its translated type label (Image, Video, Audio, or File). Multiple attachments show a paperclip icon and the translated attachment count. The label uses loaded message metadata and does not load thumbnails.
 - PDF attachments open automatically in the browser's native PDF viewer when the browser reports inline PDF support. The file type must be PDF; a `.pdf` filename alone does not enable the preview. Browsers without this capability show the download fallback without loading the document. Native controls vary by browser. Download stays available when a document cannot render because the browser does not reliably report these failures to Chatto. Preview requests use the attachment server and its configured storage, with no external document-viewer service.
 - The composer accepts files via drag-and-drop, paste, and a file picker button when the viewer has `message.attach`.
 - Draft attachments persist across room switches inside the same session.
@@ -19,7 +20,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Message authors can change attachment descriptions during the message-edit window. Effective `message.manage` permission bypasses the time limit and permits changes to other members' descriptions. A change marks the message as edited and refreshes current message views through the existing bodyless message-edited signal.
 - In messages, hovering over an image, video, audio player, or file card shows its description in a native browser tooltip when a description exists. Attachment action buttons keep their action labels. Keyboard and touch users can read descriptions in the attachment viewer.
 - Image descriptions are alt text, with the filename as fallback. In the shared attachment viewer, static images have a Details panel that starts closed to give the image more space. The panel shows the selected image's description, type, and size beside the image on desktop and below it on smaller screens. The description remains available to assistive technology while the panel is closed. Other file descriptions stay visible beside or below the preview, including before HTML preview consent. Long descriptions scroll without hiding Download or Close. Video, audio, and file controls expose descriptions to assistive technology.
-- Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
+- One upload size limit applies to all files, including GIFs and videos. The default is 25 MB, set with `core.assets.max_upload_size`. Video upload enablement is independent of this limit.
+- The deprecated `video.max_upload_size` setting is a migration input. When set, the larger of that value and the general limit applies to all files. If the general limit is absent, its 25 MB default participates in this comparison. Operators must set the desired general limit and remove the deprecated setting. The old implicit 100 MB video default no longer applies.
+- `ServerRuntimeConfig.max_upload_size` reports the effective limit. Its deprecated `max_video_upload_size` alias reports the same value. Client upload validation uses the general limit for all file types.
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.
 - The room timeline loads attachment images within 960×400 bounds, while the lightbox loads a separate derivative within 2048×2048 bounds. The untouched upload remains available through the viewer’s Download action.
@@ -143,6 +146,12 @@ already in the cache and newly posted attachments are inserted directly.
 **Decision:** Message attachments use one history-backed viewer shell. The shell owns the filename, file metadata, gallery controls, and download action. On desktop, a side panel holds the description, metadata, gallery controls, and Download. Smaller screens place these below the preview. Images use a subtle background without an outline and fit without cropping. Preview components use the existing image and media paths. HTML keeps its per-opening consent gate. Files without a supported preview show a download action without loading their bytes. Gallery navigation stays local to one opening and unmounts the previous media. The dialog fills viewports below 640 CSS pixels and uses a large framed layout on wider screens, with controls outside the preview.
 **Why:** Every file needs an accessible download action and consistent dismissal. A shared shell keeps mobile layout and keyboard behavior consistent while preserving image galleries and HTML privacy controls.
 **Tradeoff:** Images in one message form a gallery; other attachments open individually. PDF previews depend on native browser support. Plain text, archives, and other unsupported formats have no built-in preview. PDF support adds no document parser, external service, protocol field, or stored-data migration.
+
+### 15. All attachments share one upload size limit
+
+**Decision:** GIFs, images, videos, and other files share one configured byte limit. Video upload enablement and processing limits remain separate controls. During migration, an explicitly set legacy video limit can raise the common limit; remove it after setting the desired general limit.
+**Why:** Users should not need to convert an animation to another file format to get a larger upload allowance. One setting gives operators and clients one clear policy.
+**Tradeoff:** A larger allowance also permits larger documents and images. Image dimensions, frame counts, and processing time still have independent bounds. Operators who relied on the old implicit 100 MB video default must set the general limit explicitly to keep that allowance.
 
 ## Permissions
 

@@ -326,8 +326,12 @@ test.describe('User context menu', () => {
     });
   });
 
-  test.describe('Send Message button', () => {
-    test('user profile dialog shows Send Message button', async ({ page, chatPage, roomPage }) => {
+  test.describe('Open conversation button', () => {
+    test('user profile dialog shows Open conversation button', async ({
+      page,
+      chatPage,
+      roomPage
+    }) => {
       const user = await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
@@ -345,8 +349,8 @@ test.describe('User context menu', () => {
       const profileDialog = page.getByRole('dialog', { name: 'User profile' });
       await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      // Verify "Send Message" button is visible
-      await expect(profileDialog.getByRole('button', { name: 'Send Message' })).toBeVisible();
+      // Verify "Open conversation" button is visible
+      await expect(profileDialog.getByRole('button', { name: 'Open conversation' })).toBeVisible();
     });
   });
 });

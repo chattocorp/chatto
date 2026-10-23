@@ -8,15 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/subjects"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================
@@ -90,20 +91,56 @@ func newTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 
 	ctx := testContext(t)
 
-	// Create ChattoCore
-	cfg := config.CoreConfig{
+	core, err := NewChattoCore(ctx, nc, testCoreConfig())
+	if err != nil {
+		t.Fatalf("Failed to create ChattoCore: %v", err)
+	}
+
+	return core, nc
+}
+
+// testCoreConfig returns the configuration of the cores that newTestCore
+// creates. Tests that build their own cores, for example simulated replicas,
+// use it to get the same configuration.
+func testCoreConfig() config.CoreConfig {
+	return config.CoreConfig{
 		SkipSetupWizard: true,
 		SecretKey:       "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
 	}
-	core, err := NewChattoCore(ctx, nc, cfg)
-	if err != nil {
-		t.Fatalf("Failed to create ChattoCore: %v", err)
-	}
+}
 
-	return core, nc
+// newReplicaConn opens a new connection to ns for one simulated replica. The
+// test cleanup closes it.
+//
+// Give each simulated replica its own connection, as in production. Replicas
+// that share one connection get EVT messages through one read loop, so they
+// seldom lag each other. This can hide a read that does not wait for the
+// projection. Also, a pull request of a stopped core can stay open on a shared
+// connection for a short time. A test that stops a replica can close its
+// connection, as a process exit does.
+func newReplicaConn(t testing.TB, ns *server.Server) *nats.Conn {
+	t.Helper()
+	nc, err := nats.Connect(nats.DefaultURL, nats.InProcessServer(ns))
+	if err != nil {
+		t.Fatalf("connect replica to NATS: %v", err)
+	}
+	t.Cleanup(nc.Close)
+	return nc
+}
+
+// startReplica creates a core with cfg on a new connection to ns (see
+// newReplicaConn) and runs its services until the test ends.
+func startReplica(t *testing.T, ns *server.Server, cfg config.CoreConfig) *ChattoCore {
+	t.Helper()
+	replica, err := NewChattoCore(testContext(t), newReplicaConn(t, ns), cfg)
+	if err != nil {
+		t.Fatalf("create replica: %v", err)
+	}
+	startCoreServices(t, replica)
+	return replica
 }
 
 // startCoreServices runs ChattoCore's background services (PresenceHub +

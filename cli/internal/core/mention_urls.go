@@ -26,15 +26,8 @@ var (
 	// scheme. mailto: is the only linkified scheme without "//".
 	mentionURLSchemeRegexp = regexp.MustCompile(`^(?i:([a-z][a-z0-9+.\-]*://)|mailto:)`)
 
-	// mentionLinkifySchemes holds the "//" schemes that linkify-it links by
-	// default.
-	mentionLinkifySchemes = map[string]bool{"http://": true, "https://": true, "ftp://": true}
-
-	// mentionProtocolRelativeRegexp matches a protocol-relative URL such as
-	// //example.com/@alice. linkify-it links these for localhost and for any
-	// dotted host, also without a known top-level domain (//foo.local), which
-	// xurls does not match. A single-label host such as //x is not linked.
-	mentionProtocolRelativeRegexp = regexp.MustCompile(`//(?:localhost|[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+)[^\s<>]*`)
+	// mentionLinkifySchemes mirrors the web protocols allowed by the frontend.
+	mentionLinkifySchemes = map[string]bool{"http://": true, "https://": true}
 
 	// mentionLinkifyTLDs holds the top-level domains that linkify-it accepts
 	// without a scheme. The frontend loads the full IANA list from the `tlds`
@@ -97,11 +90,6 @@ func linkifiedURLRanges(source []byte, start, end int) []linkifiedRange {
 			ranges = append(ranges, linkifiedRange{start: start + match[0], end: start + match[1]})
 		}
 	}
-	for _, match := range mentionProtocolRelativeRegexp.FindAllIndex(line, -1) {
-		if matchStart := start + match[0]; isLinkifyBoundary(source, matchStart) {
-			ranges = append(ranges, linkifiedRange{start: matchStart, end: start + match[1]})
-		}
-	}
 	return ranges
 }
 
@@ -113,7 +101,7 @@ func isLinkifiedURL(source []byte, start, end int) bool {
 		// scheme[1] is empty for mailto:, which linkify-it links.
 		return scheme[1] == "" || mentionLinkifySchemes[strings.ToLower(scheme[1])]
 	}
-	if !isLinkifyBoundary(source, start) {
+	if !strings.HasPrefix(strings.ToLower(candidate), "www.") || !isLinkifyBoundary(source, start) {
 		return false
 	}
 	return mentionLinkifyTLDs[strings.ToLower(urlTopLevelDomain(candidate))]

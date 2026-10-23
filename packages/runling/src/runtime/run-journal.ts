@@ -18,9 +18,6 @@ export interface RunSummary {
   id: string;
   /** Human-readable, journal-local reference. Older journals use their UUID. */
   reference?: string;
-  /** Read-only compatibility with journals written by the removed resume feature. */
-  recovery?: { name: string; version: number };
-  attempt?: number;
   /** Webhook or source name; `cli` for command-line runs. */
   webhook: string;
   workflow: string;
@@ -44,11 +41,10 @@ export interface RunDetail extends RunSummary {
   events: RunlingEvent[];
 }
 
-/** One journal line. The first line is always `started`. Event timestamps are milliseconds
- * since the run started. */
+/** One journal line. Each execution attempt starts with `started`, also after recovery under
+ * the same run ID. Event timestamps are milliseconds since that attempt started. */
 export type RunRecord =
   | { type: 'started'; run: RunDetail }
-  | { type: 'resumed'; attempt: number; resumedAt: number }
   | { type: 'event'; event: RunlingEvent }
   | {
       type: 'finished';
@@ -111,12 +107,17 @@ export const eventRecord = (event: RunlingEvent, base: number): RunRecord => ({
   event: { ...event, timestamp: Math.max(0, event.timestamp - base) }
 });
 
-/** Create the journal file with its `started` record. Fails if the file exists. */
-export async function createRunJournal(directory: string, run: RunDetail): Promise<RunJournal> {
+/** Create a journal with its `started` record. Recovery appends another attempt to an existing
+ * journal after its caller repairs any truncated tail. Normal creation requires a new file. */
+export async function createRunJournal(
+  directory: string,
+  run: RunDetail,
+  resume = false
+): Promise<RunJournal> {
   await mkdir(directory, { recursive: true });
   const path = resolve(directory, `${run.id}.jsonl`);
   await writeFile(path, `${JSON.stringify({ type: 'started', run } satisfies RunRecord)}\n`, {
-    flag: 'wx',
+    flag: resume ? 'a' : 'wx',
     mode: 0o600
   });
   let queue = Promise.resolve();

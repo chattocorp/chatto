@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // The tests in this file check the compact, handle-based projections against
@@ -511,7 +511,7 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 		pins, latest := tl.PinnedMessagesWithLatest(roomID)
 		line("timeline room %s pins: %+v %s", roomID, pins, latest)
 		for _, userID := range h.users {
-			at, ok := tl.LatestOriginalPostAt(roomID, userID)
+			at, ok := tl.LatestRootPostAt(roomID, userID)
 			line("timeline room %s latest post %s: %v %v", roomID, userID, at, ok)
 		}
 		if messages := h.roots[roomID]; len(messages) > 0 {
@@ -591,11 +591,11 @@ func (c *compactProjections) digest(t *testing.T, h *compactHistory) string {
 		for _, roomID := range h.rooms {
 			scopes := append([]string{""}, h.roots[roomID]...)
 			for _, scope := range scopes {
-				line("decision thread %s %s: followers=%v replies=%d", roomID, scope, s.threadFollowerIDs(roomID, scope), s.threadReplyCount(scope))
+				line("decision thread %s %s: followers=%v replies=%d", roomID, scope, s.threadFollowerIDs(roomID, scope), s.badges.replyCount(scope))
 				for _, userID := range h.users {
 					line("decision badge %s %s %s: %v follow=%q", userID, roomID, scope, s.hasBadgeAttention(badgeQuery{
 						userID: userID, roomID: roomID, threadRootEventID: scope, now: now,
-					}), s.threadFollowState(userID, roomID, scope))
+					}), s.badges.followState(userID, roomID, scope))
 				}
 			}
 		}

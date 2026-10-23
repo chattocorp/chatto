@@ -1,5 +1,7 @@
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import { ThreadOrder, ThreadRootAuthorFilter } from '@chatto/api-types/api/v1/threads_pb';
+export { ThreadOrder, ThreadRootAuthorFilter } from '@chatto/api-types/api/v1/threads_pb';
 import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
 import {
   MessageSearchScope,
@@ -54,6 +56,10 @@ export function createThreadAPI(config: ConnectAPIConfig) {
       input: {
         limit: number;
         offset: number;
+        /** Select root authors independently of matching reply authors. Defaults to all. */
+        rootAuthorFilter?: ThreadRootAuthorFilter;
+        /** Sort before pagination. Defaults to latest activity; older servers may ignore it. */
+        order?: ThreadOrder;
         /** Search roots and replies across all accessible followed threads. */
         query?: string;
         /** Continuation for a non-empty search query. Offset is ignored in this mode. */
@@ -70,6 +76,8 @@ export function createThreadAPI(config: ConnectAPIConfig) {
       const request = {
         includeDirectMessageThreads: true,
         unreadOnly: input.unreadOnly ?? false,
+        rootAuthorFilter: input.rootAuthorFilter ?? ThreadRootAuthorFilter.UNSPECIFIED,
+        order: input.order ?? ThreadOrder.UNSPECIFIED,
         page: { limit: input.limit, offset: input.offset }
       };
       const requestOptions = { signal: options.signal };
@@ -79,8 +87,12 @@ export function createThreadAPI(config: ConnectAPIConfig) {
               {
                 query,
                 scope: MessageSearchScope.FOLLOWED_THREADS,
+                rootAuthorFilter: request.rootAuthorFilter,
                 groupBy: MessageSearchGroupBy.THREAD,
-                order: MessageSearchOrder.THREAD_ACTIVITY,
+                order:
+                  input.order === ThreadOrder.CREATED
+                    ? MessageSearchOrder.THREAD_CREATED
+                    : MessageSearchOrder.THREAD_ACTIVITY,
                 pageSize: input.limit,
                 cursor: input.cursor ?? ''
               },

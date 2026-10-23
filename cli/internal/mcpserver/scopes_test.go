@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/testutil"
 )
 
 // Check the parsed-call guard without the SDK's HTTP header validation. A
@@ -93,7 +93,7 @@ func TestMCPGrantSubsets(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Keep expected policy independent of the implementation's scope lookup.
-	group, err := c.CreateRoomGroup(ctx, core.SystemActorID, "Scope Rooms", "")
+	group, err := c.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "Scope Rooms", "")
 	if err != nil {
 		t.Fatal(err)
 	}

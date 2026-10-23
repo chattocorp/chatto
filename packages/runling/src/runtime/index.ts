@@ -1,15 +1,45 @@
 export { createChannel, ChannelClosedError, ChannelFullError, type Channel } from './channel.ts';
-export { spawn, type Run, type TaskHandle } from './spawn.ts';
+export { createNotifier, type Notifier } from './notifier.ts';
 export { TimeoutError, validateTimeout } from './timeout.ts';
+export { awaitWithSignal } from './await-with-signal.ts';
 export {
-  createWorkflowContext,
+  createTaskContext,
   WorkflowAbortError,
   type RunIdentity,
-  type TextHandler,
-  type WorkflowContext
+  type WorkflowState,
+  type TaskContext
 } from './context.ts';
 export {
+  isTask,
+  task,
+  type AnyTask,
+  type MessageInput,
+  type MessageOutput,
+  type Task,
+  type TaskDefinition,
+  type TaskOutput,
+  type TaskImplementation,
+  type TaskInput,
+  type TaskInvocation,
+  type TaskResult,
+  type TaskSteering
+} from './task.ts';
+export { type Invocation } from './invocation.ts';
+export { agentSessionFile } from './agent-sessions.ts';
+export { AgentSessionStore, type AgentSessionLease } from './agent-session-store.ts';
+export { createClassifier } from './classifier.ts';
+export { createChoiceClassifier } from './choice-classifier.ts';
+export { usePrivateTempDirectory } from './private-temp.ts';
+export { taskTool, type TaskToolOptions } from './task-tool.ts';
+export {
   agent,
+  type AgentTaskOptions,
+  type TextAgentTaskOptions,
+  type AgentTaskSessionOptions,
+  type AgentSessionFactory
+} from './agent-task.ts';
+export {
+  createAgentSession,
   type AgentExtension,
   type AgentExtensionAPI,
   AgentOutcomeError,
@@ -21,22 +51,15 @@ export {
   type AgentRunOptions,
   type CompletedAgentReport,
   defineAgentExtension,
+  defineAgentTool,
+  type AgentTool,
   type RunlingAgent,
   runAgent,
-  type RunAgentOptions
+  type RunAgentOptions,
+  type ThinkingLevel
 } from './agent.ts';
-export { getPwd, WorkingDirectory, workingTreeHash } from './git.ts';
+export { WorkingDirectory, workingTreeHash } from './git.ts';
 export type { RunlingEvent, RunlingEventListener, RunlingEventPayload } from './events.ts';
-export { randomId } from './id.ts';
-export {
-  input,
-  createInput,
-  InputUnavailableError,
-  type Input,
-  type InputHandler,
-  type InputOptions,
-  type InputRequest
-} from './input.ts';
 export { log, type LogLevel } from './log.ts';
 export { step, type StepWork } from './step.ts';
 export {
@@ -52,14 +75,6 @@ export {
   type Shell
 } from './shell.ts';
 export { concat, type ConcatPart } from './utils.ts';
-export {
-  isTask,
-  isSchemaTask,
-  task,
-  type Task,
-  type TaskDefinition,
-  type TaskFunction
-} from './workflow.ts';
 export { Type, type Static, type TSchema } from 'typebox';
 export {
   isWorkflowSchema,
@@ -72,7 +87,7 @@ export {
   type SchemaResult
 } from './schema.ts';
 export type { StandardSchemaV1, StandardJSONSchemaV1 } from '@standard-schema/spec';
-export { type JsonValue, type WorkflowResult, type WorkflowReturn } from './runtime.ts';
+export { type JsonValue } from './runtime.ts';
 export { runWorkflow, type RunWorkflowOptions, type WorkflowExecution } from './runner.ts';
 export {
   accumulateTokenUsage,

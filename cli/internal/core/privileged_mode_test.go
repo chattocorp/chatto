@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 )
 
 func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testing.T) {
@@ -248,7 +248,7 @@ func TestBotPermissionsIndependentOfInspectorPrivilegedMode(t *testing.T) {
 			if err := c.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermMessageManage); err != nil {
 				t.Fatal(err)
 			}
-			group, err := c.CreateRoomGroup(ctx, SystemActorID, "Automation", "")
+			group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Automation", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -417,7 +417,7 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser other: %v", err)
 	}
-	group, err := c.CreateRoomGroup(ctx, SystemActorID, "Gated", "")
+	group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Gated", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -481,7 +481,7 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 					return c.CanSeeRoom(ctx, owner.Id, KindChannel, restricted.Id)
 				}, tc.overridden},
 				{"join restricted", func(ctx context.Context) (bool, error) {
-					return c.CanJoinRoomAt(ctx, owner.Id, KindChannel, restricted.Id)
+					return c.authorization.CanJoinRoomAt(ctx, owner.Id, KindChannel, restricted.Id)
 				}, tc.overridden},
 				{"read restricted", func(ctx context.Context) (bool, error) {
 					return c.CanReadMessages(ctx, owner.Id, KindChannel, restricted.Id)
@@ -531,7 +531,7 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 	if err := c.GrantUserRoomPermission(ctx, SystemActorID, restricted.Id, owner.Id, PermRoomJoin); err != nil {
 		t.Fatalf("GrantUserRoomPermission: %v", err)
 	}
-	if allowed, err := c.CanJoinRoomAt(session(owner.Id, time.Time{}), owner.Id, KindChannel, restricted.Id); err != nil || !allowed {
+	if allowed, err := c.authorization.CanJoinRoomAt(session(owner.Id, time.Time{}), owner.Id, KindChannel, restricted.Id); err != nil || !allowed {
 		t.Fatalf("inactive join with direct grant = %v, %v; want true, nil", allowed, err)
 	}
 }

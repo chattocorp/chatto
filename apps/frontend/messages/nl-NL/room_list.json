@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Kopieer ruimtelink",
     "show_rooms_in_group": "Meer kamers in {group} tonen ({count})",
     "hide_rooms_in_group": "Niet-deelgenomen kamers in {group} verbergen",
     "more_rooms": "{count} meer",
@@ -27,6 +28,12 @@
     "add_to_group": "Toevoegen aan {group}",
     "group_settings": "Instellingen voor {group}",
     "server_actions": "Acties voor {server}",
-    "room_actions": "Acties voor #{room}"
+    "room_actions": "Acties voor #{room}",
+    "open_group_settings": "Groepsinstellingen openen",
+    "open_room_settings": "Kamerinstellingen openen",
+    "activity_now": "nu",
+    "older_conversations": "Oudere gesprekken",
+    "show_older_conversations": "Oudere tonen ({count})",
+    "show_fewer_conversations": "Minder tonen"
   }
 }

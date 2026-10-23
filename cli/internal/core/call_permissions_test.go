@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/stretchr/testify/require"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 func TestCallPermissionsAdmissionAndSources(t *testing.T) {
@@ -333,9 +333,9 @@ func TestCallPermissionsScopeMatrix(t *testing.T) {
 			scope := PermissionTargetScope{Kind: scopeKind}
 			switch scopeKind {
 			case MatrixScopeGroup:
-				group, err := c.CreateRoomGroup(ctx, SystemActorID, "Call matrix", "")
+				group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Call matrix", "")
 				require.NoError(t, err)
-				require.NoError(t, c.MoveRoomToGroup(ctx, SystemActorID, room.Id, group.Id))
+				require.NoError(t, c.roomLayout.MoveRoomToGroup(ctx, SystemActorID, room.Id, group.Id))
 				scope.ID = group.Id
 			case MatrixScopeRoom:
 				scope.ID = room.Id

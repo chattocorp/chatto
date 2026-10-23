@@ -14,13 +14,13 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/natsresources"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/projectionsnapshot"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/internal/testutil/fakes3"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/cli/internal/testutil/fakes3"
 )
 
 func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
@@ -57,6 +57,8 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("snapshot worker did not publish the projection cohort")
 	}
+	requireSnapshotMetric(t, first, `chatto_projection_snapshot_restore_info{projection="server_content_view",reason="missing",source="cold"} 1`)
+	requireSnapshotMetric(t, first, `chatto_projection_snapshot_publications_total{backend="nats",projection="server_content_view",result="success"} 1`)
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
 	if len(firstSnapshotObjects) < 2 {
 		t.Fatalf("snapshot worker published only %d objects", len(firstSnapshotObjects))
@@ -122,6 +124,10 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	case <-second.projectionSnapshotWorker.done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("snapshot worker did not finish its initial eligibility pass")
+	}
+	requireSnapshotMetric(t, second, `chatto_projection_snapshot_restore_info{projection="server_content_view",reason="none",source="current"} 1`)
+	if strings.Contains(snapshotMetricsText(t, second), `chatto_projection_snapshot_publications_total{backend="nats",projection="server_content_view"`) {
+		t.Fatal("fresh restore counted a skipped publication")
 	}
 	stopSecond()
 	refreshedObjects := projectionSnapshotObjectNames(t, ctx, second)
@@ -365,7 +371,14 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
-	waitForSnapshotObjects(t, ctx, first, 1)
+	select {
+	case <-first.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot worker did not finish its initial pass")
+	}
+	if len(projectionSnapshotObjectNames(t, ctx, first)) == 0 {
+		t.Fatal("snapshot objects were not published")
+	}
 	firstIdentity, err := evtstream.Identity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
@@ -655,6 +668,7 @@ func TestProjectionSnapshotInitializationFailureDoesNotPreventCoreStartup(t *tes
 		t.Fatal("snapshot worker enabled after repository initialization failure")
 	}
 	stop := startSnapshotTestCore(t, core)
+	requireSnapshotMetric(t, core, `chatto_projection_snapshot_restore_info{projection="server_content_view",reason="unavailable",source="cold"} 1`)
 	stop()
 }
 
@@ -682,27 +696,11 @@ func startSnapshotTestCore(t *testing.T, core *ChattoCore) func() {
 	}
 }
 
-func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore, minimum int) {
-	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)
-		if err == nil {
-			count := 0
-			for _, object := range objects {
-				if strings.HasPrefix(object.Name, "internal/projection-snapshots/") {
-					count++
-				}
-			}
-			if count >= minimum {
-				return
-			}
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("snapshot objects were not published")
-}
-
+// projectionSnapshotObjectNames lists the published snapshot objects. Call it
+// only when no snapshot pass runs. An object store List uses an ordered
+// consumer. When a concurrent Put or Delete replaces an entry that the
+// consumer has not received yet, nats-server can stop the delivery until the
+// next idle heartbeat, after 5 seconds.
 func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *ChattoCore) []string {
 	t.Helper()
 	objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)

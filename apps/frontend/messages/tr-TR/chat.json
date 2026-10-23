@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Bildirimler",
       "subtitle": "İşte yenilikler",
-      "list_title": "Son etkinlik",
       "clear_read": "Okunanları temizle",
       "empty_title": "Bildirim yok",
       "empty_body": "Hepiniz yakalandınız!",
@@ -19,14 +18,15 @@
       "unread": "Okunmadı",
       "activity": "Yeni etkinlik",
       "summary": {
-        "direct_message": "{actor} sana doğrudan mesaj gönderdi.",
-        "reaction": "{actor}, {channel} kanalındaki mesajına ‘{emoji}’ ile tepki verdi.",
-        "reaction_group": "{actor} ve diğerleri, {channel} kanalındaki mesajına ‘{emoji}’ ile tepki verdi.",
-        "reply": "{actor} mesajına yanıt verdi.",
-        "mention": "{actor} senden bahsetti.",
-        "followed_thread": "{actor} takip ettiğin bir konuya yanıt verdi.",
-        "new_message": "{actor} yeni bir mesaj yayınladı.",
-        "activity": "{actor} sana bir bildirim gönderdi."
+        "direct_message": "{actor} sana doğrudan mesaj gönderdi",
+        "reaction": "{actor}, mesajına {emoji} ile tepki verdi",
+        "reaction_group": "{actor} ve diğerleri mesajına {emoji} ile tepki verdi",
+        "reply": "{actor} mesajına yanıt verdi",
+        "mention": "{actor} senden bahsetti",
+        "followed_thread": "{actor} takip ettiğin bir konuya yanıt verdi",
+        "new_message": "{actor} yeni bir mesaj yayınladı",
+        "activity": "{actor} sana bir bildirim gönderdi",
+        "room_invitation": "{actor} sizi bir odaya davet etti"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Kullanıcı profili",
-      "send_message": "Mesaj Gönder",
-      "view_profile": "Profili görüntüle",
+      "send_message": "Sohbeti açın",
+      "view_profile": "Profili görüntüleyin",
       "profile_requires_direct_message": "Bu profili görüntülemek için doğrudan mesaj gerekir.",
-      "manage_bot": "Botu yönet",
-      "view_in_admin": "Sunucu yönetiminde görüntüle",
-      "copy_user_id": "Kullanıcı kimliğini kopyala"
+      "manage_bot": "Botu yönetin",
+      "view_in_admin": "Sunucu yönetiminde görüntüleyin",
+      "copy_user_id": "Kullanıcı kimliğini kopyalayın"
+    },
+    "server_info": {
+      "title": "Sunucu bilgileri",
+      "details": "Sunucu ayrıntıları"
+    },
+    "compatibility": {
+      "title": "Uyumluluk",
+      "view": "Uyumluluğu görüntüle",
+      "limited": "Eski sunucu sürümü",
+      "supported": "Bilinen uyumluluk sorunu yok",
+      "affected": "Etkilenen özellikler",
+      "requires": "{version} veya daha yeni bir sürüm gerektirir",
+      "thread_views_title": "Konu görünümleri sınırlı olarak destekleniyor",
+      "thread_views_description": "Takip ettiğiniz ve başlattığınız konular bu sunucuda ayrı ayrı listelenmeyebilir.",
+      "independent_slow_mode_title": "Bağımsız yavaş mod kullanılamıyor",
+      "independent_slow_mode_description": "Bu sunucu, kanal mesajları ve konu yanıtları için ortak bir bekleme süresi kullanır.",
+      "upgrade": "Tam destek için sunucu yöneticisinden {version} veya daha yeni bir sürüme yükseltmesini isteyin."
     },
     "server_gutter": {
       "move_up": "Yukarı taşıyın",
       "move_down": "Aşağı taşıyın",
       "add_server": "Sunucu Ekle",
-      "log_in": "Bu sunucuda oturum aç",
-      "sign_out": "Bu sunucudaki oturumu kapat",
+      "log_in": "Sunucuda oturum açın",
+      "sign_out": "Sunucudaki oturumu kapatın",
       "version": "Sürüm {version}",
       "unreachable": "Sunucuya ulaşılamıyor",
       "connection_unavailable": "Bağlantı kullanılamıyor",
-      "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto 0,5 veya daha yeni bir sürüme yükseltilmesi gerekir.",
+      "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto {version} veya daha yeni bir sürüme yükseltilmesi gerekir.",
       "compatibility_unknown": "Bu uygulama, sunucu sürümünden uyumluluğu belirleyemez.",
       "go_to_notifications_count": {
         "one": "{count} bildirime git",
@@ -90,9 +107,16 @@
       "body": "Bu sunucuda mesaj okumak ve göndermek için oturum açın."
     },
     "threads": {
-      "title": "Konularım",
-      "subtitle": "Takip ettiğiniz konular",
-      "list_title": "Takip edilen konular",
+      "sort_label": "Konuları sırala",
+      "sort_activity": "Etkinlik",
+      "sort_created": "Yaş",
+      "tab_started": "Benim",
+      "tab_followed": "Takip edilenler",
+      "tab_label": "Konu görünümü",
+      "empty_mine_title": "Başlattığınız konu yok",
+      "empty_mine_body": "Başlattığınız ve takip ettiğiniz konular burada görünür.",
+      "title": "Konular",
+      "subtitle": "Konularınızdaki yeni etkinlikler",
       "filter_label": "Konuları filtrele",
       "filter_all": "Hepsi",
       "filter_unread": "Okunmamış",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Sahibi",
       "open_card": "{name} profil kartını aç"
+    },
+    "management_nav": {
+      "general": "Genel",
+      "neighbors": "Komşular",
+      "members": "Üyeler",
+      "rooms": "Odalar",
+      "moderation": "Moderasyon",
+      "permissions": "İzinler",
+      "security": "Güvenlik",
+      "event_log": "Olay Günlüğü",
+      "system": "Sistem",
+      "back_to_server": "Sunucuya Geri Dön",
+      "invitations": "Davet bağlantıları"
     }
   }
 }

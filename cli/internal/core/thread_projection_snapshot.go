@@ -2,7 +2,7 @@ package core
 
 import (
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"sort"
 
 	"google.golang.org/protobuf/proto"

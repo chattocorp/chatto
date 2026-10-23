@@ -275,8 +275,8 @@ message post.
 **Tradeoff:** Generic policy errors need human investigation. A completed
 write can still have a failed response. A keyed retry keeps the same message
 identity; an unkeyed post needs a result check. See
-[FDR-050](FDR-050-message-send-retries.md) and
-[ADR-115](../adr/ADR-115-message-post-idempotency.md).
+[FDR-052](FDR-052-message-send-retries.md) and
+[ADR-117](../adr/ADR-117-message-post-idempotency.md).
 
 ## Tool Admission Policy
 

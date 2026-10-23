@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "无法复制到剪贴板。请选择文本并手动复制。",
     "cancel": "取消",
     "close_sidebar": "关闭侧边栏",
     "or": "或",
@@ -21,11 +22,12 @@
     "password_placeholder": "你的密码",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "至少 8 个字符",
+    "password_bytes_placeholder": "8–72 个 UTF-8 字节",
     "password_confirm_placeholder": "再次输入密码",
     "validation": {
       "email": "请输入有效的邮箱地址",
-      "password_min": "至少需要 8 个字符",
+      "password_min_bytes": "请使用至少 8 个 UTF-8 字节。 部分字符会使用多个字节。",
+      "password_max": "请使用最多 72 个 UTF-8 字节。 部分字符会使用多个字节。",
       "username_min": "至少需要 2 个字符",
       "username_max": "最多可输入 32 个字符",
       "username_charset": "只能使用字母、数字、点、短横线和下划线",
@@ -53,6 +55,11 @@
     "saved": "已保存！",
     "rooms": "聊天室",
     "copy_to_clipboard": "复制到剪贴板",
-    "copied_to_clipboard": "已复制到剪贴板"
+    "copied_to_clipboard": "已复制到剪贴板",
+    "user_search_placeholder": "按登录名或显示名称搜索...",
+    "no_users": "未找到用户",
+    "user_id": "用户 ID",
+    "reason": "原因",
+    "message_of_the_day": "每日消息"
   }
 }

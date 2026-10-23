@@ -65,7 +65,7 @@ describe('CreateRoom', () => {
       onroomcreated: mocks.onroomcreated
     });
 
-    await expect.element(getByRole('dialog', { name: 'Create Room' })).toBeInTheDocument();
+    await expect.element(getByRole('dialog', { name: 'Create room' })).toBeInTheDocument();
     await expect.element(getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     const form = q(container, 'form') as HTMLFormElement;
     const submit = q(container, 'button[type="submit"]');

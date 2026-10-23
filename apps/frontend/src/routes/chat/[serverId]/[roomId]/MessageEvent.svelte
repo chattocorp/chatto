@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { conversationPath } from '$lib/navigation/conversationPath';
   import { untrack } from 'svelte';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { resolve } from '$app/paths';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
@@ -26,8 +26,7 @@
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { copyMessageLinkToClipboard } from '$lib/messageLinks';
-  import { serverIdToSegment } from '$lib/navigation';
+  import { copyMessageLinkToClipboard } from '$lib/copyChatLink';
   import LazyMessagePreviewCard from '$lib/components/LazyMessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
@@ -107,6 +106,8 @@
 
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
+  // Keep the exact selection before a pointer press or menu focus collapses it.
+  let selectedTextSnapshot: string | null = null;
 
   // The timeline renders this message's overlays outside the row; see MessageActionOverlays.
   const actionOverlayKind = $derived(actionOverlays.kindFor(event.id));
@@ -128,9 +129,15 @@
   ) {
     actionOverlays.open(event.id, overlay, {
       ...pointer,
-      replyQuote: selectedReplyQuoteSnapshot ?? getSelectedReplyQuote()
+      replyQuote: selectedReplyQuoteSnapshot ?? getSelectedReplyQuote(),
+      // A live selection takes priority, including one outside this message. The snapshot
+      // is needed only after a pointer press collapses the selection.
+      selectedText: window.getSelection()?.isCollapsed
+        ? selectedTextSnapshot
+        : getSelectedMessageText()
     });
     selectedReplyQuoteSnapshot = null;
+    selectedTextSnapshot = null;
   }
 
   // Touch handlers for mobile
@@ -154,6 +161,7 @@
     // Capture selected quote text before a right-click can collapse the browser selection.
     if (e.button === 2) {
       selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
+      selectedTextSnapshot = getSelectedMessageText();
       return;
     }
     if (!prefersTouch || canUseHoverActions) return;
@@ -169,6 +177,7 @@
     }
     if (!(event.target instanceof Element && event.target.closest('[role="toolbar"]'))) {
       selectedReplyQuoteSnapshot = getSelectedReplyQuote();
+      selectedTextSnapshot = getSelectedMessageText();
     }
   }
 
@@ -178,6 +187,7 @@
     }
     if (!actionMenuOpen) {
       selectedReplyQuoteSnapshot = null;
+      selectedTextSnapshot = null;
     }
   }
 
@@ -273,8 +283,9 @@
   const hasVisualEmbed = $derived(hasAttachments || !!msg?.linkPreview || messageLinks.length > 0);
 
   // Message is "deleted" if it has no body AND no attachments.
-  // Deleted rows that reach this component have visible context and render as
-  // tombstones. EventList omits context-free tombstones before rendering.
+  // Deleted rows render as tombstones. EventList usually omits context-free
+  // tombstones, but keeps them
+  // in a DM whose other participant was deleted.
   const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
   const replyTarget = $derived.by(() => {
@@ -369,6 +380,24 @@
     jumpState.jumpToMessage(replyToId);
   }
 
+  /** Read only a selection wholly inside this message body, without quote normalization. */
+  function getSelectedMessageText(): string | null {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount || !messageBodySelectionRoot) {
+      return null;
+    }
+    for (let index = 0; index < selection.rangeCount; index++) {
+      const range = selection.getRangeAt(index);
+      if (
+        !messageBodySelectionRoot.contains(range.startContainer) ||
+        !messageBodySelectionRoot.contains(range.endContainer)
+      ) {
+        return null;
+      }
+    }
+    return selection.toString() || null;
+  }
+
   function getSelectedReplyQuote(): QuoteInsertionContent | null {
     return selectedQuoteTextForMessageBody(
       typeof window === 'undefined' ? null : window.getSelection(),
@@ -384,6 +413,7 @@
 
   function discardSelectedReplyQuote(): void {
     selectedReplyQuoteSnapshot = null;
+    selectedTextSnapshot = null;
     if (getSelectedReplyQuote()) {
       window.getSelection()?.removeAllRanges();
     }
@@ -449,11 +479,7 @@
   >
     {#snippet compactLeading()}
       <a
-        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-          serverId: serverIdToSegment(activeServerId),
-          roomId,
-          messageId: event.id
-        })}
+        href={conversationPath(activeServerId, roomId, { messageId: event.id })}
         onclick={copyMessageLink}
         oncontextmenu={(e) => e.stopPropagation()}
         title={m('room.message.meta.copy_link_title')}
@@ -483,11 +509,7 @@
 
     {#snippet headerMeta()}
       <a
-        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-          serverId: serverIdToSegment(activeServerId),
-          roomId,
-          messageId: event.id
-        })}
+        href={conversationPath(activeServerId, roomId, { messageId: event.id })}
         onclick={copyMessageLink}
         oncontextmenu={(e) => e.stopPropagation()}
         title={m('room.message.meta.copy_link_title')}
@@ -530,7 +552,7 @@
       {#if hasMessageFooter}
         <MessageMetaBar
           {roomId}
-          serverSegment={serverIdToSegment(activeServerId)}
+          serverId={activeServerId}
           threadRootEventId={target.threadRootEventId}
           reactions={msg?.reactions ?? []}
           edited={isEdited && !isDeleted}

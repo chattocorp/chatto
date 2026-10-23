@@ -7,7 +7,8 @@ import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
 export type HealthStatus = 'ok' | 'warning' | 'critical' | 'unknown';
 
 /** Identifies a health check, so the view can choose its label and icon. */
-export type HealthCheckId = 'broker' | 'projections' | 'workers' | 'backlog' | 'storage';
+export type HealthCheckId =
+  'broker' | 'projections' | 'workers' | 'backlog' | 'storage' | 'voice_calls';
 
 /**
  * A health check result. `detail` is a discriminated value that the view
@@ -32,7 +33,13 @@ export type HealthDetail =
   | { kind: 'backlog_waiting'; count: number }
   | { kind: 'backlog_clear' }
   | { kind: 'storage_used'; percent: number }
-  | { kind: 'storage_unlimited' };
+  | { kind: 'storage_unlimited' }
+  | { kind: 'livekit_connected' }
+  | { kind: 'livekit_unreachable' }
+  | { kind: 'livekit_unauthorized' }
+  | { kind: 'livekit_error' }
+  | { kind: 'livekit_insecure_url' }
+  | { kind: 'livekit_webhooks_rejected' };
 
 /** Usage at or above this share of an account limit is a warning. */
 export const STORAGE_WARNING_RATIO = 0.75;
@@ -50,17 +57,25 @@ const severity: Record<HealthStatus, number> = { unknown: 0, ok: 1, warning: 2, 
  * unconfirmed workers are normal while work flows, so they appear only as
  * details.
  *
- * The broker and projection checks describe the replica that handled the
- * request. The other checks use broker state that every replica shares.
+ * The voice calls check appears only when LiveKit is configured. A failed
+ * LiveKit API check is critical. An insecure LiveKit URL, or a rejected
+ * webhook more recent than the last accepted one, is a warning.
+ *
+ * The broker, projection, and voice calls checks describe the replica that
+ * handled the request. The other checks use broker state that every replica
+ * shares.
  */
 export function systemHealthChecks(info: AdminSystemInfo): HealthCheck[] {
-  return [
+  const checks = [
     brokerCheck(info),
     projectionsCheck(info),
     workersCheck(info),
     backlogCheck(info),
     storageCheck(info)
   ];
+  const voiceCalls = voiceCallsCheck(info);
+  if (voiceCalls) checks.push(voiceCalls);
+  return checks;
 }
 
 /** Returns the most severe status of the checks, or `ok` when all are unknown. */
@@ -198,4 +213,42 @@ function storageCheck(info: AdminSystemInfo): HealthCheck {
     // 29/100, which multiply to 28.999…, from losing a percent.
     detail: { kind: 'storage_used', percent: Math.floor(usage * 100 + 1e-9) }
   };
+}
+
+function voiceCallsCheck({ livekit }: AdminSystemInfo): HealthCheck | null {
+  switch (livekit.connectionState) {
+    case 'unavailable':
+    case 'not_configured':
+      return null;
+    case 'unreachable':
+      return { id: 'voice_calls', status: 'critical', detail: { kind: 'livekit_unreachable' } };
+    case 'unauthorized':
+      return { id: 'voice_calls', status: 'critical', detail: { kind: 'livekit_unauthorized' } };
+    case 'error':
+      return { id: 'voice_calls', status: 'critical', detail: { kind: 'livekit_error' } };
+    case 'ok':
+      if (livekit.insecureUrl) {
+        return { id: 'voice_calls', status: 'warning', detail: { kind: 'livekit_insecure_url' } };
+      }
+      if (liveKitWebhooksRejected(livekit)) {
+        return {
+          id: 'voice_calls',
+          status: 'warning',
+          detail: { kind: 'livekit_webhooks_rejected' }
+        };
+      }
+      return { id: 'voice_calls', status: 'ok', detail: { kind: 'livekit_connected' } };
+  }
+}
+
+/**
+ * Reports whether the most recent LiveKit webhook had an invalid signature.
+ * An accepted webhook after a rejected one shows that the signing key now
+ * matches.
+ */
+export function liveKitWebhooksRejected(livekit: AdminSystemInfo['livekit']): boolean {
+  const rejected = livekit.lastRejectedWebhookAt;
+  if (!rejected) return false;
+  const accepted = livekit.lastWebhookAt;
+  return !accepted || rejected.getTime() > accepted.getTime();
 }

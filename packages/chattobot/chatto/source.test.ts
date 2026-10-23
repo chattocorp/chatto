@@ -1,362 +1,607 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { Code, ConnectError } from '@connectrpc/connect';
-import { RealtimeEvent, RoomKind } from '@chatto/client';
+import { parseEnv } from 'node:util';
+import { RealtimeEvent, type MessagingRequests } from '@chatto/client';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
-import type { EventSourceContext } from 'runling/web';
-import { chattoSource } from './realtime.ts';
-import { RegistrationError } from './routing.ts';
-import type { createChattoBot } from '../workflows/chat.ts';
-import { fakeChatto, settle, type FakeChattoSetup } from './fake-chatto.ts';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { createTaskContext, runWorkflow, task, Type } from 'runling';
+import type { EventSource, WebhookContext } from 'runling/web';
+import { IntakeDecision, IntakeInput } from '../tasks/classify-intake.ts';
+import { chattoSource, chattoWorkflow } from './source.ts';
+import { IncomingMessage } from './message.ts';
+import { fakeChatto } from './fake-chatto.ts';
 
 const mocks = vi.hoisted(() => ({
-  setup: undefined as unknown as FakeChattoSetup,
+  ready: vi.fn(),
+  consumeEvents: vi.fn(),
+  addressedMessage: vi.fn(),
   getMessage: vi.fn(),
-  bot: vi.fn((_options: Parameters<typeof createChattoBot>[0]) => ({ route: () => {} }))
+  close: vi.fn(),
+  batchGetUsers: vi.fn(),
+  readThread: vi.fn(),
+  readMessage: vi.fn(),
+  classify: vi.fn(),
+  conversation: vi.fn(),
+  started: vi.fn(),
+  steered: vi.fn()
 }));
-let chatto = fakeChatto({ viewerId: 'bot', routes: () => {} });
-vi.mock('@chatto/client', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@chatto/client')>()),
-  createClient: () => chatto.createClient(),
-  createApi: (options: Parameters<typeof chatto.createApi>[0]) => chatto.createApi(options)
+vi.mock('@chatto/client', async (original) => ({
+  ...(await original<typeof import('@chatto/client')>()),
+  createClient: () => ({ connect: () => mocks, close: mocks.close }),
+  createApi: () => ({
+    ready: mocks.ready,
+    service: () => ({ batchGetUsers: mocks.batchGetUsers, getMessage: mocks.readMessage }),
+    readThread: mocks.readThread
+  })
 }));
-vi.mock('../workflows/chat.ts', () => ({ createChattoBot: mocks.bot }));
-
-function useServer(viewerId: FakeChattoSetup['viewerId'] = 'bot') {
-  chatto = fakeChatto({
-    viewerId,
-    routes(router) {
-      router.service(MessageService, {
-        getMessage: mocks.getMessage,
-        createMessage: () => ({ message: { id: 'reply' } }),
-        addReaction: () => ({})
-      });
-      router.service(RoomService, { refreshTypingIndicator: () => ({}) });
-      router.service(ThreadService, { getThreadEvents: () => ({ page: { events: [] } }) });
-    }
-  });
-}
-useServer();
+vi.mock('../tasks/classify-intake.ts', async (original) => ({
+  ...(await original<typeof import('../tasks/classify-intake.ts')>()),
+  createIntakeClassifier: () =>
+    task(
+      { name: 'Fixture classifier', input: IntakeInput, result: IntakeDecision },
+      async (_ctx, input) => mocks.classify(input)
+    )
+}));
+vi.mock('../tasks/conversation.ts', () => ({
+  createConversation: () =>
+    task(
+      {
+        name: 'Chatto conversation',
+        input: IncomingMessage,
+        result: Type.Null(),
+        steering: IncomingMessage,
+        output: Type.Union([Type.Literal('busy'), Type.Literal('waiting'), Type.Literal('idle')])
+      },
+      async (_ctx, input) => {
+        mocks.conversation(input);
+        return null;
+      }
+    )
+}));
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  vi.clearAllMocks();
-  useServer();
+  vi.resetAllMocks();
 });
 
-function context(dispatch = vi.fn().mockResolvedValue([])) {
-  const controller = new AbortController();
-  const ctx: EventSourceContext = { signal: controller.signal, state: new Map(), dispatch };
-  return { ctx, controller };
-}
-
-/**
- * Run one source generation: wait until it listens, deliver `events`, let
- * handlers finish, then end the generation.
- */
-async function generation(
-  ctx: EventSourceContext,
-  controller: AbortController,
-  events: RealtimeEvent[] = []
-) {
-  const running = chattoSource(ctx);
-  await vi.waitFor(() => expect(chatto.connections.at(-1)?.listening).toBe(true));
-  for (const event of events) chatto.connections.at(-1)!.emit(event);
-  await settle();
-  controller.abort();
-  await running;
-}
-
-const messageEvent = (
-  id: string,
-  actorId: string,
-  value: Partial<{
-    roomKind: RoomKind;
-    bodyPlaintext: string;
-    threadRootEventId: string;
-    inReplyTo: string;
-    mentions: { includesViewer: boolean }[];
-  }>
-) =>
+const event = (id: string, roomId = 'intake', actorId = 'human') =>
   new RealtimeEvent({
     id,
     actorId,
+    event: { case: 'messagePosted', value: { roomId, bodyPlaintext: 'Images fail' } }
+  });
+
+async function run(
+  events: RealtimeEvent[],
+  {
+    rooms = 'intake',
+    engage = true,
+    allowed = '',
+    botAuthor = false,
+    missing = false,
+    recovered = false,
+    addressed,
+    storedMessage
+  }: {
+    storedMessage?: Message;
+    rooms?: string;
+    engage?: boolean;
+    allowed?: string;
+    botAuthor?: boolean;
+    missing?: boolean;
+    recovered?: boolean;
+    addressed?: MessagingRequests['addressedMessage'];
+  } = {}
+) {
+  vi.stubEnv('CHATTO_URL', 'https://chatto.example.test');
+  vi.stubEnv('CHATTO_API_KEY', 'fixture');
+  vi.stubEnv('CHATTO_AGENT_MODEL', 'test/model');
+  vi.stubEnv('CHATTO_AUTO_ENGAGE_ROOM_IDS', rooms);
+  vi.stubEnv('CHATTO_ALLOWED_USER_ID', allowed);
+  vi.stubEnv('CHATTO_MAINTAINER_USER_IDS', 'maintainer');
+  vi.stubEnv('CHATTO_SOURCE_DIRECTORY', '');
+  vi.stubEnv('CHATTO_GITHUB_APP_CLIENT_ID', '');
+  vi.stubEnv('CHATTO_GITHUB_APP_PRIVATE_KEY_FILE', '');
+  vi.stubEnv('CHATTO_GITHUB_REPOSITORY', '');
+  mocks.ready.mockResolvedValue({ viewerId: 'bot' });
+  mocks.classify.mockResolvedValue({ action: engage ? 'engage' : 'ignore', reason: 'fixture' });
+  mocks.addressedMessage.mockImplementation(
+    addressed ??
+      (async (event: RealtimeEvent) =>
+        event.id === 'ping'
+          ? {
+              id: event.id,
+              roomId: 'ordinary',
+              authorId: event.actorId,
+              body: 'Hello',
+              reasons: ['mention']
+            }
+          : undefined)
+  );
+  mocks.batchGetUsers.mockResolvedValue({
+    users: ['human', 'maintainer'].map((id) => ({
+      user: { id, ...(botAuthor ? { bot: {} } : {}) }
+    }))
+  });
+  mocks.readThread.mockImplementation(async ({ threadRootId }: { threadRootId: string }) => ({
+    messages: missing
+      ? []
+      : [
+          {
+            id: threadRootId,
+            authorId: events.find((event) => event.id === threadRootId)?.actorId ?? 'human',
+            body: '',
+            attachments: [{ contentType: 'image/png' }],
+            fromViewer: false
+          }
+        ],
+    olderOmitted: false
+  }));
+  mocks.readMessage.mockImplementation(
+    async ({ roomId, eventId }: { roomId: string; eventId: string }) => ({
+      message: missing
+        ? undefined
+        : (storedMessage ??
+          new Message({
+            id: eventId,
+            roomId,
+            actorId: events.find((event) => event.id === eventId)?.actorId ?? 'human',
+            attachments: [{ contentType: 'image/png' }]
+          }))
+    })
+  );
+  const inputs: unknown[] = [];
+  mocks.conversation.mockImplementation((input: unknown) => inputs.push(input));
+  const pending: Promise<void>[] = [];
+  const start: WebhookContext['start'] = async (root, { input }) => {
+    mocks.started(root.name);
+    const invocation = createTaskContext().start(root, input);
+    invocation.closeSteering();
+    const finished = invocation.result.then(
+      () => {},
+      () => {}
+    );
+    pending.push(finished);
+    return {
+      id: 'intake',
+      steer: invocation.steer,
+      closeSteering: invocation.closeSteering,
+      cancel: () => invocation.cancel(),
+      finished
+    };
+  };
+  mocks.consumeEvents.mockImplementation(
+    async ({ onEvent }: { onEvent: (event: RealtimeEvent) => Promise<void> }) => {
+      for (const e of events) await onEvent(e);
+      await Promise.all(pending);
+    }
+  );
+  const ctx: Parameters<EventSource>[0] = {
+    signal: new AbortController().signal,
+    state: new Map(),
+    runs: () =>
+      recovered
+        ? [
+            {
+              id: 'existing',
+              workflow: 'chattoThread',
+              input: {
+                id: 'root',
+                roomId: 'ordinary',
+                threadRootId: 'root',
+                connection: JSON.stringify(['https://chatto.example.test', 'bot'])
+              },
+              steer: async (message) => {
+                mocks.steered(message);
+              },
+              closeSteering: () => {},
+              cancel: () => {},
+              finished: new Promise<void>(() => {})
+            }
+          ]
+        : [],
+    dispatch: async (route, input) => {
+      await route({ start }, input);
+      return [];
+    }
+  };
+  await chattoSource(ctx);
+  expect(mocks.close).toHaveBeenCalledOnce();
+  return inputs;
+}
+
+test('ordinary mentions bypass classification and opted-in roots classify once', async () => {
+  const inputs = await run([
+    event('root'),
+    event('root'),
+    event('ping', 'ordinary'),
+    event('other', 'ordinary')
+  ]);
+  expect(inputs).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: 'ping', body: '' }),
+      expect.objectContaining({ id: 'root', authorId: 'human', body: '', trigger: 'intake' })
+    ])
+  );
+  expect(inputs).toHaveLength(2);
+  // Intake owns the conversation child: the host registers no second run for the report.
+  expect(mocks.started.mock.calls).toEqual([['Chatto thread'], ['Chatto thread']]);
+  expect(mocks.classify).toHaveBeenCalledOnce();
+  expect(mocks.classify).toHaveBeenCalledWith({
+    body: '',
+    attachmentTypes: ['image/png']
+  });
+});
+
+test('maintainer roots skip automatic intake while direct mentions still engage', async () => {
+  const inputs = await run([
+    event('maintainer-report', 'intake', 'maintainer'),
+    event('ping', 'intake', 'maintainer')
+  ]);
+  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(inputs).toHaveLength(1);
+  expect(inputs[0]).toMatchObject({ id: 'ping' });
+});
+
+test.each(['mention', 'reply'])(
+  'a maintainer %s always reaches the conversation when participation would ignore it',
+  async (kind) => {
+    const { createApi } = fakeChatto({
+      viewerId: 'bot',
+      routes: (router) =>
+        router.service(MessageService, {
+          getMessage: ({ roomId, eventId }) => ({
+            message: {
+              id: eventId,
+              roomId,
+              actorId: eventId === 'bot-message' ? 'bot' : 'maintainer',
+              threadRootEventId: 'root',
+              body: 'Please continue'
+            }
+          })
+        })
+    });
+    const api = createApi({ serverUrl: 'https://chatto.example.test', apiKey: 'fixture' });
+    const inputs = await run(
+      [
+        new RealtimeEvent({
+          id: 'request',
+          actorId: 'maintainer',
+          event: {
+            case: 'messagePosted',
+            value: {
+              roomId: 'ordinary',
+              threadRootEventId: 'root',
+              bodyPlaintext: 'Please continue',
+              inReplyTo: kind === 'reply' ? 'bot-message' : '',
+              mentions: kind === 'mention' ? [{ includesViewer: true }] : []
+            }
+          }
+        })
+      ],
+      {
+        rooms: '',
+        engage: false,
+        addressed: api.addressedMessage.bind(api),
+        storedMessage: new Message({
+          id: 'request',
+          roomId: 'ordinary',
+          threadRootEventId: 'root',
+          actorId: 'maintainer',
+          body: 'Please continue'
+        })
+      }
+    );
+    expect(inputs).toEqual([expect.objectContaining({ id: 'request', authorId: 'maintainer' })]);
+    expect(mocks.classify).not.toHaveBeenCalled();
+  }
+);
+
+test('reactions on bot messages reach recovered threads once with the reacting identity', async () => {
+  mocks.getMessage.mockResolvedValue({
+    id: 'proposal',
+    roomId: 'ordinary',
+    threadRootId: 'root',
+    authorId: 'bot',
+    body: 'Shall I file the issue?'
+  });
+  const reaction = (id: string, actorId = 'human') =>
+    new RealtimeEvent({
+      id,
+      actorId,
+      event: {
+        case: 'reactionAdded',
+        value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
+      }
+    });
+  await run(
+    [
+      reaction('approval'),
+      reaction('approval'),
+      reaction('own', 'bot'),
+      reaction('blocked', 'other')
+    ],
+    { recovered: true, allowed: 'human' }
+  );
+  expect(mocks.steered).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      id: 'approval',
+      authorId: 'human',
+      threadRootId: 'root',
+      reaction: { emoji: '+1', messageId: 'proposal', body: 'Shall I file the issue?' }
+    })
+  );
+  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.started).not.toHaveBeenCalled();
+});
+
+test.each([true, false])(
+  'a reaction reopens a conversation only when classified as engage=%s',
+  async (engage) => {
+    mocks.getMessage.mockResolvedValue({
+      id: 'proposal',
+      roomId: 'ordinary',
+      threadRootId: 'root',
+      authorId: 'bot',
+      body: 'Shall I file the issue?'
+    });
+    const inputs = await run(
+      [
+        new RealtimeEvent({
+          id: 'approval',
+          actorId: 'human',
+          event: {
+            case: 'reactionAdded',
+            value: { roomId: 'ordinary', messageEventId: 'proposal', emoji: '+1' }
+          }
+        })
+      ],
+      { engage }
+    );
+    expect(inputs).toEqual(
+      engage
+        ? [
+            expect.objectContaining({
+              id: 'approval',
+              authorId: 'human',
+              reaction: expect.objectContaining({ messageId: 'proposal' })
+            })
+          ]
+        : []
+    );
+    expect(mocks.classify).toHaveBeenCalledExactlyOnceWith({
+      context: [{ role: 'human', body: '' }],
+      reaction: { emoji: '+1', messageId: 'proposal', body: 'Shall I file the issue?' }
+    });
+    expect(mocks.readThread).toHaveBeenCalledWith(
+      { roomId: 'ordinary', threadRootId: 'root' },
+      { signal: expect.any(AbortSignal), limit: 20 }
+    );
+  }
+);
+
+test.each([RoomKind.DM, RoomKind.CHANNEL])(
+  'thread addressing preserves DM requests and channel follow-ups for room kind %s',
+  async (roomKind) => {
+    const trigger = roomKind === RoomKind.DM ? undefined : 'follow-up';
+    const { createApi } = fakeChatto({
+      viewerId: 'bot',
+      routes: (router) =>
+        router.service(MessageService, {
+          getMessage: ({ roomId, eventId }) => ({
+            message: {
+              id: eventId,
+              roomId,
+              threadRootEventId: 'root',
+              actorId: eventId === 'bot-message' ? 'bot' : 'human',
+              body: 'Previous message'
+            }
+          })
+        })
+    });
+    const api = createApi({ serverUrl: 'https://chatto.example.test', apiKey: 'fixture' });
+    const post = (id: string, inReplyTo = '', threadRootEventId = 'root') =>
+      new RealtimeEvent({
+        id,
+        actorId: 'human',
+        event: {
+          case: 'messagePosted',
+          value: {
+            roomId: 'ordinary',
+            roomKind,
+            threadRootEventId,
+            inReplyTo,
+            bodyPlaintext: 'Hello',
+            mentions: id === 'mention' ? [{ includesViewer: true }] : []
+          }
+        }
+      });
+    await run(
+      [
+        post('ordinary'),
+        post('ordinary'),
+        post('human-reply', 'human-message'),
+        post('mention'),
+        post('bot-reply', 'bot-message'),
+        ...(roomKind === RoomKind.CHANNEL ? [post('unwatched', '', 'other')] : [])
+      ],
+      { rooms: '', recovered: true, addressed: api.addressedMessage.bind(api) }
+    );
+    expect(
+      mocks.steered.mock.calls.map(([message]) => ({ id: message.id, trigger: message.trigger }))
+    ).toEqual([
+      { id: 'ordinary', trigger },
+      { id: 'human-reply', trigger },
+      { id: 'mention', trigger: undefined },
+      { id: 'bot-reply', trigger: undefined }
+    ]);
+    expect(mocks.started).not.toHaveBeenCalled();
+  }
+);
+
+test('a new DM root still starts a direct conversation', async () => {
+  const { createApi } = fakeChatto({ viewerId: 'bot', routes: () => {} });
+  const api = createApi({ serverUrl: 'https://chatto.example.test', apiKey: 'fixture' });
+  const inputs = await run(
+    [
+      new RealtimeEvent({
+        id: 'dm-root',
+        actorId: 'human',
+        event: {
+          case: 'messagePosted',
+          value: {
+            roomId: 'ordinary',
+            roomKind: RoomKind.DM,
+            bodyPlaintext: 'Help me set up Chatto'
+          }
+        }
+      })
+    ],
+    { rooms: '', addressed: api.addressedMessage.bind(api) }
+  );
+  expect(inputs).toEqual([
+    expect.objectContaining({
+      id: 'dm-root',
+      threadRootId: 'dm-root',
+      body: ''
+    })
+  ]);
+  expect((inputs[0] as IncomingMessage).trigger).toBeUndefined();
+  expect(mocks.classify).not.toHaveBeenCalled();
+});
+
+test('realtime replies in ordinary rooms wake recovered active threads without starting runs', async () => {
+  const reply = (id: string, threadRootEventId = 'root', actorId = 'human') =>
+    new RealtimeEvent({
+      id,
+      actorId,
+      event: {
+        case: 'messagePosted',
+        value: { roomId: 'ordinary', threadRootEventId, bodyPlaintext: '0.5' }
+      }
+    });
+  await run(
+    [reply('one'), reply('one'), reply('unwatched', 'other'), reply('own', 'root', 'bot')],
+    { rooms: '', recovered: true }
+  );
+  expect(mocks.steered).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ id: 'one', threadRootId: 'root', trigger: 'follow-up' })
+  );
+  expect(mocks.started).not.toHaveBeenCalled();
+  expect(mocks.classify).not.toHaveBeenCalled();
+});
+
+test('the allowed-user restriction also excludes realtime follow-up notifications', async () => {
+  const reply = new RealtimeEvent({
+    id: 'reply',
+    actorId: 'human',
     event: {
       case: 'messagePosted',
-      value: { roomId: 'room', roomKind: RoomKind.CHANNEL, bodyPlaintext: 'hello', ...value }
+      value: { roomId: 'ordinary', threadRootEventId: 'root', bodyPlaintext: '0.5' }
     }
   });
-
-test.each(['bot', 'human', 'wrong-thread', 'missing', 'unavailable'])(
-  'verifies unmentioned replies against %s targets',
-  async (kind) => {
-    vi.stubEnv('CHATTO_URL', 'https://chat.example');
-    vi.stubEnv('CHATTO_API_KEY', 'key');
-    vi.stubEnv('CHATTO_ALLOWED_USER_ID', 'allowed');
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    mocks.getMessage.mockImplementation(() => {
-      if (kind === 'unavailable') throw new ConnectError('private error', Code.Unavailable);
-      return {
-        message:
-          kind === 'missing'
-            ? undefined
-            : {
-                id: 'reply-target',
-                actorId: kind === 'human' ? 'human' : 'bot',
-                roomId: 'room',
-                threadRootEventId: kind === 'wrong-thread' ? 'other' : 'root'
-              }
-      };
-    });
-    const { ctx, controller } = context();
-    try {
-      await generation(
-        ctx,
-        controller,
-        ['other', 'bot', 'allowed'].map((actorId) =>
-          messageEvent(actorId, actorId, {
-            threadRootEventId: 'root',
-            inReplyTo: 'reply-target',
-            bodyPlaintext: 'Follow-up'
-          })
-        )
-      );
-      expect(mocks.getMessage).toHaveBeenCalledOnce(); // Filter other senders before lookup.
-      expect(ctx.dispatch).toHaveBeenCalledTimes(kind === 'bot' ? 1 : 0);
-      if (kind === 'bot')
-        expect(vi.mocked(ctx.dispatch).mock.calls[0]![1]).toMatchObject({ triggers: ['reply'] });
-      expect(JSON.stringify(warning.mock.calls)).not.toContain('private error');
-    } finally {
-      warning.mockRestore();
-    }
-  }
-);
-
-test.each([undefined, '', '  allowed-user  '])(
-  'filters senders before routing with allowed user %s',
-  async (configured) => {
-    vi.stubEnv('CHATTO_URL', 'https://chat.example');
-    vi.stubEnv('CHATTO_API_KEY', 'key');
-    vi.stubEnv('CHATTO_ALLOWED_USER_ID', configured);
-    const events: RealtimeEvent[] = [];
-    for (const actorId of ['allowed-user', 'other-user'])
-      for (const roomKind of [RoomKind.DM, RoomKind.CHANNEL])
-        for (const bodyPlaintext of ['hello', 'follow-up', '/cancel'])
-          events.push(
-            messageEvent(`${actorId}-${roomKind}-${bodyPlaintext}`, actorId, {
-              roomKind,
-              bodyPlaintext,
-              threadRootEventId: bodyPlaintext === 'hello' ? '' : 'existing-thread',
-              mentions: [{ includesViewer: true }]
-            })
-          );
-    const { ctx, controller } = context();
-    await generation(ctx, controller, events);
-    expect(ctx.dispatch).toHaveBeenCalledTimes(configured ? 6 : 12);
-    if (configured) {
-      for (const [, delivery] of vi.mocked(ctx.dispatch).mock.calls)
-        expect((delivery as { message: { author_id: string } }).message.author_id).toBe(
-          'allowed-user'
-        );
-    }
-  }
-);
-
-test('retains conversations across reloads, isolates a new identity, and closes each connection', async () => {
-  vi.stubEnv('CHATTO_URL', 'https://chat.example');
-  vi.stubEnv('CHATTO_API_KEY', 'first-key');
-  const state = new Map<string, unknown>();
-  const run = async () => {
-    const controller = new AbortController();
-    await generation({ signal: controller.signal, state, dispatch: vi.fn() }, controller);
-  };
-  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  await run();
-  expect(warning).not.toHaveBeenCalled();
-  await run();
-  expect(warning).toHaveBeenCalledWith(
-    'ChattoBot reloaded: messages sent during the reload are not replayed.'
-  );
-  warning.mockRestore();
-  const firstState = mocks.bot.mock.calls[0]![0]!.state;
-  expect(mocks.bot.mock.calls[1]![0]!.state).toBe(firstState);
-
-  vi.stubEnv('CHATTO_API_KEY', 'second-key');
-  await run();
-  expect(mocks.bot.mock.calls[2]![0]!.state).toBe(firstState);
-  expect(chatto.connections.map((connection) => connection.options.apiKey)).toEqual([
-    'first-key',
-    'first-key',
-    'second-key'
-  ]);
-  expect(chatto.connections.every((connection) => connection.closed)).toBe(true);
-
-  useServer('different-bot');
-  await run();
-  expect(mocks.bot.mock.calls[3]![0]!.state).not.toBe(firstState);
+  await run([reply], { recovered: true, allowed: 'someone-else' });
+  expect(mocks.steered).not.toHaveBeenCalled();
 });
 
-test('closes the connection when the server rejects the key', async () => {
-  vi.stubEnv('CHATTO_URL', 'https://chat.example');
-  vi.stubEnv('CHATTO_API_KEY', 'key');
-  useServer(async () => {
-    throw new Error('Chatto rejected the API key');
+test('a recovered thread cannot use a different configured server or bot identity', async () => {
+  await run([]);
+  const result = await runWorkflow(chattoWorkflow, {
+    input: {
+      id: 'old',
+      roomId: 'room',
+      threadRootId: 'old',
+      authorId: 'human',
+      body: 'old request',
+      connection: 'another bot'
+    },
+    run: { id: 'recovered', resumed: true }
   });
-  const { ctx } = context();
-  await expect(chattoSource(ctx)).rejects.toThrow('rejected the API key');
-  expect(chatto.connections[0]!.closed).toBe(true);
-  expect(mocks.bot).not.toHaveBeenCalled();
-});
-
-test('passes implementation configuration through the realtime source and captures it per generation', async () => {
-  vi.stubEnv('CHATTO_URL', 'https://chat.example');
-  vi.stubEnv('CHATTO_API_KEY', 'key');
-  vi.stubEnv('CHATTO_SOURCE_DIRECTORY', '/configured/chatto');
-  vi.stubEnv('CHATTO_IMPLEMENTATION_REPOSITORY', 'example/chatto');
-  vi.stubEnv('CHATTO_SOURCE_REF', 'main');
-  vi.stubEnv('CHATTO_IMPLEMENTATION_MODEL', 'test/worker');
-  vi.stubEnv('CHATTO_MAINTAINER_USER_IDS', ' alice, bob ');
-  const run = async () => {
-    const { ctx, controller } = context();
-    await generation(ctx, controller);
-  };
-  await run();
-  const original = mocks.bot.mock.calls[0]![0]!;
-  expect(original.implementation).toEqual({
-    directory: '/configured/chatto',
-    repository: 'example/chatto',
-    baseBranch: 'main',
-    model: 'test/worker',
-    thinkingLevel: 'medium'
-  });
-  expect(original.investigation?.baseRef).toBe('refs/remotes/origin/main');
-  expect(original.maintainers).toEqual(['alice', 'bob']);
-  vi.stubEnv('CHATTO_SOURCE_REF', 'next');
-  await run();
-  expect(mocks.bot.mock.calls[1]![0]!.implementation?.baseBranch).toBe('next');
-  expect(original.implementation?.baseBranch).toBe('main');
-  vi.stubEnv('CHATTO_IMPLEMENTATION_REPOSITORY', '');
-  await run();
-  expect(mocks.bot.mock.calls[2]![0]!.implementation).toBeUndefined();
-});
-
-test('existing conversation callbacks keep their server and credentials after reload', async () => {
-  vi.stubEnv('CHATTO_URL', 'https://original.example');
-  vi.stubEnv('CHATTO_API_KEY', 'original-key');
-  const state = new Map<string, unknown>();
-  const run = async () => {
-    const controller = new AbortController();
-    await generation({ signal: controller.signal, state, dispatch: vi.fn() }, controller);
-  };
-  await run();
-  const original = mocks.bot.mock.calls[0]![0]!;
-  vi.stubEnv('CHATTO_URL', 'https://replacement.example');
-  vi.stubEnv('CHATTO_API_KEY', 'replacement-key');
-  await run();
-  const destination = { roomId: 'room', threadRootId: 'root' };
-  const delivery = {
-    version: 1 as const,
-    id: 'message',
-    type: 'message.created' as const,
-    triggers: ['direct_message'],
-    occurred_at: '',
-    bot_id: 'bot',
-    room_id: 'room',
-    thread_root_id: 'root',
-    message: { id: 'message', author_id: 'human', body: 'hello' }
-  };
-  const signal = new AbortController().signal;
-  await original.post!(destination, 'reply', signal);
-  await original.typing!(destination, signal);
-  await original.readThread!(delivery, signal);
-  await original.acknowledge!(delivery, signal);
-  // The generation's connection is closed; its runs still reach the server.
-  expect(chatto.connections.every((connection) => connection.closed)).toBe(true);
-  const [first, replacement] = chatto.apis;
-  expect(first!.options).toEqual({
-    serverUrl: 'https://original.example',
-    apiKey: 'original-key',
-    viewerId: 'bot'
-  });
-  expect(first!.calls).toEqual([
-    'MessageService/CreateMessage',
-    'RoomService/RefreshTypingIndicator',
-    'ThreadService/GetThreadEvents',
-    'MessageService/AddReaction'
-  ]);
-  expect(replacement!.calls).toEqual([]);
-});
-
-test.each(['recover', 'exhaust', 'abort', 'other'])('registration retry: %s', async (mode) => {
-  vi.stubEnv('CHATTO_URL', 'https://chat.example');
-  vi.stubEnv('CHATTO_API_KEY', 'key');
-  const controller = new AbortController();
-  const failure = new Error('Event routing failed', {
-    cause: new RegistrationError(new Error('disk'))
-  });
-  const dispatch = vi.fn().mockImplementation(async () => {
-    if (mode === 'abort') controller.abort();
-    if (mode === 'other') throw new Error('Other routing failure');
-    if (mode === 'recover' && dispatch.mock.calls.length === 2) return [];
-    throw failure;
-  });
-  const result = chattoSource({ signal: controller.signal, state: new Map(), dispatch });
-  await vi.waitFor(() => expect(chatto.connections.at(-1)?.listening).toBe(true));
-  chatto.connections
-    .at(-1)!
-    .emit(messageEvent('message', 'human', { roomKind: RoomKind.DM, bodyPlaintext: 'hello' }));
-  if (mode === 'recover') {
-    await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(2));
-    controller.abort();
-    await expect(result).resolves.toBeUndefined();
-  } else await expect(result).rejects.toBeInstanceOf(Error);
-  expect(dispatch).toHaveBeenCalledTimes(mode === 'recover' ? 2 : mode === 'exhaust' ? 3 : 1);
-  expect(chatto.connections.at(-1)!.closed).toBe(true);
+  expect(result.ok).toBe(false);
+  expect(result.error).toContain('different Chatto connection');
+  expect(mocks.conversation).not.toHaveBeenCalled();
+  expect(mocks.classify).not.toHaveBeenCalled();
 });
 
 test.each([
-  [
-    { CHATTO_IMPLEMENTATION_REPOSITORY: 'example/chatto', CHATTO_SOURCE_DIRECTORY: '' },
-    'CHATTO_IMPLEMENTATION_REPOSITORY requires CHATTO_SOURCE_DIRECTORY'
-  ],
-  [{ CHATTO_URL: 'not a url' }, 'CHATTO_URL must be an HTTP or HTTPS URL without credentials'],
-  [
-    { CHATTO_SOURCE_DIRECTORY: '/configured/chatto', CHATTO_MAINTAINER_USER_IDS: '' },
-    'Source investigation, implementation, and GitHub access require CHATTO_MAINTAINER_USER_IDS'
-  ],
-  [
-    { CHATTO_MAINTAINER_USER_IDS: 'alice; drop table' },
-    'CHATTO_MAINTAINER_USER_IDS must list Chatto user IDs separated by commas'
-  ],
-  [
-    { CHATTO_CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef' },
-    'Set both CHATTO_CLOUDFLARE_ACCOUNT_ID and CHATTO_CLOUDFLARE_API_TOKEN, or neither'
-  ],
-  [
-    { CHATTO_GITHUB_APP_CLIENT_ID: 'Iv23liExample1' },
-    'Set both CHATTO_GITHUB_APP_CLIENT_ID and CHATTO_GITHUB_APP_PRIVATE_KEY_FILE, or neither'
-  ],
-  [
-    {
-      CHATTO_GITHUB_APP_CLIENT_ID: 'Iv23liExample1',
-      CHATTO_GITHUB_APP_PRIVATE_KEY_FILE: '/nonexistent/secret-key.pem'
-    },
-    'CHATTO_GITHUB_APP_PRIVATE_KEY_FILE must name a readable GitHub App private key (.pem)'
-  ],
-  [
-    { CHATTO_URL: 'https://user:secret@chat.example' },
-    'CHATTO_URL must be an HTTP or HTTPS URL without credentials'
-  ]
-])('reports invalid settings before contacting the server: %j', async (env, message) => {
-  vi.stubEnv('CHATTO_URL', 'https://chat.example');
-  vi.stubEnv('CHATTO_API_KEY', 'key');
-  for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
-  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const { ctx } = context();
-  await expect(chattoSource(ctx)).rejects.toThrow(message);
-  expect(error).toHaveBeenCalledWith(`ChattoBot configuration error: ${message}`);
-  expect(JSON.stringify(error.mock.calls)).not.toContain('secret');
-  expect(chatto.createClient).not.toHaveBeenCalled();
-  expect(mocks.bot).not.toHaveBeenCalled();
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS="R-one,R-two"',
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS=R-one,R-two',
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS="R-one, R-two"',
+  'CHATTO_AUTO_ENGAGE_ROOM_IDS="R-one R-two"'
+])('routes new reports from both configured rooms: %s', async (line) => {
+  // Parse the .env syntax before exercising the real settings, source, router, and workflow.
+  // Only Chatto transport and model calls are replaced by fixtures.
+  const rooms = parseEnv(line).CHATTO_AUTO_ENGAGE_ROOM_IDS!;
+  const inputs = await run(
+    [event('first', 'R-one'), event('second', 'R-two'), event('excluded', 'R-three')],
+    { rooms }
+  );
+  expect(inputs).toHaveLength(2);
+  expect(inputs).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: 'first', roomId: 'R-one', trigger: 'intake' }),
+      expect.objectContaining({ id: 'second', roomId: 'R-two', trigger: 'intake' })
+    ])
+  );
+  expect(mocks.classify).toHaveBeenCalledTimes(2);
+  expect(mocks.started.mock.calls).toEqual([['Chatto thread'], ['Chatto thread']]);
+});
+
+test.each([{ rooms: '' }, { allowed: 'someone-else' }, { botAuthor: true }, { missing: true }])(
+  'does not classify excluded posts: %j',
+  async (options) => {
+    expect(await run([event('root')], options)).toEqual([]);
+    expect(mocks.classify).not.toHaveBeenCalled();
+  }
+);
+
+test('an addressed reply outside the recent thread window is read by exact ID', async () => {
+  const inputs = await run([event('old-reply', 'ordinary')], {
+    addressed: async () => ({
+      id: 'old-reply',
+      roomId: 'ordinary',
+      threadRootId: 'root',
+      authorId: 'human',
+      body: 'Stale event body',
+      reasons: ['mention']
+    }),
+    storedMessage: new Message({
+      id: 'old-reply',
+      roomId: 'ordinary',
+      threadRootEventId: 'root',
+      actorId: 'human',
+      body: 'Current question',
+      attachments: [{ contentType: 'image/png' }]
+    })
+  });
+  // The recent thread fixture contains only the root, never this older reply.
+  expect(inputs).toEqual([
+    expect.objectContaining({ id: 'old-reply', body: 'Current question', threadRootId: 'root' })
+  ]);
+  expect(mocks.classify).not.toHaveBeenCalled();
+  expect(mocks.readMessage).toHaveBeenCalledWith(
+    { roomId: 'ordinary', eventId: 'old-reply' },
+    expect.objectContaining({ signal: expect.any(AbortSignal) })
+  );
+});
+
+test.each([
+  { id: 'wrong-id' },
+  { roomId: 'wrong-room' },
+  { threadRootEventId: 'wrong-thread' },
+  { actorId: 'wrong-author' },
+  { deletedAt: { seconds: 1n, nanos: 0 } },
+  { body: undefined, attachments: [] }
+])('exact lookup rejects an invalid or unavailable message: %o', async (invalid) => {
+  const inputs = await run([event('ping', 'ordinary')], {
+    storedMessage: new Message({
+      id: 'ping',
+      roomId: 'ordinary',
+      actorId: 'human',
+      attachments: [{ contentType: 'image/png' }],
+      ...invalid
+    })
+  });
+  expect(inputs).toEqual([]);
+  expect(mocks.classify).not.toHaveBeenCalled();
 });

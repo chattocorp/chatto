@@ -1046,7 +1046,9 @@ func (*GetThreadEventsRequest_After) isGetThreadEventsRequest_Cursor() {}
 type GetThreadEventsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Loaded timeline page.
-	Page          *RoomTimelinePage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	Page *RoomTimelinePage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	// Current viewer state, independent of the loaded message window.
+	ViewerState   *ThreadViewerState `protobuf:"bytes,2,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1084,6 +1086,13 @@ func (*GetThreadEventsResponse) Descriptor() ([]byte, []int) {
 func (x *GetThreadEventsResponse) GetPage() *RoomTimelinePage {
 	if x != nil {
 		return x.Page
+	}
+	return nil
+}
+
+func (x *GetThreadEventsResponse) GetViewerState() *ThreadViewerState {
+	if x != nil {
+		return x.ViewerState
 	}
 	return nil
 }
@@ -1172,7 +1181,9 @@ type GetThreadEventsAroundResponse struct {
 	// Loaded timeline page.
 	Page *RoomTimelinePage `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	// Zero-based index of the anchor event within page.events.
-	TargetIndex   int32 `protobuf:"varint,2,opt,name=target_index,json=targetIndex,proto3" json:"target_index,omitempty"`
+	TargetIndex int32 `protobuf:"varint,2,opt,name=target_index,json=targetIndex,proto3" json:"target_index,omitempty"`
+	// Current viewer state, independent of the loaded message window.
+	ViewerState   *ThreadViewerState `protobuf:"bytes,3,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1219,6 +1230,13 @@ func (x *GetThreadEventsAroundResponse) GetTargetIndex() int32 {
 		return x.TargetIndex
 	}
 	return 0
+}
+
+func (x *GetThreadEventsAroundResponse) GetViewerState() *ThreadViewerState {
+	if x != nil {
+		return x.ViewerState
+	}
+	return nil
 }
 
 var File_chatto_api_v1_room_timeline_proto protoreflect.FileDescriptor
@@ -1290,18 +1308,20 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x18\n" +
 	"\x06before\x18\x04 \x01(\tH\x00R\x06before\x12\x16\n" +
 	"\x05after\x18\x05 \x01(\tH\x00R\x05afterB\b\n" +
-	"\x06cursor\"N\n" +
+	"\x06cursor\"\x93\x01\n" +
 	"\x17GetThreadEventsResponse\x123\n" +
-	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\"\xb4\x01\n" +
+	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\x12C\n" +
+	"\fviewer_state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\xb4\x01\n" +
 	"\x1cGetThreadEventsAroundRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12\"\n" +
 	"\bevent_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x14\n" +
-	"\x05limit\x18\x04 \x01(\x05R\x05limit\"w\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\xbc\x01\n" +
 	"\x1dGetThreadEventsAroundResponse\x123\n" +
 	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\x12!\n" +
-	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndexB\xad\x01\n" +
-	"\x11com.chatto.api.v1B\x11RoomTimelineProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndex\x12C\n" +
+	"\fviewer_state\x18\x03 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerStateB\xbe\x01\n" +
+	"\x11com.chatto.api.v1B\x11RoomTimelineProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_room_timeline_proto_rawDescOnce sync.Once
@@ -1336,7 +1356,8 @@ var file_chatto_api_v1_room_timeline_proto_goTypes = []any{
 	(RoomThreadingMode)(0),                        // 16: chatto.api.v1.RoomThreadingMode
 	(*Message)(nil),                               // 17: chatto.api.v1.Message
 	(*timestamppb.Timestamp)(nil),                 // 18: google.protobuf.Timestamp
-	(*User)(nil),                                  // 19: chatto.api.v1.User
+	(*ThreadViewerState)(nil),                     // 19: chatto.api.v1.ThreadViewerState
+	(*User)(nil),                                  // 20: chatto.api.v1.User
 }
 var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
 	15, // 0: chatto.api.v1.RoomTimelineIncludes.users:type_name -> chatto.api.v1.RoomTimelineIncludes.UsersEntry
@@ -1359,13 +1380,15 @@ var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
 	6,  // 17: chatto.api.v1.GetRoomEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
 	6,  // 18: chatto.api.v1.GetRoomEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
 	6,  // 19: chatto.api.v1.GetThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	6,  // 20: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	19, // 21: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	19, // 20: chatto.api.v1.GetThreadEventsResponse.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
+	6,  // 21: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	19, // 22: chatto.api.v1.GetThreadEventsAroundResponse.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
+	20, // 23: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_timeline_proto_init() }

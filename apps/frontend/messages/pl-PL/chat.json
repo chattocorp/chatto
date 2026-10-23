@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Powiadomienia",
       "subtitle": "Oto nowości",
-      "list_title": "Ostatnia aktywność",
       "clear_read": "Usuń przeczytane",
       "empty_title": "Brak powiadomień",
       "empty_body": "Wszyscy jesteście zajęci!",
@@ -19,14 +18,15 @@
       "unread": "Nieprzeczytane",
       "activity": "Nowa aktywność",
       "summary": {
-        "direct_message": "Masz nową wiadomość bezpośrednią od {actor}.",
-        "reaction": "Osoba {actor} zareagowała „{emoji}” na Twoją wiadomość w {channel}.",
-        "reaction_group": "Osoba {actor} i inni zareagowali „{emoji}” na Twoją wiadomość w {channel}.",
-        "reply": "Osoba {actor} odpowiedziała na Twoją wiadomość.",
-        "mention": "Osoba {actor} wspomniała o Tobie.",
-        "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku.",
-        "new_message": "Osoba {actor} opublikowała nową wiadomość.",
-        "activity": "Masz nowe powiadomienie od {actor}."
+        "direct_message": "Masz nową wiadomość bezpośrednią od {actor}",
+        "reaction": "Osoba {actor} zareagowała {emoji} na Twoją wiadomość",
+        "reaction_group": "Osoba {actor} i inni zareagowali {emoji} na Twoją wiadomość",
+        "reply": "Osoba {actor} odpowiedziała na Twoją wiadomość",
+        "mention": "Osoba {actor} wspomniała o Tobie",
+        "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku",
+        "new_message": "Osoba {actor} opublikowała nową wiadomość",
+        "activity": "Masz nowe powiadomienie od {actor}",
+        "room_invitation": "{actor} zaprasza Cię do pokoju"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Profil użytkownika",
-      "send_message": "Wyślij wiadomość",
+      "send_message": "Otwórz rozmowę",
       "view_profile": "Zobacz profil",
       "profile_requires_direct_message": "Aby zobaczyć ten profil, potrzebujesz bezpośredniej wiadomości.",
       "manage_bot": "Zarządzaj botem",
       "view_in_admin": "Wyświetl w administracji serwera",
       "copy_user_id": "Kopiuj identyfikator użytkownika"
     },
+    "server_info": {
+      "title": "Informacje o serwerze",
+      "details": "Szczegóły serwera"
+    },
+    "compatibility": {
+      "title": "Zgodność",
+      "view": "Sprawdź zgodność",
+      "limited": "Starsza wersja serwera",
+      "supported": "Brak znanych problemów ze zgodnością",
+      "affected": "Funkcje objęte ograniczeniami",
+      "requires": "Wymaga wersji {version} lub nowszej",
+      "thread_views_title": "Widoki wątków mają ograniczoną obsługę",
+      "thread_views_description": "Obserwowane wątki i wątki rozpoczęte przez Ciebie mogą nie być wyświetlane oddzielnie na tym serwerze.",
+      "independent_slow_mode_title": "Niezależny tryb spowolniony jest niedostępny",
+      "independent_slow_mode_description": "Ten serwer używa wspólnego czasu oczekiwania dla wiadomości kanału i odpowiedzi w wątkach.",
+      "upgrade": "Aby uzyskać pełną obsługę, poproś administratora serwera o aktualizację do wersji {version} lub nowszej."
+    },
     "server_gutter": {
       "move_up": "Przesuń w górę",
       "move_down": "Przesuń w dół",
       "add_server": "Dodaj serwer",
-      "log_in": "Zaloguj się na tym serwerze",
-      "sign_out": "Wyloguj się z tego serwera",
+      "log_in": "Zaloguj się na serwerze",
+      "sign_out": "Wyloguj się z serwera",
       "version": "Wersja {version}",
       "unreachable": "Serwer jest niedostępny",
       "connection_unavailable": "Połączenie niedostępne",
-      "compatibility_server_too_old": "Ten serwer musi zostać zaktualizowany do Chatto 0.5 lub nowszego, zanim ta aplikacja będzie mogła się połączyć.",
+      "compatibility_server_too_old": "Ten serwer musi zostać zaktualizowany do Chatto {version} lub nowszego, zanim ta aplikacja będzie mogła się połączyć.",
       "compatibility_unknown": "Ta aplikacja nie może określić zgodności na podstawie wersji serwera.",
       "go_to_notifications_count": {
         "one": "Przejdź do {count} powiadomienia",
@@ -94,9 +111,16 @@
       "body": "Zaloguj się, aby czytać i wysyłać wiadomości na tym serwerze."
     },
     "threads": {
-      "title": "Moje wątki",
-      "subtitle": "Wątki, które obserwujesz",
-      "list_title": "Obserwowane wątki",
+      "sort_label": "Sortuj wątki",
+      "sort_activity": "Aktywność",
+      "sort_created": "Wiek",
+      "tab_started": "Moje",
+      "tab_followed": "Obserwowane",
+      "tab_label": "Widok wątków",
+      "empty_mine_title": "Nie masz rozpoczętych wątków",
+      "empty_mine_body": "Tutaj pojawią się wątki, które rozpoczniesz i obserwujesz.",
+      "title": "Wątki",
+      "subtitle": "Nowa aktywność w twoich wątkach",
       "filter_label": "Filtruj wątki",
       "filter_all": "Wszystko",
       "filter_unread": "Nieprzeczytane",
@@ -147,6 +171,19 @@
       },
       "owned_by": "Właściciel",
       "open_card": "Otwórz kartę profilu użytkownika {name}"
+    },
+    "management_nav": {
+      "general": "Ogólne",
+      "neighbors": "Sąsiedzi",
+      "members": "Członkowie",
+      "rooms": "Pokoje",
+      "moderation": "Moderacja",
+      "permissions": "Uprawnienia",
+      "security": "Bezpieczeństwo",
+      "event_log": "Dziennik zdarzeń",
+      "system": "System",
+      "back_to_server": "Wróć do serwera",
+      "invitations": "Linki z zaproszeniem"
     }
   }
 }

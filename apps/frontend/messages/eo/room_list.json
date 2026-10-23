@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Kopiu ĉambran ligilon",
     "show_rooms_in_group": "Montri pliajn ĉambrojn en {group} ({count})",
     "hide_rooms_in_group": "Kaŝi nealiĝintajn ĉambrojn en {group}",
     "more_rooms": "{count} pliaj",
@@ -27,6 +28,12 @@
     "add_to_group": "Aldoni al {group}",
     "group_settings": "Agordoj por {group}",
     "server_actions": "Agoj por {server}",
-    "room_actions": "Agoj por #{room}"
+    "room_actions": "Agoj por #{room}",
+    "open_group_settings": "Malfermi agordojn de grupo",
+    "open_room_settings": "Malfermi agordojn de ĉambro",
+    "activity_now": "nun",
+    "older_conversations": "Pli malnovaj konversacioj",
+    "show_older_conversations": "Montri pli malnovajn ({count})",
+    "show_fewer_conversations": "Montri malpli"
   }
 }

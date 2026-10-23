@@ -73,9 +73,18 @@ Chatto formats:
 
 Chatto displays source HTML, horizontal rules, reference-style links, and setext headings as literal text. Markdown image syntax does not embed remote images; upload an attachment instead. Label a fenced code block with a supported language, such as `js`, `go`, or `ruby`, to highlight its programming syntax while composing and after sending.
 
-Select **Copy to clipboard** on a rendered code block to copy its code without the Markdown fence or line numbers.
+In the visual editor, paste into a code block without a language, or leave the block after typing, to detect its language. The editor saves its guess so the posted message uses the same syntax colors. You can change the language in the block's selector. Choose **TEXT** to keep the block as plain text. Existing blocks do not change merely because you open a message for editing.
+
+Select **Copy to clipboard** on a rendered code block to copy its code without the Markdown fence.
 
 Right-click a link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
+
+To share a room, right-click its sidebar row and select **Copy room link** from the
+room menu. Copied room and message links use the address of the server that
+owns the conversation, even when you use a frontend on another server. Thread
+message links also identify the thread. A link does not grant access to a room.
+When you select one of these links in a message, known servers open in your
+current client. Unknown servers open externally.
 
 Right-click an image attachment in a message and select **Copy Image** to paste the image into another app. Use **Download** in the attachment viewer to save the original file.
 
@@ -94,6 +103,23 @@ Chatto numbers notes in reference order and puts them after the text. Select a n
 In either editor, open **Formatting options** and select **Insert footnote**. The editor adds a reference and moves the cursor to its note. In the visual editor, you can also type `[^note]` to create a note or refer to an existing note with that name. Select a numbered marker to edit its note. Notes retain their text and formatting when you switch editor modes.
 
 Footnotes also work in server welcome messages and Markdown attachment previews.
+
+## Automatic links
+
+Start a web URL with `www.`, `https://`, or `http://` to make it a link.
+Bare domains and filenames such as `agents.md`, `readme.md`, and `foo.py` stay
+plain text and do not trigger link previews. You can still write an explicit
+Markdown link, such as `[website](https://example.com)`.
+
+An email address such as `foo@example.com` stays plain text. Use
+`mailto:foo@example.com` to make an email link. Select the link to open your
+configured mail application.
+
+Message links support only HTTP, HTTPS, and `mailto:`. Other protocols, such as
+`ftp:` and `file:`, stay unlinked, including in explicit Markdown links.
+Explicit Markdown links can also use a path that starts with one `/`, such as
+`[room](/chat/example.com/R8rLgzhPkYja7Gs)`. These links use the current
+site's address and do not show a link preview.
 
 ## Prevent a link preview
 

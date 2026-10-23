@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
@@ -11,6 +11,16 @@ import {
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import type { JumpToMessageState } from '$lib/state/room';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+
+beforeEach(() => {
+  createTestServerScope({
+    viewer: { id: 'test-user' },
+    serverInfo: { messageEditWindowSeconds: 300 },
+    store: { realtimeSync: { isRecoveringSnapshot: false } },
+    ui: { activeCallRooms: { getCallId: () => null } }
+  });
+});
 
 const resumeCallbacks = vi.hoisted(() => [] as Array<() => void>);
 
@@ -39,18 +49,10 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server-1'
 }));
 
-vi.mock('$lib/state/server/scope.svelte', async () => {
-  const { serverRegistry } = await import('$lib/client');
-  return {
-    useServerScope: () => ({
-      serverId: 'server-1',
-      connection: {},
-      get store() {
-        return serverRegistry.getStore('server-1');
-      }
-    })
-  };
-});
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,

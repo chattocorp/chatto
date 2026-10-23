@@ -654,12 +654,12 @@ test.describe('Room Layout', () => {
       const main = sidebarGroup(page, 'Main');
       const projects = sidebarGroup(page, 'Projects');
       await main.getByRole('button', { name: 'Main', exact: true }).click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'New Link', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Create link', exact: true }).click();
 
-      const dialog = page.getByRole('dialog', { name: 'Create Link' });
+      const dialog = page.getByRole('dialog', { name: 'Create link' });
       await dialog.getByLabel('Label').fill('Docs');
       await dialog.getByLabel('URL').fill('docs.example.test/guide');
-      await dialog.getByRole('button', { name: 'Create Link', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Create link', exact: true }).click();
 
       const linkRow = main.locator('a.sidebar-item', { hasText: 'Docs' });
       await expect(linkRow).toHaveAttribute('href', 'https://docs.example.test/guide');

@@ -51,6 +51,19 @@ function pasteText(target: Element, text: string) {
 }
 
 describe('MarkdownEditor', () => {
+  it('focuses the end of a long draft without moving its caret', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    await renderEditor({ onReady: (api: ComposerEditorApi) => readyApis.push(api) });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const draft = Array.from({ length: 400 }, (_, index) => `Line ${index}`).join('\n');
+    api.setContent(draft);
+    api.focus('end');
+    await expect.element(page.getByRole('textbox', { name: 'Write Markdown' })).toHaveFocus();
+    await userEvent.keyboard('X');
+    await expect.poll(() => api.getText()).toBe(`${draft}X`);
+  });
+
   it('uses native caret and selection after refocusing', async () => {
     const { container } = await renderEditor();
     const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
@@ -315,4 +328,75 @@ describe('MarkdownEditor', () => {
     api.insertText('ignored');
     expect(api.getText()).toBe('');
   });
+});
+
+it.each([
+  { text: 'foo@bar.com', linked: false },
+  { text: 'ftp://example.com/file', linked: false },
+  { text: 'ssh://example.com', linked: false },
+  { text: 'blob:https://example.com/id', linked: false },
+  { text: 'tel:+123456789', linked: false },
+  { text: 'agents.md readme.md foo.py', linked: false },
+  { text: 'mailto:foo@bar.com', linked: true },
+  { text: 'https://example.com', linked: true },
+  { text: 'www.example.com', linked: true }
+])('uses prefix rules for source highlighting: $text', async ({ text, linked }) => {
+  await renderEditor();
+  const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+  await textbox.fill(text);
+  await expect
+    .poll(() => {
+      const spans = textbox.element().querySelectorAll('span');
+      return [...spans].some((span) =>
+        getComputedStyle(span).textDecorationLine.includes('underline')
+      );
+    })
+    .toBe(linked);
+});
+
+it.each([
+  { text: '[title](destination)', label: 'title' },
+  { text: '[title](https://example.com)', label: 'title' },
+  { text: '[title]()', label: 'title' },
+  { text: '[**bold** title](destination "tooltip")', label: '**bold** title' },
+  { text: '[writing in brackets]', label: '' },
+  { text: '[title](destination', label: '' },
+  { text: '[title](', label: '' },
+  { text: '`[title](destination)`', label: '' },
+  { text: '![title](destination)', label: '![title](destination)' }
+])('styles only a complete inline link label: $text', async ({ text, label }) => {
+  await renderEditor();
+  const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+  await textbox.fill(text);
+  await expect
+    .poll(() => {
+      const walker = document.createTreeWalker(textbox.element(), NodeFilter.SHOW_TEXT);
+      let styled = '';
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        let element = node.parentElement;
+        while (element && element !== textbox.element()) {
+          if (getComputedStyle(element).textDecorationLine.includes('underline')) {
+            styled += node.textContent;
+            break;
+          }
+          element = element.parentElement;
+        }
+      }
+      return styled;
+    })
+    .toBe(label);
+});
+
+it('updates link styling as a link is completed and broken', async () => {
+  await renderEditor();
+  const textbox = page.getByRole('textbox', { name: 'Write Markdown' });
+  await textbox.fill('[title](destination');
+  expect(textbox.element().querySelector('.cm-link-label')).toBeNull();
+  await userEvent.keyboard(')');
+  await expect
+    .poll(() => textbox.element().querySelector('.cm-link-label')?.textContent)
+    .toBe('title');
+  await userEvent.keyboard('{Backspace}');
+  await expect.poll(() => textbox.element().querySelector('.cm-link-label')).toBeNull();
 });

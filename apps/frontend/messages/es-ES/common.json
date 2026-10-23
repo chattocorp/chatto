@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "No se pudo copiar al portapapeles. Selecciona el texto y cópialo manualmente.",
     "cancel": "Cancelar",
     "close_sidebar": "Cerrar barra lateral",
     "or": "o",
@@ -21,11 +22,12 @@
     "password_placeholder": "Tu contraseña",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "Al menos 8 caracteres",
+    "password_bytes_placeholder": "De 8 a 72 bytes UTF-8",
     "password_confirm_placeholder": "Vuelve a introducir la contraseña",
     "validation": {
       "email": "Por favor ingresa una dirección de correo electrónico válida",
-      "password_min": "Debe tener al menos 8 caracteres",
+      "password_min_bytes": "Usa al menos 8 bytes UTF-8. Algunos caracteres usan más de un byte.",
+      "password_max": "Usa como máximo 72 bytes UTF-8. Algunos caracteres usan más de un byte.",
       "username_min": "Debe tener al menos 2 caracteres",
       "username_max": "Debe tener como máximo 32 caracteres",
       "username_charset": "Solo letras, números, puntos, guiones, guiones bajos",
@@ -53,6 +55,11 @@
     "saved": "¡Guardado!",
     "rooms": "Habitaciones",
     "copy_to_clipboard": "Copiar al portapapeles",
-    "copied_to_clipboard": "Copiado al portapapeles"
+    "copied_to_clipboard": "Copiado al portapapeles",
+    "user_search_placeholder": "Buscar por inicio de sesión o nombre para mostrar...",
+    "no_users": "No se encontraron usuarios",
+    "user_id": "ID de usuario",
+    "reason": "Motivo",
+    "message_of_the_day": "Mensaje del día"
   }
 }

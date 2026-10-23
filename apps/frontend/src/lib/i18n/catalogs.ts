@@ -1,17 +1,33 @@
-import type { SectionLoader, TranslationDocument, TranslationModule } from '@chatto/lingua';
+import type { SectionLoader, TranslationDocument, TranslationModule } from '@chatto/translatto';
 
-import { catalogSections, publicCatalogSections } from './catalogSections.js';
+import {
+  catalogSections,
+  chatCatalogSections,
+  isManagementCatalogSection,
+  publicCatalogSections
+} from './catalogSections.js';
 import { baseLocale, isLocale, type Locale } from './locales';
 
-export { catalogSections, publicCatalogSections };
+export { catalogSections, chatCatalogSections, publicCatalogSections };
 export type CatalogSection = (typeof catalogSections)[number];
 
-const baseCatalogModules = import.meta.glob<TranslationDocument>('../../../messages/en-GB/*.json', {
-  eager: true,
-  import: 'default'
-});
-const translatedCatalogLoaders = import.meta.glob<TranslationDocument>(
+const baseCatalogModules = import.meta.glob<TranslationDocument>(
+  [
+    '../../../messages/en-GB/*.json',
+    '!../../../messages/en-GB/admin.json',
+    '!../../../messages/en-GB/rbac.json',
+    '!../../../messages/en-GB/server_settings.json'
+  ],
+  { eager: true, import: 'default' }
+);
+const lazyCatalogLoaders = import.meta.glob<TranslationDocument>(
   ['../../../messages/*/*.json', '!../../../messages/en-GB/*.json'],
+  { import: 'default' }
+);
+// Vite requires literal glob patterns. The boundary tests keep these patterns
+// aligned with managementCatalogSections, including the eager exclusions above.
+const managementBaseLoaders = import.meta.glob<TranslationDocument>(
+  '../../../messages/en-GB/{admin,rbac,server_settings}.json',
   { import: 'default' }
 );
 
@@ -26,14 +42,17 @@ for (const [path, catalog] of Object.entries(baseCatalogModules)) {
   };
 }
 
-for (const [path, loader] of Object.entries(translatedCatalogLoaders)) {
+for (const [path, loader] of Object.entries({ ...lazyCatalogLoaders, ...managementBaseLoaders })) {
   const { locale, section } = catalogCoordinates(path);
   catalogLoaders[section] ??= {};
-  catalogLoaders[section][locale] = loader;
+  catalogLoaders[section][locale] ??= loader;
 }
 
 for (const section of catalogSections) {
-  if (!initialBaseCatalogs[section] || !catalogLoaders[section]?.[baseLocale]) {
+  if (
+    !catalogLoaders[section]?.[baseLocale] ||
+    (!isManagementCatalogSection(section) && !initialBaseCatalogs[section])
+  ) {
     throw new Error(`Missing ${baseLocale} catalog section "${section}"`);
   }
 }

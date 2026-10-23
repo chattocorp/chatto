@@ -2,7 +2,7 @@
 
 package core
 
-import "hmans.de/chatto/internal/publiccursor"
+import "github.com/chattocorp/chatto/cli/internal/publiccursor"
 
 // SealPublicCursor protects an internal API coordinate with the server-wide
 // secret. Purpose and scope must be stable, domain-specific values.

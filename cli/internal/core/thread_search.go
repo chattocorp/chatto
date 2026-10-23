@@ -7,9 +7,9 @@ import (
 	"slices"
 	"time"
 
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	searchsvc "github.com/chattocorp/chatto/cli/internal/search"
 	"google.golang.org/protobuf/proto"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	searchsvc "hmans.de/chatto/internal/search"
 )
 
 // ThreadSearchQuery queries the optional provider. Hits are untrusted until hydration.
@@ -29,24 +29,34 @@ type ThreadSearchPage struct {
 	HasMore    bool
 }
 
-// FollowedSearchRoots returns the complete followed-root scope in authorized rooms.
+// FollowedSearchRoots returns the followed-root scope in authorized rooms,
+// restricted by root author when requested.
 // Empty must be handled by the caller as no matches, never unrestricted search.
-func (s *MessageSearchReadModel) FollowedSearchRoots(scope *MessageSearchScope, actorID string) []string {
+func (s *MessageSearchReadModel) FollowedSearchRoots(ctx context.Context, scope *MessageSearchScope, actorID string, rootAuthor ThreadRootAuthorFilter) ([]string, error) {
+	if err := rootAuthor.Validate(); err != nil {
+		return nil, err
+	}
 	var roots []string
-	for _, ref := range s.core.roomModel.followedThreadsForUser(actorID) {
+	for _, ref := range s.rooms.followedThreadsForUser(actorID) {
 		if scope.rooms[ref.roomID] != nil {
-			roots = append(roots, ref.threadRootEventID)
+			matches, err := s.follows.matchesRootAuthor(ctx, actorID, ref.roomID, ref.threadRootEventID, rootAuthor)
+			if err != nil {
+				return nil, err
+			}
+			if matches {
+				roots = append(roots, ref.threadRootEventID)
+			}
 		}
 	}
 	slices.Sort(roots)
-	return roots
+	return roots, nil
 }
 
 // FilterFollowedSearchResults rechecks follow state after provider work.
 func (s *MessageSearchReadModel) FilterFollowedSearchResults(ctx context.Context, actorID string, results []MessageSearchResult) ([]MessageSearchResult, error) {
 	filtered := make([]MessageSearchResult, 0, len(results))
 	for _, result := range results {
-		following, err := s.core.IsFollowingThread(ctx, result.Kind, actorID, result.Event.GetMessagePosted().GetRoomId(), searchResultRoot(result))
+		following, err := s.follows.IsFollowingThread(ctx, result.Kind, actorID, result.Event.GetMessagePosted().GetRoomId(), searchResultRoot(result))
 		if err != nil {
 			return nil, err
 		}
@@ -67,9 +77,9 @@ func searchResultRoot(result MessageSearchResult) string {
 // SearchThreadGroups resolves groups before pagination. The first current hit
 // in provider order represents its thread; resolved roots are excluded on the
 // next request so a large thread does not require reading all matching replies.
-// Totals and activity order require visiting all matching groups. Work has one
+// Totals and thread-date order require visiting all matching groups. Work has one
 // deadline, including stale-hit walks. Cursors do not pin an index snapshot.
-func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID string, limit, offset int, scope *MessageSearchScope, normalized *searchv1.QueryRequest, followedOnly, activityOrder bool, query ThreadSearchQuery) (*ThreadSearchPage, error) {
+func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID string, limit, offset int, scope *MessageSearchScope, normalized *searchv1.QueryRequest, followedOnly bool, threadOrder ThreadOrder, query ThreadSearchQuery) (*ThreadSearchPage, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	request := proto.Clone(normalized).(*searchv1.QueryRequest)
@@ -156,54 +166,51 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 			return nil, err
 		}
 		room := match.Event.GetMessagePosted().GetRoomId()
-		allowed, err := s.core.CanReadThreadMessages(ctx, actorID, match.Kind, room, root)
+		allowed, err := s.authorization.CanReadThreadMessages(ctx, actorID, match.Kind, room, root)
 		if err != nil {
 			return nil, err
 		}
-		member, err := s.core.RoomMembershipExists(ctx, match.Kind, actorID, room)
+		member, err := s.memberships.RoomMembershipExists(ctx, match.Kind, actorID, room)
 		if err != nil {
 			return nil, err
 		}
 		if !allowed || !member {
 			continue
 		}
-		following, err := s.core.IsFollowingThread(ctx, match.Kind, actorID, room, root)
+		following, err := s.follows.IsFollowingThread(ctx, match.Kind, actorID, room, root)
 		if err != nil {
 			return nil, err
 		}
 		if followedOnly && !following {
 			continue
 		}
-		metadata, err := s.core.GetThreadMetadata(ctx, match.Kind, room, root)
-		if err != nil {
-			return nil, err
-		}
-		activity := metadata.LastReplyAt
-		if activity == nil {
-			entry, ok := s.core.roomModel.timelineEntry(root)
-			if !ok || entry.RoomID != room {
+		metadata := s.rooms.threadMetadata(root)
+		var rootCreatedAt *time.Time
+		if threadOrder == ThreadOrderCreated {
+			rootCreatedAt = s.follows.rootCreatedAt(room, root)
+			if rootCreatedAt == nil && metadata.LastReplyAt == nil {
 				continue
 			}
-			rootEvent, err := s.core.GetRoomEventByEventID(ctx, match.Kind, room, root)
+		} else if metadata.LastReplyAt == nil {
+			// A thread without replies or a visible root is not a result.
+			rootEvent, err := s.timeline.roomEvent(ctx, match.Kind, room, root)
 			if err != nil {
 				return nil, err
 			}
 			if rootEvent == nil {
 				continue
 			}
-			at := rootEvent.GetCreatedAt().AsTime()
-			activity = &at
+			if rootEvent != nil && rootEvent.GetCreatedAt() != nil {
+				at := rootEvent.GetCreatedAt().AsTime()
+				rootCreatedAt = &at
+			}
 		}
-		row := &FollowedThread{SpaceID: LegacySpaceIDForRoomKind(match.Kind), RoomID: room, ThreadRootEventID: root,
-			Exists: metadata.Exists, ReplyCount: metadata.ReplyCount, LastReplyAt: metadata.LastReplyAt, ActivityAt: activity,
-			LatestReplyEventID: metadata.LatestReplyEventID, ParticipantIDs: metadata.ParticipantIDs, ParticipantCount: metadata.ParticipantCount}
+		row := newFollowedThread(match.Kind, room, root, metadata, rootCreatedAt)
 		threads = append(threads, ThreadSearchResult{Metadata: row, Match: match, Following: following})
 	}
 	slices.SortFunc(threads, func(a, b ThreadSearchResult) int {
-		if activityOrder {
-			if cmp := b.Metadata.ActivityAt.Compare(*a.Metadata.ActivityAt); cmp != 0 {
-				return cmp
-			}
+		if threadOrder != ThreadOrderDefault {
+			return compareThreadDates(a.Metadata, b.Metadata, threadOrder)
 		} else {
 			if normalized.Order == searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE {
 				if a.Match.Score > b.Match.Score {
@@ -224,7 +231,7 @@ func (s *MessageSearchReadModel) SearchThreadGroups(ctx context.Context, actorID
 	end := min(start+limit, total)
 	page := threads[start:end]
 	for _, result := range page {
-		if err := s.core.hydrateFollowedThreadViewerStates(ctx, actorID, []*FollowedThread{result.Metadata}); err != nil {
+		if err := s.follows.hydrateFollowedThreadViewerStates(ctx, actorID, []*FollowedThread{result.Metadata}); err != nil {
 			return nil, err
 		}
 	}

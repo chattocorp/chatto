@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"hmans.de/authling/internal/config"
-	"hmans.de/authling/internal/natsruntime"
-	"hmans.de/authling/internal/storage"
+	"github.com/chattocorp/chatto/authling/internal/config"
+	"github.com/chattocorp/chatto/authling/internal/natsruntime"
+	"github.com/chattocorp/chatto/authling/internal/storage"
 )
 
 func TestOIDCTokenAndSigningKeysHaveIndependentDurableLifecycles(t *testing.T) {

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // NotificationDeliveryMode controls whether qualifying activity is omitted,
 // represented by neutral unread attention, recorded as an in-app notification,
@@ -39,4 +39,6 @@ message NotificationDeliveryModes {
   // Root messages posted directly to joined channel rooms. Thread messages
   // and direct messages use their own signal classes.
   optional NotificationDeliveryMode room_messages = 10;
+  // Delivery mode for invitations to join a channel room.
+  optional NotificationDeliveryMode room_invitations = 11;
 }

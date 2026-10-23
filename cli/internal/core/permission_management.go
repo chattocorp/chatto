@@ -7,7 +7,7 @@ import (
 	"slices"
 	"sort"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type MatrixDecision string
@@ -178,12 +178,12 @@ func (c *ChattoCore) GetRolePermissionMatrix(ctx context.Context, actorID, roleN
 	return c.GetRolePermissionMatrixIncludingDM(ctx, actorID, roleName, false)
 }
 
-// GetRolePermissionMatrixIncludingDM returns the first scope page, optionally including DMs.
+// GetRolePermissionMatrixIncludingDM returns the complete matrix, optionally including DMs.
 func (c *ChattoCore) GetRolePermissionMatrixIncludingDM(ctx context.Context, actorID, roleName string, includeDM bool) (*RolePermissionMatrix, error) {
-	return c.GetRolePermissionMatrixPage(ctx, actorID, roleName, includeDM, PermissionScopeQuery{})
+	return c.GetRolePermissionMatrixPage(ctx, actorID, roleName, includeDM, PermissionScopeQuery{All: true})
 }
 
-// GetRolePermissionMatrixPage authorizes and evaluates one bounded scope page.
+// GetRolePermissionMatrixPage authorizes and evaluates the selected scopes.
 func (c *ChattoCore) GetRolePermissionMatrixPage(ctx context.Context, actorID, roleName string, includeDM bool, query PermissionScopeQuery) (*RolePermissionMatrix, error) {
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
@@ -195,12 +195,12 @@ func (c *ChattoCore) GetUserPermissionMatrix(ctx context.Context, actorID, userI
 	return c.GetUserPermissionMatrixIncludingDM(ctx, actorID, userID, false)
 }
 
-// GetUserPermissionMatrixIncludingDM returns the first scope page, optionally including DMs.
+// GetUserPermissionMatrixIncludingDM returns the complete matrix, optionally including DMs.
 func (c *ChattoCore) GetUserPermissionMatrixIncludingDM(ctx context.Context, actorID, userID string, includeDM bool) (*UserPermissionMatrix, error) {
-	return c.GetUserPermissionMatrixPage(ctx, actorID, userID, includeDM, PermissionScopeQuery{})
+	return c.GetUserPermissionMatrixPage(ctx, actorID, userID, includeDM, PermissionScopeQuery{All: true})
 }
 
-// GetUserPermissionMatrixPage authorizes and evaluates one bounded scope page.
+// GetUserPermissionMatrixPage authorizes and evaluates the selected scopes.
 func (c *ChattoCore) GetUserPermissionMatrixPage(ctx context.Context, actorID, userID string, includeDM bool, query PermissionScopeQuery) (*UserPermissionMatrix, error) {
 	if actorID == "" {
 		return nil, ErrNotAuthenticated
@@ -868,8 +868,7 @@ func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, includeDM b
 			Label: group.Name,
 			Kind:  MatrixScopeGroup,
 		})
-	}
-	for _, group := range groups {
+		// Keep each group next to its rooms in sidebar order before pagination.
 		for _, room := range roomsByGroup[group.Id] {
 			scopes = append(scopes, PermissionMatrixScope{
 				ID:            "room:" + room.ID,

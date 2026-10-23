@@ -337,7 +337,7 @@ func TestCanHelpers(t *testing.T) {
 		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, creator.Id) }, true},
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindChannel, "") }, true},
 		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, creator.Id) }, true},
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindChannel) }, true},
+		{"CanJoinRoom", func() (bool, error) { return core.authorization.CanJoinRoom(ctx, creator.Id, KindChannel) }, true},
 	}
 
 	t.Run("admin has all permissions", func(t *testing.T) {
@@ -361,7 +361,7 @@ func TestCanHelpers(t *testing.T) {
 		expect bool
 	}{
 		// Default member permissions (should be true)
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, member.Id, KindChannel) }, true},
+		{"CanJoinRoom", func() (bool, error) { return core.authorization.CanJoinRoom(ctx, member.Id, KindChannel) }, true},
 
 		// Admin/elevated permissions (should be false) - room.create is opt-in
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, member.Id, KindChannel, "") }, false},
@@ -473,7 +473,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Member should no longer have CanJoinRoom
-		can, err := core.CanJoinRoom(ctx, member.Id, KindChannel)
+		can, err := core.authorization.CanJoinRoom(ctx, member.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -482,7 +482,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Admin should still have it
-		can, err = core.CanJoinRoom(ctx, creator.Id, KindChannel)
+		can, err = core.authorization.CanJoinRoom(ctx, creator.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

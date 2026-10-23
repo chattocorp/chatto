@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "Oda bağlantısını kopyalayın",
     "show_rooms_in_group": "{group} grubunda daha fazla oda göster ({count})",
     "hide_rooms_in_group": "{group} grubunda katılmadığın odaları gizle",
     "more_rooms": "{count} oda daha",
@@ -18,15 +19,21 @@
     "empty_prefix": "Bu sunucudaki hiçbir odaya katılmadınız. Şuraya gidin:",
     "empty_overview": "Genel Bakış",
     "empty_suffix": "dizine göz atmak ve ilgilendiklerinize katılmak için.",
-    "mark_as_read": "Okundu olarak işaretle",
-    "remove_server": "Sunucuyu kaldır",
-    "leave_room": "Odadan ayrıl",
-    "copy_room_id": "Oda kimliğini kopyala",
-    "copy_server_hostname": "Sunucu ana bilgisayar adını kopyala",
+    "mark_as_read": "Okundu olarak işaretleyin",
+    "remove_server": "Sunucuyu kaldırın",
+    "leave_room": "Odadan ayrılın",
+    "copy_room_id": "Oda kimliğini kopyalayın",
+    "copy_server_hostname": "Sunucu ana bilgisayar adını kopyalayın",
     "room_settings": "Oda ayarları",
     "add_to_group": "{group} grubuna ekle",
     "group_settings": "{group} ayarları",
     "server_actions": "{server} için eylemler",
-    "room_actions": "#{room} için eylemler"
+    "room_actions": "#{room} için eylemler",
+    "open_group_settings": "Grup ayarlarını açın",
+    "open_room_settings": "Oda ayarlarını açın",
+    "activity_now": "şimdi",
+    "older_conversations": "Eski konuşmalar",
+    "show_older_conversations": "Eskileri gösterin ({count})",
+    "show_fewer_conversations": "Daha az gösterin"
   }
 }

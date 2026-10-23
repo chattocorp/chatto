@@ -11,8 +11,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -363,7 +363,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		}
 	}
 	if options.verifiedEmail != "" && c.config.Owners.IsServerOwnerEmail(options.verifiedEmail) {
-		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
+		if err := c.AssignConfiguredOwnerRole(ctx, userID); err != nil {
 			c.logger.Warn("Failed to auto-assign owner role on signup", "user_id", userID, "error", err)
 		}
 	}
@@ -419,14 +419,7 @@ func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *evtv1.User)
 
 // GetUser retrieves a user from the user projection.
 func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*evtv1.User, error) {
-	user, ok, err := c.userModel.user(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		return user, nil
-	}
-	return nil, ErrNotFound
+	return c.userModel.GetUser(ctx, userID)
 }
 
 // GetUserReference retrieves a public user reference. Deleted or crypto-shredded
@@ -450,14 +443,7 @@ func (c *ChattoCore) GetUserReferences(ctx context.Context, userIDs []string) ([
 
 // GetUserByLogin retrieves a user by their login name using the login index.
 func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*evtv1.User, error) {
-	user, ok, err := c.userModel.userByLogin(ctx, login)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		return user, nil
-	}
-	return nil, ErrNotFound
+	return c.userModel.GetUserByLogin(ctx, login)
 }
 
 // ListUsers retrieves all users from the user projection.

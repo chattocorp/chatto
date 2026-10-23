@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/permissions.proto";
+import "chatto/api/v1/room_invitations.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/rooms.proto";
 import "google/protobuf/timestamp.proto";
@@ -17,9 +18,14 @@ message RoomViewerState {
   bool has_unread = 2;
   // Effective room-scoped permission decisions after room state constraints.
   repeated PermissionGrant permissions = 3;
-  // Earliest time the current user may create another message. Absent when
+  // Earliest time the current user may create another root message. Absent when
   // slow mode is disabled, expired, or bypassed by moderation permissions.
   google.protobuf.Timestamp slow_mode_next_post_at = 4;
+  // Pending invitation for this viewer; does not grant access to room content.
+  RoomInvitation invitation = 5;
+  // Whether current permissions and room state allow joining without an invitation,
+  // even if already a member. Absent on servers that do not report this decision.
+  optional bool can_rejoin = 6;
 }
 
 // Room kinds to include in directory responses.
@@ -62,6 +68,14 @@ message RoomWithViewerState {
   repeated string member_user_ids = 15;
   // Whether this DM has received a root message. Absent for channel rooms.
   optional bool has_message_history = 16;
+  // Creation time of the latest ordinary DM message, including thread replies.
+  // Edits and retractions do not change this value; historical imports are excluded.
+  // Absent for other room kinds, no ordinary messages, or no message.read permission.
+  // Older servers can omit this field. Absence does not prove inactivity.
+  google.protobuf.Timestamp last_message_at = 17;
+  // Creation time of the latest ordinary DM root message, excluding thread replies.
+  // Uses the same visibility, import, and absence rules as last_message_at.
+  google.protobuf.Timestamp last_root_message_at = 18;
 }
 
 // Sidebar link metadata for room group navigation.

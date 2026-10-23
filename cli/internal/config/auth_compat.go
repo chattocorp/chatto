@@ -129,6 +129,18 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 			return fmt.Errorf("%s must be a boolean: %w", name, err)
 		}
 		provider.RequestEmail = &requestEmail
+	case "ALLOWED_GROUPS":
+		// An empty value, for example from an unset deployment template value,
+		// would remove the restriction and allow every provider user.
+		groups := splitCommaSeparatedEnv(value)
+		if len(groups) == 0 {
+			return fmt.Errorf("%s must list at least one value", name)
+		}
+		provider.AllowedGroups = groups
+	case "GROUPS_CLAIM":
+		provider.GroupsClaim = value
+	case "GROUP_ROLES":
+		provider.GroupRoles = value
 	case "AUTO_PROVISION":
 		autoProvision, err := strconv.ParseBool(value)
 		if err != nil {
@@ -136,18 +148,6 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 		}
 		provider.AutoProvision = &autoProvision
 	default:
-		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
-		if after, ok := strings.CutPrefix(field, providerOptionsPrefix); ok {
-			optionName := strings.ToLower(after)
-			if optionName == "" {
-				return fmt.Errorf("%s must include a provider option name", name)
-			}
-			if provider.ProviderOptions == nil {
-				provider.ProviderOptions = make(map[string]string)
-			}
-			provider.ProviderOptions[optionName] = value
-			return nil
-		}
 		return fmt.Errorf("%s uses unknown auth provider field %q", name, field)
 	}
 	return nil

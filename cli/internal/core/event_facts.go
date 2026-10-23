@@ -1,8 +1,8 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // MessageAuthorID returns the displayed author of a message, or the event
@@ -59,6 +59,12 @@ func roomIDOfEvent(event *evtv1.Event) string {
 		return e.RoomMemberBanned.GetRoomId()
 	case *evtv1.Event_RoomMemberUnbanned:
 		return e.RoomMemberUnbanned.GetRoomId()
+	case *evtv1.Event_RoomInvitationCreated:
+		return e.RoomInvitationCreated.GetRoomId()
+	case *evtv1.Event_RoomInvitationAccepted:
+		return e.RoomInvitationAccepted.GetRoomId()
+	case *evtv1.Event_RoomInvitationDeclined:
+		return e.RoomInvitationDeclined.GetRoomId()
 	case *evtv1.Event_RoomMemberAdded:
 		return e.RoomMemberAdded.GetRoomId()
 	case *evtv1.Event_RoomMemberRemoved:
@@ -398,7 +404,7 @@ func IsVisibleRoomTimelineEntry(event *evtv1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
-	if event.GetMessagePosted().GetHistoricalImport() {
+	if event.GetMessagePosted().GetHistoricalImport() || event.GetReactionAdded().GetHistoricalImport() || event.GetThreadCreated().GetHistoricalImport() {
 		return false
 	}
 	return isDeliverableLiveEVTRoomEventType(evtstream.EventTypeOf(event))
@@ -406,7 +412,7 @@ func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
 
 func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 	switch eventType {
-	case evtstream.EventRoomCreated,
+	case evtstream.EventRoomInvitationCreated, evtstream.EventRoomInvitationAccepted, evtstream.EventRoomInvitationDeclined, evtstream.EventRoomCreated,
 		evtstream.EventRoomUpdated,
 		evtstream.EventRoomDeleted,
 		evtstream.EventRoomArchived,

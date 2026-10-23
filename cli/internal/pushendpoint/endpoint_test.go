@@ -41,7 +41,7 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-func TestBlockedAddress(t *testing.T) {
+func TestValidateIPAddresses(t *testing.T) {
 	blocked := []string{
 		"0.0.0.0", "127.0.0.1", "10.0.0.1", "100.64.0.1", "169.254.169.254",
 		"172.16.0.1", "192.168.0.1", "192.0.2.1", "198.18.0.1", "224.0.0.1",
@@ -50,16 +50,16 @@ func TestBlockedAddress(t *testing.T) {
 	}
 	for _, raw := range blocked {
 		t.Run(raw, func(t *testing.T) {
-			if !blockedAddress(netip.MustParseAddr(raw)) {
-				t.Fatalf("blockedAddress(%s) = false, want true", raw)
+			if err := Validate("https://" + net.JoinHostPort(raw, "443") + "/send"); err == nil {
+				t.Fatalf("Validate accepted blocked address %s", raw)
 			}
 		})
 	}
 
 	for _, raw := range []string{"8.8.8.8", "93.184.216.34", "2606:4700:4700::1111"} {
 		t.Run(raw, func(t *testing.T) {
-			if blockedAddress(netip.MustParseAddr(raw)) {
-				t.Fatalf("blockedAddress(%s) = true, want false", raw)
+			if err := Validate("https://" + net.JoinHostPort(raw, "443") + "/send"); err != nil {
+				t.Fatalf("Validate rejected public address %s: %v", raw, err)
 			}
 		})
 	}

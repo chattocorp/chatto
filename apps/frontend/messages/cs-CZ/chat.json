@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Oznámení",
       "subtitle": "Zde je novinka",
-      "list_title": "Nedávná aktivita",
       "clear_read": "Odstranit přečtené",
       "empty_title": "Žádná upozornění",
       "empty_body": "Už jste všichni chyceni!",
@@ -19,14 +18,15 @@
       "unread": "Nepřečtené",
       "activity": "Nová aktivita",
       "summary": {
-        "direct_message": "Od uživatele {actor} máte novou přímou zprávu.",
-        "reaction": "Uživatel {actor} reagoval pomocí „{emoji}“ na vaši zprávu v kanálu {channel}.",
-        "reaction_group": "Uživatel {actor} a další reagovali pomocí „{emoji}“ na vaši zprávu v kanálu {channel}.",
-        "reply": "Uživatel {actor} odpověděl na vaši zprávu.",
-        "mention": "Uživatel {actor} vás zmínil.",
-        "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete.",
-        "new_message": "Uživatel {actor} zveřejnil novou zprávu.",
-        "activity": "Uživatel {actor} vám poslal oznámení."
+        "direct_message": "Od uživatele {actor} máte novou přímou zprávu",
+        "reaction": "Uživatel {actor} reagoval pomocí {emoji} na vaši zprávu",
+        "reaction_group": "Uživatel {actor} a další reagovali pomocí {emoji} na vaši zprávu",
+        "reply": "Uživatel {actor} odpověděl na vaši zprávu",
+        "mention": "Uživatel {actor} vás zmínil",
+        "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete",
+        "new_message": "Uživatel {actor} zveřejnil novou zprávu",
+        "activity": "Uživatel {actor} vám poslal oznámení",
+        "room_invitation": "{actor} vás pozval do místnosti"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Uživatelský profil",
-      "send_message": "Odeslat zprávu",
+      "send_message": "Otevřít konverzaci",
       "view_profile": "Zobrazit profil",
       "profile_requires_direct_message": "K zobrazení tohoto profilu je nutná přímá zpráva.",
       "manage_bot": "Spravovat robota",
       "view_in_admin": "Zobrazit ve správě serveru",
       "copy_user_id": "Zkopírovat ID uživatele"
     },
+    "server_info": {
+      "title": "Informace o serveru",
+      "details": "Podrobnosti serveru"
+    },
+    "compatibility": {
+      "title": "Kompatibilita",
+      "view": "Zobrazit kompatibilitu",
+      "limited": "Starší verze serveru",
+      "supported": "Žádné známé problémy s kompatibilitou",
+      "affected": "Dotčené funkce",
+      "requires": "Vyžaduje verzi {version} nebo novější",
+      "thread_views_title": "Zobrazení vláken má omezenou podporu",
+      "thread_views_description": "Sledovaná vlákna a vlákna, která jste založili, se na tomto serveru nemusí zobrazovat odděleně.",
+      "independent_slow_mode_title": "Nezávislý pomalý režim není dostupný",
+      "independent_slow_mode_description": "Tento server používá společnou čekací dobu pro zprávy kanálu a odpovědi ve vláknech.",
+      "upgrade": "Pro plnou podporu požádejte správce serveru o aktualizaci na verzi {version} nebo novější."
+    },
     "server_gutter": {
       "move_up": "Přesunout nahoru",
       "move_down": "Přesunout dolů",
       "add_server": "Přidat server",
-      "log_in": "Přihlásit se k tomuto serveru",
-      "sign_out": "Odhlásit se z tohoto serveru",
+      "log_in": "Přihlásit se k serveru",
+      "sign_out": "Odhlásit se ze serveru",
       "version": "Verze {version}",
       "unreachable": "Server je nedostupný",
       "connection_unavailable": "Připojení není dostupné",
-      "compatibility_server_too_old": "Aby se tato aplikace mohla připojit, musí být tento server upgradován na Chatto 0.5 nebo novější.",
+      "compatibility_server_too_old": "Aby se tato aplikace mohla připojit, musí být tento server upgradován na Chatto {version} nebo novější.",
       "compatibility_unknown": "Tato aplikace nemůže určit kompatibilitu z verze serveru.",
       "go_to_notifications_count": {
         "one": "Přejít na {count} oznámení",
@@ -90,9 +107,16 @@
       "body": "Přihlaste se, abyste mohli na tomto serveru číst a posílat zprávy."
     },
     "threads": {
-      "title": "Moje vlákna",
-      "subtitle": "Vlákna, která sledujete",
-      "list_title": "Sledovaná vlákna",
+      "sort_label": "Řazení vláken",
+      "sort_activity": "Aktivita",
+      "sort_created": "Stáří",
+      "tab_started": "Moje",
+      "tab_followed": "Sledovaná",
+      "tab_label": "Zobrazení vláken",
+      "empty_mine_title": "Žádná vámi založená vlákna",
+      "empty_mine_body": "Zde se zobrazí vlákna, která založíte a sledujete.",
+      "title": "Vlákna",
+      "subtitle": "Nová aktivita ve vašich vláknech",
       "filter_label": "Filtrační závity",
       "filter_all": "všechny",
       "filter_unread": "Nepřečteno",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Vlastník",
       "open_card": "Otevřít profilovou kartu uživatele {name}"
+    },
+    "management_nav": {
+      "general": "Generál",
+      "neighbors": "Sousedé",
+      "members": "členové",
+      "rooms": "Pokoje",
+      "moderation": "Moderování",
+      "permissions": "Oprávnění",
+      "security": "Bezpečnost",
+      "event_log": "Protokol událostí",
+      "system": "Systém",
+      "back_to_server": "Návrat na server",
+      "invitations": "Zvací odkazy"
     }
   }
 }

@@ -2,15 +2,17 @@ package core
 
 import (
 	"fmt"
-	"sort"
 )
 
-// PermissionScopeQuery selects a live page of scopes before permission evaluation.
-// Scope is an optional exact filter. Limit and Offset count scopes, not cells.
+// PermissionScopeQuery selects matching scopes before permission evaluation.
+// All selects a complete matrix; otherwise Limit and Offset count scopes, not cells.
+// Scope is an optional exact filter in both modes.
 type PermissionScopeQuery struct {
 	Scope  *PermissionTargetScope
 	Limit  int
 	Offset int
+	// All returns every matching scope for a complete matrix. Decision lists use pages.
+	All bool
 }
 
 // PermissionScopePage describes the matching visible scope collection.
@@ -23,8 +25,9 @@ func (q PermissionScopeQuery) includesDM() bool {
 	return q.Scope != nil && q.Scope.Kind == MatrixScopeDM
 }
 
-// selectPermissionScopes uses stable group/room ID ordering. Enumeration can still
-// scale with the directory; permission evaluation and result size are bounded.
+// selectPermissionScopes preserves the sidebar order from buildMatrixScopesVisibleTo.
+// Enumeration scales with the directory. Decision lists bound evaluation and
+// result size; complete matrices evaluate every matching scope.
 func selectPermissionScopes(scopes []PermissionMatrixScope, q PermissionScopeQuery) ([]PermissionMatrixScope, PermissionScopePage, error) {
 	if q.Limit < 0 || q.Offset < 0 {
 		return nil, PermissionScopePage{}, fmt.Errorf("%w: negative scope page", ErrInvalidArgument)
@@ -61,38 +64,10 @@ func selectPermissionScopes(scopes []PermissionMatrixScope, q PermissionScopeQue
 		}
 		scopes = filtered
 	}
-	// Keep each group beside its rooms so appending pages never reorders
-	// already rendered columns in a grouped matrix.
-	rank := func(kind MatrixScopeKind) int {
-		switch kind {
-		case MatrixScopeServer:
-			return 0
-		case MatrixScopeDM:
-			return 1
-		default:
-			return 2
-		}
-	}
-	groupID := func(scope PermissionMatrixScope) string {
-		if scope.Kind == MatrixScopeGroup {
-			return scopeRefID(scope.ID, "group:")
-		}
-		return scope.ParentGroupID
-	}
-	sort.Slice(scopes, func(i, j int) bool {
-		a, b := scopes[i], scopes[j]
-		if rank(a.Kind) != rank(b.Kind) {
-			return rank(a.Kind) < rank(b.Kind)
-		}
-		if groupID(a) != groupID(b) {
-			return groupID(a) < groupID(b)
-		}
-		if a.Kind != b.Kind {
-			return a.Kind == MatrixScopeGroup
-		}
-		return a.ID < b.ID
-	})
 	page := PermissionScopePage{TotalCount: len(scopes)}
+	if q.All {
+		return scopes, page, nil
+	}
 	if q.Offset >= len(scopes) {
 		return []PermissionMatrixScope{}, page, nil
 	}

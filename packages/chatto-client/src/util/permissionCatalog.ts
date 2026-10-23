@@ -65,6 +65,10 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     category: 'room',
     scopes: ['server', 'group', 'room']
   },
+  'room.invite': {
+    category: 'room',
+    scopes: ['server', 'group', 'room']
+  },
   'room.list': {
     category: 'room',
     scopes: ['server', 'group', 'room']
@@ -137,6 +141,10 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     category: 'message',
     scopes: ['server', 'group', 'room', 'dm'],
     privileged: true
+  },
+  'message.pin': {
+    category: 'message',
+    scopes: ['server', 'group', 'room']
   },
   'message.react': {
     category: 'message',
@@ -228,7 +236,7 @@ export function getIncludingPermissions(permissions: readonly string[], id: stri
 export function getPermissionCategory(id: string): PermissionCategory {
   const known = PERMISSION_DEFINITIONS[id]?.category;
   if (known) return known;
-  const prefix = id.split('.', 1)[0];
+  const [prefix = ''] = id.split('.', 1);
   return (PERMISSION_CATEGORIES as readonly string[]).includes(prefix) && prefix !== 'other'
     ? (prefix as PermissionCategory)
     : 'other';

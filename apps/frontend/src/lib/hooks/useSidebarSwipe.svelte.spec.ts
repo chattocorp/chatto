@@ -20,14 +20,15 @@ function makeGestureHost() {
   return { host, child };
 }
 
-function pointer(type: string, x: number, y = 24) {
+function pointer(type: string, x: number, pointerType: string) {
   return new PointerEvent(type, {
     bubbles: true,
     cancelable: true,
     composed: true,
     pointerId: 1,
+    pointerType,
     clientX: x,
-    clientY: y
+    clientY: 24
   });
 }
 
@@ -70,8 +71,8 @@ describe('sidebarSwipe', () => {
     child.addEventListener('click', onClick);
     const action = sidebarSwipe(host);
 
-    child.dispatchEvent(pointer('pointerdown', 4));
-    window.dispatchEvent(pointer('pointerup', 4));
+    child.dispatchEvent(touch('touchstart', 4));
+    window.dispatchEvent(touch('touchend', 4));
     child.click();
 
     expect(onClick).toHaveBeenCalledOnce();
@@ -80,13 +81,51 @@ describe('sidebarSwipe', () => {
     action.destroy();
   });
 
+  it.each(['mouse', 'pen'])('ignores %s drags with an open or closed drawer', (pointerType) => {
+    const { host, child } = makeGestureHost();
+    const action = sidebarSwipe(host);
+
+    for (const open of [false, true]) {
+      sidebarNav.isOpen = open;
+      const start = open ? 320 : 0;
+      const end = open ? 0 : 320;
+      child.dispatchEvent(pointer('pointerdown', start, pointerType));
+      window.dispatchEvent(pointer('pointermove', end, pointerType));
+
+      expect(sidebarNav.dragOffset).toBeNull();
+      expect(host.setPointerCapture).not.toHaveBeenCalled();
+
+      window.dispatchEvent(pointer('pointerup', end, pointerType));
+      expect(sidebarNav.isOpen).toBe(open);
+      expect(sidebarNav.dragOffset).toBeNull();
+    }
+
+    action.destroy();
+  });
+
+  it('ignores touch drags in the wide layout', () => {
+    sidebarNav.setMobile(false);
+    const { host, child } = makeGestureHost();
+    const action = sidebarSwipe(host);
+
+    child.dispatchEvent(touch('touchstart', 320));
+    const move = touch('touchmove', 0);
+    window.dispatchEvent(move);
+    expect(sidebarNav.dragOffset).toBeNull();
+    expect(move.defaultPrevented).toBe(false);
+    window.dispatchEvent(touch('touchend', 0));
+    expect(sidebarNav.isOpen).toBe(true);
+
+    action.destroy();
+  });
+
   it('opens the mobile sidebar from a rightward drag on app content', () => {
     const { host, child } = makeGestureHost();
     const action = sidebarSwipe(host);
 
-    child.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    child.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
 
     expect(sidebarNav.isOpen).toBe(true);
 
@@ -104,9 +143,9 @@ describe('sidebarSwipe', () => {
     host.append(scroller);
     const action = sidebarSwipe(host);
 
-    child.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    child.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
 
     expect(sidebarNav.isOpen).toBe(false);
     expect(sidebarNav.dragOffset).toBeNull();
@@ -114,16 +153,16 @@ describe('sidebarSwipe', () => {
     action.destroy();
   });
 
-  it('ignores rightward pointer drags that start on native form controls', () => {
+  it('ignores rightward touch drags that start on native form controls', () => {
     const { host } = makeGestureHost();
     const range = document.createElement('input');
     range.type = 'range';
     host.append(range);
     const action = sidebarSwipe(host);
 
-    range.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    range.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
 
     expect(sidebarNav.isOpen).toBe(false);
     expect(sidebarNav.dragOffset).toBeNull();
@@ -164,12 +203,12 @@ describe('sidebarSwipe', () => {
     host.append(dialog, popover);
     const action = sidebarSwipe(host);
 
-    dialogControl.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
-    popoverControl.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    dialogControl.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
+    popoverControl.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
 
     expect(sidebarNav.isOpen).toBe(false);
     expect(sidebarNav.dragOffset).toBeNull();
@@ -187,9 +226,9 @@ describe('sidebarSwipe', () => {
     host.append(modal);
     const action = sidebarSwipe(host);
 
-    control.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    control.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
 
     expect(sidebarNav.isOpen).toBe(false);
     expect(sidebarNav.dragOffset).toBeNull();
@@ -209,9 +248,9 @@ describe('sidebarSwipe', () => {
     });
     const action = sidebarSwipe(host);
 
-    control.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    control.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
 
     expect(sidebarNav.isOpen).toBe(false);
     expect(sidebarNav.dragOffset).toBeNull();
@@ -240,14 +279,14 @@ describe('sidebarSwipe', () => {
     const { host, child } = makeGestureHost();
     const action = sidebarSwipe(host);
 
-    child.dispatchEvent(pointer('pointerdown', 310));
-    window.dispatchEvent(pointer('pointermove', 100));
-    window.dispatchEvent(pointer('pointerup', 100));
+    child.dispatchEvent(touch('touchstart', 310));
+    window.dispatchEvent(touch('touchmove', 100));
+    window.dispatchEvent(touch('touchend', 100));
     expect(sidebarNav.isOpen).toBe(true);
 
-    child.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    child.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
     expect(sidebarNav.isOpen).toBe(false);
 
     action.destroy();

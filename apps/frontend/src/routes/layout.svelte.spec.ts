@@ -14,6 +14,7 @@ const { mocks } = vi.hoisted(() => ({
     afterNavigate: vi.fn(),
     beforeNavigate: vi.fn(),
     onNavigate: vi.fn(),
+    deactivateManagementLocaleMessages: vi.fn(async () => {}),
     appUi: {
       setActiveRoomScope: vi.fn(),
       setActiveServer: vi.fn()
@@ -25,6 +26,11 @@ const { mocks } = vi.hoisted(() => ({
     },
     updateAppBadge: vi.fn(async () => {})
   }
+}));
+
+vi.mock('$lib/i18n/messages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/i18n/messages')>()),
+  deactivateManagementLocaleMessages: mocks.deactivateManagementLocaleMessages
 }));
 
 vi.mock('$lib/client', async () => ({
@@ -109,7 +115,8 @@ vi.mock('$lib/notifications/notificationClick', () => ({
   onNotificationClick: vi.fn(() => vi.fn())
 }));
 
-vi.mock('$lib/notifications/notificationNavigationUi', () => ({
+vi.mock('$lib/notifications/notificationNavigationUi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/notifications/notificationNavigationUi')>()),
   prepareUiForNotificationPath: vi.fn(),
   prepareUiForNotificationTarget: vi.fn()
 }));
@@ -183,13 +190,13 @@ function renderLayout(content = '<main data-testid="layout-child"></main>') {
   });
 }
 
-function pointer(type: string, x: number, y = 120) {
-  return new PointerEvent(type, {
+function touch(type: string, x: number, y = 120) {
+  const contact = new Touch({ identifier: 1, target: document.body, clientX: x, clientY: y });
+  return new TouchEvent(type, {
     bubbles: true,
     cancelable: true,
-    pointerId: 1,
-    clientX: x,
-    clientY: y
+    touches: type === 'touchend' ? [] : [contact],
+    changedTouches: [contact]
   });
 }
 
@@ -246,9 +253,9 @@ describe('OAuth page layout', () => {
       .not.toBeInTheDocument();
 
     const child = q(view.container, '[data-testid="layout-child"]')!;
-    child.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    child.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
     await tick();
     expect(sidebarNav.isOpen).toBe(false);
   });
@@ -272,6 +279,26 @@ describe('OAuth page layout', () => {
     const view = renderLayout();
     await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
     await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).toBeVisible();
+  });
+});
+
+describe('management catalog navigation boundary', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each([
+    ['/chat/[serverId]/manage/server/general', '/chat/[serverId]/settings/language', true],
+    ['/chat/[serverId]/manage/rooms', '/login', true],
+    ['/chat/[serverId]/manage/server/general', '/chat/[serverId]/manage/rooms', false],
+    ['/chat/[serverId]/settings/appearance', '/chat/[serverId]/settings/language', false],
+    ['/chat/[serverId]/[roomId]', '/chat/[serverId]/[roomId]/thread/[threadId]', false],
+    ['/chat/[serverId]/settings/appearance', '/chat/[serverId]/manage/server/general', false]
+  ])('updates catalogs only after exiting management: %s -> %s', async (from, to, exits) => {
+    renderLayout();
+    const callback = mocks.afterNavigate.mock.calls.at(-1)![0];
+    // Registration must not change sections before navigation completes.
+    expect(mocks.deactivateManagementLocaleMessages).not.toHaveBeenCalled();
+    await callback({ from: { route: { id: from } }, to: { route: { id: to } } });
+    expect(mocks.deactivateManagementLocaleMessages).toHaveBeenCalledTimes(exits ? 1 : 0);
   });
 });
 
@@ -305,8 +332,8 @@ describe('root layout mobile sidebar animation', () => {
     const onClick = vi.fn();
     child.addEventListener('click', onClick);
 
-    child.dispatchEvent(pointer('pointerdown', 2));
-    window.dispatchEvent(pointer('pointerup', 2));
+    child.dispatchEvent(touch('touchstart', 2));
+    window.dispatchEvent(touch('touchend', 2));
     child.click();
 
     expect(q(container, '[data-testid="mobile-sidebar-edge"]')).toBeNull();
@@ -322,9 +349,9 @@ describe('root layout mobile sidebar animation', () => {
     expect(child).not.toBeNull();
     if (!child) return;
 
-    child.dispatchEvent(pointer('pointerdown', 100));
-    window.dispatchEvent(pointer('pointermove', 310));
-    window.dispatchEvent(pointer('pointerup', 310));
+    child.dispatchEvent(touch('touchstart', 100));
+    window.dispatchEvent(touch('touchmove', 310));
+    window.dispatchEvent(touch('touchend', 310));
     await tick();
 
     expect(sidebarNav.isOpen).toBe(true);
@@ -372,9 +399,9 @@ describe('root layout mobile sidebar animation', () => {
     expect(panel).not.toBeNull();
     if (!panel) return;
 
-    panel.dispatchEvent(pointer('pointerdown', 320));
-    window.dispatchEvent(pointer('pointermove', 0));
-    window.dispatchEvent(pointer('pointerup', 0));
+    panel.dispatchEvent(touch('touchstart', 320));
+    window.dispatchEvent(touch('touchmove', 0));
+    window.dispatchEvent(touch('touchend', 0));
     await tick();
 
     expect(sidebarNav.isOpen).toBe(false);
@@ -390,9 +417,9 @@ describe('root layout mobile sidebar animation', () => {
     expect(child).not.toBeNull();
     if (!child) return;
 
-    child.dispatchEvent(pointer('pointerdown', 310));
-    window.dispatchEvent(pointer('pointermove', 100));
-    window.dispatchEvent(pointer('pointerup', 100));
+    child.dispatchEvent(touch('touchstart', 310));
+    window.dispatchEvent(touch('touchmove', 100));
+    window.dispatchEvent(touch('touchend', 100));
     await tick();
 
     expect(sidebarNav.isOpen).toBe(true);

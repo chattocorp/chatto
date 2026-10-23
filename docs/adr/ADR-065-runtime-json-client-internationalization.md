@@ -19,20 +19,31 @@ than generated TypeScript modules.
 
 ## Decision
 
-Chatto will use the small, framework-neutral `@chatto/lingua` package under
-`packages/lingua`. It reads ordinary nested JSON catalogs at runtime and does
+Chatto will use the small, framework-neutral `@chatto/translatto` package under
+`packages/translatto`. It reads ordinary nested JSON catalogs at runtime and does
 not generate source code. The package is Apache-2.0 licensed and contains no
 Chatto product policy or runtime dependencies.
 
-British English (`en-GB`) remains the complete source and fallback locale. Its
-21 sections are imported eagerly so message lookup is synchronous from first
-render. Non-base catalogs remain individual Vite dynamic JSON imports in source,
-but Rolldown coalesces them into at most two physical payload chunks per locale.
-SvelteKit layouts own those two coarse catalog boundaries: the root layout loads
-the public shell, and the `/chat` layout loads the remainder before entering the
-authenticated application. Catalog availability never participates in a global
-navigation hook. Switching locales loads the currently active boundary before
-publishing the new locale. Sparse locale catalogs, including `en-US`, fall back
+British English (`en-GB`) remains the complete source and fallback locale.
+Shared sections are imported eagerly so message lookup is synchronous from first
+render. Management-only sections (`admin`, `rbac`, and `server_settings`) use
+dynamic JSON imports for every locale, including British English. Messages used
+outside management belong in shared sections: room actions and moderation text
+in `room`, management navigation in `chat`, and permission descriptions in
+`permissions`.
+
+SvelteKit layout loads own three catalog groups: public, chat, and management.
+The root layout loads the public shell. The `/chat` layout loads shared chat
+sections without reading the child route. The management layout loads its
+sections on entry. This keeps child navigation from rerunning ancestor access
+checks or refreshing all translated text. Repeated requests for the same sections
+do not change the translation revision. Rolldown keeps these groups in separate
+payloads per locale. Catalog downloads never block a global navigation hook.
+The existing completed-navigation handler deactivates management sections on
+exit, without downloads or a translation refresh. Switching locales
+loads the currently active group before publishing the new locale. Leaving
+management removes its sections from subsequent locale loads but keeps previous
+downloads cached. Sparse locale catalogs, including `en-US`, fall back
 per key through their configured language parent when one exists and then to
 British English. The current sparse regional overlays are `de-AT -> de-DE`,
 `de-CH -> de-DE`, and `en-US -> en-GB`; complete regional catalogs such as
@@ -62,18 +73,16 @@ an i18n compiler or include generated locale JavaScript in Vite's module graph.
 Adding or editing a translation is a JSON-only change. Catalog sections remain
 independent source and loading units, while production users pay at most one
 public-shell request and one authenticated-application request per selected
-locale. Non-base translations stay outside initial route bundles. The production
-bundle check enforces both properties.
+locale. Non-base translations stay outside initial route bundles.
 
 Message keys are not statically checked at each call site. Complete-catalog
 shape tests, placeholder validation, missing-key markers, and focused runtime
 tests provide the guardrails instead. Renaming a key therefore requires search
 and test discipline.
 
-The base catalogs add their JSON data to the initial application bundle. This
-is deliberate: it guarantees synchronous fallback without loading waterfalls.
-A selected non-base locale costs roughly 17–26 KiB over Brotli at the current
-catalog size; a sparse regional overlay also loads its configured parent
-catalogs for fallback validation and lookup. Public routes load about half of
-that; entering chat loads the remainder once. This coarse split avoids a
-global navigation interceptor while retaining a smaller public entry path.
+The shared base catalogs add their JSON data to the initial application bundle
+to provide synchronous fallback. Management-only English and translated catalogs
+are downloaded on management entry. A sparse regional overlay also loads its
+configured parent catalogs for fallback validation and lookup. A failed catalog
+load leaves published translations unchanged and can be retried. This split
+keeps management text out of normal chat downloads, including for English users.

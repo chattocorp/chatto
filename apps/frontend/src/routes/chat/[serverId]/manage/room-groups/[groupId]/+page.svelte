@@ -1,199 +1,103 @@
+<!-- @component General room-group settings with protection for unsaved changes. -->
 <script lang="ts">
-  import { errorMessage } from '$lib/utils/errorMessage';
-  import { serverUi } from '$lib/state/server/serverUi';
-  import { page } from '$app/state';
-  import { resolve } from '$app/paths';
+  import { beforeNavigate, goto } from '$app/navigation';
+  import type { BeforeNavigate } from '@sveltejs/kit';
+  import { base, resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { createAdminRoomLayoutAPI, type AdminManagedRoomGroup } from '$lib/api/adminRoomLayout';
-  import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Button } from '$lib/ui/form';
-  import { AccessDenied, EmptyState, PaneContent, PaneHeader, PageTitle, Hint } from '$lib/ui';
-  import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
-  import { useProjectionEvent } from '$lib/hooks';
-  import { toast } from '$lib/ui/toast';
-  import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
-  import { adminQueryKeys } from '$lib/query/admin';
-  import { createMutation, createQuery, queryClient } from '$lib/query/client';
-  import {
-    invalidateAdminRoomLayoutQueries,
-    purgeAdminRoomGroupQuery
-  } from '$lib/query/adminInvalidation';
-  import RoomGroupGeneralSettingsPanel from './RoomGroupGeneralSettingsPanel.svelte';
-  import type { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
+  import { ConfirmDialog } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-
+  import { useRoomGroupManagement } from './roomGroupManagementContext';
+  import RoomGroupGeneralSettingsPanel from './RoomGroupGeneralSettingsPanel.svelte';
   const serverScope = useServerScope();
-  const groupId = $derived(page.params.groupId!);
-  const activeServerId = serverScope.serverId;
-  const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const backHref = $derived(resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }));
+  const detail = useRoomGroupManagement();
+  /** Each section exposes its current draft state directly to the navigation guard. */
+  type SettingsSection = { hasChanges(): boolean };
+  let generalSection = $state<SettingsSection>();
+  let pendingNavigation = $state<BeforeNavigate | null>(null);
+  // Approval applies only to the resumed destination, not to later navigation attempts.
+  let approvedDestination: string | null = null;
+  let approvedUnload = false;
 
-  const session = createSessionGuard(serverScope);
-  /** Increases when the group snapshot changes, so an older save does not overwrite it. */
-  let snapshotGeneration = 0;
-  let formRevision = $state(0);
-
-  type GroupMutationScope = SessionSnapshot & {
-    groupId: string;
-    queryKey: ReturnType<typeof adminQueryKeys.roomGroup>;
-    api: ReturnType<typeof createAdminRoomLayoutAPI>;
-    snapshotGeneration: number;
-    input: ReturnType<typeof buildRoomGroupSettingsUpdate>;
-  };
-
-  const groupQuery = createQuery(() => {
-    const serverId = activeServerId;
-    const connection = serverScope.connection;
-    const targetGroupId = groupId;
-    return {
-      queryKey: adminQueryKeys.roomGroup(serverId, connection, targetGroupId),
-      queryFn: ({ signal }) =>
-        connection.getAPI(createAdminRoomLayoutAPI).getRoomGroup(targetGroupId, { signal }),
-      refetchOnMount: 'always' as const
-    };
+  beforeNavigate((navigation) => {
+    const { cancel, type, to } = navigation;
+    if (type === 'leave' && approvedUnload) {
+      approvedUnload = false;
+      return;
+    }
+    if (to && approvedDestination === to.url.href) {
+      approvedDestination = null;
+      return;
+    }
+    // Permission loss must still be able to remove this editor and its private drafts.
+    if (!detail.canManageGroup) {
+      pendingNavigation = null;
+      return;
+    }
+    const dirty = generalSection?.hasChanges();
+    if (!dirty) return;
+    cancel();
+    // Closing or reloading a tab must use the browser's native unload warning.
+    if (type !== 'leave' && to) pendingNavigation ??= navigation;
   });
 
-  const groupDetails = $derived(groupQuery.data ?? null);
-  const group = $derived(groupDetails?.group ?? null);
-  const canManageGroup = $derived(groupDetails?.canManageGroup ?? false);
-  const canManagePermissions = $derived(groupDetails?.canManagePermissions ?? false);
-  const loading = $derived(groupQuery.isPending);
-  const classifiedLoadError = $derived(
-    groupQuery.error ? classifyManagementLoadError(groupQuery.error) : null
-  );
-  const accessDenied = $derived(
-    classifiedLoadError?.kind === 'access-denied' || (!loading && !group)
-  );
-  const loadFailure = $derived(
-    classifiedLoadError?.kind === 'failure' ? classifiedLoadError.message : null
-  );
-
-  function isCurrentGroup(variables: GroupMutationScope | undefined): boolean {
-    return session.isCurrent(variables) && variables.groupId === groupId;
-  }
-
-  function canApplyGroupSnapshot(variables: GroupMutationScope): boolean {
-    return isCurrentGroup(variables) && variables.snapshotGeneration === snapshotGeneration;
-  }
-
-  const updateGroupMutation = createMutation(() => ({
-    mutationFn: async ({ api, input }: GroupMutationScope) => {
-      const updated = await api.updateRoomGroup(input);
-      if (!updated) throw new Error('Room group update returned no group');
-      return updated;
-    },
-    onSuccess: (updated, variables) => {
-      if (!isCurrentGroup(variables)) return;
-      if (canApplyGroupSnapshot(variables)) {
-        queryClient.setQueryData<AdminManagedRoomGroup | null>(variables.queryKey, (current) =>
-          current ? { ...current, group: updated } : current
-        );
-        formRevision += 1;
-      }
-      invalidateAdminRoomLayoutQueries(
-        variables.serverId,
-        variables.connection,
-        undefined,
-        variables.groupId
-      );
-      void serverUi(serverScope.store).adminRoomLayout.refresh();
-      toast.success(m('admin.rooms_admin.group_renamed'));
-    },
-    onError: (error, variables) => {
-      if (!isCurrentGroup(variables)) return;
-      toast.error(
-        m('admin.rooms_admin.rename_group_failed', {
-          error: errorMessage(error)
-        })
-      );
-    }
-  }));
-
-  function saveGeneralSettings(input: ReturnType<typeof buildRoomGroupSettingsUpdate>): void {
-    if (!canManageGroup || updateGroupMutation.isPending) return;
-    const snapshot = session.snapshot();
-    updateGroupMutation.mutate({
-      ...snapshot,
-      groupId,
-      queryKey: adminQueryKeys.roomGroup(snapshot.serverId, snapshot.connection, groupId),
-      api: snapshot.connection.getAPI(createAdminRoomLayoutAPI),
-      snapshotGeneration,
-      input
-    });
-  }
-
-  useProjectionEvent((event) => {
-    if (event.resource?.case === 'roomGroups') {
-      snapshotGeneration += 1;
-      if (event.resource.value.groups.some((candidate) => candidate.id === groupId)) {
-        invalidateAdminRoomLayoutQueries(
-          activeServerId,
-          serverScope.connection,
-          undefined,
-          groupId
-        );
-      } else {
-        session.invalidate();
-        purgeAdminRoomGroupQuery(activeServerId, serverScope.connection, groupId);
+  /** Resumes the selected destination without prompting twice or adding a back-history entry. */
+  async function discardAndLeave(): Promise<void> {
+    const navigation = pendingNavigation;
+    pendingNavigation = null;
+    if (!navigation?.to) return;
+    if (navigation.type === 'popstate' && navigation.delta) {
+      approvedDestination = navigation.to.url.href;
+      window.history.go(navigation.delta);
+    } else if (navigation.willUnload) {
+      approvedUnload = true;
+      window.location.assign(navigation.to.url.href);
+    } else {
+      approvedDestination = navigation.to.url.href;
+      try {
+        const { pathname, search, hash } = navigation.to.url;
+        // The captured URL already contains the deployment base. Resolve the app-relative path.
+        const path = pathname.slice(base.length) || '/';
+        await goto(resolve(`${path}${search}${hash}` as '/'));
+      } catch {
+        // Another navigation guard can still cancel. Keep this page's drafts intact.
+      } finally {
+        approvedDestination = null;
       }
     }
+  }
+
+  // Permission changes must send viewers to a section they can use.
+  $effect(() => {
+    if (detail.canManageGroup) return;
+    void goto(
+      resolve('/chat/[serverId]/manage/room-groups/[groupId]/permissions', {
+        serverId: serverIdToSegment(serverScope.serverId),
+        groupId: detail.groupId
+      }),
+      { replaceState: true }
+    );
   });
-
-  const saving = $derived(
-    updateGroupMutation.isPending && isCurrentGroup(updateGroupMutation.variables)
-  );
-
-  const pageTitle = $derived(
-    group
-      ? `${group.name} · ${m('admin.rooms_admin.rename_group')}`
-      : m('admin.rooms_admin.rename_group')
-  );
 </script>
 
-<PageTitle title={m('admin.common.server_admin_page_title', { title: pageTitle })} />
-
-{#if !loading && loadFailure}
-  <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.generic')}>
-    <div class="flex flex-col items-center gap-4">
-      <p>{loadFailure}</p>
-      <Button variant="secondary" onclick={() => void groupQuery.refetch()}>
-        {m('common.retry')}
-      </Button>
-    </div>
-  </EmptyState>
-{:else if !loading && (accessDenied || !group || !canManagePermissions)}
-  <AccessDenied
-    message={m('ui.access_denied.message')}
-    backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-    backLabel={m('admin.nav.back_to_server')}
-  />
-{:else}
-  <div class="pane-page">
-    <PaneHeader
-      title={group?.name ?? m('admin.rooms_admin.rename_group')}
-      subtitle={m('admin.rooms_admin.rename_group')}
-      {backHref}
-      backLabel={m('admin.rooms_admin.back_to_rooms')}
+{#if detail.canManageGroup}
+  {#if pendingNavigation}
+    <ConfirmDialog
+      title={m('admin.rooms_admin.settings.discard_changes')}
+      tone="warning"
+      actionLabel={m('admin.rooms_admin.settings.discard_changes')}
+      onconfirm={discardAndLeave}
+      onclose={() => (pendingNavigation = null)}
+    >
+      {m('admin.rooms_admin.settings.unsaved_changes')}
+    </ConfirmDialog>
+  {/if}
+  {#key `${detail.group.id}:${detail.formRevision}`}
+    <RoomGroupGeneralSettingsPanel
+      bind:this={generalSection}
+      group={detail.group}
+      saving={detail.saving}
+      onSave={detail.saveGeneralSettings}
     />
-
-    <PaneContent>
-      <div class="flex flex-col gap-6">
-        {#if group && canManageGroup}
-          {#key `${group.id}:${formRevision}`}
-            <RoomGroupGeneralSettingsPanel {group} {saving} onSave={saveGeneralSettings} />
-          {/key}
-        {/if}
-
-        <div class="flex flex-col gap-4">
-          <Hint>{m('admin.rooms_admin.group_permissions_hint')}</Hint>
-          <Hint>{m('admin.permissions.resolution_hint')}</Hint>
-          <PermissionMatrix
-            {groupId}
-            subtitle={m('admin.rooms_admin.group_permissions_subtitle')}
-          />
-        </div>
-      </div>
-    </PaneContent>
-  </div>
+  {/key}
 {/if}

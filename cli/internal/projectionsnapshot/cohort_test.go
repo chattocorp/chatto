@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"google.golang.org/protobuf/proto"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
 func testCohortInput(sequence uint64, suffix string) SaveCohortInput {
@@ -125,6 +125,9 @@ func TestRepositoryCohortFallsBackWhenCurrentPartIsMissing(t *testing.T) {
 	loaded, err := repository.LoadCohort(t.Context(), "server_content_view", "view-v1", "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if loaded.RestoreSource != "previous" || loaded.RestoreReason != "missing" {
+		t.Fatalf("restore outcome = %s/%s", loaded.RestoreSource, loaded.RestoreReason)
 	}
 	if loaded.CutoffSequence != 10 || string(loaded.Components[0].Parts[0].Payload) != "rooms-previous" {
 		t.Fatalf("fallback cohort = %#v", loaded)

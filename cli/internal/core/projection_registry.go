@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 type projectionRegistration struct {
@@ -15,6 +15,7 @@ type projectionRegistration struct {
 	subjects        []string
 	snapshotPolicy  projectionSnapshotPolicy
 	snapshotEnabled bool
+	snapshotOutcome *snapshotRestoreObservation
 	// componentSnapshots is true when the projection snapshots as several
 	// components. Its snapshots then use cohort storage.
 	componentSnapshots bool

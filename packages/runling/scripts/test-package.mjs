@@ -56,49 +56,50 @@ try {
     resolve(project, 'channels.mjs'),
     `
 import assert from "node:assert/strict";
-import { createWorkflowContext, createChannel, spawn, task, Type, agent as rootAgent } from "runling";
-import { connectAgent, agent, taskTool, runAgentConversation, observeAgentTasks, createAgentTasks, agentTasksExtension } from "runling/agents";
-assert.equal(agent, rootAgent);
-const echo = task({ name: "Echo", input: Type.String(), output: Type.String() }, (_ctx, input) => input);
-assert.equal(typeof runAgentConversation, "function");
-assert.equal(createAgentTasks, observeAgentTasks);
-const context = createWorkflowContext();
-const delegated = observeAgentTasks(context);
-assert.equal(typeof agentTasksExtension(delegated), "function");
-const notifications = delegated.notifications[Symbol.asyncIterator]();
-const run = context.spawn(ctx => echo(ctx, "background"));
-const handle = delegated.observe("Echo", run);
-assert.equal(handle.id, run.id);
-assert.equal(handle.status, "running");
-assert.equal(JSON.parse((await notifications.next()).value).type, "task.completed");
-assert.equal(delegated.get(handle.id).result, "background");
-assert.equal(await run.result, "background");
-assert.equal(run.status, "completed");
-assert.equal(run.output, run.updates);
-await run[Symbol.asyncDispose]();
-await delegated.dispose();
-const echoTool = taskTool(createWorkflowContext(), {
-  name: "echo", label: "Echo", description: "Echo input", parameters: echo.input,
-}, echo);
-assert.equal((await echoTool.execute("id", "hello")).content[0].text, "hello");
-const connected = connectAgent(createWorkflowContext(), {
-  async runOutcome() { return { outcome: "completed", summary: "connected", usage: createWorkflowContext().usage }; },
-});
-assert.equal((await connected.runOutcome("hello")).summary, "connected");
-await connected.dispose();
-const worker = task(async ctx => {
-  let total = 0;
-  for await (const value of ctx.inbox) { total += value; await ctx.emit(total); }
+import * as runling from "runling";
+const { createTaskContext, createChannel, task, taskTool, awaitWithSignal, Type } = runling;
+assert.equal(await awaitWithSignal(async () => 42, new AbortController().signal), 42);
+const notifier = runling.createNotifier();
+notifier.notify();
+notifier.notify();
+assert.equal(await notifier.wait(), true);
+assert.equal(await notifier.wait({ timeoutMs: 0 }), false);
+for (const removed of ["spawn", "input", "createWorkflowContext", "isSchemaTask", "getPwd", "randomId"])
+  assert.equal(removed in runling, false, removed + " must not be exported");
+await assert.rejects(import("runling/agents"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
+const echo = task({ name: "Echo", input: Type.String(), result: Type.String() }, (_ctx, input) => input);
+assert.equal(await echo(createTaskContext(), "direct"), "direct");
+const choose = runling.createChoiceClassifier({
+  name: "Choose", input: Type.String(), model: "test/decisions", apiKey: "fixture",
+  instructions: "Choose a route", choices: { accept: "Report", ignore: "Other" }
+}, async () => Response.json({ answers: { decision: {
+  type: "choice", choice: "accept", confidence: 0.9, probabilities: { accept: 0.9, ignore: 0.1 }
+} } }));
+assert.equal((await choose(createTaskContext(), "report")).choice, "accept");
+const worker = task({
+  name: "Worker", input: Type.Number(), result: Type.Number(), steering: Type.Number(), output: Type.Number(),
+}, async (ctx, initial) => {
+  let total = initial;
+  for await (const value of ctx.steering) { total += value; await ctx.emit(total); }
   return total;
 });
-const child = spawn(createWorkflowContext(), worker);
-await child.send(2);
-await child.send(3);
-child.closeInput();
+const child = createTaskContext().start(worker, 0);
+assert.equal(child.status, "running");
+await child.steer(2);
+await child.steer(3);
+await assert.rejects(child.steer("four"), { name: "TypeError" });
+child.closeSteering();
 const updates = [];
-for await (const update of child.updates) updates.push(update);
+for await (const update of child.output) updates.push(update);
 assert.deepEqual(updates, [2, 5]);
 assert.equal(await child.result, 5);
+assert.equal(child.status, "completed");
+await child[Symbol.asyncDispose]();
+const echoTool = taskTool(createTaskContext(), echo, { name: "echo", description: "Echo input" });
+assert.equal(echoTool.parameters, echo.input);
+assert.equal((await echoTool.execute("id", "hello", undefined, undefined, {})).content[0].text, "hello");
+const execution = await runling.runWorkflow(worker, { input: 1, messages: (async function* () { yield 4; })() });
+assert.equal(execution.output, 5);
 const channel = createChannel({ capacity: 1 });
 channel.close();
 await assert.rejects(channel.send(1), { name: "ChannelClosedError" });
@@ -113,7 +114,7 @@ await assert.rejects(channel.send(1), { name: "ChannelClosedError" });
     `import { task, exec, step, log } from "runling";
 import { z } from "zod";
 import { suffix } from "./helper.ts";
-export default task({ name: "Consumer echo", input: z.object({ topic: z.string(), directory: z.string() }), output: z.string() }, async (ctx, input) => {
+export default task({ name: "Consumer echo", input: z.object({ topic: z.string(), directory: z.string() }), result: z.string() }, async (ctx, input) => {
   return step("Echo input", async () => {
     await new Promise(resolve => setTimeout(resolve, input.topic === "slow" ? 2000 : 250));
     const cwd = await exec\`node -e \${"process.stdout.write(require('node:fs').readFileSync('message.txt', 'utf8'))"}\`.cwd(input.directory).text();
@@ -125,23 +126,15 @@ export default task({ name: "Consumer echo", input: z.object({ topic: z.string()
   );
   await writeFile(
     resolve(project, 'cli.ts'),
-    `import { task, Type, exec, step, log, createWorkflowContext } from "runling";
+    `import { task, Type, exec, step, log, agent, createAgentSession, isTask, runAgent, defineAgentExtension, taskTool, createTaskContext } from "runling";
 import * as git from "runling/git";
-import { connectAgent, agent, runAgent, defineAgentExtension } from "runling/agents";
 import { createTrustExtension } from "runling/extensions/trust";
-async function checkAgents() {
-const connection = connectAgent(createWorkflowContext(), {
-  async runOutcome() { return { outcome: "completed", summary: "ok", usage: createWorkflowContext().usage }; },
-});
-if ((await connection.runOutcome("test")).summary !== "ok") throw new Error("Agent connection failed");
-await connection.dispose();
-}
-if ([agent, runAgent, defineAgentExtension, createTrustExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
-export default task({ name: "CLI echo", input: Type.String(), output: Type.String() }, async (ctx, input) => {
-  await checkAgents();
+if ([agent, createAgentSession, runAgent, defineAgentExtension, taskTool, createTrustExtension].some(value => typeof value !== "function")) throw new Error("Missing agent exports");
+if (!isTask(agent({ name: "Consumer agent", model: "test/model", cwd: "." }))) throw new Error("An agent must be a task");
+export default task({ name: "CLI echo", input: Type.String(), result: Type.String() }, async (ctx, input) => {
   if (typeof git.getPwd !== "function" || typeof git.workingTreeHash !== "function" || typeof git.WorkingDirectory.create !== "function") throw new Error("Git helpers were not exported");
   if (process.env.RUNLING_PACKAGE_TEST_ENV !== "loaded") throw new Error("Project .env was not loaded");
-  if (createWorkflowContext().usage.input !== 0 || "cwd" in ctx) throw new Error("Invalid workflow context");
+  if (createTaskContext().usage.input !== 0 || "cwd" in ctx) throw new Error("Invalid task context");
   ctx.recordUsage({ input: 10, output: 2, cacheRead: 0, cacheWrite: 0, cost: 0.25 });
   return input;
 });
@@ -493,11 +486,13 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
   await writeFile(
     configPath,
     `
+    import { task, Type } from "runling";
     import { defineWebConfig } from "runling/web";
-    const work = async (ctx, input) => {
+    const work = task({ name: "Example", input: Type.Any(), result: Type.Any() }, async (ctx, input) => {
       if (!input.wait) return input.message;
       await new Promise(resolve => ctx.signal.addEventListener("abort", resolve, { once: true }));
-    };
+      return null;
+    });
     export default defineWebConfig({
       webhooks: { example: (ctx, input) => ctx.start(work, { input }) },
     });

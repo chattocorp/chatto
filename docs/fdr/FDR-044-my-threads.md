@@ -1,32 +1,57 @@
-# FDR-044: My Threads
+# FDR-044: Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-02
+**Last reviewed:** 2026-10-15
 
 ## Overview
 
-My Threads is a conversation inbox for channel-room and DM threads that the
+Threads is a conversation inbox for channel-room and DM threads that the
 current user follows. It helps the user return to active conversations and
 find replies that they have not read.
 
 ## Behavior
 
-- My Threads lists followed threads in newest-activity-first order and groups
-  them by activity date.
+- Threads defaults to newest activity first. The Activity / Age control can
+  instead sort by root-message creation, newest first.
+  Date groups use the selected sort date. Unknown dates appear last.
+- The sort selection stays with the page when users change tabs, filter,
+  search, or return from a thread. It is not a device-wide preference.
+- Returning to the page or a cached tab refreshes its loaded pages from the
+  server. Cached rows remain visible while the refresh runs.
+- The Mine tab shows followed threads started by the current user. The
+  Followed tab shows all followed threads, including those started by the
+  current user. Mine is a subset of Followed. A thread whose root author is
+  unavailable is omitted from Mine.
+- Followed is the first and default tab. Switching tabs keeps the search text and
+  All/Unread selection. Both tabs require follow state: unfollowing removes a
+  thread even when the current user started it.
 - Each row shows the room, root message, latest visible reply when one exists,
-  last activity, reply count, and a participant preview.
+  last activity, reply count, and a participant preview. The latest message is
+  on the first line with the time at its end. The room, the root message, and
+  the reply count are on the second line. The participant preview shows the
+  author of the latest message as the avatar and one other participant in a
+  small badge.
+- A thread with unread replies shows its first line in bold and an avatar dot.
+  The dot is neutral unless notification attention
+  supplies its colour. Read threads use regular weight and the normal text
+  color. Every row reserves the same action width so dates and counts align.
 - A DM row uses participant names and avatars instead of a channel name. It
   does not show a `#` channel prefix.
 - The Unread filter includes only threads with replies after the user's thread
   read cursor. The server applies this filter before pagination, so the first
   page shows unread threads or confirms that none exist.
+- The search input, thread tabs, All/Unread filter, and sort control share one toolbar above
+  the list. The switchers have the same size and stay together to the right
+  of the input. On narrow screens, the input and switchers use separate rows.
 - When server search is enabled, a search input filters followed threads by
   their root messages and all replies, including replies outside the current
-  list preview. Each matching thread appears once in activity order.
+  list preview. Each matching thread appears once in the selected order.
 - Search uses the message-search syntax, including `from:username`. Plain words
   search message text. All/Unread still applies to
   the matching threads. Clearing the input restores the ordinary list.
-- The search input receives focus when My Threads opens.
+- Search stays within the selected tab. The tab selects the root author;
+  `from:username` selects the author of a matching root message or reply.
+- The search input receives focus when Threads opens.
 - A row with a matching unread notification uses notification orange for
   Important attention and a neutral marker for Ambient attention. The client
   reads this decoration from its current Notifications view.
@@ -34,15 +59,35 @@ find replies that they have not read.
   displayed thread, from its row.
 - Opening a thread uses the normal thread read behavior. This advances the read
   cursor and clears notification attention that the displayed content covers.
-- A thread can remain in My Threads after all replies and notifications are
+- A thread can remain in Threads after all replies and notifications are
   read. It remains until the user stops following it or loses access.
-- Thread activity can change the live sort order. The bundled client restarts
+- Thread activity can change activity order; it does not change creation order. The bundled client restarts
   loaded offset pages after a reply post, edit, or retraction before it
   continues pagination.
 
 ## Design Decisions
 
-### 1. My Threads composes existing state
+### Sort threads by activity or creation
+
+**Decision:** Sort the full result set before pagination, including search.
+Keep latest activity as the default and keep each row's activity preview.
+**Why:** Users can find new conversations without an older thread moving ahead
+of them each time it receives a reply.
+**Compatibility:** The API additions require no migration for existing callers.
+Older servers ignore the list order field and can reject creation-order search.
+The minimum server version stays unchanged.
+
+### Mine narrows the followed inbox
+
+**Decision:** Followed includes every followed thread. Mine filters this set
+to the current user's root messages before pagination and search.
+Keep the navigation indicator combined across both tabs, without tab counts.
+**Why:** Users can find conversations they started without removing them from
+the complete followed inbox. Follow state controls which threads stay in the inbox.
+**Tradeoff:** Threads is not a history of every thread the user started.
+Unfollowed threads remain available through their rooms and general search.
+
+### 1. Threads composes existing state
 
 **Decision:** Follow state selects rows, and the thread read cursor determines
 unread replies. The client can decorate a followed-thread row from matching
@@ -82,14 +127,14 @@ move the offset until the list loads again.
 
 ### 3. The activity-list presentation makes the order clear
 
-**Decision:** My Threads uses flat activity rows and date sections. Each row
+**Decision:** Threads uses flat activity rows and date sections. Each row
 shows the latest visible reply first when one exists and keeps compact
 root-message context below it. A thread without replies shows its root as the
 primary activity.
 **Why:** The latest reply explains why the thread is active. Flat rows and date
 sections distinguish this newest-first activity list from a room timeline,
 where newer messages appear at the bottom.
-**Tradeoff:** My Threads and room timelines use different reading directions.
+**Tradeoff:** Threads and room timelines use different reading directions.
 The list response must also hydrate more message and user data. API clients
 must restart pagination after activity changes the live order. The ordinary
 list uses offsets. Search uses opaque cursors through the shared search API;
@@ -97,7 +142,7 @@ each search page counts distinct threads.
 
 ### 4. The navigation indicator covers followed threads
 
-**Decision:** The My Threads navigation indicator counts loaded unread
+**Decision:** The Threads navigation indicator counts loaded unread
 notifications for followed threads. The badge uses notification orange when
 one notification has Important attention, and the neutral badge color when all
 have Ambient attention. Unread replies without an unread notification do not
@@ -106,7 +151,7 @@ show a navigation indicator.
 notification markers consistent. The navigation indicator does not depend on
 unread flags in cached room timelines.
 **Tradeoff:** A notification for an unfollowed thread can still appear in
-Notifications without lighting the My Threads indicator. The badge counts only
+Notifications without lighting the Threads indicator. The badge counts only
 the notifications that the client has loaded. Unread replies without a
 notification, including Badge and Off activity, remain available through the
 Unread filter.
@@ -119,7 +164,7 @@ state to the thread contract.
 **Why:** Chatto 0.5 already has a breaking client and server boundary. Keeping
 the ambiguous field would make it easy for new clients to rebuild the same
 second unread model that this feature removes.
-**Tradeoff:** A new client cannot use My Threads with a pre-0.5 server. Existing
+**Tradeoff:** A new client cannot use Threads with a pre-0.5 server. Existing
 persisted follow, read, and notification data still upgrades without changes.
 
 ## Permissions

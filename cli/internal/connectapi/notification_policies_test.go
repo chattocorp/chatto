@@ -9,8 +9,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
 func TestNotificationDeliveryModeAliasesPreserveProtoJSONCompatibility(t *testing.T) {
@@ -58,7 +58,7 @@ func TestNotificationPolicyServiceScopesAndBatch(t *testing.T) {
 
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
-	group, err := env.core.CreateRoomGroup(ctx, core.SystemActorID, "Policy Group", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(ctx, core.SystemActorID, "Policy Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

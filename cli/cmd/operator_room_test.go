@@ -7,15 +7,15 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"google.golang.org/protobuf/encoding/protojson"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
 func TestOperatorRoomList(t *testing.T) {
 	env := newOperatorCLITestEnv(t)
-	group, err := env.core.CreateRoomGroup(env.ctx, core.SystemActorID, "Import Test", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, core.SystemActorID, "Import Test", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestOperatorRoomCreate(t *testing.T) {
 			t.Fatalf("invalid command %v succeeded", args)
 		}
 	}
-	group, err := env.core.CreateRoomGroup(env.ctx, core.SystemActorID, "Explicit import group", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, core.SystemActorID, "Explicit import group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}

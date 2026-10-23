@@ -2,10 +2,14 @@
 @component
 
 Summarizes System page diagnostics as one overall status and a short list of
-health checks. See `systemHealth.ts` for the rules behind each status.
+health checks. See `systemHealth.ts` for the rules behind each status. A
+check whose details are in a different System section links to that section.
 -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import {
@@ -15,8 +19,11 @@ health checks. See `systemHealth.ts` for the rules behind each status.
     type HealthCheckId,
     type HealthStatus
   } from './systemHealth';
+  import { healthCheckSection, systemSectionRoutes } from './systemSections';
 
   let { info }: { info: AdminSystemInfo } = $props();
+
+  const serverSegment = serverIdToSegment(useServerScope().serverId);
 
   const checks = $derived(systemHealthChecks(info));
   const overall = $derived(overallHealth(checks));
@@ -63,7 +70,8 @@ health checks. See `systemHealth.ts` for the rules behind each status.
     projections: m('admin.system.health.projections'),
     workers: m('admin.system.health.workers'),
     backlog: m('admin.system.health.backlog'),
-    storage: m('admin.system.health.storage')
+    storage: m('admin.system.health.storage'),
+    voice_calls: m('admin.system.health.voice_calls')
   });
 
   function checkDetail({ detail }: HealthCheck): string {
@@ -94,6 +102,18 @@ health checks. See `systemHealth.ts` for the rules behind each status.
         return m('admin.system.health.storage_used', { percent: detail.percent });
       case 'storage_unlimited':
         return m('admin.system.health.storage_unlimited');
+      case 'livekit_connected':
+        return m('admin.system.health.livekit_connected');
+      case 'livekit_unreachable':
+        return m('admin.system.health.livekit_unreachable');
+      case 'livekit_unauthorized':
+        return m('admin.system.health.livekit_unauthorized');
+      case 'livekit_error':
+        return m('admin.system.health.livekit_error');
+      case 'livekit_insecure_url':
+        return m('admin.system.health.livekit_insecure_url');
+      case 'livekit_webhooks_rejected':
+        return m('admin.system.health.livekit_webhooks_rejected');
     }
   }
 </script>
@@ -123,7 +143,18 @@ health checks. See `systemHealth.ts` for the rules behind each status.
             aria-label={statusLabel[check.status]}
             class={['iconify shrink-0 text-lg', statusIcon[check.status]]}
           ></span>
-          <span class="font-medium">{checkLabel[check.id]}</span>
+          {#if healthCheckSection[check.id] === 'overview'}
+            <span class="font-medium">{checkLabel[check.id]}</span>
+          {:else}
+            <a
+              class="font-medium link"
+              href={resolve(systemSectionRoutes[healthCheckSection[check.id]], {
+                serverId: serverSegment
+              })}
+            >
+              {checkLabel[check.id]}
+            </a>
+          {/if}
           <span class={['ms-auto text-sm', detailTone[check.status]]}>{checkDetail(check)}</span>
         </li>
       {/each}

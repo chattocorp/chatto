@@ -5,7 +5,7 @@ min_version = "2026.8.9"
 
 [tools]
 buf = "latest"
-go = "1.27.1"
+go = "1.27.3"
 node = "22"
 "aqua:axllent/mailpit" = "latest"
 
@@ -36,9 +36,14 @@ depends = ["deps-go", "deps-playwright"]
 description = "Install all Authling dependencies"
 depends = ["deps-go", "deps-web"]
 
+[tasks.build-proto-generators]
+description = "Build the pinned protobuf generator before Buf runs"
+depends = ["deps-go"]
+run = "GOWORK=off go build -o bin/proto/ google.golang.org/protobuf/cmd/protoc-gen-go"
+
 [tasks.codegen-proto]
 description = "Generate Authling Go code from protobuf schemas"
-depends = ["deps-go"]
+depends = ["build-proto-generators"]
 run = "GOWORK=off buf generate"
 
 [tasks.codegen-templates]
@@ -150,6 +155,23 @@ env = {
   AUTHLING_SMTP_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 8}}{% else %}1025{% endif %}",
 }
 run = "exec bin/authling"
+
+[tasks.paseo]
+description = "Run standalone Authling behind Paseo's service proxy"
+depends = ["build"]
+run = '''
+set -eu
+: "${PASEO_PORT:?start authling through Paseo}" "${PASEO_URL:?}"
+export AUTHLING_HTTP_BIND_ADDRESS="127.0.0.1:$PASEO_PORT"
+export AUTHLING_HTTP_PUBLIC_URL="$PASEO_URL"
+export AUTHLING_HTTP_TRUST_PROXY_HEADERS=true
+export AUTHLING_SMTP_ENABLED="${AUTHLING_SMTP_ENABLED:-false}"
+# Issuers cannot change in an existing store. Keep data across allocated-port
+# changes, and select separate state when the workspace's public URL changes.
+issuer_id=$(node -p 'require("node:crypto").createHash("sha256").update(new URL(process.env.PASEO_URL).origin).digest("hex")')
+export AUTHLING_NATS_EMBEDDED_DATA_DIR="$PWD/.context/paseo/$issuer_id/nats"
+exec bin/authling run --config authling.toml
+'''
 
 [tasks.mailpit]
 description = "Run Mailpit for Authling development email"

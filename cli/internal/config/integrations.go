@@ -117,10 +117,12 @@ func (c *PushConfig) IsConfigured() bool {
 	return c.Enabled && c.VAPIDPublicKey != "" && c.VAPIDPrivateKey != "" && c.VAPIDSubject != ""
 }
 
-// VideoConfig controls whether video uploads are accepted and their upload limit.
+// VideoConfig controls whether video uploads are accepted.
 type VideoConfig struct {
-	Enabled       bool              `toml:"enabled" env:"CHATTO_VIDEO_ENABLED" comment:"Allow video uploads and enqueue derivative processing. Requires at least one asset-processing worker."`
-	MaxUploadSize datasize.ByteSize `toml:"max_upload_size,commented" env:"CHATTO_VIDEO_MAX_UPLOAD_SIZE" comment:"Maximum size for video uploads. Supports human-readable formats like '100 MB'. Default: 100 MB."`
+	Enabled bool `toml:"enabled" env:"CHATTO_VIDEO_ENABLED" comment:"Allow video uploads and enqueue derivative processing. Requires at least one asset-processing worker."`
+	// MaxUploadSize is a deprecated migration input. ApplyDefaults combines it
+	// with the general limit by taking the larger value for all files.
+	MaxUploadSize datasize.ByteSize `toml:"max_upload_size,commented" env:"CHATTO_VIDEO_MAX_UPLOAD_SIZE" comment:"Deprecated. Set core.assets.max_upload_size and remove this setting. While present, the larger of the two limits applies to all files."`
 }
 
 // AssetProcessingConfig controls the durable asset-processing worker. Enabled
@@ -134,9 +136,6 @@ type AssetProcessingConfig struct {
 	TempDir           string `toml:"temp_dir,commented" env:"CHATTO_ASSET_PROCESSING_TEMP_DIR" comment:"Temporary directory for asset processing. Default: system temp directory."`
 }
 
-// DefaultVideoMaxUploadSize is the default maximum size for video uploads (100 MB).
-const DefaultVideoMaxUploadSize datasize.ByteSize = 100 * datasize.MB
-
 // MaxConcurrentJobsOrDefault returns the maximum concurrent jobs for one
 // asset-processing worker process, defaulting to 2.
 func (c *AssetProcessingConfig) MaxConcurrentJobsOrDefault() int {
@@ -146,14 +145,6 @@ func (c *AssetProcessingConfig) MaxConcurrentJobsOrDefault() int {
 	return c.MaxConcurrentJobs
 }
 
-// MaxUploadSizeOrDefault returns the max video upload size, defaulting to 100 MB.
-func (c *VideoConfig) MaxUploadSizeOrDefault() datasize.ByteSize {
-	if c.MaxUploadSize == 0 {
-		return DefaultVideoMaxUploadSize
-	}
-	return c.MaxUploadSize
-}
-
 // LiveKitConfig contains settings for LiveKit voice call integration.
 // LiveKit is an external media server that handles WebRTC voice/video connections.
 type LiveKitConfig struct {
@@ -161,7 +152,6 @@ type LiveKitConfig struct {
 	URL              string `toml:"url" env:"CHATTO_LIVEKIT_URL" comment:"LiveKit server WebSocket URL. Example: ws://localhost:7880 (dev) or wss://livekit.example.com (prod)."`
 	APIKey           string `toml:"api_key" env:"CHATTO_LIVEKIT_API_KEY" comment:"LiveKit API key."`
 	APISecret        string `toml:"api_secret" env:"CHATTO_LIVEKIT_API_SECRET" comment:"LiveKit API secret. NEVER SHARE THIS!"`
-	WebhookURL       string `toml:"webhook_url" env:"CHATTO_LIVEKIT_WEBHOOK_URL" comment:"URL where LiveKit sends webhook events. Defaults to {webserver.url}/webhooks/livekit."`
 	ServerID         string `toml:"server_id,commented" env:"CHATTO_LIVEKIT_SERVER_ID" comment:"Unique identifier for this server, prefixed to LiveKit room names. Required when multiple Chatto servers share the same LiveKit cluster."`
 	InstanceID       string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Deprecated alias for server_id. Prefer server_id / CHATTO_LIVEKIT_SERVER_ID."`
 	WebhookAPIKey    string `toml:"webhook_api_key,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_KEY" comment:"API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-server API key."`

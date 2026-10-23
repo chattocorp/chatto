@@ -2,7 +2,7 @@ package core
 
 import (
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -77,7 +77,8 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 		rooms[room.GetId()] = &roomCatalogEntry{
 			name: room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
 			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),
-			threadingMode: room.GetThreadingMode(),
+			threadingMode:         room.GetThreadingMode(),
+			threadSlowModeSeconds: room.ThreadSlowModeSeconds,
 		}
 	}
 	byRoom := make(map[string]map[string]struct{}, len(snapshot.GetMemberships()))

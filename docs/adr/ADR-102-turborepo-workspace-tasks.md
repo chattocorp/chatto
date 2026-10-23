@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21
 
-**Updated:** 2026-10-08
+**Updated:** 2026-10-18
 
 **Status:** Accepted
 
@@ -27,20 +27,21 @@ The bot has a test script but no check or lint script. Its empty check and
 lint task definitions prevent Turbo's virtual tasks from building the Runling
 console during unrelated workspace checks.
 
-Cache the API types, Lingua, and Chatto client library builds. Their
-TypeScript builds depend on package source, configuration, and the lockfile;
-`dist/**` is restored on a cache hit. Changes to mise tool settings,
-the pnpm configuration file, or `NODE_OPTIONS` also invalidate the cache.
+The API types, Translatto, and Chatto client packages have no build. Consumers
+read their TypeScript source
+([ADR-116](ADR-116-consume-internal-packages-from-source.md)).
 
-Also cache the Chatto frontend and Runling builds. The frontend build reads
-`CHATTO_BUILD_VERSION` and `CHATTO_FRONTEND_PRECOMPRESS`, so both are declared
-task environment inputs. Test, story, end-to-end, and documentation files are
-excluded from both task inputs. Turbo restores `build/**` and `dist/**`
-respectively. The Chatto mise build tasks declare their sources and output
-directories. The frontend task includes its workspace libraries and both the
-frontend build and embedded copy. Mise checks source content and complete output
-trees, so it skips unchanged tasks and restores missing files. This also works
-when Turbo restores files with timestamps older than the local sources.
+Cache the Chatto frontend and Runling builds. Changes to mise tool settings,
+the pnpm configuration file, or `NODE_OPTIONS` invalidate every cached task.
+The frontend build reads `CHATTO_BUILD_VERSION` and
+`CHATTO_FRONTEND_PRECOMPRESS`, so both are declared task environment inputs.
+Test, story, end-to-end, and documentation files are excluded from both task
+inputs. Turbo restores `build/**` and `dist/**` respectively. The Chatto mise
+build tasks declare their sources and output directories. The frontend task
+includes the source of its workspace libraries, and both the frontend build
+and embedded copy. Mise checks source content and complete output trees, so it
+skips unchanged tasks and restores missing files. This also works when Turbo
+restores files with timestamps older than the local sources.
 The frontend completion output includes the build version, compression setting,
 and `NODE_OPTIONS` in its name as a hash. Changes to these environment inputs
 also make mise run the task again.
@@ -78,10 +79,10 @@ Keep publishing, signing, and installed-package tests outside Turbo.
 
 New consumers declare workspace dependencies in `package.json` instead of
 adding ordered build chains. Existing root script and mise task names remain
-available. Library, frontend, and Runling artifacts can be restored after
-their output folders are removed, also in a different worktree. A restored
-build takes approximately one second. A warm `mise dev` restart skips the
-frontend build, embedding, and Go build. Changes to frontend source, workspace
+available, except the package builds that ADR-116 removes. Frontend and Runling
+artifacts can be restored after their output folders are removed, also in a
+different worktree. A restored build takes approximately one second. A warm
+`mise dev` restart skips the frontend build, embedding, and Go build. Changes to frontend source, workspace
 libraries, build configuration, or output files make mise run the affected
 build tasks again. Root checks and tests keep one-task concurrency to bound memory use;
 do not run separate SvelteKit tasks concurrently in one checkout.
@@ -94,5 +95,5 @@ stale result.
 
 Use `mise x -- pnpm turbo run check --filter=runling --dry=json` to inspect the
 task graph. Use `--force` on a Turbo run to bypass cached results.
-Direct package commands require built dependencies. Filtered container builds
-that do not install root tooling use pnpm's dependency selector instead.
+Direct package commands that use Runling require its build. Commands that use
+only the internal Chatto packages need no build.

@@ -8,10 +8,10 @@ package operatorv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	v11 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	v1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	v11 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1601,9 +1601,9 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"\x15ClearUsernameCooldown\x120.chatto.operator.v1.ClearUsernameCooldownRequest\x1a1.chatto.operator.v1.ClearUsernameCooldownResponse\x12\x8b\x01\n" +
 	"\x1aListUserExternalIdentities\x125.chatto.operator.v1.ListUserExternalIdentitiesRequest\x1a6.chatto.operator.v1.ListUserExternalIdentitiesResponse\x12\x85\x01\n" +
 	"\x18LinkUserExternalIdentity\x123.chatto.operator.v1.LinkUserExternalIdentityRequest\x1a4.chatto.operator.v1.LinkUserExternalIdentityResponse\x12\x8b\x01\n" +
-	"\x1aUnlinkUserExternalIdentity\x125.chatto.operator.v1.UnlinkUserExternalIdentityRequest\x1a6.chatto.operator.v1.UnlinkUserExternalIdentityResponseB\xc9\x01\n" +
+	"\x1aUnlinkUserExternalIdentity\x125.chatto.operator.v1.UnlinkUserExternalIdentityRequest\x1a6.chatto.operator.v1.UnlinkUserExternalIdentityResponseB\xda\x01\n" +
 	"\x16com.chatto.operator.v1B\n" +
-	"UsersProtoP\x01Z9hmans.de/chatto/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
+	"UsersProtoP\x01ZJgithub.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
 
 var (
 	file_chatto_operator_v1_users_proto_rawDescOnce sync.Once

@@ -73,6 +73,8 @@
         return m('auth.login.error.provider_failed');
       case 'provider_denied':
         return m('auth.login.error.provider_denied');
+      case 'provider_access_denied':
+        return m('auth.login.error.provider_access_denied');
       case 'authentication_required':
         return m('auth.login.error.authentication_required');
       case 'external_identity_unlinked':

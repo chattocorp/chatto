@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core"
 )
 
 // dekRequestCacheInterceptor gives every unary Connect request one shared,

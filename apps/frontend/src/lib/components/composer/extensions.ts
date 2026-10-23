@@ -1,4 +1,9 @@
 import {
+  hasAutoLinkPrefix,
+  hasAllowedLinkProtocol,
+  isAllowedMarkdownLink
+} from '$lib/markdownLinks';
+import {
   Extension,
   InputRule,
   mergeAttributes,
@@ -14,6 +19,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import { lowlight } from '$lib/codeHighlighting';
+import { createCodeLanguageDetectionPlugin } from './codeLanguageDetection';
 import { isDefaultEmptyDocument, isHttpMarkdownAutolink } from './markdown';
 import { FootnoteDefinition, FootnoteReference } from './footnotes';
 
@@ -23,7 +29,16 @@ const codeFenceLineRegex = /^```([\w-]+)?$/;
 const markdownBulletListLineRegex = /^[ \t]{0,3}[-+*]\s(.*)$/;
 const markdownOrderedListLineRegex = /^[ \t]{0,3}(\d{1,9})[.)]\s(.*)$/;
 
+/** Tiptap must only decorate saved languages, never guess during rendering. */
+const editorCodeHighlighting = {
+  ...lowlight,
+  highlightAuto: () => ({ type: 'root' as const, children: [] })
+};
+
 export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
+  addProseMirrorPlugins() {
+    return [...(this.parent?.() ?? []), createCodeLanguageDetectionPlugin()];
+  },
   renderHTML({ node, HTMLAttributes }) {
     const language = node.attrs.language || 'text';
 
@@ -52,6 +67,23 @@ function isMarkdownAutolinkToken(token: MarkdownToken): boolean {
   return isHttpMarkdownAutolink(raw) && raw.slice(1, -1) === (token.href ?? '');
 }
 
+/** Consume unsupported URIs as text before Marked can link a nested web URL. */
+const UnsupportedLinkProtocol = Extension.create({
+  name: 'unsupportedLinkProtocol',
+  markdownTokenizer: {
+    name: 'unsupportedLinkProtocol',
+    level: 'inline',
+    start: (source) => source.search(/[a-z][a-z0-9+.-]*:/i),
+    tokenize(source) {
+      const raw = source.match(/^[a-z][a-z0-9+.-]*:(?:https?:\/\/|www\.)[^\s<>]*/i)?.[0];
+      if (raw && !hasAllowedLinkProtocol(raw)) {
+        return { type: 'unsupportedLinkProtocol', raw };
+      }
+    }
+  },
+  parseMarkdown: (token) => ({ type: 'text', text: token.raw ?? '' })
+});
+
 export const ComposerLink = Link.extend({
   inclusive: false,
 
@@ -66,6 +98,14 @@ export const ComposerLink = Link.extend({
   },
 
   parseMarkdown(token: MarkdownToken, helpers: MarkdownParseHelpers) {
+    // Marked also detects bare domains and email addresses when restoring Markdown.
+    const raw = token.raw ?? '';
+    if (
+      !isAllowedMarkdownLink(token.href ?? '') ||
+      (!raw.startsWith('[') && !raw.startsWith('<') && !hasAutoLinkPrefix(raw))
+    ) {
+      return helpers.parseInline(token.tokens ?? []);
+    }
     return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
       href: token.href,
       title: token.title || null,
@@ -496,6 +536,9 @@ export function createComposerExtensions(placeholder: string) {
     }),
     ComposerLink.configure({
       autolink: true,
+      shouldAutoLink: hasAutoLinkPrefix,
+      isAllowedUri: (url, { defaultValidate }) =>
+        (hasAutoLinkPrefix(url) || isAllowedMarkdownLink(url)) && defaultValidate(url),
       linkOnPaste: true,
       openOnClick: false,
       enableClickSelection: true
@@ -505,9 +548,10 @@ export function createComposerExtensions(placeholder: string) {
         breaks: true
       }
     }),
+    UnsupportedLinkProtocol.configure(),
     FootnoteReference.configure(),
     FootnoteDefinition.configure(),
-    ComposerCodeBlockLowlight.configure({ lowlight }),
+    ComposerCodeBlockLowlight.configure({ lowlight: editorCodeHighlighting }),
     SelectedTextInlineCodeShortcut.configure(),
     MarkdownLinkInputRule.configure(),
     MarkdownAutolinkInputRule.configure(),

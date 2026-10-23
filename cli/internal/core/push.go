@@ -17,10 +17,10 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/evtstream"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	"hmans.de/chatto/internal/pushendpoint"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pushendpoint"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================

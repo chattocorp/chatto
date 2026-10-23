@@ -7,9 +7,9 @@
 package realtimev1
 
 import (
+	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -803,8 +803,10 @@ type RoomSlowModeChangedEvent struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RoomId          string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	SlowModeSeconds uint32                 `protobuf:"varint,2,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Independent interval within each thread. Zero disables it.
+	ThreadSlowModeSeconds *uint32 `protobuf:"varint,3,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RoomSlowModeChangedEvent) Reset() {
@@ -847,6 +849,13 @@ func (x *RoomSlowModeChangedEvent) GetRoomId() string {
 func (x *RoomSlowModeChangedEvent) GetSlowModeSeconds() uint32 {
 	if x != nil {
 		return x.SlowModeSeconds
+	}
+	return 0
+}
+
+func (x *RoomSlowModeChangedEvent) GetThreadSlowModeSeconds() uint32 {
+	if x != nil && x.ThreadSlowModeSeconds != nil {
+		return *x.ThreadSlowModeSeconds
 	}
 	return 0
 }
@@ -2903,6 +2912,165 @@ func (x *RoomReadStateChangedEvent) GetRoomId() string {
 	return ""
 }
 
+// An invitation created. Delivered only to its sender and recipient.
+type RoomInvitationCreatedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomInvitationCreatedEvent) Reset() {
+	*x = RoomInvitationCreatedEvent{}
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomInvitationCreatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomInvitationCreatedEvent) ProtoMessage() {}
+
+func (x *RoomInvitationCreatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomInvitationCreatedEvent.ProtoReflect.Descriptor instead.
+func (*RoomInvitationCreatedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *RoomInvitationCreatedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomInvitationCreatedEvent) GetInvitationId() string {
+	if x != nil {
+		return x.InvitationId
+	}
+	return ""
+}
+
+// An invitation accepted. Delivered only to its sender and recipient.
+type RoomInvitationAcceptedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomInvitationAcceptedEvent) Reset() {
+	*x = RoomInvitationAcceptedEvent{}
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomInvitationAcceptedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomInvitationAcceptedEvent) ProtoMessage() {}
+
+func (x *RoomInvitationAcceptedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomInvitationAcceptedEvent.ProtoReflect.Descriptor instead.
+func (*RoomInvitationAcceptedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *RoomInvitationAcceptedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomInvitationAcceptedEvent) GetInvitationId() string {
+	if x != nil {
+		return x.InvitationId
+	}
+	return ""
+}
+
+// An invitation declined. Delivered only to its sender and recipient.
+type RoomInvitationDeclinedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomInvitationDeclinedEvent) Reset() {
+	*x = RoomInvitationDeclinedEvent{}
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomInvitationDeclinedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomInvitationDeclinedEvent) ProtoMessage() {}
+
+func (x *RoomInvitationDeclinedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomInvitationDeclinedEvent.ProtoReflect.Descriptor instead.
+func (*RoomInvitationDeclinedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *RoomInvitationDeclinedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomInvitationDeclinedEvent) GetInvitationId() string {
+	if x != nil {
+		return x.InvitationId
+	}
+	return ""
+}
+
 var File_chatto_realtime_v1_events_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_events_proto_rawDesc = "" +
@@ -2945,10 +3113,12 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"R\n" +
 	"\x19RoomUniversalChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1c\n" +
-	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"_\n" +
+	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"\xba\x01\n" +
 	"\x18RoomSlowModeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12*\n" +
-	"\x11slow_mode_seconds\x18\x02 \x01(\rR\x0fslowModeSeconds\"\x81\x01\n" +
+	"\x11slow_mode_seconds\x18\x02 \x01(\rR\x0fslowModeSeconds\x12<\n" +
+	"\x18thread_slow_mode_seconds\x18\x03 \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01B\x1b\n" +
+	"\x19_thread_slow_mode_seconds\"\x81\x01\n" +
 	"\x1dRoomThreadingModeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12G\n" +
 	"\x0ethreading_mode\x18\x02 \x01(\x0e2 .chatto.api.v1.RoomThreadingModeR\rthreadingMode\".\n" +
@@ -3061,12 +3231,21 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"4\n" +
 	"\x19RoomReadStateChangedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId*\xb2\x01\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"Z\n" +
+	"\x1aRoomInvitationCreatedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\"[\n" +
+	"\x1bRoomInvitationAcceptedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\"[\n" +
+	"\x1bRoomInvitationDeclinedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId*\xb2\x01\n" +
 	"\x1aAssetProcessingFailureCode\x12-\n" +
 	")ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED\x10\x00\x123\n" +
 	"/ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED\x10\x01\x120\n" +
-	",ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING\x10\x02B\xca\x01\n" +
-	"\x16com.chatto.realtime.v1B\vEventsProtoP\x01Z9hmans.de/chatto/internal/pb/chatto/realtime/v1;realtimev1\xa2\x02\x03CRX\xaa\x02\x12Chatto.Realtime.V1\xca\x02\x12Chatto\\Realtime\\V1\xe2\x02\x1eChatto\\Realtime\\V1\\GPBMetadata\xea\x02\x14Chatto::Realtime::V1b\x06proto3"
+	",ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING\x10\x02B\xdb\x01\n" +
+	"\x16com.chatto.realtime.v1B\vEventsProtoP\x01ZJgithub.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1;realtimev1\xa2\x02\x03CRX\xaa\x02\x12Chatto.Realtime.V1\xca\x02\x12Chatto\\Realtime\\V1\xe2\x02\x1eChatto\\Realtime\\V1\\GPBMetadata\xea\x02\x14Chatto::Realtime::V1b\x06proto3"
 
 var (
 	file_chatto_realtime_v1_events_proto_rawDescOnce sync.Once
@@ -3081,7 +3260,7 @@ func file_chatto_realtime_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_realtime_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_realtime_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_chatto_realtime_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
 var file_chatto_realtime_v1_events_proto_goTypes = []any{
 	(AssetProcessingFailureCode)(0),              // 0: chatto.realtime.v1.AssetProcessingFailureCode
 	(*RoleCreatedEvent)(nil),                     // 1: chatto.realtime.v1.RoleCreatedEvent
@@ -3137,22 +3316,25 @@ var file_chatto_realtime_v1_events_proto_goTypes = []any{
 	(*NotificationOccurrencesChangedEvent)(nil),  // 51: chatto.realtime.v1.NotificationOccurrencesChangedEvent
 	(*NotificationUnreadStateChangedEvent)(nil),  // 52: chatto.realtime.v1.NotificationUnreadStateChangedEvent
 	(*RoomReadStateChangedEvent)(nil),            // 53: chatto.realtime.v1.RoomReadStateChangedEvent
-	(v1.RoomKind)(0),                             // 54: chatto.api.v1.RoomKind
-	(v1.RoomThreadingMode)(0),                    // 55: chatto.api.v1.RoomThreadingMode
-	(v1.PresenceStatus)(0),                       // 56: chatto.api.v1.PresenceStatus
+	(*RoomInvitationCreatedEvent)(nil),           // 54: chatto.realtime.v1.RoomInvitationCreatedEvent
+	(*RoomInvitationAcceptedEvent)(nil),          // 55: chatto.realtime.v1.RoomInvitationAcceptedEvent
+	(*RoomInvitationDeclinedEvent)(nil),          // 56: chatto.realtime.v1.RoomInvitationDeclinedEvent
+	(v1.RoomKind)(0),                             // 57: chatto.api.v1.RoomKind
+	(v1.RoomThreadingMode)(0),                    // 58: chatto.api.v1.RoomThreadingMode
+	(v1.PresenceStatus)(0),                       // 59: chatto.api.v1.PresenceStatus
 }
 var file_chatto_realtime_v1_events_proto_depIdxs = []int32{
-	54, // 0: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
-	55, // 1: chatto.realtime.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
-	55, // 2: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
+	57, // 0: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
+	58, // 1: chatto.realtime.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
+	58, // 2: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
 	28, // 3: chatto.realtime.v1.MessagePostedEvent.mentions:type_name -> chatto.realtime.v1.MessageMention
-	54, // 4: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
+	57, // 4: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
 	24, // 5: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
 	25, // 6: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
 	26, // 7: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
 	27, // 8: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
 	0,  // 9: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
-	56, // 10: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	59, // 10: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
 	11, // [11:11] is the sub-list for method output_type
 	11, // [11:11] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
@@ -3165,6 +3347,7 @@ func file_chatto_realtime_v1_events_proto_init() {
 	if File_chatto_realtime_v1_events_proto != nil {
 		return
 	}
+	file_chatto_realtime_v1_events_proto_msgTypes[14].OneofWrappers = []any{}
 	file_chatto_realtime_v1_events_proto_msgTypes[22].OneofWrappers = []any{}
 	file_chatto_realtime_v1_events_proto_msgTypes[27].OneofWrappers = []any{
 		(*MessageMention_Direct)(nil),
@@ -3180,7 +3363,7 @@ func file_chatto_realtime_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_realtime_v1_events_proto_rawDesc), len(file_chatto_realtime_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   53,
+			NumMessages:   56,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

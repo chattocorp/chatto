@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"sort"
 	"sync"
 	"time"
@@ -11,11 +11,11 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-var notificationDecisionSnapshotContractID = snapshotContractID("v2", &projectionv1.NotificationDecisionProjectionSnapshot{})
+var notificationDecisionSnapshotContractID = snapshotContractID("v3", &projectionv1.NotificationDecisionProjectionSnapshot{})
 
 // NotificationDecisionProjection keeps the compact current state needed to
 // derive notification recipients and policy while enforcing persistent
@@ -389,13 +389,10 @@ func (s *notificationDecisionSnapshot) threadFollowerIDs(roomID, threadRootEvent
 	return s.badges.followerIDs(roomID, threadRootEventID)
 }
 
-func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	return s.badges.followState(userID, roomID, threadRootEventID)
-}
-
-// threadReplyCount returns the number of posted replies of a thread root.
-func (s *notificationDecisionSnapshot) threadReplyCount(threadRootEventID string) uint64 {
-	return s.badges.replyCount(threadRootEventID)
+// followedThreadRecipientIDs returns the users for whom a thread reply is
+// followed-thread activity.
+func (s *notificationDecisionSnapshot) followedThreadRecipientIDs(messageEventID string) []string {
+	return s.badges.followedThreadRecipientIDs(messageEventID)
 }
 
 func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {

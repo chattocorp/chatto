@@ -13,8 +13,8 @@ keep the compact menu without a navigation action.
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
 - `position` - Viewport point used by right-click and long-press triggers
 - `presentation` - Optional floating/sheet presentation selected by the trigger
-- `canSendMessage` - Whether to show the "Send Message" button
-- `onSendMessage` - Callback when "Send Message" is clicked
+- `canSendMessage` - Whether to show the "Open conversation" button
+- `onSendMessage` - Callback when "Open conversation" is clicked
 - `canBanFromRoom` - Whether to show the room removal action
 - `banningFromRoom` - Whether the room removal action is currently running
 - `onBanFromRoom` - Callback when "Remove from room" is clicked
@@ -191,7 +191,7 @@ keep the compact menu without a navigation action.
   class={audioParticipant ? 'w-72' : 'w-64'}
   onclose={() => onClose?.()}
 >
-  <div class="flex items-center gap-3 menu-section p-3">
+  <div class="flex items-center gap-3 menu-section p-3 text-start">
     <UserAvatar {user} size="md" />
     <div class="min-w-0 flex-1">
       <AccountName name={displayName} identity={user} class="font-semibold" />
@@ -201,7 +201,7 @@ keep the compact menu without a navigation action.
   </div>
 
   {#if bio || localTime}
-    <div class="space-y-1 menu-section px-3 py-2">
+    <div class="space-y-1 menu-section px-3 py-2 text-start">
       {#if bio}
         <ScrollFader
           top
@@ -267,7 +267,7 @@ keep the compact menu without a navigation action.
           onclick={handleBanFromRoom}
           disabled={banningFromRoom}
         >
-          {banningFromRoom ? m('admin.moderation.removing') : m('admin.moderation.remove_action')}
+          {banningFromRoom ? m('room.moderation.removing') : m('room.moderation.remove_action')}
         </MenuItem>
       {/if}
     </MenuSection>

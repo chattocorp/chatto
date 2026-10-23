@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/pkg/datacrypto"
+	"github.com/chattocorp/chatto/pkg/datacrypto"
 )
 
 func TestHierarchicalKeyConsumerContract(t *testing.T) {

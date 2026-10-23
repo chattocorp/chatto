@@ -7,3 +7,7 @@ lint:
 breaking:
   use:
     - FILE
+  except:
+    # The go_package option only controls generated Go import paths. It does not
+    # change wire bytes, persisted data, or protobuf full names.
+    - FILE_SAME_GO_PACKAGE

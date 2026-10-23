@@ -4,15 +4,18 @@
     type TimelineEventView
   } from '@chatto/client/timeline/timelineEvents';
   import { getComposerContext } from '$lib/state/room';
+  import type { Snippet } from 'svelte';
 
   let {
     showCreateThread = false,
     createThreadRequired = false,
-    onMessageSent
+    onMessageSent,
+    inputStatus
   }: {
     showCreateThread?: boolean;
     createThreadRequired?: boolean;
     onMessageSent?: (event: TimelineEventView | null) => void;
+    inputStatus?: Snippet;
   } = $props();
 
   const composerContext = getComposerContext();
@@ -47,6 +50,8 @@
     event: { ...returnedPost.event, threadExists: true }
   } as TimelineEventView;
 </script>
+
+{@render inputStatus?.()}
 
 <button data-testid="emit-returned-post" onclick={() => onMessageSent?.(returnedPost)}>
   emit returned post

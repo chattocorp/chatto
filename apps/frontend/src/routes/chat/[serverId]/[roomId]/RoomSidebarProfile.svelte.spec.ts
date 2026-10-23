@@ -242,7 +242,7 @@ describe('RoomSidebarProfile', () => {
     expect(dialog.textContent).not.toContain('View profile');
     expect(dialog.textContent).not.toContain('Manage bot');
     const sendMessage = Array.from(dialog.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Send Message'
+      (button) => button.textContent?.trim() === 'Open conversation'
     );
     sendMessage!.click();
     expect(onSendMessage).toHaveBeenCalledWith('user-1');

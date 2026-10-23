@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/notificationstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // ErrNotificationAlertSuppressed tells the durable worker that a last-moment
@@ -250,18 +250,18 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 }
 
 func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *notificationv1.NotificationOccurrence) bool {
-	message := notificationSignalMessage(occurrence.GetSignal())
-	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
+	roomID := NotificationOccurrenceRoomID(occurrence)
+	if roomID == "" || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false
 	}
-	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal()) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), roomID, occurrence.GetSignal()) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
 }
 
 func (d *notificationAlertDelivery) currentPolicyAllowsSound(occurrence *notificationv1.NotificationOccurrence) bool {
-	message := notificationSignalMessage(occurrence.GetSignal())
-	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
+	roomID := NotificationOccurrenceRoomID(occurrence)
+	if roomID == "" || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false
 	}
-	mode := d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal())
+	mode := d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), roomID, occurrence.GetSignal())
 	return notificationModeProducesOccurrence(mode)
 }

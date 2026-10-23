@@ -8,7 +8,10 @@ import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.js';
 import {
   evaluateServerCompatibility,
+  isConnectableServerVersion,
   isSupportedServerVersion,
+  limitedServerFeatures,
+  type ServerFeature,
   type ServerCompatibilityProblem,
   type ServerCompatibilityResult
 } from './compatibility.js';
@@ -151,16 +154,15 @@ export class ServerInfoState {
     return this.#runtime?.videoProcessingEnabled ?? false;
   }
 
-  /** Largest upload in bytes. Default: 25 MB. */
+  /** Largest upload in bytes for all files, including GIFs and videos. Default: 25 MB. */
   get maxUploadSize(): number {
     const runtime = this.#runtime;
     return runtime ? Number(runtime.maxUploadSize) : DEFAULT_MAX_UPLOAD_SIZE;
   }
 
-  /** Largest video upload in bytes. Default: 25 MB. */
+  /** @deprecated Use maxUploadSize. This alias has the same value. */
   get maxVideoUploadSize(): number {
-    const runtime = this.#runtime;
-    return runtime ? Number(runtime.maxVideoUploadSize) : DEFAULT_MAX_UPLOAD_SIZE;
+    return this.maxUploadSize;
   }
 
   /** How long after posting a message can be edited. Default: 3 hours. */
@@ -172,7 +174,21 @@ export class ServerInfoState {
     return this.#getProjectedState()?.runtime;
   }
 
+  /** Known feature limitations after discovery. The origin serves its own client. */
+  get limitedFeatures(): ServerFeature[] {
+    if (
+      this.originServer ||
+      this.error !== null ||
+      (this.loading && this.lastDiscoveredAt === null)
+    )
+      return [];
+    return limitedServerFeatures(this.version);
+  }
+
   get compatibility(): ServerCompatibilityResult {
+    if (this.originServer && this.error === null) {
+      return { status: 'supported', reason: 'version-confirmed' };
+    }
     return evaluateServerCompatibility({
       serverVersion: this.version,
       unreachable: this.error !== null
@@ -180,7 +196,7 @@ export class ServerInfoState {
   }
 
   /**
-   * Why this client cannot use the server, or null. It is null while the first
+   * Compatibility warning or failure, or null. It is null while the first
    * discovery is in flight and when the server is supported. A retry keeps the
    * previous problem until the new attempt settles.
    */
@@ -191,13 +207,35 @@ export class ServerInfoState {
     return reason === 'version-confirmed' ? null : reason;
   }
 
+  /** Failure that replaces the server UI. Unknown and limited versions may try. */
+  get blockingCompatibilityProblem(): ServerCompatibilityProblem | null {
+    const problem = this.compatibilityProblem;
+    return problem === 'unreachable' ||
+      (problem === 'server-too-old' && this.compatibility.status === 'unsupported')
+      ? problem
+      : null;
+  }
+
+  /**
+   * Whether to attempt normal operations. The origin bypasses version checks.
+   * Remote servers wait for successful discovery; retries retain its result.
+   */
+  get canConnect(): boolean {
+    if (this.originServer) return true;
+    return (
+      this.lastDiscoveredAt !== null &&
+      this.error === null &&
+      isConnectableServerVersion(this.version)
+    );
+  }
+
   /**
    * Whether discovery confirmed a server release that this client supports.
-   * It stays false until the version is known. The realtime projection and
-   * every client feature require it.
+   * The origin serves its own frontend and bypasses this check. Use canConnect
+   * to decide whether to attempt operations on a remote server.
    */
   get isSupportedVersion(): boolean {
-    return isSupportedServerVersion(this.version);
+    return this.originServer || isSupportedServerVersion(this.version);
   }
 
   /**
@@ -208,7 +246,8 @@ export class ServerInfoState {
   constructor(
     label = 'unknown',
     publicServerInfoLoader = getPublicServerInfo,
-    getProjectedState: () => ProjectedServerState | null = () => null
+    getProjectedState: () => ProjectedServerState | null = () => null,
+    private readonly originServer = false
   ) {
     this.#label = label;
     this.#getPublicServerInfo = publicServerInfoLoader;

@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
-          "badge": "Markierung",
+          "badge": "Ungelesen-Punkt",
           "badge_hint": "Fügt nur einen neutralen Punkt für ungelesene Inhalte hinzu. Erstellt keine Benachrichtigung, spielt keinen Ton ab und sendet keine Push-Benachrichtigung.",
-          "notification": "Benachrichtigung",
+          "notification": "In-App-Benachrichtigung",
           "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Nachrichten mit @here, wenn dein Anwesenheitsstatus nicht offline ist.",
           "all": "Nachrichten mit @all in einem Raum, dem du angehörst.",
           "followed_thread": "Neue Antworten in Threads, denen du folgst.",
-          "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen."
+          "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen.",
+          "room_invitation": "Einladungen zum Beitritt zu Räumen."
         }
       }
     },

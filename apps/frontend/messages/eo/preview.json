@@ -2,8 +2,8 @@
   "preview": {
     "dismiss": "Forĵeti antaŭrigardon",
     "delete": "Forigi antaŭrigardon",
-    "open_link": "Malfermu ligilon",
-    "copy_url": "Kopiu URL",
+    "open_link": "Malfermi ligilon",
+    "copy_url": "Kopii URL",
     "url_copied": "URL kopiita al la tondujo",
     "copy_url_failed": "Malsukcesis kopii URL",
     "show_content": "Montri enhavon",
@@ -11,7 +11,7 @@
     "youtube_title": "YouTube video",
     "youtube_dismiss": "Forĵeti videon",
     "youtube_delete": "Forigi videon",
-    "youtube_open": "Malfermu sur YouTube",
+    "youtube_open": "Malfermi sur YouTube",
     "youtube_delete_embed": "Forigi embed"
   }
 }

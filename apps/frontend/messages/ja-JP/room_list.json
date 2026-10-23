@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_room_link": "ルームのリンクをコピー",
     "show_rooms_in_group": "{group} の他のルームを表示（{count}）",
     "hide_rooms_in_group": "{group} の未参加ルームを非表示",
     "more_rooms": "他 {count} 件",
@@ -27,6 +28,12 @@
     "add_to_group": "{group}に追加",
     "group_settings": "{group}の設定",
     "server_actions": "{server}のアクション",
-    "room_actions": "#{room}のアクション"
+    "room_actions": "#{room}のアクション",
+    "open_group_settings": "グループ設定を開く",
+    "open_room_settings": "ルーム設定を開く",
+    "activity_now": "今",
+    "older_conversations": "以前の会話",
+    "show_older_conversations": "以前の会話を表示（{count}）",
+    "show_fewer_conversations": "表示を減らす"
   }
 }

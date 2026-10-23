@@ -8,10 +8,10 @@ import (
 	"net/http/pprof"
 	"sync/atomic"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"hmans.de/chatto/internal/core"
 )
 
 type processMetrics struct {
@@ -76,6 +76,10 @@ func (s *HTTPServer) newMetricsServer() (*http.Server, error) {
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		newChattoCollector(s),
 	)
+
+	if s.core != nil {
+		registry.MustRegister(s.core.ProjectionSnapshotMetrics())
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle(s.config.Metrics.PathOrDefault(), promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
@@ -339,6 +343,7 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.natsReconnects
 	ch <- c.projectionStarted
 	ch <- c.projectionStartup
+	ch <- c.projectionStartupMsgs
 	ch <- c.projectionFailed
 	ch <- c.projectionLastApplied
 	ch <- c.projectionTarget

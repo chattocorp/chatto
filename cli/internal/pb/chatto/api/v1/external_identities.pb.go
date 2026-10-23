@@ -495,8 +495,8 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"!DisconnectExternalIdentityRequest\x12*\n" +
 	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"8\n" +
-	"\"DisconnectExternalIdentityResponseJ\x04\b\x01\x10\x02R\fdisconnectedB\xb3\x01\n" +
-	"\x11com.chatto.api.v1B\x17ExternalIdentitiesProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\"DisconnectExternalIdentityResponseJ\x04\b\x01\x10\x02R\fdisconnectedB\xc4\x01\n" +
+	"\x11com.chatto.api.v1B\x17ExternalIdentitiesProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_external_identities_proto_rawDescOnce sync.Once

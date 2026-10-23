@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
 )
 
 const (
@@ -18,10 +19,18 @@ const (
 	testRefreshRequestIDC = "00000000-0000-4000-8000-000000000003"
 )
 
+// withoutGenerationUseGrace makes every access-token use count at once, so a
+// test does not have to wait for generationUseGrace.
+func withoutGenerationUseGrace(c *ChattoCore) {
+	grace := time.Duration(0)
+	c.generationUseGraceOverride = &grace
+}
+
 func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := first.CreateUser(ctx, SystemActorID, "renewable-user", "Renewable User", "password123")
 	if err != nil {
@@ -38,14 +47,10 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	sessionKey := first.renewableSessionKey(sessionID)
 	assertRuntimeKVHasTTL(t, first, sessionKey)
 
-	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	second := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	if err != nil {
-		t.Fatalf("NewChattoCore replica: %v", err)
-	}
-	startCoreServices(t, second)
 
 	const requestID = testRefreshRequestIDA
 	rotated, err := first.RefreshBearerSession(ctx, initial.RefreshToken, requestID, "")
@@ -429,6 +434,7 @@ func TestChattoCore_RefreshBearerSessionReuseRevokesSession(t *testing.T) {
 	t.Parallel()
 
 	chattoCore, _ := setupTestCore(t)
+	withoutGenerationUseGrace(chattoCore)
 	ctx := testContext(t)
 	user, err := chattoCore.CreateUser(ctx, SystemActorID, "reuse-user", "Reuse User", "password123")
 	if err != nil {
@@ -441,6 +447,11 @@ func TestChattoCore_RefreshBearerSessionReuseRevokesSession(t *testing.T) {
 	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
 	if err != nil {
 		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+	// Using the rotated access token proves that the client received the
+	// rotation, so the older refresh credential is now a copy.
+	if _, err := chattoCore.ValidateAuthToken(ctx, rotated.AccessToken); err != nil {
+		t.Fatalf("ValidateAuthToken rotated: %v", err)
 	}
 
 	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, ""); !errors.Is(err, ErrRefreshTokenReused) {
@@ -507,10 +518,11 @@ func TestChattoCore_FreshAuthSurvivesConcurrentAccessRotation(t *testing.T) {
 	}
 }
 
-func TestChattoCore_ConcurrentRefreshAcrossReplicasFencesAndRevokesReuse(t *testing.T) {
+func TestChattoCore_ConcurrentRefreshAcrossReplicasRevokesOnceBothChainsAreUsed(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	user, err := first.CreateUser(ctx, SystemActorID, "replica-refresh-user", "Replica Refresh User", "password123")
 	if err != nil {
@@ -520,14 +532,12 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasFencesAndRevokesReuse(t *test
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
-	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	second := startReplica(t, ns, config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
-	if err != nil {
-		t.Fatalf("NewChattoCore replica: %v", err)
-	}
-	startCoreServices(t, second)
+	withoutGenerationUseGrace(first)
+	withoutGenerationUseGrace(second)
 
 	start := make(chan struct{})
 	errorsByReplica := make([]error, 2)
@@ -549,31 +559,37 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasFencesAndRevokesReuse(t *test
 	close(start)
 	wait.Wait()
 
-	successes := 0
-	reuses := 0
-	for _, err := range errorsByReplica {
-		switch {
-		case err == nil:
-			successes++
-		case errors.Is(err, ErrRefreshTokenReused), errors.Is(err, ErrRefreshTokenNotFound):
-			reuses++
-		default:
-			t.Fatalf("parallel refresh error = %v", err)
+	// Neither rotation was used when the other one committed, so the revision
+	// fence serializes them into two distinct generations without revocation.
+	for index, err := range errorsByReplica {
+		if err != nil {
+			t.Fatalf("parallel refresh %d error = %v", index, err)
 		}
 	}
-	if successes > 1 || successes+reuses != 2 {
-		t.Fatalf("parallel outcomes successes=%d reuses=%d, want at most one temporary winner and two terminal outcomes (%v)", successes, reuses, errorsByReplica)
+	_, firstGeneration, _ := first.parseRefreshToken(credentials[0].RefreshToken)
+	_, secondGeneration, _ := first.parseRefreshToken(credentials[1].RefreshToken)
+	if firstGeneration == secondGeneration {
+		t.Fatalf("parallel refreshes returned the same generation %d", firstGeneration)
 	}
-	for _, pair := range credentials {
-		if pair.AccessToken == "" {
-			continue
+	older, newer := credentials[0], credentials[1]
+	if firstGeneration > secondGeneration {
+		older, newer = newer, older
+	}
+
+	// Two clients that both use their chain are a copied credential: the
+	// stale one revokes the whole session.
+	for _, pair := range []BearerSessionCredentials{older, newer} {
+		if _, err := second.ValidateAuthToken(ctx, pair.AccessToken); err != nil {
+			t.Fatalf("ValidateAuthToken before reuse: %v", err)
 		}
+	}
+	if _, err := first.RefreshBearerSession(ctx, older.RefreshToken, testRefreshRequestIDC, ""); !errors.Is(err, ErrRefreshTokenReused) {
+		t.Fatalf("stale chain refresh = %v, want ErrRefreshTokenReused", err)
+	}
+	for _, pair := range []BearerSessionCredentials{older, newer} {
 		if _, err := first.ValidateAuthToken(ctx, pair.AccessToken); !errors.Is(err, ErrAuthTokenNotFound) {
-			t.Fatalf("winner remained valid after detected reuse: %v", err)
+			t.Fatalf("access after detected reuse = %v, want ErrAuthTokenNotFound", err)
 		}
-	}
-	if _, err := first.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDC, ""); !errors.Is(err, ErrRefreshTokenNotFound) {
-		t.Fatalf("initial refresh after detected concurrent reuse = %v, want ErrRefreshTokenNotFound", err)
 	}
 }
 
@@ -603,7 +619,7 @@ func TestChattoCore_RefreshBearerSessionRejectsExpiredWindow(t *testing.T) {
 	}
 }
 
-func TestChattoCore_LostResponseRecoveryEndsAtAccessExpiry(t *testing.T) {
+func TestChattoCore_LateLostResponseRetryRotatesAgain(t *testing.T) {
 	t.Parallel()
 
 	chattoCore, _ := setupTestCore(t)
@@ -617,23 +633,183 @@ func TestChattoCore_LostResponseRecoveryEndsAtAccessExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
+	if _, err := chattoCore.ValidateAuthToken(ctx, initial.AccessToken); err != nil {
+		t.Fatalf("ValidateAuthToken initial: %v", err)
+	}
 
 	now := time.Now()
-	rotated, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now)
+	lost, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now)
 	if err != nil {
 		t.Fatalf("initial refresh: %v", err)
 	}
-	_, err = chattoCore.refreshBearerSessionAt(
-		ctx,
-		initial.RefreshToken,
-		testRefreshRequestIDA,
-		"",
-		now.Add(chattoCore.bearerAccessTokenTTL()),
-	)
-	if !errors.Is(err, ErrRefreshTokenReused) {
-		t.Fatalf("retry at access expiry error = %v, want ErrRefreshTokenReused", err)
+	// After the exact-recovery window, the same retry cannot return the lost
+	// pair. The lost pair was never used, so the server rotates again.
+	late := now.Add(chattoCore.bearerAccessTokenTTL())
+	retried, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", late)
+	if err != nil {
+		t.Fatalf("late retry: %v", err)
 	}
-	if _, err := chattoCore.ValidateAuthToken(ctx, rotated.AccessToken); !errors.Is(err, ErrAuthTokenNotFound) {
-		t.Fatalf("rotated access after out-of-window retry = %v, want ErrAuthTokenNotFound", err)
+	if retried.RefreshToken == lost.RefreshToken || retried.AccessToken == lost.AccessToken {
+		t.Fatal("late retry returned the lost pair")
+	}
+	_, lostGeneration, _ := chattoCore.parseRefreshToken(lost.RefreshToken)
+	_, retriedGeneration, _ := chattoCore.parseRefreshToken(retried.RefreshToken)
+	if retriedGeneration != lostGeneration+1 {
+		t.Fatalf("late retry generation = %d, want %d", retriedGeneration, lostGeneration+1)
+	}
+	if _, err := chattoCore.refreshBearerSessionAt(ctx, retried.RefreshToken, testRefreshRequestIDB, "", late.Add(time.Second)); err != nil {
+		t.Fatalf("refresh with late-retry pair: %v", err)
+	}
+}
+
+func TestChattoCore_LostResponsesWithoutRequestIDRecoverUntilNewerUse(t *testing.T) {
+	t.Parallel()
+
+	chattoCore, _ := setupTestCore(t)
+	withoutGenerationUseGrace(chattoCore)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "lost-storage-user", "Lost Storage User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, ""); err != nil {
+		t.Fatalf("first refresh: %v", err)
+	}
+
+	// The client lost both the response and its request ID, twice. Each new
+	// request ID with the same unused-chain predecessor rotates again.
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, ""); err != nil {
+		t.Fatalf("second lost-response refresh: %v", err)
+	}
+	latest, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDC, "")
+	if err != nil {
+		t.Fatalf("third lost-response refresh: %v", err)
+	}
+
+	if _, err := chattoCore.ValidateAuthToken(ctx, latest.AccessToken); err != nil {
+		t.Fatalf("ValidateAuthToken latest: %v", err)
+	}
+	sessionID, _, _ := chattoCore.parseRefreshToken(latest.RefreshToken)
+	session, _, err := chattoCore.loadRenewableSession(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("loadRenewableSession: %v", err)
+	}
+	if session.UsedGeneration == nil || *session.UsedGeneration != session.CurrentGeneration {
+		t.Fatalf("used generation = %v, want current generation %d", session.UsedGeneration, session.CurrentGeneration)
+	}
+
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "00000000-0000-4000-8000-000000000004", ""); !errors.Is(err, ErrRefreshTokenReused) {
+		t.Fatalf("stale refresh after newer use = %v, want ErrRefreshTokenReused", err)
+	}
+	if _, err := chattoCore.ValidateAuthToken(ctx, latest.AccessToken); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("latest access after detected reuse = %v, want ErrAuthTokenNotFound", err)
+	}
+}
+
+func TestChattoCore_StaleRefreshWithoutUsageMarkerRevokes(t *testing.T) {
+	t.Parallel()
+
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "legacy-marker-user", "Legacy Marker User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, ""); err != nil {
+		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+
+	// A record written before usage tracking, or rewritten by a replica
+	// without it, has no marker. Its usage is unknown, so reuse detection
+	// keeps the strict rule.
+	sessionID, _, _ := chattoCore.parseRefreshToken(initial.RefreshToken)
+	session, entry, err := chattoCore.loadRenewableSession(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("loadRenewableSession: %v", err)
+	}
+	session.UsedGeneration = nil
+	value, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("marshal legacy session: %v", err)
+	}
+	if _, err := chattoCore.updateRuntimeStateUntil(ctx, chattoCore.renewableSessionKey(sessionID), value, entry.Revision(), session.ExpiresAt, time.Now()); err != nil {
+		t.Fatalf("store legacy session: %v", err)
+	}
+
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, ""); !errors.Is(err, ErrRefreshTokenReused) {
+		t.Fatalf("stale refresh without marker = %v, want ErrRefreshTokenReused", err)
+	}
+}
+
+func TestChattoCore_UseInsideGraceKeepsLostResponseRecovery(t *testing.T) {
+	t.Parallel()
+
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "use-grace-user", "Use Grace User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
+	if err != nil {
+		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+	// The client uses the new pair at once, and the operating system then
+	// ends the browser before the pair reaches disk.
+	if _, err := chattoCore.ValidateAuthToken(ctx, rotated.AccessToken); err != nil {
+		t.Fatalf("ValidateAuthToken rotated: %v", err)
+	}
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, ""); err != nil {
+		t.Fatalf("refresh with previous pair after use inside grace: %v", err)
+	}
+}
+
+func TestChattoCore_UseAfterGraceMarksGeneration(t *testing.T) {
+	t.Parallel()
+
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "use-after-grace-user", "Use After Grace User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	sessionID, generation, _ := chattoCore.parseRefreshToken(initial.RefreshToken)
+	issuedAt := initial.AccessTokenExpiresAt.Add(-chattoCore.bearerAccessTokenTTL())
+
+	usedGeneration := func() *uint64 {
+		t.Helper()
+		session, _, err := chattoCore.loadRenewableSession(ctx, sessionID)
+		if err != nil {
+			t.Fatalf("loadRenewableSession: %v", err)
+		}
+		return session.UsedGeneration
+	}
+	if err := chattoCore.markRenewableSessionGenerationUsed(ctx, sessionID, RenewableSession{}, generation, issuedAt, issuedAt.Add(generationUseGrace-time.Second)); err != nil {
+		t.Fatalf("mark inside grace: %v", err)
+	}
+	if used := usedGeneration(); used != nil {
+		t.Fatalf("used generation inside grace = %d, want unset", *used)
+	}
+	if err := chattoCore.markRenewableSessionGenerationUsed(ctx, sessionID, RenewableSession{}, generation, issuedAt, issuedAt.Add(generationUseGrace)); err != nil {
+		t.Fatalf("mark after grace: %v", err)
+	}
+	if used := usedGeneration(); used == nil || *used != generation {
+		t.Fatalf("used generation after grace = %v, want %d", used, generation)
 	}
 }

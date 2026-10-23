@@ -146,41 +146,6 @@
       "other": "Altro",
       "call": "Chiamate"
     },
-    "permission_descriptions": {
-      "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
-      "server_manage_neighbors": "Gestisci la directory pubblica dei vicini",
-      "room_create": "Crea nuove stanze",
-      "room_join": "Unisciti alle stanze esistenti",
-      "room_list": "Vedi le stanze nella directory. A un utente può essere consentito di vedere una stanza (ad esempio per richiedere l'accesso) senza che gli sia consentito accedervi.",
-      "room_manage": "Modifica le impostazioni e le autorizzazioni di una stanza ed elimina le stanze",
-      "room_remove_member": "Rimuovere membri dalle stanze e sospenderne il rientro se necessario",
-      "message_read": "Leggere tutti i messaggi nelle stanze. La rimozione di questo permesso consente ancora un accesso limitato se message.read-interactions viene concesso separatamente.",
-      "message_read_interactions": "Leggere thread completi che hai creato o in cui un altro utente ti ha menzionato direttamente",
-      "message_post": "Pubblicare messaggi e risposte nei thread e avviare messaggi diretti",
-      "message_post_interactions": "Rispondere nei thread che hai creato, in cui hai ricevuto una menzione diretta o un messaggio diretto",
-      "message_post_in_thread": "Pubblica le risposte all'interno di un thread",
-      "message_attach": "Allega file ai messaggi",
-      "message_echo": "Quando pubblichi in un thread, fai emergere il messaggio anche nel canale principale",
-      "message_manage": "Modifica ed elimina i messaggi di altri utenti",
-      "message_react": "Aggiungi e rimuovi reazioni ai messaggi",
-      "role_manage": "Crea, modifica, elimina e riordina i ruoli e le relative autorizzazioni",
-      "role_assign": "Assegnare e revocare i ruoli per gli utenti",
-      "admin_view_users": "Visualizza la pagina degli utenti in amministrazione",
-      "admin_view_system": "Visualizza la diagnostica della proiezione in amministrazione",
-      "admin_view_audit": "Visualizza il registro di controllo nell'amministratore",
-      "user_delete_any": "Elimina l'account di un altro utente",
-      "user_delete_self": "Elimina il tuo account",
-      "user_invite": "Crea e gestisci i link di invito",
-      "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
-      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente",
-      "bot_create": "Creare account bot di tua proprietà",
-      "bot_manage": "Visualizzare e gestire tutti gli account bot",
-      "call_start": "Avviare una chiamata (richiede anche call.join)",
-      "call_join": "Partecipare a una chiamata in corso",
-      "call_voice": "Usare il microfono nelle chiamate",
-      "call_camera": "Usare la videocamera nelle chiamate",
-      "call_screenshare": "Condividere uno schermo o un’applicazione, incluso l’audio acquisito"
-    },
     "permission_help": {
       "server_manage": "Consente a un account di modificare il nome, la descrizione, il logo e le altre impostazioni del server. Consente anche di modificare la directory pubblica dei vicini. Concedila solo a persone che possono parlare a nome dell’intero server.",
       "server_manage_neighbors": "Consente a un account di aggiungere, modificare e rimuovere voci nella directory pubblica dei vicini. Non consente di modificare le altre impostazioni del server.",
@@ -196,6 +161,7 @@
       "message_post_in_thread": "Consente a un account di rispondere in ogni thread che può leggere, ma non di pubblicare nuovi messaggi nella stanza. Un’autorizzazione per message.post include anche questa, quindi negarla qui non impedisce le risposte di quegli account.",
       "message_attach": "Consente a un account di allegare file ai nuovi messaggi. Negala per impedire i caricamenti in una stanza continuando a consentire i messaggi di testo.",
       "message_echo": "Consente a un account di mostrare una risposta di thread anche nella cronologia della stanza, così che la vedano anche le persone che non seguono il thread.",
+      "message_pin": "Ti permette di fissare e rimuovere messaggi fissati nelle stanze dei canali senza gestire la stanza.",
       "message_manage": "Consente a un account di modificare o eliminare i messaggi di altri account. Tutti possono sempre modificare ed eliminare i propri messaggi senza questa autorizzazione. Gli account con questa autorizzazione non sono limitati dalla modalità lenta. In un messaggio diretto, solo i partecipanti possono usarla.",
       "message_react": "Consente a un account di aggiungere e rimuovere reazioni ai messaggi che può leggere.",
       "role_manage": "Consente a un account di creare, modificare, ordinare ed eliminare ruoli e le loro impostazioni di autorizzazione. Con questa autorizzazione, un account può cambiare ciò che ogni ruolo del server può fare. Concedila solo a persone a cui affideresti l’intero server.",
@@ -213,7 +179,8 @@
       "call_join": "Consente a un account di partecipare a una chiamata in corso, anche solo in ascolto. Per inviare audio o video servono call.voice, call.camera o call.screenshare.",
       "call_voice": "Consente a un account di inviare l’audio del microfono nelle chiamate. Senza di essa, l’account può comunque ascoltare.",
       "call_camera": "Consente a un account di inviare il video della fotocamera nelle chiamate.",
-      "call_screenshare": "Consente a un account di condividere uno schermo, una finestra, una scheda o un’applicazione nelle chiamate, con il relativo audio. Non consente l’audio del microfono; per quello serve call.voice."
+      "call_screenshare": "Consente a un account di condividere uno schermo, una finestra, una scheda o un’applicazione nelle chiamate, con il relativo audio. Non consente l’audio del microfono; per quello serve call.voice.",
+      "room_invite": "Invita i membri del server nelle stanze a cui hai aderito."
     }
   }
 }

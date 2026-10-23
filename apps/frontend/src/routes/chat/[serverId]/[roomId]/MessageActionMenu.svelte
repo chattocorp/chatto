@@ -13,6 +13,7 @@ surface-specific sizing and menu semantics.
   import { MenuItem, MenuSection } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { copyImageToClipboard } from '$lib/attachments/copyImage';
+  import { copyToClipboard } from '$lib/utils/copyToClipboard';
   import type { MessageActionModel } from './messageActionModel';
 
   let {
@@ -20,6 +21,7 @@ surface-specific sizing and menu semantics.
     action,
     linkUrl = null,
     imageUrl = null,
+    selectedText = null,
     onOpenEmojiPicker,
     hasReactions = false,
     onOpenReactionDetails,
@@ -31,6 +33,8 @@ surface-specific sizing and menu semantics.
     linkUrl?: string | null;
     /** URL of the image attachment that opened this context menu. */
     imageUrl?: string | null;
+    /** Exact text selected within the owning message body when the menu opened. */
+    selectedText?: string | null;
     onOpenEmojiPicker?: () => void;
     hasReactions?: boolean;
     onOpenReactionDetails?: () => void;
@@ -68,6 +72,12 @@ surface-specific sizing and menu semantics.
 
   function handleEdit() {
     action.edit();
+    onClose();
+  }
+
+  async function handleCopySelectedText() {
+    if (!selectedText) return;
+    await copyToClipboard(selectedText);
     onClose();
   }
 
@@ -207,7 +217,7 @@ surface-specific sizing and menu semantics.
 
 {#snippet reactionDetailsAction()}
   {@render actionButton(
-    m('room.message.actions.reactions'),
+    m('room.message.actions.view_reactions'),
     'icon-[uil--smile]',
     handleOpenReactionDetails
   )}
@@ -257,6 +267,13 @@ surface-specific sizing and menu semantics.
 {/snippet}
 
 {#snippet copyActions()}
+  {#if selectedText}
+    {@render actionButton(
+      m('room.message.actions.copy_selected_text'),
+      'icon-[uil--clipboard-notes]',
+      handleCopySelectedText
+    )}
+  {/if}
   {#if action.messageBody}
     {@render actionButton(
       m('room.message.actions.copy_text'),

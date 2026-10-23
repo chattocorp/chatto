@@ -354,6 +354,16 @@ func TestTransformImage_FitContain(t *testing.T) {
 	}
 }
 
+func TestTransformImageAcceptsFilesAboveDefaultUploadSize(t *testing.T) {
+	// Operators can raise the upload limit above the default. The encoded size
+	// must not stop display derivatives for such stored images.
+	data := append(createTestImage(400, 200), make([]byte, DefaultMaxUploadSize)...)
+
+	if _, err := TransformImage(data, 200, 200, FitContain); err != nil {
+		t.Fatalf("TransformImage() error = %v", err)
+	}
+}
+
 func TestTransformImage_FitCover(t *testing.T) {
 	tests := []struct {
 		name         string

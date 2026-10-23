@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -11,6 +11,11 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 
 ## Behavior
 
+- Copied message and thread-message links use the owning server's full origin,
+  including its scheme and port, with the home-server path. They do not depend
+  on the sender's frontend address. Links copied with the frontend address and
+  a remote-server path remain supported. Selecting a link in a message opens
+  known servers in the current client; unknown servers open externally.
 - Following a message link opens the target's thread when it is a thread reply
   or has an existing thread, including a thread with no replies. The linked
   message is highlighted in the thread pane. A message without a thread opens
@@ -28,6 +33,12 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   excerpt inside its input surface. Muted text keeps the draft prominent.
   The close button removes reply attribution without clearing the draft;
   Escape has the same effect when no editor popup is open.
+- Each room and thread draft keeps its reply target when the user leaves and
+  returns during the same server session. The composer restores the target
+  name and excerpt. A successful send or explicit cancellation clears the
+  target; a failed send keeps it. Reply targets stay in memory and do not
+  survive a page reload. Loss of room access, session end, and privacy resets
+  clear retained targets.
 - DMs support thread creation, replies, follows, unread state, links,
   notifications, echoes, and My Threads entries. Their Threading Mode is fixed
   to Enabled and cannot be configured.
@@ -36,6 +47,9 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - On a thread root, **Reply in thread** opens the thread and focuses its composer without setting reply attribution. Selected text is still inserted as a Markdown blockquote. **Open thread** and thread badges only open the thread without focusing the composer. An explicit **Reply** action sets reply attribution.
+- The thread badge on the root message shows an orange dot for unread message
+  notifications in that thread. Emoji reactions do not activate this dot. They
+  remain in the notification list and notification counts.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
 - A root message with an attached thread does not group with adjacent messages
   from the same author. The root and the next message show a full author header.

@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	searchsvc "github.com/chattocorp/chatto/cli/internal/search"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
-	searchsvc "hmans.de/chatto/internal/search"
 )
 
 const (
@@ -83,8 +83,18 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	}
 	providerRequest.Cursor = providerCursor
 	followedOnly := req.Msg.GetScope() == apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS
+	rootAuthor := core.ThreadRootAuthorFilter(req.Msg.GetRootAuthorFilter())
+	if err := rootAuthor.Validate(); err != nil {
+		return nil, err
+	}
+	if !followedOnly && rootAuthor != core.ThreadRootAuthorAll {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("root author filter requires followed-thread scope"))
+	}
 	if followedOnly {
-		providerRequest.ThreadRootIds = s.api.core.MessageSearchReads().FollowedSearchRoots(scope, caller.UserID)
+		providerRequest.ThreadRootIds, err = s.api.core.MessageSearchReads().FollowedSearchRoots(ctx, scope, caller.UserID, rootAuthor)
+		if err != nil {
+			return nil, err
+		}
 		if len(providerRequest.ThreadRootIds) == 0 {
 			scope.NoMatches = true
 		}
@@ -177,9 +187,9 @@ func providerSearchRequest(request *apiv1.SearchMessagesRequest, parsed searchsv
 	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_UNSPECIFIED, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_RELEVANCE:
 	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST:
 		order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
-	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY:
+	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY, apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED:
 		if !threadGroups {
-			return nil, fmt.Errorf("thread activity order requires thread grouping")
+			return nil, fmt.Errorf("thread date order requires thread grouping")
 		}
 		order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
 	default:
@@ -215,9 +225,16 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid thread search cursor"))
 		}
 	}
+	threadOrder := core.ThreadOrderDefault
+	switch request.GetOrder() {
+	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY:
+		threadOrder = core.ThreadOrderActivity
+	case apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_CREATED:
+		threadOrder = core.ThreadOrderCreated
+	}
 	page, err := s.api.core.MessageSearchReads().SearchThreadGroups(ctx, viewerID, int(normalized.PageSize), offset, scope, normalized,
 		request.GetScope() == apiv1.MessageSearchScope_MESSAGE_SEARCH_SCOPE_FOLLOWED_THREADS,
-		request.GetOrder() == apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY, s.api.searchProvider.Query)
+		threadOrder, s.api.searchProvider.Query)
 	if err != nil {
 		var providerError *searchsvc.ServiceError
 		if errors.Is(err, searchsvc.ErrUnavailable) || errors.Is(err, searchsvc.ErrProviderNotReady) || errors.Is(err, searchsvc.ErrInvalidResponse) || errors.As(err, &providerError) {
@@ -255,6 +272,7 @@ func (s *messageSearchService) searchThreadGroups(ctx context.Context, viewerID 
 			continue
 		}
 		row.Thread.ViewerState = apiThreadViewerState(result.Following, result.Metadata.HasUnreadReplies)
+		row.Thread.ViewerState.SlowModeNextPostAt = row.RootMessage.GetViewerState().GetThreadSlowModeNextPostAt()
 		match.ThreadContext = &apiv1.ThreadSearchContext{
 			RootMessage: row.RootMessage, Room: row.Room, Thread: row.Thread, LatestReply: row.LatestReply,
 			DirectMessageParticipantUserIds: row.DirectMessageParticipantUserIds,

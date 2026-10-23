@@ -1,7 +1,7 @@
 # FDR-008: Codemode
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-03
+**Last reviewed:** 2026-10-18
 
 ## Overview
 
@@ -25,8 +25,8 @@ results before the model reads them.
 - Scripts cannot use Pi's `models` API, so they cannot start classifier or image
   model requests that cost money.
 - Every call from a script passes the same `tool_call` and `tool_result` hooks as
-  a call from the model. Trust policies, authorization gates, and other
-  extension gates apply to each call. A blocked call rejects in the script with
+  a call from the model. Trust policies and other extension gates apply to each
+  call. A blocked call rejects in the script with
   the block reason.
 - After an `untrusted` tool returns in a script, later calls to blocked tools
   fail, in the same script and in later turns. Calls that the script started
@@ -43,14 +43,14 @@ results before the model reads them.
   `terminate` do not reach it. Register tools that return images or end the
   turn with `exposure: 'model-only'`, so that the model calls them directly.
 - Agent logs show each call from a script. Agent activity reports the script as
-  one `codemode` call, so failed calls in a script do not count separately
-  toward task failure limits.
+  one `codemode` call.
 - When the output of a script is longer than its output limit, Pi writes the
   complete output to a file in the temporary directory and names the file in the
   result. For an agent without the `read` tool, Runling deletes the file at once
   and removes its name from the result. Otherwise, Runling deletes the file when
-  the agent ends. Set `TMPDIR` to a private directory when tool results are
-  sensitive.
+  the agent ends. Runling creates a private process temporary directory before
+  opening an agent and points `TMPDIR` there. Normal process exit removes it;
+  an abrupt exit can leave private files for the operating system to clean up.
 - `store()` keeps small values for later scripts of the same agent. With
   `sessionFile`, the values stay after a restart. A fork does not get them.
 - Without the option, agents have no `codemode` tool.
@@ -76,7 +76,6 @@ must add a tool for it.
 ## Related
 
 - [FDR-006: Tool blocking after untrusted content](FDR-006-untrusted-tool-blocking.md)
-- [FDR-007: Authorization classifier](FDR-007-authorization-classifier.md)
 - [ADR-005: Block tools after untrusted context](../adr/ADR-005-untrusted-context.md)
 - [Agent API guide](../agents.md#codemode)
 

@@ -6,13 +6,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/testutil"
 
-	"hmans.de/chatto/internal/evtstream"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func setupInput(login string) ServerSetupInput {
@@ -63,14 +63,11 @@ func TestServerSetupLifecycle(t *testing.T) {
 func TestServerSetupConcurrentReplicas(t *testing.T) {
 	t.Parallel()
 
-	first, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
 	first.config.SkipSetupWizard = false
 	ctx := testContext(t)
-	second, err := NewChattoCore(ctx, nc, first.config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	startCoreServices(t, second)
+	second := startReplica(t, ns, first.config)
 	var wg sync.WaitGroup
 	results := make(chan error, 2)
 	for i, c := range []*ChattoCore{first, second} {

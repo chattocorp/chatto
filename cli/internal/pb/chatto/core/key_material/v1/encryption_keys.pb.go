@@ -83,8 +83,8 @@ const file_chatto_core_key_material_v1_encryption_keys_proto_rawDesc = "" +
 	"1chatto/core/key_material/v1/encryption_keys.proto\x12\x1bchatto.core.key_material.v1\"F\n" +
 	"\x14UserKeyEncryptionKey\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12\x1c\n" +
-	"\talgorithm\x18\x02 \x01(\tR\talgorithmB\x88\x02\n" +
-	"\x1fcom.chatto.core.key_material.v1B\x13EncryptionKeysProtoP\x01ZEhmans.de/chatto/internal/pb/chatto/core/key_material/v1;keymaterialv1\xa2\x02\x03CCK\xaa\x02\x1aChatto.Core.KeyMaterial.V1\xca\x02\x1aChatto\\Core\\KeyMaterial\\V1\xe2\x02&Chatto\\Core\\KeyMaterial\\V1\\GPBMetadata\xea\x02\x1dChatto::Core::KeyMaterial::V1b\x06proto3"
+	"\talgorithm\x18\x02 \x01(\tR\talgorithmB\x99\x02\n" +
+	"\x1fcom.chatto.core.key_material.v1B\x13EncryptionKeysProtoP\x01ZVgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/key_material/v1;keymaterialv1\xa2\x02\x03CCK\xaa\x02\x1aChatto.Core.KeyMaterial.V1\xca\x02\x1aChatto\\Core\\KeyMaterial\\V1\xe2\x02&Chatto\\Core\\KeyMaterial\\V1\\GPBMetadata\xea\x02\x1dChatto::Core::KeyMaterial::V1b\x06proto3"
 
 var (
 	file_chatto_core_key_material_v1_encryption_keys_proto_rawDescOnce sync.Once

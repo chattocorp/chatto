@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"slices"
 	"strings"
 	"testing"
@@ -15,12 +15,70 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/evtstream"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
+
+func TestThreadSlowModeViewerStateAndRoomPatch(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("thread-slow-mode-api")
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-settings-manager", "Manager", "password")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, manager.Id, core.KindChannel, manager.Id, room.Id)
+	require.NoError(t, err)
+	env.grantRoomManage(t, room.Id, manager.Id)
+	managerCtx := withCaller(env.ctx, manager)
+	root := env.post(room.Id, env.viewer.Id, "root with no replies", "")
+	updated, err := env.rooms.UpdateRoom(managerCtx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.Id, SlowModeSeconds: new(uint32(30)), ThreadSlowModeSeconds: new(uint32(60)),
+	}))
+	require.NoError(t, err)
+	require.Equal(t, uint32(60), updated.Msg.Room.GetThreadSlowModeSeconds())
+	ctx := withCaller(env.ctx, env.viewer)
+	page, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	require.NoError(t, err)
+	deadline := root.CreatedAt.AsTime().Add(time.Minute)
+	require.Equal(t, deadline, page.Msg.ViewerState.SlowModeNextPostAt.AsTime())
+	message := timelinePageEvent(page.Msg.Page, root.Id).GetMessagePosted().GetMessage()
+	require.Equal(t, deadline, message.ViewerState.ThreadSlowModeNextPostAt.AsTime())
+	around, err := env.threads.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{RoomId: room.Id, ThreadRootEventId: root.Id, EventId: root.Id}))
+	require.NoError(t, err)
+	require.Equal(t, deadline, around.Msg.ViewerState.SlowModeNextPostAt.AsTime())
+	cleared, err := env.rooms.UpdateRoom(managerCtx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.Id, UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"thread_slow_mode_seconds"}},
+	}))
+	require.NoError(t, err)
+	require.NotNil(t, cleared.Msg.Room.ThreadSlowModeSeconds)
+	require.Zero(t, cleared.Msg.Room.GetThreadSlowModeSeconds())
+	require.Equal(t, uint32(30), cleared.Msg.Room.SlowModeSeconds)
+	page, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	require.NoError(t, err)
+	require.NotNil(t, page.Msg.ViewerState)
+	require.Nil(t, page.Msg.ViewerState.SlowModeNextPostAt)
+	// A new response must pick up settings changed after an Off response.
+	// Multiple replies exercise concurrent hydration of one cached deadline.
+	posts := []*evtv1.Event{root}
+	for range 16 {
+		posts = append(posts, env.post(room.Id, env.viewer.Id, "follow-up", root.Id))
+	}
+	_, err = env.rooms.UpdateRoom(managerCtx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.Id, ThreadSlowModeSeconds: new(uint32(60)),
+	}))
+	require.NoError(t, err)
+	page, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	require.NoError(t, err)
+	deadline = posts[len(posts)-1].CreatedAt.AsTime().Add(time.Minute)
+	require.Equal(t, deadline, page.Msg.ViewerState.SlowModeNextPostAt.AsTime())
+	for _, post := range posts {
+		message := timelinePageEvent(page.Msg.Page, post.Id).GetMessagePosted().GetMessage()
+		require.Equal(t, deadline, message.GetViewerState().GetThreadSlowModeNextPostAt().AsTime())
+	}
+}
 
 func TestTimelineIncludesDistinguishMissingAndDeletedUsers(t *testing.T) {
 	t.Parallel()
@@ -698,7 +756,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	}
 
 	e1 := env.post(room.Id, env.viewer.Id, "one", "")
-	if err := env.core.SetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id, e1.Id); err != nil {
+	if err := env.core.ReadState().SetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id, e1.Id); err != nil {
 		t.Fatalf("seed read marker: %v", err)
 	}
 	e2 := env.post(room.Id, env.viewer.Id, "two", "")
@@ -721,7 +779,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	if resp.Msg.LastReadAt == nil || resp.Msg.PreviousLastReadAt == nil {
 		t.Fatalf("timestamps = last %v previous %v, want both set", resp.Msg.LastReadAt, resp.Msg.PreviousLastReadAt)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after e2 = %q, %v; want %s", got, err, e2.Id)
 	}
 	assertAPINotificationStates(t, env, ctx,
@@ -735,7 +793,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); err != nil {
 		t.Fatalf("MarkRoomAsRead stale e1: %v", err)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after stale e1 = %q, %v; want %s", got, err, e2.Id)
 	}
 	assertAPINotificationStates(t, env, ctx,
@@ -750,7 +808,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("MarkRoomAsRead reply anchor code = %v, want %v", errorCode(err), connect.CodeInvalidArgument)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after reply anchor = %q, %v; want %s", got, err, e2.Id)
 	}
 
@@ -760,7 +818,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); errorCode(err) != connect.CodeNotFound {
 		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e2.Id {
 		t.Fatalf("marker after missing event = %q, %v; want %s", got, err, e2.Id)
 	}
 
@@ -769,7 +827,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	})); err != nil {
 		t.Fatalf("MarkRoomAsRead omitted anchor: %v", err)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != threadRoot.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != threadRoot.Id {
 		t.Fatalf("marker after omitted anchor = %q, %v; want %s", got, err, threadRoot.Id)
 	}
 	assertAPINotificationStates(t, env, ctx,
@@ -796,7 +854,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 
 	e1 := env.post(room.Id, env.viewer.Id, "one", "")
 	e2 := env.post(room.Id, env.viewer.Id, "two", "")
-	if marker, exists, err := env.core.PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
+	if marker, exists, err := env.core.ReadState().PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
 		t.Fatalf("reader marker before request = %q exists=%v err=%v, want absent", marker, exists, err)
 	}
 
@@ -807,7 +865,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 	})); errorCode(err) != connect.CodeNotFound {
 		t.Fatalf("MarkRoomAsRead missing event code = %v, want %v", errorCode(err), connect.CodeNotFound)
 	}
-	if marker, exists, err := env.core.PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
+	if marker, exists, err := env.core.ReadState().PeekLastReadEventID(env.ctx, reader.Id, room.Id); err != nil || exists || marker != "" {
 		t.Fatalf("reader marker after rejected request = %q exists=%v err=%v, want absent", marker, exists, err)
 	}
 
@@ -821,7 +879,7 @@ func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarke
 	if resp.Msg.PreviousLastReadAt != nil {
 		t.Fatalf("PreviousLastReadAt after missing marker = %v, want nil", resp.Msg.PreviousLastReadAt)
 	}
-	if got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e1.Id {
+	if got, err := env.core.ReadState().GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, room.Id); err != nil || got != e1.Id {
 		t.Fatalf("marker after valid e1 = %q, %v; want %s", got, err, e1.Id)
 	}
 	if e2.Id == e1.Id {
@@ -1069,6 +1127,90 @@ func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
 	}
 }
 
+func TestThreadServiceListFollowedThreadsRootAuthorFilter(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("root-author-filter")
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "root-author", "Other Author", "password")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id)
+	require.NoError(t, err)
+	mine := env.post(room.Id, env.viewer.Id, "my root", "")
+	env.post(room.Id, other.Id, "reply by someone else", mine.Id)
+	theirs := env.post(room.Id, other.Id, "their root", "")
+	env.post(room.Id, env.viewer.Id, "my reply", theirs.Id)
+	manual := env.post(room.Id, other.Id, "manually followed root", "")
+	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, manual.Id))
+	list := func(filter apiv1.ThreadRootAuthorFilter, offset int32, unread bool) *apiv1.ListFollowedThreadsResponse {
+		t.Helper()
+		response, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+			RootAuthorFilter: filter, UnreadOnly: unread, Page: &apiv1.PageRequest{Limit: 1, Offset: offset},
+		}))
+		require.NoError(t, err)
+		return response.Msg
+	}
+	viewer := apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER
+	others := apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS
+	// The viewer's root is behind both other roots in the unfiltered feed.
+	page := list(viewer, 0, false)
+	require.EqualValues(t, 1, page.Page.TotalCount)
+	require.Len(t, page.Threads, 1)
+	require.Equal(t, mine.Id, page.Threads[0].Thread.ThreadRootEventId)
+	require.False(t, page.Page.HasMore)
+	require.Empty(t, list(viewer, 1, false).Threads)
+	require.Equal(t, mine.Id, list(viewer, 0, true).Threads[0].Thread.ThreadRootEventId)
+	page = list(others, 0, false)
+	require.EqualValues(t, 2, page.Page.TotalCount)
+	require.True(t, page.Page.HasMore)
+	require.Equal(t, manual.Id, page.Threads[0].Thread.ThreadRootEventId)
+	require.Equal(t, theirs.Id, list(others, 1, false).Threads[0].Thread.ThreadRootEventId)
+	require.EqualValues(t, 3, list(apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED, 0, false).Page.TotalCount)
+	for _, root := range []string{mine.Id, theirs.Id, manual.Id} {
+		require.NoError(t, env.core.UnfollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, root))
+	}
+	require.Empty(t, list(viewer, 0, false).Threads)
+	require.Empty(t, list(others, 0, false).Threads)
+	_, err = env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{RootAuthorFilter: 99}))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, mine.Id))
+	require.NoError(t, env.core.LeaveRoom(ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id))
+	require.Empty(t, list(viewer, 0, false).Threads)
+}
+
+func TestThreadServiceListFollowedThreadsOrder(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("thread-order")
+	oldRoot := env.post(room.Id, env.viewer.Id, "old root", "")
+	newRoot := env.post(room.Id, env.viewer.Id, "new root without replies", "")
+	require.NoError(t, env.core.FollowThread(ctx, core.KindChannel, env.viewer.Id, room.Id, newRoot.Id))
+	env.post(room.Id, env.viewer.Id, "recent reply", oldRoot.Id)
+	for _, test := range []struct {
+		order apiv1.ThreadOrder
+		roots []string
+	}{
+		{apiv1.ThreadOrder_THREAD_ORDER_UNSPECIFIED, []string{oldRoot.Id, newRoot.Id}},
+		{apiv1.ThreadOrder_THREAD_ORDER_ACTIVITY, []string{oldRoot.Id, newRoot.Id}},
+		{apiv1.ThreadOrder_THREAD_ORDER_CREATED, []string{newRoot.Id, oldRoot.Id}},
+	} {
+		for offset, root := range test.roots {
+			response, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+				Order: test.order, RootAuthorFilter: apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER,
+				Page: &apiv1.PageRequest{Limit: 1, Offset: int32(offset)},
+			}))
+			require.NoError(t, err)
+			require.Len(t, response.Msg.Threads, 1)
+			require.Equal(t, root, response.Msg.Threads[0].Thread.ThreadRootEventId)
+			require.EqualValues(t, 2, response.Msg.Page.TotalCount)
+			require.Equal(t, offset == 0, response.Msg.Page.HasMore)
+		}
+	}
+	_, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{Order: 99}))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+}
+
 func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	t.Parallel()
 
@@ -1161,7 +1303,7 @@ func TestThreadServiceListFollowedThreadsUnreadOnly(t *testing.T) {
 		roots = append(roots, root.Id)
 	}
 	for _, rootID := range []string{roots[0], roots[2]} {
-		if _, err := env.core.SetThreadLastOpened(env.ctx, core.KindChannel, env.viewer.Id, room.Id, rootID); err != nil {
+		if _, err := env.core.ReadState().SetThreadLastOpened(env.ctx, core.KindChannel, env.viewer.Id, room.Id, rootID); err != nil {
 			t.Fatalf("SetThreadLastOpened: %v", err)
 		}
 	}
@@ -1283,6 +1425,21 @@ func TestThreadServiceListFollowedThreadsRequiresDMOptIn(t *testing.T) {
 	}
 	if got := thread.GetDirectMessageParticipantUserIds(); len(got) != 2 {
 		t.Fatalf("DM participant IDs = %v, want two participants", got)
+	}
+	for _, filter := range []apiv1.ThreadRootAuthorFilter{
+		apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER,
+		apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_OTHERS,
+	} {
+		response, err := env.threads.ListFollowedThreads(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+			IncludeDirectMessageThreads: true, RootAuthorFilter: filter,
+		}))
+		require.NoError(t, err)
+		if filter == apiv1.ThreadRootAuthorFilter_THREAD_ROOT_AUTHOR_FILTER_VIEWER {
+			require.Len(t, response.Msg.Threads, 1)
+			require.Equal(t, root.Id, response.Msg.Threads[0].Thread.ThreadRootEventId)
+		} else {
+			require.Empty(t, response.Msg.Threads)
+		}
 	}
 }
 

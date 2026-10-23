@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"hmans.de/chatto/internal/core"
 )
 
 func TestHandlerOptionsEstablishDEKRequestCache(t *testing.T) {

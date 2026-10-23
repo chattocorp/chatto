@@ -143,6 +143,12 @@ const categories = [
           'Room lifecycle, timeline, read-state, membership, direct-message, typing indicator, and moderation RPCs.'
       },
       {
+        name: 'RoomInvitationService',
+        slug: 'room-invitations',
+        title: 'Room Invitations',
+        description: 'Invitations to channel rooms.'
+      },
+      {
         name: 'ServerService',
         slug: 'server',
         title: 'Server',

@@ -2,7 +2,9 @@ import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/co
 import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
 import {
   AdminAssetCleanupHealth,
-  AdminDurableWorkerHealth
+  AdminDurableWorkerHealth,
+  AdminLiveKitConnectionState,
+  type AdminLiveKitStatus as AdminLiveKitStatusMessage
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
 
 export type AdminSystemInfo = {
@@ -17,6 +19,28 @@ export type AdminSystemInfo = {
   projectionsAvailable: boolean;
   assetCleanup: AdminAssetCleanupStatus;
   durableWorkers: AdminDurableWorkerStatus[];
+  livekit: AdminLiveKitStatus;
+};
+
+/**
+ * LiveKit voice and video call setup, as seen by the Chatto server that
+ * handled the request. Webhook times are local to that server and reset when
+ * it restarts.
+ */
+export type AdminLiveKitStatus = {
+  /** `unavailable` means the server did not report LiveKit diagnostics. */
+  connectionState:
+    'unavailable' | 'not_configured' | 'ok' | 'unreachable' | 'unauthorized' | 'error';
+  connectionError: string;
+  enabled: boolean;
+  configured: boolean;
+  url: string;
+  apiKey: string;
+  separateWebhookKey: boolean;
+  webhookUrl: string;
+  insecureUrl: boolean;
+  lastWebhookAt: Date | null;
+  lastRejectedWebhookAt: Date | null;
 };
 
 export type AdminDurableWorkerStatus = {
@@ -177,6 +201,41 @@ function durableWorkerHealth(
   }
 }
 
+function liveKitConnectionState(
+  state: AdminLiveKitConnectionState | undefined
+): AdminLiveKitStatus['connectionState'] {
+  switch (state) {
+    case AdminLiveKitConnectionState.NOT_CONFIGURED:
+      return 'not_configured';
+    case AdminLiveKitConnectionState.OK:
+      return 'ok';
+    case AdminLiveKitConnectionState.UNREACHABLE:
+      return 'unreachable';
+    case AdminLiveKitConnectionState.UNAUTHORIZED:
+      return 'unauthorized';
+    case AdminLiveKitConnectionState.ERROR:
+      return 'error';
+    default:
+      return 'unavailable';
+  }
+}
+
+function liveKitStatus(status: AdminLiveKitStatusMessage | undefined): AdminLiveKitStatus {
+  return {
+    connectionState: liveKitConnectionState(status?.connectionState),
+    connectionError: status?.connectionError ?? '',
+    enabled: status?.enabled ?? false,
+    configured: status?.configured ?? false,
+    url: status?.url ?? '',
+    apiKey: status?.apiKey ?? '',
+    separateWebhookKey: status?.separateWebhookKey ?? false,
+    webhookUrl: status?.webhookUrl ?? '',
+    insecureUrl: status?.insecureUrl ?? false,
+    lastWebhookAt: status?.lastWebhookAt?.toDate() ?? null,
+    lastRejectedWebhookAt: status?.lastRejectedWebhookAt?.toDate() ?? null
+  };
+}
+
 export async function getAdminSystemInfo(
   config: ConnectAPIConfig,
   options: { signal?: AbortSignal } = {}
@@ -299,6 +358,7 @@ export async function getAdminSystemInfo(
         bytes: Number(metric.bytes)
       }))
     })),
-    projectionsAvailable: response.projectionsAvailable ?? true
+    projectionsAvailable: response.projectionsAvailable ?? true,
+    livekit: liveKitStatus(response.livekit)
   };
 }

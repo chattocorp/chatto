@@ -406,6 +406,13 @@ describe('renderMarkdown', () => {
   });
 
   describe('code blocks', () => {
+    it.each(['```js\nconst x = 1;\n```', '    indented code'])(
+      'makes the code scroller keyboard focusable: %s',
+      async (source) => {
+        expect(await renderMarkdown(source)).toMatch(/<code[^>]* tabindex="0">/);
+      }
+    );
+
     it('renders fenced code blocks with lowlight classes', async () => {
       const html = await renderMarkdown('```js\nconst x = 1;\n```');
       expect(html).toContain('<pre class="hljs markdown-code" data-language="js"');
@@ -477,5 +484,83 @@ describe('renderMarkdown', () => {
       expect(html.match(/data-markdown-copy/g)).toHaveLength(1);
       expect(html).toContain('<code>inline</code>');
     });
+  });
+});
+
+describe('automatic links', () => {
+  it.each([
+    'path/www.example.com',
+    '@www.example.com',
+    'agents.md',
+    'readme.md',
+    'foo.py',
+    'example.com',
+    'app.example.io',
+    '//example.com',
+    'user@example.com'
+  ])('keeps %s as plain text', async (text) => {
+    expect(await renderMarkdown(text)).not.toContain('<a ');
+    expect(renderInlineMarkdown(text)).not.toContain('<a ');
+  });
+
+  it.each([
+    'https://example.com',
+    'http://example.com',
+    'mailto:user@example.com',
+    'www.example.com',
+    'WWW.example.dev/path?q=1'
+  ])('links %s', async (text) => {
+    expect(await renderMarkdown(text)).toContain('<a ');
+    expect(renderInlineMarkdown(text)).toContain('<a ');
+  });
+
+  it('keeps explicit Markdown links and safe angle autolinks', async () => {
+    const html = await renderMarkdown(
+      '[agents.md](https://example.com/agents.md) <https://example.com>'
+    );
+    expect(html).toContain('href="https://example.com/agents.md"');
+    expect(html).toContain('href="https://example.com"');
+  });
+});
+
+// Exercise the policy through real Markdown parsing, including explicit links.
+describe('message protocol allow list', () => {
+  it.each(['/', '/chat/chat.chatto.run/R8rLgzhPkYja7Gs', '/chat/example.com/room?q=1#message'])(
+    'keeps explicit links to %s',
+    async (href) => {
+      const source = `[link](${href})`;
+      expect(await renderMarkdown(source)).toContain(`href="${href}"`);
+      expect(renderInlineMarkdown(source)).toContain(`href="${href}"`);
+      expect(await renderMarkdown(href)).not.toContain('<a ');
+    }
+  );
+
+  it.each([
+    '//example.com/path',
+    'ftp://example.com/file',
+    'ftps://example.com/file',
+    'ssh://example.com',
+    'tel:+123456789',
+    'sms:+123456789',
+    'vscode://file/test',
+    'file:///etc/passwd',
+    'data:text/html,test',
+    'javascript:alert(1)',
+    'blob:https://example.com/id'
+  ])('keeps unsupported %s unlinked', async (url) => {
+    for (const source of [url, `<${url}>`, `[label](${url})`]) {
+      expect(await renderMarkdown(source)).not.toContain('<a ');
+      expect(renderInlineMarkdown(source)).not.toContain('<a ');
+    }
+  });
+  it('keeps allowed links and formatted unsupported labels in mixed text', async () => {
+    const html = await renderMarkdown(
+      '[**file**](ftp://example.com/file) [web](HTTPS://example.com) [mail](mailto:foo@example.com?subject=Hello)'
+    );
+    expect(html).toContain('<strong>file</strong>');
+    expect(html).not.toContain('href="#"');
+    expect(html.match(/<a /g)).toHaveLength(2);
+    expect(html).toContain('href="HTTPS://example.com"');
+    expect(html).toContain('href="mailto:foo@example.com?subject=Hello"');
   });
 });

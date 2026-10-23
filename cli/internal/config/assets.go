@@ -6,8 +6,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/c2h5oh/datasize"
 )
 
 const defaultEVTReadCacheMaxBytes ByteSizeLimit = 256 << 20
@@ -124,10 +122,10 @@ func validateS3PathPrefix(prefix string) error {
 
 // AssetsConfig contains settings for asset storage (attachments, thumbnails, etc.).
 type AssetsConfig struct {
-	SigningSecret  string            `toml:"signing_secret" env:"CHATTO_CORE_ASSETS_SIGNING_SECRET" comment:"Secret for signing asset URLs. NEVER SHARE THIS!\nIf it leaks, regenerate it. Existing signed URLs will become invalid but will be regenerated on next request."`
-	MaxUploadSize  datasize.ByteSize `toml:"max_upload_size" env:"CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE" comment:"Maximum size for uploaded files. Supports human-readable formats like '25 MB', '25MB', '25MiB'."`
-	StorageBackend StorageBackend    `toml:"storage_backend" env:"CHATTO_CORE_ASSETS_STORAGE_BACKEND" comment:"Where to store new uploads: 'nats' (default) or 's3'. Existing assets are served from their original location regardless of this setting."`
-	S3             S3Config          `toml:"s3,commented" comment:"S3-compatible storage configuration. Only used when storage_backend = 's3'."`
+	SigningSecret  string         `toml:"signing_secret" env:"CHATTO_CORE_ASSETS_SIGNING_SECRET" comment:"Secret for signing asset URLs. NEVER SHARE THIS!\nIf it leaks, regenerate it. Existing signed URLs will become invalid but will be regenerated on next request."`
+	MaxUploadSize  ByteSize       `toml:"max_upload_size" env:"CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE" comment:"Maximum size for all uploaded files, including images, GIFs, and videos. Supports human-readable formats like '25 MB', '25MB', '25MiB'."`
+	StorageBackend StorageBackend `toml:"storage_backend" env:"CHATTO_CORE_ASSETS_STORAGE_BACKEND" comment:"Where to store new uploads: 'nats' (default) or 's3'. Existing assets are served from their original location regardless of this setting."`
+	S3             S3Config       `toml:"s3,commented" comment:"S3-compatible storage configuration. Only used when storage_backend = 's3'."`
 }
 
 // CoreConfig contains settings for the Chatto core service.

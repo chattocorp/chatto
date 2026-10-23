@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",
-          "badge": "Merke",
+          "badge": "Prikk for ulest innhold",
           "badge_hint": "Legger bare til en nøytral prikk for ulest innhold. Det opprettes ikke et varsel, spilles ikke av lyd og sendes ikke et push-varsel.",
-          "notification": "Varsel",
+          "notification": "Varsel i appen",
           "push_notification": "Push-varsel"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
           "all": "Meldinger som bruker @all i et rom du er medlem av.",
           "followed_thread": "Nye svar i tråder du følger.",
-          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
+          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine.",
+          "room_invitation": "Invitasjoner til å bli med i rom."
         }
       }
     },

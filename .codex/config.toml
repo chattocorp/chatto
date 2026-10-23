@@ -7,6 +7,17 @@ args = [
   "--isolated",
 ]
 
+[mcp_servers.playwright]
+command = "npx"
+args = [
+  "-y",
+  "@playwright/mcp@latest",
+  "--headless",
+  "--isolated",
+  "--output-dir",
+  ".context/playwright-mcp",
+]
+
 [mcp_servers.svelte]
 url = "https://mcp.svelte.dev/mcp"
 

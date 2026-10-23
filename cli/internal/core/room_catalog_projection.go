@@ -3,9 +3,9 @@ package core
 import (
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // RoomCatalogProjection holds per-room metadata derived from
@@ -33,13 +33,14 @@ type RoomNameClaimSnapshot struct {
 // directly — callers go through Get() which clones into a *evtv1.Room
 // for type symmetry with the rest of the codebase.
 type roomCatalogEntry struct {
-	name            string
-	description     string
-	kind            evtv1.RoomKind
-	archived        bool
-	universal       bool
-	slowModeSeconds uint32
-	threadingMode   evtv1.RoomThreadingMode
+	name                  string
+	description           string
+	kind                  evtv1.RoomKind
+	archived              bool
+	universal             bool
+	slowModeSeconds       uint32
+	threadSlowModeSeconds *uint32
+	threadingMode         evtv1.RoomThreadingMode
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -102,6 +103,7 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_RoomSlowModeChanged:
 		if entry := p.rooms[e.RoomSlowModeChanged.GetRoomId()]; entry != nil {
 			entry.slowModeSeconds = e.RoomSlowModeChanged.GetSlowModeSeconds()
+			entry.threadSlowModeSeconds = e.RoomSlowModeChanged.ThreadSlowModeSeconds
 		}
 	case *evtv1.Event_RoomThreadingModeChanged:
 		if entry := p.rooms[e.RoomThreadingModeChanged.GetRoomId()]; entry != nil {
@@ -209,14 +211,15 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) Ro
 // assignment lives in RoomGroupProjection.
 func entryToRoom(id string, entry *roomCatalogEntry) *evtv1.Room {
 	r := &evtv1.Room{
-		Id:              id,
-		Name:            entry.name,
-		Description:     entry.description,
-		Archived:        entry.archived,
-		Kind:            entry.kind,
-		Universal:       entry.universal,
-		SlowModeSeconds: entry.slowModeSeconds,
-		ThreadingMode:   normalizedRoomThreadingMode(entry.kind, entry.threadingMode),
+		Id:                    id,
+		Name:                  entry.name,
+		Description:           entry.description,
+		Archived:              entry.archived,
+		Kind:                  entry.kind,
+		Universal:             entry.universal,
+		SlowModeSeconds:       entry.slowModeSeconds,
+		ThreadSlowModeSeconds: entry.threadSlowModeSeconds,
+		ThreadingMode:         normalizedRoomThreadingMode(entry.kind, entry.threadingMode),
 	}
 	// Defensive clone — the proto contains a Mutex internally that
 	// vet would flag if we ever returned the same pointer twice and

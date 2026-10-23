@@ -40,12 +40,15 @@ message Room {
   string group_id = 6;
   // True when a channel grants effective membership to eligible server members.
   bool universal = 7;
-  // Minimum number of seconds a non-exempt member must wait between message
+  // Minimum number of seconds a non-exempt member must wait between root message
   // posts. Channel rooms only; zero means slow mode is disabled.
   uint32 slow_mode_seconds = 8;
-  // Threading policy for this channel room. Direct-message rooms report
-  // UNSPECIFIED because they do not support threads.
+  // Effective threading policy for this room. Direct-message rooms always
+  // report ENABLED.
   RoomThreadingMode threading_mode = 9;
+  // Per-user interval within each thread, including its root. Zero disables
+  // the interval. Absent on servers without independent thread slow mode.
+  optional uint32 thread_slow_mode_seconds = 10;
 }
 
 // Lightweight room reference for cross-resource rows.
@@ -103,18 +106,21 @@ message UpdateRoomRequest {
   // New universal membership state, when changing it. Direct-message rooms
   // cannot be universal.
   optional bool universal = 4;
-  // New per-user posting interval in seconds. Zero disables slow mode. The
+  // New per-user root posting interval in seconds. Zero disables slow mode. The
   // maximum supported interval is six hours. Direct-message rooms cannot use
   // slow mode.
   optional uint32 slow_mode_seconds = 5 [(buf.validate.field).uint32.lte = 21600];
   // New threading policy. Direct-message rooms cannot set this field, and an
   // explicitly supplied UNSPECIFIED or unknown value is rejected.
   optional RoomThreadingMode threading_mode = 6;
-  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode.
+  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
   // Omit to infer populated fields; * selects all editable fields. An explicit
   // empty mask is invalid. Unselected values are ignored. Selected absent values
   // reset the field to its default, subject to field validation.
   google.protobuf.FieldMask update_mask = 7;
+  // Per-user interval within each thread. The root starts its author's timer.
+  // Zero disables it. Updating this field does not change the root interval.
+  optional uint32 thread_slow_mode_seconds = 8 [(buf.validate.field).uint32.lte = 21600];
 }
 
 // Result of updating a room.
@@ -175,6 +181,9 @@ message JoinRoomGroupResponse {
 // existing one. A human caller can fetch an existing DM without message.post.
 // A valid request from a bot receives PERMISSION_DENIED, including when the
 // room already exists.
+// New DMs have at most two distinct participants, including the caller.
+// Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
+// for new group conversations. Existing group DMs remain accessible.
 message StartDMRequest {
   // Other participants to include in the direct-message room. The current user
   // is always included by the server. An empty list creates or fetches the
@@ -443,6 +452,9 @@ service RoomService {
   // participant set, or fetches its existing DM. message.post is required
   // only when the DM must be created. A valid request from a bot receives
   // PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
+  // New DMs support the caller and at most one other user. New group DMs
+  // receive INVALID_ARGUMENT; use a channel room instead. Existing group
+  // DMs can still be fetched.
   rpc StartDM(StartDMRequest) returns (StartDMResponse);
   // Leaves the room as the current user. Direct-message and universal rooms
   // cannot be left.
@@ -484,11 +496,11 @@ service RoomService {
   // pins from threads that the caller cannot read. Direct-message rooms do not
   // support pins.
   rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse);
-  // Pins a current message. The caller must have room.manage and must be able
+  // Pins a current message. The caller must have message.pin and must be able
   // to read the message. Repeating an existing pin is idempotent. Direct-message
   // rooms are rejected.
   rpc CreatePinnedMessage(CreatePinnedMessageRequest) returns (CreatePinnedMessageResponse);
-  // Removes a current pin. The caller must have room.manage. Removing a
+  // Removes a current pin. The caller must have message.pin. Removing a
   // missing pin is idempotent. Direct-message rooms are rejected.
   rpc DeletePinnedMessage(DeletePinnedMessageRequest) returns (DeletePinnedMessageResponse);
   // Refreshes the current user's live-only typing indicator for a room or

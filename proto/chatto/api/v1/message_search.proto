@@ -6,6 +6,7 @@ import "buf/validate/validate.proto";
 import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "chatto/api/v1/rooms.proto";
+import "chatto/api/v1/threads.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -19,6 +20,9 @@ enum MessageSearchOrder {
   MESSAGE_SEARCH_ORDER_NEWEST = 2;
   // Return threads with the most recent activity first. Requires thread grouping.
   MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY = 3;
+  // Newest root-message creation first, with unknown dates last. Requires thread
+  // grouping. Older servers can reject this order.
+  MESSAGE_SEARCH_ORDER_THREAD_CREATED = 4;
 }
 
 // Candidate scope, intersected with the caller's current access and query filters.
@@ -100,6 +104,10 @@ message SearchMessagesRequest {
   MessageSearchScope scope = 10 [(buf.validate.field).enum.defined_only = true];
   // Result grouping. The server deduplicates threads before pagination.
   MessageSearchGroupBy group_by = 11 [(buf.validate.field).enum.defined_only = true];
+  // Select root authors within FOLLOWED_THREADS before search and pagination.
+  // Other scopes require UNSPECIFIED. This does not restrict reply authors;
+  // author_id and from: still select the authors of matching messages.
+  ThreadRootAuthorFilter root_author_filter = 12 [(buf.validate.field).enum.defined_only = true];
 }
 
 // One current, authorized match. With thread grouping, each result represents

@@ -25,7 +25,22 @@
   const orderedListHtml = renderMarkdown(
     `Short list\n\n${shortOrderedList}\n\nLong list\n\n${longOrderedList}`
   );
-  const codeHtml = renderMarkdown('```js\nconst answer = 42;\n```\n\n    Indented code');
+  const codeHtml = renderMarkdown(
+    '```js\nconst answer = 42;\n\nconsole.log("A long line of code stays inside its block and scrolls horizontally", answer);\n```\n\n    Indented code'
+  );
+  const quoteHtml = renderMarkdown(`Text *marked with stars* and _marked with underscores_.
+
+> Quoted text *marked with stars* and _marked with underscores_.
+>
+> Second paragraph with **strong**, __also strong__, \`inline code\`, and a [link](https://example.com).
+>
+> > Nested quote with *emphasis* and **strong** text.
+>
+> - Bullet with _emphasis_
+> - Bullet with **strong** text
+>
+> 1. Ordered item with *emphasis*
+> 2. Ordered item with __strong__ text`);
   const footnoteHtml =
     renderMarkdown(`The release is ready[^checks]. Read the deployment note[^deploy]. The checks are complete[^checks].
 
@@ -34,6 +49,16 @@
 
     Keep the previous backup until the final check is complete.`);
 </script>
+
+<Story name="Blockquote emphasis" asChild>
+  <div class="w-xl max-w-full rounded-md border border-border bg-surface p-3">
+    <div class="prose max-w-none min-w-0">
+      {#await quoteHtml then html}
+        <MarkdownHtml {html} />
+      {/await}
+    </div>
+  </div>
+</Story>
 
 <Story name="GFM table" asChild>
   <div class="w-80 rounded-md border border-border bg-surface p-3">

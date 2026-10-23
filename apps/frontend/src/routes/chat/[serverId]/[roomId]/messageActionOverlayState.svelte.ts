@@ -24,6 +24,8 @@ export type MessageActionOverlayContext = {
   linkUrl?: string | null;
   /** URL of the image attachment that opened the context menu. */
   imageUrl?: string | null;
+  /** Exact text selected within this message body when the overlay opened. */
+  selectedText?: string | null;
   /** Selected message text to quote when the user replies from the overlay. */
   replyQuote?: QuoteInsertionContent | null;
 };

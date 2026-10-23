@@ -33,6 +33,10 @@ The runtime is process-local but supports multiple Chatto replicas connected to
 the same NATS account. Cross-replica correctness comes from JetStream and KV
 atomicity, not process-local locks or singleton goroutines.
 
+Core domain operations use direct Go calls under
+[ADR-115](../adr/ADR-115-in-process-domain-services.md). The runtime inventory
+records current ownership, including helpers that still depend on `ChattoCore`.
+
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md),
 [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md), and

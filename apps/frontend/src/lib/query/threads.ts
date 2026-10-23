@@ -1,6 +1,10 @@
 import type { InfiniteData } from '@tanstack/svelte-query';
 import type { QueryKey } from '@tanstack/svelte-query';
-import type { FollowedThread, FollowedThreadsPage } from '@chatto/client/api/threads';
+import type {
+  FollowedThread,
+  FollowedThreadsPage,
+  ThreadRootAuthorFilter
+} from '@chatto/client/api/threads';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import { serverSessionQueryRoot } from './keys';
 import { queryClient } from './queryClient';
@@ -36,9 +40,19 @@ export const threadQueryKeys = {
   followed(
     serverId: string,
     connection: ThreadQueryConnection,
-    filter: { query?: string; unreadOnly?: boolean } = {}
+    filter: {
+      query?: string;
+      unreadOnly?: boolean;
+      rootAuthorFilter?: ThreadRootAuthorFilter;
+      order?: 'activity' | 'created';
+    } = {}
   ) {
-    const base = [...threadRoot(serverId, connection), 'followed'] as const;
+    const root = [...threadRoot(serverId, connection), 'followed'] as const;
+    const authorBase = filter.rootAuthorFilter
+      ? ([...root, 'root-author', filter.rootAuthorFilter] as const)
+      : root;
+    const base =
+      filter.order === 'created' ? ([...authorBase, 'order', 'created'] as const) : authorBase;
     if (filter.query) return [...base, 'search', filter.query] as const;
     if (filter.unreadOnly) return [...base, 'unread'] as const;
     return base;

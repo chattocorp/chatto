@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `apps/frontend/`
 
-Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Lingua JSON i18n,
+Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Translatto JSON i18n,
 generated protobuf clients, Vitest browser tests, Playwright end-to-end tests,
 and Storybook.
 
@@ -11,6 +11,13 @@ Svelte documentation and code checks. It links to the shared Svelte patterns.
 The rules below add frontend-specific requirements.
 
 Do not generate playground links for code written into this repository.
+
+## Frontend Review
+
+Use [chatto-frontend-review](../../.agents/skills/chatto-frontend-review/SKILL.md)
+for every review of frontend code, including self-review before completing a
+change. It owns the review rules for side effects, reactivity, and lifecycle
+behavior. Apply those rules when choosing an implementation too.
 
 ## Architecture
 
@@ -65,9 +72,6 @@ Do not generate playground links for code written into this repository.
   Introduce custom Rolldown chunk groups only for a measured need, and verify
   that they do not pull lazy dependencies into representative initial route
   graphs; Rolldown groups matched modules' dependencies recursively by default.
-- When a frontend change alters imports of interaction components guarded by
-  the production bundle check, run `mise build-frontend`; lint and component
-  tests do not exercise the production route graph.
 - When a host can improve a browser operation, expose a narrow optional
   capability through a focused `$lib/desktop` adapter and feature-detect that
   capability at the point of use. Keep the browser implementation as the
@@ -121,9 +125,12 @@ Do not generate playground links for code written into this repository.
 
 - Use the per-server compatibility state in `@chatto/client/server/compatibility` for
   version-skew warnings and the supported-version check. The client has one
-  `MINIMUM_SUPPORTED_SERVER_VERSION` and does not gate individual features by
-  server version. When the client needs a newer server feature, raise the
-  minimum instead of adding a per-feature gate (FDR-031). Do not conflate
+  derived `MINIMUM_SUPPORTED_SERVER_VERSION` for full feature support and a
+  `MINIMUM_CONNECTABLE_SERVER_VERSION` for connection eligibility. Versions
+  between them and unknown custom versions may connect with a warning. The
+  origin bypasses version checks. Record optional feature requirements in
+  `SERVER_FEATURE_REQUIREMENTS` and explain known limitations beside the feature.
+  Do not raise the connection floor for an optional feature (FDR-031). Do not conflate
   version support with enabled server features or viewer permissions.
 - Use the app's connection surface from
   `@chatto/client/server/serverConnection` for Connect base URLs,
@@ -166,6 +173,8 @@ Do not generate playground links for code written into this repository.
 - Read [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before changing visible UI. It is
   the canonical guide for choosing components, semantic utilities, tokens, and
   Storybook coverage.
+- Follow [Action labels](DESIGN_SYSTEM.md#action-labels) when adding or changing
+  actions in menus, action sheets, or buttons.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
 - Keep `src/app.css` scoped to Tailwind's `source('./')` detection root. Production
   CSS must not scan frontend E2E tests, scripts, or build configuration outside
@@ -263,14 +272,20 @@ Do not generate playground links for code written into this repository.
   correct in that locale, add the key and locale to
   `src/lib/i18n/identicalTranslations.ts`.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
-  JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
+  JSON runtime in `packages/translatto` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
-  English source is bundled as the synchronous fallback. SvelteKit layout
-  loads own the coarse non-base catalog boundaries: the root layout loads the
-  public shell and `/chat` loads the complete selected locale. Catalog loading
-  must not block a global navigation hook. Production builds coalesce the
-  section imports into at most a public and chat payload per non-base locale;
-  keep the bundle check enforcing that request boundary. Keys ending in
+  English source for shared sections is bundled as the synchronous fallback.
+  Management-only sections (`admin`, `rbac`, and `server_settings`) load on
+  entry to `/chat/[serverId]/manage/...`, including their English fallback.
+  Keep messages used by chat in shared sections; permission descriptions used
+  by bot profiles belong in `permissions`, not `rbac`.
+  SvelteKit layout loads own the public, chat, and management catalog groups.
+  Each layout loads its own group; do not track child routes in the chat load.
+  The completed-navigation handler deactivates management catalogs on exit.
+  Catalog loading must not block a global navigation hook. Production builds
+  keep each locale's management payload separate from public and chat payloads.
+  Keep the groups in `catalogSections.js` aligned with the literal Vite globs.
+  Keys ending in
   `_count` or `.count` contain CLDR plural objects and receive `{ count }`. Keys
   ending in `_html` or `.html` are only rendered through the reviewed sanitizing
   HTML boundary.
@@ -382,7 +397,9 @@ Do not generate playground links for code written into this repository.
 
 ## Testing
 
-- Review visible frontend changes in a browser using Chrome DevTools MCP.
+- Review visible frontend changes with an available browser tool suited to
+  the task, such as Playwright MCP or Chrome DevTools MCP. Also run the
+  relevant automated tests.
 - `mise dev` creates development bootstrap users. Sign in as `alice` (server
   owner) or `bob` with the password `foobar123`. `cli/chatto.toml` defines
   these users. Use `mise dev-full` for features that need email, LiveKit,
@@ -411,6 +428,10 @@ Do not generate playground links for code written into this repository.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,
   DOM/CSS/localStorage/drag behavior, context, and `$effect` runtime behavior
   need browser/component tests.
+- Do not give one call-order mock (`mockResolvedValueOnce` chains) to work
+  that runs concurrently, such as registration on several servers. The order
+  can change between runs. Give each caller its own mock, or select the result
+  from the call arguments.
 - Keep debounce assertions independent of browser-suite scheduling: use fake
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.

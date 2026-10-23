@@ -186,7 +186,7 @@ test.describe('Room message notifications', () => {
     await expect(notificationBadge).toHaveText('1');
 
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('posted a new message.');
+    const notification = notificationsPage.getNotificationBySummary('posted a new message');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
   });
 });
@@ -328,7 +328,7 @@ test.describe('Notification Bell & Page', () => {
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(1, TIMEOUTS.REALTIME_EVENT);
     await expect(
-      notificationsPage.getNotificationBySummary('has sent you a direct message.')
+      notificationsPage.getNotificationBySummary('sent you a direct message')
     ).toBeVisible();
   });
 });
@@ -353,7 +353,7 @@ test.describe('Notification Page Display', () => {
     await notificationsPage.goto();
 
     // Verify notification appears with correct content
-    const notification = notificationsPage.getNotificationBySummary('mentioned you.');
+    const notification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Verify the room location is shown.
@@ -394,7 +394,7 @@ test.describe('Notification Page Display', () => {
 
     // Verify notification appears with correct content
     const notification = notificationsPage.getNotificationBySummary(
-      'replied in a thread you follow.'
+      'replied in a thread you follow'
     );
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
@@ -503,7 +503,7 @@ test.describe('Notification Page Display', () => {
       }
       await page.goto(routes.settings);
 
-      const firstActor = await withServerUser(
+      await withServerUser(
         browser!,
         serverURL,
         async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
@@ -515,7 +515,7 @@ test.describe('Notification Page Display', () => {
           return user;
         }
       );
-      const secondActor = await withServerUser(
+      await withServerUser(
         browser!,
         serverURL,
         async ({ user, page: actorPage, chatPage: actorChat, roomPage: actorRoom }) => {
@@ -546,11 +546,10 @@ test.describe('Notification Page Display', () => {
       await expect(notification).not.toHaveClass(/bg-attention\/5/);
       await expect(notification).toContainText('👍');
       await expect(notification).toContainText('❤️');
-      await expect(notification).toContainText('to your message in #general.');
+      await expect(notification).toContainText('and others reacted with');
+      await expect(notification).toContainText('to your message');
+      await expect(notification).toContainText('#general');
       await expect(notification).not.toContainText(messageText);
-      await expect(notification.getByTestId('notification-actor-stack')).toBeVisible();
-      await expect(notification.getByRole('img', { name: firstActor.login })).toBeVisible();
-      await expect(notification.getByRole('img', { name: secondActor.login })).toBeVisible();
       await expect(serverNotificationBadge(page)).toHaveClass(/bg-text/);
       await expect(notificationsPage.bellIndicator).toHaveClass(/bg-text/);
       await page.reload();
@@ -602,7 +601,7 @@ test.describe('Notification dismissal', () => {
 
     // User A: Navigate to notifications and dismiss the group.
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('mentioned you.');
+    const notification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     await notificationsPage.dismiss(notification);
@@ -655,7 +654,7 @@ test.describe('Notification dismissal', () => {
     // Handle the mention, then return while the newer reply remains unread.
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
-    const mention = notificationsPage.getNotificationBySummary('mentioned you.');
+    const mention = notificationsPage.getNotificationBySummary('mentioned you');
     const markedRead = page.waitForResponse(
       (response) =>
         response.url().includes('NotificationService/MarkNotificationRead') && response.ok()
@@ -694,7 +693,7 @@ test.describe('Notification dismissal', () => {
 
     // An explicit row deletion can still remove unread activity.
     await notificationsPage.goto();
-    await notificationsPage.dismiss(notificationsPage.getNotificationBySummary('mentioned you.'));
+    await notificationsPage.dismiss(notificationsPage.getNotificationBySummary('mentioned you'));
 
     // Navigate back to chat and verify bell indicator is gone
     await chatPage.goto();
@@ -720,7 +719,7 @@ test.describe('Navigation from Notifications', () => {
 
     // User A: Click notification
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('mentioned you.');
+    const notification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await notificationsPage.clickNotification(notification);
 
@@ -752,7 +751,7 @@ test.describe('Navigation from Notifications', () => {
     // User A: Click notification
     await notificationsPage.goto();
     const notification = notificationsPage.getNotificationBySummary(
-      'replied in a thread you follow.'
+      'replied in a thread you follow'
     );
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(notification).not.toContainText(rootMessage);
@@ -784,7 +783,7 @@ test.describe('Navigation from Notifications', () => {
 
     // User A: Click notification
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('mentioned you.');
+    const notification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(notification.locator(':scope > button').first()).not.toHaveClass(/opacity-60/);
     await notificationsPage.clickNotification(notification);
@@ -796,7 +795,7 @@ test.describe('Navigation from Notifications', () => {
 
     // Opening handles the unread attention state without dismissing the item.
     await notificationsPage.gotoDirectly();
-    const readNotification = notificationsPage.getNotificationBySummary('mentioned you.');
+    const readNotification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(readNotification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(readNotification).toHaveAttribute('data-notification-state', 'read');
   });
@@ -833,7 +832,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // Navigate to notifications page in second tab - should see the notification
       await notificationsPage1b.goto();
-      await notificationsPage1b.expectNotificationWithSummary('mentioned you.');
+      await notificationsPage1b.expectNotificationWithSummary('mentioned you');
     });
   });
 
@@ -862,7 +861,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // User A: Dismiss the notification in the first tab.
       await notificationsPage.goto();
-      const notification = notificationsPage.getNotificationBySummary('mentioned you.');
+      const notification = notificationsPage.getNotificationBySummary('mentioned you');
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.dismiss(notification);
       await notificationsPage.expectUnreadEmpty();
@@ -899,7 +898,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // User A (tab 2): Go to notifications page and verify notification exists
       await notificationsPage1b.gotoDirectly();
-      const notification1b = notificationsPage1b.getNotificationBySummary('mentioned you.');
+      const notification1b = notificationsPage1b.getNotificationBySummary('mentioned you');
       await expect(notification1b).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
       // User A (tab 1): Enter the general room (marks the mention read)
@@ -995,7 +994,7 @@ test.describe('Cross-Tab Sync', () => {
       // room. Pre-fix this would only sync the bell across tabs; the
       // room-level badge would linger on Tab 2 and re-appear after reload.
       await notificationsPage.goto();
-      const notification = notificationsPage.getNotificationBySummary('mentioned you.');
+      const notification = notificationsPage.getNotificationBySummary('mentioned you');
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.dismiss(notification);
       await notificationsPage.expectUnreadEmpty();
@@ -1041,7 +1040,7 @@ test.describe('Real-time Notification Updates', () => {
     await postMentionFromServerUser(browser!, serverURL, userA, 'real-time test');
 
     // User A: Notification should appear without refresh
-    const notification = notificationsPage.getNotificationBySummary('mentioned you.');
+    const notification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // The empty state should be gone and the notification row should be visible.
@@ -1183,7 +1182,7 @@ test.describe('Page Title Notification Count', () => {
 
     // Dismiss the unread notification explicitly.
     await notificationsPage.goto();
-    await notificationsPage.dismiss(notificationsPage.getNotificationBySummary('mentioned you.'));
+    await notificationsPage.dismiss(notificationsPage.getNotificationBySummary('mentioned you'));
 
     // Title should no longer have count prefix
     await expect(page).toHaveTitle(/^(?!\(\d+\)).*$/);
@@ -1235,7 +1234,7 @@ test.describe('Page Title Notification Count', () => {
 
     // Dismiss one notification.
     await notificationsPage.goto();
-    const mentionNotification = notificationsPage.getNotificationBySummary('mentioned you.');
+    const mentionNotification = notificationsPage.getNotificationBySummary('mentioned you');
     await expect(mentionNotification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await notificationsPage.dismiss(mentionNotification);
 
@@ -1244,7 +1243,7 @@ test.describe('Page Title Notification Count', () => {
 
     // Dismiss the remaining notification.
     const replyNotification = notificationsPage.getNotificationBySummary(
-      'replied in a thread you follow.'
+      'replied in a thread you follow'
     );
     await notificationsPage.dismiss(replyNotification);
 
@@ -1384,7 +1383,7 @@ test.describe('Room Reply Notifications', () => {
 
     // Verify notification page shows reply notification with correct content
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('replied to your message.');
+    const notification = notificationsPage.getNotificationBySummary('replied to your message');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await notificationsPage.expectNotificationWithLocation(notification, 'general');
   });
@@ -1410,7 +1409,7 @@ test.describe('Room Reply Notifications', () => {
 
     // User A: Click the reply notification
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('replied to your message.');
+    const notification = notificationsPage.getNotificationBySummary('replied to your message');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await notificationsPage.clickNotification(notification);
 

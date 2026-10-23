@@ -10,7 +10,17 @@ vi.mock(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: {
+    isOriginServer: () => true,
     getStore: () => ({
+      accountId: mocks.currentUserId,
+      projection: {
+        rooms: new Map(
+          mocks.roomsStore.rooms.map((room) => [
+            room.id,
+            { room: { kind: room.type }, memberUserIds: room.members.map((user) => user.id) }
+          ])
+        )
+      },
       realtimeSync: mocks.realtimeSync,
       navigation: {
         get rooms() {
@@ -92,6 +102,7 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
     path
       .replace('[serverId]', params?.serverId ?? '')
+      .replace('[userId]', params?.userId ?? '')
       .replace('[roomId]', params?.roomId ?? '')
       .replace('[threadId]', params?.threadId ?? '')
       .replace('[messageId]', params?.messageId ?? '')
@@ -105,6 +116,8 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBotOwnerUserId: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: () => null,
   getLiveTimezone: () => null,
+  getLiveDisplayName: (_userId: string, fallback: string) => fallback,
+  getLiveLogin: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
@@ -186,6 +199,46 @@ beforeEach(() => {
 });
 
 describe('room route layout access handling', () => {
+  it('redirects a DM message link with query and fragment to its partner page', async () => {
+    mocks.roomsStore.rooms = [
+      room({
+        type: RoomKind.DM,
+        members: [
+          {
+            id: 'viewer-1',
+            login: 'viewer',
+            displayName: 'Viewer',
+            avatarUrl: null,
+            presenceStatus: PresenceStatus.ONLINE
+          },
+          {
+            id: 'deleted-peer',
+            presenceStatus: PresenceStatus.OFFLINE,
+            login: '',
+            displayName: '[deleted user]',
+            avatarUrl: null,
+            deleted: true
+          }
+        ]
+      })
+    ];
+    mocks.page.params = {
+      serverId: '-',
+      roomId: 'room-1',
+      threadId: 'thread',
+      messageId: 'message'
+    };
+    mocks.page.url = new URL(
+      'https://chat.example.test/chat/-/room-1/thread/m/message?from=bookmark#fragment'
+    );
+    renderLayout();
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledWith(
+        '/chat/-/user/deleted-peer/thread/m/message?from=bookmark#fragment',
+        { replaceState: true }
+      )
+    );
+  });
   it('keeps the room instance mounted while the snapshot viewer is unavailable', async () => {
     const { container } = renderLayout();
     const roomElement = q(container, '[data-testid="room-layout-room"]');
@@ -315,7 +368,7 @@ describe('room route layout access handling', () => {
     await vi.waitFor(() => {
       expect(q(container, '[aria-label="Room members"]')?.textContent).toContain('0 members');
     });
-    await expect.element(q(container, 'button')).toHaveTextContent('Join Room');
+    await expect.element(q(container, 'button')).toHaveTextContent('Join room');
   });
 
   it('clears the pending room preview after a best-effort miss', async () => {
@@ -333,7 +386,7 @@ describe('room route layout access handling', () => {
     expect(q(container, '[aria-label="Room members"] .skeleton')).toBeNull();
     resolvePreview(null);
     await vi.waitFor(() => expect(q(container, '[aria-label="Room members"]')).toBeNull());
-    await expect.element(q(container, 'button')).toHaveTextContent('Join Room');
+    await expect.element(q(container, 'button')).toHaveTextContent('Join room');
   });
 
   it('joins a nonmember room inline and waits for projected membership without changing URLs', async () => {

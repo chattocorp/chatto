@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/lease"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/lease"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/events"
 )
 
 type fakeLiveKitParticipantLister struct {
@@ -896,8 +896,8 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 	directoryProjection := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directoryProjection)
 	startTestProjector(t, directoryProjector)
-	core := &ChattoCore{
-		roomModel: newTestRoomModel(t,
+	model := &RoomMembershipModel{
+		rooms: newTestRoomModel(t,
 			directoryProjection,
 			directoryProjector,
 			nil,
@@ -909,10 +909,10 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 			nil,
 			nil,
 		),
-		callModel: &CallModel{},
+		calls: &CallModel{},
 	}
 
-	if err := core.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
+	if err := model.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
 		t.Fatal("waitForRoomLeaveTail() error = nil, want call projection readiness error")
 	}
 }
@@ -1518,7 +1518,7 @@ func TestCallState_RemoveMemberRemovesOnlyTargetFromCall(t *testing.T) {
 	recorder := &recordingLiveKitParticipantClient{}
 	core.callModel.livekit = recorder
 
-	removed, err := core.RemoveMember(ctx, manager.Id, KindChannel, room.Id, target.Id)
+	removed, err := core.roomMemberships.RemoveMember(ctx, manager.Id, KindChannel, room.Id, target.Id)
 	if err != nil {
 		t.Fatalf("RemoveMember: %v", err)
 	}
@@ -1566,7 +1566,7 @@ func TestCallState_BanMemberRemovesTargetFromCall(t *testing.T) {
 	recorder := &recordingLiveKitParticipantClient{}
 	core.callModel.livekit = recorder
 
-	if _, err := core.BanMember(ctx, moderator.Id, KindChannel, room.Id, target.Id, "moderation test", nil); err != nil {
+	if _, err := core.roomMemberships.BanMember(ctx, moderator.Id, KindChannel, room.Id, target.Id, "moderation test", nil); err != nil {
 		t.Fatalf("BanMember: %v", err)
 	}
 
@@ -1687,15 +1687,28 @@ func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *te
 	}
 
 	core.callModel.callKeys = workingKeys
-	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
-	if err != nil {
-		t.Fatalf("call-key cleanup consumer: %v", err)
-	}
-	if info.NumPending+uint64(info.NumAckPending) == 0 {
-		t.Fatalf("call-key cleanup consumer = %+v; want durable retry work", info)
-	}
+	waitForCallKeyCleanupWork(t, ctx, core)
 	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || !exists {
 		t.Fatalf("CallKeyExists before durable retry = %v, %v; want true, nil", exists, err)
+	}
+}
+
+// waitForCallKeyCleanupWork waits until the durable call-key cleanup consumer
+// reports pending or unacknowledged work. nats-server updates a consumer's
+// pending count asynchronously after it acknowledges a publish, so an
+// immediate Info call can still report zero.
+func waitForCallKeyCleanupWork(t *testing.T, ctx context.Context, core *ChattoCore) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		info, err := core.callModel.keyCleanupConsumer.Info(ctx)
+		if err == nil && info.NumPending+uint64(info.NumAckPending) > 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("call-key cleanup consumer = %+v, %v; want pending work", info, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -1726,10 +1739,7 @@ func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
 	if exists, err := workingKeys.CallKeyExists(ctx, keyRef); err != nil || !exists {
 		t.Fatalf("CallKeyExists after replica failure = %v, %v; want true, nil", exists, err)
 	}
-	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
-	if err != nil || info.NumPending == 0 {
-		t.Fatalf("call-key cleanup queue before worker = %+v, %v; want pending work", info, err)
-	}
+	waitForCallKeyCleanupWork(t, ctx, core)
 
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
@@ -1810,13 +1820,7 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 	}
 
 	core.callModel.callKeys = workingKeys
-	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
-	if err != nil {
-		t.Fatalf("call-key cleanup consumer: %v", err)
-	}
-	if info.NumPending+uint64(info.NumAckPending) == 0 {
-		t.Fatalf("call-key cleanup consumer = %+v; want durable retry work", info)
-	}
+	waitForCallKeyCleanupWork(t, ctx, core)
 }
 
 func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {

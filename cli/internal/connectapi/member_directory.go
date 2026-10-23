@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -180,14 +180,14 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 		return nil, err
 	}
 
-	ids, err := s.api.core.ListActiveRoomMemberIDs(ctx, caller.UserID, req.Msg.GetRoomId())
+	ids, err := s.api.core.RoomMemberships().ListActiveRoomMemberIDs(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		return nil, err
 	}
 
 	query := strings.ToLower(strings.TrimSpace(req.Msg.GetSearch()))
 	if query != "" {
-		users, err := s.api.core.ListRoomMemberReferencesForList(ctx, caller.UserID, req.Msg.GetRoomId())
+		users, err := s.api.core.RoomMemberships().ListRoomMemberReferencesForList(ctx, caller.UserID, req.Msg.GetRoomId())
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +231,7 @@ func (s *roomService) GetMember(ctx context.Context, req *connect.Request[apiv1.
 		return nil, err
 	}
 
-	users, err := s.api.core.GetRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId(), []string{req.Msg.GetUserId()})
+	users, err := s.api.core.RoomMemberships().GetRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId(), []string{req.Msg.GetUserId()})
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 		return nil, err
 	}
 
-	users, err := s.api.core.GetRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetUserIds())
+	users, err := s.api.core.RoomMemberships().GetRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetUserIds())
 	if err != nil {
 		return nil, err
 	}

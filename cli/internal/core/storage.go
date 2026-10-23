@@ -9,11 +9,11 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/natsresources"
-	"hmans.de/chatto/internal/notificationstream"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // ============================================================================
@@ -334,4 +334,14 @@ func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(co
 		MaxAttempts: 3,
 		RetryDelay:  25 * time.Millisecond,
 	}, create)
+}
+
+// currentEventStreamInfo uses a private handle because Stream.Info mutates its
+// cached metadata. The shared EVT handle also serves concurrent event reads.
+func (c *ChattoCore) currentEventStreamInfo(ctx context.Context) (*jetstream.StreamInfo, error) {
+	handle, err := c.js.Stream(ctx, natsresources.EVT)
+	if err != nil {
+		return nil, err
+	}
+	return handle.CachedInfo(), nil
 }

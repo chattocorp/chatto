@@ -4,10 +4,10 @@ import (
 	"sort"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 // botWebhookEndpoint retains the current encrypted configuration and original

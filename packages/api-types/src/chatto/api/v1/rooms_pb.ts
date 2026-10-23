@@ -102,7 +102,7 @@ export class Room extends Message<Room> {
   universal = false;
 
   /**
-   * Minimum number of seconds a non-exempt member must wait between message
+   * Minimum number of seconds a non-exempt member must wait between root message
    * posts. Channel rooms only; zero means slow mode is disabled.
    *
    * @generated from field: uint32 slow_mode_seconds = 8;
@@ -110,12 +110,20 @@ export class Room extends Message<Room> {
   slowModeSeconds = 0;
 
   /**
-   * Threading policy for this channel room. Direct-message rooms report
-   * UNSPECIFIED because they do not support threads.
+   * Effective threading policy for this room. Direct-message rooms always
+   * report ENABLED.
    *
    * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 9;
    */
   threadingMode = RoomThreadingMode.UNSPECIFIED;
+
+  /**
+   * Per-user interval within each thread, including its root. Zero disables
+   * the interval. Absent on servers without independent thread slow mode.
+   *
+   * @generated from field: optional uint32 thread_slow_mode_seconds = 10;
+   */
+  threadSlowModeSeconds?: number;
 
   constructor(data?: PartialMessage<Room>) {
     super();
@@ -134,6 +142,7 @@ export class Room extends Message<Room> {
     { no: 7, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
+    { no: 10, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Room {
@@ -368,7 +377,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   universal?: boolean;
 
   /**
-   * New per-user posting interval in seconds. Zero disables slow mode. The
+   * New per-user root posting interval in seconds. Zero disables slow mode. The
    * maximum supported interval is six hours. Direct-message rooms cannot use
    * slow mode.
    *
@@ -385,7 +394,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   threadingMode?: RoomThreadingMode;
 
   /**
-   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode.
+   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
    * Omit to infer populated fields; * selects all editable fields. An explicit
    * empty mask is invalid. Unselected values are ignored. Selected absent values
    * reset the field to its default, subject to field validation.
@@ -393,6 +402,14 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
    * @generated from field: google.protobuf.FieldMask update_mask = 7;
    */
   updateMask?: FieldMask;
+
+  /**
+   * Per-user interval within each thread. The root starts its author's timer.
+   * Zero disables it. Updating this field does not change the root interval.
+   *
+   * @generated from field: optional uint32 thread_slow_mode_seconds = 8;
+   */
+  threadSlowModeSeconds?: number;
 
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
@@ -409,6 +426,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
     { no: 5, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 6, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode), opt: true },
     { no: 7, name: "update_mask", kind: "message", T: FieldMask },
+    { no: 8, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {
@@ -802,6 +820,9 @@ export class JoinRoomGroupResponse extends Message<JoinRoomGroupResponse> {
  * existing one. A human caller can fetch an existing DM without message.post.
  * A valid request from a bot receives PERMISSION_DENIED, including when the
  * room already exists.
+ * New DMs have at most two distinct participants, including the caller.
+ * Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
+ * for new group conversations. Existing group DMs remain accessible.
  *
  * @generated from message chatto.api.v1.StartDMRequest
  */

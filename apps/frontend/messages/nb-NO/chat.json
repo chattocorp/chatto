@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",
-      "list_title": "Nylig aktivitet",
       "clear_read": "Fjern leste",
       "empty_title": "Ingen varsler",
       "empty_body": "Dere er helt fanget!",
@@ -19,14 +18,15 @@
       "unread": "Ulest",
       "activity": "Ny aktivitet",
       "summary": {
-        "direct_message": "{actor} har sendt deg en direktemelding.",
-        "reaction": "{actor} reagerte med «{emoji}» på meldingen din i {channel}.",
-        "reaction_group": "{actor} og andre reagerte med «{emoji}» på meldingen din i {channel}.",
-        "reply": "{actor} svarte på meldingen din.",
-        "mention": "{actor} nevnte deg.",
-        "followed_thread": "{actor} svarte i en tråd du følger.",
-        "new_message": "{actor} la ut en ny melding.",
-        "activity": "{actor} sendte deg et varsel."
+        "direct_message": "{actor} har sendt deg en direktemelding",
+        "reaction": "{actor} reagerte med {emoji} på meldingen din",
+        "reaction_group": "{actor} og andre reagerte med {emoji} på meldingen din",
+        "reply": "{actor} svarte på meldingen din",
+        "mention": "{actor} nevnte deg",
+        "followed_thread": "{actor} svarte i en tråd du følger",
+        "new_message": "{actor} la ut en ny melding",
+        "activity": "{actor} sendte deg et varsel",
+        "room_invitation": "{actor} inviterte deg til et rom"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Brukerprofil",
-      "send_message": "Send melding",
+      "send_message": "Åpne samtale",
       "view_profile": "Vis profil",
       "profile_requires_direct_message": "En direktemelding er nødvendig for å vise denne profilen.",
       "manage_bot": "Administrer bot",
       "view_in_admin": "Vis i serveradministrasjonen",
       "copy_user_id": "Kopier bruker-ID"
     },
+    "server_info": {
+      "title": "Serverinformasjon",
+      "details": "Serverdetaljer"
+    },
+    "compatibility": {
+      "title": "Kompatibilitet",
+      "view": "Vis kompatibilitet",
+      "limited": "Eldre serverversjon",
+      "supported": "Ingen kjente kompatibilitetsproblemer",
+      "affected": "Berørte funksjoner",
+      "requires": "Krever {version} eller nyere",
+      "thread_views_title": "Trådvisninger har begrenset støtte",
+      "thread_views_description": "Tråder du følger og tråder du startet, vises kanskje ikke separat på denne serveren.",
+      "independent_slow_mode_title": "Uavhengig langsom modus er ikke tilgjengelig",
+      "independent_slow_mode_description": "Denne serveren bruker én felles ventetid for kanalmeldinger og trådsvar.",
+      "upgrade": "Be serveradministratoren om å oppgradere til {version} eller nyere for full støtte."
+    },
     "server_gutter": {
       "move_up": "Flytt opp",
       "move_down": "Flytt ned",
       "add_server": "Legg til server",
-      "log_in": "Logg inn på denne serveren",
-      "sign_out": "Logg ut av denne serveren",
+      "log_in": "Logg inn på serveren",
+      "sign_out": "Logg ut av serveren",
       "version": "Versjon {version}",
       "unreachable": "Tjeneren er utilgjengelig",
       "connection_unavailable": "Tilkoblingen er utilgjengelig",
-      "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto 0.5 eller nyere før denne appen kan koble til.",
+      "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto {version} eller nyere før denne appen kan koble til.",
       "compatibility_unknown": "Denne appen kan ikke fastslå kompatibilitet ut fra serverversjonen.",
       "go_to_notifications_count": {
         "one": "Gå til {count} varsel",
@@ -90,9 +107,16 @@
       "body": "Logg inn for å lese og sende meldinger på denne serveren."
     },
     "threads": {
-      "title": "Mine tråder",
-      "subtitle": "Tråder du følger",
-      "list_title": "Fulgte tråder",
+      "sort_label": "Sorter tråder",
+      "sort_activity": "Aktivitet",
+      "sort_created": "Alder",
+      "tab_started": "Mine",
+      "tab_followed": "Fulgte",
+      "tab_label": "Trådvisning",
+      "empty_mine_title": "Ingen tråder startet av deg",
+      "empty_mine_body": "Tråder du starter og følger, vises her.",
+      "title": "Tråder",
+      "subtitle": "Ny aktivitet i trådene dine",
       "filter_label": "Filtertråder",
       "filter_all": "Alle",
       "filter_unread": "Ulest",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Eies av",
       "open_card": "Åpne profilkortet til {name}"
+    },
+    "management_nav": {
+      "general": "Generelt",
+      "neighbors": "Naboer",
+      "members": "Medlemmer",
+      "rooms": "Rom",
+      "moderation": "Moderering",
+      "permissions": "Tillatelser",
+      "security": "Sikkerhet",
+      "event_log": "Hendelseslogg",
+      "system": "System",
+      "back_to_server": "Gå tilbake til server",
+      "invitations": "Invitasjonslenker"
     }
   }
 }

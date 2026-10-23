@@ -78,7 +78,6 @@ describe('createPermissionAPI', () => {
 
   it('maps role matrix enum values to frontend strings', async () => {
     mocks.getRolePermissionMatrix.mockReturnValue({
-      page: { totalCount: 2n, hasMore: false },
       matrix: {
         roleName: 'admin',
         applicablePermissions: ['message.post'],
@@ -115,7 +114,6 @@ describe('createPermissionAPI', () => {
       includeDirectMessageScope: true
     });
     expect(result).toEqual({
-      page: { totalCount: 2, hasMore: false },
       roleName: 'admin',
       applicablePermissions: ['message.post'],
       scopes: [
@@ -135,7 +133,6 @@ describe('createPermissionAPI', () => {
 
   it('rejects unknown permission matrix scope kinds', async () => {
     mocks.getRolePermissionMatrix.mockReturnValue({
-      page: { totalCount: 2n, hasMore: false },
       matrix: {
         roleName: 'admin',
         applicablePermissions: [],
@@ -203,7 +200,6 @@ describe('createPermissionAPI', () => {
 
   it('loads user matrices and maps missing decisions to NONE', async () => {
     mocks.getUserPermissionMatrix.mockReturnValue({
-      page: { totalCount: 2n, hasMore: false },
       matrix: {
         userId: 'U1',
         applicablePermissions: ['room.create'],
@@ -226,7 +222,6 @@ describe('createPermissionAPI', () => {
     const result = await api.getUserPermissionMatrix('U1');
 
     expect(result).toEqual({
-      page: { totalCount: 2, hasMore: false },
       userId: 'U1',
       applicablePermissions: ['room.create'],
       scopes: [{ id: 'group:G1', label: 'Lobby', kind: 'GROUP', parentGroupId: '' }],

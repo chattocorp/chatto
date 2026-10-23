@@ -6,7 +6,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
-  import { LoadingFog, ScrollFader } from '$lib/ui';
+  import { LoadingDots, ScrollFader } from '$lib/ui';
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
@@ -95,18 +95,17 @@
 
   const searchHref = $derived(resolve('/chat/[serverId]/search', { serverId: serverSegment }));
   const isSearchActive = $derived(page.url.pathname === searchHref);
-  // Chrome renders before discovery confirms the server version. Do not query
-  // search status on a server this client does not support.
-  const serverSupported = $derived(activeStore.serverInfo.isSupportedVersion);
+  // Wait for remote discovery, but allow best-effort feature requests.
+  const serverCanConnect = $derived(activeStore.serverInfo.canConnect);
   const messageSearchAvailable = $derived(
-    serverSupported &&
+    serverCanConnect &&
       (serverUi(activeStore).messageSearch.statusError ||
         (serverUi(activeStore).messageSearch.statusLoaded &&
           serverUi(activeStore).messageSearch.status.state !== MessageSearchState.DISABLED))
   );
 
   $effect(() => {
-    if (serverSupported && activeStore.isAuthenticated)
+    if (serverCanConnect && activeStore.isAuthenticated)
       void serverUi(activeStore).messageSearch.ensureStatus();
   });
 
@@ -156,7 +155,7 @@
                 serverId: serverSegment,
                 roomId: managedRoom.id
               }),
-              label: m('room_list.room_settings'),
+              label: m('room_list.open_room_settings'),
               icon: 'iconify icon-[uil--setting]'
             }
           ]
@@ -208,7 +207,7 @@
     />
   {:else if !serverData}
     <ServerHeader serverName={activeStore.serverInfo.name} />
-    <LoadingFog class="m-3 min-h-0 flex-1" />
+    <LoadingDots class="min-h-0 flex-1 items-center" />
   {:else}
     <!-- Server header - fixed at top -->
     <ServerHeader serverName={serverName ?? ''} />

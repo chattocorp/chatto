@@ -150,12 +150,22 @@ export { JumpToMessageState };
 // ---------------------------------------------------------------------------
 
 export class ComposerContext {
+  /** Focus the mounted composer after the current UI update. Cleared on unmount. */
+  focus?: () => void;
   readonly editState = new EditState();
-  readonly replyState = new ReplyState();
+  readonly #localReply = new ReplyState();
   readonly quoteInsertionState = new QuoteInsertionState();
   readonly lastEditableMessage = new LastEditableMessageContext();
   readonly jumpState = new JumpToMessageState();
   readonly scrollState = new ScrollState();
+
+  /** Select reply state from the current destination, or keep local state for standalone panes. */
+  constructor(private readonly getReplyState?: () => ReplyState) {}
+
+  /** The current room or thread draft's reply target. */
+  get replyState(): ReplyState {
+    return this.getReplyState?.() ?? this.#localReply;
+  }
 }
 
 export const [getComposerContext, setComposerContext] = createContext<ComposerContext>();
@@ -163,9 +173,10 @@ export const [getComposerContext, setComposerContext] = createContext<ComposerCo
 /**
  * Create the composer context and set it in Svelte context.
  * ConversationPane calls it during initialization, before its children render.
+ * The optional selector reads the current room/thread so reply state follows navigation.
  */
-export function createComposerContext(): ComposerContext {
-  const ctx = new ComposerContext();
+export function createComposerContext(getReplyState?: () => ReplyState): ComposerContext {
+  const ctx = new ComposerContext(getReplyState);
   setComposerContext(ctx);
   return ctx;
 }

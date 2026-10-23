@@ -4,6 +4,7 @@
 @import '@fontsource/ibm-plex-mono/500.css';
 @import 'tailwindcss' source('./');
 @import './prose.css';
+@import './composer.css';
 
 /* Registered numbers let the whole design system interpolate depth together. */
 @property --depth-strength {
@@ -147,7 +148,7 @@
   --composer-code-comment: #6e7781;
   --composer-code-keyword: #b4232c;
   --composer-code-string: #0a3069;
-  --composer-code-title: #8250df;
+  --composer-code-title: #7040c0;
   --composer-code-literal: #0550ae;
   --composer-code-attribute: #953800;
 }
@@ -2475,8 +2476,8 @@
     overflow: hidden;
     /* pan-y lets the browser own vertical scroll while reserving horizontal
        pans for our own gesture handling (mobile sidebar swipe). It also
-       implicitly disables pinch-zoom and double-tap-zoom — same as the
-       previous `manipulation` value. */
+       disables pinch-zoom and double-tap-zoom. Unlike pan-y,
+       manipulation permits pinch-zoom. */
     touch-action: pan-y;
     /* Without this, Chrome (and some other browsers) interpret horizontal
        swipes from the viewport edge as back/forward navigation gestures and

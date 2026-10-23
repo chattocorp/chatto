@@ -9,6 +9,7 @@ import { NotificationStore } from '@chatto/client/server/notifications';
 import { ServerProjectionStore } from '@chatto/client/server/projection';
 import { RoomListView } from '@chatto/client/server/rooms';
 import { serverUi } from './serverUi';
+import { ComposerContext } from '$lib/state/room/composerContext.svelte';
 
 type Listener<T extends unknown[] = []> = (...args: T) => unknown;
 
@@ -20,7 +21,8 @@ function fakeStore() {
     userDeleted: [] as Listener<[string]>[],
     permissionsChanged: [] as Listener[],
     update: [] as Listener<[unknown]>[],
-    dispose: [] as Listener[]
+    dispose: [] as Listener[],
+    sessionEnded: [] as Listener[]
   };
   const on =
     <T extends unknown[]>(list: Listener<T>[]) =>
@@ -43,7 +45,8 @@ function fakeStore() {
     onUserDeleted: on(listeners.userDeleted),
     onPermissionsChanged: on(listeners.permissionsChanged),
     onUpdate: on(listeners.update),
-    onDispose: on(listeners.dispose)
+    onDispose: on(listeners.dispose),
+    onSessionEnded: on(listeners.sessionEnded)
   } as unknown as ServerStateStore;
   const emit = {
     reset: (reset: ProjectionReset) => listeners.reset.forEach((listener) => listener(reset)),
@@ -52,7 +55,8 @@ function fakeStore() {
     userDeleted: (userId: string) => listeners.userDeleted.forEach((listener) => listener(userId)),
     permissionsChanged: () => listeners.permissionsChanged.map((listener) => listener()),
     update: (update: unknown) => listeners.update.forEach((listener) => listener(update)),
-    dispose: () => listeners.dispose.forEach((listener) => listener())
+    dispose: () => listeners.dispose.forEach((listener) => listener()),
+    sessionEnded: () => listeners.sessionEnded.forEach((listener) => listener())
   };
   return { store, emit };
 }
@@ -74,6 +78,63 @@ describe('serverUi', () => {
     expect(second).not.toBe(first);
     expect(second.query).toBe('');
     expect(ui.messageSearch.query).toBe('');
+  });
+
+  it('selects separate reply drafts from the pane destination across remounts', () => {
+    const drafts = serverUi(fakeStore().store).draftReplies;
+    let key = 'room-draft';
+    const context = new ComposerContext(() => drafts.select(key, 'R1'));
+    const original = context.replyState;
+    original.startReply('M1', 'Author', 'Excerpt');
+
+    key = 'thread-draft';
+    expect(context.replyState.messageEventId).toBeNull();
+    context.replyState.startReply('M2', 'Other author', 'Other excerpt');
+    const remounted = new ComposerContext(() => drafts.select('room-draft', 'R1'));
+    expect(remounted.replyState).toBe(original);
+    expect(remounted.replyState.messageEventId).toBe('M1');
+    drafts.clearDraft('room-draft');
+    expect(original.messageEventId).toBeNull();
+    expect(context.replyState.messageEventId).toBe('M2');
+  });
+
+  it('clears draft reply metadata at room and session privacy boundaries', () => {
+    const { store, emit } = fakeStore();
+    const drafts = serverUi(store).draftReplies;
+    const room = drafts.select('room-draft', 'R1');
+    const thread = drafts.select('thread-draft', 'R1');
+    const other = drafts.select('other-draft', 'R2');
+    for (const reply of [room, thread, other]) reply.startReply('M1', 'Author', 'Excerpt');
+    emit.reset({ privacy: false, retainView: false });
+    expect(thread.messageEventId).toBe('M1');
+    emit.roomAccessLost({ roomId: 'R1', messagesOnly: true, removed: false });
+    for (const reply of [room, thread]) {
+      expect(reply.messageEventId).toBeNull();
+      expect(reply.actorDisplayName).toBe('');
+      expect(reply.excerpt).toBe('');
+    }
+    expect(other.messageEventId).toBe('M1');
+    emit.update({
+      event: { event: { case: 'messageRetracted', value: { messageEventId: 'M1' } } }
+    });
+    expect(other.messageEventId).toBeNull();
+    expect(other.excerpt).toBe('');
+    // A mounted composer can start a new reply after access returns.
+    room.startReply('M2', 'Author', 'New excerpt');
+    expect(drafts.select('room-draft', 'R1').messageEventId).toBe('M2');
+    emit.reset({ privacy: true, retainView: true });
+    expect(room.messageEventId).toBeNull();
+    expect(other.messageEventId).toBeNull();
+    other.startReply('M3', 'Author', 'Excerpt');
+    emit.userDeleted('U2');
+    expect(other.messageEventId).toBeNull();
+    other.startReply('M4', 'Author', 'Excerpt');
+    emit.sessionEnded();
+    expect(other.messageEventId).toBeNull();
+    other.startReply('M5', 'Author', 'Excerpt');
+    emit.dispose();
+    expect(other.messageEventId).toBeNull();
+    expect(other.excerpt).toBe('');
   });
 
   it('bounds retained room search plaintext', async () => {

@@ -42,6 +42,9 @@ through `roomManagementContext`.
   const serverScope = useServerScope();
 
   const roomId = $derived(page.params.roomId!);
+  const isPermissionsSection = $derived(
+    page.route.id === '/chat/[serverId]/manage/rooms/[roomId]/permissions'
+  );
   const activeServerId = serverScope.serverId;
   const serverSegment = serverIdToSegment(activeServerId);
 
@@ -173,7 +176,7 @@ through `roomManagementContext`.
         href: resolve('/chat/[serverId]/manage/rooms/[roomId]/permissions', params),
         label: m('admin.rooms_admin.tabs.permissions'),
         icon: 'icon-[uil--shield-check]',
-        current: routeId === `${base}/permissions`
+        current: isPermissionsSection
       }
     );
     return items;
@@ -199,7 +202,7 @@ through `roomManagementContext`.
   <AccessDenied
     message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-    backLabel={m('admin.nav.back_to_server')}
+    backLabel={m('chat.management_nav.back_to_server')}
   />
 {:else}
   <div class="pane-page">
@@ -213,8 +216,8 @@ through `roomManagementContext`.
       {/snippet}
     </PaneHeader>
 
-    <PaneContent bind:scrollContainer>
-      <div class="flex flex-col gap-6">
+    <PaneContent bind:scrollContainer fillHeight={isPermissionsSection}>
+      <div class={['flex flex-col gap-6', isPermissionsSection && 'min-h-0 flex-1']}>
         {#if room}
           {@render children()}
         {:else}

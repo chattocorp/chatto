@@ -33,7 +33,7 @@ func TestPackageDependenciesAreApplicationNeutral(t *testing.T) {
 				if isStandardLibraryImport(importPath, directory) ||
 					strings.HasPrefix(importPath, "github.com/nats-io/nats.go") ||
 					isTest && (strings.HasPrefix(importPath, "github.com/nats-io/nats-server/v2") ||
-						importPath == "hmans.de/chatto/pkg/jetstreamutil") {
+						importPath == "github.com/chattocorp/chatto/pkg/jetstreamutil") {
 					continue
 				}
 				t.Errorf("%s imports non-portable dependency %q", sourceName, importPath)

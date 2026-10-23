@@ -28,10 +28,10 @@
       {/snippet}
     </ActivityListRow>
 
-    <ActivityListRow dimmed onclick={() => undefined}>
+    <ActivityListRow pending disabled onclick={() => undefined}>
       <span class="min-w-0 flex-1">
-        <span class="block truncate font-medium">Read activity</span>
-        <span class="block truncate text-sm text-muted">Yesterday</span>
+        <span class="block truncate font-medium">Pending activity</span>
+        <span class="block truncate text-sm text-muted">Waiting for the server</span>
       </span>
     </ActivityListRow>
 

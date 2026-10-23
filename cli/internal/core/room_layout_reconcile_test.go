@@ -25,9 +25,9 @@ func TestReconcile_OrderMatchesLayoutWhenConsistent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	b, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
-	c, _ := core.CreateRoomGroup(ctx, "actor", "C", "")
+	a, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	b, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "B", "")
+	c, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "C", "")
 
 	// Explicit reorder via the validated path.
 	seed, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
@@ -39,7 +39,7 @@ func TestReconcile_OrderMatchesLayoutWhenConsistent(t *testing.T) {
 		}
 	}
 	want := []string{c.Id, a.Id, seedID, b.Id}
-	if err := core.ReorderRoomGroups(ctx, "actor", want); err != nil {
+	if err := core.roomLayout.ReorderRoomGroups(ctx, "actor", want); err != nil {
 		t.Fatalf("ReorderRoomGroups: %v", err)
 	}
 
@@ -65,8 +65,8 @@ func TestReorderRoomGroups_RejectsDuplicates(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
-	b, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
+	a, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "A", "")
+	b, _ := core.roomLayout.CreateRoomGroup(ctx, "actor", "B", "")
 
 	seed, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	var seedID string
@@ -79,7 +79,7 @@ func TestReorderRoomGroups_RejectsDuplicates(t *testing.T) {
 
 	// Same length as the existing set, but contains a duplicate
 	// instead of `b.Id`.
-	err := core.ReorderRoomGroups(ctx, "actor", []string{seedID, a.Id, a.Id})
+	err := core.roomLayout.ReorderRoomGroups(ctx, "actor", []string{seedID, a.Id, a.Id})
 	if err == nil {
 		t.Fatal("expected ErrRoomGroupOrderMismatch for duplicate IDs")
 	}

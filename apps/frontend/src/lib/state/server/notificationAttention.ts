@@ -10,6 +10,7 @@
 import { computed } from '@chatto/client/reactivity';
 import {
   NotificationAttentionLevel,
+  NotificationSignalKind,
   type NotificationOccurrenceItem
 } from '@chatto/client/api/notifications';
 import {
@@ -94,9 +95,25 @@ export class NotificationAttention {
     return this.#counts.get();
   }
 
-  /** Whether a thread has an occurrence that needs attention. */
+  /** Whether a thread has a new-message notification that needs attention. */
   hasThreadNotification(threadRootId: string): boolean {
-    return this.occurrences.some((n) => notificationTarget(n).threadRootId === threadRootId);
+    return this.occurrences.some((n) => {
+      if (notificationTarget(n).threadRootId !== threadRootId) return false;
+      switch (n.signalKind) {
+        case NotificationSignalKind.DIRECT_MESSAGE:
+        case NotificationSignalKind.ROOM_MESSAGE:
+        case NotificationSignalKind.DIRECT_MENTION:
+        case NotificationSignalKind.REPLY:
+        case NotificationSignalKind.ROLE_MENTION:
+        case NotificationSignalKind.HERE:
+        case NotificationSignalKind.ALL:
+        case NotificationSignalKind.FOLLOWED_THREAD:
+        case NotificationSignalKind.FOLLOWED_ROOM:
+          return true;
+        default:
+          return false;
+      }
+    });
   }
 
   /** Whether a room outside direct messages has an occurrence that needs attention. */

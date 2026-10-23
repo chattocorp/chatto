@@ -3,7 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/url"
 	"os"
@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
-	"hmans.de/chatto/pkg/signedurl"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/pkg/signedurl"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestNewMediaModelWiresCore(t *testing.T) {
@@ -186,14 +186,13 @@ func TestMediaModelGeneratedVideoBypassesUserUploadLimits(t *testing.T) {
 			core := backend.setup(t)
 			ctx := testContext(t)
 			core.config.Assets.MaxUploadSize = 10
-			core.VideoMaxUploadSize = 20
 			room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "generated-video", "Generated video")
 			if err != nil {
 				t.Fatalf("CreateRoom: %v", err)
 			}
 
-			if _, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "source.mp4", "video/mp4", bytes.NewReader(bytes.Repeat([]byte("v"), 21))); err == nil || !strings.Contains(err.Error(), "maximum size of 20 bytes") {
-				t.Fatalf("user video upload error = %v, want 20-byte limit", err)
+			if _, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "source.mp4", "video/mp4", bytes.NewReader(bytes.Repeat([]byte("v"), 11))); err == nil || !strings.Contains(err.Error(), "maximum size of 10 bytes") {
+				t.Fatalf("user video upload error = %v, want 10-byte limit", err)
 			}
 			if _, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "note.txt", "text/plain", bytes.NewReader(bytes.Repeat([]byte("n"), 11))); err == nil || !strings.Contains(err.Error(), "maximum size of 10 bytes") {
 				t.Fatalf("user file upload error = %v, want 10-byte limit", err)

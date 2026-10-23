@@ -1,5 +1,6 @@
 {
   "common": {
+    "copy_failed": "クリップボードにコピーできませんでした。テキストを選択して手動でコピーしてください。",
     "cancel": "キャンセル",
     "close_sidebar": "サイドバーを閉じる",
     "or": "または",
@@ -21,11 +22,12 @@
     "password_placeholder": "あなたのパスワード",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_min_placeholder": "8文字以上",
+    "password_bytes_placeholder": "UTF-8で8～72バイト",
     "password_confirm_placeholder": "パスワードを再入力してください",
     "validation": {
       "email": "有効なメール アドレスを入力してください",
-      "password_min": "少なくとも 8 文字である必要があります",
+      "password_min_bytes": "UTF-8で8バイト以上にしてください。 文字によっては複数のバイトを使用します。",
+      "password_max": "UTF-8で72バイト以内にしてください。 文字によっては複数のバイトを使用します。",
       "username_min": "少なくとも 2 文字である必要があります",
       "username_max": "最大 32 文字である必要があります",
       "username_charset": "文字、数字、ドット、ダッシュ、アンダースコアのみ",
@@ -53,6 +55,11 @@
     "saved": "保存しました!",
     "rooms": "部屋",
     "copy_to_clipboard": "クリップボードにコピー",
-    "copied_to_clipboard": "クリップボードにコピーされました"
+    "copied_to_clipboard": "クリップボードにコピーされました",
+    "user_search_placeholder": "ログイン名または表示名で検索します...",
+    "no_users": "ユーザーが見つかりませんでした",
+    "user_id": "ユーザーID",
+    "reason": "理由",
+    "message_of_the_day": "今日のメッセージ"
   }
 }

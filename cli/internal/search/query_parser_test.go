@@ -99,6 +99,37 @@ func TestParseQuerySupportsUnicodeAndASCIIWhitespace(t *testing.T) {
 	require.Equal(t, []string{"two\nlines"}, parsed.RequiredPhrases)
 }
 
+func TestParseQuerySeparatesTokensWithUnicodeWhitespace(t *testing.T) {
+	// Cover the Unicode White_Space set, including non-breaking spaces from
+	// pasted text and separators outside the space-separator category.
+	for _, separator := range "\t\n\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000" {
+		t.Run(fmt.Sprintf("U+%04X", separator), func(t *testing.T) {
+			space := string(separator)
+			input := space + strings.Join([]string{
+				"über", "AND", "東京", `"exact phrase"`, `in:"Team chat 💬"`, "from:alice",
+			}, space) + space
+
+			parsed, err := ParseQuery(input)
+
+			require.NoError(t, err)
+			require.Equal(t, []string{"über", "東京"}, parsed.RequiredTerms)
+			require.Equal(t, []string{"exact phrase"}, parsed.RequiredPhrases)
+			require.Equal(t, []string{"Team chat 💬"}, parsed.RoomSelectors)
+			require.Equal(t, []string{"alice"}, parsed.AuthorSelectors)
+		})
+	}
+}
+
+func TestParseQueryPreservesQuotedUnicodeWhitespace(t *testing.T) {
+	parsed, err := ParseQuery("\"exact\u00a0phrase\"\u2009in:\"Team\u2009chat 💬\"\u00a0from:\"Alice\u202fSmith\"")
+
+	require.NoError(t, err)
+	require.Empty(t, parsed.RequiredTerms)
+	require.Equal(t, []string{"exact\u00a0phrase"}, parsed.RequiredPhrases)
+	require.Equal(t, []string{"Team\u2009chat 💬"}, parsed.RoomSelectors)
+	require.Equal(t, []string{"Alice\u202fSmith"}, parsed.AuthorSelectors)
+}
+
 func TestParseQueryDoesNotJoinAcrossWhitespace(t *testing.T) {
 	_, err := ParseQuery(`search in: "Archived Room"`)
 	require.ErrorContains(t, err, "in filter requires a room")

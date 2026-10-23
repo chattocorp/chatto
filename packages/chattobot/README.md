@@ -1,1026 +1,831 @@
 # ChattoBot
 
-ChattoBot is a Runling project. This first version sends brief agent replies to
-Chatto direct messages, mentions, and direct replies to its own messages.
-It owns its realtime source configuration and Chatto transport adapter.
-It is the private workspace package `@chattocorp/chattobot` under
-`packages/chattobot/`. It depends on the public Runling package API and
-`@chatto/client`. The client owns API requests, the realtime transport, and
-the server's projection; it is the same client that the Chatto frontend uses.
-It also supplies identity, addressing, thread history, conversation keys, and
-acceptance tracking. ChattoBot owns Runling routing, inboxes, cancellation,
-and conversation lifetime. See the
-[client guide](../chatto-client/README.md).
+ChattoBot is the Chatto project's assistant. It runs in a Chatto server as a bot
+account. It answers questions about Chatto from the documentation, and
+maintainers can ask it to investigate source code and create or update GitHub issues.
 
-## Run locally
+ChattoBot is a [Runling](../runling/README.md) application. Each thread in which
+someone addresses the bot, or the bot accepts a report, gets one conversation run with one agent session. The
+Runling console shows each run, its turns, and its tool calls.
 
-Use `pnpm start` to load the bot once without automatic reload. Use `pnpm dev`
-for development; it passes `--watch` to `runling serve`. Both start the realtime
-source and console. Without `--watch`, restart to load code or configuration changes.
+See [the TODO list](docs/TODO.md) for planned work and experiments.
 
-1. Run `mise setup-frontend` from the monorepo root.
-2. Copy `.env.example` to `.env` in this directory. Set `CHATTO_URL` to your Chatto
-   server and `CHATTO_API_KEY` to the bot's API key. The bot needs permission to
-   read messages and use `message.post-in-thread` (Post in threads) in the Direct messages
-   scope. The bot must also be a member of the DM room. In the current Chatto
-   implementation, `message.read-interactions` checks for authorship or an
-   explicit mention even in DMs; membership alone does not pass that check.
-   This can suppress ordinary DM deliveries. Broad `message.read` access works
-   around that server behavior, but is not a ChattoBot requirement.
-3. Set `OPENROUTER_API_KEY` in `.env`; no Pi login is required. The key is
-   available to all agents that use an OpenRouter model. An existing Pi login
-   is also supported. The default model is
-   `openrouter/google/gemma-4-26b-a4b-it`. Set `CHATTO_AGENT_MODEL` to select
-   another configured model.
-   To use GLM 5.3 Flash for investigation and implementation, add:
+## How it works
 
-   ```dotenv
-   OPENROUTER_API_KEY=your-openrouter-api-key
-   CHATTO_INVESTIGATION_MODEL=openrouter/z-ai/glm-5.3-flash
-   CHATTO_IMPLEMENTATION_MODEL=openrouter/z-ai/glm-5.3-flash
-   ```
+1. The `chatto` event source connects to Chatto as the bot. It receives the
+   messages that address the bot: DMs, mentions, and replies to
+   the bot, plus added emoji reactions to the bot's messages.
+2. The router sends each message to the conversation run of its thread. When a
+   thread has no run, the router starts one.
+3. The participation classifier chooses silence, an emoji acknowledgment, or a
+   conversation turn for automatic intake and ordinary thread replies. Verified
+   mentions, replies to the bot, and DMs always reach the conversation.
+   The workflow adds emoji acknowledgments without starting the conversation agent.
+4. The conversation answers accepted messages in turns. A turn includes all messages
+   that arrived since the previous turn, and the other new messages in the
+   thread as context. The first turn includes the thread so far. Replies lead with
+   the answer or next action, usually in one short paragraph. The bot gives more
+   detail when requested or needed.
+5. The agent's final text is posted to the thread as the reply.
 
-   Each agent also has a reasoning effort setting: `off`, `minimal`, `low`,
-   `medium`, `high`, `xhigh`, or `max`. Higher effort follows instructions more
-   reliably, but costs more and answers more slowly. An unknown value stops the
-   bot at startup with a configuration error.
+A conversation ends after one hour without an addressed message or an accepted
+automatic follow-up, once its current turn and background jobs finish. The next
+addressed message starts a new conversation, which reads the thread again.
+Open conversations recover after a bot restart. See [Recovery](#recovery) for its limits.
 
-   | Setting                          | Agents                      | Default  |
-   | -------------------------------- | --------------------------- | -------- |
-   | `CHATTO_AGENT_THINKING`          | Supervisor and web research | `medium` |
-   | `CHATTO_INVESTIGATION_THINKING`  | Source investigation        | `medium` |
-   | `CHATTO_IMPLEMENTATION_THINKING` | Implementation worker       | `medium` |
-   | `CHATTO_CLASSIFIER_THINKING`     | Authorization classifier    | `low`    |
+## Recovery
 
-   `runling serve` loads `.env` from its working directory at startup. Restart
-   the bot after changes. Existing shell environment variables take precedence
-   over values in `.env`. OpenRouter and its selected model provider receive
-   the prompts and source excerpts sent to the model.
+ChattoBot registers its thread root with Runling as `chattoThread`. Recovery applies
+to new runs with this registration; older unregistered runs cannot recover.
+Runling saves workflow state every 60 seconds and after cleanup at graceful shutdown. The root
+keeps the accepted first message, delivered and pending reply IDs, last classification batch,
+and inactivity timestamp in `ctx.state`. It recreates the conversation and follow-up
+loop on restart. The source reconnects its router to those same runs.
 
-4. From the repository root, run:
+Conversation and GitHub worker sessions use Runling's `agentSessionFile` API and live
+under `.runling/runs/<run-id>/agents/`. Keep the complete `.runling/` directory on persistent storage, private to the
+bot's operating-system user. It contains message content and model context.
+Changing the configured server or bot identity prevents old threads from being
+opened with that connection. A temporary connection failure waits for Chatto.
 
-   ```sh
-   mise chattobot
-   ```
+A recovered conversation waits for new messages or accepted automatic follow-ups.
+It does not repeat the original addressed request. It retains automatic-intake
+completion tracking and the inactivity deadline; expired conversations close.
+An intake decision that was not saved can be classified again.
+Background jobs and their monitors do not resume. Remote work may still finish.
+The agent must check the outcome before claiming success or failure, and another
+attempt needs a new addressed maintainer request. Existing conversations post no restart notice.
 
-   This command installs packages, builds Runling and the Chatto client
-   packages, and starts the bot. Use `mise dev-chattobot` to also reload
-   code and configuration when files change.
+This is a recovery PoC, not guaranteed delivery. A crash can lose changes since
+the last snapshot, and the inbox is not saved. Thread reconciliation can find relevant
+replies sent while the bot was offline, but treats them as automatic follow-ups
+without delegation authority. Agent files and workflow snapshots are saved
+separately. See [Runling workflow state](../runling/docs/workflow-state.md).
 
-5. Disable any old webhook for this bot. ChattoBot opens an outbound WebSocket
-   to the configured server. No public URL, tunnel, or webhook is needed.
-6. Send the bot a DM or mention it in a channel message. Replies appear in
-   the triggering message's thread in both DMs and channels. For channels,
-   the bot needs permission to read the thread and `message.post-in-thread`.
+Runling purges completed, failed, and cancelled runs 30 days after closure. It checks
+at startup and daily while running. Runling owns and removes the conversation
+and GitHub worker transcripts with the run; ChattoBot has no cleanup callback. Open and interrupted conversations are preserved.
+The one-hour inactivity timeout still decides when an idle conversation closes.
 
-The server loads `.env` from this project directory. Restart it after changing
-credentials. The API key authenticates the realtime connection. Empty settings
-count as unset. The bot checks its settings before it connects. If a required
-setting is missing or has an invalid format, the terminal shows a `ChattoBot
-configuration error` that names the setting. The bot then stays stopped until you
-correct the setting and restart. Model names, the source directory, and Git refs
-are checked when they are used.
-The web console is available at `http://localhost:5173`.
+Investigations use Runling's `AgentSessionStore` because a later workflow can
+resume a saved investigation. Existing files under `.runling/subagents/investigate/`
+remain usable. The store owns exclusive session leases and removes other files
+unused for 30 days when that scope is opened. A scope that is never opened again
+is not covered by workflow-run cleanup.
 
-To restrict the bot to one user, set `CHATTO_ALLOWED_USER_ID` in `.env` to that
-user's exact Chatto user ID, not their display name, and restart the bot.
-When unset or empty, all users can address the bot. Messages from other users
-are ignored before routing, including DMs, mentions, follow-ups, and `/cancel`.
-They do not start runs or trigger reactions. This filters incoming requests;
-thread history loaded for an allowed request can still include other participants.
+## Automatic report intake
 
-At the start of a conversation, the host reads the thread root and the newest
-100 replies. On later turns, it reads only the messages that arrived after its
-previous read. It does not see edits or deletions of messages that it already
-read. Each message carries its author's display name and login from the thread
-page, so the supervisor can tell people apart and address them. The bot reads no
-other profile fields. The model provider receives these names in the prompts,
-and they can appear in run journals and the detailed server log when the model
-repeats them.
+Set `CHATTO_AUTO_ENGAGE_ROOM_IDS` to the stable IDs of rooms where the bot should
+help with new bug reports and feature requests, separated by commas or spaces.
+For example, set it to the ID of `#bug-reports`. Use room IDs, not room names.
+Restart the bot after changing `.env`. With no value, intake is disabled.
 
-The host reads the thread before each turn, but the prompt carries only the
-conversation: `message` (the message that the supervisor answers, its author,
-and whether the author is a maintainer), the message that opened the thread,
-messages addressed to the bot (`toYou: true`), and the bot's own replies
-(`from: "you"`). Other messages are only counted in `unreadThreadMessages`. The
-supervisor reads them with the `readThread` tool when the message that it answers
-refers to them, for example “what do you think?”. The tool returns the newest
-messages with their authors and a note that messages to other people are context
-only. A self-contained question needs no thread read. A notification turn has
-`notification` instead of `message`.
+In these rooms, each new top-level post starts a thread workflow, except for
+posts from user IDs in `CHATTO_MAINTAINER_USER_IDS`. Maintainers can still
+address the bot directly.
+The workflow verifies a human author and calls a classifier task. By default,
+the classifier uses the conversation model with low reasoning effort and returns
+a decision and a short reason. To try a dedicated model through OpenRouter, set
+`CHATTO_INTAKE_DECISION_MODEL=typesafe/jev-1.13` or
+`CHATTO_INTAKE_DECISION_MODEL=openai/gpt-6-luna-decisions`, with
+`OPENROUTER_API_KEY`. Do not add an `openrouter/` prefix. This setting applies to
+new reports and thread follow-up checks; it does not change GitHub authorization.
+Dedicated models return a choice and probabilities instead of a written reason.
+Both modes use the same participation policy, no tools, and a 30-second deadline.
+They also check reactions before a reaction can start a conversation turn.
+Failures never fall back to another model. The task
+does not post or show typing. The workflow can add a classifier-selected emoji.
+Ignored automatic posts and failed automatic classifications stay silent. Users can still mention the bot to get help.
 
-Messages also carry the metadata of their attachments: file name, type, image
-size, and description. The supervisor looks at an attachment with the
-`viewAttachment` tool when it matters for the answer, for example a screenshot
-of a bug. The tool accepts only attachments of messages in the conversation's
-thread, and at most 30 views for each message to the bot. It returns PNG,
-JPEG, GIF, and WebP images that Chatto resized to at most 1600 pixels on each
-side, and text files of up to 100 KB, such as logs. It does not read other
-files. The bot downloads an attachment from the configured Chatto server only
-when the supervisor views it. Then the model provider receives the content, as
-it receives message text. The bot does not log attachment content.
-A model without image input receives a placeholder instead of the image.
+For accepted reports, the workflow runs the normal conversation task as a child
+in the same run. It forwards later addressed messages to that child. The bot asks questions
+to help prepare a useful report. Its first reply starts with a friendly greeting
+and an offer to help. It asks which Chatto version the question is about. For
+a frontend issue, it also asks for the browser name and version, operating
+system, and type of device. It uses details already supplied and accepts unknown
+values. Browser details do not apply to clients without a browser. The classifier receives the post text and
+attachment MIME types. Image-only posts are accepted for the conversation
+agent to inspect. Clearly unrelated text with an image can still be ignored.
 
-A message is addressed to the bot when the bot accepted it as a direct message,
-a mention, or a reply to one of its messages, from an allowed user. Only
-addressed messages count as requests: the supervisor takes instructions and its
-reply language only from them, and only addressed messages from maintainers
-reach the authorization checks for implementation and GitHub changes. The bot
-remembers addressed messages in process memory for 24 hours; after a restart,
-older messages count as context. The bot's system prompt does not include its
-working directory.
+In a conversation started by accepted automatic intake, the bot can add ✅ to
+the root message when the request is handled. This means the user confirmed a
+resolution or an existing issue, withdrew the report, or authorized filing or
+updating succeeded and the bot shared the result. It does not mean a bug is fixed.
+Waiting for details, approval, or background work does not qualify. A partial
+GitHub result qualifies only after the remaining work succeeds or the maintainer
+explicitly accepts the partial result. The bot can remove its checkmark when the
+request reopens. Completion includes one short closing
+reply, with the numbered issue link when an existing issue covers the report.
+The bot needs permission to react; a failed reaction does not stop the conversation.
+This tool is limited to the active automatic-intake conversation. Reactions remain
+after expiry or restart. Recovered conversations retain intake status; a new
+conversation after expiry does not recover it.
 
-### Maintainers
+Mentions, replies to the bot, and direct messages bypass participation classification.
+Bot posts, forwarded copies, and existing history do not start intake.
+`CHATTO_ALLOWED_USER_ID` also applies to intake.
 
-Source investigation, implementation, and changes on GitHub are available only
-to maintainers. Anyone who can address the bot can ask it to read GitHub. Set `CHATTO_MAINTAINER_USER_IDS` to their exact Chatto user IDs,
-separated by commas. The bot does not start if one of these capabilities is
-configured without maintainers.
+Automatic intake never authorizes GitHub changes or source investigations,
+even when the report author is a maintainer. A maintainer must address the
+bot with that request. The classifier does not grant permissions.
 
-Several people can write in one conversation, so the bot checks permission for
-each request, not for the conversation. When the agent calls `investigateChatto`,
-`implementChatto`, `askImplementation`, `task_send`, `forwardClarification`, or `ghWrite`, the host checks the author
-of the latest human message that the bot received in the conversation. If that
-author is not a maintainer, or the turn started from a task notification, the tool
-does not run. In a user turn, the bot then posts one fixed message that a
-maintainer must ask. After a saved implementation
-plan's completion notification, the supervisor can call `implementChatto` with
-that plan's `investigationId` once on a notification turn. This requires that a
-maintainer was the latest person who wrote to the bot when the notification
-arrived; the next message from a person ends this exception. Only maintainers
-can start investigations, and the authorization check, which receives the
-plan's goal, must find a maintainer's request to implement. A maintainer who
-asks for a pull request therefore does not have to ask again after the plan. Other users can still ask questions, and the
-bot can answer from the documentation and web research.
+Duplicate intake deliveries are suppressed for 24 hours in the running
+process, including source reloads. A process restart clears this memory.
+Failed classifications are not retried automatically. A mention received during
+classification cancels that check. The verified addressed batch starts the
+conversation child directly. It does not add a second intake turn or start
+another run.
 
-A completed source investigation can also file one issue on a notification turn.
-The host retains the original maintainer request and later maintainer messages,
-including corrections and withdrawals. The GitHub authorization check must still
-approve the exact command, including its milestone. Notification text supplies no
-permission. This path permits only `ghWrite issue create`, with one dispatch
-attempt per investigation. A timeout can mean that GitHub applied the change, so
-the bot must check GitHub before a retry. Automatic continuation stops if the
-host retains more than 20 messages or one message has more than 4,000 characters.
-These limits prevent the authorization classifier from cutting off request text.
-State lasts only for this conversation; it does not survive a process restart.
+## Automatic thread follow-ups
 
-This gives a simple approval flow: a user reports a problem in a thread, and a
-maintainer replies in the same thread to ask the bot to investigate or implement.
-The check uses the message the bot received last, not the message that the model
-read last, so a maintainer's message that arrives during a turn can already allow
-a request from that turn. Anyone in the thread can use `/cancel` or ask the bot to
-cancel a task. This can stop work but cannot start or publish anything.
+Once the bot joins a conversation, people can answer its questions with ordinary
+thread replies. This applies to conversations started by a mention or direct reply
+as well as accepted reports. Other rooms still require an addressed message to
+start a conversation.
 
-The development and start commands build workspace dependencies before they
-start Runling's public CLI. Runling watches this package's configuration and
-workflow files during development. From the repository root,
-`mise x -- pnpm --dir packages/chattobot dev` starts the same server.
-The package is private and has no npm release workflow.
+All incoming messages use a fixed three-second batching window, including the
+first post, pings, direct replies, and reactions to bot messages. The first queued message starts the window;
+later messages join it without extending it. This lets people finish a short
+sequence of messages before the bot answers. Accepted addressed messages in the same window
+reach one conversation turn, with each author's identity and authorization context
+kept separate. The window runs while the agent is busy, so it adds no further wait
+when the agent becomes available after the window has ended.
 
-## Conversation behavior
+All DM messages, including thread replies, are addressed input. DMs, explicit
+mentions, and verified replies to the bot always reach a conversation turn.
+Ordinary thread replies and reactions to the bot's messages still pass participation
+checks. A current maintainer's DM can authorize
+restricted work without a mention. Channel thread replies still need a mention
+or a verified reply to the bot to provide authorization.
 
-The bot adds an eyes reaction (`👀`) to the message that starts a conversation,
-before loading context or engaging the agent. Follow-up messages in the active
-thread do not get this automatic reaction. Duplicate deliveries do not add another reaction. `/cancel` skips
-the reaction so cancellation stays immediate. The bot needs permission to add
-reactions. A failed reaction logs a warning and the reply continues.
+Ordinary realtime replies notify an existing thread workflow after that same
+window. It reads human messages after the bot's latest post (or the conversation's
+entry message if the bot has not posted since then) and classifies them,
+without another batching delay. If the conversation agent is answering, the check waits
+until it can answer again. Pending reply IDs remain in workflow state: a newer
+bot post cannot move these replies out of the batch. The check reads their current
+content and includes the earlier question as context. Pending IDs are included
+in Runling's periodic snapshots and recovered after restart. Ordinary replies never go directly to the conversation
+agent and cannot start a new workflow. A five-minute reconciliation check recovers
+messages missed during disconnects and checks inactivity. No new messages
+means no model call. An unchanged batch is not classified again. When another
+message arrives, the classifier considers pending replies and replies since that
+bot post that have not reached the conversation. Already-delivered replies are context only. They cannot
+trigger another check or delivery, even when a turn produces no bot post.
+The classifier sees text and attachment MIME types, not files.
+Only clear implicit replies to the bot continue the conversation: answers to its
+questions, requested details, corrections to its advice, or requests for it to help
+further. Questions about the current report's progress, missing information, or
+next steps also qualify. One clear reply to the bot is sufficient for a batch;
+earlier vague remarks do not outweigh it. Discussion of the same topic,
+human-to-human questions, brainstorming, and status updates do not qualify on
+their own. Uncertain cases and requests to leave the conversation to humans
+stay silent. Simple unaddressed thanks to the bot can receive an emoji acknowledgment.
+For automatic-intake conversations, clear resolutions and report withdrawals also
+reach the conversation agent so it can update the checkmark.
 
-The supervisor ends each turn with `finishTurn`: a reply, a reaction, or silence.
-The host delivers only that choice. Ordinary assistant text is not posted.
-The completion tool runs in sequence with other tools. After a choice succeeds,
-further tools are blocked. Runling ends the current tool batch without another
-model request. Extra model text is ignored. The choice applies only to that turn;
-later user messages and task results can receive new replies. Runling provides the existing agent lifecycle
-and validated custom tools. The completion policy belongs to ChattoBot.
+The bot adds 👀 when it engages with a thread root. It does not add eyes reactions
+to later messages in the thread, including pings and accepted automatic follow-ups.
 
-For a simple thanks or acknowledgement, the supervisor can select a reaction
-without a text reply, including after web research. Questions and task results
-need a reply. Reactions use the same Chatto client and permission as other bot
-reactions. A failed reaction permits a text fallback, but no second reaction
-attempt for that user message. Notification turns cannot react.
+Pings and direct replies bypass classification and cancel a pending follow-up
+check when their batch is delivered. Checks stop when the workflow ends. Empty, ignored,
+and failed checks do not extend its one-hour inactivity timeout. Inactivity is
+checked before reading the thread, so expiry can wait for the next reconciliation
+check when no new events arrive. Classification
+failures stay silent until new messages arrive. Saved follow-up state survives a
+process restart. If the newest thread page no longer contains a bot post, the
+check skips the thread rather than guessing which messages are new; a ping still works.
 
-The supervisor uses `acknowledgeRequest` to send a brief text reply before
-research or other longer work. The host blocks reference loading, web research,
-and GitHub reads until the acknowledgement has been posted. Short answers and
-casual conversation do not need a separate acknowledgement; a final reply can
-open the thread. Investigation and implementation tools have their own
-announcements. The model writes all of these messages in the user's language.
+Other bots, deleted or unknown authors, and users excluded by
+`CHATTO_ALLOWED_USER_ID` cannot trigger an automatic follow-up. These follow-ups
+grant no permission for GitHub work or investigations. A maintainer must still
+address the bot with such a request.
 
-A missing final choice gets one corrective turn. Only `finishTurn` is available
-during that correction. If no choice follows, the existing reply-failure path
-ends the conversation. This does not retry external work or provider failures.
+## Tools
 
-Automatic eyes reactions run inside the conversation task, with a ten-second timeout and
-cancellation support. Follow-up messages pass through one queue to Pi without
-another automatic reaction request. Event acceptance does not wait
-for the reaction request.
+### Chatto questions
 
-Replies in the same thread use the same agent and conversation history.
-Each new root message starts a separate conversation, including in DMs. Messages sent while
-the agent works wait until the current reply is posted. Each queued message starts a new turn with its own reply target and requester. Typing indicators stop while it
-waits for another message. Rapid follow-ups wait for the active answer and each starts a new turn in the same run. Send `/cancel`
-in the DM thread or mention the bot with
-`/cancel` in the thread to stop the conversation.
-Duplicate deliveries do not start another run.
+Any user can ask about Chatto, including its setup, use, integrations, and
+troubleshooting. The conversation agent reads the relevant pages at
+[the stable documentation site](https://docs.chatto.run/) or
+[the pre-release documentation site](https://dev-docs.chatto.run/) first.
+It defaults to stable documentation, uses pre-release documentation for beta
+and development versions, and checks both for comparisons or gaps. Answers
+cite supporting pages and keep version-specific behavior separate.
 
-A conversation ends after 15 minutes without a new message. Live conversation
-state and completed plans are held in memory and are lost on process restart.
-Config reload preserves active
-conversations for the same source name, server, and bot identity. Existing
-conversations keep their original code, server, and credentials; new conversations
-use updated code and connection settings.
-A mention or a direct reply to a bot-authored message can start a new conversation
-in an existing thread. In channels, either mention the bot or use Chatto's reply
-action on one of its messages. A thread reply without either does not address
-the bot. Everyone who addresses the bot in a thread shares the thread's
-conversation. The allowed-user setting still applies.
+For incomplete bug reports, the bot first asks for missing diagnostic facts,
+such as the deployment method and startup error. Clarifying questions do not
+need research. The bot reads documentation before giving factual advice and
+reuses pages already read when they remain relevant. It avoids listing possible
+causes before the report supplies evidence for them.
 
-The bot sets `inReplyTo` to the human message being processed when it can identify
-that message. This also applies to tool announcements and split replies. Background
-notifications without a direct human target remain untagged. Incoming reply targets
-are checked through the configured server's message API, so replies to older bot
-messages also work after restart. If the target cannot be verified, an unmentioned
-message is ignored. Lookup failures produce a safe warning; a mention or DM still works.
+Deployment answers distinguish documented instructions from proposed adaptations.
+The bot asks about single-instance or high-availability goals when that choice
+changes the advice, and verifies undocumented platform-specific steps against
+official platform documentation before recommending commands or configuration.
 
-Before each agent turn, the host reads the thread through
-`ThreadService/GetThreadEvents`: on the first turn the root and the newest 100
-replies, later only the messages after its previous read. This applies to both
-DM and channel threads. The prompt carries only the conversation; the supervisor
-reads other messages with `readThread`. To view an attachment, the host reads its
-address through `AssetService/BatchGetAssets` and downloads it from the same server.
-The bot needs permission to read that history. Failed reads stop the run instead
-of generating a reply from incomplete context.
+Web searches and external page reads are a last resort when the relevant
+documentation is missing, unavailable, or insufficient. The bot prefers official
+sources and reports gaps when it cannot find an answer. Search queries must
+not contain private conversation content, logs, credentials, or personal data.
 
-For Chatto product questions, the agent can use `fetchPage` to read these
-references and follow their links:
+The bot declines unrelated requests without research, including requests that
+only mention Chatto or say the answer will be posted there. For mixed requests,
+it helps with the Chatto part. Brief greetings and social replies are allowed.
+These rules apply to maintainers too. The participation classifier and conversation
+agent use model instructions, checked with behavioral evaluations.
 
-- `https://docs.chatto.run/`: documentation for released versions.
-- `https://dev-docs.chatto.run/`: documentation for the in-development or
-  pre-release version.
-- The [Awesome Chatto](https://github.com/nickk-/awesome-chatto) community list,
-  read as raw Markdown from `raw.githubusercontent.com`. Its entries are
-  unofficial third-party projects. The agent cannot open the linked projects.
+### Available tools
 
-The agent is instructed to search both the documentation and the Awesome Chatto
-list before it answers questions about Chatto features, setup, or behavior. It
-skips them when the conversation already contains the answer or the question is
-about a specific release, pull request, or issue. The bot keeps each successfully
-read reference page in memory for one hour. It cites pages it reads, says which
-documentation version it used, and says when the references do not answer a question. Published
-documentation can differ from the connected server version.
-The tool permits only those HTTPS locations, including redirects. It rejects URL
-credentials and query strings, limits requests to 15 seconds and 512 KB, and
-returns at most 30,000 characters of page text with a truncation marker.
-It does not execute scripts or fetch page assets. Other websites remain unavailable.
+| Tool                  | What it does                                                                                          |
+| --------------------- | ----------------------------------------------------------------------------------------------------- |
+| `fetchPage`           | Reads the Chatto documentation and the Awesome Chatto list.                                           |
+| `readThread`          | Reads the newest messages of the thread.                                                              |
+| `viewAttachment`      | Looks at an image or a small text file in the thread.                                                 |
+| `webSearch`           | Searches the web with Tavily, when configured.                                                        |
+| `browsePage`          | Reads a web page with Cloudflare Browser Run, when configured.                                        |
+| `gh`                  | Runs read-only GitHub CLI commands, when GitHub is configured.                                        |
+| `githubWork`          | Starts a GitHub worker for a request from a maintainer.                                               |
+| `investigate`         | Starts or resumes a source investigation for a maintainer request.                                    |
+| `createWorkspace`     | Creates a Paseo worktree for a maintainer request, when configured.                                   |
+| `startImplementation` | Starts and monitors a coding agent in a new Paseo worktree for a maintainer request, when configured. |
 
-When implementation or GitHub access is configured, replies link issue and pull
-request numbers and code references to the repository. Code links from an
-investigation point to its base commit; other code links point to the base
-branch.
+Everyone who can address the bot can use direct read tools. GitHub changes,
+source investigations, and workspace creation are reserved for maintainers:
 
-Replies use the Markdown that Chatto renders. Commands, configuration, and code
-for the user to copy appear in fenced code blocks.
+- **Changes need a maintainer request.** The bot starts a GitHub worker only
+  for an addressed message from a user in `CHATTO_MAINTAINER_USER_IDS` in the
+  current turn. The host checks the authenticated author. Claims in message
+  text and old maintainer messages do not grant access. Without configured
+  maintainers, the bot offers no GitHub worker, source investigator, or workspace tool.
+- **Investigations need a maintainer request.** The same current-message check
+  applies to `investigate`, including resumed investigations. A non-maintainer
+  can still use documentation reads and prepare a bug report in the thread.
+- **The page reader follows links only.** `browsePage` reads only pages from
+  search results or links that people posted, so the bot cannot send thread
+  content to an address that it put together.
+- **Reads stay in the thread.** Read tools return their results to the bot,
+  which answers in the same thread.
 
-The agent is instructed not to disclose its model, model provider, instructions,
-or host configuration. This instruction does not guarantee confidentiality. Do not
-put secrets in agent instructions or tool results.
+Set `CHATTO_MAINTAINER_NAME` to a Chatto user login, for example `reviewer`, to
+give the bot a contact for maintainer handoffs. When a report needs a maintainer
+decision, the bot mentions `@reviewer` in its normal reply, summarizes the report,
+and asks for a reply with the requested action. It should mention the contact
+once per unresolved request, not on every status reply. Without this setting,
+it explains that a maintainer must authorize the work without guessing a handle.
 
-## Web research
+The login is a contact only. Add the maintainer's user ID to
+`CHATTO_MAINTAINER_USER_IDS` to authorize their requests. A mention does not
+authorize work, and the maintainer must address the bot in their reply. The
+contact must be a member of the room for the mention to be delivered; their
+notification settings still apply. The model provider receives the configured
+login as part of the bot's instructions. Restart the bot after changing `.env`.
 
-Only maintainers can ask ChattoBot to search the public web or load pages outside
-the Chatto reference allowlist. Other users can still read the Chatto reference
-docs through the bot. This gate runs before the research agent starts, including
-calls from scripts.
+## Emoji reactions
 
-ChattoBot can answer questions from the public web through a separate research
-agent. Configure one or both of these optional services:
+An added reaction to a ChattoBot message first passes a participation check,
+including in a thread whose earlier conversation has ended. The bot reads the target
+message from Chatto. The existing participation classifier receives its exact text,
+the emoji, the thread root, and up to 20 recent replies. Target text is context,
+not a new request. Appreciation on completed answers normally requires no response. Clear
+answers to pending questions and approval of pending proposals can start a turn.
+The classifier checks each reaction separately, including in batches with direct
+messages. A failed check sends no reaction-driven response. If a classifier or
+context read fails for verified explicit text, that text reaches the conversation.
+Checked reaction event IDs are retained across recovery.
+Accepted reactions retain the reacting user's identity, event ID, and exact target
+for the conversation model and its authorization checks. Its own reactions,
+reactions to other people's messages, and reaction removals do not start a turn.
+Removing a reaction does not cancel work.
 
-```dotenv
-# webSearch: Tavily Search API (basic search, at most 5 results per query)
-CHATTO_TAVILY_API_KEY=tvly-...
-# browsePage: Cloudflare Browser Run (token permission: Browser Rendering - Edit)
-CHATTO_CLOUDFLARE_ACCOUNT_ID=your-32-character-account-id
-CHATTO_CLOUDFLARE_API_TOKEN=...
-```
+A maintainer can approve a clear proposal by adding 👍 to that proposal's message.
+The same user-ID check applies as for a direct reply. Approval covers the proposal
+that received the reaction, not a different or newer action. The agent asks for
+clarification when the scope is unclear. Appreciation and reactions to completed
+work must not start another job. Non-maintainers can react in normal conversation,
+but cannot authorize restricted work.
 
-Set both Cloudflare values or neither. Restart the bot after you change them.
-When at least one service is configured, the chat agent gets a `researchWeb`
-tool. It uses the tool when the Chatto references do not answer a question, or
-when the user asks about another site. The tool starts a research agent with
-these limits:
+The classifier can choose 👍, ❤️, or 😄 for a brief acknowledgment of text.
+The workflow adds it to the last verified new text message in the batch. It does
+not start or steer the conversation agent for that response. A batch that needs
+an answer, supplies diagnostic facts, or approves pending work goes to the agent.
+Incoming reaction events cannot cause an emoji acknowledgment.
 
-- It receives only the question that the chat agent writes, not the thread.
-- Its only tools are `webSearch` and `browsePage`. It cannot delegate work, post
-  to Chatto, or read the source checkout.
-- It can make at most 5 searches and 5 page reads, and it stops after three
-  minutes. It returns an answer and the source URLs. The chat agent can start at
-  most 3 research requests for each user message.
-- `browsePage` opens any public HTTP or HTTPS URL without credentials, including
-  URLs that the research agent builds itself. Cloudflare loads each page in a
-  browser on its network and returns up to 30,000 characters of Markdown. Target
-  sites see Cloudflare, not the bot host, and the tool cannot reach private network
-  addresses.
-- The research agent knows only the question. A hostile page can make it open a URL
-  that contains the question text. Therefore the chat agent is instructed to keep
-  questions self-contained and free of private details.
+The workflow records consumed message IDs in its recovery state. A failed or
+uncertain reaction write does not cause a text reply or an automatic retry.
+Recovery uses the last saved state; an action after that snapshot can still be
+considered again. Adding the same bot reaction is idempotent on the server.
+Delegation and result summaries use text. Automatic report completion still uses
+`setHandled` for the root ✅.
 
-If Tavily or Cloudflare rejects a request with a rate limit, the bot waits for
-the time in `Retry-After`, at most 10 seconds, and tries once more. The Cloudflare
-Workers Free plan allows one page read every 10 seconds, so research with several
-page reads is slow on that plan.
+## Background jobs
 
-The investigation and implementation workers have no web access.
+Long work runs in the background: an investigation, GitHub work, or Paseo
+workspace creation or implementation. The tool returns at once,
+and the bot keeps talking. Its turns list the running jobs with their latest
+step, so it can answer status questions. When a job finishes, its result
+reaches the bot as a new turn, and the bot replies to the person who asked.
 
-Web content can contain instructions that try to control an agent. A research
-result can carry such instructions to the chat agent. After a research result
-enters a conversation, Runling blocks `implementChatto`, `askImplementation`,
-`task_send` and `decideApproval` for the rest of that conversation. The bot then posts a fixed message
-that asks the user to start a new thread. Read-only investigation and
-`task_cancel` remain available. `forwardClarification` can send the current
-maintainer message to a running task after these reads. The host copies the
-message exactly; the model selects only the owned task ID. This direct-call tool
-cannot run from a script or notification. It reserves one send per message and
-task, before it waits for delivery. It does not accept model-written instructions.
+The steps of a job are not posted to the thread yet. They will show as the bot's
+temporary status in the thread when Chatto supports it (#2787).
 
-The supervisor can cancel a task with `task_cancel` only in a turn that a
-person's message started. Task notifications do not authorize cancellation, in
-the same way that they do not authorize new work.
+## Paseo implementations and workspaces
 
-A later conversation in the same thread reads the thread again,
-including bot replies that used research results. Runling does not track that
-text as untrusted. Start a new thread, not only a new conversation, for work that
-must not see earlier research. An investigation plan made after research can
-contain injected instructions, but plans stay in their conversation, so they
-cannot reach implementation. See Runling's
-[ADR-005](../runling/docs/adr/ADR-005-untrusted-context.md).
-
-Tavily receives each search query and the host's IP address. Cloudflare receives
-each page URL and the host's IP address. The chat agent is instructed not to put
-personal data, secrets, or private conversation details in research questions;
-this instruction is not a guarantee. Both services charge for use: Tavily per
-search credit, and Browser Run by browser time.
-
-## Source investigation
-
-To let the bot check bug reports and feature requests against source code, set:
+Maintainers can ask the bot to "start implementing", "build this", or "put this
+into Paseo". The bot sends a complete brief from the conversation, with the agreed
+scope and supporting evidence. A GitHub issue is optional. Configure the daemon
+and repository in `.env` and restart the bot:
 
 ```dotenv
-CHATTO_SOURCE_DIRECTORY=/absolute/path/to/chatto
-CHATTO_SOURCE_REF=origin/main
-CHATTO_INVESTIGATION_MODEL=openai-codex/gpt-5.6-sol
+CHATTO_PASEO_URL=wss://paseo.example.com/ws
+CHATTO_PASEO_PASSWORD=your-daemon-password
+CHATTO_PASEO_REPOSITORY_PATH=/absolute/path/to/chatto
 ```
 
-The directory must be a local Git checkout. The ref must exist locally; the bot
-does not fetch updates for investigations. If omitted or empty, the ref defaults to
-`HEAD`. When implementation is enabled, investigations use the implementation base
-branch's remote-tracking ref instead, for example `refs/remotes/origin/main`, so
-plans and changes start from the same branch. Uncommitted changes
-in the supplied checkout are not included. Configure the selected model's
-credentials in Pi or the host environment, then restart ChattoBot and start a new
-conversation. Without `CHATTO_SOURCE_DIRECTORY`, the investigation tool is absent. The
-configured directory must exist. A missing directory stops the investigation
-with a safe explanation in `failureSummary`; the supervisor can report the
-cause. Subprocess errors do not expose command output.
+The password is optional for daemons that do not require one. The repository path
+must be absolute **on the Paseo host**. The operator maintains that checkout and
+its `origin/main` reference. The endpoint must use `ws://` or `wss://`, end in `/ws`,
+and contain no credentials, query, or fragment. Use `wss://` for remote connections.
+With all Paseo settings absent, the capability is disabled.
 
-The chat agent can call `investigateChatto` with a question and relevant context.
-It supplies a brief announcement in the language of the message that it answers. The tool posts that
-message to the conversation thread and waits for delivery before starting work.
-If posting fails or the conversation is cancelled, the investigation does not start.
-Tool-call preambles stay in agent logs. A delegation announcement or implementation
-refusal supplies the turn's user-facing reply; the supervisor's second version
-is suppressed. Later turns can report progress or answer new questions normally.
-A task notification cannot start investigation. It can start implementation
-only for a saved plan, as described above. A refusal
-states whether work is active or was already attempted for the same request. The
-bot posts refusals once per user turn, and the rest of its reply still posts.
-Runling's `taskTool` bridge starts a background child workflow and returns a task
-handle. The workflow is shown under the conversation in the console.
-A separate read-only agent reads and searches files in a new detached worktree.
-It has no edit, write, or shell tools. It cannot change files or execute tests;
-implementation requests produce an assessment and suggested changes. Its report returns to
-the chat agent with findings, source references, test coverage inspected, limitations, and the base
-commit. Completion and requested-answer notifications wake the owning chat
-agent. Worker progress is retained for later user questions; raw shell output is not
-posted to Chatto. Accepted findings and worker commentary stay in the task buffer
-without a notification for each finding. A stopped implementation reaches
-the owner as its completion notification, and the owner reports it. A newer host phase
-supersedes older progress. Provider retries and blockers remain visible in the
-console. Each incoming prompt
-includes task status and the age of the latest finding, so the owner can distinguish
-old findings from current activity. No status polling tool is exposed.
-Each delegated task retains a bounded local buffer of worker commentary and
-findings. The owner receives a fresh snapshot on every user message and task
-notification. JSON task results are decoded into structured values in this
-snapshot; plain-text or truncated results remain text. Retained Runling records
-are unchanged. Workflow state records the current phase; implementation also
-records completed and pending checks. Commentary is historical context, not
-proof of current activity, and does not itself trigger a reply. The buffer is
-process-local and does not survive a restart.
+For a local desktop daemon that listens on loopback, use
+`CHATTO_PASEO_URL=ws://127.0.0.1:6767/ws`. If the daemon listens on another
+interface, use that address. The bot must be able to reach the listener.
+The default local listener does not use TLS; `wss://localhost:6767/ws` will fail.
 
-Both direct investigation calls and the agent tool default to `purpose: assessment`.
-To check whether a bug fix or feature is possible, the supervisor selects
-`purpose: feasibility`. The investigator must then return a verdict through
-`reportFeasibility`: `already_supported`, `feasible`, `feasible_with_caveats`,
-`needs_product_decision`, or `not_feasible`. The verdict also names the estimated
-size, the affected areas, compatibility risks, other risks, and open decisions.
-The size is an estimate from reading the source, not a commitment. A feasibility
-investigation can also return a plan; the conversation keeps it like other plans.
-A missing verdict gets one corrective turn, then a blocked `missing_feasibility`
-result. Each purpose is a list of deliverables in `workflows/deliverables.ts`.
-For a feature or bug plan, the supervisor explicitly selects `purpose: implementation` and
-returns a typed plan through `prepareImplementationPlan`. The plan contains a
-goal, base commit, file-level steps, acceptance criteria, proposed checks, and
-open questions. An assessment-only source question can omit a plan. A missing
-required plan gets one corrective turn, then a blocked `missing_plan` result.
-The conversation retains successful plans by investigation task ID. On a later
-implementation request, the supervisor passes `investigationId`; host code
-copies the original plan into the implementation input. Unknown or unfinished
-plan IDs are rejected before work starts. Plans are not reconstructed from chat
-prose. Plans live only in the active conversation.
+To enable implementation, also set `CHATTO_PASEO_AGENT_MODEL` to a `provider/model`
+available on that daemon. This is separate from the conversation model. Optionally
+set `CHATTO_PASEO_AGENT_MODE` to a permission mode supported by that provider and
+`CHATTO_PASEO_AGENT_THINKING` to a thinking level supported by the selected model.
+Omitted options use provider defaults. Chat messages cannot select these settings.
+Without a model, only explicit workspace-only requests are available, such as
+"Create a Paseo workspace for this task."
 
-After a process restart, old runs remain history only. A new addressed message
-starts a new run with a fresh agent and the current thread as context. It does
-not restore plans, inboxes, or in-flight work. A new request to continue an
-unfinished implementation can reuse that conversation's retained worktree.
-The host checks its branch and base commit, then reruns setup and final checks.
-It does not resume a result with uncertain publication; inspect GitHub first.
-Worktrees created before this recovery metadata was added need manual review.
-Old experimental checkpoint files are ignored; no workflow is resumed at startup.
-
-The implementer verifies the plan against its current base commit, preserves
-acceptance criteria, and reports necessary deviations. Open questions are not
-automatic design requirements. A direct implementation request can still start
-without an investigation. A plan does not grant permission to implement or
-replace the host's validation commands.
-
-Observed tool activity replaces older progress prose. Tool failures appear in
-snapshots with safe error categories and no raw error output. One failed lookup
-does not wake the owner. Two failures of the same operation without a success
-send a notification; permission failures notify immediately.
-An investigation stops after three failures of the same
-operation category without success; its artifacts remain available. Provider
-recovery updates status silently and does not announce investigation progress.
-Routine tool activity updates snapshots without waking the chat agent. User
-messages and background notifications have separate, host-supplied origins.
-Every prompt includes the last eight messages addressed to the bot
-(`recentMessagesToYou`) as a language anchor. The supervisor writes in English,
-unless the message that it answers is in another language or asks for one. For a
-short message and on notification turns, it uses the language of the anchor.
-Other thread messages and its own earlier replies do not choose the language.
-Without the English default, the model sometimes switched to an unrelated
-language.
-Reports must distinguish source evidence from hypotheses and respect the
-separate Chatto, Authling, and Runling product boundaries.
-
-The investigator records structured findings through `recordFinding`. The host
-extracts excerpts from relative file paths and line ranges in the retained
-checkout. Optional supplied quotes must match the source. A citation covers at
-most 40 lines and 3,000 characters, and an investigation records at most 12
-findings. The host rejects an invalid citation with the reason, such as a
-missing file or a range that is too long, so the investigator can correct it.
-The finding limit is a normal answer that asks the investigator to finish, not a
-tool failure. Only accepted findings reach the owner. Each accepted finding
-reaches the owner at once with its checked excerpts, as task output. The final
-result carries the claims and their locations without the excerpts, which keeps
-it well below the task result limit. Source checks do not establish that a claim follows from the excerpt.
-A completed investigation without accepted findings gets one
-corrective turn in the same session and checkout. If it still supplies no findings,
-the result is blocked with `missing_evidence`. `missing_outcome` identifies a
-missing final report; `provider_error` identifies a provider failure. Deliberate
-blocked reports and provider failures do not start another repair. The owner is
-instructed to report the reason and stopped state without automatically starting
-a new investigation. Findings identify observations or hypotheses, proposed changes, and
-known limitations. A checked citation proves where the excerpt occurs, not that
-the conclusion is correct. The report marks reproduction, test execution, and
-applied changes as false. The owner is instructed to keep source citations and
-the test limitation in its reply. Proposed changes still need human review.
-
-Each investigation has a ten-minute deadline. `/cancel` cancels the conversation
-and its child investigations. Follow-up messages start new supervisor turns, which can
-forward relevant clarifications with `task_send`. The worker consumes these as
-steering when possible and reports any clarification it could not consume.
-The owning conversation remains open while background work is active. Typing
-indicators reflect the chat agent's activity rather than the entire investigation.
-Task handles are private to one conversation and limited to 32 per conversation.
-
-Worktrees and artifacts remain under this package's `.runling/investigations/`,
-including after failure or cancellation. Each directory contains `metadata.json`,
-`worktree/`, and, after agent cleanup, `changes.patch`. Read-only investigations
-leave the patch empty. Older investigations can contain changes. These are host-local paths, not
-public download links. Review them before use. To release a retained worktree,
-run `git -C /path/to/chatto worktree remove --force /path/to/worktree` after saving
-any wanted files. Then delete its artifact directory. Retention has no automatic
-expiry; the operator must manage disk use.
-
-The agent's tools provide read access with the bot host's permissions.
-A worktree is not a filesystem sandbox. Use an isolated
-host for untrusted users and keep production credentials off that host. Agent
-instructions prohibit publishing, pushing, and changing the original checkout,
-but those instructions are not an operating-system access control.
-The configured investigation model provider receives the supplied report context,
-source excerpts, and tool results. Use a checkout whose contents may be sent to that provider.
-
-## Implementation and pull requests
-
-To let ChattoBot implement a requested fix or feature and publish a GitHub PR,
-configure these values in addition to the Chatto credentials:
+Values combine the Paseo provider ID and its model ID. For example, choose one:
 
 ```dotenv
-CHATTO_SOURCE_DIRECTORY=/absolute/path/to/chatto
-CHATTO_IMPLEMENTATION_REPOSITORY=owner/repo
-CHATTO_SOURCE_REF=origin/main
-CHATTO_IMPLEMENTATION_MODEL=openai-codex/gpt-5.6-sol
+CHATTO_PASEO_AGENT_MODEL=codex/gpt-6.1-sol
+CHATTO_PASEO_AGENT_MODE=auto-review
+CHATTO_PASEO_AGENT_THINKING=high
+
+# Or, for Claude:
+# CHATTO_PASEO_AGENT_MODEL=claude/claude-opus-5-5
+# CHATTO_PASEO_AGENT_MODE=auto
+# CHATTO_PASEO_AGENT_THINKING=high
 ```
 
-`CHATTO_IMPLEMENTATION_REPOSITORY` enables this capability. Without it, the bot
-can only investigate and propose changes. Implementation uses `CHATTO_SOURCE_REF`
-as its base branch, or `main` when it is unset or empty. It accepts `main`, `origin/main`, and
-`refs/remotes/origin/main`. When implementation is enabled, `CHATTO_SOURCE_REF`
-must name a branch that exists on origin, rather than a tag or commit.
-The model shown above is the default.
-The source checkout's `origin` fetch and push URLs must both
-match that repository on `github.com`. Fork publication and other Git hosts are
-not supported. Git must have an author name and email configured. Install `gh`,
-authenticate it for GitHub, and give the host permission to push branches and
-create PRs in the configured repository. Restart the bot and start a new
-conversation after changing these settings.
+These are settings for the coding agent created in the workspace. Codex's
+`auto-review` routes eligible permission requests through its automatic reviewer;
+Claude's `auto` uses its permission classifier. Both can still require human
+attention. Codex's `auto` means Default Permissions, not Auto-review. Neither
+example selects Full Access or Bypass.
 
-Ask the bot to implement a specific change, for example: “Implement the fix we
-discussed and open a PR.” The owner announces the task, then starts a separate
-implementation worker. Questions and investigation requests do not authorize
-implementation. Before `implementChatto` runs, a separate authorization check
-reads the ten newest messages from maintainers in the thread and the requested
-change, and the bot's latest posted message. It does not see the supervisor's
-conversation, other people's messages, or tool results. When it does not find a clear request to implement the change, the
-call does not run and the supervisor asks the maintainer to confirm. See
-[Authorization checks](#authorization-checks). When GitHub access is configured,
-the supervisor can pass `issueNumber`. The host then reads the issue with a
-read-only token and gives its title and body to the worker as untrusted
-reference text. The pull request closes the issue on merge. The investigator stays read-only. Follow-up messages can steer
-the implementation through the same `task_send` channel. Before publication, if
-the worker does not consume a forwarded clarification, publication stops. After
-publication, the worker waits for CI, and a forwarded message starts its next
-turn. Use `/cancel` to stop the whole flow, including while CI runs.
+Use `paseo provider models codex` or `paseo provider models claude` to list the
+models on your daemon. Add `--host 127.0.0.1:6767` to select that local listener.
+Use the returned `id`, prefixed by `codex/` or `claude/`. These are Paseo provider
+IDs, separate from the `openai/` or `openrouter/` prefixes of the conversation model.
+Use `--json` to see each model's `thinkingOptionIds` and select one of those values,
+such as `high` or `xhigh`. Supported levels depend on the model and daemon.
+The [SDK provider catalog](https://paseo.sh/docs/sdk/providers.md) also exposes
+`listModels` and `listModes` for the target host. ChattoBot passes the configured
+IDs to Paseo; it does not translate or silently replace unsupported values.
+Restart the bot after changing the setting. When implementation is unavailable,
+the bot explains the missing setup; it must not delegate coding to the GitHub worker.
 
-Only the supervisor talks to people in the thread, in its own words.
-The implementation task reports only to the supervisor task (Runling ADR-006),
-as task notices that wake the supervisor model:
+The bot accepts only a current addressed request from a configured maintainer.
+It resolves clear approval from the conversation and creates one worktree from
+`origin/main`, with a task title and new branch. Paseo controls workspace setup;
+configured setup scripts can run. For implementation, the task then starts a coding
+agent in that workspace. Both its system instructions and visible task message
+ask the agent to use the repository's Bazinga workflow:
+plan, implement, verify, review, commit, open a PR, and check CI. Narrower limits in
+the maintainer's request still apply. The agent must not merge or deploy.
+These are agent instructions, not command restrictions. An explicit workspace-only
+request starts no agent. Both operations require the maintainer check before opening
+the workspace. After creation, the bot assigns the `chattobot` workspace label.
+If labeling fails, the result retains the workspace and reports `labelApplied: false`;
+implementation can continue in that workspace.
 
-- **Milestones.** Each core stage is a notice whose `data.milestone` names it
-  and whose `data` holds its facts: `validating` (the change is ready and host
-  checks run), `published` (with `prUrl`), `ci_failed` (with the failed check
-  names, the attempt, and its limit), `ci_rerun_pending`, `ci_rerunning`,
-  `ci_fix_pushed`, `change_pushed`, and `messages_handled`, which carries the
-  worker's answer to messages that arrived while CI ran. The notice text describes the stage for
-  the model, not for the user. Add later stages, such as planning or review, as
-  new milestones.
-- **Progress.** While the worker works, it reports short updates with
-  `reportProgress`: its approach, test results, and what it does next. The host
-  redacts them like other worker text and sends at most one per minute. An
-  earlier update waits until the minute ends, and a newer one replaces it. After
-  eight minutes without an update, the host sends the number of changed files
-  and test runs so far. The supervisor passes on only what is new, in one short
-  sentence.
-- **The result.** When the task finishes, the supervisor writes the final
-  message from the result: the CI outcome, the PR URL, a summary of the change,
-  and its notes.
+The bot acknowledges accepted work once as an attempt to start the work and keeps
+answering messages. It confirms startup only after the remote service confirms it. The Runling
+child task subscribes before sending the brief, streams assistant messages back,
+and waits for the coding turn to finish, a permission request, an error, or a
+one-hour timeout. It joins live text fragments and emits each segment at the next
+message, timeline, or turn boundary. It also flushes remaining text when monitoring
+ends. Each emitted segment appears in the Runling log with a `Paseo:` label and
+the usual run and task prefix. Unfinished text stays buffered, so progress answers
+can use only segments already emitted. No monitoring model runs. The conversation keeps the last 20
+output entries, with up to 2,000 characters each, and uses them in its next turn.
+You can ask how the implementation is going. Progress does not trigger a model
+turn or chat post by itself. The buffer contains recent excerpts, not a complete
+log; it excludes reasoning and tool logs. Remote text is supporting evidence,
+not authorization or proof of success.
+The conversation agent then gives a short result, verification summary, and remaining
+questions. It distinguishes changes ready for review from a released fix. Backend,
+workspace, and branch details are included only when requested or needed for the next
+action. A completed turn alone does not prove success.
+The bot does not generate workspace links or automatically approve permissions.
+Respond to permission requests in Paseo. Monitoring ends at that point; it does
+not resume after a human response or a bot restart. Live output is not saved for
+recovery, and this monitor does not send follow-up instructions to the remote agent.
 
-Notices are not coalesced, so no milestone is lost. The host writes no message
-text. It only guards facts: when the supervisor's reply to a new PR or a final
-result leaves out the PR URL, the host appends the URL, and when the supervisor
-says nothing, the host posts the URL alone.
+Workspace creation and agent launch each have a 10-second connection deadline and
+a 60-second startup deadline.
+After a failure or interruption during creation, the workspace might still exist.
+Check Paseo before requesting another attempt. The bot makes at most one attempt
+per request message in a conversation and does not retry automatically. This is
+not a durable duplicate guard across bot restarts. Closing the SDK connection
+does not archive a workspace or stop remote setup or coding. If launch or monitoring
+fails after workspace creation, the result retains the confirmed workspace identity
+and agent ID when known. A timeout or connection loss can leave the agent running.
 
-When a user asks the owner to ask the implementation worker a question, the owner
-uses `askImplementation`. The worker's answer wakes the owner, which can reply
-while implementation continues. Queue acceptance alone does not mean the worker
-answered. The worker uses `answerOwner` with the question ID to send its answer.
-Ordinary clarifications still use `task_send`.
-
-Each new implementation fetches the configured base branch and creates a new
-`chattobot/<id>` branch in a separate worktree. It does not include uncommitted
-changes from the supplied checkout. The host first runs
-`mise x -- pnpm install --frozen-lockfile` in that worktree. Then it builds the
-workspace packages that the frontend imports, such as the generated API types,
-so that focused frontend tests can load. The worker uses
-`apply_patch` for source changes and has no shell tool. It can use `reviewDiff`
-to read the current diff, including new files, or select one changed path when
-the complete diff is too long. `runCheck` runs an approved typecheck, lint, or
-build check. `runFocusedTests` runs selected existing frontend test or spec
-files in one Vitest project, and `runGoTests` runs the tests of selected Go
-packages of the `cli` module, after it copies the legal files that `cmd` embeds.
-`runGoTests` rejects `./...`, the complete module. Tests of other areas, such as
-the workspace packages, run only in CI. The worker can save brief
-handoff notes for a later attempt.
-Patch and check failures return bounded diagnostics to the worker. A failed
-patch also shows the current lines around its first failed hunk. Worker checks
-are recorded separately from the final host checks because edits can make earlier results stale. Repository
-setup and check commands do not inherit the bot's Chatto,
-Authling, model-provider, or GitHub token variables. The host repeats final
-checks before publication.
-
-The host permits the implementation worker to read, edit in its worktree, and
-run the existing approved checks. These tools do not yet request an owner grant. The worker's PR proposal waits
-for a supervisor decision. Publication, later PR updates, and CI reruns also
-wait for approval. Each decision applies to one exact proposal or source
-revision. If the source or queued request changes while publication waits, the
-host stops it. Existing path, repository, command, and validation checks still
-apply.
-
-Approval requests wake the supervisor without posting internal approval messages
-to the thread. The supervisor can approve steps already covered by the user's
-request. Only it asks the user when more authority is necessary. Pending requests
-expire after five minutes and are denied on cancellation or restart. A resumed
-implementation must request approval again. This uses
-[Runling owner approvals](../runling/docs/approvals.md); it adds no external
-service or provider.
-
-An implementation that stops before publication can continue. This includes a
-cancellation, a blocked worker, and a restart of the bot. The worker keeps its
-conversation in `worker-session.jsonl` in the artifact folder. Each state update
-names the artifact, so the supervisor still knows it after a cancellation. Each
-supervisor prompt also lists up to three unfinished implementations of the
-thread (`resumableImplementations`), so a new conversation after `/cancel` or a
-restart can offer to continue too. The supervisor says that the work is kept
-and offers to continue it. When the user agrees, it resumes the exact
-`implementation-<id>` artifact. The host verifies that the artifact belongs to
-the same thread and reuses its branch and worktree. With a saved conversation,
-the worker continues it with its full context: it checks the diff, because its
-last step may not have finished, and carries on. Without one, as for older
-artifacts, the worker receives the original request and the saved handoff, and
-must check the handoff against the retained diff. In both cases it also receives
-the new instructions from each resume request, which the artifact keeps (at
-most five); where they differ, the latest instructions apply. Artifacts created
-before conversations were shared by thread belong to their original author's
-conversation key and cannot be resumed through the bot.
-
-After the worker reports its edits, the host prepares the tree as the
-repository expects. It regenerates protobuf code with `mise run codegen-proto`
-when files under `proto/` changed, and formats the changed files with Prettier
-and gofmt. Then it runs typecheck and lint for the affected area:
-`check:frontend` and `lint:frontend` for changes limited to `apps/frontend/`,
-and the root `check` and `lint` scripts otherwise. Commands run through
-`mise x -- pnpm run`. Protobuf changes also run `mise run lint-proto`, and
-changes to Go source or module files also run `mise run lint-cli`. These checks
-are fast and do not fail intermittently. The host does not run test suites: CI
-runs them on the pull request, and the worker runs only the tests that its change
-affects. Some local browser tests fail intermittently, so a local test failure
-would often block a correct change.
-The worker must finish its edits before it requests final validation. For a
-large, actionable change, it can save progress with `checkpointWork` and get
-another work turn in the same implementation. A checkpoint does not start
-validation or publication. Three checkpoints with no source changes stop the
-attempt and retain the handoff for review. The worker writes
-the content that the change needs, including copy and translations. A missing
-reviewer or approval does not stop it; it lists review needs in the PR notes,
-unless the user requires that review before publication. A blocked or failed worker report ends the attempt
-and requires a new user request. The host reports the worker's bounded,
-redacted reason and the number of worker checks it ran. It says when final host
-validation did not run. After a failed final check, the host sends bounded
-diagnostic output to the same worker, with at most two repair turns.
-The final result also retains failed-check diagnostics
-for supervisor questions, with known host credentials, URLs, email addresses,
-and IPv4 addresses removed. These private diagnostics are not operational logs
-and must not be copied verbatim into chat or PR descriptions.
-Every check must pass on the final Git tree. If a
-check changes source files, validation must run again. Setup and each check
-have a ten-minute limit. The complete implementation has no fixed deadline;
-use `/cancel` to stop it.
-The Runling console Log view and server terminal show implementation stages,
-check starts and results, and repair attempts. If an agent produces no events
-for two minutes, the console shows how long the run has been quiet. The server
-terminal reports that the agent remains active without claiming progress.
-The owner cannot start a replacement implementation from a task notification.
-After a failed attempt, ask explicitly to continue the retained worktree or
-start another implementation.
-If implementation stops, the owner receives the result and reports it, and the
-host retains any worktree for review. The bot waits for user direction before it
-starts another attempt.
-Unexpected worker or host errors also produce a stopped result when the
-conversation remains available.
-The host checks for an empty diff, protected instruction or environment files,
-changed Git history, and whitespace errors before publication. Passing commands
-does not establish that test coverage is sufficient; review is still required.
-
-The host commits the changes with a Conventional Commit title, pushes only the
-new branch, and creates a ready-for-review PR. Its body describes what changed,
-why, verification, and limitations. It does not merge or deploy. The host reads
-back the PR URL, branch, base branch, state, and commit before reporting success.
-
-Then the host follows CI on the PR. It polls GitHub checks every 30 seconds and
-stops at the first failed or cancelled check. It gives the failed check names
-and the end of up to three failed GitHub Actions job logs, redacted like other
-diagnostics, to the same worker. The worker either fixes the failure or, when
-the failure is unrelated to its change, calls `rerunFailedChecks`. The host
-validates a fix with typecheck and lint, commits it, and pushes it to the same
-branch. GitHub reruns jobs only in finished workflow runs. For a rerun, the host
-waits until the runs finish, reruns their failed jobs, and reads CI again.
-While it waits, a new failure still goes to the worker at once. The worker gets at most three CI failures
-(`MAX_CI_REPAIRS`). A message that arrives while CI runs interrupts the wait and
-goes to the worker's next turn; its validated edits are also pushed.
-The host posts the final CI result when checks pass, still fail after three
-repair attempts, are all skipped, stay pending for 30 minutes, or cannot be
-read. It also reports when the worker cannot produce a fix or the push fails.
-Before each result, it verifies that the PR still points to ChattoBot's last
-commit. If someone else pushes to the branch, it stops following CI. CI failure
-does not undo the published PR.
-If a publication response is lost, it checks for the existing PR rather than
-creating another one. An unverified result is reported as uncertain and is not
-automatically retried.
-
-`/cancel` stops the conversation and its implementation worker. Cancellation
-cannot undo a push or PR that GitHub already accepted. Retained artifacts under
-`.runling/implementations/` include the worktree, patch, PR description when
-prepared, and publication metadata. Check that metadata and GitHub before
-retrying an interrupted publication. Remove retained worktrees with
-`git worktree remove` when no longer needed, then remove their local branches
-and artifact directories. There is no automatic cleanup or restart recovery.
-Stopping the bot interrupts a running implementation, so avoid restarts, including
-reloads in `mise dev-chattobot`, while one runs. An implementation keeps running
-until CI on its PR finishes. After a restart, ask the bot to continue a stopped
-artifact that has no PR. A restart after publication stops CI repair; the PR
-stays open.
-
-The host executes dependency setup and repository validation scripts. Although
-the worker has no shell tool, edited code can run during validation.
-A worktree is not a security sandbox. Use an isolated host and
-trusted maintainers; set `CHATTO_MAINTAINER_USER_IDS` to control who can start
-work, and `CHATTO_ALLOWED_USER_ID` to restrict who can address the bot at all.
-An editor or other tool that finds the retained worktrees can run Git in them
-and briefly hold their index lock. The host retries a Git command that fails
-for that reason. When a host command fails anyway, the stopped result names the
-stage and the command, for example `git add failed (exit 128)`, without its
-output. Worker and model-provider errors stay generic, because they can contain
-private details.
-
-The worker's saved conversation holds its complete model context, including
-source excerpts and the request. It stays in the private artifact folder.
-Do not place production credentials on that host. The model provider receives
-relevant request context, thread messages with their authors' display names and
-logins, source content, and check output. GitHub receives the
-host's network address, Git credentials, commits, PR content, and CI log and rerun
-requests; public
-repositories make the published changes and PR notes public. Commands for
-dependency installation or verification can contact package registries and
-other services used by the checkout. Package registries receive the host's
-network address and requested package names.
-
-## GitHub access
-
-ChattoBot can read GitHub and, when a maintainer asks, change anything in the
-repository that its GitHub App may change. It uses a GitHub App, not a personal
-token. Actions show as the App's bot account, for example `chatto-bot[bot]`.
-
-1. Create a GitHub App in the organization settings. Turn off its webhook and
-   user authorization. Give it the repository permissions that ChattoBot may
-   use. These permissions are the limit of what it can do on GitHub. For issue
-   and CI work: Issues (read and write), Pull requests (read and write), Actions
-   (read and write), Checks (read), Commit statuses (read), and Metadata (read).
-   Add Contents (write) only if the bot may merge pull requests or change
-   repository files. Actions (write) lets it rerun and start workflows, so
-   protect release workflows with GitHub environments that need a reviewer.
-2. Generate a private key and store the `.pem` file on the bot host with mode
-   `0600`. Install the App on the repository only.
-3. Configure the bot:
-
-   ```dotenv
-   CHATTO_GITHUB_APP_CLIENT_ID=Iv23li...
-   CHATTO_GITHUB_APP_PRIVATE_KEY_FILE=/absolute/path/to/app.private-key.pem
-   # Defaults to CHATTO_IMPLEMENTATION_REPOSITORY.
-   CHATTO_GITHUB_REPOSITORY=owner/repo
-   ```
-
-4. Install `gh` on the bot host and restart the bot.
-
-The client ID is not secret; the private key is. The host uses the key to get
-installation tokens, which expire after one hour. Each token can reach only the
-configured repository. Reads use a read-only token; changes use a token with the
-installation's permissions. The host
-reuses a token until shortly before it expires. The key never reaches `gh` or a
-model.
-
-The supervisor has two tools:
-
-- `gh` runs read-only commands, such as `issue list` or `view`, `pr checks` or
-  `diff`, `run view`, `search issues`, and `gh api` GET requests and GraphQL
-  queries. Anyone who can address the bot can ask for them, for example to find
-  an issue or to list the issues of a milestone. With a private repository,
-  this lets those people read it through the bot. It always uses a read-only token. A command that the host classifies
-  wrongly as a read therefore fails at GitHub and changes nothing.
-- `ghWrite`, which only maintainers can use, runs changes: for example, it
-  files, updates, comments on, labels, closes, or transfers issues, comments on,
-  reviews, or merges pull requests, manages labels, releases, secrets, and
-  variables, reruns or starts workflows, and makes `gh api` writes. When a
-  maintainer asked for the change, it runs at once. The authorization
-  classifier decides this from the maintainers' messages to the bot; the
-  maintainer does not have to approve the exact text that the bot writes.
-  Otherwise nothing runs, and the bot asks whether to make the change. The
-  App's permissions decide what succeeds.
-
-The host protects only the bot host and keeps commands on github.com. It allows a
-fixed list of subcommands for each command group (see `github/policy.ts`). The
-list leaves out gh aliases, programs and credentials (`alias`, `extension`,
-`auth`, `config`), and subcommands that read or write local files or Git state,
-such as `release create`, `release upload`, `run download`, `pr checkout`,
-`pr create`, and `repo clone`. The host also rejects file input (`--body-file`,
-`--notes-file`, `--env-file`, `--input`, `-F key=@file`, `--attach`), browsers
-and editors,
-`--repo`, `--hostname`, `--`, absolute API URLs, jq expressions that read the
-environment, and any argument that names another host: a URL, an scp-style
-`user@host:path`, or `HOST/OWNER/REPO`. Put text with links to other sites in
-the body. `gh` gets no standard input.
-
-`gh` runs without a shell in a new temporary directory. Its environment has only
-`PATH`, `TMPDIR`, the repository, and settings that turn off prompts, pagers,
-update checks, and telemetry. The token is in a configuration file in that
-directory, not in the environment. `gh` cannot see the host's `gh` login, other
-credentials, or the private key. The host also rejects combined short flags,
-such as `-cq`, so that each flag and value is checked. The supervisor receives
-only the URLs from the output of a write. Output is limited to about 32,000
-characters. Tokens and email addresses are removed from it.
-
-### Requests and offers
-
-Every change needs a maintainer's request. The authorization classifier checks
-each `ghWrite` call against the maintainers' messages to the bot. It also
-receives the changes that the bot made in this conversation, and the bot's
-latest message as posted to the thread. A short agreement, such as “yes”,
-counts only for a change that this message names. So these all run a change:
-
-- a direct request, such as “make a GH issue for this” or “how about filing an
-  issue?”;
-- agreement to an offer, such as “yes please” after the bot asked whether it
-  should file an issue;
-- details or corrections sent right after the bot changed an item, which it adds
-  to that item, for example as a comment.
-
-When the messages only discuss a problem, nothing runs, and the bot asks in its
-own words whether it should make the change. A refusal, such as “not yet”,
-prevents the change. A reply to the bot's question counts in any language or
-tone, for example “Oui” or “I do!”. When a maintainer asks for a tone, such as
-humor, the bot writes in it, unless the text would insult or harass a person.
-There is no approval command and no posted command line.
-An explicit confirmation, for example a direct message to the requesting
-maintainer, is a possible later addition.
-The host gives the supervisor only the URLs from a change's output, and adds
-them to the reply when the supervisor leaves them out.
-
-GitHub output is untrusted: anyone can write issue bodies and CI logs. After `gh`
-returns output in a conversation, `implementChatto`, `askImplementation`,
-`task_send` and `decideApproval` are blocked in it, as after web research. `ghWrite` stays
-available, because every change needs a maintainer's request. To implement an
-issue, ask for it in a new thread; the supervisor passes `issueNumber` to
-`implementChatto` without reading the issue itself.
-
-### Authorization checks
-
-The authorization classifier is a separate model call from Runling (Runling
-[ADR-007](../runling/docs/adr/ADR-007-authorization-classifier.md)). It checks
-GitHub changes and `implementChatto` calls. It receives the action,
-maintainers' messages to the bot, and host-chosen context: the changes that ran
-in this conversation, saved plan goals, and the bot's latest posted message,
-which people answer. That message is model text, so a short agreement counts
-only for a change that it names. The classifier never receives the supervisor's
-conversation or tool results. Errors,
-timeouts, and unclear answers count as “not authorized”. The run log records the
-category of each decision (`allow`, `deny`, or `unclear`), never the messages or
-the classifier's reason. It uses
-`CHATTO_CLASSIFIER_MODEL`, or the supervisor model when that setting is unset.
-The classifier's model provider receives the action text and the maintainers'
-messages.
-
-## Codemode
-
-The supervisor, the research agent, the investigator, and the implementation
-worker have Runling's `codemode` tool (Runling FDR-008). The model can write a
-JavaScript script that calls the agent's own tools, for example to read several
-files or issues in parallel and keep only the relevant lines. Only the script's
-output enters the conversation. Every call from a script passes the same checks
-as a direct call: the authorization checks, the research limit, and the block
-after untrusted content. Tools that only maintainers can start, and
-`task_cancel`, run only as direct calls, because a script could wait until a
-maintainer writes. Scripts cannot call `finishTurn`, which only the model can use to select delivery.
-They cannot call `viewAttachment`, because they receive
-only text, and the model must see the image itself. Supervisor scripts stop
-after four minutes, worker scripts after twenty, and other scripts after ten.
-A supervisor script can make at most 30 tool calls, and other scripts 100.
-
-When the output of a script is longer than its limit, Pi writes the complete
-output to a temporary file. The output can contain thread messages and GitHub
-content. Runling deletes the file at once for agents without a read tool, and
-when the agent ends otherwise. When the Chatto source or the implementation CLI
-starts, the bot also creates a directory with a random name in the temporary
-directory, which only the bot's user can read, and points `TMPDIR` at it. The
-bot removes the directory when its process ends; after a crash, it stays. On
-Windows, Node does not use `TMPDIR`, and the temporary directory already belongs
-to the user.
-
-## Development
-
-`runling.config.ts` registers the `chatto` event source. `workflows/chat.ts`
-owns the agent instructions and conversation task.
-The `chatto/` directory owns delivery routing, conversation queues, posting,
-and typing indicators. `workflows/implement.ts` owns the `implementChatto` tool.
-The implementation run is in `implementation-task.ts`, which uses
-`implementation-tools.ts` (worker tools), `implementation-validation.ts` (host
-checks), `implementation-publication.ts` (commit, push, and PR),
-`implementation-ci.ts` (PR checks, failed job logs, and reruns),
-`implementation-artifacts.ts` (retained state), `implementation-safety.ts`
-(redaction and protected paths), and `implementation-settings.ts`. The run is a
-composition of stage functions: `implementation-preflight.ts`,
-`implementation-progress.ts`, `implementation-work.ts` (worker turns), and
-`implementation-follow-ci.ts` (CI after publication). `workflows/deliverables.ts`
-defines the investigation deliverables. `github/` owns the GitHub App tokens,
-the `gh` command policy and runner, and the command rendering; `workflows/github.ts`
-registers the supervisor's GitHub tools.
-
-To run an implementation without Chatto, use `workflows/implement-cli.ts` with
-the same `.env` settings:
+The standalone task also accepts JSON input from the local operator:
 
 ```sh
-mise x -- pnpm exec runling run workflows/implement-cli.ts \
-  --input '{"request":"Fix the typo on the login page"}'
+pnpm exec runling run tasks/create-workspace.ts --input '{"title":"Investigate startup","branchName":"investigate/startup"}'
+pnpm exec runling run tasks/start-implementation.ts --input '{"title":"Keep drafts","branchName":"fix/drafts","task":"Preserve draft text when switching rooms; add a regression test.","evidence":"Drafts disappear after switching away and back. No issue exists."}'
 ```
 
-Add `"context"` for more detail. The host posts no chat messages; follow the run
-in the terminal. Artifacts from these runs have no owner key, so the bot cannot
-resume them.
+Run this command from `packages/chattobot/`. It uses the configured Paseo host;
+the Chatto maintainer check belongs to the conversation tool.
 
-Retained implementation metadata stores an owner key: the SHA-256 hash of the
-conversation key from `deliveryConversationKey`. A resume request succeeds only
-when the hash matches the current conversation. If you change how the conversation
-key is built, keep its value unchanged for existing conversations. Otherwise,
-retained implementations cannot be resumed.
+## GitHub work
 
-Short disconnects resume from the last received event. Unavailable replay
-reports a recovery gap and continues from a new snapshot. Each source
-generation opens its own connection and closes it when the generation ends, so
-a config reload or a process restart starts from a new snapshot. Messages that
-arrive while no generation runs are not replayed; ChattoBot logs a warning
-after each reload. There is no durable inbox or
-exactly-once delivery. Changing server or bot identity starts separate
-conversation state. Failed run registration gets up to three attempts, with delays of 250 ms
-and 500 ms. Shutdown or reload cancels the wait. Inbox deliveries are not retried.
-If all attempts fail, the event remains unaccepted and the source stops.
-Terminal connection or routing errors stop the source until a valid
-config reload or process restart.
+With GitHub configured, the bot searches existing issues early, summarizes matches,
+and asks whether they cover the request before further intake. Reads are available
+to all users; writes require a current addressed maintainer request.
+The bot's instructions use GitHub's native parent/sub-issue relationships for
+epics and their tasks, including verification after an authorized link change.
 
-The configured Chatto server receives the host's IP address and bot API key.
-Agent requests separately send conversation text to the configured model provider.
-Reference requests disclose the host's IP address and requested page path to
-`docs.chatto.run`, `dev-docs.chatto.run`, or GitHub (`raw.githubusercontent.com`)
-for the Awesome Chatto list. They do not send Chatto credentials. Retrieved page
-text is sent to the model provider as reference material. When web access is
-configured, Tavily and Cloudflare receive the data described in
-[Web research](#web-research). When GitHub access is configured, GitHub receives
-the host's IP address, App token requests, and each command; issue text
-and comments become public in public repositories.
+Issue titles describe the issue without prefixes. The worker uses GitHub's
+native issue type field for classification, such as Bug, Feature, or Enhancement,
+and discovers the types available in the repository. It does not use labels for
+this classification. It verifies the saved type. If no suitable type is available,
+it stops before creating or reclassifying the issue and reports the limitation.
 
-Run checks from the repository root:
+The worker also uses native issue fields for requested metadata such as Priority,
+Effort, Start date, and Target date. It discovers field definitions and options,
+preserves unrelated values, and reads back changes to verify them. A maintainer
+can supply values or ask it to assess priority. It does not invent dates or effort
+estimates. These fields are separate from issue types, labels, and Projects fields.
+
+A maintainer can ask the bot to create an issue, update its text or labels, or
+add a comment. The conversation starts `tasks/github.ts` as a Runling child task
+through `githubWork`. The worker uses the same model and reasoning effort as
+the conversation. It receives the resolved task and supporting evidence from the
+conversation, uses one `gh` tool, and returns its result to the conversation.
+The conversation posts the reply.
+
+For background work, the supervisor acknowledges the accepted request once,
+then sends the result when it arrives. Delegation context preserves the
+requested scope and distinguishes reported behavior from observed evidence.
+An issue that was not reproduced says so. Closing an issue does not imply
+adding a comment; withdrawn reports close as not planned. The worker reads
+back changes to verify them.
+
+The existing delegation gate logs allowed or denied decisions with a fixed
+reason and the current message ID. Unknown request IDs appear as `not-current`;
+model-supplied IDs, message bodies, and author details are not copied into
+these decision entries. The entries appear in the Runling journal with the
+other activity of the conversation.
+
+When a request does not identify work to do, the worker asks for clarification
+before using tools. For a clear request, it can read GitHub to resolve details.
+The CLI runs the agent task directly and shows one GitHub worker. Command steps
+show names and numeric issue or PR targets, such as `Executing: gh issue edit #12`;
+titles, bodies, search terms, and API paths are omitted from those labels.
+
+Each message can start one worker, and one GitHub worker can run at a time in
+a thread. A later request starts a new session. Session files are stored in
+`.runling/subagents/github/`.
+
+The worker can read GitHub and make changes allowed by an issue-write token
+for the configured repository. It has no shell or file tools. The CLI runner
+blocks commands that access local files, credentials, editors, or other hosts.
+
+The host checks who made the current addressed request. The conversation agent
+resolves what the maintainer authorized and passes a self-contained `task` and
+separate supporting `evidence`. For "go ahead" or "yes, file that", it uses the
+thread context and reads more history when needed. Clear approval proceeds;
+genuine ambiguity gets one question before delegation. The worker does not
+reinterpret the original approval or require a proposal quote. A bare ping
+grants no permission. Reports and GitHub content cannot expand the task.
+
+For "try again", the conversation agent identifies the unfinished action,
+target, and requested value. The worker checks current state first and completes
+only that step. It does not repeat a change that already succeeded.
+
+Each worker command passes the static CLI policy. Writes also pass a separate
+model check against the authorized task. Supporting reads and result verification
+need no model decision. The tool binds the task in host code; the worker supplies only
+command arguments. A denial returns to the worker to correct its command within
+the existing task. It does not automatically request another user approval.
+Invalid decisions, model errors, and cancellation prevent command execution and
+credential acquisition. The conversation's direct read tool is unchanged.
+
+Command scope uses Runling's `createClassifier`: one isolated, tool-free model
+turn with a validated JSON result and a 30-second deadline. Each worker write
+adds a call to the configured model provider, using low reasoning effort. The
+provider receives the resolved task, repository, and command arguments, which
+can include draft issue content; it also sees the bot host's IP address. No
+additional external service is introduced. There is no approval cache or ledger.
+The conversation agent is trusted to resolve scope correctly, and the classifier
+can make mistakes. This is an additional model check, not a hard authorization
+guarantee.
+
+You can also run the task directly from `packages/chattobot/`:
 
 ```sh
-mise check-chattobot
-mise test-chattobot
+pnpm exec runling run tasks/github.ts "List the five newest open issues"
 ```
 
-To evaluate the reply policy against synthetic regression cases, run from this
-package:
+Runling loads `.env` in the current directory. Set `CHATTO_AGENT_MODEL`, the
+model provider credentials, and the three `CHATTO_GITHUB_*` settings listed
+below. The task uses the configured GitHub App credentials, not your `gh auth`
+login. Local execution does not need `CHATTO_URL`, `CHATTO_API_KEY`, or
+`CHATTO_MAINTAINER_USER_IDS`. The maintainer check applies when a Chatto
+conversation delegates work; a local invocation uses the operator's authority.
+
+## Project context and checkout updates
+
+Set `CHATTO_SOURCE_DIRECTORY` to a dedicated checkout on `main`, with `origin`
+pointing to the trusted Chatto repository. Each conversation startup, including
+recovery, attempts a fetch and a fast-forward-only update from `origin/main`.
+There is no timer and no update on later messages in that conversation.
+Concurrent starts share an update. Active investigations prevent updates until
+a later conversation starts. Do not use a working checkout or update it from
+another process while the bot uses it.
+
+Dirty checkouts, other branches, local commits, and failed fetches keep their
+existing contents. The bot logs the skipped or failed update and continues.
+Git commands have timeouts and cannot ask for credentials; configure access on
+the bot host if the remote requires authentication.
+
+The conversation reads the committed root `CHATTOBOT.md` as a project briefing,
+with its source commit and refresh status. This gives all users project status
+and documentation links without granting code-investigation access. Keep the
+briefing short and update it when release status changes. It cannot override
+authorization policy. Missing or oversized briefings do not stop the bot.
+Each conversation keeps the briefing it loaded at startup.
+
+## Investigations
+
+For a current maintainer request, `investigate` gives a question to an investigator agent, which reads the
+source checkout, its documentation, and its Git history, and answers with file
+references. At most three investigations run at the same time in one thread.
+The investigator can only read. The bot checks each `path:line` reference
+against the checkout and, when GitHub is configured, links it to the lines on
+GitHub at the investigated commit.
+
+Each investigation keeps its agent session in `.runling/subagents/investigate/`.
+The bot can resume an investigation with a follow-up question, also after the
+investigation ended. You can also run the investigator on its own:
 
 ```sh
-pnpm runling run evaluations/run.ts --input '{"model":"openrouter/google/gemma-4-26b-a4b-it","repeats":2}' --json
+runling run tasks/investigate.ts --input '{"directory": "/path/to/chatto", "question": "..."}'
 ```
 
-This command makes model requests and can incur provider charges. It sends only
-synthetic conversation data and the shared reply policy. Its only tool selects the final response; it has no
-Chatto connection and reads no source checkout. Set `"dryRun":true` in the input
-to inspect the cases without model requests. The results contain replies, simple
-checks, and a review rubric. Review each reply: passing these checks does not
-prove semantic correctness. These cases test the reply policy, not tool selection
-or complete multi-turn conversations. Use the same model and repeat count when
-comparing changes.
+Add `"session": "<id>"` to the input to continue an investigation.
 
-To test the full investigator-to-owner handoff against a model, run from this
-package with the model's credentials:
+## Run it
+
+Copy `.env.example` to `.env` and set at least `CHATTO_URL`, `CHATTO_API_KEY`,
+and `CHATTO_AGENT_MODEL`. Then run `mise dev-chattobot` from the repository
+root. The Runling console URL is in the output.
+
+Create the API key for a bot account in Chatto. The bot can only read and post
+where that account can.
+
+## Settings
+
+| Setting                                                                                         | Description                                                                                                    |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `CHATTO_URL`, `CHATTO_API_KEY`                                                                  | The Chatto server and the bot account's API key. Required.                                                     |
+| `CHATTO_AGENT_MODEL`                                                                            | The model, as `provider/model`, for example `openrouter/openai/gpt-5.5`. Required.                             |
+| `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                      |
+| `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                          |
+| `CHATTO_AUTO_ENGAGE_ROOM_IDS`                                                                   | Optional room IDs for automatic report intake, separated by commas or spaces. Disabled by default.             |
+| `CHATTO_INTAKE_DECISION_MODEL` | Optional OpenRouter Decisions model ID for participation checks. Requires `OPENROUTER_API_KEY`; unset uses the conversation model. |
+| `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                           |
+| `CHATTO_MAINTAINER_NAME`                                                                        | Optional Chatto user login to mention for maintainer input. Grants no permissions.                             |
+| `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
+| `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
+| `CHATTO_SOURCE_DIRECTORY`                                                                       | Dedicated Chatto checkout on `main`. Startup refresh loads `CHATTOBOT.md`; also enables maintainer investigations. |
+| `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).             |
+| `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD`                     | Optional Paseo daemon, repository on that host, and password. Enables workspace creation.                      |
+| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING`            | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level.    |
+| `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                                          |
+
+Model providers use their own settings, for example `OPENROUTER_API_KEY`, or a
+Pi login on the bot host.
+
+### GitHub App
+
+Create a GitHub App and install it on the repository only. Give it these
+repository permissions: Issues (read and write), Pull requests, Actions,
+Checks, and Commit statuses (read). ChattoBot creates a token for each command,
+limited to the repository and to the permissions that the command needs. Read
+commands get read-only tokens. The private key stays on the bot host.
+
+To use native issue fields, also grant the App the organization permission
+**Issue Fields: read**, and approve the updated installation permissions.
+ChattoBot requests this permission only for field discovery; other GitHub work
+does not require it. Updating values uses the existing **Issues: write** permission.
+See GitHub's [issue field API](https://docs.github.com/en/rest/issues/issue-field-values).
+
+## Privacy
+
+ChattoBot sends these data to other systems:
+
+- **The model provider** receives the messages to the bot, the other new
+  messages in the thread, the attachments that the bot views, and all tool
+  results.
+- **The Chatto documentation sites and GitHub** receive the requests of
+  `fetchPage` and the bot host's IP address.
+- **GitHub** receives each `gh` command, the changes that the bot makes, and the
+  bot host's IP address.
+- **The source checkout's Git remote** receives fetch requests and the bot host's
+  IP address at conversation startup. The conversation model receives the committed
+  `CHATTOBOT.md` briefing and commit ID. No chat messages are sent to the Git remote.
+- **The configured Paseo daemon** receives the workspace title, branch name,
+  base reference, repository path, configured password when present, and bot host's
+  IP address. The title and branch can describe the reported problem. The bot does
+  not deliberately send author identities or raw thread messages. Workspace results,
+  including the remote directory, return to the conversation model. For implementation,
+  Paseo also receives the resolved task and supporting evidence. Its coding provider
+  receives that brief and the code and tool results the agent reads, plus the Paseo
+  host's IP address. Recent assistant messages and the final agent report return
+  to the conversation model. Its progress answers and final summary go to the thread.
+  Paseo's setup scripts and coding tools can contact further services under the
+  operator's configuration.
+- **Tavily** receives search queries, and **Cloudflare** receives page URLs,
+  when they are configured.
+- **The model provider** of the investigator receives the questions and the
+  source code that the investigator reads.
+- **The model provider** of the GitHub worker receives the resolved task,
+  supporting evidence, and GitHub tool results. Each write-scope check sends
+  the resolved task, repository, and proposed command arguments to that provider.
+
+With automatic intake enabled, the model provider also receives eligible new
+posts and attachment MIME types in the configured rooms, without a mention.
+For every active bot conversation, follow-up classification can send ordinary
+human replies and a short preceding excerpt without a ping. Mentions, direct
+replies, and new DMs also send text, attachment MIME types, and recent thread
+context to the participation classifier. When
+`CHATTO_INTAKE_DECISION_MODEL` is set, these classification inputs go to OpenRouter
+and its selected decision-model provider instead of the conversation provider.
+These requests reveal the bot host's IP address, not the author's IP address.
+Tell room members that the bot processes their posts. Classification incurs
+model costs even when the bot stays silent.
+
+The Runling run journals in `.runling/runs/` contain the messages and replies.
+Run-owned agent files include conversation content and GitHub worker requests,
+context, and tool results. Shared sessions in `.runling/subagents/investigate/`
+contain investigation questions and source code. Keep the complete `.runling/`
+directory private. Older GitHub worker files in `.runling/subagents/github/` are
+not migrated into run-owned storage and remain outside run retention.
+
+## Develop
+
+- `mise check-chattobot` checks the types.
+- `mise test-chattobot` runs the tests.
+
+### Paseo model evaluations
+
+From `packages/chattobot/`, run `pnpm eval:paseo`. It reads `.env` and uses
+`CHATTO_AGENT_MODEL` with synthetic requests. Chatto and Paseo are mocked: no
+messages, workspaces, or coding agents are created. Only the conversation model
+provider is contacted. The cases check issue-free implementation briefs, one
+acknowledgment followed by a result, permission handoff, and non-maintainer requests.
+GitHub tools remain available to test capability selection. The Bavarian-language
+case checks approval in thread context with and without a configured Paseo model.
+These cases are skipped in the normal test suite.
+
+### Documentation model evaluations
+
+From `packages/chattobot/`, run:
 
 ```sh
-CHATTO_EVAL_MODEL=openrouter/google/gemma-4-26b-a4b-it mise x -- node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run workflows/investigate.test.ts -t 'live worker'
+pnpm eval:docs
+pnpm eval:docs web-last-resort
 ```
 
-This opt-in test uses the production investigation flow with a temporary synthetic
-Git repository. It checks actual file access, accepted citations, completion, and
-the owner's reply. It makes paid model requests but sends no real source checkout
-or Chatto conversation. Normal unit-test runs skip it.
+These opt-in evaluations use the configured model and reasoning effort. They
+contact the model provider and incur model costs. Chatto messages, documentation,
+and web results are synthetic; no documentation site, Tavily, Cloudflare, or
+Chatto server is contacted. Production tool schemas and descriptions are used
+with fixture executors.
 
-To evaluate a complete supervisor conversation with a live model, run from this
-package:
+Cases cover stable and pre-release docs, version comparisons, web fallback,
+missing evidence, unrelated and mixed requests, and instructions hidden in
+reference content. Two-turn cases check startup clarification before research,
+reuse of documentation already read, and bare pings after another person answers
+without a mention. The bare-ping cases include a maintainer nudge with privileged
+tool schemas available; all executors still use fixtures. They check that the bot
+asks about observable symptoms when the reporter does not know the server setup.
+Deployment cases check topology clarification and the limits
+of a documented example. They check tool calls, their order, citations, and reply
+content. Each case has a two-minute deadline. Reports are saved under
+`.runling/evaluations/`. A passing run is a behavioral sample, not proof that
+the model will always follow the topic restriction.
+
+### Intake model evaluations
+
+From `packages/chattobot/`, run `pnpm eval:intake`, or select a case with
+`pnpm eval:intake screenshot-only`. These evaluations send synthetic posts
+to the configured model provider. They incur model costs but do not contact
+Chatto or GitHub. Cases cover reports, feature requests, incomplete reports,
+German text, unrelated messages, instruction injection, and image metadata.
+Follow-up cases cover partial and batched answers, corrections, screenshots,
+resolved questions, human discussion, requests for silence, and emoji-only
+acknowledgments. Addressed cases cover thanks, unrelated requests, approval,
+and mixed batches.
+Reports are saved under `.runling/evaluations/`. Each case records the expected
+decision, actual result or error, elapsed time, tokens, and reported USD cost.
+Eight additional cases are marked `held-out` for comparison with the original
+32 cases. A passing run is a behavioral sample, not proof that every
+classification will be correct.
+
+Compare backends with the same cases:
 
 ```sh
-CHATTO_EVAL_MODEL=openai/gpt-6-luna mise x -- node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run evaluations/conversation.test.ts
+CHATTO_INTAKE_DECISION_MODEL= pnpm eval:intake all
+CHATTO_INTAKE_DECISION_MODEL=typesafe/jev-1.13 pnpm eval:intake all
+CHATTO_INTAKE_DECISION_MODEL=openai/gpt-6-luna-decisions pnpm eval:intake all
 ```
 
-This opt-in evaluation makes paid model requests with synthetic messages. Chatto
-delivery and reference reads use local fixtures; it does not contact Chatto or
-reference sites. It checks the number and kind of delivered responses across
-questions, thanks, repeated feedback, and reference research. Review its printed
-transcript for relevance and tone. Normal test runs skip it. Deterministic
-completion tests also cover stray model text, reaction failure, cancellation,
-and missing final choices.
+The evaluation exits with a failure if any case fails; the report keeps all
+results. Compare unwanted engagement and missed engagement separately from
+request errors. Missing reported cost does not mean a request was free.
+
+### GitHub model evaluations
+
+From `packages/chattobot/`, run:
+
+```sh
+pnpm eval:github
+pnpm eval:github ambiguous-moo
+pnpm eval:github authorization
+pnpm eval:github issue-discovery
+pnpm eval:github issue-fields
+pnpm eval:github retry
+pnpm eval:github language-report-withdrawal
+```
+
+These opt-in evaluations use `CHATTO_AGENT_MODEL` and
+`CHATTO_AGENT_THINKING` from `.env`, with the model provider's credentials.
+They contact the model provider and incur model costs. They use synthetic
+messages and an in-memory GitHub fixture; they do not contact GitHub or Chatto
+and do not load GitHub App credentials.
+
+Worker cases cover ambiguous input, explicit searches, issue creation and
+edits, instructions hidden in issue content, and a lost response after a
+successful write. Supervisor cases cover maintainer and member requests,
+including both authors in one turn and an unrelated maintainer message. They
+also cover investigation authorization, report intake, and acknowledgments
+that must not claim completed work.
+The `authorization` group checks injected bulk changes, bare maintainer pings,
+missing or ambiguous conversational context, clear referential approval with
+both real agents and the command classifier, and legitimate bulk closure.
+The `scope` group tests the classifier directly with permitted commands,
+unrelated writes, hidden REST side effects, wrong targets, and injected arguments.
+Case-name prefixes select a group of evaluations.
+The `issue-discovery` group checks early feature and bug searches, multiple
+plausible matches, closed proposals, no matches, and vague reports that need
+clarification first.
+The `issue-fields` case checks priority discovery, update, and verification,
+preservation of other values, and rejection of extra instructions in evidence.
+They check commands, changed issue state, and delegation targets. They do not
+require exact reply wording. Most supervisor cases use fake GitHub workers and
+investigators; the worker cases use the real worker agent.
+
+The `retry` group checks the complete supervisor-to-worker handoff with both real
+agents, retries after partial success, already-saved values, missing or ambiguous
+references, and extra instructions in evidence. It also checks that a partial
+result does not mark the thread handled.
+
+The language-report-withdrawal case uses both the real supervisor and real
+worker agents. It replays a language complaint, an explicit request to file
+it, and a request to close it as a joke. It checks acknowledgment counts,
+uncertainty in the report, closure without an extra comment, the closure
+reason, and reads that verify changes.
+
+Each case runs once, with a two-minute deadline and a limit of 16 fixture
+commands. A failed assertion or an unsupported fixture command fails the run.
+Reports are saved under `.runling/evaluations/`. Worker sessions belong to the
+evaluation's Runling run and follow its retention policy.
+The report includes the model, commands, replies, state, and failure details.
+The fixture supports a small issue CLI and REST subset, not the complete
+GitHub API. A passing run is a behavioral sample, not proof of authorization
+or a live GitHub integration test. These evaluations are separate from the
+deterministic tests in `mise test-chattobot`.
+
+Read [AGENTS.md](AGENTS.md) before you add a tool or change the conversation.
+
+### Response style evaluation
+
+Run `pnpm eval:style` to check concise replies and summaries with the configured
+conversation model. The thread history is synthetic. Chatto and documentation
+services are not contacted; only the model provider receives the test prompts.
+The checks retain known facts while limiting word counts, repeated questions,
+and generic offers of more help. A pass is a behavior sample, not a guarantee.

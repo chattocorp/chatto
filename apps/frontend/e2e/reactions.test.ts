@@ -43,7 +43,7 @@ test.describe('Emoji reactions', () => {
 
     await message.locator.locator('.message-content-stack').click({ button: 'right' });
     const desktopMenu = page.getByRole('menu');
-    await desktopMenu.getByRole('menuitem', { name: 'Reactions', exact: true }).click();
+    await desktopMenu.getByRole('menuitem', { name: 'View reactions', exact: true }).click();
     const details = page.getByRole('dialog', { name: 'Reactions' });
     await expect(details.getByTestId('reaction-details-panel')).toContainText(
       firstUser.displayName
@@ -78,7 +78,10 @@ test.describe('Emoji reactions', () => {
         )
       )
       .toBe(true);
-    const reactionsButton = actionSheet.getByRole('button', { name: 'Reactions', exact: true });
+    const reactionsButton = actionSheet.getByRole('button', {
+      name: 'View reactions',
+      exact: true
+    });
     const reactionsBox = await reactionsButton.boundingBox();
     if (!reactionsBox) throw new Error('Reactions action is not visible');
     await cdp.send('Input.dispatchTouchEvent', {

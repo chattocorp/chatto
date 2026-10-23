@@ -56,7 +56,7 @@ export class StaleResponseError extends ConnectError {
    * subclass inherits that check. Restore the normal prototype check, so that
    * `instanceof StaleResponseError` does not match every `ConnectError`.
    */
-  static [Symbol.hasInstance](value: unknown): boolean {
+  static override [Symbol.hasInstance](value: unknown): boolean {
     return Function.prototype[Symbol.hasInstance].call(StaleResponseError, value);
   }
 }

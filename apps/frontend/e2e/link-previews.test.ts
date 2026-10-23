@@ -14,7 +14,25 @@ test.afterAll(async () => {
   await ogServer?.close();
 });
 
-test.describe('Bare-domain auto-linking', () => {
+test.describe('Automatic URL links', () => {
+  test('filenames and bare domains stay plain in posted messages', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const messageText = 'Files agents.md readme.md foo.py and example.com';
+    await roomPage.sendMessage(messageText);
+
+    const message = page.locator('[role="article"]', { hasText: messageText });
+    await expect(message).toBeVisible();
+    await expect(message.getByText(messageText, { exact: true }).locator('a')).toHaveCount(0);
+    await expect(message.getByTestId('link-preview-card')).toHaveCount(0);
+  });
+
   test('www-prefixed bare domain is auto-linked in posted message', async ({
     page,
     chatPage,
@@ -29,14 +47,14 @@ test.describe('Bare-domain auto-linking', () => {
 
     // The message should be rendered with the bare domain as a clickable link
     const message = page.locator('[role="article"]', { hasText: messageText });
-    const link = message.locator('a[href="http://www.example.com"]');
+    const link = message.locator('a[href="https://www.example.com"]');
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await expect(link).toHaveText('www.example.com');
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  test('bare domain with .dev TLD is auto-linked', async ({ page, chatPage, roomPage }) => {
+  test('www URL with .dev TLD is auto-linked', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -44,7 +62,7 @@ test.describe('Bare-domain auto-linking', () => {
     await roomPage.sendMessage('Check www.hmans.dev');
 
     const message = page.locator('[role="article"]', { hasText: 'Check www.hmans.dev' });
-    const link = message.locator('a[href="http://www.hmans.dev"]');
+    const link = message.locator('a[href="https://www.hmans.dev"]');
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await expect(link).toHaveText('www.hmans.dev');
   });
@@ -64,7 +82,7 @@ test.describe('Link previews', () => {
     await roomPage.messageInput.fill(messageText);
 
     // Wait for the composer preview to appear (debounced URL detection + server fetch)
-    const composerPreview = page.getByTestId('link-preview-card');
+    const composerPreview = page.getByTestId('composer-link-preview');
     await expect(composerPreview).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Now send — the preview data is included in the mutation
@@ -93,7 +111,7 @@ test.describe('Link previews', () => {
 
     // The composer debounces URL detection (500ms), then queries the server.
     // Wait for the preview card to appear above the input.
-    const previewCard = page.getByTestId('link-preview-card');
+    const previewCard = page.getByTestId('composer-link-preview');
     await expect(previewCard).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     await expect(previewCard.getByText('Test Page Title')).toBeVisible();
@@ -115,7 +133,7 @@ test.describe('Link previews', () => {
     // Type message and wait for the composer preview before sending
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(messageText);
-    await expect(page.getByTestId('link-preview-card')).toBeVisible({
+    await expect(page.getByTestId('composer-link-preview')).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
 
@@ -162,7 +180,7 @@ test.describe('Link previews', () => {
     // Type message and wait for the composer preview before sending
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(messageText);
-    await expect(page.getByTestId('link-preview-card')).toBeVisible({
+    await expect(page.getByTestId('composer-link-preview')).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
 
@@ -182,7 +200,11 @@ test.describe('Link previews', () => {
     await expect(postedMessage.getByTestId('link-preview-card')).toHaveCount(1);
   });
 
-  test('YouTube URL shows embed in composer', async ({ page, chatPage, roomPage }) => {
+  test('YouTube URL shows a compact preview without a player in composer', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -190,15 +212,12 @@ test.describe('Link previews', () => {
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill('Watch https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
-    // YouTube detection is client-side (no server fetch needed), but still debounced
-    const youtubeEmbed = page.getByTestId('youtube-embed');
-    await expect(youtubeEmbed).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // The server detects YouTube from the URL without a fetch, but input is still debounced.
+    const composerPreview = page.getByTestId('composer-link-preview');
+    await expect(composerPreview).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(composerPreview.getByText('YouTube Video')).toBeVisible();
 
-    // Verify the iframe points to the privacy-friendly embed URL
-    const iframe = youtubeEmbed.locator('iframe');
-    await expect(iframe).toHaveAttribute(
-      'src',
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ'
-    );
+    // The composer must not load the third-party player while the user types.
+    await expect(page.getByTestId('youtube-embed')).toHaveCount(0);
   });
 });

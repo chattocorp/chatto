@@ -8,7 +8,6 @@
     "notifications": {
       "title": "Notifiche",
       "subtitle": "Ecco le novità",
-      "list_title": "Attività recente",
       "clear_read": "Elimina quelle lette",
       "empty_title": "Nessuna notifica",
       "empty_body": "Siete tutti presi!",
@@ -19,14 +18,15 @@
       "unread": "Non letta",
       "activity": "Nuova attività",
       "summary": {
-        "direct_message": "{actor} ti ha inviato un messaggio diretto.",
-        "reaction": "{actor} ha reagito con “{emoji}” al tuo messaggio in {channel}.",
-        "reaction_group": "{actor} e altre persone hanno reagito con “{emoji}” al tuo messaggio in {channel}.",
-        "reply": "{actor} ha risposto al tuo messaggio.",
-        "mention": "{actor} ti ha menzionato.",
-        "followed_thread": "{actor} ha risposto in una discussione che segui.",
-        "new_message": "{actor} ha pubblicato un nuovo messaggio.",
-        "activity": "{actor} ti ha inviato una notifica."
+        "direct_message": "{actor} ti ha inviato un messaggio diretto",
+        "reaction": "{actor} ha reagito con {emoji} al tuo messaggio",
+        "reaction_group": "{actor} e altre persone hanno reagito con {emoji} al tuo messaggio",
+        "reply": "{actor} ha risposto al tuo messaggio",
+        "mention": "{actor} ti ha menzionato",
+        "followed_thread": "{actor} ha risposto in una discussione che segui",
+        "new_message": "{actor} ha pubblicato un nuovo messaggio",
+        "activity": "{actor} ti ha inviato una notifica",
+        "room_invitation": "{actor} ti ha invitato in una stanza"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "Profilo utente",
-      "send_message": "Invia messaggio",
+      "send_message": "Apri conversazione",
       "view_profile": "Visualizza profilo",
       "profile_requires_direct_message": "Per visualizzare questo profilo è richiesto un messaggio diretto.",
       "manage_bot": "Gestisci bot",
       "view_in_admin": "Visualizza nell'amministrazione del server",
       "copy_user_id": "Copia ID utente"
     },
+    "server_info": {
+      "title": "Informazioni sul server",
+      "details": "Dettagli del server"
+    },
+    "compatibility": {
+      "title": "Compatibilità",
+      "view": "Visualizza compatibilità",
+      "limited": "Versione del server meno recente",
+      "supported": "Nessun problema di compatibilità noto",
+      "affected": "Funzionalità interessate",
+      "requires": "Richiede {version} o successiva",
+      "thread_views_title": "Le viste delle discussioni hanno supporto limitato",
+      "thread_views_description": "Le discussioni che segui e quelle che hai avviato potrebbero non essere elencate separatamente su questo server.",
+      "independent_slow_mode_title": "La modalità lenta indipendente non è disponibile",
+      "independent_slow_mode_description": "Questo server usa un unico intervallo di attesa per i messaggi del canale e le risposte nei thread.",
+      "upgrade": "Per il supporto completo, chiedi all’amministratore del server di aggiornare alla versione {version} o successiva."
+    },
     "server_gutter": {
       "move_up": "Sposta in alto",
       "move_down": "Sposta in basso",
       "add_server": "Aggiungi server",
-      "log_in": "Accedi a questo server",
-      "sign_out": "Esci da questo server",
+      "log_in": "Accedi al server",
+      "sign_out": "Esci dal server",
       "version": "Versione {version}",
       "unreachable": "Server non raggiungibile",
       "connection_unavailable": "Connessione non disponibile",
-      "compatibility_server_too_old": "Questo server deve essere aggiornato a Chatto 0.5 o versione successiva prima che l'app possa connettersi.",
+      "compatibility_server_too_old": "Questo server deve essere aggiornato a Chatto {version} o versione successiva prima che l'app possa connettersi.",
       "compatibility_unknown": "Questa app non può determinare la compatibilità dalla versione del server.",
       "go_to_notifications_count": {
         "one": "Vai a {count} notifica",
@@ -90,9 +107,16 @@
       "body": "Accedi per leggere e inviare messaggi su questo server."
     },
     "threads": {
-      "title": "I miei thread",
-      "subtitle": "Discussioni che stai seguendo",
-      "list_title": "Thread seguiti",
+      "sort_label": "Ordina discussioni",
+      "sort_activity": "Attività",
+      "sort_created": "Età",
+      "tab_started": "Le mie",
+      "tab_followed": "Seguite",
+      "tab_label": "Vista delle discussioni",
+      "empty_mine_title": "Non hai avviato discussioni",
+      "empty_mine_body": "Le discussioni che avvii e segui appariranno qui.",
+      "title": "Discussioni",
+      "subtitle": "Nuove attività nelle tue discussioni",
       "filter_label": "Filtra discussioni",
       "filter_all": "Tutto",
       "filter_unread": "Non letto",
@@ -141,6 +165,19 @@
       },
       "owned_by": "Proprietario",
       "open_card": "Apri la scheda profilo di {name}"
+    },
+    "management_nav": {
+      "general": "Generale",
+      "neighbors": "Vicini",
+      "members": "Membri",
+      "rooms": "Camere",
+      "moderation": "Moderazione",
+      "permissions": "Autorizzazioni",
+      "security": "Sicurezza",
+      "event_log": "Registro eventi",
+      "system": "Sistema",
+      "back_to_server": "Ritorna al server",
+      "invitations": "Link di invito"
     }
   }
 }

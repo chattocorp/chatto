@@ -1,3 +1,9 @@
+import { beforeAll } from 'vitest';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+
+// Standalone management components do not run the route catalog loader.
+beforeAll(() => loadLocaleMessages('en-GB'));
+
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import {
@@ -33,7 +39,8 @@ const mocks = vi.hoisted(() => ({
   commandAPI: null as RoomCommandAPI | null,
   serverId: 'server-1',
   queryScope: 'session-1',
-  scopeCurrent: true
+  scopeCurrent: true,
+  canViewAccounts: true
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -46,6 +53,14 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
+    store: {
+      accountId: 'viewer',
+      permissions: {
+        canAdminViewUsers: mocks.canViewAccounts,
+        canManageBots: mocks.canViewAccounts,
+        canAdminManageAccounts: false
+      }
+    },
     get serverId() {
       return mocks.serverId;
     },
@@ -227,6 +242,7 @@ describe('RoomMembersPanel', () => {
     mocks.commandAPI = null;
     mocks.queryScope = 'session-1';
     mocks.scopeCurrent = true;
+    mocks.canViewAccounts = true;
   });
 
   it('searches the directory, excludes existing members, and successfully adds a user', async () => {
@@ -271,9 +287,13 @@ describe('RoomMembersPanel', () => {
     const { container } = renderPanel();
     await settle();
 
+    const navigate = vi.fn((event: Event) => event.preventDefault());
+    container.querySelector('a.data-table-row-link')!.addEventListener('click', navigate);
+
     buttonByText(container, 'Remove member').click();
     flushSync();
     expect(removeMember).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
     expect(document.querySelector('dialog')?.textContent).toContain('Remove Alice from #general?');
 
     buttonByText(document.querySelector('dialog')!, 'Remove member').click();
@@ -296,6 +316,33 @@ describe('RoomMembersPanel', () => {
     await settle();
 
     expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    expect(container.querySelector('a.data-table-row-link')?.getAttribute('href')).toContain(
+      '/manage/server/bots/helper_bot'
+    );
+  });
+
+  it('opens the user link when a passive row cell is clicked', async () => {
+    setup();
+    const { container } = renderPanel();
+    await settle();
+    const link = container.querySelector<HTMLAnchorElement>('a.data-table-row-link')!;
+    expect(link.getAttribute('href')).toContain('/manage/server/members/alice');
+    const navigate = vi.fn((event: Event) => event.preventDefault());
+    link.addEventListener('click', navigate);
+    container.querySelector<HTMLTableCellElement>('tbody td:nth-child(2)')!.click();
+    expect(navigate).toHaveBeenCalledOnce();
+    link.focus();
+    expect(document.activeElement).toBe(link);
+  });
+
+  it('keeps inaccessible accounts as plain text without disabling room management', async () => {
+    mocks.canViewAccounts = false;
+    setup({ members: [member('alice', 'Alice'), { ...member('bot'), isBot: true }] });
+    const { container } = renderPanel();
+    await settle();
+    expect(container.querySelector('a.data-table-row-link')).toBeNull();
+    expect(container.textContent).toContain('Alice');
+    expect(buttonByText(container, 'Remove member')).not.toBeNull();
   });
 
   it('hides editing controls without room.manage permission', async () => {

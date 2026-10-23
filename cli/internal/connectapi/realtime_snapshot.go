@@ -14,9 +14,9 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // realtimeSnapshotUserHydrationConcurrency bounds the concurrent key-store and
@@ -162,17 +162,10 @@ func (a *API) realtimeSnapshotRoom(ctx context.Context, userID string, room *cor
 	if room == nil || room.Room == nil || core.KindOfRoom(room.Room) != core.KindDM || !room.ViewerState.IsMember {
 		return result, nil
 	}
-	exists := false
-	if room.ViewerState.CanReadMessages {
-		_, _, historyExists, err := a.core.GetRoomLastEvent(ctx, core.KindDM, room.Room.GetId())
-		if err != nil {
-			return nil, err
-		}
-		exists = historyExists
-	}
+	exists := !room.LastRootMessageAt.IsZero()
 	result.HasMessageHistory = &exists
 	var err error
-	result.MemberUserIds, err = a.core.ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
+	result.MemberUserIds, err = a.core.RoomMemberships().ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
 	return result, err
 }
 

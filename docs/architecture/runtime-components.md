@@ -59,6 +59,9 @@ operations do not duplicate these outcomes.
   facade and composition root; staged resource initialization, six registered
   projector lifecycles, API-facing operations, and only production-consumed read
   models and cross-package adapters.
+  User uploads use one byte limit from `core.assets.max_upload_size` for all
+  file types. Config loading takes the larger general and explicitly set legacy
+  video limit during migration. Video upload enablement remains independent.
 - **NATS recovery gate**
   ([`nats_recovery.go`](../../cli/internal/core/nats_recovery.go),
   [`health.go`](../../cli/internal/http_server/health.go)): Marks the replica
@@ -80,7 +83,9 @@ operations do not duplicate these outcomes.
   `chatto run` using the same unit implementations as standalone commands.
 - **`exporter.Unit`** ([`unit.go`](../../cli/internal/exporter/unit.go)):
   Optional export runtime started by `[exporter].enabled` under `chatto run` or
-  directly by its standalone command.
+  directly by its standalone command. Its periodic S3 inventory also counts
+  snapshot namespace objects and bytes by object-version scope. Scrapes read
+  cached totals; failed inventories expose unavailable totals.
 - **`bleve.Unit`** ([`unit.go`](../../cli/internal/search/bleve/unit.go),
   [`search_provider.go`](../../cli/cmd/search_provider.go)): Bundled
   message-search provider with the runtime diagnostic identity
@@ -91,6 +96,7 @@ operations do not duplicate these outcomes.
 - **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
+  Generated derivatives bypass this user upload limit.
   Durable asset-processing worker started by `[asset_processing].enabled` under
   `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]`
   also owns its ffmpeg paths, temporary directory, and per-process concurrency;
@@ -182,6 +188,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`notification_badge_sources.go`](../../cli/internal/core/notification_badge_sources.go),
   [`notification_projection.go`](../../cli/internal/core/notification_projection.go),
   [`notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
+  [`notification_invitations.go`](../../cli/internal/core/notification_invitations.go),
   [`notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go),
   [`notification_alert_delivery.go`](../../cli/internal/core/notification_alert_delivery.go),
   [`stream.go`](../../cli/internal/notificationstream/stream.go)):
@@ -189,7 +196,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   signal class; materialization-time Ambient/Important classification
   independent from delivery mode; deterministic recipient/source/signal
   identity; durable rich mention causes; root channel-message delivery to
-  current members with `message.read`; Badge attention computed when it is read
+  current members with `message.read`; a separate durable invitation consumer
+  creates room-targeted attention for eligible pending recipients and removes
+  it after acceptance or decline; invitation expiry bounds its visible lifetime;
+  Badge attention computed when it is read
   from the decision projection's Badge source index, current visibility, and
   read boundaries (ADR-109), with hints only when a source turns attention on; a
   compact current-state decision projection; direct double-ack derivation from
@@ -210,7 +220,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`MessageSearchReadModel`**
   ([`message_search_read_model.go`](../../cli/internal/core/message_search_read_model.go)):
   Resolves provider queries to current member-room scopes and re-authorizes thin
-  provider hits against current room membership and message state.
+  provider hits against current room membership and message state. Explicit
+  dependencies supply room and account reads, membership, shared authorization,
+  timeline hydration, and thread-follow state. The search provider remains a
+  separate NATS extension contract.
 - **`ReactionModel`**
   ([`reaction_model.go`](../../cli/internal/core/reaction_model.go),
   [`reactions.go`](../../cli/internal/core/reactions.go)): Sole reaction
@@ -220,11 +233,55 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   ([`room_command_model.go`](../../cli/internal/core/room_command_model.go)):
   Operation-level room lifecycle, Slow Mode and Threading Mode configuration,
   membership, moderation, and DM commands with public API authorization and
-  room-kind preconditions.
+  room-kind preconditions. It owns room creation, archive and unarchive writes
+  in [`room_lifecycle_commands.go`](../../cli/internal/core/room_lifecycle_commands.go),
+  including creation batches and conflict retries, and the projection waits for
+  all three operations. Core entry points delegate these writes to the model.
+  It also owns DM lookup and atomic creation in
+  [`room_dm_commands.go`](../../cli/internal/core/room_dm_commands.go), group
+  joins and pin commands. DM creation uses the membership dependency for access
+  checks and `ReadStateModel` for initial read markers. Explicit dependencies supply
+  room reads, publication, accounts, and shared authorization. It also owns
+  atomic room deletion and group removal in
+  [`rooms.go`](../../cli/internal/core/rooms.go). Membership and moderation writes
+  use `RoomMembershipModel`. Pin authorization uses `AuthorizationModel`;
+  message append preparation and canonical message identity still use core
+  helpers.
+- **`RoomMembershipModel`**
+  ([`room_service_models.go`](../../cli/internal/core/room_service_models.go),
+  [`room_membership.go`](../../cli/internal/core/room_membership.go),
+  [`room_bans.go`](../../cli/internal/core/room_bans.go)): Owns explicit
+  membership reads, member lists, join/leave, and moderation writes. Effective
+  membership checks use `AuthorizationModel`.
+  It keeps room OCC retries, authorization callbacks, and projection waits
+  with the operation. Membership loss batches include call facts. The call
+  model owns key cleanup and LiveKit effects; the notification materializer
+  owns visibility cutoffs. Initial read markers use `ReadStateModel`.
+- **`RoomLayoutModel`**
+  ([`room_groups.go`](../../cli/internal/core/room_groups.go),
+  [`admin_room_layout_management.go`](../../cli/internal/core/admin_room_layout_management.go)):
+  Owns group and sidebar mutations, including admin request validation,
+  source/target authorization, atomic move batches, conflict retries, and
+  layout projection waits. It reads the existing `RoomModel` projections.
+- **`AuthorizationModel`**
+  ([`authorization_model.go`](../../cli/internal/core/authorization_model.go),
+  [`can.go`](../../cli/internal/core/can.go),
+  [`operation_auth.go`](../../cli/internal/core/operation_auth.go),
+  [`authorization_consistency.go`](../../cli/internal/core/authorization_consistency.go)):
+  Owns shared permission decisions, effective room membership, operation
+  guards, bot-manager policy, call permission aggregation, and stable-input
+  checks. A universal channel derives effective membership from join
+  authority. Thus, this model owns the check and depends on no domain operation
+  model. It uses core only for message hydration. `PermissionResolver`
+  reads room, account, and RBAC owners under the same `ServerContentView`
+  transaction. Neither component starts a projector or keeps a second
+  authorization cache.
 - **`RoomDirectoryReadModel`**
   ([`room_directory_read_model.go`](../../cli/internal/core/room_directory_read_model.go)):
   Operation-level room directory and sidebar reads, viewer capability and Slow
-  Mode deadline hydration, and directory-adjacent join commands.
+  Mode deadline hydration. It receives `RoomModel`, message policy, permission
+  resolution, membership, authorization, and unread dependencies. Group joins
+  belong to `RoomCommandModel`.
 - **`RoomTimelineReadModel`**
   ([`room_timeline_read_model.go`](../../cli/internal/core/room_timeline_read_model.go),
   [`room_events.go`](../../cli/internal/core/room_events.go),
@@ -236,25 +293,32 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`ReadStateModel`**
   ([`read_state_model.go`](../../cli/internal/core/read_state_model.go),
   [`read_state_index.go`](../../cli/internal/core/read_state_index.go),
-  [`room_unread.go`](../../cli/internal/core/room_unread.go),
-  [`threads.go`](../../cli/internal/core/threads.go)): Operation-level
+  [`room_unread_state.go`](../../cli/internal/core/room_unread_state.go),
+  [`threads_state.go`](../../cli/internal/core/threads_state.go)): Operation-level
   room/thread Message Read Cursor API plus one process-wide filtered
   `RUNTIME_STATE` watcher; initial-sync readiness, in-memory reads, KV OCC
-  writes, revision barriers, and sync events. The room cursor places the New
+  writes, revision barriers, and sync events. It owns marker creation, advancement,
+  reset, and unread calculations. Initial writes preserve markers set by
+  concurrent callers. The room cursor places the New
   messages separator. It does not create Badge attention.
 - **`ThreadFollowModel`**
   ([`thread_follow_model.go`](../../cli/internal/core/thread_follow_model.go),
-  [`threads.go`](../../cli/internal/core/threads.go)): Operation-level thread
+  [`threads_follows.go`](../../cli/internal/core/threads_follows.go)): Operation-level thread
   follow/unfollow API plus current-account interaction discovery; revalidates
   membership and read permission, validates thread roots, writes durable follow
-  state, waits for projections, and publishes sync events.
+  state, waits for projections, and publishes sync events. Follow queries use
+  shared authorization for membership and read access, and the read-state
+  owner for markers.
 - **`RoomModel`** ([`room_model.go`](../../cli/internal/core/room_model.go),
   [`rooms.go`](../../cli/internal/core/rooms.go),
   [`room_groups.go`](../../cli/internal/core/room_groups.go),
   [`pinned_messages.go`](../../cli/internal/core/pinned_messages.go)): Eagerly
   wired room-derived projection readiness and narrow reads for room catalog,
   membership, layout, timeline, threads, reactions, and pinned messages;
-  supplies projection snapshots and readiness to atomic room and room-group
+  owns catalog and group reads in
+  [`room_catalog_reads.go`](../../cli/internal/core/room_catalog_reads.go), with
+  forwarding methods on `ChattoCore` for existing callers; supplies projection
+  snapshots and readiness to atomic room and room-group
   structural batches and room-OCC pin mutations.
 - **`UserModel`** ([`user_model.go`](../../cli/internal/core/user_model.go)):
   Sole core owner of user profile, cold-replayed authentication, and content-key
@@ -297,7 +361,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   call-state projection reads and readiness; generation-consistent participant
   snapshots and call ID/E2EE access material; durable LiveKit call
   lifecycle/participant facts and elected LiveKit reconciliation, including
-  current call permission enforcement.
+  current call permission enforcement. Owner diagnostics
+  ([`livekit_diagnostics.go`](../../cli/internal/core/livekit_diagnostics.go))
+  check LiveKit with one `ListRooms` call per request and report process-local
+  webhook times.
 - **`MediaModel`** ([`media_model.go`](../../cli/internal/core/media_model.go),
   [`attachments.go`](../../cli/internal/core/attachments.go)): Eagerly wired
   attachment/media binary storage, signed asset and origin-scoped HLS URLs,
@@ -351,6 +418,11 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   generations and complete `ServerContentView` projection snapshot cohorts; a
   separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns
   lifecycle cleanup.
+  Process-local snapshot metrics record final startup restore outcomes,
+  publication attempts and durations, and cleanup results. The
+  [snapshot collector](../../cli/internal/core/projection_snapshot_metrics.go)
+  reads memory without storage requests. Counters and success timestamps reset
+  with the process; they do not represent work done by another replica.
 - **Credential usage recorder**
   ([`credential_usage.go`](../../cli/internal/core/credential_usage.go)):
   Best-effort in-process intake and coalesced `RUNTIME_STATE` persistence for
@@ -409,3 +481,9 @@ grants guarded by the complete RBAC subject tail. The same startup step also
 applies the 0.5 upgrade grants (ADR-113). It reads historical decisions so a
 cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
+
+## Room invitations
+
+`RoomInvitationModel` owns participant reads and invitation commands. It uses
+the room aggregate for creation and responses. Acceptance commits membership
+in the same atomic batch. See [FDR-051](../fdr/FDR-051-room-invitations.md).

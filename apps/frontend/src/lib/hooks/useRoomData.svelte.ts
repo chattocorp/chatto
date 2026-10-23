@@ -12,6 +12,7 @@ export type RoomData = {
     description?: string | null;
     isUniversal: boolean;
     slowModeSeconds: number;
+    threadSlowModeSeconds?: number;
     threadingMode: RoomThreadingMode;
     archived?: boolean;
   };
@@ -24,6 +25,7 @@ export type RoomData = {
   canReact: boolean;
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
+  canPinMessages: boolean;
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
   slowModeNextPostAt: string | null;
@@ -72,6 +74,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
         type: roomKindOrChannel(room.kind ?? RoomKind.CHANNEL),
         isUniversal: room.isUniversal,
         slowModeSeconds: room.slowModeSeconds,
+        threadSlowModeSeconds: room.threadSlowModeSeconds,
         threadingMode: room.threadingMode,
         archived: room.archived
       },
@@ -84,6 +87,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
       canReact: room.canReact,
       canManageOthersMessage: room.canManageOthersMessage,
       canEchoMessage: room.canEchoMessage,
+      canPinMessages: room.canPinMessages,
       canManageRoom: room.canManageRoom,
       canBanRoomMembers: room.canBanRoomMembers,
       slowModeNextPostAt: room.slowModeNextPostAt

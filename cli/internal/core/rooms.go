@@ -13,47 +13,10 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
-
-// getRoomLastRootEntry returns the most recent ordinary root message entry
-// (excluding thread replies and historical imports) in a room, or nil if none have been
-// projected yet. Bounded O(walk-until-found) via the projection's
-// LastVisibleRoomEntry helper.
-func (c *ChattoCore) getRoomLastRootEntry(roomID string) *TimelineEntry {
-	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, func(entry *TimelineEntry) bool {
-		return entry != nil && entry.IsMessagePost() && entry.InThreadEventID == "" && !entry.HistoricalImport
-	})
-	if !ok {
-		return nil
-	}
-	return entry
-}
-
-// getRoomLastMessageEntry returns the most recent ordinary message entry
-// of any kind (root or thread reply) in a room, or nil. It uses the
-// projection's message-post index because thread replies are not part of the
-// visible room timeline.
-func (c *ChattoCore) getRoomLastMessageEntry(roomID string) *TimelineEntry {
-	entry, ok := c.roomModel.lastRoomMessageEntry(roomID)
-	if !ok {
-		return nil
-	}
-	return entry
-}
-
-// GetRoomLastMessageAt returns the timestamp of the last ordinary message in a
-// room, including thread replies but excluding historical imports. Reads from the in-memory room
-// timeline projection.
-func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
-	entry := c.getRoomLastMessageEntry(roomID)
-	if entry == nil {
-		return time.Time{}, nil
-	}
-	return entry.CreatedAt, nil
-}
 
 // Room name validation constants
 const (
@@ -223,126 +186,7 @@ func collectCreateRoomOptions(opts []CreateRoomOption) createRoomOptions {
 // advance the filter's seq and cause our publish to fail; we re-check
 // uniqueness from the (now-caught-up) projection and retry.
 func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*evtv1.Room, error) {
-	if err := ValidateRoomName(name); err != nil {
-		return nil, err
-	}
-	if err := ValidateRoomDescription(description); err != nil {
-		return nil, err
-	}
-	options := collectCreateRoomOptions(opts)
-	if kind == KindDM && options.universal {
-		return nil, fmt.Errorf("DM rooms cannot be universal")
-	}
-	if kind == KindDM && options.applyAnnouncementsDefaults {
-		return nil, fmt.Errorf("DM rooms cannot use announcements defaults")
-	}
-	if kind == KindDM && options.threadingMode != evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED {
-		return nil, invalidArgument("DM rooms cannot configure threading")
-	}
-	if kind == KindChannel && options.threadingMode != evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED && !IsValidRoomThreadingMode(options.threadingMode) {
-		return nil, invalidArgument("invalid room threading mode")
-	}
-	threadingMode := normalizedRoomThreadingMode(ProtoKindForRoomKind(kind), options.threadingMode)
-
-	if groupID != "" {
-		if _, err := c.GetRoomGroup(ctx, groupID); err != nil {
-			return nil, err
-		}
-	} else if kind == KindChannel {
-		groups, err := c.ListRoomGroupsOrdered(ctx, KindChannel)
-		if err != nil {
-			return nil, fmt.Errorf("lookup default group: %w", err)
-		}
-		if len(groups) > 0 {
-			groupID = groups[0].Id
-		}
-	}
-
-	name = normalizeRoomName(name)
-	room_id := NewRoomID()
-
-	room := &evtv1.Room{
-		Id:            room_id,
-		Kind:          ProtoKindForRoomKind(kind),
-		Name:          name,
-		Description:   description,
-		GroupId:       groupID,
-		Universal:     options.universal,
-		ThreadingMode: threadingMode,
-	}
-
-	createdEvent := newEvent(actorID, &evtv1.Event{
-		Event: &evtv1.Event_RoomCreated{
-			RoomCreated: &evtv1.RoomCreatedEvent{
-				RoomId:        room_id,
-				Name:          name,
-				Description:   description,
-				Kind:          ProtoKindForRoomKind(kind),
-				Universal:     options.universal,
-				ThreadingMode: threadingMode,
-			},
-		},
-	})
-
-	var defaultPermissionEntries []evtstream.BatchEntry
-	if kind == KindChannel && options.applyAnnouncementsDefaults {
-		defaultPermissionEntries = rbacSeedEntries(nil, nil, defaultAnnouncementsRoomDecisions(room_id))
-	}
-	additionalEntries := func(ctx context.Context) ([]evtstream.BatchEntry, error) {
-		entries := make([]evtstream.BatchEntry, 0, len(defaultPermissionEntries)+1)
-		if groupID != "" {
-			groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
-			if err != nil {
-				return nil, fmt.Errorf("read room-group OCC position before room creation: %w", err)
-			}
-			if !groupPosition.IsZero() {
-				if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
-					return nil, fmt.Errorf("wait for room group before room creation: %w", err)
-				}
-			}
-			if _, ok := c.roomModel.roomGroup(groupID); !ok {
-				return nil, ErrRoomGroupNotFound
-			}
-			added := newEvent(actorID, &evtv1.Event{
-				Event: &evtv1.Event_RoomAddedToGroup{
-					RoomAddedToGroup: &evtv1.RoomAddedToGroupEvent{GroupId: groupID, RoomId: room_id},
-				},
-			})
-			entries = append(entries, evtstream.BatchEntry{
-				Subject: evtstream.GroupAggregate(groupID).SubjectFor(added),
-				Event:   added,
-				Expect:  events.ExpectFilterSeq(evtstream.GroupSubjectFilter(), groupPosition.Seq),
-			})
-		}
-		entries = append(entries, defaultPermissionEntries...)
-		return entries, nil
-	}
-	seqs, err := c.publishRoomEventWithNameOCCEntries(ctx, name, createdEvent, room_id, additionalEntries)
-	if err != nil {
-		return nil, err
-	}
-	createdSeq := seqs[0]
-
-	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "group_id", groupID)
-
-	createdSubject := evtstream.RoomAggregate(room_id).SubjectFor(createdEvent)
-	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(createdSubject, createdSeq)); err != nil {
-		return nil, err
-	}
-	if groupID != "" {
-		groupEntryIndex := 1
-		groupSubject := evtstream.GroupAggregate(groupID).Subject(evtstream.EventRoomAddedToGroup)
-		if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(groupSubject, seqs[groupEntryIndex])); err != nil {
-			return nil, fmt.Errorf("wait for created room group membership: %w", err)
-		}
-	}
-	if len(defaultPermissionEntries) > 0 {
-		last := len(defaultPermissionEntries) - 1
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(defaultPermissionEntries[last].Subject, seqs[len(seqs)-1])); err != nil {
-			return nil, fmt.Errorf("wait for channel room defaults: %w", err)
-		}
-	}
-	return room, nil
+	return c.roomCommands.createRoom(ctx, actorID, kind, groupID, name, description, opts...)
 }
 
 func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
@@ -365,96 +209,6 @@ func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
 	return decisions
 }
 
-// publishRoomEventWithNameOCCEntries publishes a name-claiming room event
-// (RoomCreated or RoomUpdated) with cluster-wide name uniqueness enforced via
-// JetStream wildcard OCC against `evt.room.>`. The name-claiming event and the
-// additional entries commit atomically.
-//
-// The flow per attempt:
-//  1. Read the catalog name-claim snapshot for the desired `name`;
-//     if any other room holds it, return ErrRoomNameExists immediately.
-//  2. Rebuild the additional entries, so that their expected positions and
-//     projection-derived facts describe the same event-log prefix as the
-//     commit attempt.
-//  3. Publish the event, and the additional entries, with the snapshot's
-//     applied evt.room.> seq.
-//     The projected state and OCC token describe the same observed
-//     event-log prefix.
-//  4. JetStream
-//     rejects with ErrConflict if any evt.room.> message landed in the
-//     read-publish window — backoff briefly and retry.
-//
-// excludeRoomID is the ID to exclude from the uniqueness check, so that a
-// room can keep a name it already holds.
-func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
-	ctx context.Context,
-	name string,
-	event *evtv1.Event,
-	excludeRoomID string,
-	buildAdditionalEntries func(context.Context) ([]evtstream.BatchEntry, error),
-) ([]uint64, error) {
-	// Determine publish subject from the event payload. Room events
-	// all target the per-room aggregate subject; this doesn't change
-	// across retries.
-	var roomID string
-	switch e := event.GetEvent().(type) {
-	case *evtv1.Event_RoomCreated:
-		roomID = e.RoomCreated.GetRoomId()
-	case *evtv1.Event_RoomUpdated:
-		roomID = e.RoomUpdated.GetRoomId()
-	default:
-		return nil, fmt.Errorf("publishRoomEventWithNameOCCEntries: unsupported event type %T", e)
-	}
-	publishSubject := evtstream.RoomAggregate(roomID).SubjectFor(event)
-	occFilter := evtstream.RoomSubjectFilter()
-
-	for attempt := range maxRoomNameClaimRetries {
-		snapshot := c.roomModel.nameClaimSnapshot(name, excludeRoomID)
-		if snapshot.ConflictingRoomID != "" {
-			return nil, ErrRoomNameExists
-		}
-		additionalEntries, err := buildAdditionalEntries(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		var seqs []uint64
-		if len(additionalEntries) == 0 {
-			var seq uint64
-			seq, err = c.EventPublisher.AppendAt(ctx, publishSubject, event, events.ExpectFilterSeq(occFilter, snapshot.Seq))
-			seqs = []uint64{seq}
-		} else {
-			entries := make([]evtstream.BatchEntry, 1, len(additionalEntries)+1)
-			entries[0] = evtstream.BatchEntry{
-				Subject: publishSubject,
-				Event:   event,
-				Expect:  events.ExpectFilterSeq(occFilter, snapshot.Seq),
-			}
-			entries = append(entries, additionalEntries...)
-			seqs, err = c.EventPublisher.AppendBatch(ctx, entries)
-		}
-		if err == nil {
-			return seqs, nil
-		}
-		if !errors.Is(err, events.ErrConflict) {
-			return nil, err
-		}
-
-		if err := c.roomModel.waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
-			return nil, fmt.Errorf("wait for room directory after OCC conflict: %w", err)
-		}
-
-		// Filter advanced under us after the snapshot. Backoff briefly
-		// and retry — the next attempt reads a fresh projection snapshot.
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
-	}
-	return nil, fmt.Errorf("room name OCC retry exhausted after %d attempts: %w", maxRoomNameClaimRetries, events.ErrConflict)
-}
-
 // DeleteRoom deletes a room.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
 //
@@ -463,7 +217,7 @@ func (c *ChattoCore) publishRoomEventWithNameOCCEntries(
 // channel room in a group, RoomRemovedFromGroupEvent per ADR-086. Historical
 // room events are retained in EVT; the legacy KV room record is no longer
 // touched here.
-func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
+func (m *RoomCommandModel) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
 	agg := evtstream.RoomAggregate(room_id)
 	filter := agg.AllEventsFilter()
 	var deletedSubject string
@@ -471,29 +225,29 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	var groupRemovedSubject string
 	var groupRemovedSeq uint64
 	for attempt := range maxJoinRoomRetries {
-		streamSeq, err := c.EventPublisher.LastStreamSeq(ctx)
+		streamSeq, err := m.publisher.LastStreamSeq(ctx)
 		if err != nil {
 			return fmt.Errorf("read stream OCC tail before room deletion: %w", err)
 		}
-		roomPosition, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
+		roomPosition, err := m.publisher.LastSubjectPosition(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("read room deletion OCC tail: %w", err)
 		}
-		groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
+		groupPosition, err := m.publisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
 		if err != nil {
 			return fmt.Errorf("read room-group OCC tail before room deletion: %w", err)
 		}
 		if !roomPosition.IsZero() {
-			if err := c.roomModel.waitForDirectory(ctx, roomPosition); err != nil {
+			if err := m.rooms.waitForDirectory(ctx, roomPosition); err != nil {
 				return fmt.Errorf("wait for room before deletion: %w", err)
 			}
 		}
 		if !groupPosition.IsZero() {
-			if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
+			if err := m.rooms.waitForGroupLayout(ctx, groupPosition); err != nil {
 				return fmt.Errorf("wait for room-group layout before room deletion: %w", err)
 			}
 		}
-		room, err := c.GetRoom(ctx, kind, room_id)
+		room, err := m.rooms.GetRoom(ctx, kind, room_id)
 		if err != nil {
 			return err
 		}
@@ -527,7 +281,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			// move from adding the room to a group after this decision.
 			entries[0].Expect = entries[0].Expect.AndStreamSeq(streamSeq)
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		seqs, err := m.publisher.AppendBatch(ctx, entries)
 		if errors.Is(err, events.ErrConflict) {
 			select {
 			case <-ctx.Done():
@@ -552,15 +306,15 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		return fmt.Errorf("publish room deletion retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 	}
 
-	c.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
+	m.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
 
 	// Read-your-writes: every projection that needs to drop state
 	// must have applied its event before we return.
-	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(deletedSubject, deletedSeq)); err != nil {
+	if err := m.rooms.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(deletedSubject, deletedSeq)); err != nil {
 		return err
 	}
 	if groupRemovedSeq > 0 {
-		if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(groupRemovedSubject, groupRemovedSeq)); err != nil {
+		if err := m.rooms.waitForGroupLayout(ctx, events.SubjectPosition(groupRemovedSubject, groupRemovedSeq)); err != nil {
 			return err
 		}
 	}
@@ -573,29 +327,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 //
 // ADR-035 phase 6: event-only.
 func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error) {
-	room, err := c.GetRoom(ctx, kind, roomID)
-	if err != nil {
-		return nil, err
-	}
-	room.Archived = true
-
-	archivedEvent := newEvent(actorID, &evtv1.Event{
-		Event: &evtv1.Event_RoomArchived{
-			RoomArchived: &evtv1.RoomArchivedEvent{
-				RoomId: roomID,
-			},
-		},
-	})
-	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, evtstream.RoomAggregate(roomID), archivedEvent)
-	if err != nil {
-		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
-	}
-	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
-		return nil, err
-	}
-
-	c.logger.Info("Room archived", "kind", kind, "room_id", roomID)
-	return room, nil
+	return c.roomCommands.archiveRoom(ctx, actorID, kind, roomID)
 }
 
 // UnarchiveRoom clears a room's archived flag. The room keeps its set
@@ -604,29 +336,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 //
 // ADR-035 phase 6: event-only.
 func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error) {
-	room, err := c.GetRoom(ctx, kind, roomID)
-	if err != nil {
-		return nil, err
-	}
-	room.Archived = false
-
-	unarchivedEvent := newEvent(actorID, &evtv1.Event{
-		Event: &evtv1.Event_RoomUnarchived{
-			RoomUnarchived: &evtv1.RoomUnarchivedEvent{
-				RoomId: roomID,
-			},
-		},
-	})
-	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, evtstream.RoomAggregate(roomID), unarchivedEvent)
-	if err != nil {
-		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
-	}
-	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
-		return nil, err
-	}
-
-	c.logger.Info("Room unarchived", "kind", kind, "room_id", roomID)
-	return room, nil
+	return c.roomCommands.unarchiveRoom(ctx, actorID, kind, roomID)
 }
 
 // GetRoom retrieves a room by id.
@@ -637,14 +347,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 // keeping the "the wrong kind is not found" semantic so callers
 // don't accidentally read a DM via a channel-kind probe.
 func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*evtv1.Room, error) {
-	room, ok := c.roomModel.room(room_id)
-	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
-		return nil, fmt.Errorf("room %s: %w", room_id, ErrNotFound)
-	}
-	if gid := c.roomModel.roomGroupForRoom(room_id); gid != "" {
-		room.GroupId = gid
-	}
-	return room, nil
+	return c.roomModel.GetRoom(ctx, kind, room_id)
 }
 
 // FindRoomByID resolves a room from its ID alone (no kind probe).
@@ -655,38 +358,21 @@ func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string)
 // this to recover both the room and the kind context (via
 // KindOfRoom on the result).
 func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*evtv1.Room, error) {
-	room, ok := c.roomModel.room(room_id)
-	if !ok {
-		return nil, ErrNotFound
-	}
-	if gid := c.roomModel.roomGroupForRoom(room_id); gid != "" {
-		room.GroupId = gid
-	}
-	return room, nil
+	return c.roomModel.FindRoomByID(ctx, room_id)
 }
 
 // FindRoomKind is a thin wrapper around FindRoomByID for callers that
 // only need the kind. The room load is paid either way; the wrapper is
 // just there for ergonomics.
 func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind, error) {
-	room, err := c.FindRoomByID(ctx, room_id)
-	if err != nil {
-		return "", err
-	}
-	return KindOfRoom(room), nil
+	return c.roomModel.FindRoomKind(ctx, room_id)
 }
 
 // ListRooms retrieves all rooms of the given kind from the
 // RoomModel's room catalog, composed with its group-layout state for the
 // group_id field.
 func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*evtv1.Room, error) {
-	rooms := c.roomModel.roomsByKind(ProtoKindForRoomKind(kind))
-	for _, r := range rooms {
-		if gid := c.roomModel.roomGroupForRoom(r.Id); gid != "" {
-			r.GroupId = gid
-		}
-	}
-	return rooms, nil
+	return c.roomModel.ListRooms(ctx, kind)
 }
 
 // MemberRoomListOptions controls optional filtering/sorting for ListMemberRooms.
@@ -701,8 +387,8 @@ type MemberRoomListOptions struct {
 // ListMemberRooms retrieves rooms of the given kind that the user participates
 // in. It is the shared room-list primitive for member-scoped room surfaces;
 // callers layer product policy on top with MemberRoomListOptions.
-func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*evtv1.Room, error) {
-	roomIDs := c.roomModel.explicitRoomIDsForUser(userID)
+func (m *RoomMembershipModel) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*evtv1.Room, error) {
+	roomIDs := m.rooms.explicitRoomIDsForUser(userID)
 	seen := make(map[string]struct{}, len(roomIDs))
 
 	type listedRoom struct {
@@ -712,7 +398,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 	listed := make([]listedRoom, 0, len(roomIDs))
 
 	for _, roomID := range roomIDs {
-		room, err := c.GetRoom(ctx, kind, roomID)
+		room, err := m.rooms.GetRoom(ctx, kind, roomID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				continue
@@ -722,7 +408,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 
 		var lastMessageAt time.Time
 		if opts.RequireLastMessage || opts.SortByLastMessageDesc {
-			lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+			lastMessageAt, err = m.rooms.GetRoomLastMessageAt(ctx, kind, room.Id)
 			if err != nil {
 				return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
 			}
@@ -736,7 +422,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 	}
 
 	if kind == KindChannel {
-		all, err := c.ListRooms(ctx, kind)
+		all, err := m.rooms.ListRooms(ctx, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -747,7 +433,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 			if _, ok := seen[room.Id]; ok {
 				continue
 			}
-			canJoin, err := c.CanJoinRoomAt(ctx, userID, kind, room.Id)
+			canJoin, err := m.policy.CanJoinRoomAt(ctx, userID, kind, room.Id)
 			if err != nil {
 				return nil, err
 			}
@@ -757,7 +443,7 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 
 			var lastMessageAt time.Time
 			if opts.RequireLastMessage || opts.SortByLastMessageDesc {
-				lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+				lastMessageAt, err = m.rooms.GetRoomLastMessageAt(ctx, kind, room.Id)
 				if err != nil {
 					return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
 				}

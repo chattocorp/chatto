@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 func roomCreatedEvent(roomID, name, description string, kind evtv1.RoomKind) *evtv1.Event {
@@ -133,8 +133,16 @@ func TestRoomCatalogProjection_CreateUpdateArchiveDelete(t *testing.T) {
 	require.NoError(t, p.Apply(roomSlowModeChangedEvent("R1", 30), 7))
 	got, _ = p.Get("R1")
 	require.Equal(t, uint32(30), got.SlowModeSeconds)
+	require.Nil(t, got.ThreadSlowModeSeconds)
+	require.Equal(t, uint32(30), EffectiveThreadSlowModeSeconds(got), "legacy interval applies to both scopes")
+	independent := roomSlowModeChangedEvent("R1", 30)
+	independent.GetRoomSlowModeChanged().ThreadSlowModeSeconds = new(uint32(0))
+	require.NoError(t, p.Apply(independent, 8))
+	got, _ = p.Get("R1")
+	require.NotNil(t, got.ThreadSlowModeSeconds)
+	require.Zero(t, EffectiveThreadSlowModeSeconds(got), "explicit Off must not inherit the root interval")
 
-	require.NoError(t, p.Apply(roomDeletedEvent("R1"), 8))
+	require.NoError(t, p.Apply(roomDeletedEvent("R1"), 9))
 	_, ok = p.Get("R1")
 	require.False(t, ok)
 	require.Equal(t, 0, p.Count())

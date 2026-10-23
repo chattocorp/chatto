@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-16
 
 ## Overview
 
@@ -9,6 +9,14 @@ The server-management section gives owners and admins visibility into the server
 
 ## Behavior
 
+- Room General settings have four independent forms: name and description,
+  visibility, Slow Mode, and Threading Mode. Each form has Save changes and
+  Discard changes. Editing a control does not save it. Save sends only that
+  form's changed fields; Discard restores its latest saved values. A failed
+  save keeps the draft. Remote updates preserve edited fields and update
+  untouched fields. Navigating away with unsaved changes opens an in-app
+  confirmation dialog. Closing or reloading the tab uses the browser's native
+  warning; drafts do not survive a reload. Loss of permission removes the editor.
 - Management UI lives under `/chat/[serverId]/manage/`. Server-wide pages live below `/manage/server/`; individual room and room-group settings use sibling resource routes.
 - Legacy `/chat/[serverId]/server-admin/...` deep links permanently redirect to their equivalent management routes so bookmarks and shared links continue to work.
 - Every member can open Settings from the primary server navigation. The server sidebar then shows a unified Settings sidebar with three collapsible groups: App preferences, Your account, and Server configuration. It also shows a Back to Server action. App preferences apply to all servers. Your account and Server configuration apply to the server named in the Settings header. Server configuration contains only the destinations that the viewer can use. Settings opens the first permitted server-wide destination. If there is no permitted destination, Settings opens the member's Profile.
@@ -19,7 +27,8 @@ The server-management section gives owners and admins visibility into the server
   profiles, assign roles, suspend, or delete users when they hold the relevant
   permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
-- The System Info page starts with a health summary: one overall status and one row for each check (broker connection, projections, background workers, backlog, and account limits). Below it are the user, room, event, and stored-data counts, account usage against each limit, and the broker connection. A refresh action in the page header reads a new snapshot.
+- The System Info page has five tabs, each with its own route: Overview, Streams, Projections, Workers, and LiveKit. The LiveKit tab is hidden when the server does not report LiveKit status. All tabs use one diagnostics snapshot. A refresh action in the page header reads a new snapshot.
+- The Overview tab starts with a health summary: one overall status and one row for each check (broker connection, projections, background workers, backlog, account limits, and calls when LiveKit is configured). Below it are the user, room, event, and stored-data counts, account usage against each limit, and the broker connection. A check whose details are on a different tab links to that tab. A tab shows a status dot when one of its checks reports a warning or a problem, so a problem stays visible from every tab.
 - **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `AdminEventLogService.ListEvents`; the detail view uses `AdminEventLogService.GetEvent` to show sanitized payload JSON for human inspection. Password verifiers are omitted.
 - The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-management page does not expose time-range controls.
 - The audit/event-log API returns `totalCount` as a 64-bit value because it reflects retained stream message counts, which can exceed 32-bit integer range on long-running servers.
@@ -100,6 +109,17 @@ Account storage usage counts a copy on each stream replica. When a file stream h
 
 **Why:** A snapshot often catches normal, short backlog or lag. If those raised warnings, operators would learn to ignore the summary. Lasting conditions need action, so they are the only ones that change the status.
 **Tradeoff:** Lag that continues for a long time does not raise a warning by itself. Operators must compare snapshots or use metrics to see it. The broker and projection checks describe only the replica that handled the request (see the open question below).
+
+### 10. Explicit submission for room settings
+
+**Decision:** Each form on the room General page requires explicit submission,
+including forms with a single setting. Saving one form does not save or reset
+another. Other administrative forms will migrate separately; membership,
+permission, and archive/delete actions are outside this change.
+**Why:** Managers can inspect and revise a selection before it changes room
+behaviour. A clear action scope prevents a save from committing unrelated edits.
+**Tradeoff:** A change needs an extra action. Unsaved drafts require a warning
+when the manager leaves the page.
 
 ## Permissions
 

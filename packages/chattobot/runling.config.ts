@@ -1,6 +1,7 @@
 import { defineWebConfig } from 'runling/web';
-import { chattoSource } from './chatto/realtime.ts';
+import { chattoSource, chattoWorkflow } from './chatto/source.ts';
 
 export default defineWebConfig({
+  workflows: { chattoThread: chattoWorkflow },
   sources: { chatto: chattoSource }
 });

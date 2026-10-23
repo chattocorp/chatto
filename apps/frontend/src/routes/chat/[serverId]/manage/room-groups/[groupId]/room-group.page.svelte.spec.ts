@@ -15,7 +15,9 @@ const mocks = vi.hoisted(() => ({
   refreshLayout: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionUpdate) => void>,
   success: vi.fn(),
-  error: vi.fn()
+  error: vi.fn(),
+  goto: vi.fn(),
+  beforeNavigate: vi.fn()
 }));
 
 // Page titles are tested separately from this page's partial route/server fixtures.
@@ -31,8 +33,17 @@ vi.mock('$app/state', () => ({
   page: {
     get params() {
       return { groupId: routeGroupId };
+    },
+    get route() {
+      return { id: routeId };
     }
   }
+}));
+
+vi.mock('$app/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$app/navigation')>()),
+  goto: mocks.goto,
+  beforeNavigate: mocks.beforeNavigate
 }));
 
 vi.mock('$lib/hooks', () => ({
@@ -63,9 +74,10 @@ vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.success, error: mocks.error }
 }));
 
-import RoomGroupPage from './+page.svelte';
+import RoomGroupPage from './RoomGroupPageTest.svelte';
 
 let routeGroupId = $state('group-a');
+let routeId = $state('/chat/[serverId]/manage/room-groups/[groupId]');
 
 function managedGroup(name: string, groupId = routeGroupId) {
   return {
@@ -117,6 +129,7 @@ describe('room-group management query lifecycle', () => {
     vi.clearAllMocks();
     mocks.projectionHandlers = [];
     routeGroupId = 'group-a';
+    routeId = '/chat/[serverId]/manage/room-groups/[groupId]';
     createTestServerScope({
       serverId: 'server-a',
       store: { adminRoomLayout: { refresh: mocks.refreshLayout } }
@@ -126,6 +139,132 @@ describe('room-group management query lifecycle', () => {
     mocks.refreshLayout.mockResolvedValue(undefined);
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
+  });
+
+  it('renders routed tabs and mounts only the selected section', async () => {
+    const { container } = render(RoomGroupPage);
+    await settle();
+    const selected = () => container.querySelector('nav a[aria-current="page"]');
+    expect(selected()?.textContent).toContain('General');
+    const permissions = [...container.querySelectorAll('nav a')].find((link) =>
+      link.textContent?.includes('Permissions')
+    )!;
+    expect(permissions.getAttribute('href')).toContain('/room-groups/group-a/permissions');
+    expect(container.querySelector('[data-testid="permission-matrix"]')).toBeNull();
+    routeId += '/permissions';
+    await settle();
+    expect(selected()?.textContent).toContain('Permissions');
+    expect(container.querySelector('#room-group-settings-name')).toBeNull();
+    expect(container.querySelector('[data-testid="permission-matrix"]')).not.toBeNull();
+    expect(mocks.getRoomGroup).toHaveBeenCalledOnce();
+  });
+
+  it('opens the permissions section directly', async () => {
+    routeId += '/permissions';
+    const { container } = render(RoomGroupPage);
+    await settle();
+    expect(container.querySelector('[data-testid="permission-matrix"]')).not.toBeNull();
+    expect(container.querySelector('#room-group-settings-name')).toBeNull();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('redirects permissions-only viewers and hides General', async () => {
+    mocks.getRoomGroup.mockResolvedValue({ ...managedGroup('Lobby'), canManageGroup: false });
+    const { container } = render(RoomGroupPage);
+    await settle();
+    expect(container.querySelector('#room-group-settings-name')).toBeNull();
+    expect(
+      [...container.querySelectorAll('nav a')].some((link) => link.textContent?.includes('General'))
+    ).toBe(false);
+    expect(mocks.goto).toHaveBeenCalledWith(
+      expect.stringContaining('/room-groups/group-a/permissions'),
+      { replaceState: true }
+    );
+  });
+
+  it('keeps a draft on cancellation and resumes the confirmed tab destination', async () => {
+    const { container } = render(RoomGroupPage);
+    await settle();
+    const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    const cancel = vi.fn();
+    guard({ type: 'link', cancel });
+    expect(cancel).not.toHaveBeenCalled();
+    const input = container.querySelector('#room-group-settings-name') as HTMLInputElement;
+    input.value = 'Local draft';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    const destination = new URL(
+      'https://example.test/chat/-/manage/room-groups/group-a/permissions'
+    );
+    const navigation = { type: 'link', cancel, to: { url: destination }, willUnload: false };
+    guard(navigation);
+    await settle();
+    const dialog = document.querySelector('dialog[open]')!;
+    expect(dialog.textContent).toContain('You have unsaved changes.');
+    [...dialog.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Cancel')!
+      .click();
+    await settle();
+    expect(input.value).toBe('Local draft');
+    expect(mocks.goto).not.toHaveBeenCalled();
+    guard(navigation);
+    await settle();
+    const resumedCancel = vi.fn();
+    mocks.goto.mockImplementationOnce(async () =>
+      guard({ ...navigation, type: 'goto', cancel: resumedCancel })
+    );
+    (document.querySelector('dialog[open] button[type="submit"]') as HTMLButtonElement).click();
+    await settle();
+    expect(mocks.goto).toHaveBeenCalledWith(destination.pathname);
+    expect(resumedCancel).not.toHaveBeenCalled();
+    expect(mocks.updateRoomGroup).not.toHaveBeenCalled();
+    guard({ type: 'leave', cancel });
+    expect(cancel).toHaveBeenCalledTimes(3);
+  });
+
+  it('resumes a confirmed Back navigation without adding a history entry', async () => {
+    const { container } = render(RoomGroupPage);
+    await settle();
+    const input = container.querySelector('#room-group-settings-name') as HTMLInputElement;
+    input.value = 'Local draft';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    const historyGo = vi.spyOn(window.history, 'go').mockImplementation(() => {});
+    const guard = mocks.beforeNavigate.mock.calls.at(-1)![0];
+    const cancel = vi.fn();
+    guard({
+      type: 'popstate',
+      delta: -1,
+      cancel,
+      to: { url: new URL('https://example.test/chat/-/manage/rooms') },
+      willUnload: false
+    });
+    await settle();
+    (document.querySelector('dialog[open] button[type="submit"]') as HTMLButtonElement).click();
+    await settle();
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(historyGo).toHaveBeenCalledWith(-1);
+    expect(mocks.goto).not.toHaveBeenCalled();
+    historyGo.mockRestore();
+  });
+
+  it('allows permission loss to remove a dirty editor and redirect', async () => {
+    const { container } = render(RoomGroupPage);
+    await settle();
+    const input = container.querySelector('#room-group-settings-name') as HTMLInputElement;
+    input.value = 'Private draft';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    mocks.getRoomGroup.mockResolvedValue({ ...managedGroup('Lobby'), canManageGroup: false });
+    dispatchGroups(['group-a']);
+    await vi.waitFor(() => expect(container.querySelector('#room-group-settings-name')).toBeNull());
+    const cancel = vi.fn();
+    mocks.beforeNavigate.mock.calls.at(-1)![0]({ type: 'goto', cancel });
+    expect(cancel).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledWith(expect.stringContaining('/permissions'), {
+      replaceState: true
+    });
+    expect(document.querySelector('dialog[open]')).toBeNull();
   });
 
   it('passes cancellation through and revalidates a cached group snapshot on remount', async () => {

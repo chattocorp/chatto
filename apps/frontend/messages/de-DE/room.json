@@ -35,8 +35,11 @@
     "leave": {
       "title": "Raum verlassen",
       "action": "Raum verlassen",
-      "prompt": "Möchtest du #{room} wirklich verlassen? Du kannst später wieder beitreten.",
-      "failed": "Raum konnte nicht verlassen werden"
+      "prompt": "Möchtest du #{room} wirklich verlassen?",
+      "failed": "Raum konnte nicht verlassen werden",
+      "join_later": "Du kannst später wieder beitreten.",
+      "need_invite": "Du brauchst eine neue Einladung, um diesem Raum beizutreten.",
+      "rejoin_unknown": "Möglicherweise brauchst du eine neue Einladung, um wieder beizutreten."
     },
     "directory": {
       "universal_title": "Universelle Räume werden automatisch beigetreten",
@@ -59,7 +62,8 @@
       "join_group_failed": "Gruppe konnte nicht beigetreten werden",
       "left": "#{room} verlassen",
       "left_generic": "Raum verlassen",
-      "leave_confirm": "Möchtest du #{room} wirklich verlassen?"
+      "leave_confirm": "Möchtest du #{room} wirklich verlassen?",
+      "invited": "Eingeladen"
     },
     "server": {
       "remove_title": "Server entfernen",
@@ -97,7 +101,8 @@
         "edit": "Nachricht bearbeiten",
         "more": "Weitere Aktionen",
         "edit_short": "Bearbeiten",
-        "copy_text": "Text kopieren",
+        "copy_text": "Nachrichtentext kopieren",
+        "copy_selected_text": "Ausgewählten Text kopieren",
         "copy_text_failed": "Text konnte nicht kopiert werden",
         "copy_link": "Link kopieren",
         "copy_message_link": "Nachrichtenlink kopieren",
@@ -106,7 +111,8 @@
         "message_link_copied": "Nachrichtenlink kopiert",
         "copy_link_failed": "Link konnte nicht kopiert werden",
         "image_copied": "Bild kopiert",
-        "copy_image_failed": "Bild konnte nicht kopiert werden"
+        "copy_image_failed": "Bild konnte nicht kopiert werden",
+        "view_reactions": "Reaktionen anzeigen"
       },
       "meta": {
         "echo": "Echo",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Möchtest du den Pin dieser Nachricht wirklich entfernen?",
       "loading": "Angepinnte Nachrichten werden geladen...",
       "empty_title": "Keine angepinnten Nachrichten",
-      "empty_description": "Raumverwalter können hier wichtige Nachrichten anpinnen.",
+      "empty_description": "Angeheftete Nachrichten erscheinen hier.",
       "error_title": "Angepinnte Nachrichten nicht verfügbar",
       "error_description": "Angepinnte Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
       "update_failed": "Angepinnte Nachricht konnte nicht aktualisiert werden"
@@ -255,6 +261,81 @@
     "jump_to_present": "Zur Gegenwart springen",
     "jump_failed": "Zu dieser Nachricht konnte nicht gesprungen werden.",
     "unread_separator": "Neue Nachrichten",
-    "close_extras": "Raumdetails schließen"
+    "close_extras": "Raumdetails schließen",
+    "dm": {
+      "deleted_user_notice": "Der andere Benutzer wurde gelöscht."
+    },
+    "management": {
+      "room_name_too_long": "Raumname darf höchstens 30 Zeichen lang sein",
+      "room_name_invalid": "Raumname darf keine Zeilenumbrüche oder Steuerzeichen enthalten",
+      "create_room": "Raum erstellen",
+      "reorder_groups_failed": "Gruppen konnten nicht neu angeordnet werden: {error}",
+      "room_created": "Raum erstellt",
+      "link_updated": "Link aktualisiert",
+      "link_created": "Link erstellt",
+      "save_link_failed": "Link konnte nicht gespeichert werden: {error}",
+      "group_deleted": "Gruppe gelöscht",
+      "delete_group_failed": "Gruppe konnte nicht gelöscht werden: {error}",
+      "link_deleted": "Link gelöscht",
+      "delete_link_failed": "Link konnte nicht gelöscht werden: {error}",
+      "room_archived": "Raum archiviert",
+      "archive_room_failed": "Raum konnte nicht archiviert werden: {error}",
+      "drag_room": "Raum per Ziehen neu anordnen",
+      "drag_link": "Link per Ziehen neu anordnen",
+      "drag_group": "Gruppe per Ziehen neu anordnen",
+      "new_room": "Raum erstellen",
+      "new_link": "Link erstellen",
+      "delete_group": "Gruppe löschen",
+      "edit_link": "Link bearbeiten",
+      "delete_link": "Link löschen",
+      "create_link": "Link erstellen",
+      "label": "Beschriftung",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com oder /docs",
+      "delete_group_prompt": "Bist du sicher, dass du das Set {name} löschen möchtest?",
+      "delete_link_prompt": "Bist du sicher, dass du {label} löschen möchtest?",
+      "archive_room": "Raum archivieren",
+      "archive_room_prompt": "Bist du sicher, dass du #{room} archivieren möchtest? Mitglieder können nicht mehr auf diesen Raum zugreifen.",
+      "group_created": "Gruppe erstellt",
+      "create_group_failed": "Gruppe konnte nicht erstellt werden: {error}",
+      "group_name": "Gruppenname",
+      "group_name_placeholder": "z. B. Allgemein, Projekte, Teams",
+      "create_group": "Gruppe erstellen",
+      "new_group": "Neue Gruppe",
+      "threading_mode_required": "Erforderlich",
+      "threading_mode_encouraged": "Empfohlen",
+      "threading_mode_enabled": "Aktiviert",
+      "threading_mode_disabled": "Deaktiviert"
+    },
+    "moderation": {
+      "removing": "Wird entfernt...",
+      "remove_action": "Aus Raum entfernen",
+      "lift_title": "Sperre für {user} aufheben",
+      "lift": "Sperre aufheben",
+      "lifting": "Wird aufgehoben...",
+      "no_suspension": "Keine Sperre — erneuter Beitritt möglich",
+      "indefinite": "Unbefristet",
+      "remove_title": "{user} aus dem Raum entfernen",
+      "suspension_period": "Dauer der Sperre"
+    },
+    "invitation": {
+      "invite": "Mitglied einladen",
+      "invited": "Du wurdest eingeladen",
+      "sent": "Einladungen gesendet",
+      "expires": "Läuft am {date} ab",
+      "unavailable": "Du kannst diese Einladung derzeit nicht annehmen. Du kannst sie weiterhin ablehnen.",
+      "accept": "Einladung annehmen",
+      "decline": "Ablehnen",
+      "title": "Mitglieder in #{room} einladen",
+      "description": "Wähle aus, wen du einladen möchtest. Eingeladene Nutzer erhalten eine Benachrichtigung und haben sieben Tage Zeit, die Einladung anzunehmen oder abzulehnen.",
+      "members": "Mitglieder",
+      "send": "Einladungen senden",
+      "failed": "{name} konnte nicht eingeladen werden: {error}",
+      "already_member": "Bereits in diesem Raum",
+      "invited_by": "Du wurdest eingeladen von",
+      "decline_title": "Einladung ablehnen?",
+      "decline_join_later": "Du kannst diesem Raum später beitreten.",
+      "decline_need_invite": "Du brauchst eine neue Einladung, um diesem Raum beizutreten."
+    }
   }
 }

@@ -39,6 +39,10 @@ Source inputs are adapter-owned typed values. HTTP JSON parsing and webhook
 schema validation do not apply. Validate external input in the adapter.
 Workflows still validate their declared task schemas.
 
+A router can keep the run handle that `ctx.start` returns, for example in
+`state`, and send later events to that run. See
+[webhook routing](webhook-routing.md#keep-a-run-and-send-it-messages).
+
 Runs appear in the console with their source name. Their records have
 `source: "source"` and `sourceName`. Existing HTTP run records remain readable.
 
@@ -66,7 +70,9 @@ inboxes and checkpoints. Removing or renaming a source discards its state.
 State is never written to disk. Scope it by connection identity. Maintain
 compatible state shapes across code reloads; restart after incompatible changes.
 
-Active workflows continue across reloads. Adapters must retain their active
-conversation references in `state` if later deliveries must reach them.
-New conversations can use updated code. A process restart loses inboxes and
-checkpoints. Runling provides no durable inbox or automatic deduplication.
+Active workflows continue across reloads. If later deliveries must reach an
+active run, keep its run handle in `state`. New runs use the updated code. A
+process restart loses source state and queued messages. Registered roots can
+recover from [workflow state](workflow-state.md). Sources start after recovery and
+can use `ctx.runs()` to rebuild routing from each live run's original input and
+handle. Runling provides no durable inbox or automatic deduplication.

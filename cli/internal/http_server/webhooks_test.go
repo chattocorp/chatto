@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 	"github.com/livekit/protocol/webhook"
 	"google.golang.org/protobuf/encoding/protojson"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *testing.T) {
@@ -78,8 +78,8 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if body, err := s.core.GetMessageBody(ctx, events[0].GetId()); err != nil || body != "  from Slack  " {
 		t.Fatalf("message body = %q, %v", body, err)
 	}
-	if metadata, err := s.core.GetThreadMetadata(ctx, core.KindChannel, room.GetId(), events[0].GetId()); err != nil || !metadata.Exists {
-		t.Fatalf("thread metadata = %+v, %v", metadata, err)
+	if metadata := s.core.GetThreadMetadata(events[0].GetId()); !metadata.Exists {
+		t.Fatalf("thread metadata = %+v", metadata)
 	}
 
 	dm, _, err := s.core.RoomCommands().StartDM(ctx, core.RoomStartDMInput{ActorID: owner.GetId(), ParticipantIDs: []string{bot.User.GetId()}})
@@ -472,5 +472,68 @@ func TestLiveKitWebhookRoomBelongsToInstance(t *testing.T) {
 				t.Fatalf("liveKitWebhookRoomBelongsToInstance(%q, %q) = %v, want %v", tt.roomName, tt.instanceID, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestLiveKitWebhookRecordsSignatureOutcomeForDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	const (
+		apiKey    = "devkey"
+		apiSecret = "devsecret"
+	)
+	ctx := testContext(t)
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.config.LiveKit = config.LiveKitConfig{Enabled: true, URL: "wss://livekit.example.test", APIKey: apiKey, APISecret: apiSecret}
+	s.setupWebhookRoutes()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "diagnostics-owner", "Diagnostics Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := s.core.AssignServerRole(ctx, core.SystemActorID, owner.Id, core.RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+	liveKitStatus := func() core.LiveKitAdminStatus {
+		t.Helper()
+		diagnostics, err := s.core.GetAdminDiagnostics(ctx, owner.Id)
+		if err != nil {
+			t.Fatalf("GetAdminDiagnostics: %v", err)
+		}
+		return diagnostics.LiveKit
+	}
+
+	// Requests without a LiveKit token are scans, not signing-key mismatches.
+	for _, authorization := range []string{"", "not-a-token"} {
+		req := httptest.NewRequest(http.MethodPost, "/webhooks/livekit", strings.NewReader("{}"))
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
+		}
+		recorder := httptest.NewRecorder()
+		s.router.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("unauthenticated webhook %q status = %d", authorization, recorder.Code)
+		}
+	}
+	if status := liveKitStatus(); !status.LastRejectedWebhookAt.IsZero() {
+		t.Fatalf("unauthenticated webhooks recorded a rejection: %+v", status)
+	}
+
+	event := &livekit.WebhookEvent{Event: webhook.EventRoomStarted}
+	recorder := httptest.NewRecorder()
+	s.router.ServeHTTP(recorder, signedLiveKitWebhookRequest(t, apiKey, "wrong-secret", event))
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("badly signed webhook status = %d", recorder.Code)
+	}
+	if status := liveKitStatus(); status.LastRejectedWebhookAt.IsZero() || !status.LastWebhookAt.IsZero() {
+		t.Fatalf("after rejected webhook: %+v", status)
+	}
+
+	recorder = httptest.NewRecorder()
+	s.router.ServeHTTP(recorder, signedLiveKitWebhookRequest(t, apiKey, apiSecret, event))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("signed webhook status = %d", recorder.Code)
+	}
+	if status := liveKitStatus(); status.LastWebhookAt.IsZero() {
+		t.Fatalf("after accepted webhook: %+v", status)
 	}
 }

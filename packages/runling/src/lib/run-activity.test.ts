@@ -45,8 +45,9 @@ test('shows the latest agent update with its step and parallel activity count', 
     label: 'Model A',
     step: 'Review change',
     preview: 'Reading the tests',
+    startedAt: 10,
     waiting: false,
-    pendingInputs: 0,
+    waits: 0,
     parallel: 1
   });
   expect(
@@ -59,33 +60,27 @@ test('shows the latest agent update with its step and parallel activity count', 
   ).toBe('Checking types');
 });
 
-test('gives input waits priority over agent updates', () => {
+test('gives waits priority over agent updates', () => {
   const activity = summarizeRunActivity(
     run([
       ...events,
-      {
-        type: 'input.requested',
-        id: 'input',
-        activityId: 'parent',
-        message: 'Choose a target',
-        timestamp: 40
-      },
+      { type: 'wait.started', id: 'wait', channelId: 'c', activityId: 'parent', timestamp: 40 },
       { type: 'agent.progress', agentId: 'b', text: 'Still checking', timestamp: 50 }
     ])
   );
   expect(activity).toMatchObject({
-    label: 'Choose a target',
+    label: 'Waiting for a message',
     step: 'Review change',
+    startedAt: 40,
     waiting: true,
     parallel: 2
   });
   expect(isRunWaiting(activity)).toBe(false);
 });
 
-test('recognizes an idle input wait inside a conversation lane', () => {
-  const conversation: RunlingEvent[] = [
-    { type: 'step.started', id: 'chat', label: 'Conversation', timestamp: 0 },
-    { type: 'conversation.started', activityId: 'chat', timestamp: 1 },
+test('a run waits when its only running work is a wait', () => {
+  const history: RunlingEvent[] = [
+    { type: 'step.started', id: 'chat', label: 'Chat', timestamp: 0 },
     {
       type: 'agent.started',
       agentId: 'bot',
@@ -102,43 +97,37 @@ test('recognizes an idle input wait inside a conversation lane', () => {
       activityId: 'chat',
       timestamp: 3
     },
-    {
-      type: 'input.requested',
-      id: 'next',
-      message: 'Waiting for a message',
-      activityId: 'chat',
-      timestamp: 4
-    }
+    { type: 'wait.started', id: 'next', channelId: 'c', activityId: 'chat', timestamp: 4 }
   ];
-  const waiting = summarizeRunActivity(run(conversation));
+  const waiting = summarizeRunActivity(run(history));
   expect(waiting).toMatchObject({
     label: 'Waiting for a message',
+    step: 'Chat',
     waiting: true,
-    pendingInputs: 1,
+    waits: 1,
     parallel: 0
   });
   expect(isRunWaiting(waiting)).toBe(true);
 
-  conversation.push({ type: 'step.started', id: 'other', label: 'Parallel work', timestamp: 5 });
-  expect(isRunWaiting(summarizeRunActivity(run(conversation)))).toBe(false);
-  conversation.push({
+  history.push({ type: 'step.started', id: 'other', label: 'Parallel work', timestamp: 5 });
+  expect(isRunWaiting(summarizeRunActivity(run(history)))).toBe(false);
+  history.push({
     type: 'step.finished',
     id: 'other',
     status: 'completed',
     durationMs: 1,
     timestamp: 6
   });
-  expect(isRunWaiting(summarizeRunActivity(run(conversation)))).toBe(true);
-  conversation.push({
-    type: 'input.finished',
+  expect(isRunWaiting(summarizeRunActivity(run(history)))).toBe(true);
+  history.push({
+    type: 'wait.finished',
     id: 'next',
-    status: 'answered',
-    value: 'New message',
+    status: 'received',
     durationMs: 3,
     activityId: 'chat',
     timestamp: 7
   });
-  expect(isRunWaiting(summarizeRunActivity(run(conversation)))).toBe(false);
+  expect(isRunWaiting(summarizeRunActivity(run(history)))).toBe(false);
 });
 
 test('handles step-only work, startup, and finished runs', () => {
@@ -169,40 +158,37 @@ test('moves on after an activity finishes and limits long messages', () => {
   expect(result?.preview).toHaveLength(500);
 });
 
-test('waits until every pending input finishes, including failed inputs', () => {
+test('counts each task that waits until its wait finishes', () => {
   const history: RunlingEvent[] = [
     ...events,
-    { type: 'input.requested', id: 'first', message: 'First?', timestamp: 40 },
-    { type: 'input.requested', id: 'second', message: 'Second?', timestamp: 50 }
+    { type: 'wait.started', id: 'first', channelId: 'a', activityId: 'parent', timestamp: 40 },
+    { type: 'wait.started', id: 'second', channelId: 'b', activityId: 'parent', timestamp: 50 }
   ];
   expect(summarizeRunActivity(run(history))).toMatchObject({
     waiting: true,
-    pendingInputs: 2,
+    waits: 2,
     parallel: 2
   });
   history.push({
-    type: 'input.finished',
+    type: 'wait.finished',
     id: 'first',
-    status: 'answered',
-    value: 'Yes',
+    status: 'received',
     durationMs: 20,
     timestamp: 60
   });
-  expect(summarizeRunActivity(run(history))).toMatchObject({ waiting: true, pendingInputs: 1 });
+  expect(summarizeRunActivity(run(history))).toMatchObject({ waiting: true, waits: 1 });
   history.push({
-    type: 'input.finished',
+    type: 'wait.finished',
     id: 'second',
-    status: 'failed',
+    status: 'closed',
     durationMs: 20,
     timestamp: 70
   });
-  expect(summarizeRunActivity(run(history))).toMatchObject({ waiting: false, pendingInputs: 0 });
+  expect(summarizeRunActivity(run(history))).toMatchObject({ waiting: false, waits: 0 });
 });
 
-test('terminal runs never show a pending input as waiting', () => {
-  const waiting = run([
-    { type: 'input.requested', id: 'question', message: 'Continue?', timestamp: 0 }
-  ]);
+test('terminal runs never show a wait as waiting', () => {
+  const waiting = run([{ type: 'wait.started', id: 'wait', channelId: 'c', timestamp: 0 }]);
   expect(summarizeRunActivity(waiting)?.waiting).toBe(true);
   for (const status of ['completed', 'failed', 'interrupted'] as const) {
     expect(summarizeRunActivity({ ...waiting, status })).toBeNull();

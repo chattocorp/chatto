@@ -10,11 +10,11 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 func TestRoomKindFromLegacySpaceID(t *testing.T) {
@@ -129,7 +129,8 @@ func TestDMScopeAppliesOnlyToMessageAndCallPermissions(t *testing.T) {
 	t.Parallel()
 
 	for _, metadata := range AllPermissions() {
-		want := metadata.Category == CategoryMessage || metadata.Category == CategoryCall
+		// Pins are channel-only; the other message and call permissions support DMs.
+		want := (metadata.Category == CategoryMessage && metadata.Permission != PermMessagePin) || metadata.Category == CategoryCall
 		if got := PermissionAppliesAtScope(metadata.Permission, ScopeDM); got != want {
 			t.Errorf("PermissionAppliesAtScope(%s, DM) = %v, want %v", metadata.Permission, got, want)
 		}
@@ -145,7 +146,7 @@ func TestDMRoomPermissionDefaults(t *testing.T) {
 	userID := "test-user"
 
 	t.Run("CanJoinRoom returns true for DM rooms", func(t *testing.T) {
-		can, err := core.CanJoinRoom(ctx, userID, KindDM)
+		can, err := core.authorization.CanJoinRoom(ctx, userID, KindDM)
 		if err != nil {
 			t.Fatalf("CanJoinRoom error: %v", err)
 		}
@@ -354,21 +355,15 @@ func TestFindOrCreateDM(t *testing.T) {
 		}
 	})
 
-	t.Run("creates group DM with three users", func(t *testing.T) {
+	t.Run("rejects new groups but opens stored groups", func(t *testing.T) {
+		_, _, err := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
+		if !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("new group error = %v, want invalid argument", err)
+		}
+		legacy := createLegacyDMForTest(t, core, ctx, []string{user1, user2, user3})
 		room, created, err := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
-		if err != nil {
-			t.Fatalf("FindOrCreateDM error: %v", err)
-		}
-		if !created {
-			t.Error("Expected group DM to be newly created")
-		}
-
-		// Verify all three users are members
-		for _, userID := range []string{user1, user2, user3} {
-			isMember, _ := core.RoomMembershipExists(ctx, KindDM, userID, room.Id)
-			if !isMember {
-				t.Errorf("%s should be a member of the group DM", userID)
-			}
+		if err != nil || created || room.GetId() != legacy.GetId() {
+			t.Fatalf("stored group = %v, created = %v, error = %v", room, created, err)
 		}
 	})
 
@@ -420,19 +415,16 @@ func TestFindOrCreateDM(t *testing.T) {
 		}
 	})
 
-	t.Run("allows exactly MaxDMParticipants", func(t *testing.T) {
+	t.Run("rejects new groups at the legacy lookup limit", func(t *testing.T) {
 		// Create a list of 9 participants (including creator = 10 total, at limit)
 		participants := make([]string, MaxDMParticipants-1)
 		for i := range MaxDMParticipants - 1 {
 			participants[i] = fmt.Sprintf("max-participant%d", i)
 		}
 		// user1 + 9 participants = 10 total
-		room, _, err := core.FindOrCreateDM(ctx, user1, participants)
-		if err != nil {
-			t.Errorf("Expected success for %d participants, got error: %v", MaxDMParticipants, err)
-		}
-		if room == nil {
-			t.Error("Expected room to be non-nil")
+		_, _, err := core.FindOrCreateDM(ctx, user1, participants)
+		if !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("new group error = %v, want invalid argument", err)
 		}
 	})
 }
@@ -619,7 +611,7 @@ func TestDMRoomParticipants(t *testing.T) {
 	user3 := "user3"
 
 	t.Run("returns all participants", func(t *testing.T) {
-		room, _, _ := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
+		room := createLegacyDMForTest(t, core, ctx, []string{user1, user2, user3})
 
 		members, err := core.GetRoomMembersList(ctx, KindDM, room.Id)
 		if err != nil {
@@ -781,10 +773,10 @@ func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
 
-	if _, err := core.BanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
+	if _, err := core.roomMemberships.BanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
 		t.Fatalf("expected ErrCannotRemoveDMRoomMember from BanMember, got %v", err)
 	}
-	if err := core.UnbanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
+	if err := core.roomMemberships.UnbanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotRemoveDMRoomMember) {
 		t.Fatalf("expected ErrCannotRemoveDMRoomMember from UnbanMember, got %v", err)
 	}
 
@@ -1054,8 +1046,8 @@ func TestDMThreads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage DM thread creation: %v", err)
 	}
-	if metadata, err := core.GetThreadMetadata(ctx, KindDM, room.Id, createdRoot.Event.Id); err != nil || !metadata.Exists {
-		t.Fatalf("created DM thread metadata = %#v, %v", metadata, err)
+	if metadata := core.GetThreadMetadata(createdRoot.Event.Id); !metadata.Exists {
+		t.Fatalf("created DM thread metadata = %#v", metadata)
 	}
 	if _, err := core.Messages().PreflightPost(ctx, MessagePostInput{
 		ActorID:               owner.Id,

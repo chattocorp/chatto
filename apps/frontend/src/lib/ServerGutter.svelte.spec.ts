@@ -42,7 +42,7 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
+vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
 
 vi.mock('./ServerSidebarEntry.svelte', async () => ({
   default: (await import('./ServerGutterEntryMock.svelte')).default
@@ -55,7 +55,8 @@ vi.mock('$lib/ui/ScrollFader.svelte', async () => ({
 import ServerGutter from './ServerGutter.svelte';
 import { serverGutterOrder } from './state/serverGutterOrder.svelte';
 import { tick } from 'svelte';
-import { TRIGGERS, SOURCES } from 'svelte-dnd-action';
+import { TRIGGERS, SOURCES, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
+import type { GutterItem } from './serverGutterDrag.svelte';
 
 beforeEach(() => {
   serverGutterOrder.save([]);
@@ -150,6 +151,144 @@ describe('ServerGutter', () => {
     );
     await tick();
     expect(entries(container)).toEqual(['origin']);
+    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual([]);
+  });
+
+  it.each([
+    [
+      'duplicate keys',
+      [
+        { id: 'a', serverId: 'a' },
+        { id: 'a', serverId: 'origin' }
+      ]
+    ],
+    [
+      'duplicate servers',
+      [
+        { id: 'a', serverId: 'a' },
+        { id: 'other', serverId: 'a' }
+      ]
+    ],
+    ['missing servers', [{ id: 'a', serverId: 'a' }]],
+    [
+      'unknown servers',
+      [
+        { id: 'a', serverId: 'a' },
+        { id: 'other', serverId: 'other' }
+      ]
+    ],
+    [
+      'multiple shadows',
+      [
+        { id: 'a', serverId: 'a', isDndShadowItem: true },
+        { id: 'origin', serverId: 'origin', isDndShadowItem: true }
+      ]
+    ]
+  ])('retains the last valid preview after %s', async (_name, invalidItems) => {
+    register('origin', 'a');
+    const { container } = render(ServerGutter);
+    const zone = container.querySelector('[data-testid="server-list"]')!;
+    await vi.waitFor(() => expect(zone.getAttribute('data-server-drag-ready')).toBe('true'));
+    const info = { id: 'origin', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
+    zone.dispatchEvent(
+      new CustomEvent('consider', {
+        detail: {
+          items: [
+            { id: 'a', serverId: 'a' },
+            { id: 'origin', serverId: 'origin' }
+          ],
+          info
+        }
+      })
+    );
+    await tick();
+    zone.dispatchEvent(new CustomEvent('consider', { detail: { items: invalidItems, info } }));
+    await tick();
+    expect(entries(container)).toEqual(['a', 'origin']);
+    expect(zone.querySelectorAll('[data-is-dnd-shadow-item-hint]')).toHaveLength(0);
+    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual([]);
+  });
+
+  it('copies a shadow preview before the drag library changes its key', async () => {
+    register('origin', 'a');
+    const { container } = render(ServerGutter);
+    const zone = container.querySelector('[data-testid="server-list"]')!;
+    await vi.waitFor(() => expect(zone.getAttribute('data-server-drag-ready')).toBe('true'));
+    const items: GutterItem[] = [
+      { id: 'a', serverId: 'a' },
+      { id: SHADOW_PLACEHOLDER_ITEM_ID, serverId: 'origin', isDndShadowItem: true }
+    ];
+    const info = { id: 'origin', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
+    zone.dispatchEvent(new CustomEvent('consider', { detail: { items, info } }));
+    await tick();
+    const shadow = zone.querySelector('[data-is-dnd-shadow-item-hint]');
+    expect(shadow).not.toBeNull();
+
+    // The library changes shadow IDs in place after removing the original node.
+    items[1].id = 'origin';
+    items[1].serverId = 'a';
+    items.reverse();
+    mocks.stores.set('origin', { isAuthenticated: true, currentUser: {} });
+    await tick();
+    expect(entries(container)).toEqual(['a', 'origin']);
+    expect(zone.querySelector('[data-is-dnd-shadow-item-hint]')).toBe(shadow);
+
+    // A later event can publish the library's new shadow key explicitly.
+    zone.dispatchEvent(
+      new CustomEvent('consider', {
+        detail: {
+          items: [
+            { id: 'a', serverId: 'a' },
+            { id: 'origin', serverId: 'origin', isDndShadowItem: true }
+          ],
+          info: { ...info, trigger: TRIGGERS.DRAGGED_OVER_INDEX }
+        }
+      })
+    );
+    await tick();
+    expect(entries(container)).toEqual(['a', 'origin']);
+    expect(zone.querySelectorAll('[data-is-dnd-shadow-item-hint]')).toHaveLength(1);
+    expect(zone.querySelector('[data-is-dnd-shadow-item-hint]')).not.toBe(shadow);
+
+    const dropped = [
+      { id: 'a', serverId: 'a' },
+      { id: 'origin', serverId: 'origin' }
+    ];
+    zone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items: dropped, info: { ...info, trigger: TRIGGERS.DROPPED_INTO_ZONE } }
+      })
+    );
+    await tick();
+    expect(entries(container)).toEqual(['a', 'origin']);
+    expect(zone.querySelector('[data-is-dnd-shadow-item-hint]')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual(['a', 'origin']);
+  });
+
+  it.each([
+    ['duplicate servers', ['a', 'a'], TRIGGERS.DROPPED_INTO_ZONE],
+    ['missing servers', ['a'], TRIGGERS.DROPPED_INTO_ZONE],
+    ['unknown servers', ['a', 'unknown'], TRIGGERS.DROPPED_INTO_ZONE],
+    ['an outside drop', ['a', 'origin'], TRIGGERS.DROPPED_OUTSIDE_OF_ANY]
+  ])('restores the committed order after %s', async (_name, ids, trigger) => {
+    register('origin', 'a');
+    const { container } = render(ServerGutter);
+    const zone = container.querySelector('[data-testid="server-list"]')!;
+    await vi.waitFor(() => expect(zone.getAttribute('data-server-drag-ready')).toBe('true'));
+    const info = { id: 'origin', source: SOURCES.POINTER, trigger: TRIGGERS.DRAG_STARTED };
+    zone.dispatchEvent(
+      new CustomEvent('consider', {
+        detail: { items: ['a', 'origin'].map((id) => ({ id, serverId: id })), info }
+      })
+    );
+    await tick();
+    zone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items: ids.map((id) => ({ id, serverId: id })), info: { ...info, trigger } }
+      })
+    );
+    await tick();
+    expect(entries(container)).toEqual(['origin', 'a']);
     expect(JSON.parse(localStorage.getItem('chatto:serverGutterOrder')!)).toEqual([]);
   });
 

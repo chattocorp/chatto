@@ -14,9 +14,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 const (
@@ -26,6 +26,44 @@ const (
 	// results from materially different workloads are not compared directly.
 	projectionBenchmarkFixtureVersion = "mixed_v2"
 )
+
+// BenchmarkThreadSlowModeRead measures the latest-reply fast path and the
+// root fallback after a long thread in which the root author never replied.
+func BenchmarkThreadSlowModeRead(b *testing.B) {
+	for _, replies := range []int{1_000, 100_000} {
+		timeline := NewRoomTimelineProjection()
+		threads := NewThreadProjection()
+		// Intern the root author through another thread so the fallback must
+		// scan, rather than taking the unknown-principal shortcut.
+		other := postedEvent(postedOpts{envelopeID: "other-reply", roomID: "room", actorID: "root-author", inThread: "other-root", at: 1})
+		if err := threads.Apply(other, 1); err != nil {
+			b.Fatal(err)
+		}
+		root := postedEvent(postedOpts{envelopeID: "root", roomID: "room", actorID: "root-author", at: 1})
+		for i := 0; i <= replies; i++ {
+			event := root
+			if i > 0 {
+				event = postedEvent(postedOpts{envelopeID: fmt.Sprintf("reply-%d", i), roomID: "room", actorID: "reply-author", inThread: "root", at: i + 1})
+			}
+			if err := timeline.Apply(event, uint64(i+1)); err != nil {
+				b.Fatal(err)
+			}
+			if err := threads.Apply(event, uint64(i+2)); err != nil {
+				b.Fatal(err)
+			}
+		}
+		for _, actor := range []string{"root-author", "reply-author"} {
+			b.Run(fmt.Sprintf("replies_%d/%s", replies, actor), func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					if _, ok := threads.latestPostAt(timeline, "room", "root", actor); !ok {
+						b.Fatal("missing original post")
+					}
+				}
+			})
+		}
+	}
+}
 
 type projectionBenchmarkWireEvent struct {
 	subject string

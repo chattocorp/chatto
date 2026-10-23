@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_CreateRoom(t *testing.T) {
@@ -877,7 +877,7 @@ func TestChattoCore_DeleteRoom(t *testing.T) {
 	}
 
 	// Delete the room
-	err = core.DeleteRoom(ctx, "test-user", KindChannel, room.Id)
+	err = core.roomCommands.DeleteRoom(ctx, "test-user", KindChannel, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to delete room: %v", err)
 	}
@@ -920,7 +920,7 @@ func TestChattoCore_RoomName_ReuseAfterDelete(t *testing.T) {
 		t.Fatalf("CreateRoom: %v", err)
 	}
 
-	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+	if err := core.roomCommands.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
 		t.Fatalf("DeleteRoom: %v", err)
 	}
 
@@ -1122,11 +1122,11 @@ func TestChattoCore_ListMemberRoomsSortsByThreadReplyRecency(t *testing.T) {
 		t.Fatalf("PostMessage reply: %v", err)
 	}
 
-	replyRoomLast, err := core.GetRoomLastMessageAt(ctx, KindChannel, roomWithReply.Id)
+	replyRoomLast, err := core.roomModel.GetRoomLastMessageAt(ctx, KindChannel, roomWithReply.Id)
 	if err != nil {
 		t.Fatalf("GetRoomLastMessageAt roomWithReply: %v", err)
 	}
-	rootRoomLast, err := core.GetRoomLastMessageAt(ctx, KindChannel, roomWithNewerRoot.Id)
+	rootRoomLast, err := core.roomModel.GetRoomLastMessageAt(ctx, KindChannel, roomWithNewerRoot.Id)
 	if err != nil {
 		t.Fatalf("GetRoomLastMessageAt roomWithNewerRoot: %v", err)
 	}

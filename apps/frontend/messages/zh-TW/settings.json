@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "繼承",
           "off": "關閉",
-          "badge": "徽章",
-          "badge_hint": "只會新增表示未讀的灰色圓點。不會建立通知、播放音效或傳送推播通知。",
-          "notification": "通知",
+          "badge": "未讀圓點",
+          "badge_hint": "只會新增表示未讀的圓點。不會建立通知、播放音效或傳送推播通知。",
+          "notification": "應用程式內通知",
           "push_notification": "推播通知"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "當你的上線狀態不是離線時使用 @here 的訊息。",
           "all": "在你已加入的房間中使用 @all 的訊息。",
           "followed_thread": "你所關注討論串中的新回覆。",
-          "reaction": "其他成員新增到你訊息上的回應。"
+          "reaction": "其他成員新增到你訊息上的回應。",
+          "room_invitation": "加入房間的邀請。"
         }
       }
     },

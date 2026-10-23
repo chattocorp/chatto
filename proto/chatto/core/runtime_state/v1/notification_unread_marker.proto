@@ -4,7 +4,7 @@ package chatto.core.runtime_state.v1;
 
 import "chatto/core/notification/v1/notification.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
 
 // NotificationUnreadMarker is one latest-value neutral-attention decision in
 // RUNTIME_STATE. The key owns recipient, room, and optional thread scope. The

@@ -163,6 +163,209 @@ permissions remain separate entries; clients can group them for display.
 | `permissions` | repeated [`EffectivePermission`](#chatto-api-v1-EffectivePermission) | Effective grants visible to the caller. |
 
 
+<a id="chatto-api-v1-RoomInvitationService"></a>
+
+## RoomInvitationService
+
+Invitations grant membership only after the recipient accepts them.
+
+<a id="chatto-api-v1-RoomInvitationService-CreateRoomInvitation"></a>
+
+### CreateRoomInvitation
+
+Requires room membership and room.invite. A duplicate from the same sender returns the pending invitation.
+A pending invitation from a different sender returns INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/CreateRoomInvitation
+```
+
+<a id="chatto-api-v1-CreateRoomInvitationRequest"></a>
+
+#### Input: CreateRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `recipient_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateRoomInvitationResponse"></a>
+
+#### Result: CreateRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-GetRoomInvitation"></a>
+
+### GetRoomInvitation
+
+Returns NOT_FOUND for absent or inaccessible invitations.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/GetRoomInvitation
+```
+
+<a id="chatto-api-v1-GetRoomInvitationRequest"></a>
+
+#### Input: GetRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetRoomInvitationResponse"></a>
+
+#### Result: GetRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-BatchGetRoomInvitations"></a>
+
+### BatchGetRoomInvitations
+
+Omits absent and inaccessible invitations. Accepts at most 100 IDs.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/BatchGetRoomInvitations
+```
+
+<a id="chatto-api-v1-BatchGetRoomInvitationsRequest"></a>
+
+#### Input: BatchGetRoomInvitationsRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_ids` | `repeated string` | No field description provided. |
+
+
+<a id="chatto-api-v1-BatchGetRoomInvitationsResponse"></a>
+
+#### Result: BatchGetRoomInvitationsResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitations` | repeated [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-ListRoomInvitations"></a>
+
+### ListRoomInvitations
+
+Lists the caller's received or sent invitations, newest first. Default 50, maximum 100.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/ListRoomInvitations
+```
+
+<a id="chatto-api-v1-ListRoomInvitationsRequest"></a>
+
+#### Input: ListRoomInvitationsRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | No field description provided. |
+| `sent` | `bool` | Select sent invitations instead of invitations received by the caller. |
+| `pending_only` | `bool` | Restrict to unexpired pending invitations. |
+
+
+<a id="chatto-api-v1-ListRoomInvitationsResponse"></a>
+
+#### Result: ListRoomInvitationsResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitations` | repeated [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-AcceptRoomInvitation"></a>
+
+### AcceptRoomInvitation
+
+Recipient-only. Rechecks sender authority and bypasses only room.join.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/AcceptRoomInvitation
+```
+
+<a id="chatto-api-v1-AcceptRoomInvitationRequest"></a>
+
+#### Input: AcceptRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-AcceptRoomInvitationResponse"></a>
+
+#### Result: AcceptRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-DeclineRoomInvitation"></a>
+
+### DeclineRoomInvitation
+
+Recipient-only. Does not change membership or notification preferences.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/DeclineRoomInvitation
+```
+
+<a id="chatto-api-v1-DeclineRoomInvitationRequest"></a>
+
+#### Input: DeclineRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-DeclineRoomInvitationResponse"></a>
+
+#### Result: DeclineRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
 <a id="chatto-api-v1-AssetService"></a>
 
 ## AssetService
@@ -386,9 +589,10 @@ mask stay unchanged.
 | `name` | `optional string` | New visible 1–30-code-point Unicode room name, when changing it. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
-| `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
+| `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -541,6 +745,9 @@ Starts a direct-message room for the current human user and the requested
 participant set, or fetches its existing DM. message.post is required
 only when the DM must be created. A valid request from a bot receives
 PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
+New DMs support the caller and at most one other user. New group DMs
+receive INVALID_ARGUMENT; use a channel room instead. Existing group
+DMs can still be fetched.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/StartDM
@@ -554,6 +761,9 @@ Request to start a direct-message room for a human caller, or fetch an
 existing one. A human caller can fetch an existing DM without message.post.
 A valid request from a bot receives PERMISSION_DENIED, including when the
 room already exists.
+New DMs have at most two distinct participants, including the caller.
+Larger new participant sets receive INVALID_ARGUMENT. Use a channel room
+for new group conversations. Existing group DMs remain accessible.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -899,7 +1109,7 @@ Current pinned messages in one channel room.
 
 ### CreatePinnedMessage
 
-Pins a current message. The caller must have room.manage and must be able
+Pins a current message. The caller must have message.pin and must be able
 to read the message. Repeating an existing pin is idempotent. Direct-message
 rooms are rejected.
 
@@ -934,7 +1144,7 @@ Result of pinning a message.
 
 ### DeletePinnedMessage
 
-Removes a current pin. The caller must have room.manage. Removing a
+Removes a current pin. The caller must have message.pin. Removing a
 missing pin is idempotent. Direct-message rooms are rejected.
 
 ```http
@@ -2838,6 +3048,361 @@ permission allowlist are unchanged.
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
 
 
+<a id="chatto-api-v1-ThreadService"></a>
+
+## ThreadService
+
+Manages thread follow state for the current user.
+
+<a id="chatto-api-v1-ThreadService-GetThreadReadState"></a>
+
+### GetThreadReadState
+
+Reads the current viewer's stored marker without changing it. Requires the
+same membership and read access as MarkThreadAsRead. Missing resources
+return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadReadState
+```
+
+<a id="chatto-api-v1-GetThreadReadStateRequest"></a>
+
+#### Input: GetThreadReadStateRequest
+
+Request current thread read state without changing it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `thread_root_event_id` | `string` | Root message ID. |
+
+
+<a id="chatto-api-v1-GetThreadReadStateResponse"></a>
+
+#### Result: GetThreadReadStateResponse
+
+Current thread read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`ThreadReadState`](#chatto-api-v1-ThreadReadState) | State for the requested thread and viewer. |
+
+
+<a id="chatto-api-v1-ThreadService-BatchGetThreadReadStates"></a>
+
+### BatchGetThreadReadStates
+
+Reads up to 100 states under the same authorization as GetThreadReadState.
+Missing and inaccessible resources are omitted; duplicates use first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/BatchGetThreadReadStates
+```
+
+<a id="chatto-api-v1-BatchGetThreadReadStatesRequest"></a>
+
+#### Input: BatchGetThreadReadStatesRequest
+
+Request thread read states. Duplicates are removed in first-seen order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `targets` | repeated [`ThreadReadStateTarget`](#chatto-api-v1-ThreadReadStateTarget) | Up to 100 room/thread targets. Missing or inaccessible targets are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetThreadReadStatesResponse"></a>
+
+#### Result: BatchGetThreadReadStatesResponse
+
+Accessible thread read states in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `states` | repeated [`ThreadReadState`](#chatto-api-v1-ThreadReadState) | States for the current viewer. An absent marker does not omit the state. |
+
+
+<a id="chatto-api-v1-ThreadService-ListThreadParticipants"></a>
+
+### ListThreadParticipants
+
+Lists distinct authors of non-retracted replies, excluding erased users.
+The root author is included only if they also replied. Requires the same
+membership and message-read access as GetThreadEvents.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListThreadParticipants
+```
+
+<a id="chatto-api-v1-ListThreadParticipantsRequest"></a>
+
+#### Input: ListThreadParticipantsRequest
+
+Request a complete thread participant collection, ordered by user ID ascending.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Root message ID. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
+
+
+<a id="chatto-api-v1-ListThreadParticipantsResponse"></a>
+
+#### Result: ListThreadParticipantsResponse
+
+A page of distinct reply authors. An empty thread returns an empty page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | User IDs in this page. Use UserService.BatchGetUsers for profiles. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Count and continuation for all current participants. |
+
+
+<a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
+
+### ListFollowedThreads
+
+Returns followed threads in rooms where the current user is a member.
+All threads also require message.read or an active relationship with
+message.read-interactions. Direct-message threads are returned only when
+include_direct_message_threads is true.
+The result includes enough root and latest-reply data for clients to render
+the list without extra per-thread fetches.
+Activity can reorder the live result between offset pages. After a thread
+activity update, clients must restart paging at offset zero.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
+```
+
+<a id="chatto-api-v1-ListFollowedThreadsRequest"></a>
+
+#### Input: ListFollowedThreadsRequest
+
+Request for a page of followed threads for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
+| `include_direct_message_threads` | `bool` | Include followed direct-message threads. Defaults to false so older clients retain the channel-only result shape. |
+| `unread_only` | `bool` | Return only threads with replies that the viewer has not read. The page total then counts only these threads. Older servers ignore this field and return all followed threads. |
+| `root_author_filter` | [`ThreadRootAuthorFilter`](#chatto-api-v1-ThreadRootAuthorFilter) | Filter root authors before pagination and total counts. Threads whose root author is unavailable are omitted when a filter is selected. |
+| `order` | [`ThreadOrder`](#chatto-api-v1-ThreadOrder) | Sort before pagination. Older servers ignore this field and use activity order. |
+
+
+<a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
+
+#### Result: ListFollowedThreadsResponse
+
+Response containing one followed-thread page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in the requested order; newest activity first by default. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-ThreadService-FollowThread"></a>
+
+### FollowThread
+
+Follows a thread for the current user. Room membership plus message.read or
+an active relationship with message.read-interactions are required.
+Followed threads can be surfaced in clients and can participate in thread
+notification behavior.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/FollowThread
+```
+
+<a id="chatto-api-v1-FollowThreadRequest"></a>
+
+#### Input: FollowThreadRequest
+
+Request to follow one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-FollowThreadResponse"></a>
+
+#### Result: FollowThreadResponse
+
+Result of following a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
+
+### UnfollowThread
+
+Stops following a thread for the current user. Room membership plus
+message.read or an active relationship with message.read-interactions are
+required. The response reports
+the resulting follow state so clients can update local UI immediately.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
+```
+
+<a id="chatto-api-v1-UnfollowThreadRequest"></a>
+
+#### Input: UnfollowThreadRequest
+
+Request to stop following one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-UnfollowThreadResponse"></a>
+
+#### Result: UnfollowThreadResponse
+
+Result of unfollowing a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
+
+### GetThreadEvents
+
+Returns one page of events in a message thread. Room membership is
+required. Reads also require message.read or an active relationship with
+message.read-interactions. Initial pages include the thread root message; cursor pages
+return replies in the requested direction.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
+```
+
+<a id="chatto-api-v1-GetThreadEventsRequest"></a>
+
+#### Input: GetThreadEventsRequest
+
+Request for a page of events in one thread.
+
+Omit the cursor to load the latest visible part of the thread, including the
+root message. Set before to a previously returned start_cursor to page toward
+older replies, or after to a previously returned end_cursor to page toward
+newer replies without repeating the root message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `limit` | `int32` | Maximum replies. Values at or below zero use 50; values above 500 use 500. The initial page also includes the root message outside this limit. |
+| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
+| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsResponse"></a>
+
+#### Result: GetThreadEventsResponse
+
+Response containing one thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | Current viewer state, independent of the loaded message window. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
+
+### GetThreadEventsAround
+
+Returns a thread timeline window centered around a specific event. Use this
+to open a reply from a notification or search result in context. Returns
+NOT_FOUND when the thread root or anchor event is missing or hidden.
+Returns PERMISSION_DENIED when room membership is missing, both read modes
+are missing, or an interaction-scoped account has no relationship with the
+thread.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
+```
+
+<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
+
+#### Input: GetThreadEventsAroundRequest
+
+Request for thread events around a specific event.
+
+Use this when a client needs to jump to a known reply and render surrounding
+thread context.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `limit` | `int32` | Maximum replies around the anchor. Values at or below zero use 50; values above 500 use 500. The root message is included outside this limit. |
+
+
+<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
+
+#### Result: GetThreadEventsAroundResponse
+
+Response containing a thread timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+| `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | Current viewer state, independent of the loaded message window. |
+
+
+<a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>
+
+### MarkThreadAsRead
+
+Marks a thread timeline as read through the supplied event without changing
+the room-level read marker. Room membership plus message.read or an active
+relationship with message.read-interactions are required.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
+```
+
+<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
+
+#### Input: MarkThreadAsReadRequest
+
+Request to mark a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
+
+
+<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
+
+#### Result: MarkThreadAsReadResponse
+
+Result of marking a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
+| `last_read_at` | `google.protobuf.Timestamp` | Resulting thread read timestamp. A stale request retains the newer marker. Absent when no marker exists. |
+
+
 <a id="chatto-api-v1-MessageSearchService"></a>
 
 ## MessageSearchService
@@ -2911,6 +3476,7 @@ Request to search current message bodies visible to the authenticated user.
 | `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
 | `scope` | [`MessageSearchScope`](#chatto-api-v1-MessageSearchScope) | Candidate scope. Followed threads are selected before result pagination. |
 | `group_by` | [`MessageSearchGroupBy`](#chatto-api-v1-MessageSearchGroupBy) | Result grouping. The server deduplicates threads before pagination. |
+| `root_author_filter` | [`ThreadRootAuthorFilter`](#chatto-api-v1-ThreadRootAuthorFilter) | Select root authors within FOLLOWED_THREADS before search and pagination. Other scopes require UNSPECIFIED. This does not restrict reply authors; author_id and from: still select the authors of matching messages. |
 
 
 <a id="chatto-api-v1-SearchMessagesResponse"></a>
@@ -3947,357 +4513,6 @@ Authenticated server runtime configuration response.
 | `runtime` | [`ServerRuntimeConfig`](#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
 
 
-<a id="chatto-api-v1-ThreadService"></a>
-
-## ThreadService
-
-Manages thread follow state for the current user.
-
-<a id="chatto-api-v1-ThreadService-GetThreadReadState"></a>
-
-### GetThreadReadState
-
-Reads the current viewer's stored marker without changing it. Requires the
-same membership and read access as MarkThreadAsRead. Missing resources
-return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/GetThreadReadState
-```
-
-<a id="chatto-api-v1-GetThreadReadStateRequest"></a>
-
-#### Input: GetThreadReadStateRequest
-
-Request current thread read state without changing it.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room ID. |
-| `thread_root_event_id` | `string` | Root message ID. |
-
-
-<a id="chatto-api-v1-GetThreadReadStateResponse"></a>
-
-#### Result: GetThreadReadStateResponse
-
-Current thread read state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | [`ThreadReadState`](#chatto-api-v1-ThreadReadState) | State for the requested thread and viewer. |
-
-
-<a id="chatto-api-v1-ThreadService-BatchGetThreadReadStates"></a>
-
-### BatchGetThreadReadStates
-
-Reads up to 100 states under the same authorization as GetThreadReadState.
-Missing and inaccessible resources are omitted; duplicates use first-seen order.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/BatchGetThreadReadStates
-```
-
-<a id="chatto-api-v1-BatchGetThreadReadStatesRequest"></a>
-
-#### Input: BatchGetThreadReadStatesRequest
-
-Request thread read states. Duplicates are removed in first-seen order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `targets` | repeated [`ThreadReadStateTarget`](#chatto-api-v1-ThreadReadStateTarget) | Up to 100 room/thread targets. Missing or inaccessible targets are omitted. |
-
-
-<a id="chatto-api-v1-BatchGetThreadReadStatesResponse"></a>
-
-#### Result: BatchGetThreadReadStatesResponse
-
-Accessible thread read states in first-seen request order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `states` | repeated [`ThreadReadState`](#chatto-api-v1-ThreadReadState) | States for the current viewer. An absent marker does not omit the state. |
-
-
-<a id="chatto-api-v1-ThreadService-ListThreadParticipants"></a>
-
-### ListThreadParticipants
-
-Lists distinct authors of non-retracted replies, excluding erased users.
-The root author is included only if they also replied. Requires the same
-membership and message-read access as GetThreadEvents.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/ListThreadParticipants
-```
-
-<a id="chatto-api-v1-ListThreadParticipantsRequest"></a>
-
-#### Input: ListThreadParticipantsRequest
-
-Request a complete thread participant collection, ordered by user ID ascending.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Root message ID. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
-
-
-<a id="chatto-api-v1-ListThreadParticipantsResponse"></a>
-
-#### Result: ListThreadParticipantsResponse
-
-A page of distinct reply authors. An empty thread returns an empty page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_ids` | `repeated string` | User IDs in this page. Use UserService.BatchGetUsers for profiles. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Count and continuation for all current participants. |
-
-
-<a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
-
-### ListFollowedThreads
-
-Returns followed threads in rooms where the current user is a member.
-All threads also require message.read or an active relationship with
-message.read-interactions. Direct-message threads are returned only when
-include_direct_message_threads is true.
-The result includes enough root and latest-reply data for clients to render
-the list without extra per-thread fetches.
-Activity can reorder the live result between offset pages. After a thread
-activity update, clients must restart paging at offset zero.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
-```
-
-<a id="chatto-api-v1-ListFollowedThreadsRequest"></a>
-
-#### Input: ListFollowedThreadsRequest
-
-Request for a page of followed threads for the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
-| `include_direct_message_threads` | `bool` | Include followed direct-message threads. Defaults to false so older clients retain the channel-only result shape. |
-| `unread_only` | `bool` | Return only threads with replies that the viewer has not read. The page total then counts only these threads. Older servers ignore this field and return all followed threads. |
-
-
-<a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
-
-#### Result: ListFollowedThreadsResponse
-
-Response containing one followed-thread page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-ThreadService-FollowThread"></a>
-
-### FollowThread
-
-Follows a thread for the current user. Room membership plus message.read or
-an active relationship with message.read-interactions are required.
-Followed threads can be surfaced in clients and can participate in thread
-notification behavior.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/FollowThread
-```
-
-<a id="chatto-api-v1-FollowThreadRequest"></a>
-
-#### Input: FollowThreadRequest
-
-Request to follow one message thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-
-
-<a id="chatto-api-v1-FollowThreadResponse"></a>
-
-#### Result: FollowThreadResponse
-
-Result of following a thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
-
-
-<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
-
-### UnfollowThread
-
-Stops following a thread for the current user. Room membership plus
-message.read or an active relationship with message.read-interactions are
-required. The response reports
-the resulting follow state so clients can update local UI immediately.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
-```
-
-<a id="chatto-api-v1-UnfollowThreadRequest"></a>
-
-#### Input: UnfollowThreadRequest
-
-Request to stop following one message thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-
-
-<a id="chatto-api-v1-UnfollowThreadResponse"></a>
-
-#### Result: UnfollowThreadResponse
-
-Result of unfollowing a thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
-
-
-<a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
-
-### GetThreadEvents
-
-Returns one page of events in a message thread. Room membership is
-required. Reads also require message.read or an active relationship with
-message.read-interactions. Initial pages include the thread root message; cursor pages
-return replies in the requested direction.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
-```
-
-<a id="chatto-api-v1-GetThreadEventsRequest"></a>
-
-#### Input: GetThreadEventsRequest
-
-Request for a page of events in one thread.
-
-Omit the cursor to load the latest visible part of the thread, including the
-root message. Set before to a previously returned start_cursor to page toward
-older replies, or after to a previously returned end_cursor to page toward
-newer replies without repeating the root message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `limit` | `int32` | Maximum replies. Values at or below zero use 50; values above 500 use 500. The initial page also includes the root message outside this limit. |
-| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
-| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
-
-
-<a id="chatto-api-v1-GetThreadEventsResponse"></a>
-
-#### Result: GetThreadEventsResponse
-
-Response containing one thread timeline page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-
-
-<a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
-
-### GetThreadEventsAround
-
-Returns a thread timeline window centered around a specific event. Use this
-to open a reply from a notification or search result in context. Returns
-NOT_FOUND when the thread root or anchor event is missing or hidden.
-Returns PERMISSION_DENIED when room membership is missing, both read modes
-are missing, or an interaction-scoped account has no relationship with the
-thread.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
-```
-
-<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
-
-#### Input: GetThreadEventsAroundRequest
-
-Request for thread events around a specific event.
-
-Use this when a client needs to jump to a known reply and render surrounding
-thread context.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
-| `limit` | `int32` | Maximum replies around the anchor. Values at or below zero use 50; values above 500 use 500. The root message is included outside this limit. |
-
-
-<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
-
-#### Result: GetThreadEventsAroundResponse
-
-Response containing a thread timeline window around a specific event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
-
-
-<a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>
-
-### MarkThreadAsRead
-
-Marks a thread timeline as read through the supplied event without changing
-the room-level read marker. Room membership plus message.read or an active
-relationship with message.read-interactions are required.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
-```
-
-<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
-
-#### Input: MarkThreadAsReadRequest
-
-Request to mark a message thread as read.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
-
-
-<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
-
-#### Result: MarkThreadAsReadResponse
-
-Result of marking a message thread as read.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
-| `last_read_at` | `google.protobuf.Timestamp` | Resulting thread read timestamp. A stale request retains the newer marker. Absent when no marker exists. |
-
-
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -5017,6 +5232,25 @@ Effective decision for one permission key.
 
 
 
+<a id="chatto-api-v1-RoomInvitation"></a>
+
+### RoomInvitation
+
+An invitation visible only to its sender and recipient.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+| `room_id` | `string` | No field description provided. |
+| `sender_id` | `string` | No field description provided. |
+| `recipient_id` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `status` | [`RoomInvitationStatus`](#chatto-api-v1-RoomInvitationStatus) | No field description provided. |
+| `can_accept` | `bool` | True only for the recipient while current room and sender rules permit acceptance. |
+
+
+
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
 ### ImageTransformOptions
@@ -5306,6 +5540,7 @@ canonical thread has been established.
 | Field | Type | Description |
 | --- | --- | --- |
 | `can_reply_in_thread` | `optional bool` | Whether the viewer can reply in this message's canonical thread, including starting the first reply to a root. Includes read access, room policy, and broad or interaction-scoped posting authority. Absent when not resolved. |
+| `thread_slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest reply time in this message's canonical thread, including when the root has no replies. Absent when disabled, expired, or bypassed. |
 
 
 
@@ -5336,6 +5571,7 @@ Viewer-specific follow and reply-read state for one message thread.
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `has_unread_replies` | `optional bool` | True when the thread contains replies after the current user's read cursor, when known. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the viewer may reply. Absent when disabled, expired, or bypassed. The root message starts its author's thread cooldown. |
 
 
 
@@ -5590,8 +5826,9 @@ Public room metadata returned by room commands.
 | `archived` | `bool` | True when the room is archived and hidden from active room lists. |
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
-| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between message posts. Channel rooms only; zero means slow mode is disabled. |
-| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for this channel room. Direct-message rooms report UNSPECIFIED because they do not support threads. |
+| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
+| `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 
 
 
@@ -5682,7 +5919,9 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
-| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another root message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | Pending invitation for this viewer; does not grant access to room content. |
+| `can_rejoin` | `optional bool` | Whether current permissions and room state allow joining without an invitation, even if already a member. Absent on servers that do not report this decision. |
 
 
 
@@ -5699,6 +5938,8 @@ viewer.
 | `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
 | `member_user_ids` | `repeated string` | Complete participant user IDs for a DM, including participants whose accounts were deleted. Clients show those as deleted users. Empty for channel rooms. |
 | `has_message_history` | `optional bool` | Whether this DM has received a root message. Absent for channel rooms. |
+| `last_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM message, including thread replies. Edits and retractions do not change this value; historical imports are excluded. Absent for other room kinds, no ordinary messages, or no message.read permission. Older servers can omit this field. Absence does not prove inactivity. |
+| `last_root_message_at` | `google.protobuf.Timestamp` | Creation time of the latest ordinary DM root message, excluding thread replies. Uses the same visibility, import, and absence rules as last_message_at. |
 
 
 
@@ -5984,6 +6225,36 @@ Safe summary of one recorded outbound webhook failure.
 
 
 
+<a id="chatto-api-v1-FollowedThread"></a>
+
+### FollowedThread
+
+One followed thread for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
+| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
+| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
+
+
+
+<a id="chatto-api-v1-ThreadFollowState"></a>
+
+### ThreadFollowState
+
+Current follow state for one thread and viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `following` | `bool` | True when the current user follows the thread. |
+
+
+
 <a id="chatto-api-v1-MessageSearchResult"></a>
 
 ### MessageSearchResult
@@ -6120,6 +6391,7 @@ Presence is significant: absent fields inherit in a stored policy.
 | `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | **Deprecated.** Deprecated compatibility slot. Use room_messages at room scope. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
+| `room_invitations` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for invitations to join a channel room. |
 
 
 
@@ -6150,7 +6422,7 @@ One exact Notifications 2.0 source occurrence.
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
 | `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
-| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
 
@@ -6180,7 +6452,7 @@ group.
 | --- | --- | --- |
 | `scope.server` | `google.protobuf.Empty` | Selects the authenticated viewer's server-wide policy. |
 | `scope.room_group_id` | `string` | Selects one existing room group's policy. |
-| `scope.room_id` | `string` | Selects one room's policy and requires current room membership. |
+| `scope.room_id` | `string` | Selects one room's policy. Requires membership or a pending invitation. |
 
 
 
@@ -6218,6 +6490,7 @@ navigation semantics for them.
 | `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | **Deprecated.** No field description provided. |
 | `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
 | `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
+| `kind.room_invitation_received` | [`RoomInvitationReceived`](#chatto-api-v1-RoomInvitationReceived) | No field description provided. |
 
 
 
@@ -6259,6 +6532,21 @@ A message mentioning a role held by the viewer.
 
 
 
+<a id="chatto-api-v1-RoomInvitationReceived"></a>
+
+### RoomInvitationReceived
+
+An invitation to join a room. Its destination is the room, not a message.
+Attention ends when the invitation is handled or reaches the containing
+NotificationOccurrence's expires_at deadline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | No field description provided. |
+| `invitation_id` | `string` | Stable invitation identifier. |
+
+
+
 <a id="chatto-api-v1-RoomMessageReceived"></a>
 
 ### RoomMessageReceived
@@ -6296,39 +6584,9 @@ Authenticated server runtime settings used by clients.
 | `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
 | `livekit_url` | `optional string` | Optional LiveKit URL for voice and video calls. |
 | `video_processing_enabled` | `bool` | Whether video processing is enabled. |
-| `max_upload_size` | `int64` | Maximum general upload size in bytes. |
-| `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
+| `max_upload_size` | `int64` | Maximum upload size in bytes for all files, including GIFs and videos. |
+| `max_video_upload_size` | `int64` | **Deprecated.** Deprecated alias of max_upload_size. Both fields have the same value. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
-
-
-
-<a id="chatto-api-v1-FollowedThread"></a>
-
-### FollowedThread
-
-One followed thread for the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
-| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
-| `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
-| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
-
-
-
-<a id="chatto-api-v1-ThreadFollowState"></a>
-
-### ThreadFollowState
-
-Current follow state for one thread and viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
-| `following` | `bool` | True when the current user follows the thread. |
 
 
 
@@ -6395,6 +6653,21 @@ Scope of effective authority. Channel scopes never include direct messages.
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP` | `2` | A channel room group. |
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
+
+
+<a id="chatto-api-v1-RoomInvitationStatus"></a>
+
+### RoomInvitationStatus
+
+Current lifecycle state. Expiry does not extend when the invitation is read.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_INVITATION_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `ROOM_INVITATION_STATUS_PENDING` | `1` | No value description provided. |
+| `ROOM_INVITATION_STATUS_ACCEPTED` | `2` | No value description provided. |
+| `ROOM_INVITATION_STATUS_DECLINED` | `3` | No value description provided. |
+| `ROOM_INVITATION_STATUS_EXPIRED` | `4` | No value description provided. |
 
 
 <a id="chatto-api-v1-ImageFitMode"></a>
@@ -6536,6 +6809,32 @@ Availability of best-effort credential last-use telemetry.
 | `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
 
 
+<a id="chatto-api-v1-ThreadOrder"></a>
+
+### ThreadOrder
+
+Ordering for followed threads. Equal dates use a stable thread identity order.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_ORDER_UNSPECIFIED` | `0` | Use newest activity first. |
+| `THREAD_ORDER_ACTIVITY` | `1` | Use newest activity first. |
+| `THREAD_ORDER_CREATED` | `2` | Use newest root-message creation first. Unknown creation dates come last. |
+
+
+<a id="chatto-api-v1-ThreadRootAuthorFilter"></a>
+
+### ThreadRootAuthorFilter
+
+Selects threads by the author of their root message, not their replies.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_ROOT_AUTHOR_FILTER_UNSPECIFIED` | `0` | Include all root authors. |
+| `THREAD_ROOT_AUTHOR_FILTER_VIEWER` | `1` | Include only roots authored by the authenticated viewer. |
+| `THREAD_ROOT_AUTHOR_FILTER_OTHERS` | `2` | Include only roots authored by other users. |
+
+
 <a id="chatto-api-v1-MessageSearchGroupBy"></a>
 
 ### MessageSearchGroupBy
@@ -6560,6 +6859,7 @@ Ordering for message or grouped-thread search results.
 | `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Highest message score first; grouped results use their best matching message. |
 | `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Newest matching message first, also when results are grouped. |
 | `MESSAGE_SEARCH_ORDER_THREAD_ACTIVITY` | `3` | Return threads with the most recent activity first. Requires thread grouping. |
+| `MESSAGE_SEARCH_ORDER_THREAD_CREATED` | `4` | Newest root-message creation first, with unknown dates last. Requires thread grouping. Older servers can reject this order. |
 
 
 <a id="chatto-api-v1-MessageSearchScope"></a>

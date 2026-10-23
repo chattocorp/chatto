@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/pkg/natsauth"
 	"github.com/nats-io/nats-server/v2/server"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/pkg/natsauth"
 )
 
 type testUnit struct{ name string }

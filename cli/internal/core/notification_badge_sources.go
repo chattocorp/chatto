@@ -7,9 +7,9 @@ import (
 	"time"
 	"unsafe"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 )
 
 // badgeCause is one notification cause that can resolve to Badge.
@@ -457,16 +457,6 @@ func (b *notificationBadgeSources) threadKey(roomID, threadRootEventID string) (
 	return badgeThreadKey{room: room, thread: thread}, roomKnown && threadKnown
 }
 
-// followState returns a user's latest explicit follow state for a thread.
-func (b *notificationBadgeSources) followState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	user, userKnown := b.ids.Lookup(userID)
-	thread, threadKnown := b.threadKey(roomID, threadRootEventID)
-	if !userKnown || !threadKnown {
-		return ThreadFollowStateNone
-	}
-	return b.followStates[badgeFollowKey{user: user, badgeThreadKey: thread}].public()
-}
-
 // followerIDs returns the users who currently follow a thread, sorted.
 func (b *notificationBadgeSources) followerIDs(roomID, threadRootEventID string) []string {
 	thread, known := b.threadKey(roomID, threadRootEventID)
@@ -482,13 +472,37 @@ func (b *notificationBadgeSources) followerIDs(roomID, threadRootEventID string)
 	return userIDs
 }
 
-// replyCount returns the number of posted replies of a thread root.
-func (b *notificationBadgeSources) replyCount(threadRootEventID string) uint64 {
-	thread, ok := b.eventIDs.Lookup(threadRootEventID)
+// followedThreadRecipientIDs returns the users for whom a thread reply is
+// followed-thread activity, sorted: the users whose follow began before the
+// reply, and for the first reply, the root author unless they unfollowed the
+// thread. A follow that the reply causes, such as the automatic follow of a
+// mentioned user or of the root author, begins after the reply. Thus facts
+// that the index applies after the reply do not add recipients.
+func (b *notificationBadgeSources) followedThreadRecipientIDs(messageEventID string) []string {
+	message, ok := b.eventIDs.Lookup(messageEventID)
 	if !ok {
-		return 0
+		return nil
 	}
-	return b.replyCounts[thread]
+	record, exists := b.message(message)
+	if !exists || record.thread == 0 {
+		return nil
+	}
+	thread := badgeThreadKey{room: record.room, thread: record.thread}
+	var userIDs []string
+	for _, user := range b.followers[thread] {
+		if b.follows[badgeMembershipKey{user: user, room: record.room}][record.thread] < record.seq {
+			userIDs = append(userIDs, b.ids.Resolve(user))
+		}
+	}
+	if root, exists := b.message(record.thread); exists && b.followStates[badgeFollowKey{user: root.author, badgeThreadKey: thread}] != compactThreadFollowUnfollowed {
+		if sources := b.rooms[record.room]; sources != nil && slices.ContainsFunc(sources.targeted[root.author][record.thread], func(source badgeTargetedSource) bool {
+			return source.kind == badgeSourceFirstThreadReply && source.message == message
+		}) {
+			userIDs = append(userIDs, b.ids.Resolve(root.author))
+		}
+	}
+	slices.Sort(userIDs)
+	return slices.Compact(userIDs)
 }
 
 func (b *notificationBadgeSources) endMembership(userID, roomID string) {
@@ -602,6 +616,9 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 }
 
 func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, seq uint64) {
+	if reaction.GetHistoricalImport() {
+		return
+	}
 	target, ok := b.eventIDs.Lookup(reaction.GetMessageEventId())
 	createdAt := eventCreatedNanos(event)
 	if !ok || reaction.GetEmoji() == "" || event.GetActorId() == "" || createdAt == 0 {

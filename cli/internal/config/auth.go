@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -31,17 +34,22 @@ var authProviderDefaultLabels = map[string]string{
 // changed after users link identities through it.
 type AuthProviderConfig struct {
 	// TokenEndpointAuthMethod overrides OIDC discovery for the token exchange.
-	TokenEndpointAuthMethod string            `toml:"token_endpoint_auth_method,commented" comment:"OIDC token authentication: client_secret_basic, client_secret_post, or none. Omit to select from discovery."`
-	ID                      string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type                    string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
-	Label                   string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
-	ClientID                string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
-	ClientSecret            string            `toml:"client_secret,commented" comment:"OAuth/OIDC client secret. NEVER SHARE THIS! Optional only for public OIDC clients."`
-	IssuerURL               string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
-	Scopes                  []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
-	RequestEmail            *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
-	AutoProvision           *bool             `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
-	ProviderOptions         map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
+	TokenEndpointAuthMethod string   `toml:"token_endpoint_auth_method,commented" comment:"OIDC token authentication: client_secret_basic, client_secret_post, or none. Omit to select from discovery."`
+	ID                      string   `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type                    string   `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
+	Label                   string   `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID                string   `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret            string   `toml:"client_secret,commented" comment:"OAuth/OIDC client secret. NEVER SHARE THIS! Optional only for public OIDC clients."`
+	IssuerURL               string   `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
+	Scopes                  []string `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail            *bool    `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
+	AutoProvision           *bool    `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
+	// AllowedGroups and GroupsClaim restrict every sign-in and identity link
+	// through this provider. See AdmitsGroups. GroupRoles maps the same groups
+	// to Chatto roles. See GroupRoleMappings and FDR-050.
+	AllowedGroups []string `toml:"allowed_groups,commented" comment:"OIDC only. Allow only users who are in at least one of these groups. Names must match exactly."`
+	GroupsClaim   string   `toml:"groups_claim,commented" comment:"OIDC only. Top-level ID token or UserInfo claim that contains the user's groups. Default: groups."`
+	GroupRoles    string   `toml:"group_roles,commented" comment:"OIDC only. Whitespace-separated group:role pairs, for example 'chat-mods:moderator it-ops:admin'. Users in a group get the role at sign-in. Chatto removes a role only if this provider assigned it."`
 }
 
 // LabelOrDefault returns the configured label, or a provider-specific default.
@@ -67,6 +75,65 @@ func (c AuthProviderConfig) AutoProvisionOrDefault() bool {
 		return false
 	}
 	return *c.AutoProvision
+}
+
+// GroupsClaimOrDefault returns the claim that contains a user's groups.
+func (c AuthProviderConfig) GroupsClaimOrDefault() string {
+	if c.GroupsClaim == "" {
+		return "groups"
+	}
+	return c.GroupsClaim
+}
+
+// AdmitsGroups reports whether the group restriction allows a sign-in. groups
+// are the values of the groups claim. One exact match is sufficient. Without
+// allowed_groups, every user is allowed.
+func (c AuthProviderConfig) AdmitsGroups(groups []string) bool {
+	return len(c.AllowedGroups) == 0 || slices.ContainsFunc(groups, func(group string) bool { return slices.Contains(c.AllowedGroups, group) })
+}
+
+// GroupRole maps one provider group to one Chatto role name.
+type GroupRole struct {
+	Group string
+	Role  string
+}
+
+// reservedGroupRoles are role names that group_roles must not name: owner is
+// never automatic, and everyone has no assignments.
+var reservedGroupRoles = []string{"owner", "everyone"}
+
+// IsReservedGroupRole reports whether group_roles must not map to roleName.
+func IsReservedGroupRole(roleName string) bool {
+	return slices.Contains(reservedGroupRoles, roleName)
+}
+
+// ParseGroupRoles parses whitespace-separated group:role pairs. Each pair is
+// split at its last colon, because role names cannot contain colons. It
+// rejects pairs without a group or role and repeated pairs.
+func ParseGroupRoles(value string) ([]GroupRole, error) {
+	var mappings []GroupRole
+	for pair := range strings.FieldsSeq(value) {
+		at := strings.LastIndex(pair, ":")
+		if at <= 0 || at == len(pair)-1 {
+			return nil, fmt.Errorf("group_roles entry %q must use group:role", pair)
+		}
+		mapping := GroupRole{Group: pair[:at], Role: pair[at+1:]}
+		if slices.Contains(mappings, mapping) {
+			return nil, fmt.Errorf("group_roles repeats %q", pair)
+		}
+		mappings = append(mappings, mapping)
+	}
+	return mappings, nil
+}
+
+// GroupRoleMappings returns the parsed group_roles pairs. Configuration
+// validation rejects invalid values, so an invalid value returns nil.
+func (c AuthProviderConfig) GroupRoleMappings() []GroupRole {
+	mappings, err := ParseGroupRoles(c.GroupRoles)
+	if err != nil {
+		return nil
+	}
+	return mappings
 }
 
 func IsAllowedAuthProviderType(providerType string) bool {

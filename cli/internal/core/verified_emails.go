@@ -10,8 +10,8 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -430,7 +430,7 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 			if c.rbacModel.hasRole(userID, RoleOwner) {
 				break
 			}
-			if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
+			if err := c.AssignConfiguredOwnerRole(ctx, userID); err != nil {
 				return fmt.Errorf("assign owner role to %s: %w", userID, err)
 			}
 			promoted++

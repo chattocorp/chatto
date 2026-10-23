@@ -2,9 +2,9 @@ import type {
   AttachmentContent,
   AttachmentReadOptions,
   MessagingRequests,
+  ThreadLocation,
   ThreadMessage as ClientThreadMessage
 } from '@chatto/client';
-import type { Delivery } from './chatto/routing.ts';
 
 /** Thread text classified relative to this bot; other bots also have the human role. */
 export interface ThreadMessage extends Omit<ClientThreadMessage, 'fromViewer'> {
@@ -20,28 +20,18 @@ export interface ThreadRead {
   olderOmitted: boolean;
 }
 
-/** Read a delivery's thread: without `after`, the root and the newest replies; with `after`, a
- * cursor from an earlier read, only newer messages. Messages carry bot/human roles and the
- * authors' names. */
+/** Read a thread: without `after`, the root and the newest replies; with `after`, a cursor from
+ * an earlier read, only newer messages. Messages carry bot/human roles and the authors' names. */
 export type ReadThread = (
-  delivery: Delivery,
+  thread: ThreadLocation,
   signal: AbortSignal,
   after?: string
 ) => Promise<ThreadRead>;
 
-/** Adapt the application's webhook-compatible delivery to a client thread location.
- * A root message, including a DM root, starts its own thread. */
-export function threadLocation(delivery: Delivery) {
-  return { roomId: delivery.room_id, threadRootId: delivery.thread_root_id ?? delivery.message.id };
-}
-
-/** Read a delivery's thread with bot/human roles; the bot is the client's viewer. */
+/** Read a thread with bot/human roles; the bot is the client's viewer. */
 export function createThreadReader(client: Pick<MessagingRequests, 'readThread'>): ReadThread {
-  return async (delivery, signal, after) => {
-    const read = await client.readThread(threadLocation(delivery), {
-      signal,
-      ...(after ? { after } : {})
-    });
+  return async (thread, signal, after) => {
+    const read = await client.readThread(thread, { signal, ...(after ? { after } : {}) });
     return {
       ...read,
       messages: read.messages.map(({ fromViewer, ...message }) => ({
@@ -52,17 +42,17 @@ export function createThreadReader(client: Pick<MessagingRequests, 'readThread'>
   };
 }
 
-/** Read the content of an attachment in a delivery's room. */
+/** Read the content of an attachment in a room. */
 export type ReadAttachment = (
-  delivery: Delivery,
+  roomId: string,
   attachmentId: string,
   options: AttachmentReadOptions & { signal: AbortSignal }
 ) => Promise<AttachmentContent>;
 
-/** Read attachments in a delivery's room as the client's viewer. */
+/** Read attachments as the client's viewer. */
 export function createAttachmentReader(
   client: Pick<MessagingRequests, 'readAttachment'>
 ): ReadAttachment {
-  return (delivery, attachmentId, options) =>
-    client.readAttachment({ roomId: delivery.room_id, attachmentId }, options);
+  return (roomId, attachmentId, options) =>
+    client.readAttachment({ roomId, attachmentId }, options);
 }

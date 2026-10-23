@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/core"
 )
 
 // A second test environment must not delete or inherit the first event log.

@@ -8,7 +8,6 @@
     "notifications": {
       "title": "通知",
       "subtitle": "最新消息",
-      "list_title": "最近動態",
       "clear_read": "清除已讀",
       "empty_title": "沒有通知",
       "empty_body": "所有通知都已查看！",
@@ -19,14 +18,15 @@
       "unread": "未讀",
       "activity": "新動態",
       "summary": {
-        "direct_message": "{actor} 傳送了一則私人訊息給你。",
-        "reaction": "{actor} 在 {channel} 中以「{emoji}」回應了你的訊息。",
-        "reaction_group": "{actor} 和其他使用者在 {channel} 中以「{emoji}」回應了你的訊息。",
-        "reply": "{actor} 回覆了你的訊息。",
-        "mention": "{actor} 提及了你。",
-        "followed_thread": "{actor} 回覆了你追蹤的討論串。",
-        "new_message": "{actor} 發布了一則新訊息。",
-        "activity": "{actor} 傳送了一則通知給你。"
+        "direct_message": "{actor} 傳送了一則私人訊息給你",
+        "reaction": "{actor} 以 {emoji} 回應了你的訊息",
+        "reaction_group": "{actor} 和其他使用者以 {emoji} 回應了你的訊息",
+        "reply": "{actor} 回覆了你的訊息",
+        "mention": "{actor} 提及了你",
+        "followed_thread": "{actor} 回覆了你追蹤的討論串",
+        "new_message": "{actor} 發布了一則新訊息",
+        "activity": "{actor} 傳送了一則通知給你",
+        "room_invitation": "{actor} 邀請你加入房間"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "使用者個人檔案",
-      "send_message": "傳送訊息",
+      "send_message": "開啟對話",
       "view_profile": "查看個人資料",
       "profile_requires_direct_message": "需要有私訊對話才能查看此個人資料。",
       "manage_bot": "管理機器人",
       "view_in_admin": "在伺服器管理中檢視",
       "copy_user_id": "複製使用者 ID"
     },
+    "server_info": {
+      "title": "伺服器資訊",
+      "details": "伺服器詳細資料"
+    },
+    "compatibility": {
+      "title": "相容性",
+      "view": "檢視相容性",
+      "limited": "較舊的伺服器版本",
+      "supported": "沒有已知的相容性問題",
+      "affected": "受影響的功能",
+      "requires": "需要 {version} 或更新版本",
+      "thread_views_title": "討論串檢視的支援有限",
+      "thread_views_description": "此伺服器可能無法分別列出你追蹤的討論串和你發起的討論串。",
+      "independent_slow_mode_title": "無法使用獨立慢速模式",
+      "independent_slow_mode_description": "此伺服器對頻道訊息和討論串回覆使用共用的冷卻時間。",
+      "upgrade": "如需完整支援，請要求伺服器管理員升級至 {version} 或更新版本。"
+    },
     "server_gutter": {
       "move_up": "向上移動",
       "move_down": "向下移動",
       "add_server": "新增伺服器",
-      "log_in": "登入此伺服器",
-      "sign_out": "登出此伺服器",
+      "log_in": "登入伺服器",
+      "sign_out": "登出伺服器",
       "version": "版本 {version}",
       "unreachable": "無法連線至伺服器",
       "connection_unavailable": "連線無法使用",
-      "compatibility_server_too_old": "此伺服器必須升級至 Chatto 0.5 或更新版本，此應用程式才能連線。",
+      "compatibility_server_too_old": "此伺服器必須升級至 Chatto {version} 或更新版本，此應用程式才能連線。",
       "compatibility_unknown": "此應用程式無法根據伺服器版本判斷相容性。",
       "go_to_notifications_count": {
         "one": "前往 {count} 則通知",
@@ -90,9 +107,16 @@
       "body": "登入後即可在此伺服器上閱讀和傳送訊息。"
     },
     "threads": {
-      "title": "我的討論串",
-      "subtitle": "你追蹤的討論串",
-      "list_title": "追蹤的討論串",
+      "sort_label": "討論串排序",
+      "sort_activity": "活動",
+      "sort_created": "建立時間",
+      "tab_started": "我的",
+      "tab_followed": "已追蹤",
+      "tab_label": "討論串檢視",
+      "empty_mine_title": "你尚未發起討論串",
+      "empty_mine_body": "你發起並追蹤的討論串將顯示在這裡。",
+      "title": "討論串",
+      "subtitle": "你的討論串中的新動態",
       "filter_label": "篩選討論串",
       "filter_all": "全部",
       "filter_unread": "未讀",
@@ -141,6 +165,19 @@
       },
       "owned_by": "擁有者",
       "open_card": "開啟 {name} 的個人資料卡"
+    },
+    "management_nav": {
+      "general": "一般",
+      "neighbors": "鄰居",
+      "members": "成員",
+      "rooms": "聊天室",
+      "moderation": "內容管理",
+      "permissions": "權限",
+      "security": "安全性",
+      "event_log": "事件記錄",
+      "system": "系統",
+      "back_to_server": "返回伺服器",
+      "invitations": "邀請連結"
     }
   }
 }

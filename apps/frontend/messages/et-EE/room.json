@@ -33,10 +33,13 @@
       "access_denied": "Teil pole luba selle ruumiga liitumiseks."
     },
     "leave": {
-      "title": "Lahku ruumist",
-      "action": "Lahku ruumist",
-      "prompt": "Kas soovite kindlasti #{room} lahkuda? Saate hiljem uuesti liituda.",
-      "failed": "Ruumi lahkumine ebaõnnestus"
+      "title": "Lahkuge ruumist",
+      "action": "Lahkuge ruumist",
+      "prompt": "Kas soovite kindlasti #{room} lahkuda?",
+      "failed": "Ruumi lahkumine ebaõnnestus",
+      "join_later": "Saate hiljem uuesti liituda.",
+      "need_invite": "Selle ruumiga liitumiseks vajad uut kutset.",
+      "rejoin_unknown": "Uuesti liitumiseks võid vajada uut kutset."
     },
     "directory": {
       "universal_title": "Universaalsed ruumid liidetakse automaatselt",
@@ -59,7 +62,8 @@
       "join_group_failed": "Grupiga liitumine ebaõnnestus",
       "left": "Vasak number {room}",
       "left_generic": "Vasak tuba",
-      "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?"
+      "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?",
+      "invited": "Kutsutud"
     },
     "server": {
       "remove_title": "Eemalda server",
@@ -93,11 +97,12 @@
         "reply": "Vasta",
         "reply_room": "Vasta ruumis",
         "reply_thread": "Vasta lõimes",
-        "open_thread": "Ava lõng",
+        "open_thread": "Avage lõim",
         "edit": "Redigeeri sõnumit",
         "more": "Rohkem toiminguid",
         "edit_short": "Muuda",
-        "copy_text": "Kopeeri tekst",
+        "copy_text": "Kopeeri sõnumi tekst",
+        "copy_selected_text": "Kopeeri valitud tekst",
         "copy_text_failed": "Teksti kopeerimine ebaõnnestus",
         "copy_link": "Kopeeri link",
         "copy_message_link": "Kopeeri sõnumi link",
@@ -106,7 +111,8 @@
         "message_link_copied": "Sõnumi link kopeeritud",
         "copy_link_failed": "Lingi kopeerimine nurjus",
         "image_copied": "Pilt kopeeritud",
-        "copy_image_failed": "Pildi kopeerimine nurjus"
+        "copy_image_failed": "Pildi kopeerimine nurjus",
+        "view_reactions": "Vaadake reaktsioone"
       },
       "meta": {
         "echo": "Kaja",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Kas soovid kindlasti selle sõnumi kinnituse eemaldada?",
       "loading": "Kinnitatud sõnumite laadimine...",
       "empty_title": "Kinnitatud sõnumeid pole",
-      "empty_description": "Ruumi haldurid saavad siin olulisi sõnumeid kinnitada.",
+      "empty_description": "Kinnitatud sõnumid kuvatakse siin.",
       "error_title": "Kinnitatud sõnumid pole saadaval",
       "error_description": "Kinnitatud sõnumeid ei saanud laadida. Proovi hetke pärast uuesti.",
       "update_failed": "Kinnitatud sõnumit ei saanud värskendada"
@@ -255,6 +261,81 @@
     "jump_to_present": "Hüppa oleviku juurde",
     "jump_failed": "Selle sõnumi juurde ei saanud hüpata.",
     "unread_separator": "Uued sõnumid",
-    "close_extras": "Sule ruumi lisad"
+    "close_extras": "Sule ruumi lisad",
+    "dm": {
+      "deleted_user_notice": "Teine kasutaja on kustutatud."
+    },
+    "management": {
+      "room_name_too_long": "Ruumi nimi ei tohi ületada 30 tähemärki",
+      "room_name_invalid": "Ruumi nimi ei tohi sisaldada reavahetusi ega juhtmärke",
+      "create_room": "Looge ruum",
+      "reorder_groups_failed": "Gruppide ümberjärjestamine ebaõnnestus: {error}",
+      "room_created": "Tuba loodud",
+      "link_updated": "Link uuendatud",
+      "link_created": "Link loodud",
+      "save_link_failed": "Lingi salvestamine ebaõnnestus: {error}",
+      "group_deleted": "Grupp kustutatud",
+      "delete_group_failed": "Grupi kustutamine ebaõnnestus: {error}",
+      "link_deleted": "Link kustutatud",
+      "delete_link_failed": "Lingi kustutamine ebaõnnestus: {error}",
+      "room_archived": "Ruum arhiveeritud",
+      "archive_room_failed": "Ruumi arhiivimine ebaõnnestus: {error}",
+      "drag_room": "Lohistage ruumi ümberjärjestamiseks",
+      "drag_link": "Lohistage lingi ümberjärjestamiseks",
+      "drag_group": "Lohistage rühma ümberkorraldamiseks",
+      "new_room": "Looge ruum",
+      "new_link": "Looge link",
+      "delete_group": "Kustuta grupp",
+      "edit_link": "Redigeeri linki",
+      "delete_link": "Kustuta link",
+      "create_link": "Looge link",
+      "label": "Silt",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com või /docs",
+      "delete_group_prompt": "Kas olete kindel, et soovite komplekti {name} kustutada?",
+      "delete_link_prompt": "Kas olete kindel, et soovite {label} kustutada?",
+      "archive_room": "Arhiveerige ruum",
+      "archive_room_prompt": "Kas olete kindel, et soovite arhiivida #{room}? Liikmed ei pääse enam sellele ruumile juurde.",
+      "group_created": "Grupp loodud",
+      "create_group_failed": "Grupi loomine ebaõnnestus: {error}",
+      "group_name": "Grupi nimi",
+      "group_name_placeholder": "nt Üldine, Projektid, Meeskonnad",
+      "create_group": "Loo rühm",
+      "new_group": "Uus grupp",
+      "threading_mode_required": "Kohustuslik",
+      "threading_mode_encouraged": "Soovitatud",
+      "threading_mode_enabled": "Lubatud",
+      "threading_mode_disabled": "Keelatud"
+    },
+    "moderation": {
+      "removing": "Eemaldamine...",
+      "remove_action": "Eemalda toast",
+      "lift_title": "Lõpeta kasutaja {user} peatamine",
+      "lift": "Lõpeta peatamine",
+      "lifting": "Lõpetamine...",
+      "no_suspension": "Peatamiseta — saab uuesti liituda",
+      "indefinite": "Tähtajatult",
+      "remove_title": "Eemalda {user} toast",
+      "suspension_period": "Peatamise kestus"
+    },
+    "invitation": {
+      "invite": "Kutsu liige",
+      "invited": "Teid on kutsutud",
+      "sent": "Kutsed saadetud",
+      "expires": "Aegub {date}",
+      "unavailable": "Te ei saa praegu seda kutset vastu võtta. Saate sellest endiselt keelduda.",
+      "accept": "Võta kutse vastu",
+      "decline": "Keeldu",
+      "title": "Kutsu liikmeid tuppa #{room}",
+      "description": "Vali, keda soovid kutsuda. Kutsutud kasutajad saavad teavituse ning neil on seitse päeva kutse vastuvõtmiseks või tagasilükkamiseks.",
+      "members": "Liikmed",
+      "send": "Saada kutsed",
+      "failed": "Liikme {name} kutsumine nurjus: {error}",
+      "already_member": "Juba selles ruumis",
+      "invited_by": "Sind kutsus",
+      "decline_title": "Kas lükata kutse tagasi?",
+      "decline_join_later": "Saad selle ruumiga hiljem liituda.",
+      "decline_need_invite": "Selle ruumiga liitumiseks vajad uut kutset."
+    }
   }
 }

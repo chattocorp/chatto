@@ -2,6 +2,8 @@ import { tick } from 'svelte';
 import '../../../app.css';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { isHLSProvider } from 'vidstack';
+import type { MediaPlayerElement } from 'vidstack/elements';
 import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
 import VideoPlayer from './VideoPlayer.svelte';
 
@@ -110,28 +112,37 @@ describe('VideoPlayer', () => {
     expect(fog?.getBoundingClientRect().height).toBeCloseTo(videoFrame.clientHeight, 0);
   });
 
-  it('plays a newly processed HLS-only video', async () => {
-    const canPlayType = vi
-      .spyOn(HTMLMediaElement.prototype, 'canPlayType')
-      .mockImplementation((type) => (type === 'application/vnd.apple.mpegurl' ? 'probably' : ''));
+  it('initializes the HLS provider for a newly processed HLS-only video', async () => {
+    const { default: Hls } = await import('hls.js');
+    // Exercise the real provider and library setup without fetching a fake media URL.
+    const loadSource = vi.spyOn(Hls.prototype, 'loadSource').mockImplementation(() => {});
     const hlsUrl = 'https://chat.example.test/assets/hls/a/master.m3u8?access=ticket';
+    const rendered = renderPostedVideo({
+      width: 1280,
+      height: 720,
+      hlsUrl,
+      includeMP4: false
+    });
     try {
-      const { container } = renderPostedVideo({
-        width: 1280,
-        height: 720,
-        hlsUrl,
-        includeMP4: false
-      });
-      const player = (await mediaPlayer(container)) as HTMLElement & {
-        src?: { src?: string; type?: string };
-        streamType?: string;
-      };
+      const player = (await mediaPlayer(rendered.container)) as MediaPlayerElement;
 
-      await expect.poll(() => player.src?.src).toBe(hlsUrl);
-      expect(player.src?.type).toBe('application/vnd.apple.mpegurl');
+      await expect
+        .poll(() => player.src)
+        .toEqual({
+          src: hlsUrl,
+          type: 'application/vnd.apple.mpegurl'
+        });
       expect(player.streamType).toBe('on-demand');
+      // Source assignment precedes the async provider and bundled library setup.
+      await expect
+        .poll(() => isHLSProvider(player.provider) && player.provider.instance !== null)
+        .toBe(true);
+      expect(loadSource).toHaveBeenCalledWith(hlsUrl);
     } finally {
-      canPlayType.mockRestore();
+      // Vidstack otherwise defers destruction until a later animation frame.
+      rendered.container.querySelector<MediaPlayerElement>('media-player')?.destroy();
+      await rendered.unmount();
+      loadSource.mockRestore();
     }
   });
 

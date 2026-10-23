@@ -312,6 +312,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     canReact: true,
     canManageOthersMessage: false,
     canEchoMessage: false,
+    canPinMessages: false,
     canManageRoom: false,
     canBanRoomMembers: false,
     slowModeNextPostAt: null
@@ -859,7 +860,7 @@ describe('RoomSidebar', () => {
       expect(q(document.body, '[data-testid="copy-user-id"]')).toBeTruthy();
     });
 
-    expect(buttonByText(document.body, 'Send Message')).toBeUndefined();
+    expect(buttonByText(document.body, 'Open conversation')).toBeUndefined();
   });
 
   it('shows the direct-message action when the scoped server grants it', async () => {
@@ -879,7 +880,7 @@ describe('RoomSidebar', () => {
     memberButton!.click();
 
     await vi.waitFor(() => {
-      expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
+      expect(buttonByText(document.body, 'Open conversation')).toBeTruthy();
     });
   });
 
@@ -896,7 +897,7 @@ describe('RoomSidebar', () => {
     login.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     await vi.waitFor(() => {
-      expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
+      expect(buttonByText(document.body, 'Open conversation')).toBeTruthy();
     });
   });
 
@@ -972,7 +973,7 @@ describe('RoomSidebar', () => {
       .toBeInTheDocument();
   });
 
-  it('renders connected participant cards video-first and exposes call controls', async () => {
+  it('features the camera once and exposes the remaining participant and call controls', async () => {
     const videoTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -1027,22 +1028,25 @@ describe('RoomSidebar', () => {
     const participantCards = Array.from(
       container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
     );
-    expect(participantCards).toHaveLength(2);
-    expect(participantCards[0].className).toContain('participant-card-video');
-    expect(participantCards[1].className).toContain('participant-card-compact');
-    const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
+    expect(participantCards).toHaveLength(1);
+    expect(participantCards[0].textContent).toContain('Bob');
+    expect(participantCards[0].className).toContain('participant-card-compact');
+    expect(q(container, '[data-testid="call-featured-stage-card"] video')).toBeTruthy();
+    expect(container.querySelectorAll('[data-stage-tile-key="viewer:person"]')).toHaveLength(1);
+    expect(participantCards[0].querySelector('video')).toBeNull();
+    const mutedIndicator = q(participantCards[0], '[data-testid="call-muted-indicator"]');
     const participantMenuButton = q(
-      participantCards[1],
+      participantCards[0],
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
-    participantCards[1].style.width = '280px';
+    participantCards[0].style.width = '280px';
     await expect
-      .poll(() => q(participantCards[1], '[data-testid="call-feed-local-mute-button"]'))
+      .poll(() => q(participantCards[0], '[data-testid="call-feed-local-mute-button"]'))
       .toBeNull();
     await userEvent.click(participantMenuButton);
     expect(mutedIndicator).toBeTruthy();
-    expect(q(participantCards[1], '[data-testid="voice-activity"]')).toBeTruthy();
-    expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
+    expect(q(participantCards[0], '[data-testid="voice-activity"]')).toBeTruthy();
+    expect(q(participantCards[0], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
     await expect
       .element(page.getByRole('button', { name: 'Mute locally', exact: true }))
       .toBeVisible();
@@ -1198,7 +1202,7 @@ describe('RoomSidebar', () => {
     expect(participantList!.className).not.toContain('@min-[368px]:grid-cols-2');
   });
 
-  it('pins screen-share tiles before camera and voice participant cards', async () => {
+  it('features screen shares outside the scrolling participant list', async () => {
     const screenShareTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -1263,16 +1267,17 @@ describe('RoomSidebar', () => {
     const participantList = q(container, '[data-testid="call-participants-list"]');
     expect(participantList).toBeTruthy();
     const cards = Array.from(participantList!.children);
-    expect(cards[0].getAttribute('data-testid')).toBe('call-screen-share-card');
-    expect(cards[0].textContent).toContain("Alice's screen");
-    expect(cards[0].querySelector('video')?.className).toContain('object-contain');
+    const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
+    expect(featured.textContent).toContain("Alice's screen");
+    expect(featured.querySelector('video')?.className).toContain('object-contain');
+    expect(participantList!.contains(featured)).toBe(false);
+    expect(cards[0].getAttribute('data-testid')).toBe('call-participant-card');
+    expect(cards[0].textContent).toContain('Bob');
+    expect(cards[0].querySelector('video')?.className).toContain('object-cover');
     expect(cards[1].getAttribute('data-testid')).toBe('call-participant-card');
-    expect(cards[1].textContent).toContain('Bob');
-    expect(cards[1].querySelector('video')?.className).toContain('object-cover');
+    expect(cards[1].textContent).toContain('Alice');
     expect(cards[2].getAttribute('data-testid')).toBe('call-participant-card');
-    expect(cards[2].textContent).toContain('Alice');
-    expect(cards[3].getAttribute('data-testid')).toBe('call-participant-card');
-    expect(cards[3].textContent).toContain('Carol');
+    expect(cards[2].textContent).toContain('Carol');
     expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
   });
 
@@ -2173,7 +2178,7 @@ describe('RoomSidebar', () => {
     requestFullscreen.mockRestore();
   });
 
-  it('uses the stage layout without pane chrome while the call pane is fullscreen', async () => {
+  it('keeps a header close button that exits fullscreen without closing the call', async () => {
     callStore.voiceCall.connected = true;
     callStore.voiceCall.roomId = 'room-1';
     const exitFullscreen = vi.spyOn(document, 'exitFullscreen').mockResolvedValue();
@@ -2182,7 +2187,8 @@ describe('RoomSidebar', () => {
       hasActiveCall: true,
       livekitUrl: 'wss://livekit.example.test',
       roomData: roomData([member(1)], 1, false),
-      onToggleMaximized: vi.fn()
+      onToggleMaximized: vi.fn(),
+      onClose: vi.fn()
     };
     const { container, rerender } = render(RoomSidebarTestHarness, { props });
     const sidebar = container.querySelector<HTMLElement>('[aria-label="Room extras"]')!;
@@ -2202,11 +2208,20 @@ describe('RoomSidebar', () => {
       expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
       expect(q(container, '[data-testid="call-participants-list"]')).toBeFalsy();
 
-      (q(container, '[data-testid="call-exit-fullscreen-button"]') as HTMLButtonElement).click();
+      expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+      expect(q(container, '[data-testid="call-exit-fullscreen-button"]')).toBeNull();
+      const close = container.querySelector<HTMLButtonElement>(
+        '[aria-label="Exit fullscreen call"]'
+      )!;
+      expect(close.closest('[data-page-reveal]')?.textContent).toContain('Call');
+      expect(close.querySelector('[class~="icon-[uil--times]"]')).toBeTruthy();
+      close.click();
       await Promise.resolve();
       expect(exitFullscreen).toHaveBeenCalledOnce();
+      expect(props.onClose).not.toHaveBeenCalled();
+      expect(callStore.voiceCall.connected).toBe(true);
 
-      // Ending the call removes the exit control, so fullscreen ends as well.
+      // Ending the call also ends fullscreen.
       await rerender({ ...props, hasActiveCall: false });
       expect(exitFullscreen).toHaveBeenCalledTimes(2);
     } finally {

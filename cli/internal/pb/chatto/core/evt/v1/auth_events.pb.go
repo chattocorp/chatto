@@ -1422,8 +1422,8 @@ const file_chatto_core_evt_v1_auth_events_proto_rawDesc = "" +
 	"\n" +
 	"client_uri\x18\x06 \x01(\tR\tclientUri\x12\x1a\n" +
 	"\bresource\x18\a \x01(\tR\bresource\x12\x16\n" +
-	"\x06scopes\x18\b \x03(\tR\x06scopesB\xca\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x0fAuthEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\x06scopes\x18\b \x03(\tR\x06scopesB\xdb\x01\n" +
+	"\x16com.chatto.core.evt.v1B\x0fAuthEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_auth_events_proto_rawDescOnce sync.Once

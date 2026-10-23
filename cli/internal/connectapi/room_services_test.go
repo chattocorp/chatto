@@ -13,15 +13,15 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/evtstream"
-	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 )
 
 func TestAPIRoomThreadingModeChangeValueFailsClosed(t *testing.T) {
@@ -206,10 +206,14 @@ func TestRoomServicePinnedMessages(t *testing.T) {
 	}
 	message := messageResponse.Msg.GetMessage()
 	if _, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); errorCode(err) != connect.CodePermissionDenied {
-		t.Fatalf("CreatePinnedMessage without room.manage code = %v", errorCode(err))
+		t.Fatalf("CreatePinnedMessage without message.pin code = %v", errorCode(err))
 	}
-	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomManage); err != nil {
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePin); err != nil {
 		t.Fatalf("GrantRoomPermission: %v", err)
+	}
+	directoryRoom, err := env.directory.GetRoom(ctx, connect.NewRequest(&apiv1.GetRoomRequest{RoomId: room.Id}))
+	if err != nil || !apiRoomPermissionGranted(directoryRoom.Msg.GetRoom(), core.PermMessagePin) {
+		t.Fatalf("GetRoom message.pin grant = %v, %v", directoryRoom, err)
 	}
 	created, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()}))
 	if err != nil {
@@ -231,6 +235,15 @@ func TestRoomServicePinnedMessages(t *testing.T) {
 	}))
 	if err != nil || len(batch.Msg.GetMessages()) != 1 || batch.Msg.GetMessages()[0].GetId() != message.GetId() || !batch.Msg.GetMessages()[0].GetPinned() {
 		t.Fatalf("BatchGetMessages pinned state = %+v, %v", batch.Msg, err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePin); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if _, err := env.rooms.DeletePinnedMessage(ctx, connect.NewRequest(&apiv1.DeletePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("DeletePinnedMessage after revocation code = %v", errorCode(err))
+	}
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePin); err != nil {
+		t.Fatalf("GrantRoomPermission after revocation: %v", err)
 	}
 	if _, err := env.rooms.DeletePinnedMessage(ctx, connect.NewRequest(&apiv1.DeletePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); err != nil {
 		t.Fatalf("DeletePinnedMessage: %v", err)
@@ -571,6 +584,16 @@ func TestRoomServiceStartDM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser participantTwo: %v", err)
 	}
+	if _, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{ParticipantIds: []string{"missing-user"}})); errorCode(err) != connect.CodeNotFound {
+		t.Fatalf("missing recipient code = %v, want not found", errorCode(err))
+	}
+	if _, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{ParticipantIds: []string{"missing-one", "missing-two"}})); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("new group with missing users code = %v, want invalid argument", errorCode(err))
+	}
+	self, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{}))
+	if err != nil || self.Msg.GetRoom().GetId() != core.DMRoomID([]string{env.viewer.Id}) {
+		t.Fatalf("self DM = %v, error = %v", self, err)
+	}
 
 	if _, err := env.rooms.StartDM(env.ctx, connect.NewRequest(&apiv1.StartDMRequest{
 		ParticipantIds: []string{participant.Id},
@@ -609,14 +632,11 @@ func TestRoomServiceStartDM(t *testing.T) {
 		t.Fatalf("StartDM returned different room IDs: %q and %q", room.GetId(), again.Msg.GetRoom().GetId())
 	}
 
-	groupResp, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+	_, err = env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
 		ParticipantIds: []string{participant.Id, participantTwo.Id},
 	}))
-	if err != nil {
-		t.Fatalf("StartDM group: %v", err)
-	}
-	if groupResp.Msg.GetRoom().GetId() == room.GetId() {
-		t.Fatalf("group StartDM reused two-person room ID %q", room.GetId())
+	if errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("StartDM new group code = %v, want invalid argument", errorCode(err))
 	}
 
 	blocked, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-dm-blocked", "Connect DM Blocked", "password")
@@ -1075,6 +1095,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 			core.PermMessageAttach,
 			core.PermMessageReact,
 			core.PermMessageEcho,
+			core.PermMessagePin,
 			core.PermMessageManage,
 		} {
 			if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, perm); err != nil {
@@ -1111,6 +1132,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageAttach) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageReact) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageEcho) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessagePin) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageManage) {
 		t.Fatalf("visible non-member exposes member-only actions: %+v", visibleRoom)
 	}
@@ -1142,7 +1164,8 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 		apiRoomPermissionGranted(archivedRoom, core.PermMessagePostInThread) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessageAttach) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessageReact) ||
-		apiRoomPermissionGranted(archivedRoom, core.PermMessageEcho) {
+		apiRoomPermissionGranted(archivedRoom, core.PermMessageEcho) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessagePin) {
 		t.Fatalf("archived room exposes unavailable actions: %+v", archivedRoom)
 	}
 	if !apiRoomPermissionGranted(archivedRoom, core.PermMessageManage) {
@@ -1178,7 +1201,7 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if _, err := env.core.ArchiveRoom(env.ctx, env.viewer.Id, core.KindChannel, archived.Id); err != nil {
 		t.Fatalf("ArchiveRoom: %v", err)
 	}
-	link, err := env.core.CreateSidebarLink(env.ctx, env.viewer.Id, groupID, "Docs", "/docs")
+	link, err := env.core.RoomLayout().CreateSidebarLink(env.ctx, env.viewer.Id, groupID, "Docs", "/docs")
 	if err != nil {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
@@ -1275,7 +1298,7 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser caller: %v", err)
 	}
-	group, err := env.core.CreateRoomGroup(env.ctx, env.viewer.Id, "Directory Join", "")
+	group, err := env.core.RoomLayout().CreateRoomGroup(env.ctx, env.viewer.Id, "Directory Join", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
@@ -1970,6 +1993,12 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	if err := env.core.DeleteMessage(env.ctx, actor.Id, core.KindDM, dm.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
+	// The materializer removes occurrences for the retracted target when it
+	// processes the retraction. Wait for that cleanup, so the occurrences below
+	// model ones that the cleanup missed instead of racing with it.
+	if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+		t.Fatalf("WaitCurrent after retraction: %v", err)
+	}
 	createStale := func(sourceID string) *notificationv1.NotificationOccurrence {
 		t.Helper()
 		occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
@@ -2107,6 +2136,12 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomJoin); err != nil {
 		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
+	// The materializer removes the viewer's older occurrences in the room when
+	// it processes the access loss. Wait for that cleanup, so the occurrence
+	// below models one that the cleanup missed instead of racing with it.
+	if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+		t.Fatalf("WaitCurrent after access loss: %v", err)
+	}
 	input := core.CreateNotificationOccurrenceInput{
 		RecipientID:          env.viewer.Id,
 		SourceEventID:        "notification-access-loss-source",
@@ -2166,6 +2201,11 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 		if index == 0 {
 			if err := env.core.DeleteMessage(env.ctx, actor.Id, core.KindChannel, room.Id, posted.Id); err != nil {
 				t.Fatalf("DeleteMessage: %v", err)
+			}
+			// Let the materializer finish its retraction cleanup, so it cannot
+			// remove the stale occurrence below before the list filters it.
+			if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+				t.Fatalf("WaitCurrent after retraction: %v", err)
 			}
 		}
 		occurrence, wasCreated, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
@@ -3083,4 +3123,73 @@ func TestRoomDirectoryServiceRejectsInvalidArchiveFilter(t *testing.T) {
 	}
 	_, err := env.directory.ListRooms(env.ctx, connect.NewRequest(&apiv1.ListRoomsRequest{ArchiveFilter: apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ALL}))
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
+}
+
+func TestRoomDirectoryDMActivityAcrossReads(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "activity-peer", "Activity Peer", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{peer.Id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := withCaller(env.ctx, peer)
+	check := func(message, root *timestamppb.Timestamp) {
+		t.Helper()
+		get, err := env.directory.GetRoom(ctx, connect.NewRequest(&apiv1.GetRoomRequest{RoomId: dm.Id}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		batch, err := env.directory.BatchGetRooms(ctx, connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{dm.Id}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		list, err := env.directory.ListRooms(ctx, connect.NewRequest(&apiv1.ListRoomsRequest{Scope: apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := env.api.BuildRealtimeSnapshot(env.ctx, peer.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, room := range map[string]*apiv1.RoomWithViewerState{
+			"get":      get.Msg.Room,
+			"batch":    directoryRoomsByID(batch.Msg.Rooms)[dm.Id],
+			"list":     directoryRoomsByID(list.Msg.Rooms)[dm.Id],
+			"snapshot": directoryRoomsByID(snapshot.Rooms.Rooms)[dm.Id],
+		} {
+			if room == nil {
+				t.Fatalf("%s missing DM", name)
+			}
+			if !room.LastMessageAt.AsTime().Equal(message.AsTime()) || (room.LastMessageAt == nil) != (message == nil) ||
+				!room.LastRootMessageAt.AsTime().Equal(root.AsTime()) || (room.LastRootMessageAt == nil) != (root == nil) {
+				t.Fatalf("%s activity = %v/%v, want %v/%v", name, room.LastMessageAt, room.LastRootMessageAt, message, root)
+			}
+		}
+	}
+	check(nil, nil)
+	root, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(root.CreatedAt, root.CreatedAt)
+	reply, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(reply.CreatedAt, root.CreatedAt)
+	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, peer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageRead, core.PermissionStateDeny); err != nil {
+		t.Fatal(err)
+	}
+	check(nil, nil)
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, peer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageRead, core.PermissionStateNone); err != nil {
+		t.Fatal(err)
+	}
+	check(reply.CreatedAt, root.CreatedAt)
 }

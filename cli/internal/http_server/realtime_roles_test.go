@@ -3,9 +3,9 @@ package http_server
 import (
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/core"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestRealtimeRoleEventsDoNotExposePrivatePermissionDecisions(t *testing.T) {

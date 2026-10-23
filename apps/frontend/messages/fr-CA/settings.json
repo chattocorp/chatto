@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
-          "badge": "Pastille",
+          "badge": "Point de contenu non lu",
           "badge_hint": "Ajoute seulement un point neutre pour le contenu non lu. Ne crée aucune notification, ne joue aucun son et n’envoie aucune notification poussée.",
-          "notification": "Notification",
+          "notification": "Notification dans l’application",
           "push_notification": "Notification poussée"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Messages qui utilisent @here lorsque votre présence n’est pas hors ligne.",
           "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
           "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
-          "reaction": "Réactions ajoutées à vos messages par d’autres membres."
+          "reaction": "Réactions ajoutées à vos messages par d’autres membres.",
+          "room_invitation": "Invitations à rejoindre des salons."
         }
       }
     },

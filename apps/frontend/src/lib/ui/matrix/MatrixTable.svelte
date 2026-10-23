@@ -10,9 +10,7 @@ provide all domain labels and cell content with snippets.
 <script lang="ts" generics="TRow, TColumn">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
-  import { m } from '$lib/i18n/messages';
   import DataTable from '$lib/ui/DataTable.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
   import MatrixColumnHeading from './MatrixColumnHeading.svelte';
 
   const matrixId = $props.id();
@@ -27,11 +25,13 @@ provide all domain labels and cell content with snippets.
   // into the same ResizeObserver delivery cycle.
   const measureWidth: Attachment<HTMLDivElement> = (element) => {
     let frame = 0;
-    availableWidth = element.clientWidth;
-    const observer = new ResizeObserver(() => {
+    // Use CSS pixels so transforms do not change the layout breakpoint.
+    // Keep fractional widths so stacked labels stay inside the viewport.
+    availableWidth = Number.parseFloat(getComputedStyle(element).width);
+    const observer = new ResizeObserver(([entry]) => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        availableWidth = element.clientWidth;
+        availableWidth = entry.contentRect.width;
       });
     });
     observer.observe(element);
@@ -67,15 +67,8 @@ provide all domain labels and cell content with snippets.
     rowHeaderWidth = '14rem',
     columnHeaderHeight = '12rem',
     spacerTestId = 'matrix-spacer',
-    compact = false,
-    hasMore = false,
-    loadingMore = false,
-    onLoadMore
+    compact = false
   }: {
-    /** Incrementally load columns when their horizontal edge is visible. */
-    hasMore?: boolean;
-    loadingMore?: boolean;
-    onLoadMore?: () => unknown;
     rows: TRow[];
     columns: TColumn[];
     getRowKey: (row: TRow) => string;
@@ -105,24 +98,6 @@ provide all domain labels and cell content with snippets.
     compact?: boolean;
   } = $props();
 
-  const columnSentinel: Attachment<HTMLTableCellElement> = (element) => {
-    if (!hasMore || loadingMore || !onLoadMore) return;
-    const callback = onLoadMore;
-    const root = element.closest('.data-table-viewport');
-    if (!root) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          observer.disconnect();
-          callback();
-        }
-      },
-      { root, rootMargin: '0px 160px 0px 160px' }
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  };
-
   type Coordinate = { row: string; column: string };
   let hoveredCell = $state<Coordinate | null>(null);
   let focusedCell = $state<Coordinate | null>(null);
@@ -136,14 +111,6 @@ provide all domain labels and cell content with snippets.
 
   function columnHighlighted(column: TColumn): boolean {
     return highlightedCell?.column === getColumnKey(column);
-  }
-
-  function cellClass(row: TRow, column: TColumn): string {
-    const rowActive = rowHighlighted(row);
-    const columnActive = columnHighlighted(column);
-    if (rowActive && columnActive) return 'bg-action/15';
-    if (rowActive || columnActive) return 'bg-action/8';
-    return columnClass?.(column) ?? '';
   }
 
   function setHovered(row: TRow, column: TColumn, event: MouseEvent) {
@@ -236,6 +203,7 @@ provide all domain labels and cell content with snippets.
       </div>
     {/snippet}
     {#snippet beforeRow(row)}
+      {@const rowActive = rowHighlighted(row)}
       {#if stacked}
         <tr>
           <th
@@ -247,7 +215,7 @@ provide all domain labels and cell content with snippets.
               class="sticky start-0 box-border px-3 pt-3 pb-1 break-words whitespace-normal [&_*]:break-words [&_*]:whitespace-normal"
               style:width={`${availableWidth}px`}
             >
-              {@render rowHeader(row, rowHighlighted(row))}
+              {@render rowHeader(row, rowActive)}
             </div>
           </th>
         </tr>
@@ -266,6 +234,7 @@ provide all domain labels and cell content with snippets.
         </th>
       {/if}
       {#each columns as column (getColumnKey(column))}
+        {@const columnActive = columnHighlighted(column)}
         <th
           id={columnId(column)}
           scope="col"
@@ -273,9 +242,7 @@ provide all domain labels and cell content with snippets.
             compact
               ? 'px-0 py-2 text-center align-bottom font-medium'
               : 'px-0 py-3 text-center align-bottom font-medium',
-            columnHighlighted(column)
-              ? 'bg-action/10 text-action'
-              : (columnClass?.(column) ?? 'bg-background')
+            columnActive ? 'bg-action/10 text-action' : (columnClass?.(column) ?? 'bg-background')
           ]}
           style="width: 2rem; min-width: 2rem"
           style:height={columnHeaderHeight}
@@ -283,18 +250,17 @@ provide all domain labels and cell content with snippets.
           {...columnAttributes?.(column) ?? {}}
         >
           <MatrixColumnHeading>
-            {@render columnHeader(column, columnHighlighted(column))}
+            {@render columnHeader(column, columnActive)}
           </MatrixColumnHeading>
         </th>
       {/each}
       {@render trailingHeader?.()}
-      <th class="w-full bg-background p-0" aria-hidden={!loadingMore} {@attach columnSentinel}>
-        {#if loadingMore}
-          <LoadingFog class="h-8 w-8" label={m('ui.data_table.loading_more')} />
-        {/if}
-      </th>
+      <th class="w-full bg-background p-0" aria-hidden="true"></th>
     {/snippet}
     {#snippet row(row)}
+      <!-- Derived booleans keep cells whose axes did not change from updating
+           their DOM effects when the pointer or keyboard focus moves. -->
+      {@const rowActive = rowHighlighted(row)}
       {#if !stacked}
         <th
           id={rowId(row)}
@@ -302,19 +268,24 @@ provide all domain labels and cell content with snippets.
           class={[
             'sticky start-0 z-10 text-start font-normal whitespace-nowrap',
             compact ? 'px-3 py-0.5' : 'px-4 py-2',
-            rowHighlighted(row) ? 'bg-action/8' : 'bg-background'
+            rowActive ? 'bg-action/8' : 'bg-background'
           ]}
         >
-          {@render rowHeader(row, rowHighlighted(row))}
+          {@render rowHeader(row, rowActive)}
         </th>
       {/if}
       {#each columns as column (getColumnKey(column))}
         {@const interactive = isCellInteractive(row, column)}
+        {@const columnActive = columnHighlighted(column)}
         <td
           headers={`${rowId(row)} ${columnId(column)}`}
           class={[
             compact ? 'px-0 py-0.5 text-center' : 'px-0 py-2 text-center',
-            cellClass(row, column)
+            rowActive && columnActive
+              ? 'bg-action/15'
+              : rowActive || columnActive
+                ? 'bg-action/8'
+                : (columnClass?.(column) ?? '')
           ]}
           style="width: 2.5rem; min-width: 2.5rem"
           data-matrix-column={getColumnKey(column)}

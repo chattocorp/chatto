@@ -8,21 +8,22 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/logbridge"
-	"hmans.de/chatto/internal/notificationstream"
-	"hmans.de/chatto/internal/projectionsnapshot"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/logbridge"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // coreProjections is the complete construction result for core-owned
 // projections. Its registration slice is the single source used by runtime
 // lifecycle, readiness, and operator diagnostics.
 type coreProjections struct {
-	botWebhooks   events.ProjectionHandle[*botWebhookProjection]
-	registrations []projectionRegistration
-	snapshotJobs  []projectionSnapshotJob
-	contentView   *ServerContentView
+	roomInvitations events.ProjectionHandle[*RoomInvitationProjection]
+	botWebhooks     events.ProjectionHandle[*botWebhookProjection]
+	registrations   []projectionRegistration
+	snapshotJobs    []projectionSnapshotJob
+	contentView     *ServerContentView
 
 	roomDirectory         events.ProjectionHandle[*RoomDirectoryProjection]
 	notificationDecisions events.ProjectionHandle[*NotificationDecisionProjection]
@@ -80,9 +81,9 @@ func (r *projectionRegistrar) projectorOptions(
 	if r.infra.snapshotRepository == nil || snapshotPolicy == coldReplayOnly {
 		return opts
 	}
-	var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: r.infra.snapshotRepository}
+	var source events.ProjectionSnapshotSource = projectionSnapshotSource{repository: r.infra.snapshotRepository, outcome: &snapshotRestoreObservation{}}
 	if _, componentized := projection.(events.ComponentSnapshotProjection); componentized {
-		source = projectionSnapshotCohortSource{repository: r.infra.snapshotRepository}
+		source = projectionSnapshotCohortSource{repository: r.infra.snapshotRepository, outcome: &snapshotRestoreObservation{}}
 	}
 	opts.Snapshots = &events.SnapshotOptions{Key: key, Source: source, ResolveStreamIdentity: identityResolver}
 	return opts
@@ -109,6 +110,7 @@ func (r *projectionRegistrar) register(
 		subjects:           slices.Clone(projection.Subjects()),
 		snapshotPolicy:     snapshotPolicy,
 		snapshotEnabled:    opts.Snapshots != nil,
+		snapshotOutcome:    snapshotOutcomeFromOptions(opts),
 		componentSnapshots: componentSnapshots,
 		streamName:         streamName,
 		identityResolver:   identityResolver,
@@ -266,6 +268,12 @@ func initializeCoreProjections(
 	projections.userAuth, err = registerProjection(
 		registrar, userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate, coldReplayOnly,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	roomInvitations := NewRoomInvitationProjection()
+	projections.roomInvitations, err = registerProjection(registrar, roomInvitations, "room_invitations", "Room Invitations", roomInvitations.adminProjectionEstimate, coldReplayOnly)
 	if err != nil {
 		return nil, err
 	}

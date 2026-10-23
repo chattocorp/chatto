@@ -1,4 +1,4 @@
-import { input as askInput, runAgent, step, task, Type } from 'runling';
+import { runAgent, step, task, Type } from 'runling';
 
 const model = 'openai-codex/gpt-5.6-sol';
 
@@ -7,13 +7,11 @@ export const joke = task(
     name: 'Tell a joke',
     input: Type.Object({
       directory: Type.String({ minLength: 1 }),
-      prompt: Type.String({ description: 'The subject of the joke' })
+      prompt: Type.String({ minLength: 1, description: 'The subject of the joke' })
     }),
-    output: Type.String({ description: 'The generated joke in Markdown' })
+    result: Type.String({ description: 'The generated joke in Markdown' })
   },
-  async (ctx, { directory, prompt: input }): Promise<string> => {
-    const topic = input || (await askInput(ctx, 'What should the joke be about?'));
-
+  async (ctx, { directory, prompt: topic }) => {
     const result = await step('Write joke', () =>
       runAgent(ctx, `Write one genuinely funny joke about ${JSON.stringify(topic)}.`, {
         cwd: directory,

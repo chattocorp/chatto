@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
 // streamSequenceReadSentinelSubject shares the counting subscription with the
@@ -83,8 +83,11 @@ func TestNotificationVisibleOccurrencesFiltersMixedBatchInOrder(t *testing.T) {
 	t.Parallel()
 
 	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
 	reader, poster, occurrences := setupNotificationVisibilityFixture(t, chattoCore, notificationVisibilityChunkSize+44)
+	// Start the deadline after the fixture. The fixture posts hundreds of
+	// messages, and under a loaded test run it alone can use most of the
+	// deadline.
+	ctx := testContext(t)
 	leftRoom := NotificationOccurrenceMessageReference(occurrences[0]).GetRoomId()
 	require.NoError(t, chattoCore.LeaveRoom(ctx, reader, KindChannel, reader, leftRoom))
 

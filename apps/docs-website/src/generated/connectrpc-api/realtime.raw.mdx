@@ -408,6 +408,45 @@ RoomDeletedEvent reports a deleted room.
 
 
 
+<a id="chatto-realtime-v1-RoomInvitationAcceptedEvent"></a>
+
+### RoomInvitationAcceptedEvent
+
+An invitation accepted. Delivered only to its sender and recipient.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `invitation_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomInvitationCreatedEvent"></a>
+
+### RoomInvitationCreatedEvent
+
+An invitation created. Delivered only to its sender and recipient.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `invitation_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomInvitationDeclinedEvent"></a>
+
+### RoomInvitationDeclinedEvent
+
+An invitation declined. Delivered only to its sender and recipient.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `invitation_id` | `string` | No field description provided. |
+
+
+
 <a id="chatto-realtime-v1-RoomLayoutChangedEvent"></a>
 
 ### RoomLayoutChangedEvent
@@ -440,6 +479,7 @@ RoomSlowModeChangedEvent reports the current slow-mode interval.
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
 | `slow_mode_seconds` | `uint32` | No field description provided. |
+| `thread_slow_mode_seconds` | `optional uint32` | Independent interval within each thread. Zero disables it. |
 
 
 
@@ -801,6 +841,9 @@ a snapshot or a ConnectRPC resource.
 | `event.role_permissions_changed` | [`RolePermissionsChangedEvent`](#chatto-realtime-v1-RolePermissionsChangedEvent) | No field description provided. |
 | `event.viewer_permissions_changed` | [`ViewerPermissionsChangedEvent`](#chatto-realtime-v1-ViewerPermissionsChangedEvent) | No field description provided. |
 | `event.viewer_presence_preference_changed` | [`ViewerPresencePreferenceChangedEvent`](#chatto-realtime-v1-ViewerPresencePreferenceChangedEvent) | No field description provided. |
+| `event.room_invitation_created` | [`RoomInvitationCreatedEvent`](#chatto-realtime-v1-RoomInvitationCreatedEvent) | No field description provided. |
+| `event.room_invitation_accepted` | [`RoomInvitationAcceptedEvent`](#chatto-realtime-v1-RoomInvitationAcceptedEvent) | No field description provided. |
+| `event.room_invitation_declined` | [`RoomInvitationDeclinedEvent`](#chatto-realtime-v1-RoomInvitationDeclinedEvent) | No field description provided. |
 
 
 

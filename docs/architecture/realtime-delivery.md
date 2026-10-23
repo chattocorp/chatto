@@ -1,5 +1,10 @@
 # Realtime Delivery Inventory
 
+Historical message, thread-creation, and reaction-add facts are excluded from
+live room delivery and reconnect replay. Their durable historical markers also
+make the public event mapper reject them. Clients obtain imported state through
+resource reads; importing history does not produce new activity frames.
+
 Key files:
 
 - [`realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
@@ -189,7 +194,10 @@ paginated resources. The client reads those resources through ConnectRPC when
 it needs them.
 
 The room family includes joined DMs that do not yet contain a message. Each DM
-summary says whether it has root-message history. Current `message.read`
+summary says whether it has root-message history and gives the latest message
+and root-message posting times. The room directory read model derives these
+times from retained timeline facts, including replies, without a new event or
+persisted marker. Current `message.read`
 authority protects this message-derived value. The bundled client retains an
 empty DM for routing but omits it from navigation until it contains a root
 message.
@@ -224,6 +232,11 @@ for their collection membership. Changes to their message content use the
 shared message queue, whose completion is part of cursor reconciliation.
 Search and other lazy data retain their own reads. Canonical events update
 resources that the client already uses; they do not open lazy collections.
+
+Slow Mode uses these same reads. Room viewer state carries the root-post
+deadline. Message viewer state and thread timeline responses carry the current
+viewer's deadline in the canonical thread, including before its first reply.
+Room Slow Mode changes invalidate open thread deadlines as well as room state.
 
 The bundled frontend gives each cursor-bounded ConnectRPC call a 10-second
 deadline. A timeout fails reconciliation and closes the socket without cursor
@@ -654,12 +667,12 @@ This applies to profile refreshes, DM user reads, and catch-up user batches.
 The deletion record stays in memory until the next exact snapshot resets the
 projection. Reads from an earlier reset generation cannot update that snapshot.
 
-The DM destination `/chat/[serverId]/dm/[userId]` calls `StartDM` after
-navigation. Before it replaces the URL with the canonical room URL, it uses
+The user page calls `StartDM` after navigation. Before it renders the
+conversation, it uses
 `ServerStateStore.ensureRoomAvailable` to refresh a missing room through the
 same resource pipeline and wait for DM participant hydration. This prevents
 the room view from treating a delayed creation event as an unavailable room.
-Route cleanup suppresses late navigation. Store disposal and projection resets
+Route cleanup suppresses late results. Store disposal and projection resets
 invalidate pending reads. Empty DMs remain excluded from sidebar navigation.
 
 The browser keeps one in-memory resource view and cursor for each
@@ -721,3 +734,11 @@ Echo post frames resolve body, mentions, and reply attribution from the original
 reply after projection readiness. Canonical edit and reaction events refresh
 loaded echo rows through their original-message links. No extra durable echo
 edit is required.
+
+## Room invitations
+
+Invitation creation, acceptance, and decline have separate public event
+variants. Delivery is restricted to the sender and recipient, including before
+room membership. Directory reads expose pending invitations to their recipient
+without granting access to messages or member lists. Replay follows the same
+participant boundary.

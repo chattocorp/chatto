@@ -65,6 +65,22 @@ export const CODE_LANGUAGE_OPTIONS = [
 
 export const lowlight = createLowlight();
 
+/** Resolve the fixed detection set once; grammar modules still load on demand. */
+const detectionLanguages = preferredCodeLanguageOptions
+  .filter(({ value }) => value !== 'text')
+  .map(({ value }) => resolveCodeLanguage(value))
+  .filter((language): language is string => language !== null);
+
+/** Guess from a fixed, lazily loaded set, independent of earlier editor use. */
+export async function detectCodeLanguage(code: string): Promise<string | null> {
+  if (!code.trim()) return null;
+  await ensureCodeLanguagesLoaded(detectionLanguages);
+  // A partial set could produce a different guess. Leave the block plain on failure.
+  if (!detectionLanguages.every((language) => lowlight.registered(language))) return null;
+  const result = lowlight.highlightAuto(code, { subset: detectionLanguages });
+  return (result.data?.relevance ?? 0) > 0 ? (result.data?.language ?? null) : null;
+}
+
 export function normalizeCodeLanguage(language: string | null | undefined): string {
   return normalizeLanguageToken(language ?? '') ?? 'text';
 }

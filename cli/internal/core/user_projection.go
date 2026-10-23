@@ -12,12 +12,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/dekstore"
+	"github.com/chattocorp/chatto/cli/internal/encryption"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // UserProjection derives current account/profile/auth lookup state from
@@ -1285,6 +1286,14 @@ func (p *UserProjection) LoginChangedAt(userID string) time.Time {
 	return u.loginChanged
 }
 
+// usersHydrationConcurrency bounds concurrent profile decryption in
+// UsersContext. Each user needs its own DEK record and KEK reads, so a
+// sequential scan costs at least two NATS round trips per user.
+const usersHydrationConcurrency = 16
+
+// UsersContext decrypts every active user profile. The result order is not
+// defined. The cost grows with the number of users, so use it only for reads
+// that must inspect decrypted profile fields, such as substring search.
 func (p *UserProjection) UsersContext(ctx context.Context) ([]*evtv1.User, error) {
 	p.RLock()
 	snapshots := make([]*projectedUserSnapshot, 0, len(p.users))
@@ -1297,18 +1306,14 @@ func (p *UserProjection) UsersContext(ctx context.Context) ([]*evtv1.User, error
 	p.RUnlock()
 
 	ctx = WithDEKRequestCache(ctx)
-	out := make([]*evtv1.User, 0, len(snapshots))
 	now := time.Now()
-	for _, snapshot := range snapshots {
+	return parallel.MapNonNil(ctx, usersHydrationConcurrency, snapshots, func(ctx context.Context, _ int, snapshot *projectedUserSnapshot) (*evtv1.User, error) {
 		user, ok, err := p.hydrateUserSnapshot(ctx, snapshot, now)
-		if err != nil {
+		if err != nil || !ok {
 			return nil, err
 		}
-		if ok {
-			out = append(out, user)
-		}
-	}
-	return out, nil
+		return user, nil
+	})
 }
 
 func (p *UserProjection) Users() []*evtv1.User {

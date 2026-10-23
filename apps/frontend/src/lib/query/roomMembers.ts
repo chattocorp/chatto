@@ -47,26 +47,29 @@ export function flattenRoomMembers(data: RoomMembersData | undefined): Directory
   );
 }
 
-/**
- * Fill the room-member picker from directory pages, excluding users who are
- * already in the room. A page containing only existing members must not stop
- * the search before an eligible result on a later page.
- */
-export async function listEligibleRoomMembers(
+/** Directory result with current membership for room-specific picker presentation. */
+export type RoomMemberCandidate = DirectoryMember & { alreadyMember: boolean };
+
+/** Page past excluded accounts and attach room membership before applying the result limit. */
+export async function listRoomMemberCandidates(
   api: Pick<MemberDirectoryAPI, 'listUsers' | 'batchGetRoomMembers'>,
   roomId: string,
   search: string,
   limit = ELIGIBLE_ROOM_MEMBER_LIMIT,
-  signal?: AbortSignal
-): Promise<DirectoryMember[]> {
-  const eligible: DirectoryMember[] = [];
+  signal?: AbortSignal,
+  include: (member: DirectoryMember) => boolean = () => true,
+  includeExisting = true
+): Promise<RoomMemberCandidate[]> {
+  const eligible: RoomMemberCandidate[] = [];
   const seenIds = new Set<string>();
   let offset = 0;
   let hasMore = true;
 
   while (hasMore && eligible.length < limit) {
     const page = await api.listUsers(search, limit, offset, { signal });
-    const candidates = page.members.filter((member) => !member.deleted && !seenIds.has(member.id));
+    const candidates = page.members.filter(
+      (member) => !member.deleted && !seenIds.has(member.id) && include(member)
+    );
     for (const candidate of candidates) seenIds.add(candidate.id);
 
     const existing = candidates.length
@@ -77,13 +80,31 @@ export async function listEligibleRoomMembers(
         )
       : [];
     const existingIds = new Set(existing.map((member) => member.id));
-    eligible.push(...candidates.filter((member) => !existingIds.has(member.id)));
+    eligible.push(
+      ...candidates
+        .filter((member) => includeExisting || !existingIds.has(member.id))
+        .map((member) => ({ ...member, alreadyMember: existingIds.has(member.id) }))
+    );
 
     hasMore = page.hasMore && page.members.length > 0;
     offset += page.members.length;
   }
 
   return eligible.slice(0, limit);
+}
+
+/** Preserve the existing add-member picker contract, excluding current members. */
+export function listEligibleRoomMembers(
+  api: Pick<MemberDirectoryAPI, 'listUsers' | 'batchGetRoomMembers'>,
+  roomId: string,
+  search: string,
+  limit = ELIGIBLE_ROOM_MEMBER_LIMIT,
+  signal?: AbortSignal,
+  include: (member: DirectoryMember) => boolean = () => true
+): Promise<DirectoryMember[]> {
+  return listRoomMemberCandidates(api, roomId, search, limit, signal, include, false).then(
+    (candidates) => candidates.map(({ alreadyMember: _alreadyMember, ...member }) => member)
+  );
 }
 
 export function invalidateRoomMemberQueries(
@@ -218,7 +239,23 @@ function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): vo
     );
 }
 
+/** Cancel reads from before a membership change, then refresh mounted pickers.
+ * Inactive search results become stale so reopening a dialog reads current membership.
+ */
+async function refreshRoomMemberQueriesAcrossSessions(
+  serverId: string,
+  roomId: string
+): Promise<void> {
+  const filters = {
+    predicate: (query: { queryKey: QueryKey }) =>
+      isRoomMemberQuery(query.queryKey, serverId, roomId)
+  };
+  await queryClient.cancelQueries(filters);
+  await queryClient.invalidateQueries(filters);
+}
+
 queryCaches.roomMembers = {
+  refreshRoom: refreshRoomMemberQueriesAcrossSessions,
   purgeRoom: purgeRoomMemberQueriesAcrossSessions,
   scrubUser: scrubRoomMemberUserAcrossSessions
 };

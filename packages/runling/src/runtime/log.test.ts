@@ -1,7 +1,23 @@
 import { ansiColor, terminalColors } from './ansi.ts';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { log } from './log.ts';
+import { log, logMarkdown, withLogSource } from './log.ts';
+import { observeRunlingEvents, type RunlingEvent } from './events.ts';
+import { visibleWidth } from '@earendil-works/pi-tui';
+import { stripVTControlCharacters } from 'node:util';
 import { step } from './step.ts';
+
+function terminal(destination: 'stdout' | 'stderr', isTTY: boolean, columns = 80) {
+  const stream = process[destination];
+  vi.spyOn(process, destination, 'get').mockReturnValue(
+    new Proxy(stream, {
+      get(target, key, receiver) {
+        if (key === 'isTTY') return isTTY;
+        if (key === 'columns') return columns;
+        return Reflect.get(target, key, receiver);
+      }
+    })
+  );
+}
 
 describe('log', () => {
   afterEach(() => {
@@ -17,6 +33,86 @@ describe('log', () => {
     log.debug('hidden detail');
 
     expect(print).not.toHaveBeenCalled();
+  });
+
+  test.each(['stdout', 'stderr'] as const)(
+    'renders Markdown blocks to the width of %s and preserves journal text',
+    (destination) => {
+      terminal(destination, true, 46);
+      vi.stubEnv('NO_COLOR', undefined);
+      vi.stubEnv('FORCE_COLOR', undefined);
+      const print = vi
+        .spyOn(console, destination === 'stderr' ? 'error' : 'log')
+        .mockImplementation(() => {});
+      const events: RunlingEvent[] = [];
+      const markdown =
+        '## Issues\n\n1. **A long issue title that needs to wrap in this terminal.**\n2. [Details](https://example.com/issues/123)';
+
+      observeRunlingEvents(
+        (event) => events.push(event),
+        () =>
+          log.withDestination(destination, () =>
+            log.indented(() =>
+              withLogSource({ type: 'agent', id: 'agent-1' }, () =>
+                logMarkdown('[agent-1]', markdown)
+              )
+            )
+          )
+      );
+
+      const rendered = print.mock.calls[0]![0] as string;
+      const plain = stripVTControlCharacters(rendered);
+      expect(plain).toMatch(/^  ● \[agent-1\]\n/);
+      expect(plain).not.toContain('##');
+      expect(plain).not.toContain('**');
+      expect(plain).not.toContain('[Details](');
+      expect(rendered.split('\n').every((line) => visibleWidth(line) <= 46)).toBe(true);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'log',
+          message: `[agent-1] ${markdown}`,
+          source: 'agent',
+          sourceId: 'agent-1',
+          depth: 1
+        })
+      );
+    }
+  );
+
+  test('formats terminal Markdown without escapes when colors are disabled', () => {
+    terminal('stdout', true);
+    vi.stubEnv('NO_COLOR', '1');
+    const print = vi.spyOn(console, 'log').mockImplementation(() => {});
+    logMarkdown('[agent-1]', '**Answer**');
+    expect(print.mock.calls[0]![0]).toBe('● [agent-1]\n  \n  Answer\n  ');
+  });
+
+  test('keeps Markdown intact in pipes and records it without printing in silent mode', () => {
+    terminal('stdout', false);
+    const print = vi.spyOn(console, 'log').mockImplementation(() => {});
+    logMarkdown('[agent-1]', '**Answer**');
+    expect(print.mock.calls[0]![0]).toBe('● [agent-1] **Answer**');
+    print.mockClear();
+    const events: RunlingEvent[] = [];
+    observeRunlingEvents(
+      (event) => events.push(event),
+      () => log.withDestination('silent', () => logMarkdown('[agent-1]', '**Answer**'))
+    );
+    expect(print).not.toHaveBeenCalled();
+    expect(events).toContainEqual(expect.objectContaining({ message: '[agent-1] **Answer**' }));
+  });
+
+  test('renders an unlabeled update without changing its journal text', () => {
+    terminal('stdout', true);
+    const print = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const events: RunlingEvent[] = [];
+    observeRunlingEvents(
+      (event) => events.push(event),
+      () => logMarkdown('', '**Answer**')
+    );
+    const plain = stripVTControlCharacters(print.mock.calls[0]![0]);
+    expect(plain).toBe('● Answer\n  ');
+    expect(events).toContainEqual(expect.objectContaining({ message: '**Answer**' }));
   });
 
   test('debug prints at the debug level', () => {

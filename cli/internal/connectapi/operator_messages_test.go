@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
 func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) {
@@ -56,4 +57,38 @@ func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) 
 	})); errorCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("preview without URL error = %v", err)
 	}
+}
+
+func TestOperatorImportThreadAndReactionPublicRead(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("operator-thread-public")
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-thread-author", "Author", "password")
+	require.NoError(t, err)
+	service := &operatorMessageService{api: env.api}
+	root, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: author.Id, Body: "root", CreatedAt: timestamppb.Now(), CreateThread: true,
+	}))
+	require.NoError(t, err)
+	reply, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: author.Id, Body: "reply", CreatedAt: timestamppb.Now(), ThreadRootEventId: root.Msg.GetMessageId(),
+	}))
+	require.NoError(t, err)
+	added, err := service.ImportReaction(env.ctx, connect.NewRequest(&operatorv1.ImportReactionRequest{
+		RoomId: room.Id, MessageEventId: reply.Msg.GetMessageId(), UserId: author.Id, Emoji: "heart",
+	}))
+	require.NoError(t, err)
+	require.True(t, added.Msg.GetAdded())
+	message, err := env.messages.GetMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetMessageRequest{RoomId: room.Id, EventId: reply.Msg.GetMessageId()}))
+	require.NoError(t, err)
+	require.Equal(t, author.Id, message.Msg.GetMessage().GetActorId())
+	reactions, err := env.messages.ListReactionUsers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListReactionUsersRequest{
+		RoomId: room.Id, MessageEventId: reply.Msg.GetMessageId(), Emoji: "heart",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, []string{author.Id}, reactions.Msg.GetUserIds())
+	_, err = service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: author.Id, Body: "invalid", CreatedAt: timestamppb.Now(), ThreadRootEventId: root.Msg.GetMessageId(), CreateThread: true,
+	}))
+	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 }

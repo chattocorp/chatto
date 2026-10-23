@@ -17,6 +17,7 @@ thread IDs can change while the pane stays mounted.
   import type { MessageComposerProps } from '$lib/components/composer/messageComposerState.svelte';
   import { queryCaches } from '$lib/query/cacheRegistry';
   import { serverUi } from '$lib/state/server/serverUi';
+  import { draftKey } from '$lib/components/composer/draft.svelte';
 
   /** Composer options that the owner decides. The pane supplies the rest. */
   export type ConversationComposerOptions = Omit<
@@ -34,8 +35,10 @@ thread IDs can change while the pane stays mounted.
 
 <script lang="ts">
   import { onDestroy, untrack, type Snippet } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import type { ClassValue, HTMLAttributes } from 'svelte/elements';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '@chatto/client/api/readState';
+  import { NotificationSignalKind } from '@chatto/client/api/notifications';
   import { dropZone } from '$lib/dom/dropZone.svelte';
   import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
   import MessageComposer, {
@@ -45,6 +48,7 @@ thread IDs can change while the pane stays mounted.
     createTypingIndicator,
     useProjectionEvent,
     useRoomUnread,
+    useRoomData,
     useUnreadMarker
   } from '$lib/hooks';
   import { m } from '$lib/i18n/messages';
@@ -52,9 +56,10 @@ thread IDs can change while the pane stays mounted.
   import { appState } from '$lib/state/globals.svelte';
   import { createComposerContext, getRoomMembers, type MessagesStore } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import EventList from './EventList.svelte';
+  import TypingIndicator from './TypingIndicator.svelte';
   import HighlightJump from './HighlightJump.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
@@ -113,13 +118,23 @@ thread IDs can change while the pane stays mounted.
   const serverScope = useServerScope();
   const stores = serverScope.store;
   const members = $derived(getRoomMembers());
+  const room = useRoomData(() => ({ roomId }));
+  // Missing profiles are unresolved, not evidence of account deletion.
+  const hasDeletedPartner = $derived(
+    room.dmData?.participants.some(
+      (participant) => participant.id !== room.dmData?.currentUserId && participant.deleted
+    ) ?? false
+  );
   const isThread = untrack(() => threadRootEventId !== null);
 
   // The composer and the timeline below share this pane's context. A thread
   // pane shadows the room's context, so its jumps, replies, and scroll
   // requests stay in the thread.
-  const composerContext = createComposerContext();
-  const { editState, replyState, jumpState, quoteInsertionState } = composerContext;
+  const composerContext = createComposerContext(() =>
+    serverUi(stores).draftReplies.select(draftKey(roomId, threadRootEventId ?? undefined), roomId)
+  );
+  const { editState, jumpState, quoteInsertionState } = composerContext;
+  const replyState = $derived(composerContext.replyState);
 
   const events = $derived(isThread ? messageStore.threadEvents : messageStore.rootEvents);
   // The unread separator marks the first message from another user after the
@@ -154,6 +169,41 @@ thread IDs can change while the pane stays mounted.
   );
   const atLatest = $derived(!highlightPending && (currentReadPosition?.latest ?? true));
 
+  // The root belongs to the room, so a thread read cannot cover its reactions.
+  // Read only those occurrences, without clearing other activity in the room.
+  // The store marks an occurrence read at once, so the unread filter keeps an
+  // in-flight read from starting again. This set stops repeated attempts when
+  // a failed read restores unread state. Entry, refocus, or a return from
+  // history clears it.
+  const attemptedRootReactions = new SvelteSet<string>();
+
+  /** Handle canonical notification arrivals and existing conversation read events. */
+  function readRootReactions() {
+    if (
+      !threadRootEventId ||
+      !stores.isAuthenticated ||
+      !canReadMessages ||
+      !appState.isPresent ||
+      !atLatest
+    )
+      return;
+    for (const occurrence of stores.notifications.occurrences) {
+      if (
+        occurrence.unread &&
+        occurrence.signalKind === NotificationSignalKind.REACTION &&
+        occurrence.room?.id === roomId &&
+        occurrence.eventId === threadRootEventId &&
+        !occurrence.threadRootId &&
+        !attemptedRootReactions.has(occurrence.id)
+      ) {
+        attemptedRootReactions.add(occurrence.id);
+        stores.notifications
+          .markOccurrenceRead(occurrence.id)
+          .catch(() => console.error('Failed to mark viewed root reaction read'));
+      }
+    }
+  }
+
   const readThrough = new ReadThroughTracker((upToEventId) => {
     // A read scheduled for a previous conversation names an event of that
     // conversation. Drop it.
@@ -183,10 +233,14 @@ thread IDs can change while the pane stays mounted.
     currentReadThrough().noteRead(
       upToEventId !== undefined && position?.eventId === upToEventId ? position.createdAtMs : null
     );
+    attemptedRootReactions.clear();
+    readRootReactions();
   }
 
   function handleReadPosition(position: TimelineReadPosition) {
     readPosition = { key: targetKey, position };
+    if (!position.latest) attemptedRootReactions.clear();
+    readRootReactions();
     if (appState.isPresent && !highlightPending) currentReadThrough().observe(position);
   }
 
@@ -235,15 +289,14 @@ thread IDs can change while the pane stays mounted.
         onLifecycleRead: handleLifecycleRead
       }));
 
-  // A reply or a jump belongs to the conversation that started it. The server
-  // store loads each timeline when it creates it, so a target change needs no
-  // explicit load here.
+  // A jump belongs to the conversation that started it. Reply state follows
+  // the pane's current draft key. The server store loads each timeline when
+  // it creates it, so a target change needs no explicit load here.
   let previousTargetKey = untrack(() => targetKey);
   $effect(() => {
     const key = targetKey;
     if (key === previousTargetKey) return;
     previousTargetKey = key;
-    replyState.cancelReply();
     jumpState.reset();
   });
 
@@ -296,6 +349,7 @@ thread IDs can change while the pane stays mounted.
   // Only other users' arrivals place an away separator. Newer activity stays
   // unread while the viewer reads older history.
   useProjectionEvent((projectionEvent) => {
+    if (projectionEvent.resource?.case === 'notifications') readRootReactions();
     const semantic = projectionEvent.event?.event;
     if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
     if ((semantic.value.threadRootEventId || null) !== threadRootEventId) return;
@@ -348,8 +402,15 @@ thread IDs can change while the pane stays mounted.
   <DropZoneOverlay visible={isDraggingFiles} />
   {@render header?.()}
 
+  {#if hasDeletedPartner && !isThread}
+    <div class="px-4 pt-4" role="status">
+      <Hint>{m('room.dm.deleted_user_notice')}</Hint>
+    </div>
+  {/if}
+
   {#if canReadMessages}
     <EventList
+      showTombstones={hasDeletedPartner}
       {roomId}
       permalinkThreadRootEventId={threadRootEventId}
       {messageStore}
@@ -372,8 +433,6 @@ thread IDs can change while the pane stays mounted.
         if (highlight) onHighlightComplete?.(highlight);
       }}
       onReadPosition={handleReadPosition}
-      typingUserIds={typingIndicator.userIds}
-      typingMembers={members}
       pendingHighlightId={highlight?.eventId ?? null}
       highlightRequest={highlight}
       onScrollToEventComplete={(landed, eventId, request) => {
@@ -407,6 +466,7 @@ thread IDs can change while the pane stays mounted.
     {canPost}
     {canAttach}
     onReady={(api) => (composerApi = api)}
+    inputStatus={canReadMessages ? typingStatus : undefined}
     onTyping={canPost ? () => typingIndicator.sendTypingIndicator() : undefined}
     onMessageSent={(event) => {
       typingIndicator.resetDebounce();
@@ -424,3 +484,11 @@ thread IDs can change while the pane stays mounted.
       : undefined}
   />
 </div>
+
+{#snippet typingStatus()}
+  <TypingIndicator
+    typingUserIds={typingIndicator.userIds}
+    {members}
+    profiles={stores.projection.users}
+  />
+{/snippet}

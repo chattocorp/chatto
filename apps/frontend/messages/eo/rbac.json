@@ -146,41 +146,6 @@
       "other": "Aliaj",
       "call": "Vokoj"
     },
-    "permission_descriptions": {
-      "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
-      "server_manage_neighbors": "Administri la publikan najbaran katalogon",
-      "room_create": "Krei novajn ĉambrojn",
-      "room_join": "Aliĝu al ekzistantaj ĉambroj",
-      "room_list": "Vidu ĉambrojn en la dosierujo. Uzanto povas esti permesita vidi ĉambron (ekz. por peti aliron) sen esti permesita aliĝi al ĝi.",
-      "room_manage": "Redaktu agordojn kaj permesojn de ĉambro, kaj forigu ĉambrojn",
-      "room_remove_member": "Forigi membrojn el ĉambroj kaj laŭbezone suspendi realiĝon",
-      "message_read": "Legi ĉiujn mesaĝojn en ĉambroj. Forigo de ĉi tiu permeso ankoraŭ ebligas limigitan aliron se message.read-interactions estas aparte donita.",
-      "message_read_interactions": "Legi kompletajn fadenojn, kiujn vi verkis aŭ en kiuj alia uzanto rekte menciis vin",
-      "message_post": "Afiŝi mesaĝojn kaj fadenajn respondojn, kaj komenci privatajn mesaĝojn",
-      "message_post_interactions": "Respondi en fadenoj, kiujn vi komencis, kie vi estis rekte menciita aŭ ricevis privatan mesaĝon",
-      "message_post_in_thread": "Afiŝu respondojn ene de fadeno",
-      "message_attach": "Aligu dosierojn al mesaĝoj",
-      "message_echo": "Kiam vi afiŝas en fadenon, ankaŭ aperigu la mesaĝon en la ĉefa kanalo",
-      "message_manage": "Redaktu kaj forigu mesaĝojn de aliaj uzantoj",
-      "message_react": "Aldonu kaj forigu reagojn pri mesaĝoj",
-      "role_manage": "Krei, redakti, forigi kaj reordigi rolojn kaj iliajn permesojn.",
-      "role_assign": "Asigni kaj nuligi rolojn por uzantoj",
-      "admin_view_users": "Rigardu la uzantpaĝon en administranto",
-      "admin_view_system": "Rigardu projekciajn diagnozojn en administranto",
-      "admin_view_audit": "Rigardu la revizian protokolon en administranto",
-      "user_delete_any": "Forigu la konton de alia uzanto",
-      "user_delete_self": "Forigu vian propran konton",
-      "user_invite": "Kreu kaj administru invitligilojn",
-      "user_manage_accounts": "Kreu uzantojn, redaktu kontan identecon, restarigi pasvortojn, kunsendi kontrolitajn retpoŝtojn kaj malplenigi ensalutajn malfunkciojn",
-      "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas",
-      "bot_create": "Krei robotajn kontojn, kiujn vi posedas",
-      "bot_manage": "Vidi kaj administri ĉiujn robotajn kontojn",
-      "call_start": "Komenci vokon (ankaŭ postulas call.join)",
-      "call_join": "Aliĝi al aktiva voko",
-      "call_voice": "Uzi la mikrofonon dum vokoj",
-      "call_camera": "Uzi la kameraon dum vokoj",
-      "call_screenshare": "Kunhavigi ekranon aŭ aplikaĵon, inkluzive de kaptita sono"
-    },
     "permission_help": {
       "server_manage": "Permesas al konto ŝanĝi la nomon, priskribon, emblemon kaj aliajn agordojn de la servilo. Ĝi ankaŭ permesas ŝanĝi la publikan najbaran katalogon. Donu ĝin nur al homoj, kiuj povas paroli por la tuta servilo.",
       "server_manage_neighbors": "Permesas al konto aldoni, ŝanĝi kaj forigi erojn en la publika najbara katalogo. Ĝi ne permesas ŝanĝi aliajn agordojn de la servilo.",
@@ -196,6 +161,7 @@
       "message_post_in_thread": "Permesas al konto respondi en ĉiu fadeno, kiun ĝi povas legi, sed ne afiŝi novajn mesaĝojn en la ĉambro. Permeso por message.post ankaŭ inkluzivas ĉi tiun, do rifuzo ĉi tie ne haltigas respondojn de tiuj kontoj.",
       "message_attach": "Permesas al konto kunsendi dosierojn al novaj mesaĝoj. Rifuzu ĝin por haltigi alŝutojn en ĉambro sed daŭre permesi tekstajn mesaĝojn.",
       "message_echo": "Permesas al konto montri fadenan respondon ankaŭ en la tempolinio de la ĉambro, por ke homoj, kiuj ne sekvas la fadenon, ankaŭ vidu ĝin.",
+      "message_pin": "Permesas al vi alpingli kaj malalpingli mesaĝojn en kanalĉambroj sen administri la ĉambron.",
       "message_manage": "Permesas al konto redakti aŭ forigi mesaĝojn de aliaj kontoj. Ĉiu ĉiam povas redakti kaj forigi siajn proprajn mesaĝojn sen ĉi tiu permeso. Kontojn kun ĉi tiu permeso la malrapida reĝimo ne limigas. En rekta mesaĝo, nur partoprenantoj povas uzi ĝin.",
       "message_react": "Permesas al konto aldoni kaj forigi reagojn al mesaĝoj, kiujn ĝi povas legi.",
       "role_manage": "Permesas al konto krei, ŝanĝi, ordigi kaj forigi rolojn kaj iliajn permesajn agordojn. Per ĉi tiu permeso, konto povas ŝanĝi tion, kion ĉiu rolo en la servilo rajtas fari. Donu ĝin nur al homoj, al kiuj vi konfidas la tutan servilon.",
@@ -213,7 +179,8 @@
       "call_join": "Permesas al konto aliĝi al aktiva voko, ankaŭ nur kiel aŭskultanto. Por sendi sonon aŭ videon necesas call.voice, call.camera aŭ call.screenshare.",
       "call_voice": "Permesas al konto sendi mikrofonan sonon en vokoj. Sen ĝi, la konto tamen povas aŭskulti.",
       "call_camera": "Permesas al konto sendi kameraan videon en vokoj.",
-      "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice."
+      "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice.",
+      "room_invite": "Invitu servilanojn al ĉambroj, kiujn vi aliĝis."
     }
   }
 }

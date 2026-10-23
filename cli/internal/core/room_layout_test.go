@@ -36,7 +36,7 @@ func TestChattoCore_DeleteRoom_RemovesFromGroup(t *testing.T) {
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Delete", "")
 	_, _ = core.CreateRoom(ctx, "test-user", KindChannel, "", "AlsoKeep", "")
 
-	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room2.Id); err != nil {
+	if err := core.roomCommands.DeleteRoom(ctx, "test-user", KindChannel, room2.Id); err != nil {
 		t.Fatalf("DeleteRoom failed: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestChattoCore_DeleteRoom_NoLayout(t *testing.T) {
 
 	// Delete room — should not error even though we just rely on the
 	// seed group.
-	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+	if err := core.roomCommands.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
 		t.Fatalf("DeleteRoom should not error: %v", err)
 	}
 }

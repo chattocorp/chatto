@@ -34,10 +34,10 @@ message ServerRuntimeConfig {
   reserved "direct_registration_enabled";
   // Whether video processing is enabled.
   bool video_processing_enabled = 5;
-  // Maximum general upload size in bytes.
+  // Maximum upload size in bytes for all files, including GIFs and videos.
   int64 max_upload_size = 6;
-  // Maximum video upload size in bytes.
-  int64 max_video_upload_size = 7;
+  // Deprecated alias of max_upload_size. Both fields have the same value.
+  int64 max_video_upload_size = 7 [deprecated = true];
   // Message edit window in seconds.
   int32 message_edit_window_seconds = 8;
 }

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // ============================================================================
 // THREAD EVENTS
@@ -20,6 +20,8 @@ message ThreadCreatedEvent {
 
   // Event ID of the root MessagePostedEvent that identifies this thread.
   string thread_root_event_id = 2;
+  // Establish imported thread state without realtime activity.
+  bool historical_import = 3;
 }
 
 enum ThreadFollowSource {

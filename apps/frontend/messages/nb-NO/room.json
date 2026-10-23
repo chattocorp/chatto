@@ -33,10 +33,13 @@
       "access_denied": "Du har ikke tillatelse til å bli med i dette rommet."
     },
     "leave": {
-      "title": "Forlat rommet",
-      "action": "Forlat rommet",
-      "prompt": "Er du sikker på at du vil forlate #{room}? Du kan bli med igjen senere.",
-      "failed": "Kunne ikke forlate rommet"
+      "title": "Forlat rom",
+      "action": "Forlat rom",
+      "prompt": "Er du sikker på at du vil forlate #{room}?",
+      "failed": "Kunne ikke forlate rommet",
+      "join_later": "Du kan bli med igjen senere.",
+      "need_invite": "Du trenger en ny invitasjon for å bli med i dette rommet.",
+      "rejoin_unknown": "Du kan trenge en ny invitasjon for å bli med igjen."
     },
     "directory": {
       "universal_title": "Universalrom slås sammen automatisk",
@@ -59,7 +62,8 @@
       "join_group_failed": "Kunne ikke bli med i gruppen",
       "left": "Venstre #{room}",
       "left_generic": "Venstre rom",
-      "leave_confirm": "Er du sikker på at du vil forlate #{room}?"
+      "leave_confirm": "Er du sikker på at du vil forlate #{room}?",
+      "invited": "Invitert"
     },
     "server": {
       "remove_title": "Fjern server",
@@ -97,7 +101,8 @@
         "edit": "Rediger melding",
         "more": "Flere handlinger",
         "edit_short": "Rediger",
-        "copy_text": "Kopier tekst",
+        "copy_text": "Kopier meldingstekst",
+        "copy_selected_text": "Kopier valgt tekst",
         "copy_text_failed": "Kunne ikke kopiere teksten",
         "copy_link": "Kopier lenken",
         "copy_message_link": "Kopier meldingslenken",
@@ -106,7 +111,8 @@
         "message_link_copied": "Meldingslenken er kopiert",
         "copy_link_failed": "Kunne ikke kopiere lenken",
         "image_copied": "Bildet er kopiert",
-        "copy_image_failed": "Kunne ikke kopiere bildet"
+        "copy_image_failed": "Kunne ikke kopiere bildet",
+        "view_reactions": "Vis reaksjoner"
       },
       "meta": {
         "echo": "Ekko",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Er du sikker på at du vil løsne denne meldingen?",
       "loading": "Laster festede meldinger...",
       "empty_title": "Ingen festede meldinger",
-      "empty_description": "Romadministratorer kan feste viktige meldinger her.",
+      "empty_description": "Festede meldinger vises her.",
       "error_title": "Festede meldinger er ikke tilgjengelige",
       "error_description": "Kunne ikke laste festede meldinger. Prøv igjen om litt.",
       "update_failed": "Kunne ikke oppdatere den festede meldingen"
@@ -255,6 +261,81 @@
     "jump_to_present": "Gå til presentasjon",
     "jump_failed": "Kunne ikke hoppe til den meldingen.",
     "unread_separator": "Nye meldinger",
-    "close_extras": "Lukk romtillegg"
+    "close_extras": "Lukk romtillegg",
+    "dm": {
+      "deleted_user_notice": "Den andre brukeren er slettet."
+    },
+    "management": {
+      "room_name_too_long": "Romnavnet kan ikke overstige 30 tegn",
+      "room_name_invalid": "Romnavnet kan ikke inneholde linjeskift eller kontrolltegn",
+      "create_room": "Opprett rom",
+      "reorder_groups_failed": "Kunne ikke omorganisere grupper: {error}",
+      "room_created": "Rom opprettet",
+      "link_updated": "Linken er oppdatert",
+      "link_created": "Link opprettet",
+      "save_link_failed": "Kunne ikke lagre koblingen: {error}",
+      "group_deleted": "Gruppe slettet",
+      "delete_group_failed": "Kunne ikke slette gruppen: {error}",
+      "link_deleted": "Link slettet",
+      "delete_link_failed": "Kunne ikke slette linken: {error}",
+      "room_archived": "Rom arkivert",
+      "archive_room_failed": "Kunne ikke arkivere rommet: {error}",
+      "drag_room": "Dra for å omorganisere rommet",
+      "drag_link": "Dra for å omorganisere lenken",
+      "drag_group": "Dra for å omorganisere gruppen",
+      "new_room": "Opprett rom",
+      "new_link": "Opprett lenke",
+      "delete_group": "Slett gruppe",
+      "edit_link": "Rediger lenke",
+      "delete_link": "Slett lenke",
+      "create_link": "Opprett lenke",
+      "label": "Etikett",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com eller /docs",
+      "delete_group_prompt": "Er du sikker på at du vil slette settet {name}?",
+      "delete_link_prompt": "Er du sikker på at du vil slette {label}?",
+      "archive_room": "Arkiver rom",
+      "archive_room_prompt": "Er du sikker på at du vil arkivere #{room}? Medlemmer vil ikke lenger ha tilgang til dette rommet.",
+      "group_created": "Gruppe opprettet",
+      "create_group_failed": "Kunne ikke opprette gruppen: {error}",
+      "group_name": "Gruppenavn",
+      "group_name_placeholder": "f.eks. Generelt, prosjekter, team",
+      "create_group": "Opprett gruppe",
+      "new_group": "Ny gruppe",
+      "threading_mode_required": "Påkrevd",
+      "threading_mode_encouraged": "Anbefalt",
+      "threading_mode_enabled": "Aktivert",
+      "threading_mode_disabled": "Deaktivert"
+    },
+    "moderation": {
+      "removing": "Fjerner...",
+      "remove_action": "Fjern fra rommet",
+      "lift_title": "Opphev utestengelsen av {user}",
+      "lift": "Opphev utestengelse",
+      "lifting": "Opphever...",
+      "no_suspension": "Ingen utestengelse — kan bli med igjen",
+      "indefinite": "Ubestemt",
+      "remove_title": "Fjern {user} fra rommet",
+      "suspension_period": "Varighet for utestengelse"
+    },
+    "invitation": {
+      "invite": "Inviter medlem",
+      "invited": "Du har blitt invitert",
+      "sent": "Invitasjoner sendt",
+      "expires": "Utløper {date}",
+      "unavailable": "Du kan ikke godta denne invitasjonen nå. Du kan fortsatt avslå den.",
+      "accept": "Godta invitasjon",
+      "decline": "Avslå",
+      "title": "Inviter medlemmer til #{room}",
+      "description": "Velg hvem du vil invitere. Inviterte brukere får et varsel og har sju dager på å godta eller avslå.",
+      "members": "Medlemmer",
+      "send": "Send invitasjoner",
+      "failed": "Kunne ikke invitere {name}: {error}",
+      "already_member": "Allerede i dette rommet",
+      "invited_by": "Du har blitt invitert av",
+      "decline_title": "Avslå invitasjonen?",
+      "decline_join_later": "Du kan bli med i dette rommet senere.",
+      "decline_need_invite": "Du trenger en ny invitasjon for å bli med i dette rommet."
+    }
   }
 }

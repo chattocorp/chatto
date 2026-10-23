@@ -12,7 +12,6 @@
     "no_banner": "Geen banner ingesteld",
     "name_label": "Naam",
     "description_label": "Beschrijving",
-    "motd_label": "Bericht van de dag",
     "welcome_message_label": "Welkomstbericht",
     "name_empty": "Naam mag niet leeg zijn",
     "name_trim": "Naam mag geen witruimte vooraan of achteraan bevatten",

@@ -35,8 +35,11 @@
     "leave": {
       "title": "Sair da sala",
       "action": "Sair da sala",
-      "prompt": "Tem a certeza que pretende sair do #{room}? Pode voltar mais tarde.",
-      "failed": "Falha ao sair da sala"
+      "prompt": "Tem a certeza que pretende sair do #{room}?",
+      "failed": "Falha ao sair da sala",
+      "join_later": "Pode voltar mais tarde.",
+      "need_invite": "Vais precisar de um novo convite para entrar nesta sala.",
+      "rejoin_unknown": "Podes precisar de um novo convite para voltar."
     },
     "directory": {
       "universal_title": "As salas universais são unidas automaticamente",
@@ -59,7 +62,8 @@
       "join_group_failed": "Falha ao entrar no grupo",
       "left": "Esquerda #{room}",
       "left_generic": "Esquerda da sala",
-      "leave_confirm": "Tem a certeza que pretende sair do #{room}?"
+      "leave_confirm": "Tem a certeza que pretende sair do #{room}?",
+      "invited": "Convidado"
     },
     "server": {
       "remove_title": "Remover servidor",
@@ -97,7 +101,8 @@
         "edit": "Editar mensagem",
         "more": "Mais ações",
         "edit_short": "Editar",
-        "copy_text": "Copiar texto",
+        "copy_text": "Copiar texto da mensagem",
+        "copy_selected_text": "Copiar texto selecionado",
         "copy_text_failed": "Não foi possível copiar o texto",
         "copy_link": "Copiar link",
         "copy_message_link": "Copiar ligação da mensagem",
@@ -106,7 +111,8 @@
         "message_link_copied": "Ligação da mensagem copiada",
         "copy_link_failed": "Não foi possível copiar a ligação",
         "image_copied": "Imagem copiada",
-        "copy_image_failed": "Não foi possível copiar a imagem"
+        "copy_image_failed": "Não foi possível copiar a imagem",
+        "view_reactions": "Ver reações"
       },
       "meta": {
         "echo": "Eco",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Tem a certeza de que pretende remover esta mensagem fixada?",
       "loading": "A carregar mensagens fixadas...",
       "empty_title": "Nenhuma mensagem fixada",
-      "empty_description": "Os gestores da sala podem fixar mensagens importantes aqui.",
+      "empty_description": "As mensagens fixadas aparecem aqui.",
       "error_title": "Mensagens fixadas indisponíveis",
       "error_description": "Não foi possível carregar as mensagens fixadas. Tente novamente dentro de instantes.",
       "update_failed": "Não foi possível atualizar a mensagem fixada"
@@ -255,6 +261,81 @@
     "jump_to_present": "Ir para o presente",
     "jump_failed": "Não foi possível saltar para esta mensagem.",
     "unread_separator": "Novas mensagens",
-    "close_extras": "Fechar extras do quarto"
+    "close_extras": "Fechar extras do quarto",
+    "dm": {
+      "deleted_user_notice": "O outro utilizador foi eliminado."
+    },
+    "management": {
+      "room_name_too_long": "O nome da sala não pode ter mais de 30 caracteres",
+      "room_name_invalid": "O nome da sala não pode conter quebras de linha nem caracteres de controlo",
+      "create_room": "Criar sala",
+      "reorder_groups_failed": "Falha ao reordenar grupos: {error}",
+      "room_created": "Sala criada",
+      "link_updated": "Link atualizado",
+      "link_created": "Link criado",
+      "save_link_failed": "Falha ao guardar link: {error}",
+      "group_deleted": "Grupo eliminado",
+      "delete_group_failed": "Falha ao eliminar grupo: {error}",
+      "link_deleted": "Link eliminado",
+      "delete_link_failed": "Falha ao eliminar ligação: {error}",
+      "room_archived": "Sala arquivada",
+      "archive_room_failed": "Falha ao arquivar a sala: {error}",
+      "drag_room": "Arraste para reordenar a sala",
+      "drag_link": "Arraste para reordenar a ligação",
+      "drag_group": "Arraste para reordenar o grupo",
+      "new_room": "Criar sala",
+      "new_link": "Criar link",
+      "delete_group": "Apagar grupo",
+      "edit_link": "Editar link",
+      "delete_link": "Apagar link",
+      "create_link": "Criar link",
+      "label": "Etiqueta",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com ou /docs",
+      "delete_group_prompt": "Tem a certeza que pretende eliminar o conjunto {name}?",
+      "delete_link_prompt": "Tem a certeza que pretende eliminar {label}?",
+      "archive_room": "Arquivar sala",
+      "archive_room_prompt": "Tem a certeza que pretende arquivar #{room}? Os membros deixarão de poder aceder a esta sala.",
+      "group_created": "Grupo criado",
+      "create_group_failed": "Falha ao criar grupo: {error}",
+      "group_name": "Nome do grupo",
+      "group_name_placeholder": "por exemplo, Geral, Projetos, Equipas",
+      "create_group": "Criar grupo",
+      "new_group": "Novo grupo",
+      "threading_mode_required": "Obrigatório",
+      "threading_mode_encouraged": "Recomendado",
+      "threading_mode_enabled": "Ativado",
+      "threading_mode_disabled": "Desativado"
+    },
+    "moderation": {
+      "removing": "A remover...",
+      "remove_action": "Remover da sala",
+      "lift_title": "Levantar a suspensão de {user}",
+      "lift": "Levantar suspensão",
+      "lifting": "A levantar...",
+      "no_suspension": "Sem suspensão — pode voltar a entrar",
+      "indefinite": "Indefinida",
+      "remove_title": "Remover {user} da sala",
+      "suspension_period": "Período de suspensão"
+    },
+    "invitation": {
+      "invite": "Convidar membro",
+      "invited": "Recebeu um convite",
+      "sent": "Convites enviados",
+      "expires": "Expira em {date}",
+      "unavailable": "Não é possível aceitar este convite de momento. Ainda o pode recusar.",
+      "accept": "Aceitar convite",
+      "decline": "Recusar",
+      "title": "Convidar membros para #{room}",
+      "description": "Escolhe quem queres convidar. Os utilizadores convidados receberão uma notificação e terão sete dias para aceitar ou recusar.",
+      "members": "Membros",
+      "send": "Enviar convites",
+      "failed": "Não foi possível convidar {name}: {error}",
+      "already_member": "Já está nesta sala",
+      "invited_by": "Recebeste um convite de",
+      "decline_title": "Recusar convite?",
+      "decline_join_later": "Podes entrar nesta sala mais tarde.",
+      "decline_need_invite": "Vais precisar de um novo convite para entrar nesta sala."
+    }
   }
 }

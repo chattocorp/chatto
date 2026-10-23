@@ -17,7 +17,7 @@ actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
 buf = "latest"
-go = "1.27.1"
+go = "1.27.3"
 goreleaser = "latest"
 node = "lts"
 pnpm = "11.25.0"
@@ -31,20 +31,22 @@ CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 # ten ports. Tasks and scripts use these names, not offsets.
 CHATTO_DEV_PORT_BASE = "{% if env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
 # Chatto with its embedded frontend (`mise dev`).
-CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_PORT_BASE}}"
+# Keep override inputs separate from resolved values inherited by nested mise.
+# Paseo supplies the overrides; Conductor can still select a new port block.
+CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE)}}"
 # Vite frontend development server (`mise dev-frontend`).
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
 CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
 # Runling bot console.
 CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}"
 # Chatto embedded NATS.
-CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 4}}"
+CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_NATS_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 4)}}"
 # LiveKit HTTP and WebSocket signaling, then RTC over TCP and UDP.
 CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}"
 CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}"
 CHATTO_DEV_LIVEKIT_RTC_UDP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}"
 # Mailpit SMTP and web UI.
-CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}"
+CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 8)}}"
 CHATTO_DEV_MAILPIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}"
 # The development stack runs this pinned LiveKit server through `mise x`.
 CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.13.5"
@@ -58,7 +60,8 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # label is `local`. The label must be a valid DNS label, and it keys the
 # Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
 CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
-CHATTO_DEV_CHATTO_URL = "http://chatto.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_CHATTO_PORT}}"
+CHATTO_DEV_CHATTO_URL = "{{env.CHATTO_DEV_CHATTO_URL_OVERRIDE | default(value='http://chatto.' ~ env.CHATTO_DEV_WORKSPACE ~ '.localhost:' ~ env.CHATTO_DEV_CHATTO_PORT)}}"
+CHATTO_DEV_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL_OVERRIDE | default(value='ws://localhost:' ~ env.CHATTO_DEV_LIVEKIT_PORT)}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_AUTHLING_PORT}}"
 # Chatto data of the development stack, and the TestBot API key that the
 # Runling bot reads. Set CHATTO_DEV_DATA_ROOT to an absolute path to use a
@@ -204,20 +207,22 @@ description = "Check Chatto protobuf naming and schema conventions"
 dir = "proto"
 run = "buf lint"
 
+[tasks.build-proto-generators]
+description = "Build the pinned protobuf generators before Buf runs"
+depends = ["setup-cli"]
+dir = "cli"
+run = "go build -o bin/proto/ google.golang.org/protobuf/cmd/protoc-gen-go connectrpc.com/connect/cmd/protoc-gen-connect-go github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
+
 [tasks.codegen-proto]
 description = "Generate Go and frontend code from protobuf schemas"
-depends = ["setup-cli", "setup-frontend"]
+depends = ["build-proto-generators", "setup-frontend"]
 dir = "proto"
-# `clean` also removes the built package. Rebuild it at the end so tools that
-# read `packages/api-types/dist` directly, such as svelte-check and Vitest run
-# from `apps/frontend`, never see a missing package after codegen.
 run = [
     "pnpm --dir ../packages/api-types run clean",
     "buf generate",
     "node ../tools/split-connectrpc-docs.mjs",
     "node ../tools/trim-proto-codegen-output.mjs",
     "node ../packages/chatto-client/scripts/generate-types.mjs",
-    "pnpm --dir .. run build:api-types",
 ]
 
 [tasks.codegen-emoji]
@@ -276,26 +281,6 @@ depends = ["mobile-ios-sync"]
 dir = "apps/mobile"
 run = "pnpm build:ios"
 
-[tasks.build-api-types]
-description = "Build the generated TypeScript API package"
-depends = ["setup-frontend"]
-run = "pnpm run build:api-types"
-sources = [
-    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
-    "packages/api-types/{src/**,package.json,tsconfig*.json}",
-]
-outputs = ["packages/api-types/dist"]
-
-[tasks.build-lingua]
-description = "Build the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm run build:lingua"
-sources = [
-    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
-    "packages/lingua/{src/**,package.json,tsconfig*.json}",
-]
-outputs = ["packages/lingua/dist"]
-
 [tasks.test-runling-bot]
 description = "Test the Runling webhook bot example"
 depends = ["setup-frontend"]
@@ -307,19 +292,9 @@ depends = ["setup-frontend"]
 run = "pnpm turbo run build --filter=runling"
 
 [tasks.build-runling-bot]
-description = "Build Runling and the Chatto client for the Runling webhook bot example"
+description = "Build Runling for the Runling webhook bot example"
 depends = ["setup-frontend"]
 run = "pnpm turbo run build --filter=@chatto/runling-bot^..."
-
-[tasks.build-chatto-client]
-description = "Build the framework-neutral Chatto client"
-depends = ["setup-frontend"]
-run = "pnpm run build:chatto-client"
-sources = [
-    "{package.json,pnpm-*.yaml,.npmrc,turbo.json,tools/turbo.mjs}",
-    "packages/{api-types,chatto-client}/{src/**,package.json,tsconfig*.json}",
-]
-outputs = ["packages/api-types/dist", "packages/chatto-client/dist"]
 
 [tasks.test-chatto-client]
 description = "Check, lint, and test the Chatto client"
@@ -376,20 +351,17 @@ run = [
     "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
     "bash -c \"mkdir -p ../../.context/build-frontend && touch ../../.context/build-frontend/{{vars.frontend_build_environment}}\"",
 ]
-# Include each workspace library that Turbo builds for the frontend. Declare
-# both the published build and the embedded copy, so either can be restored.
+# Include the workspace libraries whose source the frontend bundles. Declare
+# both the frontend build and the embedded copy, so either can be restored.
 sources = [
     "{src,messages,static}/**",
     "{package.json,*config.*,scripts/*.mjs,.env*}",
     "../../{package.json,pnpm-*.yaml,.npmrc,.env*,turbo.json,tools/turbo.mjs,tools/prepare-embedded-frontend.sh}",
-    "../../packages/{api-types,lingua,chatto-client}/{src/**,package.json,tsconfig*.json}",
+    "../../packages/{api-types,translatto,chatto-client}/{src/**,package.json,tsconfig*.json}",
 ]
 outputs = [
     "build",
     "../../cli/internal/http_server/.client",
-    "../../packages/api-types/dist",
-    "../../packages/lingua/dist",
-    "../../packages/chatto-client/dist",
     "../../.context/build-frontend/{{vars.frontend_build_environment}}",
 ]
 
@@ -482,7 +454,7 @@ outputs = ["../apps/frontend/e2e/fixtures/bin/chatto-current"]
 
 [tasks.storybook]
 description = "Run the Storybook design-system catalog"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend"]
 dir = "apps/frontend"
 # `mise dev-full` and `mise dev-frontend` use the complete workspace port block.
 # Storybook therefore uses the first free loopback port from 6006. Storybook's
@@ -546,9 +518,106 @@ run = [
   ] },
 ]
 
+# Paseo owns the three routes. mise owns startup order and
+# cleanup on success, failure, or a stop signal. Preparation is a dependency:
+# if it rejects an existing stack, this run must not execute cleanup.
+[tasks.paseo-stack]
+hide = true
+depends = ["paseo-prepare"]
+depends_post = ["paseo-cleanup"]
+run = [
+  "paseo script start mailpit --json",
+  "paseo script start livekit --json",
+  { task = "paseo-chatto" },
+]
+
+[tasks.paseo-prepare]
+hide = true
+depends = ["build-dev-cli"]
+run = "node tools/paseo-stack.mjs prepare"
+
+[tasks.paseo-chatto]
+hide = true
+run = '''
+set -eu
+. ".context/paseo-stack/${PASEO_PORT:?}/env"
+# Keep mise as the task process so shutdown waits for its descendants.
+exec bash tools/paseo-dev.sh
+'''
+
+[tasks.paseo-cleanup]
+hide = true
+run = "node tools/paseo-stack.mjs cleanup"
+
+[tasks.paseo-mailpit]
+hide = true
+run = '''
+set -eu
+. ".context/paseo-stack/${PASEO_SERVICE_DEV_FULL_PORT:?}/env"
+exec mailpit --smtp "127.0.0.1:$CHATTO_DEV_SMTP_PORT" --listen "127.0.0.1:$PASEO_PORT" --quiet
+'''
+
+[tasks.paseo-livekit]
+hide = true
+run = '''
+set -eu
+state=".context/paseo-stack/${PASEO_SERVICE_DEV_FULL_PORT:?}"
+. "$state/env"
+# HTTP stays on loopback; UDP stays on the selected interface. Local TURN/STUN
+# replaces LiveKit's default public STUN servers. TCP media is disabled because
+# LiveKit binds its TCP media listener on all interfaces.
+cat > "$state/livekit.yaml" <<EOF
+port: $PASEO_PORT
+bind_addresses: [127.0.0.1]
+rtc:
+  node_ip: $CHATTO_DEV_LIVEKIT_NODE_IP
+  tcp_port: 0
+  udp_port: $PASEO_PORT
+  use_external_ip: false
+  enable_loopback_candidate: true
+  ips: { includes: [$CHATTO_DEV_LIVEKIT_NODE_IP/32] }
+turn:
+  enabled: true
+  udp_port: $CHATTO_DEV_SMTP_PORT
+  bind_addresses: [$CHATTO_DEV_LIVEKIT_NODE_IP]
+  relay_range_start: 49152
+  relay_range_end: 65535
+  allow_restricted_peer_cidrs: [$CHATTO_DEV_LIVEKIT_NODE_IP/32]
+keys: { workspace: $CHATTO_LIVEKIT_API_SECRET }
+webhook:
+  urls: ["http://127.0.0.1:$CHATTO_DEV_CHATTO_PORT/webhooks/livekit"]
+  api_key: workspace
+logging: { level: error }
+EOF
+exec mise x "$CHATTO_DEV_LIVEKIT_SERVER" -- server --config "$state/livekit.yaml"
+'''
+
+[tasks.paseo-storybook]
+hide = true
+depends = ["setup-frontend"]
+dir = "apps/frontend"
+run = '''
+set -eu
+: "${PASEO_PORT:?start storybook through Paseo}" "${PASEO_URL:?}"
+export STORYBOOK_DISABLE_TELEMETRY=1
+exec pnpm exec storybook dev --host 127.0.0.1 --port "$PASEO_PORT" --exact-port --no-open --ci
+'''
+
+[tasks.paseo-docs-website]
+hide = true
+depends = ["setup-frontend"]
+dir = "apps/docs-website"
+run = '''
+set -eu
+: "${PASEO_PORT:?start docs-website through Paseo}" "${PASEO_URL:?}"
+allowed_host=$(node -p 'new URL(process.env.PASEO_URL).hostname')
+export ASTRO_TELEMETRY_DISABLED=1
+exec pnpm exec astro dev --host 127.0.0.1 --port "$PASEO_PORT" --allowedHosts "$allowed_host"
+'''
+
 [tasks.dev-frontend]
 description = "Run the Vite frontend development server against a Chatto server"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend"]
 dir = "apps/frontend"
 env = { VITE_PORT = "{{env.CHATTO_DEV_VITE_PORT}}" }
 # CHATTO_BACKEND_URL selects the proxied Chatto server. The default is the
@@ -662,7 +731,7 @@ env = {
   CHATTO_SEARCH_PROVIDER_DIRECTORY = "{{env.CHATTO_DEV_DATA_ROOT}}/search",
   CHATTO_OPERATOR_API_SOCKET_PATH = "{{env.CHATTO_DEV_DATA_ROOT}}/operator/operator.sock",
   CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT}}",
-  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_LIVEKIT_PORT}}",
+  CHATTO_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL}}",
   CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
   CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
   CHATTO_BOOTSTRAP_BOTS_0_BIO = "I'm **TestBot**, Chatto's development assistant. Mention `@test_bot` in a channel or send me a direct message.",
@@ -822,7 +891,7 @@ run = ["pnpm run check:frontend", "pnpm run lint:frontend"]
 description = "Vet the Chatto CLI module and check it for unused code and outdated idioms"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.1", "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+tools = { "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.2", "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 # The build matrix makes staticcheck report a symbol as unused only when no
 # build tag set uses it.
 run = [
@@ -874,19 +943,22 @@ dir = "pkg/natsruntime"
 tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
-[tasks.lint-lingua]
-description = "Type-check the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm turbo run check --filter=@chatto/lingua"
-
 [tasks.lint]
 description = "Run linters"
-run = [{ task = "lint-*" }]
+run = [{ task = "lint-*" }, { task = "check-workspace" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend"
+
+[tasks.test-dev-tooling]
+description = "Test Paseo launchers, stable routing, and development environment defaults"
+tools = { "github:traefik/traefik" = "3.7.14" }
+run = [
+    "node --test tools/paseo-proxy.test.mjs tools/paseo-routing.test.mjs tools/paseo-stack.test.mjs tools/paseo-lifecycle.test.mjs",
+    "bash tools/test-paseo-dev.sh",
+]
 
 [tasks.test-chatto-build]
 description = "Check that unchanged Chatto builds skip and missing assets are restored"
@@ -901,11 +973,6 @@ run = "bash tools/test-chatto-build.sh"
 description = "Run selected frontend Vitest specs"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend:focused"
-
-[tasks.test-lingua]
-description = "Test the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm run test:lingua"
 
 [tasks.check-workspace]
 description = "Type-check every pnpm workspace package"
@@ -956,6 +1023,7 @@ run = [
     { task = "test-cli" },
     { task = "test-desktop" },
     { task = "test-chatto-build" },
+    { task = "test-dev-tooling" },
     { task = "test-workspace" },
     { task = "test-e2e" },
 ]
@@ -972,7 +1040,6 @@ run = [
     "rm -rf cli/internal/http_server/.client",
     "rm -rf apps/frontend/build",
     "rm -rf apps/desktop/dist",
-    "rm -rf packages/lingua/dist",
 ]
 
 [tasks.reset]
@@ -1034,5 +1101,5 @@ description = "Check Authling and Chatto against the official OIDC suite"
 run = "bash tools/test-oidc-conformance.sh"
 
 [tasks.test-mcp-conformance]
-description = "Check an authenticated Chatto endpoint with the pinned official MCP suite"
+description = "Run selected official MCP application protocol checks (not full conformance)"
 run = "node tools/test-mcp-conformance.mjs"

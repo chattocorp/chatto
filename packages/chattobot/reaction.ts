@@ -1,13 +1,29 @@
-import type { MessagingRequests } from '@chatto/client';
-import type { Delivery } from './chatto/routing.ts';
+import type { Api, MessagingRequests, ThreadLocation } from '@chatto/client';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import type { IncomingMessage } from './chatto/message.ts';
 
-export type Acknowledge = (delivery: Delivery, signal?: AbortSignal) => Promise<void>;
+export type Acknowledge = (message: IncomingMessage, signal?: AbortSignal) => Promise<void>;
 
-/** React with eyes to the message that addressed the bot, not to its thread root.
+/** Set or clear only the bot's handled reaction on a host-selected thread root. */
+export type SetHandled = (
+  thread: ThreadLocation,
+  handled: boolean,
+  signal: AbortSignal
+) => Promise<void>;
+
+/** Reactions are idempotent and scoped to the authenticated bot by the server. */
+export function createHandledReaction(client: Pick<Api, 'service'>): SetHandled {
+  const messages = client.service(MessageService);
+  return async ({ roomId, threadRootId }, handled, signal) => {
+    const input = { roomId, messageEventId: threadRootId, emoji: 'white_check_mark' };
+    if (handled) await messages.addReaction(input, { signal });
+    else await messages.removeReaction(input, { signal });
+  };
+}
+
+/** React with eyes to the thread root selected by the conversation, to show engagement.
  * The reaction is bot policy; transport belongs to the shared client. */
 export function createEyesReaction(client: Pick<MessagingRequests, 'addReaction'>): Acknowledge {
-  return (delivery, signal) =>
-    client.addReaction({ roomId: delivery.room_id, messageId: delivery.message.id }, 'eyes', {
-      signal
-    });
+  return (message, signal) =>
+    client.addReaction({ roomId: message.roomId, messageId: message.id }, 'eyes', { signal });
 }

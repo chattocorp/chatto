@@ -8,7 +8,6 @@
     "notifications": {
       "title": "通知",
       "subtitle": "新機能はこちら",
-      "list_title": "最近のアクティビティ",
       "clear_read": "既読を削除",
       "empty_title": "通知はありません",
       "empty_body": "みんなも追いつきました！",
@@ -19,14 +18,15 @@
       "unread": "未読",
       "activity": "新しいアクティビティ",
       "summary": {
-        "direct_message": "{actor}さんからダイレクトメッセージが届きました。",
-        "reaction": "{actor}さんが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
-        "reaction_group": "{actor}さんと他のユーザーが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
-        "reply": "{actor}さんがあなたのメッセージに返信しました。",
-        "mention": "{actor}さんがあなたをメンションしました。",
-        "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました。",
-        "new_message": "{actor}さんが新しいメッセージを投稿しました。",
-        "activity": "{actor}さんから通知が届きました。"
+        "direct_message": "{actor}さんからダイレクトメッセージが届きました",
+        "reaction": "{actor}さんがあなたのメッセージに{emoji}でリアクションしました",
+        "reaction_group": "{actor}さんと他のユーザーがあなたのメッセージに{emoji}でリアクションしました",
+        "reply": "{actor}さんがあなたのメッセージに返信しました",
+        "mention": "{actor}さんがあなたをメンションしました",
+        "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました",
+        "new_message": "{actor}さんが新しいメッセージを投稿しました",
+        "activity": "{actor}さんから通知が届きました",
+        "room_invitation": "{actor} があなたをルームに招待しました"
       }
     },
     "sign_out": {
@@ -45,23 +45,40 @@
     },
     "user_menu": {
       "profile": "ユーザープロフィール",
-      "send_message": "メッセージを送信",
+      "send_message": "会話を開く",
       "view_profile": "プロフィールを見る",
       "profile_requires_direct_message": "このプロフィールを表示するにはダイレクトメッセージが必要です。",
       "manage_bot": "ボットを管理",
       "view_in_admin": "サーバー管理で表示",
       "copy_user_id": "ユーザーIDをコピー"
     },
+    "server_info": {
+      "title": "サーバー情報",
+      "details": "サーバーの詳細"
+    },
+    "compatibility": {
+      "title": "互換性",
+      "view": "互換性を表示",
+      "limited": "古いサーバーバージョン",
+      "supported": "既知の互換性の問題はありません",
+      "affected": "影響を受ける機能",
+      "requires": "{version} 以降が必要です",
+      "thread_views_title": "スレッド表示のサポートは限定的です",
+      "thread_views_description": "このサーバーでは、フォロー中のスレッドと自分が開始したスレッドが別々に表示されない場合があります。",
+      "independent_slow_mode_title": "独立した低速モードは利用できません",
+      "independent_slow_mode_description": "このサーバーでは、チャンネルのメッセージとスレッドの返信に共通の待機時間が適用されます。",
+      "upgrade": "完全なサポートを得るには、サーバー管理者に {version} 以降へのアップグレードを依頼してください。"
+    },
     "server_gutter": {
       "move_up": "上に移動",
       "move_down": "下に移動",
       "add_server": "サーバーの追加",
-      "log_in": "このサーバーにログイン",
-      "sign_out": "このサーバーからログアウト",
+      "log_in": "サーバーにログイン",
+      "sign_out": "サーバーからログアウト",
       "version": "バージョン {version}",
       "unreachable": "サーバーに接続できません",
       "connection_unavailable": "接続できません",
-      "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",
+      "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto {version} 以降にアップグレードする必要があります。",
       "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。",
       "go_to_notifications_count": {
         "one": "{count} 件の通知に移動",
@@ -90,9 +107,16 @@
       "body": "このサーバーでメッセージを読んだり送信したりするには、ログインしてください。"
     },
     "threads": {
-      "title": "私のスレッド",
-      "subtitle": "あなたがフォローしているスレッド",
-      "list_title": "フォロー中のスレッド",
+      "sort_label": "スレッドの並び順",
+      "sort_activity": "アクティビティ",
+      "sort_created": "作成日時",
+      "tab_started": "自分の",
+      "tab_followed": "フォロー中",
+      "tab_label": "スレッド表示",
+      "empty_mine_title": "開始したスレッドはありません",
+      "empty_mine_body": "自分で開始し、フォローしているスレッドがここに表示されます。",
+      "title": "スレッド",
+      "subtitle": "スレッドの新しいアクティビティ",
       "filter_label": "スレッドのフィルタリング",
       "filter_all": "全て",
       "filter_unread": "未読",
@@ -141,6 +165,19 @@
       },
       "owned_by": "所有者",
       "open_card": "{name} のプロフィールカードを開く"
+    },
+    "management_nav": {
+      "general": "一般",
+      "neighbors": "ネイバー",
+      "members": "メンバー",
+      "rooms": "部屋",
+      "moderation": "モデレーション",
+      "permissions": "権限",
+      "security": "セキュリティ",
+      "event_log": "イベントログ",
+      "system": "システム",
+      "back_to_server": "サーバーに戻る",
+      "invitations": "招待リンク"
     }
   }
 }

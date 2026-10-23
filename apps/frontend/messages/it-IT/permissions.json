@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
+      "server_manage_neighbors": "Gestisci la directory pubblica dei vicini",
+      "room_create": "Crea nuove stanze",
+      "room_join": "Unisciti alle stanze esistenti",
+      "room_list": "Vedi le stanze nella directory. A un utente può essere consentito di vedere una stanza (ad esempio per richiedere l'accesso) senza che gli sia consentito accedervi.",
+      "room_manage": "Modifica le impostazioni e le autorizzazioni di una stanza ed elimina le stanze",
+      "room_remove_member": "Rimuovere membri dalle stanze e sospenderne il rientro se necessario",
+      "message_read": "Leggere tutti i messaggi nelle stanze. La rimozione di questo permesso consente ancora un accesso limitato se message.read-interactions viene concesso separatamente.",
+      "message_read_interactions": "Leggere thread completi che hai creato o in cui un altro utente ti ha menzionato direttamente",
+      "message_post": "Pubblicare messaggi e risposte nei thread e avviare messaggi diretti",
+      "message_post_interactions": "Rispondere nei thread che hai creato, in cui hai ricevuto una menzione diretta o un messaggio diretto",
+      "message_post_in_thread": "Pubblica le risposte all'interno di un thread",
+      "message_attach": "Allega file ai messaggi",
+      "message_echo": "Quando pubblichi in un thread, fai emergere il messaggio anche nel canale principale",
+      "message_pin": "Fissare e rimuovere messaggi fissati",
+      "message_manage": "Modifica ed elimina i messaggi di altri utenti",
+      "message_react": "Aggiungi e rimuovi reazioni ai messaggi",
+      "role_manage": "Crea, modifica, elimina e riordina i ruoli e le relative autorizzazioni",
+      "role_assign": "Assegnare e revocare i ruoli per gli utenti",
+      "admin_view_users": "Visualizza la pagina degli utenti in amministrazione",
+      "admin_view_system": "Visualizza la diagnostica della proiezione in amministrazione",
+      "admin_view_audit": "Visualizza il registro di controllo nell'amministratore",
+      "user_delete_any": "Elimina l'account di un altro utente",
+      "user_delete_self": "Elimina il tuo account",
+      "user_invite": "Crea e gestisci i link di invito",
+      "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
+      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente",
+      "bot_create": "Creare account bot di tua proprietà",
+      "bot_manage": "Visualizzare e gestire tutti gli account bot",
+      "call_start": "Avviare una chiamata (richiede anche call.join)",
+      "call_join": "Partecipare a una chiamata in corso",
+      "call_voice": "Usare il microfono nelle chiamate",
+      "call_camera": "Usare la videocamera nelle chiamate",
+      "call_screenshare": "Condividere uno schermo o un’applicazione, incluso l’audio acquisito",
+      "room_invite": "Invita i membri del server nelle stanze a cui hai aderito"
+    }
+  }
+}

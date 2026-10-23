@@ -1,10 +1,11 @@
 syntax = "proto3";
 
 package chatto.core.evt.v1;
+import "google/protobuf/timestamp.proto";
 
 import "chatto/core/evt/v1/models.proto";
 
-option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // ============================================================================
 // PERSISTED EVENT MESSAGE DEFINITIONS
@@ -87,6 +88,8 @@ message RoomUniversalChangedEvent {
 message RoomSlowModeChangedEvent {
   string room_id = 1;
   uint32 slow_mode_seconds = 2;
+  // New writers store both intervals. Legacy absence uses slow_mode_seconds.
+  optional uint32 thread_slow_mode_seconds = 3;
 }
 
 // RoomThreadingModeChangedEvent is published when a channel room's thread
@@ -176,4 +179,26 @@ message CallEndedEvent {
   string room_id = 1;
   string call_id = 2;
   CallParticipantEventSource source = 3;
+}
+
+// A member invited a human account to this room. The envelope records sender and time.
+message RoomInvitationCreatedEvent {
+  string room_id = 1;
+  string invitation_id = 2;
+  string recipient_id = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+// The recipient accepted; the membership fact commits in the same batch.
+message RoomInvitationAcceptedEvent {
+  string room_id = 1;
+  string invitation_id = 2;
+  string recipient_id = 3;
+  string sender_id = 4;
+}
+// The recipient declined. Notification deletion does not produce this fact.
+message RoomInvitationDeclinedEvent {
+  string room_id = 1;
+  string invitation_id = 2;
+  string recipient_id = 3;
+  string sender_id = 4;
 }

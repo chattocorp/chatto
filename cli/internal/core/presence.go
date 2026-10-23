@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 // Presence status constants used by public API and storage mappings.

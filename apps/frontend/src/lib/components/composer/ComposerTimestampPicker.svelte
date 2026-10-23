@@ -70,7 +70,7 @@
     const timezone = preferredTimeZone();
     triggerElement = button;
     timezoneSearch = timezone;
-    localValue = dateToDatetimeLocalValue(new Date(Date.now() + 60 * 60_000), timezone);
+    localValue = dateToDatetimeLocalValue(new Date(), timezone);
     pickerAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
     pickerOpen = true;
     tick().then(() => {

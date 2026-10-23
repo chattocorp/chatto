@@ -7,8 +7,8 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 )
 
 func TestNotificationDecisionUsesCurrentPolicyAfterSourceEvent(t *testing.T) {
@@ -47,7 +47,7 @@ func TestNotificationDecisionUsesCurrentPolicyAfterSourceEvent(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -81,7 +81,7 @@ func TestNotificationDecisionUsesCurrentMembershipAfterSourceEvent(t *testing.T)
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -113,7 +113,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -151,7 +151,7 @@ func TestDirectMentionAllowsCurrentInteractionScopedVisibility(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -176,7 +176,7 @@ func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
@@ -270,12 +270,87 @@ func TestNotificationDecisionDoesNotApplyOwnerOverride(t *testing.T) {
 
 	var decisions []notificationRecipientDecision
 	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
-		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		decisions = buildMessageNotificationDecisions(snapshot, source, "")
 		return nil
 	}); err != nil {
 		t.Fatalf("withCurrent: %v", err)
 	}
 	if len(decisions) != 1 || decisions[0].recipientID != memberID {
 		t.Fatalf("decisions = %+v, want only member %q", decisions, memberID)
+	}
+}
+
+// The materializer can evaluate a thread reply after the projection has
+// applied later facts, such as the automatic follows that the reply caused and
+// further replies. The decisions for the reply must not depend on that.
+func TestThreadReplyDecisionsDoNotDependOnLaterFacts(t *testing.T) {
+	t.Parallel()
+
+	const (
+		rootAuthor = "author"
+		follower   = "follower"
+		mentioned  = "mentioned"
+		poster     = "poster"
+	)
+	posted := func(id, actorID, threadRootID string, mentions ...string) *evtv1.Event {
+		message := &evtv1.MessagePostedEvent{RoomId: "R1", InThread: threadRootID}
+		for _, userID := range mentions {
+			message.Mentions = append(message.Mentions, &evtv1.MessageMention{UserId: userID, Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}})
+		}
+		return &evtv1.Event{Id: id, ActorId: actorID, CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: message}}
+	}
+	follow := func(userID string) *evtv1.Event {
+		return &evtv1.Event{Id: "follow-" + userID, Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "root", UserId: userID}}}
+	}
+	source := posted("reply", poster, "root", mentioned)
+	history := []*evtv1.Event{
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
+	}
+	for _, userID := range []string{rootAuthor, follower, mentioned, poster} {
+		history = append(history,
+			&evtv1.Event{Id: "user-" + userID, Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}},
+			&evtv1.Event{Id: "join-" + userID, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}},
+		)
+	}
+	history = append(history, posted("root", rootAuthor, ""), follow(follower), source)
+	// PostMessage follows the thread for the mentioned user and the root
+	// author after the first reply commits.
+	later := []*evtv1.Event{follow(mentioned), follow(rootAuthor), posted("reply-2", poster, "root")}
+	unfollowed := &evtv1.Event{Id: "unfollow-author", Event: &evtv1.Event_ThreadUnfollowed{ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{RoomId: "R1", ThreadRootEventId: "root", UserId: rootAuthor}}}
+
+	want := []string{
+		follower + "/followed_thread_activity",
+		mentioned + "/direct_mention_received",
+		rootAuthor + "/followed_thread_activity",
+	}
+	for _, tc := range []struct {
+		name  string
+		later []*evtv1.Event
+		want  []string
+	}{
+		{name: "projection at the reply", want: want},
+		{name: "projection after a later reply", later: later[2:], want: want},
+		{name: "projection after later follows and replies", later: later, want: want},
+		{name: "root author unfollowed later", later: append(slices.Clone(later), unfollowed), want: want[:2]},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewNotificationDecisionProjection()
+			applyNotificationDecisionEvents(t, p, append(slices.Clone(history), tc.later...))
+			var got []string
+			if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+				for _, decision := range buildMessageNotificationDecisions(snapshot, source, "") {
+					got = append(got, decision.recipientID+"/"+notificationSignalIdentity(decision.signal))
+				}
+				return nil
+			}); err != nil {
+				t.Fatalf("withCurrent: %v", err)
+			}
+			slices.Sort(got)
+			wantSorted := slices.Sorted(slices.Values(tc.want))
+			if !slices.Equal(got, wantSorted) {
+				t.Fatalf("decisions = %v, want %v", got, wantSorted)
+			}
+		})
 	}
 }

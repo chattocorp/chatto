@@ -4,9 +4,9 @@ import (
 	"regexp"
 	"testing"
 
-	"hmans.de/chatto/internal/notificationstream"
-	"hmans.de/chatto/internal/projectionsnapshot"
-	"hmans.de/chatto/pkg/events"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	"github.com/chattocorp/chatto/cli/internal/projectionsnapshot"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
@@ -27,8 +27,8 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 7 {
-		t.Fatalf("registered projections = %d, want 7", len(core.projections))
+	if len(core.projections) != 8 {
+		t.Fatalf("registered projections = %d, want 8", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))

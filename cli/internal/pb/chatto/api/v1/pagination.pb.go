@@ -148,8 +148,8 @@ const file_chatto_api_v1_pagination_proto_rawDesc = "" +
 	"\bPageInfo\x12\x1f\n" +
 	"\vtotal_count\x18\x01 \x01(\x03R\n" +
 	"totalCount\x12\x19\n" +
-	"\bhas_more\x18\x02 \x01(\bR\ahasMoreB\xab\x01\n" +
-	"\x11com.chatto.api.v1B\x0fPaginationProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
+	"\bhas_more\x18\x02 \x01(\bR\ahasMoreB\xbc\x01\n" +
+	"\x11com.chatto.api.v1B\x0fPaginationProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
 	file_chatto_api_v1_pagination_proto_rawDescOnce sync.Once

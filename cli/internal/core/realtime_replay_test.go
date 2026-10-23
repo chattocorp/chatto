@@ -11,19 +11,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/publiccursor"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/publiccursor"
 )
 
 func TestWaitForRealtimeCursorBringsAnotherReplicaToTheResourceBoundary(t *testing.T) {
 	t.Parallel()
 
-	primary, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	primary := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	viewer, err := primary.CreateUser(ctx, SystemActorID, "cursor-replica-viewer", "Cursor Replica Viewer", "password123")
 	if err != nil {
@@ -37,7 +39,7 @@ func TestWaitForRealtimeCursorBringsAnotherReplicaToTheResourceBoundary(t *testi
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 
-	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	replica, err := NewChattoCore(ctx, newReplicaConn(t, ns), config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})
@@ -210,7 +212,8 @@ func TestRealtimeCursorPreservesFullSequenceRange(t *testing.T) {
 func TestWaitForRealtimeCursorWaitsOnlyForRequestedContentBoundary(t *testing.T) {
 	t.Parallel()
 
-	primary, nc := setupTestCore(t)
+	ns, _ := testutil.StartNATS(t)
+	primary := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	viewer, err := primary.CreateUser(ctx, SystemActorID, "exact-cursor-viewer", "Exact Cursor Viewer", "password123")
 	if err != nil {
@@ -220,7 +223,7 @@ func TestWaitForRealtimeCursorWaitsOnlyForRequestedContentBoundary(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+	replica, err := NewChattoCore(ctx, newReplicaConn(t, ns), config.CoreConfig{
 		SecretKey: "test-core-secret",
 		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	})

@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
-	"hmans.de/chatto/internal/core"
-	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
 func TestSeedCLIUsesOperatorSocket(t *testing.T) {
@@ -29,7 +29,7 @@ func TestSeedCLIUsesOperatorSocket(t *testing.T) {
 	require.Len(t, result.Messages, 4)
 	require.NotEmpty(t, result.Rooms[0].MemberIds)
 	for _, userID := range result.Rooms[0].MemberIds {
-		member, err := env.core.GetRoomMembership(env.ctx, core.KindChannel, userID, result.Rooms[0].Id)
+		member, err := env.core.RoomMemberships().GetRoomMembership(env.ctx, core.KindChannel, userID, result.Rooms[0].Id)
 		require.NoError(t, err)
 		require.Equal(t, userID, member.UserId)
 	}

@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
@@ -25,11 +25,40 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
 - Unjoined channel rooms are hidden by default in each expanded group. A compact "+ N more" row at the end of the group reveals them in their configured order. Select "Show less" to hide them again. The control appears even when only one unjoined room remains. Joined rooms, sidebar links, and the current room stay visible. The same rule applies to the alphabetical fallback. Expansion is independent for each group and resets when the sidebar is remounted. This control does not contact an external service.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
-- Every visible sidebar room row exposes a context menu with a final “Copy Room ID” action that writes the room's stable ID to the clipboard. Successful copies are confirmed; clipboard failures report an error. Joined rooms offer unread and leave actions where applicable; non-member rooms offer Join, disabled when the viewer lacks `room.join`. Effective room `room.manage` holders also receive a settings action for channel rooms.
+- Channel and group-DM sidebar rows expose a conversation menu with **Copy room link** and a final
+  **Copy Room ID** action. A one-to-one DM opens the other participant's user
+  menu; a self-DM opens the current user's menu. These user menus offer
+  **Copy User ID**, with no room actions (FDR-007). If participant data is not
+  ready, the row keeps the conversation menu. Successful copies are confirmed;
+  clipboard failures report an error. Joined channels offer unread and leave
+  actions where applicable. Non-member channels offer **Join**, disabled when
+  the viewer lacks `room.join`. Effective room `room.manage` holders also
+  receive a settings action for channel rooms.
+- **Copy room link** copies a full URL on the server that owns the room, including
+  its scheme and port. It does not use the frontend's address. The link does
+  not grant access or join the recipient to the room. When selected in a
+  message, a link to a known server opens in the current client. Unknown
+  servers open externally; the client does not probe them or add them.
 - The room-layout overview remains available as a management fallback while the sidebar gains feature parity. Resource settings pages remain the place for group metadata and permission matrices.
+- Room-group settings use General and Permissions tabs with separate URLs.
+  General contains the name and description form. Permissions contains the
+  group permission matrix. Viewers who can manage permissions but cannot
+  change group settings go directly to Permissions and do not see General.
+  Leaving General with unsaved changes requires confirmation, including when
+  switching tabs. Cancelling navigation keeps the draft.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
 - Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar. The create and edit forms add `https://` when an operator enters a host name without a scheme.
+- Sidebar links and links in rendered Markdown use the same navigation rule.
+  Links under `/chat/<server>` on registered server hostnames are rewritten to local
+  routes. The segment after `/chat/` selects the destination server; `-` selects
+  the linked server. The destination must also be registered. Other web links
+  open externally, including non-chat paths on registered servers. Server-local
+  sidebar paths resolve against the active server before this rule is applied.
+  Preview cards and the composer's Open link action use the same rule. Clicks
+  use the current server catalogue, including middle-clicks. Message previews
+  still require a valid message URL; general navigation also accepts overview,
+  search, settings, and other Chatto routes.
 - A freshly bootstrapped server has one group named "Lobby" containing the auto-created `announcements` and `general` rooms. Operators can rename it, reorder it, or replace it like any other group.
 - Deleting a group is rejected while rooms or sidebar links still live in it. Operators move or delete its contents first.
 - Moving a room between groups requires `room.manage` in both the source and the target group (the room's effective ACL changes overnight).
@@ -130,5 +159,5 @@ ADR-086 and ADR-087.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations), ADR-087 (request-time authorization with aggregate OCC)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations), ADR-087 (request-time authorization with aggregate OCC), [ADR-115](../adr/ADR-115-in-process-domain-services.md) (in-process domain services)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

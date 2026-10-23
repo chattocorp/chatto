@@ -33,10 +33,13 @@
       "access_denied": "Vous n'êtes pas autorisé à vous joindre à cette salle."
     },
     "leave": {
-      "title": "Sortir de la salle",
-      "action": "Sortir de la salle",
-      "prompt": "Êtes-vous certain de vouloir quitter #{room} ? Vous pourrez vous joindre plus tard.",
-      "failed": "Impossible de quitter la salle"
+      "title": "Quitter le salon",
+      "action": "Quitter le salon",
+      "prompt": "Êtes-vous certain de vouloir quitter #{room} ?",
+      "failed": "Impossible de quitter la salle",
+      "join_later": "Vous pourrez vous joindre plus tard.",
+      "need_invite": "Vous aurez besoin d’une nouvelle invitation pour rejoindre ce salon.",
+      "rejoin_unknown": "Une nouvelle invitation peut être nécessaire pour rejoindre ce salon à nouveau."
     },
     "directory": {
       "universal_title": "Les salons universels sont rejoints automatiquement",
@@ -59,7 +62,8 @@
       "join_group_failed": "Impossible de joindre le groupe",
       "left": "Gauche #{room}",
       "left_generic": "Chambre de gauche",
-      "leave_confirm": "Êtes-vous certain de vouloir quitter #{room} ?"
+      "leave_confirm": "Êtes-vous certain de vouloir quitter #{room} ?",
+      "invited": "Invité"
     },
     "server": {
       "remove_title": "Retirer le serveur",
@@ -97,7 +101,8 @@
         "edit": "Modifier le message",
         "more": "Plus d'actions",
         "edit_short": "Modifier",
-        "copy_text": "Copier le texte",
+        "copy_text": "Copier le texte du message",
+        "copy_selected_text": "Copier le texte sélectionné",
         "copy_text_failed": "Échec de la copie du texte",
         "copy_link": "Copier le lien",
         "copy_message_link": "Copier le lien du message",
@@ -106,7 +111,8 @@
         "message_link_copied": "Lien du message copié",
         "copy_link_failed": "Impossible de copier le lien",
         "image_copied": "Image copiée",
-        "copy_image_failed": "Impossible de copier l’image"
+        "copy_image_failed": "Impossible de copier l’image",
+        "view_reactions": "Voir les réactions"
       },
       "meta": {
         "echo": "Écho",
@@ -235,7 +241,7 @@
       "unpin_prompt": "Voulez-vous vraiment retirer cette épingle du message?",
       "loading": "Chargement des messages épinglés...",
       "empty_title": "Aucun message épinglé",
-      "empty_description": "Les gestionnaires du salon peuvent épingler ici les messages importants.",
+      "empty_description": "Les messages épinglés apparaissent ici.",
       "error_title": "Messages épinglés indisponibles",
       "error_description": "Impossible de charger les messages épinglés. Réessayez dans un instant.",
       "update_failed": "Impossible de mettre à jour le message épinglé"
@@ -255,6 +261,81 @@
     "jump_to_present": "Passer au présent",
     "jump_failed": "Impossible d'accéder à ce message.",
     "unread_separator": "Nouveaux messages",
-    "close_extras": "Fermer les extras de la salle"
+    "close_extras": "Fermer les extras de la salle",
+    "dm": {
+      "deleted_user_notice": "L’autre utilisateur a été supprimé."
+    },
+    "management": {
+      "room_name_too_long": "Le nom de la salle ne peut pas dépasser 30 caractères",
+      "room_name_invalid": "Le nom de la salle ne peut pas contenir de sauts de ligne ni de caractères de contrôle",
+      "create_room": "Créer une salle",
+      "reorder_groups_failed": "Échec de la réorganisation des groupes : {error}",
+      "room_created": "Le salon a été créé",
+      "link_updated": "Lien mis à jour",
+      "link_created": "Lien créé",
+      "save_link_failed": "Échec de l'enregistrement du lien : {error}",
+      "group_deleted": "Le groupe a été supprimé",
+      "delete_group_failed": "Échec de la suppression du groupe : {error}",
+      "link_deleted": "Lien supprimé",
+      "delete_link_failed": "Échec de la suppression du lien : {error}",
+      "room_archived": "Salle archivée",
+      "archive_room_failed": "Échec de l'archivage de la salle : {error}",
+      "drag_room": "Faites glisser pour réorganiser le salon",
+      "drag_link": "Faites glisser pour réorganiser le lien",
+      "drag_group": "Faites glisser pour réorganiser le groupe",
+      "new_room": "Créer une salle",
+      "new_link": "Créer un lien",
+      "delete_group": "Supprimer le groupe",
+      "edit_link": "Modifier le lien",
+      "delete_link": "Supprimer le lien",
+      "create_link": "Créer un lien",
+      "label": "Étiquette",
+      "url": "URL",
+      "link_url_placeholder": "https://docs.example.com ou /docs",
+      "delete_group_prompt": "Êtes-vous certain de vouloir supprimer l'ensemble {name} ?",
+      "delete_link_prompt": "Êtes-vous certain de vouloir supprimer {label} ?",
+      "archive_room": "Archiver la salle",
+      "archive_room_prompt": "Êtes-vous certain de vouloir archiver #{room} ? Les membres ne pourront plus accéder à cette salle.",
+      "group_created": "Groupe créé",
+      "create_group_failed": "Échec de la création du groupe : {error}",
+      "group_name": "Nom du groupe",
+      "group_name_placeholder": "par exemple, Général, Projets, Équipes",
+      "create_group": "Créer un groupe",
+      "new_group": "Nouveau groupe",
+      "threading_mode_required": "Obligatoire",
+      "threading_mode_encouraged": "Recommandé",
+      "threading_mode_enabled": "Activé",
+      "threading_mode_disabled": "Désactivé"
+    },
+    "moderation": {
+      "removing": "Retrait en cours...",
+      "remove_action": "Retirer du salon",
+      "lift_title": "Lever la suspension de {user}",
+      "lift": "Lever la suspension",
+      "lifting": "Levée en cours...",
+      "no_suspension": "Aucune suspension — retour possible",
+      "indefinite": "Indéfinie",
+      "remove_title": "Retirer {user} du salon",
+      "suspension_period": "Durée de la suspension"
+    },
+    "invitation": {
+      "invite": "Inviter un membre",
+      "invited": "Vous avez reçu une invitation",
+      "sent": "Invitations envoyées",
+      "expires": "Expire le {date}",
+      "unavailable": "Vous ne pouvez pas accepter cette invitation pour le moment. Vous pouvez toujours la refuser.",
+      "accept": "Accepter l’invitation",
+      "decline": "Refuser",
+      "title": "Inviter des membres dans #{room}",
+      "description": "Choisissez les personnes à inviter. Elles recevront une notification et auront sept jours pour accepter ou refuser.",
+      "members": "Membres",
+      "send": "Envoyer les invitations",
+      "failed": "Impossible d’inviter {name} : {error}",
+      "already_member": "Déjà dans ce salon",
+      "invited_by": "Vous avez reçu une invitation de",
+      "decline_title": "Refuser l’invitation ?",
+      "decline_join_later": "Vous pourrez rejoindre ce salon plus tard.",
+      "decline_need_invite": "Vous aurez besoin d’une nouvelle invitation pour rejoindre ce salon."
+    }
   }
 }

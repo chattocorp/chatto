@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",
-          "badge": "Atzīme",
+          "badge": "Nelasīta satura punkts",
           "badge_hint": "Pievieno tikai neitrālu nelasīta satura punktu. Neizveido paziņojumu, neatskaņo skaņu un nesūta pašpiegādes paziņojumu.",
-          "notification": "Paziņojums",
+          "notification": "Paziņojums lietotnē",
           "push_notification": "Pašpiegādes paziņojums"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Ziņojumi, kuros izmantots @here, kad jūsu klātbūtnes statuss nav bezsaistē.",
           "all": "Ziņojumi ar @all telpā, kuras dalībnieks esat.",
           "followed_thread": "Jaunas atbildes pavedienos, kuriem sekojat.",
-          "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem."
+          "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem.",
+          "room_invitation": "Uzaicinājumi pievienoties telpām."
         }
       }
     },

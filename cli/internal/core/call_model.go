@@ -18,13 +18,13 @@ import (
 	"github.com/twitchtv/twirp"
 	"golang.org/x/sync/errgroup"
 
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/lease"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
-	"hmans.de/chatto/pkg/jetstreamutil"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/kms"
+	"github.com/chattocorp/chatto/cli/internal/lease"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 )
 
 const (
@@ -1072,6 +1072,21 @@ func (s *CallModel) reconcileBestEffort(ctx context.Context) error {
 		if s.logger != nil {
 			s.logger.Warn("LiveKit call-state reconciliation failed", "error", err)
 		}
+	}
+	return nil
+}
+
+// cleanupMembershipEndedCallKey performs the immediate cleanup attempt after a
+// committed membership batch. The durable call cleanup worker still owns retry.
+func (s *CallModel) cleanupMembershipEndedCallKey(ctx context.Context, keyRef string) error {
+	if keyRef == "" {
+		return nil
+	}
+	if s == nil || s.callKeys == nil {
+		return fmt.Errorf("call key store is not initialized")
+	}
+	if err := s.cleanupQueuedCallKey(ctx, keyRef); err != nil {
+		return fmt.Errorf("shred ended call key: %w", err)
 	}
 	return nil
 }

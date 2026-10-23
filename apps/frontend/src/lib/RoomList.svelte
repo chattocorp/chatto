@@ -5,6 +5,9 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import Interval from '$lib/lifecycle/Interval.svelte';
+  import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
@@ -14,6 +17,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
+  import { copyRoomLinkToClipboard } from '$lib/copyChatLink';
+  import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { m } from '$lib/i18n/messages';
   import {
     normalizeSidebarLinkURL,
@@ -41,9 +46,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   } from '@chatto/client/timeline/users';
   import { directMessageLabels } from '$lib/render/directMessageLabels';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserMenu from '$lib/components/users/UserMenu.svelte';
+  import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import { notificationTarget } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import {
+    prepareUiForNotificationTarget,
+    navigateNotification
+  } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -54,7 +64,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroupItem
   } from '$lib/state/server/navigation';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms';
-  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
+  import RoomContextMenu from '$lib/components/menus/RoomContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
   import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
@@ -106,7 +116,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const navigation = $derived(serverUi(stores).navigation);
   const roomUnreadStore = $derived(serverUi(stores).roomUnread);
 
-  let activeRoomId = $derived(page.params.roomId);
+  let activeRoomId = $derived(
+    page.params.roomId ?? userConversationRoomId(stores, page.params.userId)
+  );
   let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
   let groupContextMenu = $state<(ContextMenuTriggerDetails & { group: RoomsListGroup }) | null>(
     null
@@ -121,6 +133,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     position: { x: number; y: number; alignRight: boolean };
   } | null>(null);
 
+  const dmUserMenu = new UserMenuState<string>(closeSidebarMenus);
+
+  /** Keep the sidebar's action surfaces mutually exclusive. */
+  function closeSidebarMenus(): void {
+    dmUserMenu.close();
+    roomContextMenu = null;
+    groupContextMenu = null;
+    linkContextMenu = null;
+    creationMenu = null;
+  }
+
   const creationGroup = $derived(
     navigation.roomGroups.find((group) => group.id === creationMenu?.groupId)
   );
@@ -134,9 +157,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.stopPropagation();
     const trigger = event.currentTarget as HTMLButtonElement;
     const rect = trigger.getBoundingClientRect();
-    roomContextMenu = null;
-    groupContextMenu = null;
-    linkContextMenu = null;
+    closeSidebarMenus();
     creationMenu = {
       groupId: group.id,
       trigger,
@@ -177,6 +198,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     };
   };
 
+  let inviteRoom = $state<RoomsListItem | null>(null);
+
   let createRoomDialogVisible = $state(false);
   let createRoomGroupId = $state<string | null>(null);
   let linkDialogVisible = $state(false);
@@ -199,7 +222,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const linkUrlIsValid = $derived(sidebarLinkTarget(linkUrl, activeServerBaseURL).valid);
 
   function roomMenuTrigger(room: RoomsListItem) {
+    if (dmContextUser(room)) return dmUserMenu.trigger(() => room.id);
     return contextMenuTrigger((details) => {
+      closeSidebarMenus();
       roomContextMenu = { ...details, room };
     });
   }
@@ -207,6 +232,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function groupMenuTrigger(group: RoomsListGroup) {
     if (!group.viewerCanManageGroup && !group.viewerCanCreateRoom) return undefined;
     return contextMenuTrigger((details) => {
+      closeSidebarMenus();
       groupContextMenu = { ...details, group };
     });
   }
@@ -262,7 +288,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch (error) {
       optimisticGroupSections = null;
       toast.error(
-        m('admin.rooms_admin.reorder_groups_failed', {
+        m('room.management.reorder_groups_failed', {
           error: errorMessage(error)
         })
       );
@@ -346,6 +372,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function linkMenuTrigger(group: RoomsListGroup, item: RoomsListGroupItem) {
     if (!group.viewerCanManageGroup || item.type !== 'link') return undefined;
     return contextMenuTrigger((details) => {
+      closeSidebarMenus();
       linkContextMenu = { ...details, group, item };
     });
   }
@@ -370,7 +397,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function handleRoomCreated(roomId: string): void {
     createRoomDialogVisible = false;
     createRoomGroupId = null;
-    toast.success(m('admin.rooms_admin.room_created'));
+    toast.success(m('room.management.room_created'));
     void goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
@@ -402,15 +429,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     try {
       if (editingLinkId) {
         await roomLayoutAPI.updateSidebarLink({ linkId: editingLinkId, label, url });
-        toast.success(m('admin.rooms_admin.link_updated'));
+        toast.success(m('room.management.link_updated'));
       } else if (linkGroupId) {
         await roomLayoutAPI.createSidebarLink({ groupId: linkGroupId, label, url });
-        toast.success(m('admin.rooms_admin.link_created'));
+        toast.success(m('room.management.link_created'));
       }
       linkDialogVisible = false;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.save_link_failed', {
+        m('room.management.save_link_failed', {
           error: errorMessage(error)
         })
       );
@@ -432,12 +459,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!deleteGroupTarget) return;
     try {
       await roomLayoutAPI.deleteRoomGroup(deleteGroupTarget.id);
-      toast.success(m('admin.rooms_admin.group_deleted'));
+      toast.success(m('room.management.group_deleted'));
       deleteGroupDialogVisible = false;
       deleteGroupTarget = null;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.delete_group_failed', {
+        m('room.management.delete_group_failed', {
           error: errorMessage(error)
         })
       );
@@ -455,12 +482,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!deleteLinkTarget || deleteLinkTarget.type !== 'link') return;
     try {
       await roomLayoutAPI.deleteSidebarLink(deleteLinkTarget.link.id);
-      toast.success(m('admin.rooms_admin.link_deleted'));
+      toast.success(m('room.management.link_deleted'));
       deleteLinkDialogVisible = false;
       deleteLinkTarget = null;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.delete_link_failed', {
+        m('room.management.delete_link_failed', {
           error: errorMessage(error)
         })
       );
@@ -477,12 +504,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!archiveRoomTarget) return;
     try {
       await roomCommandAPI.archiveRoom(archiveRoomTarget.id);
-      toast.success(m('admin.rooms_admin.room_archived'));
+      toast.success(m('room.management.room_archived'));
       archiveRoomDialogVisible = false;
       archiveRoomTarget = null;
     } catch (error) {
       toast.error(
-        m('admin.rooms_admin.archive_room_failed', {
+        m('room.management.archive_room_failed', {
           error: errorMessage(error)
         })
       );
@@ -502,6 +529,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } catch {
       toast.error(m('common.error.generic'));
     }
+  }
+
+  function handleCopyRoomLink(roomId: string): void {
+    roomContextMenu = null;
+    void copyRoomLinkToClipboard(activeServerId, roomId);
   }
 
   function handleLeaveRoom(room: RoomsListItem): void {
@@ -528,6 +560,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function handleJoinRoom(room: RoomsListItem): Promise<void> {
     roomContextMenu = null;
+    if (room.viewerInvitation) {
+      await goto(conversationPath(activeServerId, room.id, { store: stores }));
+      return;
+    }
     const result = await serverUi(stores).roomDirectory.joinRoom(room.id);
     if (!serverScope.isCurrent()) return;
     if (result.ok) {
@@ -549,8 +585,44 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     navigation.rooms.filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
   );
 
+  // This display preference belongs to the mounted sidebar, not the room directory.
+  let showOlderDMs = $state(false);
+  let activityNow = $state(Date.now());
+  const defaultDMs = $derived.by(() => {
+    const visible = dmRooms.filter((room) => {
+      if (isHighlighted(room) || !room.lastMessageAt) return true;
+      const lastMessageAt = Date.parse(room.lastMessageAt);
+      // Unknown metadata must not hide a conversation on an older server.
+      return !Number.isFinite(lastMessageAt) || lastMessageAt >= activityNow - 7 * 86400000;
+    });
+    if (visible.length >= 3) return visible;
+
+    // Fill the minimum with the newest older conversations, then keep navigation order.
+    const older = dmRooms
+      .filter((room) => !visible.includes(room))
+      .sort((a, b) => Date.parse(b.lastMessageAt!) - Date.parse(a.lastMessageAt!));
+    visible.push(...older.slice(0, 3 - visible.length));
+    return dmRooms.filter((room) => visible.includes(room));
+  });
+  const olderDMCount = $derived(dmRooms.length - defaultDMs.length);
+  const timeSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
+
+  /** Compact elapsed posting time for sidebar metadata; unknown times stay absent. */
+  function dmActivityAge(timestamp: string | null | undefined): string | null {
+    if (!timestamp) return null;
+    const milliseconds = Date.parse(timestamp);
+    if (!Number.isFinite(milliseconds)) return null;
+    const minutes = Math.floor(Math.max(0, activityNow - milliseconds) / 60000);
+    if (minutes === 0) return m('room_list.activity_now');
+    if (minutes < 60) return `${minutes}min`;
+    if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
+    return `${Math.floor(minutes / 1440)}d`;
+  }
+
   let roomMap = $derived(new Map(navigation.rooms.map((r) => [r.id, r])));
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
+  const dmMenuRoom = $derived(roomMap.get(dmUserMenu.target ?? ''));
+  const dmMenuUser = $derived(dmMenuRoom ? dmContextUser(dmMenuRoom) : null);
 
   type NavigationSection = {
     id: string;
@@ -572,6 +644,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       !!room &&
       room.type !== RoomKind.DM &&
       room.viewerIsMember === false &&
+      !room.viewerInvitation &&
       room.id !== activeRoomId
     );
   }
@@ -654,7 +727,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       sections.push({
         id: 'direct-messages',
         label: m('room_list.direct_messages'),
-        items: roomItems(dmRooms),
+        items: roomItems(showOlderDMs ? dmRooms : defaultDMs),
         persistKey: serverStorageKey(activeServerId, 'collapsible:dms'),
         keepVisibleWhenCollapsed: isGroupItemHighlighted
       });
@@ -719,6 +792,28 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     );
   }
 
+  /**
+   * Resolve a one-to-one or self-DM from complete participant IDs. A missing
+   * profile must not turn a group DM or a two-person DM into a self-DM.
+   */
+  function dmContextUser(room: RoomsListItem): UserAvatarUserView | null {
+    if (room.type !== RoomKind.DM) return null;
+    const viewerId = stores.projectionViewerId;
+    const participantIds = stores.projection.rooms.get(room.id)?.memberUserIds;
+    if (!viewerId || !participantIds?.includes(viewerId)) return null;
+    const otherIds = participantIds.filter((id) => id !== viewerId);
+    if (otherIds.length > 1) return null;
+    const targetId = otherIds[0] ?? viewerId;
+    const user = room.members.find((member) => member.id === targetId);
+    if (!user) return null;
+    return user.deleted ? { ...user, displayName: directMessageLabels().deletedUser } : user;
+  }
+
+  function openSelectedDM(): void {
+    if (!dmMenuRoom) return;
+    void goto(conversationPath(activeServerId, dmMenuRoom.id, { store: stores }));
+  }
+
   function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {
     return {
       id: participant.userId,
@@ -735,6 +830,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function isHighlighted(room: RoomsListItem): boolean {
     return (
       room.id === activeRoomId ||
+      !!room.viewerInvitation ||
       activeCallRooms.has(room.id) ||
       roomUnreadStore.roomIsUnread(room.id) ||
       room.viewerNotificationCount > 0
@@ -754,7 +850,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function openRoomCallPanel(roomId: string): Promise<void> {
     appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
-    await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
+    await goto(conversationPath(activeServerId, roomId, { store: stores }));
   }
 
   function handleRoomLinkClick(event: MouseEvent, room: RoomsListItem): void {
@@ -815,7 +911,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     const path = notificationPath(activeServerId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- notificationPath returns a resolved app path.
-    await goto(path);
+    await navigateNotification(stores, notification, () => goto(path));
   }
 </script>
 
@@ -911,17 +1007,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const hasUnread = roomUnreadStore.roomIsUnread(room.id)}
   {@const isJoined = room.viewerIsMember}
-  {@const showUnread = hasUnread && (isDM || isJoined)}
+  {@const showUnread = hasUnread && (isDM || isJoined || !!room.viewerInvitation)}
   {@const showActiveCall = hasActiveCall && (isDM || isJoined)}
   {@const presentation = isDM ? dmPresentation(room) : null}
   {@const owningGroup = groupByRoomId.get(room.id)}
   {@const showDragHandle = sidebarDragEnabled && owningGroup?.viewerCanManageGroup}
   <a
-    href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
+    href={conversationPath(activeServerId, room.id, { store: stores })}
     class={[
       'group/room group/badges @container sidebar-item',
       showUnread && !isCurrentRoom ? 'sidebar-item-attention' : '',
-      !isDM && isJoined === false ? 'opacity-60 hover:opacity-85' : ''
+      !isDM && isJoined === false && !room.viewerInvitation ? 'opacity-60 hover:opacity-85' : ''
     ]}
     aria-current={isCurrentRoom ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
@@ -943,7 +1039,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         /></span
       >
     {:else}
-      <span class="relative flex shrink-0">
+      <span class="relative flex size-5 shrink-0 items-center justify-center">
         {#if isJoined}
           {#if room.isUniversal}
             <span
@@ -965,6 +1061,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               ]}>#</span
             >
           {/if}
+        {:else if room.viewerInvitation}
+          <span
+            class="iconify sidebar-icon icon-[uil--envelope-alt] text-action"
+            role="img"
+            aria-label={m('room.invitation.invited')}
+            title={m('room.invitation.invited')}
+          ></span>
         {:else if room.viewerCanJoinRoom}
           <span
             class={[
@@ -987,7 +1090,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <button
             type="button"
             class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/room:pointer-events-auto group-focus-within/room:opacity-100 group-hover/room:pointer-events-auto group-hover/room:opacity-100 active:cursor-grabbing"
-            aria-label={m('admin.rooms_admin.drag_room')}
+            aria-label={m('room.management.drag_room')}
             onclick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1010,7 +1113,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {@render activeCallIcon()}
         {/if}
 
-        {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
+        {#if (isDM || isJoined || room.viewerInvitation) && room.viewerNotificationCount > 0}
           {@const importantCount = room.viewerImportantNotificationCount}
           {@const otherCount = Math.max(0, room.viewerNotificationCount - importantCount)}
           <!-- The Important count stays at the row edge, where a single badge sits. -->
@@ -1032,9 +1135,24 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
               )}
             {/if}
           </div>
-        {:else if showUnread}
-          <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
-          <span class="sr-only">{m('room_list.unread_messages')}</span>
+        {:else}
+          {#if showUnread}
+            <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
+            <span class="sr-only">{m('room_list.unread_messages')}</span>
+          {/if}
+          {@const activityAge = isDM ? dmActivityAge(room.lastMessageAt) : null}
+          {#if activityAge && room.lastMessageAt}
+            <time
+              datetime={room.lastMessageAt}
+              title={formatDateTime(room.lastMessageAt, timeSettings)}
+              dir="ltr"
+              class={[
+                'relative top-px me-0.5 hidden shrink-0 text-xs tabular-nums group-focus-within/room:text-muted group-hover/room:text-muted @min-[240px]:inline',
+                isCurrentRoom ? 'text-muted' : 'text-muted/70'
+              ]}
+              data-testid="dm-activity-age">{activityAge}</time
+            >
+          {/if}
         {/if}
       </div>
     </div>
@@ -1061,9 +1179,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@attach owningGroup ? linkMenuTrigger(owningGroup, item) : undefined}
       onclick={(event) => {
         if (!target.valid) event.preventDefault();
+        else handleRenderedLinkClick(event, target.href);
+      }}
+      onauxclick={(event) => {
+        if (!target.valid) event.preventDefault();
+        else handleRenderedLinkClick(event, target.href);
       }}
     >
-      <span class="relative flex shrink-0" data-testid="sidebar-link-leading-icon">
+      <span
+        class="relative flex size-5 shrink-0 items-center justify-center"
+        data-testid="sidebar-link-leading-icon"
+      >
         <span
           aria-hidden="true"
           class={[
@@ -1075,7 +1201,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <button
             type="button"
             class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 active:cursor-grabbing"
-            aria-label={m('admin.rooms_admin.drag_link')}
+            aria-label={m('room.management.drag_link')}
             onclick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1125,11 +1251,30 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
+{#snippet olderConversations()}
+  {#if olderDMCount > 0 || showOlderDMs}
+    {@const label = showOlderDMs
+      ? m('room_list.show_fewer_conversations')
+      : m('room_list.show_older_conversations', { count: olderDMCount })}
+    <button
+      type="button"
+      class="sidebar-item w-full cursor-pointer text-start"
+      aria-expanded={showOlderDMs}
+      data-testid="older-conversations"
+      title={label}
+      onclick={() => (showOlderDMs = !showOlderDMs)}
+    >
+      <span class="sidebar-icon" aria-hidden="true">{showOlderDMs ? '−' : '+'}</span>
+      <span class="min-w-0 flex-1 truncate">{label}</span>
+    </button>
+  {/if}
+{/snippet}
+
 {#snippet groupLeadingOverlay()}
   <button
     type="button"
     class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing"
-    aria-label={m('admin.rooms_admin.drag_group')}
+    aria-label={m('room.management.drag_group')}
     onclick={(event) => event.stopPropagation()}
     onpointerdown={(event) => event.stopPropagation()}
     data-sidebar-swipe-ignore
@@ -1163,16 +1308,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <MenuSection>
     {#if group.viewerCanCreateRoom}
       <MenuItem icon="icon-[uil--plus]" onclick={() => openCreateRoom(group)}>
-        {m('admin.rooms_admin.new_room')}
+        {m('room.management.new_room')}
       </MenuItem>
     {/if}
     {#if group.viewerCanManageGroup}
       <MenuItem icon="icon-[uil--external-link-alt]" onclick={() => openCreateLink(group)}>
-        {m('admin.rooms_admin.new_link')}
+        {m('room.management.new_link')}
       </MenuItem>
     {/if}
   </MenuSection>
 {/snippet}
+
+<Interval milliseconds={60000} ontick={() => (activityNow = Date.now())} />
 
 {#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !navigation.isInitialLoading}
   <EmptyState icon="icon-[uil--comments]" title={m('room_list.empty_title')}>
@@ -1222,7 +1369,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {/if}
     {#each unmanagedSections as section, i (section.id)}
       {#snippet footer()}
-        {@render moreRooms(section)}
+        {#if section.id === 'direct-messages'}
+          {@render olderConversations()}
+        {:else}
+          {@render moreRooms(section)}
+        {/if}
       {/snippet}
       <RoomGroupSection
         label={section.label}
@@ -1236,6 +1387,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {/each}
   </nav>
 {/if}
+
+<UserMenu
+  state={dmUserMenu}
+  user={dmMenuUser}
+  viewerSettings={stores.currentUser.user?.settings}
+  canSendMessage={stores.permissions.canStartDMs && !!dmMenuUser && !dmMenuUser.deleted}
+  onSendMessage={openSelectedDM}
+/>
 
 {#if canShowCreationMenu && creationMenu && creationGroup}
   <ContextMenu
@@ -1264,7 +1423,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {#if contextGroup.viewerCanManageGroup}
       <MenuSection>
         <MenuItem icon="icon-[uil--setting]" onclick={() => handleConfigureGroup(contextGroup)}>
-          {m('settings.nav.title')}
+          {m('room_list.open_group_settings')}
         </MenuItem>
       </MenuSection>
       <MenuSection>
@@ -1274,7 +1433,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           disabled={!groupIsEmpty(contextGroup)}
           onclick={() => confirmDeleteGroup(contextGroup)}
         >
-          {m('admin.rooms_admin.delete_group')}
+          {m('room.management.delete_group')}
         </MenuItem>
       </MenuSection>
     {/if}
@@ -1289,10 +1448,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ariaLabel={m('room_list.room_actions', { room: contextRoom.name })}
     onclose={() => (roomContextMenu = null)}
   >
-    <NavigationContextMenu
-      kind="room"
+    <RoomContextMenu
       isRoomMember={contextRoom.viewerIsMember === true}
-      canJoin={contextRoom.viewerCanJoinRoom}
+      canJoin={contextRoom.viewerCanJoinRoom || !!contextRoom.viewerInvitation}
+      joinLabel={contextRoom.viewerInvitation
+        ? m('room.invitation.invited')
+        : m('room.join.action')}
+      canInvite={contextRoom.viewerCanInvite}
+      onInvite={() => {
+        inviteRoom = contextRoom;
+        roomContextMenu = null;
+      }}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
       canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomKind.DM}
@@ -1301,23 +1467,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
       onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
+      onCopyLink={() => handleCopyRoomLink(contextRoom.id)}
+      onCopyId={() => void handleCopyRoomId(contextRoom.id)}
+      onArchive={() => confirmArchiveRoom(contextRoom)}
     />
-    {#if contextRoom.viewerCanManageRoom && contextRoom.type !== RoomKind.DM}
-      <MenuSection>
-        <MenuItem icon="icon-[uil--archive]" onclick={() => confirmArchiveRoom(contextRoom)}>
-          {m('admin.rooms_admin.archive_room')}
-        </MenuItem>
-      </MenuSection>
-    {/if}
-    <MenuSection>
-      <MenuItem
-        icon="icon-[uil--copy]"
-        onclick={() => void handleCopyRoomId(contextRoom.id)}
-        dataTestid="copy-room-id"
-      >
-        {m('room_list.copy_room_id')}
-      </MenuItem>
-    </MenuSection>
   </ContextMenu>
 {/if}
 
@@ -1326,12 +1479,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <ContextMenu
     position={linkContextMenu.position}
     presentation={linkContextMenu.presentation}
-    ariaLabel={m('admin.rooms_admin.edit_link')}
+    ariaLabel={m('room.management.edit_link')}
     onclose={() => (linkContextMenu = null)}
   >
     <MenuSection>
       <MenuItem icon="icon-[uil--pen]" onclick={() => openEditLink(contextLink)}>
-        {m('admin.rooms_admin.edit_link')}
+        {m('room.management.edit_link')}
       </MenuItem>
     </MenuSection>
     <MenuSection>
@@ -1340,7 +1493,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         tone="danger"
         onclick={() => confirmDeleteLink(contextLink)}
       >
-        {m('admin.rooms_admin.delete_link')}
+        {m('room.management.delete_link')}
       </MenuItem>
     </MenuSection>
   </ContextMenu>
@@ -1361,9 +1514,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {#await Promise.all( [import('$lib/ui').then( ({ FormDialog }) => ({ default: FormDialog }) ), import('$lib/ui/form').then( ({ TextInput }) => ({ default: TextInput }) )] ) then [FormDialogModule, TextInputModule]}
     <FormDialogModule.default
       bind:visible={linkDialogVisible}
-      title={editingLinkId ? m('admin.rooms_admin.edit_link') : m('admin.rooms_admin.create_link')}
+      title={editingLinkId ? m('room.management.edit_link') : m('room.management.create_link')}
       size="sm"
-      submitLabel={editingLinkId ? m('rbac.role_form.save') : m('admin.rooms_admin.create_link')}
+      submitLabel={editingLinkId ? m('common.save') : m('room.management.create_link')}
       submitIcon={editingLinkId ? undefined : 'iconify icon-[uil--plus]'}
       disabled={!linkLabel.trim() || !linkUrlIsValid}
       onsubmit={saveLink}
@@ -1371,14 +1524,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     >
       <TextInputModule.default
         id="sidebar-link-label"
-        label={m('admin.rooms_admin.label')}
+        label={m('room.management.label')}
         bind:value={linkLabel}
       />
       <TextInputModule.default
         id="sidebar-link-url"
-        label={m('admin.rooms_admin.url')}
+        label={m('room.management.url')}
         bind:value={linkUrl}
-        placeholder={m('admin.rooms_admin.link_url_placeholder')}
+        placeholder={m('room.management.link_url_placeholder')}
       />
     </FormDialogModule.default>
   {/await}
@@ -1387,8 +1540,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#if deleteGroupDialogVisible && deleteGroupTarget}
   {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
-      title={m('admin.rooms_admin.delete_group')}
-      actionLabel={m('admin.rooms_admin.delete_group')}
+      title={m('room.management.delete_group')}
+      actionLabel={m('room.management.delete_group')}
       actionIcon="iconify icon-[uil--trash-alt]"
       tone="danger"
       onconfirm={deleteGroup}
@@ -1397,7 +1550,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         deleteGroupTarget = null;
       }}
     >
-      {m('admin.rooms_admin.delete_group_prompt', { name: deleteGroupTarget.name })}
+      {m('room.management.delete_group_prompt', { name: deleteGroupTarget.name })}
     </ConfirmDialogModule.default>
   {/await}
 {/if}
@@ -1405,8 +1558,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#if deleteLinkDialogVisible && deleteLinkTarget?.type === 'link'}
   {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
-      title={m('admin.rooms_admin.delete_link')}
-      actionLabel={m('admin.rooms_admin.delete_link')}
+      title={m('room.management.delete_link')}
+      actionLabel={m('room.management.delete_link')}
       actionIcon="iconify icon-[uil--trash-alt]"
       tone="danger"
       onconfirm={deleteLink}
@@ -1415,7 +1568,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         deleteLinkTarget = null;
       }}
     >
-      {m('admin.rooms_admin.delete_link_prompt', { label: deleteLinkTarget.link.label })}
+      {m('room.management.delete_link_prompt', { label: deleteLinkTarget.link.label })}
     </ConfirmDialogModule.default>
   {/await}
 {/if}
@@ -1423,8 +1576,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#if archiveRoomDialogVisible && archiveRoomTarget}
   {#await import('$lib/ui').then( ({ ConfirmDialog }) => ({ default: ConfirmDialog }) ) then ConfirmDialogModule}
     <ConfirmDialogModule.default
-      title={m('admin.rooms_admin.archive_room')}
-      actionLabel={m('admin.rooms_admin.archive_room')}
+      title={m('room.management.archive_room')}
+      actionLabel={m('room.management.archive_room')}
       actionIcon="iconify icon-[uil--archive]"
       tone="warning"
       onconfirm={archiveRoom}
@@ -1433,7 +1586,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         archiveRoomTarget = null;
       }}
     >
-      {m('admin.rooms_admin.archive_room_prompt', { room: archiveRoomTarget.name })}
+      {m('room.management.archive_room_prompt', { room: archiveRoomTarget.name })}
     </ConfirmDialogModule.default>
+  {/await}
+{/if}
+
+{#if inviteRoom}
+  {#await import('$lib/components/chat/InviteRoomMemberDialog.svelte') then module}
+    <module.default room={inviteRoom} onclose={() => (inviteRoom = null)} />
   {/await}
 {/if}

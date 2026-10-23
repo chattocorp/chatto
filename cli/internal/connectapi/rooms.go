@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type roomService struct {
@@ -65,13 +65,14 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		threadingMode = &value
 	}
 	room, err := s.api.core.RoomCommands().UpdateRoom(ctx, core.RoomUpdateInput{
-		ActorID:         caller.UserID,
-		RoomID:          req.Msg.RoomId,
-		Name:            req.Msg.Name,
-		Description:     req.Msg.Description,
-		Universal:       req.Msg.Universal,
-		SlowModeSeconds: req.Msg.SlowModeSeconds,
-		ThreadingMode:   threadingMode,
+		ActorID:               caller.UserID,
+		RoomID:                req.Msg.RoomId,
+		Name:                  req.Msg.Name,
+		Description:           req.Msg.Description,
+		Universal:             req.Msg.Universal,
+		SlowModeSeconds:       req.Msg.SlowModeSeconds,
+		ThreadSlowModeSeconds: req.Msg.ThreadSlowModeSeconds,
+		ThreadingMode:         threadingMode,
 	})
 	if err != nil {
 		return nil, err
@@ -133,7 +134,7 @@ func (s *roomService) JoinRoomGroup(ctx context.Context, req *connect.Request[ap
 		return nil, err
 	}
 
-	joined, err := s.api.core.RoomDirectoryReads().JoinGroup(ctx, caller.UserID, req.Msg.GetGroupId())
+	joined, err := s.api.core.RoomCommands().JoinGroup(ctx, caller.UserID, req.Msg.GetGroupId())
 	if err != nil {
 		return nil, err
 	}
@@ -377,15 +378,16 @@ func apiRoom(room *evtv1.Room) *apiv1.Room {
 		return nil
 	}
 	return &apiv1.Room{
-		Id:              room.Id,
-		Kind:            apiRoomKind(room.Kind),
-		Name:            room.Name,
-		Description:     room.Description,
-		Archived:        room.Archived,
-		GroupId:         room.GroupId,
-		Universal:       room.Universal,
-		SlowModeSeconds: room.SlowModeSeconds,
-		ThreadingMode:   apiRoomThreadingMode(room),
+		Id:                    room.Id,
+		Kind:                  apiRoomKind(room.Kind),
+		Name:                  room.Name,
+		Description:           room.Description,
+		Archived:              room.Archived,
+		GroupId:               room.GroupId,
+		Universal:             room.Universal,
+		SlowModeSeconds:       room.SlowModeSeconds,
+		ThreadSlowModeSeconds: new(core.EffectiveThreadSlowModeSeconds(room)),
+		ThreadingMode:         apiRoomThreadingMode(room),
 	}
 }
 

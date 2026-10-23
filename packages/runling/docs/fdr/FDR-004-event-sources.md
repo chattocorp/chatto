@@ -1,7 +1,7 @@
 # FDR-004: Event source lifecycle
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-22
+**Last reviewed:** 2026-10-14
 
 ## Overview
 
@@ -22,13 +22,17 @@ a webhook endpoint. Webhooks and sources can coexist or be configured separately
 - Retained state survives a valid reload for unchanged names. Removing or renaming
   a source starts a separate state lifetime. The adapter must scope state to its
   connection identity and handle changes to its retained data format.
-- Reload does not replace active workflows with new code. Adapters that retain
-  active conversation handlers must account for their original code remaining live.
+- A router can keep the run handles of the runs that it starts, for example in
+  the retained state. It can later send messages to a run, close its input, or
+  cancel it.
+- Reload does not replace active workflows with new code. Adapters that keep
+  run handles must account for their original code remaining live.
 - An unhandled source failure produces a safe log entry and leaves that source
   stopped until reload. The source owns transport retries.
 - Shutdown stops sources and awaits pending dispatches before interrupting active
   runs and flushing journals. Explicit user cancellation remains cancelled.
-  Cleanup is cooperative. Runs cannot continue after a process restart.
+  Cleanup is cooperative. Registered roots can re-enter after a process restart
+  with snapshot state. Sources can use `ctx.runs()` to rebuild their routing.
 - Run records identify source origin and name. Older journals remain readable;
   run history does not restore source state or active execution.
 
@@ -52,6 +56,9 @@ must reset incompatible credentials, identity, or routing state itself.
 
 - [ADR-001: Process-local workflows](../adr/ADR-001-process-local-workflows.md)
 - [ADR-004: Event sources](../adr/ADR-004-event-sources.md)
+- [ADR-009: Typed task invocations](../adr/ADR-009-task-invocations.md)
+- [ADR-010: Periodic workflow state snapshots](../adr/ADR-010-workflow-state-snapshots.md)
+- [FDR-010: Messages between hosts, tasks, and runs](FDR-010-host-messages.md)
 - [Event source guide](../event-sources.md) and [webhook routing](../webhook-routing.md)
 
 ## Open Questions

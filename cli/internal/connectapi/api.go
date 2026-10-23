@@ -7,15 +7,15 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
-	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
-	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
-	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
-	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1/adminv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1/operatorv1connect"
+	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.
@@ -164,12 +164,14 @@ func (a *API) Handlers() []Handler {
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
 	adminRolePath, adminRoleHandler := adminv1connect.NewAdminRoleServiceHandler(&roleService{api: a}, options...)
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(&publicRoleService{api: a}, options...)
+	roomInvitationPath, roomInvitationHandler := apiv1connect.NewRoomInvitationServiceHandler(&roomInvitationService{api: a}, options...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(&roomService{api: a}, options...)
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
 	adminRoomLayoutPath, adminRoomLayoutHandler := adminv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	handlers := []Handler{
+		{ServicePath: roomInvitationPath, Handler: roomInvitationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: setupPath, Handler: setupHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: botPath, Handler: botHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

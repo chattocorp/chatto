@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "descriptions": {
+      "server_manage": "Atualizar configurações do servidor (nome, descrição, logotipo)",
+      "server_manage_neighbors": "Gerenciar o diretório público de vizinhos",
+      "room_create": "Criar novas salas",
+      "room_join": "Junte-se a salas existentes",
+      "room_list": "Ver salas no diretório. Um usuário pode ter permissão para ver uma sala (por exemplo, para solicitar acesso) sem ter permissão para ingressar nela.",
+      "room_manage": "Edite as configurações e permissões de uma sala e exclua salas",
+      "room_remove_member": "Remover membros das salas e suspender o retorno, se necessário",
+      "message_read": "Ler todas as mensagens nas salas. Remover esta permissão ainda permite acesso limitado se message.read-interactions for concedida separadamente.",
+      "message_read_interactions": "Ler tópicos completos que você criou ou nos quais outro usuário mencionou você diretamente",
+      "message_post": "Publicar mensagens e respostas em tópicos e iniciar mensagens diretas",
+      "message_post_interactions": "Responder em tópicos que você iniciou, onde foi mencionado diretamente ou recebeu uma mensagem direta",
+      "message_post_in_thread": "Postar respostas dentro de um tópico",
+      "message_attach": "Anexar arquivos às mensagens",
+      "message_echo": "Ao postar em um tópico, exiba também a mensagem no canal principal",
+      "message_pin": "Fixar e desafixar mensagens",
+      "message_manage": "Edite e exclua mensagens de outros usuários",
+      "message_react": "Adicionar e remover reações nas mensagens",
+      "role_manage": "Criar, editar, excluir e reordenar funções e suas concessões de permissão",
+      "role_assign": "Atribuir e revogar funções para usuários",
+      "admin_view_users": "Visualize a página de usuários no admin",
+      "admin_view_system": "Ver diagnóstico de projeção no admin",
+      "admin_view_audit": "Visualize o log de auditoria no admin",
+      "user_delete_any": "Excluir conta de outro usuário",
+      "user_delete_self": "Exclua sua própria conta",
+      "user_invite": "Crie e gerencie links de convite",
+      "user_manage_accounts": "Crie usuários, edite a identidade da conta, redefina senhas, anexe e-mails verificados e limpe os tempos de espera de login",
+      "user_manage_permissions": "Editar substituições de permissão direta por usuário",
+      "bot_create": "Criar contas de bot que pertencem a você",
+      "bot_manage": "Ver e gerenciar todas as contas de bot",
+      "call_start": "Iniciar uma chamada (também requer call.join)",
+      "call_join": "Entrar em uma chamada em andamento",
+      "call_voice": "Usar o microfone nas chamadas",
+      "call_camera": "Usar a câmera nas chamadas",
+      "call_screenshare": "Compartilhar uma tela ou aplicativo, incluindo o áudio capturado",
+      "room_invite": "Convidar membros do servidor para salas das quais você participa"
+    }
+  }
+}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"hmans.de/chatto/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
 
 var ErrAuthenticationRevoked = errors.New("authentication revoked")
