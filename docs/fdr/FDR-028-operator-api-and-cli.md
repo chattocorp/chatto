@@ -1,7 +1,7 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-23
 
 ## Overview
 
@@ -40,6 +40,8 @@ The Operator API gives server operators local, root-equivalent user administrati
 - `chatto operator room member add` adds an existing user as an explicit member of a channel room. An existing membership succeeds without another join fact. Missing resources, DM rooms, archived rooms, universal rooms, and active suspensions prevent the add.
 - `chatto operator asset upload` reads a local file, uploads it in bounded chunks, and returns a room-scoped asset ID owned by the mapped author. It uses normal attachment size, processing, storage, and pending-asset cleanup. The upload fact records the system actor. The CLI does not fetch source URLs.
 - `chatto operator message import` creates one encrypted historical message in an active channel. The event records the system actor and the mapped author separately. It preserves source creation and optional edit times, a same-room reply reference, attachment IDs, and an exported preview. It does not fetch preview URLs or infer thread membership from a reply.
+- `--create-thread` establishes an empty thread on the imported root. `--thread-id` takes the root message ID, places a reply in its thread, and establishes the thread if necessary. These options are mutually exclusive. A root must be a message in the same room, not a reply or channel echo. Imports preserve source placement independently of the room's interactive threading mode. They do not create channel echoes.
+- `chatto operator message import-reaction` records an existing user as the reactor on a channel message or thread reply. Channel echoes resolve to their original reply. Repeating the same user/message/emoji succeeds without another reaction fact, including concurrent requests. The import bypasses membership and interactive reaction-count limits, but requires an active channel, existing user, valid message, and supported emoji. It does not notify users or send live reaction frames. The event time is the import time; the command does not invent a source reaction time.
 - Historical message facts do not create notifications, unread activity, thread follows, webhook deliveries, or live message-post frames. Projections retain this rule during replay. The command returns a new message ID on each success. Import scripts own source mappings and retry decisions.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
@@ -128,7 +130,7 @@ fixture remains separate so its workload stays comparable.
 
 ### 11. Historical message import
 
-**Decision:** Historical imports use normal message encryption and attachment storage. Each message keeps the mapped author and records the import as a system action. A source reply stays a reply reference in the channel timeline, even when the target belongs to a Chatto thread. Imports do not cause new message activity, including after a server restart.
+**Decision:** Historical imports use normal message encryption and attachment storage. Each message keeps the mapped author and records the import as a system action. A reply reference alone stays in the channel timeline. Explicit thread placement creates a real thread reply; explicit thread creation can establish an empty thread. Neither follows the thread or creates new message activity, including after a server restart.
 **Why:** Scripts need source-time messages that ordinary readers can use without causing new attention or read activity.
 **Tradeoff:** A repeated import creates another message. The import script must save returned IDs and decide whether an uncertain request needs a retry. Message order in a channel follows import order; scripts should send messages in source order. All server replicas must run a version that understands the historical marker before import starts.
 
@@ -143,6 +145,12 @@ or enabling password login across the server.
 **Tradeoff:** The operator verifies the provider subject. Namespace availability
 comes from this replica's configuration, not a provider health check. A bulk
 issuer migration still needs explicit subject mappings and a separate design.
+
+### 13. Historical reaction membership
+
+**Decision:** Reaction imports record the mapped reactor separately from the system actor. They preserve membership without requiring a source timestamp and bypass the interactive reaction-count limit. Repeating an existing reaction is a no-op. Ordinary reaction removal still works for the mapped user.
+**Why:** Exports such as Slack's can list reactors without reaction times. Imported history must not create new attention or lose existing reactions because current posting limits differ.
+**Tradeoff:** Reaction ordering uses import time. All replicas must understand historical reaction attribution and suppression before import starts. Earlier binaries must not serve imported reaction state; they would attribute it to the system actor.
 
 ## Permissions
 

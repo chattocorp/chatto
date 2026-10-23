@@ -347,7 +347,7 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 | `chatto.operator.v1` | `OperatorUserService`    | Root-equivalent account and external identity management over the private Unix socket              |
 | `chatto.operator.v1` | `OperatorRoomService`    | Root-equivalent channel lookup, creation, and explicit membership add over the private Unix socket |
 | `chatto.operator.v1` | `OperatorAssetService`   | Root-equivalent attachment upload for a mapped author over the private Unix socket                 |
-| `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message import over the private Unix socket                             |
+| `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message, thread, and reaction import over the private Unix socket       |
 | `chatto.operator.v1` | `OperatorSeedService`    | Private Unix socket; compiled only with `bootstrap` or `test_endpoints`                            |
 
 The [operator identity handlers](../../cli/internal/connectapi/operator_external_identities.go)

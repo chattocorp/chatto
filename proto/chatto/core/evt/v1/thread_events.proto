@@ -20,6 +20,8 @@ message ThreadCreatedEvent {
 
   // Event ID of the root MessagePostedEvent that identifies this thread.
   string thread_root_event_id = 2;
+  // Establish imported thread state without realtime activity.
+  bool historical_import = 3;
 }
 
 enum ThreadFollowSource {

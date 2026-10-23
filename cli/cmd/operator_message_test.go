@@ -8,6 +8,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/core"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -50,6 +51,31 @@ func TestOperatorMessageImportBodySourcesAndAttachment(t *testing.T) {
 	if err != nil || attachmentBody == nil || attachmentBody.Body != "" || len(attachmentBody.Attachments) != 1 || attachmentBody.Attachments[0].GetId() != assetID {
 		t.Fatalf("attachment-only body = %+v, err = %v", attachmentBody, err)
 	}
+}
+
+func TestOperatorMessageImportThreadAndReaction(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "cli-thread-author", "Author", "password")
+	require.NoError(t, err)
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "cli-thread-room", "")
+	require.NoError(t, err)
+	args := []string{"operator", "message", "import", "--room-id", room.Id, "--author-id", author.Id, "--created-at", "2025-12-28T18:21:38.872519Z", "--body", "Imported"}
+	rootID := strings.TrimSpace(env.run(t, append(append([]string(nil), args...), "--create-thread")...))
+	require.True(t, env.core.GetThreadMetadata(rootID).Exists)
+	replyID := strings.TrimSpace(env.run(t, append(append([]string(nil), args...), "--thread-id", rootID)...))
+	reply, err := env.core.GetRoomEventByEventID(env.ctx, core.KindChannel, room.Id, replyID)
+	require.NoError(t, err)
+	require.Equal(t, rootID, reply.GetMessagePosted().GetInThread())
+	reactionArgs := []string{"operator", "message", "import-reaction", "--room-id", room.Id, "--message-event-id", replyID, "--user-id", author.Id, "--emoji", "heart", "--json"}
+	for _, want := range []bool{true, false} {
+		var response operatorv1.ImportReactionResponse
+		require.NoError(t, protojson.Unmarshal([]byte(env.run(t, reactionArgs...)), &response))
+		require.Equal(t, want, response.GetAdded())
+	}
+	_, err = env.execute(t, append(append([]string(nil), args...), "--create-thread", "--thread-id", rootID)...)
+	require.Error(t, err)
+	_, err = env.execute(t, "operator", "message", "import-reaction", "--room-id", room.Id)
+	require.Error(t, err)
 }
 
 func TestOperatorMessageImportRejectsConflictingBodyFlags(t *testing.T) {

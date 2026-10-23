@@ -404,7 +404,7 @@ func IsVisibleRoomTimelineEntry(event *evtv1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
-	if event.GetMessagePosted().GetHistoricalImport() {
+	if event.GetMessagePosted().GetHistoricalImport() || event.GetReactionAdded().GetHistoricalImport() || event.GetThreadCreated().GetHistoricalImport() {
 		return false
 	}
 	return isDeliverableLiveEVTRoomEventType(evtstream.EventTypeOf(event))

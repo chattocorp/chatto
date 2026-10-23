@@ -90,8 +90,10 @@ type ThreadCreatedEvent struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the root MessagePostedEvent that identifies this thread.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Establish imported thread state without realtime activity.
+	HistoricalImport bool `protobuf:"varint,3,opt,name=historical_import,json=historicalImport,proto3" json:"historical_import,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ThreadCreatedEvent) Reset() {
@@ -136,6 +138,13 @@ func (x *ThreadCreatedEvent) GetThreadRootEventId() string {
 		return x.ThreadRootEventId
 	}
 	return ""
+}
+
+func (x *ThreadCreatedEvent) GetHistoricalImport() bool {
+	if x != nil {
+		return x.HistoricalImport
+	}
+	return false
 }
 
 type ThreadFollowedEvent struct {
@@ -277,10 +286,11 @@ var File_chatto_core_evt_v1_thread_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_thread_events_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/core/evt/v1/thread_events.proto\x12\x12chatto.core.evt.v1\"^\n" +
+	"&chatto/core/evt/v1/thread_events.proto\x12\x12chatto.core.evt.v1\"\x8b\x01\n" +
 	"\x12ThreadCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"\xb8\x01\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12+\n" +
+	"\x11historical_import\x18\x03 \x01(\bR\x10historicalImport\"\xb8\x01\n" +
 	"\x13ThreadFollowedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x17\n" +

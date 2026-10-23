@@ -616,6 +616,9 @@ func (b *notificationBadgeSources) applyMessagePosted(event *evtv1.Event, posted
 }
 
 func (b *notificationBadgeSources) applyReactionAdded(event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, seq uint64) {
+	if reaction.GetHistoricalImport() {
+		return
+	}
 	target, ok := b.eventIDs.Lookup(reaction.GetMessageEventId())
 	createdAt := eventCreatedNanos(event)
 	if !ok || reaction.GetEmoji() == "" || event.GetActorId() == "" || createdAt == 0 {

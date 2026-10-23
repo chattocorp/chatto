@@ -233,12 +233,18 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v10`.
+uses `v10`. Reactions uses `v2` to restore mapped historical reactors;
+Notification Decisions uses `v3` to exclude historical reactions from Badge
+attention.
 
 Room Timeline `v9` retains a historical-import bit on each message reference.
 Unread and room-activity reads omit these messages, while timeline reads keep
 them visible. Slow Mode, thread interaction, notification, webhook, and live
 delivery consumers also omit historical posting effects when they replay EVT.
+Imported thread replies retain reply counts and mapped participants without
+creating follows or interactions. Historical reaction facts retain the mapped
+reactor in the Reactions component and omit notification and live-delivery
+effects. Their snapshot contract changes force a cold replay of older caches.
 
 The 0.5 internal protobuf package split changes full protobuf names and selects
 new snapshot contract IDs. A server ignores older snapshots, cold-replays EVT,
@@ -423,7 +429,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Projection             | Contract                                                        | Payload store                                                                                   | Pointer store                                                                       | Publication                                                                                                        |
 | ---------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Server Content View    | `v1` componentized-projection contract plus component contracts | `PROJECTION_SNAPSHOTS` or configured S3; one manifest and one object for each initial component | One encrypted `server_content_view` pointer in `RUNTIME_STATE` with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
-| Notification Decisions | `v2`                                                            | `PROJECTION_SNAPSHOTS` or configured S3                                                         | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC               | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
+| Notification Decisions | `v3`                                                            | `PROJECTION_SNAPSHOTS` or configured S3                                                         | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC               | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
 | Notifications          | `v2`                                                            | `PROJECTION_SNAPSHOTS` or configured S3                                                         | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC               | Binds snapshots to the independent `NOTIFICATIONS` stream identity and sequence                                    |
 
 ## Registered projections
