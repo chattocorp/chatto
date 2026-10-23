@@ -1,9 +1,8 @@
 {
   "name": "@chatto/client",
-  "private": true,
   "version": "0.1.0",
   "description": "Framework-neutral Chatto client: connections, realtime projection, and reactive stores",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "sideEffects": [
     "./src/svelte/index.ts"
@@ -21,9 +20,24 @@
     "LICENSE"
   ],
   "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepack": "pnpm run build",
+    "test:package": "node scripts/test-package.mjs",
+    "check:release": "node scripts/check-release.mjs",
     "check": "tsc -p tsconfig.json && tsc -p tsconfig.strict.json && node scripts/generate-types.mjs --check",
     "test": "vitest run --coverage",
     "lint": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chattocorp/chatto.git",
+    "directory": "packages/chatto-client"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org",
+    "directory": "dist",
+    "linkDirectory": false
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.1",
