@@ -73,6 +73,18 @@ class ExportTests(unittest.TestCase):
         with self.assertRaises(slack.InvalidExport):
             slack.read_export(self.path)
 
+    def test_non_message_record_rejected(self):
+        self.reply["type"] = "unknown_event"
+        self.archive()
+        with self.assertRaisesRegex(slack.InvalidExport, "record type"):
+            slack.read_export(self.path)
+
+    def test_reply_cannot_be_a_thread_root(self):
+        nested = dict(self.reply, ts="1766946098.872521", thread_ts=self.reply["ts"])
+        self.data["general/2025-12-28.json"].append(nested)
+        self.archive()
+        self.assertEqual(slack.read_export(self.path)["summary"]["issues"]["invalid_thread_root"], 1)
+
     def test_timestamp_rejects_float_and_invalid_fraction(self):
         for value in (1766946098.872519, "1766946098.1", "bad"):
             with self.assertRaises(slack.InvalidExport):

@@ -121,6 +121,8 @@ def read_export(path):
                 continue
             consumed.add(filename)
             for message in records(data[filename]):
+                if message.get("type") != "message":
+                    raise InvalidExport("Unsupported channel record type")
                 ts = message.get("ts")
                 created_at = timestamp(ts)
                 author = message.get("user")
@@ -176,6 +178,8 @@ def read_export(path):
         root = item["thread_root_key"]
         if root and root not in message_index:
             issues["missing_thread_root"] += 1
+        elif root and message_index[root]["thread_root_key"] not in (None, root):
+            issues["invalid_thread_root"] += 1
         declared = item["source"].get("reply_count")
         if declared is not None:
             actual = reply_counts[item["source_key"]]
