@@ -130,6 +130,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_MessageUnpinned{MessageUnpinned: &realtimev1.MessageUnpinnedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId()}}
 	case *evtv1.Event_ThreadCreated:
 		v := e.ThreadCreated
+		if v.GetHistoricalImport() {
+			return nil
+		}
 		target.Event = &realtimev1.RealtimeEvent_ThreadCreated{ThreadCreated: &realtimev1.ThreadCreatedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId()}}
 	case *evtv1.Event_AssetProcessingStarted:
 		v := e.AssetProcessingStarted
@@ -174,6 +177,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: false}}
 	case *evtv1.Event_ReactionAdded:
 		v := e.ReactionAdded
+		if v.GetHistoricalImport() {
+			return nil
+		}
 		target.Event = &realtimev1.RealtimeEvent_ReactionAdded{ReactionAdded: &realtimev1.ReactionAddedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId(), Emoji: v.GetEmoji()}}
 	case *evtv1.Event_ReactionRemoved:
 		v := e.ReactionRemoved

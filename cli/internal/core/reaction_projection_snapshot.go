@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var reactionSnapshotContractID = snapshotContractID("v1", &projectionv1.ReactionProjectionSnapshot{})
+var reactionSnapshotContractID = snapshotContractID("v2", &projectionv1.ReactionProjectionSnapshot{})
 
 func (*ReactionProjection) SnapshotContractID() string { return reactionSnapshotContractID }
 

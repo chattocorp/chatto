@@ -47,7 +47,12 @@ type ImportMessageRequest struct {
 	// Exported preview description.
 	PreviewDescription string `protobuf:"bytes,10,opt,name=preview_description,json=previewDescription,proto3" json:"preview_description,omitempty"`
 	// Exported preview type.
-	PreviewType   string `protobuf:"bytes,11,opt,name=preview_type,json=previewType,proto3" json:"preview_type,omitempty"`
+	PreviewType string `protobuf:"bytes,11,opt,name=preview_type,json=previewType,proto3" json:"preview_type,omitempty"`
+	// Existing root message in this room. Creates the thread if necessary.
+	// Cannot be combined with create_thread. Does not create a channel echo.
+	ThreadRootEventId string `protobuf:"bytes,12,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// Establish this new root as an empty thread without following it.
+	CreateThread  bool `protobuf:"varint,13,opt,name=create_thread,json=createThread,proto3" json:"create_thread,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -159,6 +164,20 @@ func (x *ImportMessageRequest) GetPreviewType() string {
 	return ""
 }
 
+func (x *ImportMessageRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *ImportMessageRequest) GetCreateThread() bool {
+	if x != nil {
+		return x.CreateThread
+	}
+	return false
+}
+
 // Stable Chatto identity of the new historical message.
 type ImportMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -204,11 +223,131 @@ func (x *ImportMessageResponse) GetMessageId() string {
 	return ""
 }
 
+// Import a reaction for an existing user without membership or posting policy.
+// No source reaction time is required; the event time records the import.
+type ImportReactionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Active channel containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Message or channel echo ID. Echoes resolve to their original reply.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	// Existing user shown as the reactor.
+	UserId string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Supported emoji shortcode or Unicode emoji.
+	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportReactionRequest) Reset() {
+	*x = ImportReactionRequest{}
+	mi := &file_chatto_operator_v1_messages_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportReactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportReactionRequest) ProtoMessage() {}
+
+func (x *ImportReactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_messages_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportReactionRequest.ProtoReflect.Descriptor instead.
+func (*ImportReactionRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_messages_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ImportReactionRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ImportReactionRequest) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *ImportReactionRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ImportReactionRequest) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+// Whether this request stored a new historical reaction.
+type ImportReactionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False when the canonical message already has this user's reaction.
+	Added         bool `protobuf:"varint,1,opt,name=added,proto3" json:"added,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportReactionResponse) Reset() {
+	*x = ImportReactionResponse{}
+	mi := &file_chatto_operator_v1_messages_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportReactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportReactionResponse) ProtoMessage() {}
+
+func (x *ImportReactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_messages_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportReactionResponse.ProtoReflect.Descriptor instead.
+func (*ImportReactionResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_messages_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ImportReactionResponse) GetAdded() bool {
+	if x != nil {
+		return x.Added
+	}
+	return false
+}
+
 var File_chatto_operator_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/operator/v1/messages.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x03\n" +
+	"!chatto/operator/v1/messages.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb0\x04\n" +
 	"\x14ImportMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12$\n" +
 	"\tauthor_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bauthorId\x12A\n" +
@@ -223,12 +362,22 @@ const file_chatto_operator_v1_messages_proto_rawDesc = "" +
 	"\rpreview_title\x18\t \x01(\tR\fpreviewTitle\x12/\n" +
 	"\x13preview_description\x18\n" +
 	" \x01(\tR\x12previewDescription\x12!\n" +
-	"\fpreview_type\x18\v \x01(\tR\vpreviewType\"6\n" +
+	"\fpreview_type\x18\v \x01(\tR\vpreviewType\x12/\n" +
+	"\x14thread_root_event_id\x18\f \x01(\tR\x11threadRootEventId\x12#\n" +
+	"\rcreate_thread\x18\r \x01(\bR\fcreateThread\"6\n" +
 	"\x15ImportMessageResponse\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId2~\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\"\xad\x01\n" +
+	"\x15ImportReactionRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x121\n" +
+	"\x10message_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0emessageEventId\x12 \n" +
+	"\auser_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\x1d\n" +
+	"\x05emoji\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\".\n" +
+	"\x16ImportReactionResponse\x12\x14\n" +
+	"\x05added\x18\x01 \x01(\bR\x05added2\xe7\x01\n" +
 	"\x16OperatorMessageService\x12d\n" +
-	"\rImportMessage\x12(.chatto.operator.v1.ImportMessageRequest\x1a).chatto.operator.v1.ImportMessageResponseB\xdd\x01\n" +
+	"\rImportMessage\x12(.chatto.operator.v1.ImportMessageRequest\x1a).chatto.operator.v1.ImportMessageResponse\x12g\n" +
+	"\x0eImportReaction\x12).chatto.operator.v1.ImportReactionRequest\x1a*.chatto.operator.v1.ImportReactionResponseB\xdd\x01\n" +
 	"\x16com.chatto.operator.v1B\rMessagesProtoP\x01ZJgithub.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
 
 var (
@@ -243,19 +392,23 @@ func file_chatto_operator_v1_messages_proto_rawDescGZIP() []byte {
 	return file_chatto_operator_v1_messages_proto_rawDescData
 }
 
-var file_chatto_operator_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_operator_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_operator_v1_messages_proto_goTypes = []any{
-	(*ImportMessageRequest)(nil),  // 0: chatto.operator.v1.ImportMessageRequest
-	(*ImportMessageResponse)(nil), // 1: chatto.operator.v1.ImportMessageResponse
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*ImportMessageRequest)(nil),   // 0: chatto.operator.v1.ImportMessageRequest
+	(*ImportMessageResponse)(nil),  // 1: chatto.operator.v1.ImportMessageResponse
+	(*ImportReactionRequest)(nil),  // 2: chatto.operator.v1.ImportReactionRequest
+	(*ImportReactionResponse)(nil), // 3: chatto.operator.v1.ImportReactionResponse
+	(*timestamppb.Timestamp)(nil),  // 4: google.protobuf.Timestamp
 }
 var file_chatto_operator_v1_messages_proto_depIdxs = []int32{
-	2, // 0: chatto.operator.v1.ImportMessageRequest.created_at:type_name -> google.protobuf.Timestamp
-	2, // 1: chatto.operator.v1.ImportMessageRequest.edited_at:type_name -> google.protobuf.Timestamp
+	4, // 0: chatto.operator.v1.ImportMessageRequest.created_at:type_name -> google.protobuf.Timestamp
+	4, // 1: chatto.operator.v1.ImportMessageRequest.edited_at:type_name -> google.protobuf.Timestamp
 	0, // 2: chatto.operator.v1.OperatorMessageService.ImportMessage:input_type -> chatto.operator.v1.ImportMessageRequest
-	1, // 3: chatto.operator.v1.OperatorMessageService.ImportMessage:output_type -> chatto.operator.v1.ImportMessageResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
+	2, // 3: chatto.operator.v1.OperatorMessageService.ImportReaction:input_type -> chatto.operator.v1.ImportReactionRequest
+	1, // 4: chatto.operator.v1.OperatorMessageService.ImportMessage:output_type -> chatto.operator.v1.ImportMessageResponse
+	3, // 5: chatto.operator.v1.OperatorMessageService.ImportReaction:output_type -> chatto.operator.v1.ImportReactionResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -272,7 +425,7 @@ func file_chatto_operator_v1_messages_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_operator_v1_messages_proto_rawDesc), len(file_chatto_operator_v1_messages_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

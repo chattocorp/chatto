@@ -666,6 +666,9 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 }
 
 func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
+	if reaction.GetHistoricalImport() {
+		return nil
+	}
 	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
 		return nil
 	}

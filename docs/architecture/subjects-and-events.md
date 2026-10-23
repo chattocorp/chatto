@@ -271,6 +271,14 @@ subjects. The body and post commit with any asset claims in one batch. The
 post's event actor is the system; its `author_id` names the displayed author.
 Its `historical_import` field remains in EVT so replay consumers suppress
 posting effects. No source ID or deduplication record is stored.
+
+Historical thread creation uses `ThreadCreatedEvent.historical_import` on the
+existing thread-created subject. It commits with the root or first reply and
+does not create a follow. Historical reactions use `ReactionAddedEvent.user_id`
+for the mapped reactor and the system envelope actor for the operation. Empty
+`user_id` retains ordinary actor-based attribution. Their `historical_import`
+marker suppresses attention and live delivery during replay. Reaction writes
+use room aggregate OCC to make repeated user/message/emoji imports idempotent.
 | `evt.room.{roomId}.reaction_added` | `ReactionAddedEvent` |
 | `evt.room.{roomId}.reaction_removed` | `ReactionRemovedEvent` |
 | `evt.asset.{assetId}.asset_created` | `AssetCreatedEvent` |

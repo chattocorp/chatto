@@ -387,9 +387,13 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 				Subject: messageSubject,
 				Event:   messageEvent,
 			},
-			{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent},
-			{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent},
 		}
+		// Historical roots establish a thread without following it.
+		if threadFollowedEvent != nil {
+			entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent})
+		}
+		threadIndex := len(entries)
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent})
 		baseEntries := len(entries)
 		entries, err = c.prepareMessageAssetBatchEntries(ctx, entries, assetAttachedEvents, processingEvents)
 		if err != nil {
@@ -398,7 +402,7 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			messageSeq := seqs[1]
-			position := events.SubjectPosition(agg.SubjectFor(threadCreatedEvent), seqs[3])
+			position := events.SubjectPosition(agg.SubjectFor(threadCreatedEvent), seqs[threadIndex])
 			if err := c.roomModel.waitForTimeline(ctx, position); err != nil {
 				return messageSeq, err
 			}

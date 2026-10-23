@@ -177,7 +177,33 @@ The command prints the new Chatto message ID. Use `--json` to read `messageId` i
 
 Use `--edited-at RFC3339` to preserve the last edit time. Use `--in-reply-to CHATTO_MESSAGE_ID` to refer to an existing message in the same room. A reply reference does not create a Chatto thread. To preserve an exported preview, use `--preview-url URL` with optional `--preview-title`, `--preview-description`, and `--preview-type` fields. The URL must use HTTP or HTTPS. Chatto stores these values without fetching the URL.
 
-The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. Update all server replicas before you start an import so each replica recognizes historical messages. The command does not require a user session or room membership. Each successful call creates a new message. Save the returned ID in your import script so a retry does not create a duplicate.
+The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. Update all server replicas before you start an import so each replica recognizes historical messages. The command does not require a user session or room membership. Each successful call creates a new message. Save the returned ID in your import script. If a response is lost, stop and reconcile the result before retrying: the first request might have stored the message.
+
+To establish an empty thread on a new root, add `--create-thread`. To import a reply inside a thread, use the existing root's ID:
+
+```sh
+chatto operator message import \
+  --room-id ROOM_ID --author-id USER_ID \
+  --created-at 2022-08-19T11:11:11.147Z \
+  --thread-id ROOT_MESSAGE_ID \
+  --body-file /path/to/exported-reply.txt
+```
+
+The thread ID is its root message ID. The reply establishes the thread if necessary. Do not combine `--create-thread` with `--thread-id`. The root must be a message in the same room, not another reply or a channel echo. Imported placement is independent of the room's interactive threading mode. A thread reply does not also appear in the channel timeline. `--in-reply-to` remains a separate reply reference and does not select a thread.
+
+## Import a historical reaction
+
+```sh
+chatto operator message import-reaction \
+  --room-id ROOM_ID --message-event-id MESSAGE_ID \
+  --user-id USER_ID --emoji heart --json
+```
+
+The user and message must exist in the specified active channel. The user does not need room membership. Use a supported emoji shortcode or Unicode emoji. A channel echo ID resolves to its original thread reply.
+
+The response has `added: true` for a new reaction. For an existing reaction, `added` is false (the JSON field can be omitted). Repeating the same user/message/emoji is safe, including after a lost response. Imports bypass the interactive per-user reaction-count limit and do not create notifications, unread activity, or live reaction frames. The mapped user can remove the reaction normally when they have access.
+
+No source reaction timestamp is required. The event records the import time. Before the first reaction import, finish updating all replicas to a version that supports this command. Earlier binaries cannot preserve the mapped reactor or suppress historical reaction activity; do not serve this imported state with an earlier binary.
 
 ## Update a user
 
