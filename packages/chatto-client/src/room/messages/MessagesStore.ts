@@ -282,8 +282,6 @@ export class MessagesStore {
   #needsLatestWindow = false;
   #projectionAccessRevoked = false;
   #previewGeneration = 0;
-  /** Newer retractions supersede older thread-summary reads. */
-  #threadSummaryRefreshId = 0;
 
   /**
    * Create the store for one room or thread timeline and start its first read.
@@ -405,16 +403,12 @@ export class MessagesStore {
   }
 
   /**
-   * Refresh loaded thread roots after a retraction. Batch message reads omit
-   * deleted replies, so an unopened thread's root cannot be found from the
-   * reply. Timeline reads also retain the summaries of deleted roots.
-   * Only existing rows are reconciled; these reads do not move the window.
+   * Capture loaded roots for a shared summary read. Each callback updates only
+   * unchanged summary fields in this view. Content edits remain intact, and a
+   * reset, disposal, or access loss makes the captured callbacks stale.
    */
-  async refreshThreadSummaries(minimumCursor?: string, acceptResult = () => true): Promise<void> {
-    const refreshId = ++this.#threadSummaryRefreshId;
+  captureThreadSummaries(): Map<string, (root: TimelineEventView) => void> {
     const loadId = this.#loadId;
-    const current = () =>
-      refreshId === this.#threadSummaryRefreshId && !this.isStale(loadId) && acceptResult();
     const capture = (rows: Iterable<TimelineEventView | null>) => {
       const summaries = new Map<string, string>();
       for (const row of rows) {
@@ -426,13 +420,12 @@ export class MessagesStore {
     };
     const rowsBefore = capture(this.events);
     const previewsBefore = capture(this.previewEvents.values());
+    const callbacks = new Map<string, (root: TimelineEventView) => void>();
     for (const rootId of new Set([...rowsBefore.keys(), ...previewsBefore.keys()])) {
-      if (!current()) return;
-      try {
-        const page = await this.source.fetchAround(rootId, 1, rootId, minimumCursor);
-        if (!current()) return;
-        const root = this.unmaskEvents(page.events).find((event) => event.id === rootId);
-        if (!root || !isMessagePostedPayload(root.event)) continue;
+      callbacks.set(rootId, (event) => {
+        if (this.isStale(loadId) || this.#projectionAccessRevoked || event.id !== rootId) return;
+        const root = this.unmaskEvents([event])[0];
+        if (!root || !isMessagePostedPayload(root.event)) return;
         const summary = threadSummary(root.event);
         const apply = (row: TimelineEventView, before: string | undefined): TimelineEventView =>
           row.id === rootId &&
@@ -445,10 +438,9 @@ export class MessagesStore {
           const preview = this.previewEvents.get(rootId);
           if (preview) this.previewEvents.set(rootId, apply(preview, previewsBefore.get(rootId)));
         });
-      } catch (error) {
-        if (current()) throw error;
-      }
+      });
     }
+    return callbacks;
   }
 
   /**

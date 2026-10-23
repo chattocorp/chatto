@@ -391,83 +391,52 @@ function timelineFromFixtures(fake: FakeQueryClient): RoomTimelineAPI {
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
-  it('keeps the newest thread summary when retraction reads finish out of order', async () => {
-    const older = deferred<EventConnectionPage>();
-    const newer = deferred<EventConnectionPage>();
-    const read = vi.fn().mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+  it('applies a shared summary without overwriting content edits or newer summaries', async () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
       { roomId: 'room-1' },
-      fakeTimelineAPI({ getThreadEventsAround: read })
+      fakeTimelineAPI()
     );
     await settle();
     const row = threadMessageEvent('root');
     const root = { ...row, event: { ...row.event, threadExists: true, replyCount: 2 } };
     store.ingestEvent(root);
-    const first = store.refreshThreadSummaries('older');
-    const second = store.refreshThreadSummaries('newer');
+    const first = store.captureThreadSummaries().get('root')!;
+    const second = store.captureThreadSummaries().get('root')!;
     // A content edit must neither block the summary nor be undone by its read.
     store.events = [{ ...root, event: { ...root.event, body: 'edited while reading' } }];
-    newer.resolve(pageFromEvent({ ...root, event: { ...root.event, replyCount: 0 } }));
-    await second;
-    older.resolve(pageFromEvent({ ...root, event: { ...root.event, replyCount: 1 } }));
-    await first;
+    second({ ...root, event: { ...root.event, replyCount: 0 } });
+    first({ ...root, event: { ...root.event, replyCount: 1 } });
     expect(store.getEventById('root')?.event).toMatchObject({
       replyCount: 0,
       body: 'edited while reading'
     });
-    expect(read).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        eventId: 'root',
-        threadRootEventId: 'root',
-        limit: 1,
-        minimumCursor: 'newer'
-      })
-    );
     store.dispose();
   });
 
   it.each(['reset', 'dispose', 'access loss'])(
     'discards a late thread summary after %s',
     async (boundary) => {
-      const pending = deferred<EventConnectionPage>();
       const store = new MessagesStore(
         new FakeQueryClient() as unknown as ServerConnection,
         () => null,
         { roomId: 'room-1' },
-        fakeTimelineAPI({ getThreadEventsAround: vi.fn(() => pending.promise) })
+        fakeTimelineAPI()
       );
       await settle();
       const row = threadMessageEvent('root');
       const root = { ...row, event: { ...row.event, threadExists: true, replyCount: 2 } };
       store.ingestEvent(root);
-      const refresh = store.refreshThreadSummaries('cursor');
+      const apply = store.captureThreadSummaries().get('root')!;
       if (boundary === 'reset') store.resetProjectionState();
       else if (boundary === 'dispose') store.dispose();
       else store.clearForAccessRevocation();
-      pending.resolve(pageFromEvent({ ...root, event: { ...root.event, replyCount: 0 } }));
-      await refresh;
+      apply({ ...root, event: { ...root.event, replyCount: 0 } });
       expect(store.getEventById('root')?.event).not.toMatchObject({ replyCount: 0 });
       store.dispose();
     }
   );
-
-  it('reports failed thread summary reads for cursor recovery', async () => {
-    const failure = new Error('offline');
-    const store = new MessagesStore(
-      new FakeQueryClient() as unknown as ServerConnection,
-      () => null,
-      { roomId: 'room-1' },
-      fakeTimelineAPI({ getThreadEventsAround: vi.fn().mockRejectedValue(failure) })
-    );
-    await settle();
-    const row = threadMessageEvent('root');
-    store.ingestEvent({ ...row, event: { ...row.event, threadExists: true, replyCount: 1 } });
-    await expect(store.refreshThreadSummaries('cursor')).rejects.toBe(failure);
-    expect(store.getEventById('root')?.event).toMatchObject({ replyCount: 1 });
-    store.dispose();
-  });
 
   it('preserves a shared message update when an older initial page arrives', async () => {
     const pending = deferred<EventConnectionPage>();
