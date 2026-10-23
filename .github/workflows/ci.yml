@@ -376,6 +376,9 @@ jobs:
       - name: Test server compatibility label check
         run: mise x -- node --test tools/check-server-compatibility.test.mjs
 
+      - name: Test Slack importer
+        run: mise x -- python3 -B -m unittest discover -s tools -p 'test_slack*.py'
+
       - name: Check server compatibility threshold labels
         if: github.event_name == 'pull_request'
         env:
