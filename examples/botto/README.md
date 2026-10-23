@@ -260,6 +260,13 @@ credentials, URLs, and raw external errors. Botto does not create log files.
 Each model turn logs `Pi session created` or `Pi session resumed`, with the
 persisted Pi `sessionId` and `historyMessages` count loaded before the new prompt.
 The session ID stays the same when Botto reopens a thread after restart.
+Each turn also logs `Pi token usage`: `inputTokens` (uncached input), `outputTokens`,
+`cacheReadTokens`, `cacheWriteTokens`, and `estimatedCostUsd`. These are changes in
+Pi's session totals during this turn, including recorded compaction and failed
+work; restored history is not counted again. Cost uses Pi's model pricing and is
+an estimate, not the provider invoice. Missing provider usage can appear as zero.
+Cache reads show actual reported reuse; a resumed session alone does not prove
+a cache hit.
 
 ```sh
 mise x -- pnpm --filter @chatto/example-botto check

@@ -14,6 +14,13 @@ interface Metrics {
   waitMs?: number;
   /** MCP tool identifier, never its arguments or returned content. */
   tool?: string;
+  /** Pi reports uncached input separately from cache reads and writes. */
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  /** USD estimate from Pi's model pricing, not an authoritative provider bill. */
+  estimatedCostUsd?: number;
 }
 
 /** Never pass external messages, credentials, URLs, or identities as the message. */

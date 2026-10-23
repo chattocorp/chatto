@@ -107,6 +107,9 @@ export async function createAgent(settings: Settings) {
       // Pi prepares every parallel call before executing any of them. A memory
       // lock held by a tool_call hook would deadlock the next call in that batch.
       if (memory) session.agent.toolExecution = 'sequential';
+      // Pi totals include persisted history and compaction. Subtract the restored
+      // baseline so this log reports only the current turn, including failed work.
+      const usageBefore = session.getSessionStats();
       let shutdown: Promise<void> | undefined;
       const shutdownExtensions = () =>
         (shutdown ??= session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' }));
@@ -146,7 +149,20 @@ export async function createAgent(settings: Settings) {
           try {
             await shutdownExtensions();
           } finally {
-            session.dispose();
+            try {
+              const usage = session.getSessionStats();
+              log('info', 'Pi token usage', {
+                threadId: identity.at(-1),
+                sessionId: session.sessionId,
+                inputTokens: usage.tokens.input - usageBefore.tokens.input,
+                outputTokens: usage.tokens.output - usageBefore.tokens.output,
+                cacheReadTokens: usage.tokens.cacheRead - usageBefore.tokens.cacheRead,
+                cacheWriteTokens: usage.tokens.cacheWrite - usageBefore.tokens.cacheWrite,
+                estimatedCostUsd: Number((usage.cost - usageBefore.cost).toFixed(8))
+              });
+            } finally {
+              session.dispose();
+            }
           }
         }
       }

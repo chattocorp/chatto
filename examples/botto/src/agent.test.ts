@@ -79,6 +79,10 @@ async function setup(mcp = false, memory = false) {
     bindExtensions: vi.fn(async () => {}),
     extensionRunner: { emit: vi.fn(async () => {}) },
     agent: { toolExecution: 'parallel' },
+    getSessionStats: vi.fn(() => ({
+      tokens: { input: 100, output: 10, cacheRead: 1000, cacheWrite: 500 },
+      cost: 0.02
+    })),
     messages: [{ role: 'assistant', stopReason: 'stop' }],
     getLastAssistantText: () => 'Hello'
   };
@@ -184,6 +188,43 @@ test('does not post stale assistant text after a model error', async () => {
   );
   expect(session.dispose).toHaveBeenCalledOnce();
 });
+
+test.each([false, true])(
+  'logs only this turn usage, including reported failed work (%s)',
+  async (failed) => {
+    const { agent, session } = await setup();
+    session.getSessionStats
+      .mockReturnValueOnce({
+        tokens: { input: 100, output: 10, cacheRead: 1000, cacheWrite: 500 },
+        cost: 0.02
+      })
+      .mockReturnValueOnce({
+        tokens: { input: 130, output: 30, cacheRead: 1800, cacheWrite: 600 },
+        cost: 0.0204
+      });
+    if (failed) session.prompt.mockRejectedValueOnce(new Error('private failure'));
+    const running = agent.reply(['thread'], 'hello', new AbortController().signal);
+    if (failed) await expect(running).rejects.toThrow('private failure');
+    else await expect(running).resolves.toBe('Hello');
+    const usage = vi.mocked(log).mock.calls.filter((call) => call[1] === 'Pi token usage');
+    expect(usage).toEqual([
+      [
+        'info',
+        'Pi token usage',
+        {
+          threadId: 'thread',
+          sessionId: 'persisted-session',
+          inputTokens: 30,
+          outputTokens: 20,
+          cacheReadTokens: 800,
+          cacheWriteTokens: 100,
+          estimatedCostUsd: 0.0004
+        }
+      ]
+    ]);
+    expect(session.dispose).toHaveBeenCalledOnce();
+  }
+);
 
 test('passes only the addressed prompt to Pi and installs the request-only snapshot extension', async () => {
   const { agent, session } = await setup();
