@@ -47,6 +47,10 @@ async function run(settings: Settings) {
       },
       async onEvent(event) {
         if (settings.allowedUserId && event.actorId !== settings.allowedUserId) return;
+        if (event.event.case === 'userTyping') {
+          activeInbox.typing(event, viewerId);
+          return;
+        }
         try {
           const message = await incomingMessage(
             server,

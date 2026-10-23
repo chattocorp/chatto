@@ -1,5 +1,5 @@
 /** Debounced conversation queues. A failed turn never blocks later messages. */
-import type { AddressedMessage, ThreadLocation } from '@chatto/client';
+import type { AddressedMessage, RealtimeEvent, ThreadLocation } from '@chatto/client';
 import { DEFAULT_INBOX, type InboxSettings } from './settings.ts';
 
 interface Conversation {
@@ -31,7 +31,6 @@ export class Inbox {
   /** Addressed messages promote the whole pending batch to the short quiet period.
    * Later passive messages retain that choice until the batch starts. */
   debounceMs(message: AddressedMessage): number {
-    if (message.reasons.includes('direct_message') && !message.threadRootId) return 0;
     const key = JSON.stringify([message.roomId, message.threadRootId ?? message.id]);
     const addressed =
       message.reasons.length > 0 ||
@@ -55,18 +54,43 @@ export class Inbox {
     const conversation = this.threads.get(key) ?? { messages: [] };
     this.threads.set(key, conversation);
     conversation.messages.push(message);
-    clearTimeout(conversation.timer);
-    // Separate DM roots each start a thread, so delaying them cannot combine their replies.
-    if (message.reasons.includes('direct_message') && !message.threadRootId) {
-      conversation.timer = undefined;
-      this.flush(key, conversation);
-      return 'accepted';
+    this.schedule(key, conversation);
+    return 'accepted';
+  }
+
+  /** Typing extends queued batches only. Ignore our own indicator and other threads.
+   * Room-level typing applies to queued roots; roots still produce separate replies. */
+  typing(event: RealtimeEvent, viewerId: string): void {
+    if (
+      this.closed ||
+      event.event.case !== 'userTyping' ||
+      !event.actorId ||
+      event.actorId === viewerId
+    )
+      return;
+    const { roomId, threadRootEventId } = event.event.value;
+    if (!roomId) return;
+    for (const [key, conversation] of this.threads) {
+      const first = conversation.messages[0];
+      if (
+        first?.roomId === roomId &&
+        (threadRootEventId
+          ? key === JSON.stringify([roomId, threadRootEventId])
+          : !first.threadRootId)
+      )
+        this.schedule(key, conversation);
     }
+  }
+
+  /** The latest accepted message or matching typing pulse starts the quiet period. */
+  private schedule(key: string, conversation: Conversation): void {
+    const first = conversation.messages[0];
+    if (!first) return;
+    clearTimeout(conversation.timer);
     conversation.timer = setTimeout(() => {
       conversation.timer = undefined;
       this.flush(key, conversation);
-    }, this.debounceMs(message));
-    return 'accepted';
+    }, this.debounceMs(first));
   }
 
   /** The quiet period can elapse during a running turn; never overlap turns. */

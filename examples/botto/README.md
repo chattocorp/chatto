@@ -51,8 +51,8 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context                              |
 | `agent.system_prompt`          | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings                        |
 | `runtime.data_directory`       | `.botto`                 | Private Pi transcript storage                                                             |
-| `runtime.debounce_ms`          | `5000`                   | Quiet period for mentions, replies to Botto, and DM thread messages, 0–60000 milliseconds |
-| `runtime.passive_debounce_ms`  | `45000`                  | Quiet period for other text in active room threads, 0–600000 milliseconds                 |
+| `runtime.debounce_ms`          | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
+| `runtime.passive_debounce_ms`  | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds                 |
 | `runtime.turn_timeout_ms`      | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                                  |
 | `runtime.context_messages`     | `30`                     | Recent thread messages to read, 1–100                                                     |
 | `runtime.max_pending_messages` | `100`                    | Accepted messages across queued and active batches, 1–10000                               |
@@ -103,13 +103,19 @@ or a saved Pi transcript. Saved transcripts keep threads active across restarts;
 this does not make other threads in the room active. Messages from other bots
 and from users outside `chatto.allowed_user_id`, when set, are ignored.
 
-Ordinary messages in active room threads wait for 45 seconds of quiet by default
-(`runtime.passive_debounce_ms`). A mention, verified reply to Botto, or DM thread
-message selects the shorter `runtime.debounce_ms` for the whole pending batch.
-Later ordinary messages keep that short delay until the batch starts. Each new
-message resets the selected quiet period; duplicate events do not. After the
-batch starts, the next batch selects its delay independently. Top-level DM
-messages start immediately because each opens a separate thread.
+Ordinary messages in active room threads wait for 5 seconds of quiet by default
+(`runtime.passive_debounce_ms`). A mention, verified reply to Botto, or DM
+selects `runtime.debounce_ms` (2 seconds by default) for the whole pending batch.
+Both settings require at least 2 seconds. Existing TOML values remain in use;
+change them to use the new defaults. Values below 2000 fail validation.
+Later ordinary messages keep the addressed delay until the batch starts. Each new
+message or typing signal in that thread resets the selected quiet period;
+duplicate messages do not. Botto ignores its own typing and typing from users
+outside `chatto.allowed_user_id`, when set. Typing never starts a turn or interrupts
+one already running. Continued typing can keep a queued batch waiting.
+After the batch starts, the next batch selects its delay independently. Top-level
+DM messages also wait, but each still opens a separate reply thread. Room-level
+typing delays queued root messages in that room, not replies in other threads.
 
 Turns in one thread run in order. Messages received during a turn form the next
 batch; its timer can elapse while the current turn runs. The model receives the

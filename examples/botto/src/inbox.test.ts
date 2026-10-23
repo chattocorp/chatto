@@ -1,6 +1,6 @@
 /** Exercise quiet periods, thread isolation, failure recovery, and shutdown. */
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import type { AddressedMessage } from '@chatto/client';
+import { RealtimeEvent, type AddressedMessage } from '@chatto/client';
 import { Inbox } from './inbox.ts';
 import { DEFAULT_INBOX } from './settings.ts';
 
@@ -11,15 +11,114 @@ function message(id: string, threadRootId = 'thread'): AddressedMessage {
   return { id, roomId: 'room', threadRootId, authorId: 'human', body: id, reasons: ['mention'] };
 }
 
-test('waits five seconds after the last message and preserves authors and order', async () => {
+function typing(roomId = 'room', threadRootEventId = 'thread', actorId = 'human') {
+  return new RealtimeEvent({
+    actorId,
+    event: { case: 'userTyping', value: { roomId, threadRootEventId } }
+  });
+}
+
+test.each([true, false])('typing resets the quiet period for addressed=%s', async (addressed) => {
+  const turn = vi.fn(async () => {});
+  const inbox = new Inbox(turn, vi.fn());
+  const delay = addressed ? 2000 : 5000;
+  const item = { ...message('one'), reasons: addressed ? ['mention' as const] : [] };
+  inbox.typing(typing(), 'bot'); // Typing alone never queues a turn.
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(turn).not.toHaveBeenCalled();
+  inbox.accept(item);
+  await vi.advanceTimersByTimeAsync(delay - 1);
+  inbox.typing(typing(), 'bot');
+  await vi.advanceTimersByTimeAsync(delay - 1);
+  expect(turn).not.toHaveBeenCalled();
+  inbox.typing(typing(), 'bot');
+  await vi.advanceTimersByTimeAsync(delay - 1);
+  expect(turn).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(turn).toHaveBeenCalledExactlyOnceWith([item]);
+  inbox.typing(typing(), 'bot');
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(turn).toHaveBeenCalledOnce();
+  await inbox.close();
+});
+
+test('unrelated, missing-actor, and self typing do not delay a queued thread', async () => {
+  const turn = vi.fn(async () => {});
+  const inbox = new Inbox(turn, vi.fn());
+  inbox.accept(message('one'));
+  await vi.advanceTimersByTimeAsync(1999);
+  inbox.typing(typing('other-room'), 'bot');
+  inbox.typing(typing('room', 'other-thread'), 'bot');
+  inbox.typing(typing('room', ''), 'bot');
+  inbox.typing(typing('room', 'thread', 'bot'), 'bot');
+  inbox.typing(typing('room', 'thread', ''), 'bot');
+  await vi.advanceTimersByTimeAsync(1);
+  expect(turn).toHaveBeenCalledOnce();
+  await inbox.close();
+  inbox.typing(typing(), 'bot');
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test('room typing delays queued roots but keeps their replies separate', async () => {
+  const turn = vi.fn(async () => {});
+  const inbox = new Inbox(turn, vi.fn());
+  const one = { ...message('one'), threadRootId: undefined, reasons: ['direct_message' as const] };
+  const two = { ...one, id: 'two' };
+  inbox.accept(one);
+  inbox.accept(two);
+  await vi.advanceTimersByTimeAsync(1000);
+  inbox.typing(typing('room', ''), 'bot');
+  await vi.advanceTimersByTimeAsync(1999);
+  expect(turn).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(turn).toHaveBeenCalledTimes(2);
+  expect(turn).toHaveBeenNthCalledWith(1, [one]);
+  expect(turn).toHaveBeenNthCalledWith(2, [two]);
+  await inbox.close();
+});
+
+test('typing postpones the next batch after its timer elapsed during a running turn', async () => {
+  const running = Promise.withResolvers<void>();
+  const turn = vi.fn(async (items: readonly AddressedMessage[]) => {
+    if (items[0]?.id === 'one') await running.promise;
+  });
+  const inbox = new Inbox(turn, vi.fn());
+  inbox.accept(message('one'));
+  await vi.advanceTimersByTimeAsync(2000);
+  inbox.typing(typing(), 'bot'); // Does not interrupt or queue work during the current turn.
+  inbox.accept(message('two'));
+  await vi.advanceTimersByTimeAsync(2000);
+  inbox.typing(typing(), 'bot');
+  running.resolve();
+  await vi.advanceTimersByTimeAsync(1999);
+  expect(turn).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(turn).toHaveBeenCalledTimes(2);
+  await inbox.close();
+});
+
+test('typing in a new thread delays the queued root message too', async () => {
+  const turn = vi.fn(async () => {});
+  const inbox = new Inbox(turn, vi.fn());
+  inbox.accept({ ...message('root'), threadRootId: undefined });
+  await vi.advanceTimersByTimeAsync(1000);
+  inbox.typing(typing('room', 'root'), 'bot');
+  await vi.advanceTimersByTimeAsync(1999);
+  expect(turn).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(turn).toHaveBeenCalledOnce();
+  await inbox.close();
+});
+
+test('waits two seconds after the last message and preserves authors and order', async () => {
   const turn = vi.fn(async () => {});
   const inbox = new Inbox(turn, vi.fn());
   const one = message('one');
   const two = { ...message('two'), authorId: 'another-human' };
   inbox.accept(one);
-  await vi.advanceTimersByTimeAsync(4000);
+  await vi.advanceTimersByTimeAsync(1000);
   inbox.accept(two);
-  await vi.advanceTimersByTimeAsync(4999);
+  await vi.advanceTimersByTimeAsync(1999);
   expect(turn).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
   expect(turn).toHaveBeenCalledExactlyOnceWith([one, two]);
@@ -45,7 +144,7 @@ test('keeps DM threads, top-level posts, and rooms separate', async () => {
   await inbox.close();
 });
 
-test('DM roots start immediately while DM thread replies still debounce', async () => {
+test('DM roots and thread replies both wait for the short quiet period', async () => {
   const turn = vi.fn(async () => {});
   const inbox = new Inbox(turn, vi.fn());
   const root: AddressedMessage = {
@@ -58,10 +157,12 @@ test('DM roots start immediately while DM thread replies still debounce', async 
     reasons: ['direct_message']
   };
   inbox.accept(root);
-  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(1999);
+  expect(turn).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
   expect(turn).toHaveBeenCalledExactlyOnceWith([root]);
   inbox.accept(reply);
-  await vi.advanceTimersByTimeAsync(4999);
+  await vi.advanceTimersByTimeAsync(1999);
   expect(turn).toHaveBeenCalledOnce();
   await vi.advanceTimersByTimeAsync(1);
   expect(turn).toHaveBeenLastCalledWith([reply]);
@@ -73,7 +174,7 @@ test('duplicates do not reset the quiet period', async () => {
   const turn = vi.fn(async () => {});
   const inbox = new Inbox(turn, vi.fn());
   inbox.accept(message('one'));
-  await vi.advanceTimersByTimeAsync(4000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(inbox.accept(message('one'))).toBe('duplicate');
   await vi.advanceTimersByTimeAsync(1000);
   expect(turn).toHaveBeenCalledOnce();
@@ -84,7 +185,7 @@ test('applies configured debounce and queue limits', async () => {
   const turn = vi.fn(async () => {});
   const inbox = new Inbox(turn, vi.fn(), {
     ...DEFAULT_INBOX,
-    debounceMs: 250,
+    debounceMs: 2500,
     maxThreads: 1,
     maxPendingMessages: 2
   });
@@ -92,7 +193,7 @@ test('applies configured debounce and queue limits', async () => {
   expect(inbox.accept(message('other', 'other-thread'))).toBe('full');
   expect(inbox.accept(message('two'))).toBe('accepted');
   expect(inbox.accept(message('three'))).toBe('full');
-  await vi.advanceTimersByTimeAsync(249);
+  await vi.advanceTimersByTimeAsync(2499);
   expect(turn).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
   expect(turn).toHaveBeenCalledExactlyOnceWith([message('one'), message('two')]);
@@ -100,16 +201,18 @@ test('applies configured debounce and queue limits', async () => {
   await inbox.close();
 });
 
-test('zero debounce starts a thread batch without a quiet-period delay', async () => {
+test('the minimum configured delay still waits for two seconds', async () => {
   const turn = vi.fn(async () => {});
   const inbox = new Inbox(turn, vi.fn(), {
     ...DEFAULT_INBOX,
-    debounceMs: 0,
+    debounceMs: 2000,
     maxThreads: 1,
     maxPendingMessages: 2
   });
   inbox.accept(message('one'));
-  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(1999);
+  expect(turn).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
   expect(turn).toHaveBeenCalledExactlyOnceWith([message('one')]);
   await inbox.close();
 });
@@ -149,7 +252,7 @@ test('a failed turn does not bypass the next batch quiet period', async () => {
   await vi.advanceTimersByTimeAsync(5000);
   inbox.accept(message('good'));
   first.resolve();
-  await vi.advanceTimersByTimeAsync(4999);
+  await vi.advanceTimersByTimeAsync(1999);
   expect(failed).toHaveBeenCalledWith();
   expect(completed).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
@@ -174,12 +277,13 @@ test('shutdown waits for active work and discards timers and queued batches', as
   expect(vi.getTimerCount()).toBe(0);
 });
 
-test('shutdown discards a batch scheduled for a turn that has not started', async () => {
+test('shutdown discards a queued DM root', async () => {
   const turn = vi.fn(async () => {});
   const inbox = new Inbox(turn, vi.fn());
   inbox.accept({ ...message('root'), threadRootId: undefined, reasons: ['direct_message'] });
-  // Immediate DM delivery schedules a promise callback; close before that callback runs.
+  // A DM root now waits too; shutdown must cancel its timer.
   await inbox.close();
+  await vi.advanceTimersByTimeAsync(2000);
   expect(turn).not.toHaveBeenCalled();
 });
 
@@ -195,13 +299,13 @@ test('bounds threads and messages even when they are still debouncing', async ()
   expect(vi.getTimerCount()).toBe(0);
 });
 
-test('passive thread messages wait for 45 seconds of quiet', async () => {
+test('passive thread messages wait for five seconds of quiet', async () => {
   const turn = vi.fn(async (_messages: readonly AddressedMessage[]) => {});
   const inbox = new Inbox(turn, vi.fn());
   inbox.accept({ ...message('one'), reasons: [] });
-  await vi.advanceTimersByTimeAsync(40_000);
+  await vi.advanceTimersByTimeAsync(4000);
   inbox.accept({ ...message('two'), reasons: [] });
-  await vi.advanceTimersByTimeAsync(44_999);
+  await vi.advanceTimersByTimeAsync(4999);
   expect(turn).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
   expect(turn.mock.calls[0]?.[0].map((item) => item.id)).toEqual(['one', 'two']);
@@ -214,11 +318,11 @@ test.each(['mention', 'reply', 'direct_message'] as const)(
     const turn = vi.fn(async (_messages: readonly AddressedMessage[]) => {});
     const inbox = new Inbox(turn, vi.fn());
     inbox.accept({ ...message('ordinary'), reasons: [] });
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(1000);
     inbox.accept({ ...message('addressed'), reasons: [reason] });
-    await vi.advanceTimersByTimeAsync(4000);
+    await vi.advanceTimersByTimeAsync(1000);
     inbox.accept({ ...message('clarification'), reasons: [] });
-    await vi.advanceTimersByTimeAsync(4999);
+    await vi.advanceTimersByTimeAsync(1999);
     expect(turn).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(turn.mock.calls[0]?.[0].map((item) => item.id)).toEqual([
@@ -227,9 +331,9 @@ test.each(['mention', 'reply', 'direct_message'] as const)(
       'clarification'
     ]);
     inbox.accept({ ...message('next'), reasons: [] });
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(2000);
     expect(turn).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(40_000);
+    await vi.advanceTimersByTimeAsync(3000);
     expect(turn).toHaveBeenCalledTimes(2);
     await inbox.close();
   }
@@ -238,12 +342,12 @@ test.each(['mention', 'reply', 'direct_message'] as const)(
 test('active work is scoped by room and thread and uses the configured passive delay', async () => {
   const running = Promise.withResolvers<void>();
   const turn = vi.fn(() => running.promise);
-  const inbox = new Inbox(turn, vi.fn(), { ...DEFAULT_INBOX, passiveDebounceMs: 100 });
+  const inbox = new Inbox(turn, vi.fn(), { ...DEFAULT_INBOX, passiveDebounceMs: 2500 });
   inbox.accept({ ...message('one'), reasons: [] });
   expect(inbox.isActive({ roomId: 'room', threadRootId: 'thread' })).toBe(true);
   expect(inbox.isActive({ roomId: 'other', threadRootId: 'thread' })).toBe(false);
   expect(inbox.isActive({ roomId: 'room', threadRootId: 'other' })).toBe(false);
-  await vi.advanceTimersByTimeAsync(100);
+  await vi.advanceTimersByTimeAsync(2500);
   expect(turn).toHaveBeenCalledOnce();
   expect(inbox.isActive({ roomId: 'room', threadRootId: 'thread' })).toBe(true);
   running.resolve();
