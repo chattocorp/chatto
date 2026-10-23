@@ -29,6 +29,20 @@ try {
   );
   const installed = resolve(consumer, 'node_modules/@chatto/client');
   const manifest = JSON.parse(await readFile(resolve(installed, 'package.json'), 'utf8'));
+  const source = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
+  assert.equal(manifest.name, source.name);
+  assert.equal(manifest.version, source.version);
+  assert.equal(manifest.license, 'Apache-2.0');
+  for (const file of ['LICENSE', 'api-types/LICENSE']) {
+    assert.equal(
+      await readFile(resolve(installed, file), 'utf8'),
+      await readFile(resolve(root, '../../LICENSES/Apache-2.0.txt'), 'utf8')
+    );
+  }
+  assert.equal(
+    await readFile(resolve(installed, 'NOTICE'), 'utf8'),
+    await readFile(resolve(root, 'NOTICE'), 'utf8')
+  );
   assert.equal(manifest.dependencies['@chatto/api-types'], undefined);
   assert.equal(manifest.private, undefined);
   assert.deepEqual(manifest.sideEffects, ['./chatto-client/src/svelte/index.js']);

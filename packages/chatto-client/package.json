@@ -24,7 +24,7 @@
     "prepack": "pnpm run build",
     "test:package": "node scripts/test-package.mjs",
     "check:release": "node scripts/check-release.mjs",
-    "check": "tsc -p tsconfig.json && tsc -p tsconfig.strict.json && node scripts/generate-types.mjs --check",
+    "check": "tsc -p tsconfig.json && tsc -p tsconfig.strict.json && node scripts/generate-types.mjs --check && node --test scripts/check-release.test.mjs",
     "test": "vitest run --coverage",
     "lint": "eslint ."
   },
