@@ -200,7 +200,9 @@ its workflow; new turns read it again through MCP.
 
 Botto uses a short-lived Means subprocess to prepare document IDs. Pi then opens
 its own Means connection for model tool calls and closes it when the turn ends.
-Botto serializes Means calls and document creation within its process. Updates use
+Botto serializes Means calls and document creation within its process. It uses
+Pi's sequential tool mode when memory is enabled, so a batch of memory calls
+cannot block itself while waiting for the shared lock. Updates use
 Means content hashes to detect stale reads. Continue to run only one Botto process
 per data directory; do not edit memory concurrently through other processes.
 

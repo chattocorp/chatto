@@ -78,6 +78,7 @@ async function setup(mcp = false, memory = false) {
     dispose: vi.fn(),
     bindExtensions: vi.fn(async () => {}),
     extensionRunner: { emit: vi.fn(async () => {}) },
+    agent: { toolExecution: 'parallel' },
     messages: [{ role: 'assistant', stopReason: 'stop' }],
     getLastAssistantText: () => 'Hello'
   };
@@ -172,6 +173,7 @@ test('supplies memory identity and workflow and shuts down extensions on Pi fail
   expect(prompt).toContain('user-doc');
   expect(prompt).toContain('Read the global and user documents.');
   expect(session.extensionRunner.emit).toHaveBeenCalledOnce();
+  expect(session.agent.toolExecution).toBe('sequential');
 });
 
 test('does not post stale assistant text after a model error', async () => {

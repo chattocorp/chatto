@@ -104,6 +104,9 @@ export async function createAgent(settings: Settings) {
           settings.directory
         )
       });
+      // Pi prepares every parallel call before executing any of them. A memory
+      // lock held by a tool_call hook would deadlock the next call in that batch.
+      if (memory) session.agent.toolExecution = 'sequential';
       let shutdown: Promise<void> | undefined;
       const shutdownExtensions = () =>
         (shutdown ??= session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' }));
