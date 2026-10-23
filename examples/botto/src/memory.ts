@@ -4,7 +4,7 @@ import { copyFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { connectMcp } from './mcp.ts';
+import { callMcpTool, connectMcp } from './mcp.ts';
 import type { Settings } from './settings.ts';
 import { createHash } from 'node:crypto';
 import { untilAborted } from '@chatto/client/util/untilAborted';
@@ -56,18 +56,23 @@ export function createMemory(settings: Settings) {
         stderr: 'ignore'
       }),
       signal,
-      'memory_',
-      queued
+      { prefix: 'memory_', run: queued, threadId: identity[3] }
     );
     try {
       const documents = await queued(async () => {
-        const global = await ensureDocument(connection.client, { scope: 'global' }, signal);
+        const global = await ensureDocument(
+          connection.client,
+          { scope: 'global' },
+          signal,
+          identity[3]
+        );
         const users: Record<string, string> = Object.create(null);
         for (const userId of new Set(userIds)) {
           users[userId] = await ensureDocument(
             connection.client,
             { scope: 'user', user_id: userId },
-            signal
+            signal,
+            identity[3]
           );
         }
         return { global, users };
@@ -84,10 +89,14 @@ export function createMemory(settings: Settings) {
 async function ensureDocument(
   client: Client,
   data: { scope: string; user_id?: string },
-  signal: AbortSignal
+  signal: AbortSignal,
+  threadId?: string
 ): Promise<string> {
   const call = async (name: string, args: Record<string, unknown>) => {
-    const result = await client.callTool({ name, arguments: args }, undefined, { signal });
+    const result = await callMcpTool(client, name, args, signal, {
+      threadId,
+      tool: `memory_${name}`
+    });
     if (
       result.isError ||
       !result.structuredContent ||

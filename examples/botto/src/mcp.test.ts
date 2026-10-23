@@ -16,9 +16,14 @@ const settings = parseSettings(
   '[chatto]\nurl="https://chat.example"\napi_key="test-key"\nmcp=true\n[agent]\nmodel="test/test"',
   'botto.toml'
 );
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 test('discovers every page, preserves schemas, authenticates calls, and reports tool errors', async () => {
+  const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
   const calls: string[] = [];
   const schema = { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] };
   const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
@@ -62,7 +67,7 @@ test('discovers every page, preserves schemas, authenticates calls, and reports 
     return Response.json({ jsonrpc: '2.0', id: request.id, result });
   });
   vi.stubGlobal('fetch', fetch);
-  const mcp = await connectChattoMcp(settings, new AbortController().signal);
+  const mcp = await connectChattoMcp(settings, new AbortController().signal, 'thread-test');
   try {
     expect(mcp.tools.map((tool) => tool.name)).toEqual(['list_rooms', 'post_message']);
     const tool = mcp.tools[1]!;
@@ -121,6 +126,23 @@ test('discovers every page, preserves schemas, authenticates calls, and reports 
     });
     await expect(execute('fail')).rejects.toThrow('Denied');
     expect(calls.filter((method) => method === 'tools/call')).toHaveLength(2);
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(info.mock.calls[0]![0]))).toMatchObject({
+      message: 'MCP tool completed',
+      threadId: 'thread-test',
+      tool: 'post_message',
+      durationMs: expect.any(Number)
+    });
+    expect(JSON.parse(String(error.mock.calls[0]![0]))).toMatchObject({
+      message: 'MCP tool failed.',
+      threadId: 'thread-test',
+      tool: 'post_message',
+      durationMs: expect.any(Number)
+    });
+    const logs = JSON.stringify([info.mock.calls, error.mock.calls]);
+    for (const privateText of ['hello', 'Denied', 'Posted', 'new-message', 'test-key'])
+      expect(logs).not.toContain(privateText);
   } finally {
     await mcp.close();
   }

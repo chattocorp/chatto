@@ -63,7 +63,9 @@ export async function createAgent(settings: Settings) {
       userIds: readonly string[] = []
     ): Promise<string> {
       signal.throwIfAborted();
-      const mcp = settings.mcp ? await connectChattoMcp(settings, signal) : undefined;
+      const mcp = settings.mcp
+        ? await connectChattoMcp(settings, signal, identity.at(-1))
+        : undefined;
       let memory: Awaited<ReturnType<typeof openMemory>> | undefined;
       try {
         if (settings.memory) memory = await openMemory(identity, userIds, signal);

@@ -1,7 +1,7 @@
 /** Exercise memory ownership with real MCP framing and an in-memory Means fixture. */
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -17,7 +17,12 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
   }
 }));
 const directories: string[] = [];
+beforeEach(() => {
+  vi.spyOn(console, 'info').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true }))
   );
@@ -98,6 +103,7 @@ test('concurrent turns and a new memory owner reuse global and per-user document
     expect(first.documents.users.user).toBe(second.documents.users.user);
     expect([...collections.values()][0]).toHaveLength(3);
     expect(first.tools.map((tool) => tool.name)).toContain('memory_update');
+    expect(console.info).toHaveBeenCalledWith(expect.stringContaining('"tool":"memory_create"'));
     const hold = Promise.withResolvers<void>();
     heldRead = hold.promise;
     const read = first.tools.find((tool) => tool.name === 'memory_read')!;

@@ -12,6 +12,8 @@ interface Metrics {
   messages?: number;
   durationMs?: number;
   waitMs?: number;
+  /** MCP tool identifier, never its arguments or returned content. */
+  tool?: string;
 }
 
 /** Never pass external messages, credentials, URLs, or identities as the message. */

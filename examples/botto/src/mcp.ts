@@ -4,14 +4,16 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import type { Settings } from './settings.ts';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { logged } from './log.ts';
 
 /** Discover the complete tool catalog. No tool calls are retried by this bridge. */
-export async function connectChattoMcp(settings: Settings, signal: AbortSignal) {
+export async function connectChattoMcp(settings: Settings, signal: AbortSignal, threadId?: string) {
   const { tools, close } = await connectMcp(
     new StreamableHTTPClientTransport(new URL('/mcp', settings.serverUrl), {
       requestInit: { headers: { Authorization: `Bearer ${settings.apiKey}` }, redirect: 'error' }
     }),
-    signal
+    signal,
+    { threadId }
   );
   return { tools, close };
 }
@@ -20,8 +22,15 @@ export async function connectChattoMcp(settings: Settings, signal: AbortSignal) 
 export async function connectMcp(
   transport: Transport,
   signal: AbortSignal,
-  prefix = '',
-  run: <T>(work: () => Promise<T>) => Promise<T> = (work) => work()
+  {
+    prefix = '',
+    run = (work) => work(),
+    threadId
+  }: {
+    prefix?: string;
+    run?: <T>(work: () => Promise<T>) => Promise<T>;
+    threadId?: string;
+  } = {}
 ) {
   const client = new Client({ name: 'botto', version: '0.1.0' });
   const close = () => client.close();
@@ -45,13 +54,14 @@ export async function connectMcp(
           parameters: tool.inputSchema as ToolDefinition['parameters'],
           async execute(_id, args, toolSignal) {
             const result = await run(() =>
-              client.callTool(
-                { name: tool.name, arguments: args as Record<string, unknown> },
-                undefined,
-                { signal: toolSignal ? AbortSignal.any([signal, toolSignal]) : signal }
+              callMcpTool(
+                client,
+                tool.name,
+                args as Record<string, unknown>,
+                toolSignal ? AbortSignal.any([signal, toolSignal]) : signal,
+                { threadId, tool: prefix + tool.name }
               )
             );
-            if (result.isError) throw new Error(JSON.stringify(result.content));
             return {
               content: [{ type: 'text', text: JSON.stringify(result) }],
               details: result
@@ -75,4 +85,23 @@ export async function connectMcp(
     await close().catch(() => {});
     throw error;
   }
+}
+
+/** Log one tool outcome, including protocol-level failures, without copying private data. */
+export function callMcpTool(
+  client: Client,
+  name: string,
+  args: Record<string, unknown>,
+  signal: AbortSignal,
+  metrics: { threadId?: string; tool: string }
+) {
+  return logged(
+    'MCP tool',
+    async () => {
+      const result = await client.callTool({ name, arguments: args }, undefined, { signal });
+      if (result.isError) throw new Error(JSON.stringify(result.content));
+      return result;
+    },
+    metrics
+  );
 }

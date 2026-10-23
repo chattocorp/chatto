@@ -231,6 +231,9 @@ entry, not a chat reply.
 
 Timestamped terminal logs show connection changes, accepted messages, debounce
 delays, batch sizes, context reads, model turns, reply posts, and shutdown.
+MCP tool calls log one completion or failure with `tool`, `threadId`, and
+`durationMs`. This includes Chatto tools, Means tools, and host-owned memory
+document discovery and creation. Arguments, results, and raw errors are omitted.
 Terminals that support color show colored severity labels and dimmed metadata.
 Set `NO_COLOR` to disable colors. Other terminals use plain text. Redirected
 output uses one JSON object per line, with `timestamp`, `level`, `message`, and
