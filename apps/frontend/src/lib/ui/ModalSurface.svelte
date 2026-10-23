@@ -198,7 +198,12 @@ the handle claims drag gestures; content retains native scrolling.
   {@attach syncVisibility}
   {@attach viewport}
   onclose={nativeClose}
-  {onkeydown}
+  onkeydown={(event) => {
+    // Keep Escape inside this modal. Descendants can cancel it to dismiss a
+    // dropdown; otherwise the browser sends the native dialog cancel event.
+    if (event.key === 'Escape') event.stopPropagation();
+    onkeydown?.(event);
+  }}
   oncancel={(event) => {
     event.preventDefault();
     if (

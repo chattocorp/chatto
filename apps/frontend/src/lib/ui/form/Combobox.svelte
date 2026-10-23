@@ -187,7 +187,7 @@
       event.preventDefault();
       removeSelection(selectedItems[selectedItems.length - 1]);
     } else if (event.key === 'Escape') {
-      if (open) {
+      if (showPopover) {
         event.preventDefault();
         open = false;
       }
