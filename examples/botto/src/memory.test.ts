@@ -28,6 +28,8 @@ test('concurrent turns and a new memory owner reuse global and per-user document
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, 'botto-memory-'));
   directories.push(directory);
+  let heldRead: Promise<void> | undefined;
+  const readStarted = vi.fn();
   const collections = new Map<
     string,
     Array<{ id: string; frontmatter: { data: Record<string, unknown> } }>
@@ -68,6 +70,10 @@ test('concurrent turns and a new memory owner reuse global and per-user document
         documents.push(doc);
         return { content: [], structuredContent: doc };
       }
+      if (params.name === 'read') {
+        readStarted();
+        await heldRead;
+      }
       return { content: [], structuredContent: { body: 'remembered fact' } };
     });
     void server.connect(transport);
@@ -92,6 +98,27 @@ test('concurrent turns and a new memory owner reuse global and per-user document
     expect(first.documents.users.user).toBe(second.documents.users.user);
     expect([...collections.values()][0]).toHaveLength(3);
     expect(first.tools.map((tool) => tool.name)).toContain('memory_update');
+    const hold = Promise.withResolvers<void>();
+    heldRead = hold.promise;
+    const read = first.tools.find((tool) => tool.name === 'memory_read')!;
+    const reading = read.execute(
+      'call',
+      {},
+      undefined,
+      undefined,
+      {} as Parameters<typeof read.execute>[4]
+    );
+    try {
+      await vi.waitFor(() => expect(readStarted).toHaveBeenCalled());
+      const controller = new AbortController();
+      const waiting = open(identity, ['waiting-user'], controller.signal);
+      controller.abort(new Error('cancelled while queued'));
+      await expect(waiting).rejects.toThrow('cancelled while queued');
+    } finally {
+      hold.resolve();
+      await reading;
+      heldRead = undefined;
+    }
     const reopened = await createMemory(settings)(identity, ['user'], signal);
     try {
       expect(reopened.documents).toEqual(first.documents);

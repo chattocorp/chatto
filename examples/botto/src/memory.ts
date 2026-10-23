@@ -7,6 +7,7 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { connectMcp } from './mcp.ts';
 import type { Settings } from './settings.ts';
 import { createHash } from 'node:crypto';
+import { untilAborted } from '@chatto/client/util/untilAborted';
 
 /** One memory owner per bot process. No subprocess is started until a turn needs it. */
 export function createMemory(settings: Settings) {
@@ -20,12 +21,20 @@ export function createMemory(settings: Settings) {
   };
   return async (identity: readonly string[], userIds: readonly string[], signal: AbortSignal) => {
     signal.throwIfAborted();
+    const queued = <T>(work: () => Promise<T>): Promise<T> =>
+      untilAborted(
+        run(() => {
+          signal.throwIfAborted();
+          return work();
+        }),
+        signal
+      );
     const key = createHash('sha256')
       .update(JSON.stringify(identity.slice(0, 2)))
       .digest('hex');
     const directory = join(settings.directory, 'memory', key);
     // Another turn must not start Means while template files are still being copied.
-    await run(async () => {
+    await queued(async () => {
       signal.throwIfAborted();
       await mkdir(directory, { recursive: true, mode: 0o700 });
       for (const file of ['means.schema.json', 'MEANS.md']) {
@@ -48,10 +57,10 @@ export function createMemory(settings: Settings) {
       }),
       signal,
       'memory_',
-      run
+      queued
     );
     try {
-      const documents = await run(async () => {
+      const documents = await queued(async () => {
         const global = await ensureDocument(connection.client, { scope: 'global' }, signal);
         const users: Record<string, string> = Object.create(null);
         for (const userId of new Set(userIds)) {
