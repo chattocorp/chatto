@@ -157,8 +157,16 @@ export class TimelineSync {
     const { files, pins } = this.#options.rooms.loaded(roomId) ?? {};
     files?.applyMessageUpdate(messageEventId, null, false);
     pins?.applyMessageRetraction(messageEventId);
+    const generation = this.#options.generation();
     for (const store of this.#options.rooms.timelines(roomId || undefined)) {
       store.applyMessageRetraction(messageEventId, retractedAt);
+      this.#options.track(
+        store.refreshThreadSummaries(
+          this.#options.eventCursor(),
+          () => generation === this.#options.generation()
+        ),
+        generation
+      );
     }
   }
 

@@ -36,6 +36,7 @@ function fakeTimeline() {
       }
     ),
     applyMessageRetraction: vi.fn(),
+    refreshThreadSummaries: vi.fn(async () => undefined),
     ingestEvent: vi.fn()
   };
 }
@@ -170,13 +171,15 @@ describe('TimelineSync', () => {
   it('removes a retracted message from every timeline when the event has no room', () => {
     const room = fakeTimeline();
     const other = fakeTimeline();
-    const { sync } = makeSync({ R1: { messages: room }, R2: { messages: other } });
+    const { sync, track } = makeSync({ R1: { messages: room }, R2: { messages: other } });
 
     sync.retract('', 'M1', '2026-09-27T12:00:00.000Z');
 
     for (const store of [room, other]) {
       expect(store.applyMessageRetraction).toHaveBeenCalledWith('M1', '2026-09-27T12:00:00.000Z');
+      expect(store.refreshThreadSummaries).toHaveBeenCalledWith('cursor', expect.any(Function));
     }
+    expect(track).toHaveBeenCalledTimes(2);
   });
 
   it('shows a post preview with the fields of the event and empty resource fields', () => {
