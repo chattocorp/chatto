@@ -701,6 +701,55 @@ it('features a remote active speaker without a camera over the viewer camera', a
   await expect.element(featured).toHaveTextContent('Bob');
 });
 
+it('shows each sidebar person once as the featured speaker changes', async () => {
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'camera' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  await expect.element(featured).toHaveTextContent('Alice');
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  const list = screen.getByTestId('call-participants-list');
+
+  for (const identity of ['viewer', 'bob', 'chloe', null]) {
+    flushSync(() => {
+      call.activeSpeakerIdentity = identity;
+    });
+    const featuredIdentity = identity === null ? 'viewer' : identity;
+    await expect
+      .element(featured)
+      .toHaveAttribute('data-stage-tile-key', `${featuredIdentity}:person`);
+    for (const person of ['viewer', 'bob', 'chloe']) {
+      expect(
+        screen.container.querySelectorAll(`[data-stage-tile-key="${person}:person"]`)
+      ).toHaveLength(1);
+      expect(
+        list.element().querySelector(`[data-stage-tile-key="${person}:person"]`) === null
+      ).toBe(person === featuredIdentity);
+    }
+    expect(call.participants).toHaveLength(3);
+  }
+});
+
+it('keeps the sidebar person and screen share as separate sources', async () => {
+  const screen = renderCallPanelHarness({ layout: 'sidebar', scenario: 'screen-voice' });
+  const featured = screen.getByTestId('call-featured-stage-card');
+  await expect.element(featured).toHaveAttribute('data-stage-tile-key', 'bob:screen');
+  const list = screen.getByTestId('call-participants-list');
+  expect(list.element().querySelector('[data-stage-tile-key="bob:person"]')).not.toBeNull();
+  expect(screen.container.querySelectorAll('[data-stage-tile-key="bob:screen"]')).toHaveLength(1);
+
+  const call = serverUi(serverRegistry.getStore(serverRegistry.originServer!.id)).voiceCall;
+  flushSync(() => {
+    call.participants = call.participants.map((participant) =>
+      participant.identity === 'bob'
+        ? { ...participant, isCameraEnabled: true, videoTrack: participant.screenShareTrack }
+        : participant
+    );
+  });
+  await list.getByRole('button', { name: 'Pin Bob to the stage' }).click();
+  await expect.element(featured).toHaveAttribute('data-stage-tile-key', 'bob:person');
+  expect(list.element().querySelector('[data-stage-tile-key="bob:screen"]')).not.toBeNull();
+  expect(screen.container.querySelectorAll('[data-stage-tile-key="bob:person"]')).toHaveLength(1);
+});
+
 it('keeps screen shares ahead of the active speaker', async () => {
   const screen = renderCallPanelHarness({
     layout: 'stage',
