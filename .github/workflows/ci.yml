@@ -820,9 +820,28 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
-    # Leave time for tests after a cold FFmpeg install and browser setup.
+    # Use the official image until the first verified custom digest is selected.
+    container:
+      image: ${{ vars.MEDIA_E2E_IMAGE || 'mcr.microsoft.com/playwright:v1.63.0-noble' }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+    # The bootstrap image can still require an FFmpeg install.
     timeout-minutes: 25
     steps:
+      - name: Check selected image
+        env:
+          MEDIA_E2E_IMAGE: ${{ vars.MEDIA_E2E_IMAGE }}
+        run: |
+          if test -n "$MEDIA_E2E_IMAGE"; then
+            if [[ ! "$MEDIA_E2E_IMAGE" =~ ^ghcr\.io/chattocorp/media-e2e@sha256:[a-f0-9]{64}$ ]]; then
+              echo '::error::MEDIA_E2E_IMAGE must be a ghcr.io/chattocorp/media-e2e digest reference.'
+              exit 1
+            fi
+            test -f /opt/media-e2e-playwright-version
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v6
 
@@ -834,8 +853,18 @@ jobs:
           install-ffmpeg: 'true'
 
       - name: Setup Playwright
-        uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
+        run: |
+          expected='1.63.0'
+          if test -f /opt/media-e2e-playwright-version; then
+            expected="$(cat /opt/media-e2e-playwright-version)"
+          fi
+          actual="$(pnpm --dir apps/frontend exec playwright --version)"
+          if test "$actual" != "Version $expected"; then
+            echo '::error::Rebuild the media E2E image and update MEDIA_E2E_IMAGE to its digest, or update the bootstrap image version.'
+            exit 1
+          fi
+          mkdir -p .context
+          pnpm --dir apps/frontend exec playwright screenshot --browser chromium about:blank "$GITHUB_WORKSPACE/.context/media-e2e-chromium.png"
 
       - name: Build E2E server
         run: mise build-e2e-server
