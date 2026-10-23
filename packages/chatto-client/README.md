@@ -138,6 +138,17 @@ and `ctx.reply` return the `ids` of the new messages. Other helpers are
 `conversationKey`, `replyDestination`, `withTyping` and `startTyping` for
 custom typing updates, and `createDeliveryTracker` for replay filters.
 
+For live thread history, use `server.rooms.thread(roomId, rootId)`. It returns
+the shared timeline store and starts its initial read on first use.
+`await store.waitForLoad({ signal })` reports whether the current history-window
+load succeeded. It does not start requests, retry failures, or load older pages.
+`false` means loading failed, access ended, or a reset or newer load superseded
+it. Cancellation stops only the caller's wait, not a
+shared request. Read `store.threadEvents` after a successful load. The client
+keeps loaded timelines current through realtime message reconciliation. This
+wait does not include pagination or separate message-resource reads. The stores retain their
+windows for reuse until the client clears or disposes them.
+
 For any other request, `service(Service)` creates a typed Connect client with
 the server's authentication. `@chatto/client/types` has the protocol's
 messages and services, and `@chatto/client/types/admin` the administration

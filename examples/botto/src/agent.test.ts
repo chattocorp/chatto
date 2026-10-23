@@ -1,0 +1,176 @@
+/** Check the Pi boundary: tool isolation, transcript identity, errors, and cancellation. */
+import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+
+const pi = vi.hoisted(() => ({
+  create: vi.fn(),
+  open: vi.fn(),
+  getModel: vi.fn(),
+  refresh: vi.fn()
+}));
+vi.mock('@earendil-works/pi-coding-agent', () => ({
+  createAgentSession: pi.create,
+  ModelRuntime: { create: async () => ({ getModel: pi.getModel, refresh: pi.refresh }) },
+  SettingsManager: { inMemory: () => ({}) },
+  SessionManager: { open: pi.open },
+  DefaultResourceLoader: class {
+    constructor(readonly options: unknown) {}
+    async reload() {}
+  }
+}));
+
+import { createAgent, transcriptName } from './agent.ts';
+import { parseSettings } from './settings.ts';
+import { log } from './log.ts';
+vi.mock('./log.ts', () => ({ log: vi.fn() }));
+
+const directories: string[] = [];
+beforeEach(() => {
+  pi.getModel.mockReset().mockReturnValue({ id: 'test-model' });
+  pi.refresh.mockReset().mockResolvedValue(undefined);
+});
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  vi.clearAllMocks();
+  await Promise.all(
+    directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))
+  );
+});
+
+test('refreshes only the selected provider when its model is missing locally', async () => {
+  vi.stubEnv('PI_OFFLINE', undefined);
+  pi.getModel.mockReturnValueOnce(undefined);
+  await setup();
+  expect(pi.refresh).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providers: ['test'],
+      allowNetwork: true,
+      force: true
+    })
+  );
+  expect(pi.getModel).toHaveBeenCalledTimes(2);
+});
+
+test('reports an unknown model and respects offline mode', async () => {
+  vi.stubEnv('PI_OFFLINE', '1');
+  pi.getModel.mockReturnValue(undefined);
+  await expect(setup()).rejects.toThrow('agent.model was not found');
+  expect(pi.refresh).not.toHaveBeenCalled();
+});
+
+async function setup() {
+  const root = resolve('../../.context');
+  await mkdir(root, { recursive: true });
+  const directory = await mkdtemp(join(root, 'botto-test-'));
+  directories.push(directory);
+  const session = {
+    sessionId: 'persisted-session',
+    prompt: vi.fn(async () => {}),
+    abort: vi.fn(async () => {}),
+    dispose: vi.fn(),
+    messages: [{ role: 'assistant', stopReason: 'stop' }],
+    getLastAssistantText: () => 'Hello'
+  };
+  pi.create.mockResolvedValue({ session });
+  const agent = await createAgent({
+    ...parseSettings(
+      '[chatto]\nurl="https://chat.example.com"\napi_key="${BOTTO_CHATTO_API_KEY}"\n[agent]\nmodel="test/test"\nname="Test Bot"\nsystem_prompt="Be helpful."',
+      'botto.toml',
+      { BOTTO_CHATTO_API_KEY: 'unused' }
+    ),
+    directory
+  });
+  return { agent, session, directory };
+}
+
+test('uses an isolated, tool-free session and a stable transcript path', async () => {
+  const { agent, session, directory } = await setup();
+  const identity = ['server', 'bot', 'room', 'thread'];
+  expect(await agent.reply(identity, 'hello', new AbortController().signal)).toBe('Hello');
+  expect(pi.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      tools: [],
+      resourceLoader: expect.objectContaining({
+        options: expect.objectContaining({
+          noExtensions: true,
+          noSkills: true,
+          noContextFiles: true,
+          noPromptTemplates: true
+        })
+      })
+    })
+  );
+  expect(pi.open).toHaveBeenCalledWith(
+    join(directory, transcriptName(identity)),
+    directory,
+    directory
+  );
+  expect(transcriptName(identity)).not.toBe(
+    transcriptName(['other-server', 'bot', 'room', 'thread'])
+  );
+  expect(session.dispose).toHaveBeenCalledOnce();
+  expect(log).toHaveBeenCalledWith('info', 'Pi session resumed', {
+    threadId: 'thread',
+    sessionId: 'persisted-session',
+    historyMessages: 1
+  });
+  const options = pi.create.mock.calls[0]![0];
+  expect(options.resourceLoader.options.systemPromptOverride()).toContain('Your name is Test Bot.');
+  expect(options.resourceLoader.options.systemPromptOverride()).toContain('Be helpful.');
+});
+
+test('does not post stale assistant text after a model error', async () => {
+  const { agent, session } = await setup();
+  session.messages[0]!.stopReason = 'error';
+  await expect(agent.reply(['thread'], 'hello', new AbortController().signal)).rejects.toThrow(
+    'did not complete'
+  );
+  expect(session.dispose).toHaveBeenCalledOnce();
+});
+
+test('passes only the addressed prompt to Pi and installs the request-only snapshot extension', async () => {
+  const { agent, session } = await setup();
+  const prompt = JSON.stringify({
+    currentMessages: [{ id: 'new', author: 'human', text: 'Question' }]
+  });
+  await agent.reply(['thread'], prompt, new AbortController().signal, {
+    messages: [{ id: 'old', author: 'human', text: 'Context snapshot' }],
+    olderContextOmitted: false
+  });
+  expect(session.prompt).toHaveBeenCalledExactlyOnceWith(prompt);
+  const options = pi.create.mock.calls[0]![0];
+  expect(options.resourceLoader.options.extensionFactories).toHaveLength(1);
+  expect(options.resourceLoader.options.noExtensions).toBe(true);
+});
+
+test('logs a new session when no messages were restored', async () => {
+  const { agent, session } = await setup();
+  session.messages = [];
+  session.prompt.mockImplementation(async () => {
+    session.messages.push({ role: 'assistant', stopReason: 'stop' });
+  });
+  await agent.reply(['thread'], 'hello', new AbortController().signal);
+  expect(log).toHaveBeenCalledWith('info', 'Pi session created', {
+    threadId: 'thread',
+    sessionId: 'persisted-session',
+    historyMessages: 0
+  });
+});
+
+test('aborts active model work and disposes its session on shutdown', async () => {
+  const { agent, session } = await setup();
+  const pending = Promise.withResolvers<void>();
+  session.prompt.mockImplementation(() => pending.promise);
+  session.abort.mockImplementation(async () => {
+    pending.resolve();
+  });
+  const controller = new AbortController();
+  const running = agent.reply(['thread'], 'hello', controller.signal);
+  const rejected = expect(running).rejects.toThrow();
+  await vi.waitFor(() => expect(session.prompt).toHaveBeenCalledOnce());
+  controller.abort();
+  await rejected;
+  expect(session.abort).toHaveBeenCalled();
+  expect(session.dispose).toHaveBeenCalledOnce();
+});
