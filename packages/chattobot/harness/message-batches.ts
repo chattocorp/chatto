@@ -2,19 +2,26 @@
 import { createNotifier } from 'runling';
 import type { IncomingMessage } from '../chatto/message.ts';
 
-export const MESSAGE_BATCH_MS = 3_000;
+/** Ordinary messages and reactions leave time for human discussion. */
+export const MESSAGE_BATCH_MS = 45_000;
+/** Direct text requests get a short window for consecutive messages. */
+export const ADDRESSED_MESSAGE_BATCH_MS = 2_000;
 
 /** One reader drains the task inbox. The first queued message starts the window;
- * later messages do not extend it. Closing input flushes the last window, while
+ * later messages never extend it. Addressed text can shorten an ordinary window.
+ * Closing input drains the last window, while
  * cancellation discards it. The owning task must close or cancel its inbox. */
 export function messageBatches(
   input: AsyncIterable<IncomingMessage>,
   signal: AbortSignal,
   initial: IncomingMessage[] = [],
-  windowMs = MESSAGE_BATCH_MS
+  windowMs?: number
 ) {
   let queue = initial;
-  let deadline = Date.now() + windowMs;
+  const delay = (message: IncomingMessage) =>
+    windowMs ??
+    (!message.trigger && !message.reaction ? ADDRESSED_MESSAGE_BATCH_MS : MESSAGE_BATCH_MS);
+  let deadline = Math.min(...initial.map((message) => Date.now() + delay(message)));
   let ended = false;
   let failed = false;
   let failure: unknown;
@@ -22,7 +29,8 @@ export function messageBatches(
   void (async () => {
     try {
       for await (const message of input) {
-        if (!queue.length) deadline = Date.now() + windowMs;
+        const nextDeadline = Date.now() + delay(message);
+        deadline = queue.length ? Math.min(deadline, nextDeadline) : nextDeadline;
         queue.push(message);
         changed.notify();
       }

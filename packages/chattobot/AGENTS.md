@@ -25,10 +25,12 @@ ChattoBot is one agent session per Chatto thread. Keep it that way:
   `tasks/thread.ts`. This workflow calls `tasks/classify-intake.ts`, then
   exits silently or runs the conversation as a child in the same run. It forwards
   later addressed messages to that child. Addressed entry starts the same workflow
-  without initial classification. Batch all incoming messages, including the first
-  post, pings, direct replies, and reactions to bot messages, in a fixed three-second window. The first queued
-  message starts it; later arrivals do not extend it. The window elapses while the
-  conversation is busy. Forward verified addressed text batches directly. Check each reaction
+  without initial classification. Batch ordinary messages, including initial
+  report intake and reactions, for 45 seconds. Batch addressed text (pings,
+  replies to the bot, and DMs) for two seconds. A direct request shortens a pending
+  ordinary window to at most two seconds after its arrival. Later messages never
+  extend a deadline. Windows elapse while the conversation is busy. Forward
+  verified addressed text batches directly. Check each reaction
   with the participation classifier and forward only accepted reactions. Ordinary
   reply batches wake a classification check without a second delay. Preserve each message's
   author and trigger, including in the first conversation turn. Pending intake

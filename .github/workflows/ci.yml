@@ -488,7 +488,8 @@ jobs:
     name: test-workspace (${{ matrix.name }})
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Browser setup can use most of the old 15-minute frontend budget.
+    timeout-minutes: ${{ matrix.playwright && 30 || 15 }}
     strategy:
       fail-fast: false
       matrix:
