@@ -233,7 +233,7 @@ type ImportReactionRequest struct {
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Existing user shown as the reactor.
 	UserId string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Supported emoji shortcode or Unicode emoji.
+	// Supported emoji shortcode, such as heart.
 	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

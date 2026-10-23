@@ -50,7 +50,7 @@ message ImportReactionRequest {
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Existing user shown as the reactor.
   string user_id = 3 [(buf.validate.field).string.min_len = 1];
-  // Supported emoji shortcode or Unicode emoji.
+  // Supported emoji shortcode, such as heart.
   string emoji = 4 [(buf.validate.field).string.min_len = 1];
 }
 

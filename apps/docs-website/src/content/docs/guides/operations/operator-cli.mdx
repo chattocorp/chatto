@@ -199,7 +199,7 @@ chatto operator message import-reaction \
   --user-id USER_ID --emoji heart --json
 ```
 
-The user and message must exist in the specified active channel. The user does not need room membership. Use a supported emoji shortcode or Unicode emoji. A channel echo ID resolves to its original thread reply.
+The user and message must exist in the specified active channel. The user does not need room membership. Use a supported emoji shortcode, such as `heart`. A channel echo ID resolves to its original thread reply.
 
 The response has `added: true` for a new reaction. For an existing reaction, `added` is false (the JSON field can be omitted). Repeating the same user/message/emoji is safe, including after a lost response. Imports bypass the interactive per-user reaction-count limit and do not create notifications, unread activity, or live reaction frames. The mapped user can remove the reaction normally when they have access.
 
