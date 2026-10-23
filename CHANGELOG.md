@@ -3,6 +3,22 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.20](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.19...v0.5.0-beta.20) (2026-10-22)
+
+
+### Features
+
+* **rooms:** add room invitations and notifications ([#3102](https://github.com/chattocorp/chatto/issues/3102)) ([f000384](https://github.com/chattocorp/chatto/commit/f000384be04ea8e7671b4dd22ed704951251a9a0))
+* **translatto:** publish standalone npm package ([#3105](https://github.com/chattocorp/chatto/issues/3105)) ([eebb6a0](https://github.com/chattocorp/chatto/commit/eebb6a076d60d02b3fecc1020afc45e53cb62913))
+
+
+### Bug Fixes
+
+* **codegen:** build protobuf generators before running Buf ([#3108](https://github.com/chattocorp/chatto/issues/3108)) ([e03c379](https://github.com/chattocorp/chatto/commit/e03c3795723e84e6d565d4a4de749e19cdcfbf02))
+* **frontend:** align notification settings with unread dots ([#3120](https://github.com/chattocorp/chatto/issues/3120)) ([dbacbe9](https://github.com/chattocorp/chatto/commit/dbacbe9ff15561756ba0d3c9b55bd40a2b0203ba))
+* **frontend:** keep blockquotes upright so emphasis stays visible ([#3112](https://github.com/chattocorp/chatto/issues/3112)) ([4ca0c0a](https://github.com/chattocorp/chatto/commit/4ca0c0a8f075e966475047ac442d8ebdf207efce))
+* **frontend:** show now for recent DM activity ([#3121](https://github.com/chattocorp/chatto/issues/3121)) ([428515a](https://github.com/chattocorp/chatto/commit/428515a29f2d717c8dd21220c3b03ca652d353d0))
+
 ## [0.5.0-beta.19](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.18...v0.5.0-beta.19) (2026-10-21)
 
 
