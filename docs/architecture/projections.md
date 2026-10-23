@@ -100,6 +100,11 @@ which end the account's DM call participation, so deleted accounts stay DM
 members in current and replayed state. Snapshot semantics v2 records this rule,
 so v1 snapshots are rebuilt.
 
+The Room Directory catalog retains the timestamp from each
+`RoomCreated` event. Its snapshot preserves this field. The schema fingerprint
+selects a new snapshot namespace, so existing rooms recover their creation
+time from the event log when an older snapshot lacks this field.
+
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run
 loop returns. Readiness and provider status therefore cannot remain

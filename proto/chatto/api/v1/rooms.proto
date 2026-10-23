@@ -49,6 +49,8 @@ message Room {
   // Per-user interval within each thread, including its root. Zero disables
   // the interval. Absent on servers without independent thread slow mode.
   optional uint32 thread_slow_mode_seconds = 10;
+  // When the room was created. Absent when unavailable on an older server.
+  google.protobuf.Timestamp created_at = 11;
 }
 
 // Lightweight room reference for cross-resource rows.

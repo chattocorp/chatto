@@ -10,6 +10,8 @@ export type RoomData = {
     name: string;
     type: RoomKind;
     description?: string | null;
+    /** Creation provenance, when reported by the server. */
+    createdAt?: string | null;
     isUniversal: boolean;
     slowModeSeconds: number;
     threadSlowModeSeconds?: number;
@@ -71,6 +73,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
         id: room.id,
         name: room.name,
         description: room.description ?? undefined,
+        createdAt: room.createdAt,
         type: roomKindOrChannel(room.kind ?? RoomKind.CHANNEL),
         isUniversal: room.isUniversal,
         slowModeSeconds: room.slowModeSeconds,

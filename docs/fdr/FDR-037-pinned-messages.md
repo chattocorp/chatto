@@ -21,9 +21,17 @@ Direct-message rooms do not support pins.
   with `message.read-interactions` may list pins only from related threads.
   Losing membership or read authority immediately removes inaccessible
   pinned-message state from the client.
-- Pins appear newest-first in an automatically paginated **Pins** sidebar tab.
-  The sidebar renders the complete message with the shared timeline message
-  view; it does not apply Search's result-length clamp.
+- Pins appear newest-first in the **Pinned messages** section of the **Room
+  information** sidebar tab. The **General** section shows the
+  room name, relative creation time, and live member count, including effective
+  members of universal rooms. Creator identity is not exposed by the room API.
+  The exact creation time is available on hover. Missing creation metadata is
+  shown as unknown.
+  A separate **Description** section follows General when the room has a description.
+  It uses the same Markdown rendering as messages and the room join screen.
+  All sections start expanded and can be collapsed
+  independently. This device remembers the section preferences for each server.
+  The pin list loads more messages automatically as you scroll.
 - Selecting a pinned message opens its canonical message. The entire message row
   is the navigation target, while links and normal message actions keep their
   own behavior. Pinning a visible channel echo pins the original thread reply
@@ -31,8 +39,8 @@ Direct-message rooms do not support pins.
 - A message may be pinned once per room. Repeating pin or unpin operations is a
   successful no-op. Editing a pinned message updates what the pin renders;
   retracting it removes its active pin.
-- A dot on the room-header pin icon indicates that this device has not opened
-  the Pins tab since a newer pin arrived. Opening the tab clears the dot. This
+- A dot on the room-header information icon indicates that this device has not opened
+  the Room information tab since a newer pin arrived. Opening the tab clears the dot. This
   marker is device-local, is not a server read receipt, and never opens the tab
   automatically. The dot is hidden when the room has no current pins, including
   after a live unpin removes the last unseen pin.
@@ -87,12 +95,12 @@ canonical page rather than apply an untrusted partial message payload.
 **Decision:** The server orders pins by their durable event sequence and returns
 an opaque marker for the latest pin fact even after that pin is removed. The
 client compares that stable marker with the device-local marker
-recorded when the Pins panel was last opened. Local state is scoped to the
+recorded when the Room information panel was last opened. Local state is scoped to the
 authenticated viewer and removed when room access is revoked. The marker does
 not expose or identify the pin operation or underlying stream sequence.
 **Why:** The dot is a lightweight navigation hint, not shared notification
 state. Avoiding a per-user server record keeps the feature simple and prevents
-opening Pins on one device from changing another.
+opening Room information on one device from changing another.
 **Tradeoff:** A newly used browser may mark existing pins as unseen until the
 tab is opened once. Because the comparison does not use wall-clock timestamps,
 replica clock skew cannot suppress the indicator or change canonical pin order,

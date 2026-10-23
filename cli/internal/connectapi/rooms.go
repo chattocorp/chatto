@@ -378,6 +378,7 @@ func apiRoom(room *evtv1.Room) *apiv1.Room {
 		return nil
 	}
 	return &apiv1.Room{
+		CreatedAt:             room.GetCreatedAt(),
 		Id:                    room.Id,
 		Kind:                  apiRoomKind(room.Kind),
 		Name:                  room.Name,

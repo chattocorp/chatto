@@ -1,5 +1,12 @@
 {
   "room": {
+    "information": {
+      "description": "Apraksts",
+      "created": "Izveidota",
+      "title": "Informācija par istabu",
+      "basic": "Vispārīgi",
+      "pinned_messages": "Piespraustie ziņojumi"
+    },
     "create": {
       "title": "Izveidojiet jaunu istabu",
       "description": "Telpas ir sarunas jūsu serverī.",
