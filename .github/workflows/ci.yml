@@ -845,6 +845,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Trust the mounted checkout
+        # The runner owns the mount; the container builds as root. Checkout's
+        # temporary Git configuration does not apply to later Go VCS stamping.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git status --porcelain
+
       - name: Setup environment
         uses: ./.github/actions/setup
         timeout-minutes: 15
