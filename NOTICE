@@ -106,6 +106,7 @@ Frontend, Examples, and Documentation Components:
 - Runling workflow runner (packages/runling, originally https://github.com/chattocorp/runling) - MIT License; Copyright (c) 2026 Hendrik Mans and contributors
 - Pi coding agent, AI SDK, and terminal UI, used by Runling and the Botto example (https://github.com/earendil-works/pi) - MIT License
 - smol-toml, used by the Botto example (https://github.com/squirrelchat/smol-toml) - BSD-3-Clause License
+- Model Context Protocol TypeScript SDK, used by the Botto example (https://github.com/modelcontextprotocol/typescript-sdk) - MIT License
 - Playwright (https://playwright.dev/) - Apache License 2.0
 - Prettier and plugins (https://prettier.io/) - MIT License
 - Sharp image toolkit (https://sharp.pixelplumbing.com/) - Apache License 2.0

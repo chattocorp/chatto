@@ -12,13 +12,12 @@ import {
 import type { Settings } from './settings.ts';
 import { StartupError, startupStep } from './diagnostics.ts';
 import { log } from './log.ts';
+import { connectChattoMcp } from './mcp.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
 
-/** Capability facts stay consistent with the host even when the persona changes. */
-const CAPABILITIES = `
-Do not claim to have searched the web, read files, changed issues, or run code: you have no tools.
-Say when you do not know something. You cannot see attachments.
-Your final answer is posted to this thread. Do not include internal IDs unless the user needs them.`;
+/** Runtime facts supplement the configurable behavior instructions. */
+const CAPABILITIES = `You cannot see attachments.
+Your final answer is posted to this thread automatically.`;
 
 /** Use opaque file names and bind transcripts to the server, bot, room, and thread. */
 export function transcriptName(identity: readonly string[]): string {
@@ -61,69 +60,79 @@ export async function createAgent(settings: Settings) {
       context?: ThreadContext
     ): Promise<string> {
       signal.throwIfAborted();
-      const settingsManager = SettingsManager.inMemory();
-      const resourceLoader = new DefaultResourceLoader({
-        cwd: settings.directory,
-        agentDir: settings.directory,
-        settingsManager,
-        noExtensions: true,
-        noSkills: true,
-        noPromptTemplates: true,
-        noThemes: true,
-        noContextFiles: true,
-        // Only this host-owned extension is loaded; local extensions remain disabled.
-        extensionFactories: context ? [threadContextExtension(context)] : [],
-        systemPromptOverride: () =>
-          `Your name is ${settings.name}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}`,
-        appendSystemPromptOverride: () => []
-      });
-      await resourceLoader.reload();
-      signal.throwIfAborted();
-      const { session } = await createAgentSession({
-        cwd: settings.directory,
-        agentDir: settings.directory,
-        modelRuntime: runtime,
-        model,
-        settingsManager,
-        resourceLoader,
-        tools: [],
-        sessionManager: SessionManager.open(
-          join(settings.directory, transcriptName(identity)),
-          settings.directory,
-          settings.directory
-        )
-      });
-      const abort = () => {
-        void session.abort().catch(() => {});
-      };
-      signal.addEventListener('abort', abort, { once: true });
+      const mcp = settings.mcp ? await connectChattoMcp(settings, signal) : undefined;
       try {
-        signal.throwIfAborted();
-        const historyMessages = session.messages.length;
-        log('info', historyMessages ? 'Pi session resumed' : 'Pi session created', {
-          threadId: identity.at(-1),
-          sessionId: session.sessionId,
-          historyMessages
+        const settingsManager = SettingsManager.inMemory();
+        const resourceLoader = new DefaultResourceLoader({
+          cwd: settings.directory,
+          agentDir: settings.directory,
+          settingsManager,
+          noExtensions: true,
+          noSkills: true,
+          noPromptTemplates: true,
+          noThemes: true,
+          noContextFiles: true,
+          // Only this host-owned extension is loaded; local extensions remain disabled.
+          extensionFactories: context ? [threadContextExtension(context)] : [],
+          systemPromptOverride: () =>
+            `Your name is ${settings.name}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
+              mcp
+                ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
+                : 'You have no tools.'
+            }`,
+          appendSystemPromptOverride: () => []
         });
-        await session.prompt(prompt);
+        await resourceLoader.reload();
         signal.throwIfAborted();
-        const last = session.messages.at(-1);
-        if (
-          last?.role !== 'assistant' ||
-          last.stopReason === 'error' ||
-          last.stopReason === 'aborted'
-        )
-          throw new Error('Pi did not complete the turn');
-        const text = session.getLastAssistantText()?.trim();
-        if (!text) throw new Error('Pi returned no answer');
-        return text;
-      } finally {
-        signal.removeEventListener('abort', abort);
+        const { session } = await createAgentSession({
+          cwd: settings.directory,
+          agentDir: settings.directory,
+          modelRuntime: runtime,
+          model,
+          settingsManager,
+          resourceLoader,
+          tools: mcp?.tools.map((tool) => tool.name) ?? [],
+          customTools: mcp?.tools ?? [],
+          sessionManager: SessionManager.open(
+            join(settings.directory, transcriptName(identity)),
+            settings.directory,
+            settings.directory
+          )
+        });
+        const abort = () => {
+          void session.abort().catch(() => {});
+        };
+        signal.addEventListener('abort', abort, { once: true });
         try {
-          await session.abort();
+          signal.throwIfAborted();
+          const historyMessages = session.messages.length;
+          log('info', historyMessages ? 'Pi session resumed' : 'Pi session created', {
+            threadId: identity.at(-1),
+            sessionId: session.sessionId,
+            historyMessages
+          });
+          await session.prompt(prompt);
+          signal.throwIfAborted();
+          const last = session.messages.at(-1);
+          if (
+            last?.role !== 'assistant' ||
+            last.stopReason === 'error' ||
+            last.stopReason === 'aborted'
+          )
+            throw new Error('Pi did not complete the turn');
+          const text = session.getLastAssistantText()?.trim();
+          if (!text) throw new Error('Pi returned no answer');
+          return text;
         } finally {
-          session.dispose();
+          signal.removeEventListener('abort', abort);
+          try {
+            await session.abort();
+          } finally {
+            session.dispose();
+          }
         }
+      } finally {
+        await mcp?.close();
       }
     }
   };

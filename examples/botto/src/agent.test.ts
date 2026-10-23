@@ -23,6 +23,8 @@ vi.mock('@earendil-works/pi-coding-agent', () => ({
 import { createAgent, transcriptName } from './agent.ts';
 import { parseSettings } from './settings.ts';
 import { log } from './log.ts';
+import { connectChattoMcp } from './mcp.ts';
+vi.mock('./mcp.ts', () => ({ connectChattoMcp: vi.fn() }));
 vi.mock('./log.ts', () => ({ log: vi.fn() }));
 
 const directories: string[] = [];
@@ -59,7 +61,7 @@ test('reports an unknown model and respects offline mode', async () => {
   expect(pi.refresh).not.toHaveBeenCalled();
 });
 
-async function setup() {
+async function setup(mcp = false) {
   const root = resolve('../../.context');
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, 'botto-test-'));
@@ -79,7 +81,8 @@ async function setup() {
       'botto.toml',
       { BOTTO_CHATTO_API_KEY: 'unused' }
     ),
-    directory
+    directory,
+    mcp
   });
   return { agent, session, directory };
 }
@@ -110,6 +113,7 @@ test('uses an isolated, tool-free session and a stable transcript path', async (
     transcriptName(['other-server', 'bot', 'room', 'thread'])
   );
   expect(session.dispose).toHaveBeenCalledOnce();
+  expect(connectChattoMcp).not.toHaveBeenCalled();
   expect(log).toHaveBeenCalledWith('info', 'Pi session resumed', {
     threadId: 'thread',
     sessionId: 'persisted-session',
@@ -118,6 +122,32 @@ test('uses an isolated, tool-free session and a stable transcript path', async (
   const options = pi.create.mock.calls[0]![0];
   expect(options.resourceLoader.options.systemPromptOverride()).toContain('Your name is Test Bot.');
   expect(options.resourceLoader.options.systemPromptOverride()).toContain('Be helpful.');
+});
+
+test('passes MCP tools to Pi and closes the connection even when session creation fails', async () => {
+  const close = vi.fn(async () => {});
+  const tools: Awaited<ReturnType<typeof connectChattoMcp>>['tools'] = [
+    {
+      name: 'post_message',
+      label: 'Post message',
+      description: 'Post a message',
+      parameters: { type: 'object' } as Awaited<
+        ReturnType<typeof connectChattoMcp>
+      >['tools'][number]['parameters'],
+      execute: async () => ({ content: [{ type: 'text', text: 'Posted' }], details: {} })
+    }
+  ];
+  vi.mocked(connectChattoMcp).mockResolvedValue({ tools, close });
+  const { agent } = await setup(true);
+  await agent.reply(['thread'], 'hello', new AbortController().signal);
+  expect(pi.create.mock.calls.at(-1)![0].customTools).toBe(tools);
+  expect(pi.create.mock.calls.at(-1)![0].tools).toEqual(['post_message']);
+  expect(close).toHaveBeenCalledOnce();
+  pi.create.mockRejectedValueOnce(new Error('session failed'));
+  await expect(agent.reply(['thread'], 'hello', new AbortController().signal)).rejects.toThrow(
+    'session failed'
+  );
+  expect(close).toHaveBeenCalledTimes(2);
 });
 
 test('does not post stale assistant text after a model error', async () => {

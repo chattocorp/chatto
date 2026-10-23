@@ -43,6 +43,7 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | ------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------- |
 | `chatto.url`                   | Required                 | Chatto server URL                                                                         |
 | `chatto.api_key`               | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`                   |
+| `chatto.mcp`                   | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                                  |
 | `chatto.allowed_user_id`       | Unset                    | Restrict requests to one Chatto user ID                                                   |
 | `agent.model`                  | Required                 | Pi model in `provider/model` format                                                       |
 | `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context                              |
@@ -140,15 +141,34 @@ On the next message in that thread, including after a restart, Botto reopens the
 same transcript. It does not preload all transcripts at process startup.
 
 New messages are skipped when the configured queue or thread limit is reached.
-Ordinary room posts and reactions do not start turns. Botto has no tools: it
-cannot browse, read project files, process attachments, change GitHub issues, or
-delegate coding work. It loads only its own request-context extension, not local
+Ordinary room posts and reactions do not start turns. Botto has no tools by default.
+It loads only its own request-context extension, not local
 Pi extensions, skills, prompt templates, or project instructions.
+
+## Optional Chatto MCP tools
+
+Set `mcp = true` in the `[chatto]` table to give Pi every tool advertised by
+the configured Chatto server's `/mcp` endpoint. The server must have MCP enabled.
+Botto uses `chatto.api_key` for authentication. There is no tool allowlist;
+this includes write tools such as posting messages and joining or leaving rooms,
+subject to the bot account's permissions. `chatto.allowed_user_id` limits who
+can trigger a turn; it does not limit which rooms the tools can access.
+
+Each turn opens an MCP connection, reads the complete tool catalog, and closes
+the connection when the turn ends. The turn deadline also applies to MCP work.
+If MCP connection or discovery fails, the turn fails. Botto does not retry tool
+calls. Normal thread context and final replies still use `@chatto/client`.
+The model is told that its final reply is posted automatically, so it should use
+the posting tool only for additional messages required by the task.
 
 ## Data and recovery
 
 Botto connects to the configured Chatto server and model provider. The provider
 receives addressed messages, recent thread text, author IDs, and saved context.
+With MCP enabled, the provider also receives tool definitions and tool results,
+which can include messages from other rooms the bot can access. Tool calls and
+results are saved in the Pi transcript. MCP uses the configured Chatto server;
+it adds no separate external service.
 Both services can observe the bot host's IP address. Chat participants' browsers
 do not connect to the model provider through this integration.
 
