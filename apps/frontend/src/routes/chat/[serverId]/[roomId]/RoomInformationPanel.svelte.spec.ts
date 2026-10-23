@@ -30,16 +30,14 @@ describe('RoomInformationPanel', () => {
     expect(container.querySelector('code')?.textContent).toBe('guidelines');
   });
 
-  it('shows creation provenance and updates the member count without treating missing data as zero', async () => {
+  it('shows creation time and updates the member count without treating missing data as zero', async () => {
     const view = render(RoomInformationPanel, {
       serverId: 'test-server',
       roomName: 'general',
       roomDescription: '',
       roomCreatedAt: '2020-01-02T03:04:05.000Z',
-      roomCreatedBy: 'system',
       memberCount: 42
     });
-    await expect.element(page.getByText('System', { exact: true })).toBeVisible();
     await expect.element(page.getByText('42', { exact: true })).toBeVisible();
     expect(view.container.querySelector('time')?.getAttribute('datetime')).toBe(
       '2020-01-02T03:04:05.000Z'
@@ -47,10 +45,9 @@ describe('RoomInformationPanel', () => {
     expect(view.container.querySelector('time')?.textContent).toContain('ago');
     await view.rerender({ memberCount: 0 });
     await expect.element(page.getByText('0', { exact: true })).toBeVisible();
-    await view.rerender({ memberCount: null, roomCreatedAt: null, roomCreatedBy: null });
+    await view.rerender({ memberCount: null, roomCreatedAt: null });
     await expect.element(page.getByText('0', { exact: true })).not.toBeInTheDocument();
     await expect.poll(() => view.container.querySelector('time')).toBeNull();
-    await expect.element(page.getByText('Unknown user', { exact: true })).toBeVisible();
   });
 
   it('shows current room metadata and collapses each section independently', async () => {

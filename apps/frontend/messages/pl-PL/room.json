@@ -3,8 +3,6 @@
     "information": {
       "description": "Opis",
       "created": "Utworzono",
-      "created_by": "Utworzył",
-      "system": "System",
       "title": "Informacje o pokoju",
       "basic": "Ogólne",
       "pinned_messages": "Przypięte wiadomości"

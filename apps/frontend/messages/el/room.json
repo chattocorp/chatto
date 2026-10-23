@@ -3,8 +3,6 @@
     "information": {
       "description": "Περιγραφή",
       "created": "Δημιουργήθηκε",
-      "created_by": "Δημιουργός",
-      "system": "Σύστημα",
       "title": "Πληροφορίες δωματίου",
       "basic": "Γενικά",
       "pinned_messages": "Καρφιτσωμένα μηνύματα"

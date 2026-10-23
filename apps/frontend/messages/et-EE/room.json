@@ -3,8 +3,6 @@
     "information": {
       "description": "Kirjeldus",
       "created": "Loodud",
-      "created_by": "Looja",
-      "system": "Süsteem",
       "title": "Ruumi teave",
       "basic": "Üldine",
       "pinned_messages": "Kinnitatud sõnumid"

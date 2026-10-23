@@ -3,8 +3,6 @@
     "information": {
       "description": "說明",
       "created": "建立時間",
-      "created_by": "建立者",
-      "system": "系統",
       "title": "聊天室資訊",
       "basic": "概覽",
       "pinned_messages": "釘選訊息"

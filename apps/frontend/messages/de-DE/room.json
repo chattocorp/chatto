@@ -3,8 +3,6 @@
     "information": {
       "description": "Beschreibung",
       "created": "Erstellt",
-      "created_by": "Erstellt von",
-      "system": "System",
       "title": "Rauminformationen",
       "basic": "Allgemein",
       "pinned_messages": "Angeheftete Nachrichten"

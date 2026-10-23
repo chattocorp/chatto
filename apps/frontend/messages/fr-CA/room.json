@@ -3,8 +3,6 @@
     "information": {
       "description": "Description",
       "created": "Créé",
-      "created_by": "Créé par",
-      "system": "Système",
       "title": "Informations du salon",
       "basic": "Général",
       "pinned_messages": "Messages épinglés"

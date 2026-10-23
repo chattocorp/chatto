@@ -3,8 +3,6 @@
     "information": {
       "description": "Beskrivelse",
       "created": "Opprettet",
-      "created_by": "Opprettet av",
-      "system": "System",
       "title": "Rominformasjon",
       "basic": "Generelt",
       "pinned_messages": "Festede meldinger"

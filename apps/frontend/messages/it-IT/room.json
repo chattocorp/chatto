@@ -3,8 +3,6 @@
     "information": {
       "description": "Descrizione",
       "created": "Creata",
-      "created_by": "Creata da",
-      "system": "Sistema",
       "title": "Informazioni sulla stanza",
       "basic": "Generale",
       "pinned_messages": "Messaggi fissati"

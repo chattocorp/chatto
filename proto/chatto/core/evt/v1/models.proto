@@ -67,8 +67,6 @@ message Room {
   optional uint32 thread_slow_mode_seconds = 12;
   // Creation-event timestamp, retained by the room catalog and its snapshot.
   google.protobuf.Timestamp created_at = 13;
-  // Creation-event actor ID. Empty when legacy provenance is unavailable.
-  string created_by = 14;
 }
 
 // User represents a user account

@@ -15,14 +15,12 @@ func TestRoomCreationMetadataSurvivesUpdatesAndSnapshots(t *testing.T) {
 	p := NewRoomDirectoryProjection()
 	event := roomCreatedEvent("room", "General", "", evtv1.RoomKind_ROOM_KIND_CHANNEL)
 	event.CreatedAt = timestamppb.New(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
-	event.ActorId = "creator"
 	wantSeconds := event.CreatedAt.Seconds
 	require.NoError(t, p.Apply(event, 1))
 	event.CreatedAt.Seconds++ // The projection must own its timestamp.
 	require.NoError(t, p.Apply(roomUpdatedEvent("room", "Renamed", "Updated"), 2))
 	room, ok := p.Catalog.Get("room")
 	require.True(t, ok)
-	require.Equal(t, "creator", room.GetCreatedBy())
 	require.Equal(t, wantSeconds, room.GetCreatedAt().GetSeconds())
 	room.CreatedAt.Seconds++ // Reads must not mutate the projection either.
 	snapshot, err := p.Snapshot()
@@ -31,7 +29,6 @@ func TestRoomCreationMetadataSurvivesUpdatesAndSnapshots(t *testing.T) {
 	require.NoError(t, restored.Restore(snapshot))
 	room, ok = restored.Catalog.Get("room")
 	require.True(t, ok)
-	require.Equal(t, "creator", room.GetCreatedBy())
 	require.Equal(t, wantSeconds, room.GetCreatedAt().GetSeconds())
 	require.Equal(t, "Renamed", room.GetName())
 }

@@ -3,8 +3,6 @@
     "information": {
       "description": "Beskrivning",
       "created": "Skapat",
-      "created_by": "Skapat av",
-      "system": "System",
       "title": "Rumsinformation",
       "basic": "Allmänt",
       "pinned_messages": "Fästa meddelanden"

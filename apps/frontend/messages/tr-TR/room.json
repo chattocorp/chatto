@@ -3,8 +3,6 @@
     "information": {
       "description": "Açıklama",
       "created": "Oluşturuldu",
-      "created_by": "Oluşturan",
-      "system": "Sistem",
       "title": "Oda bilgileri",
       "basic": "Genel",
       "pinned_messages": "Sabitlenmiş mesajlar"

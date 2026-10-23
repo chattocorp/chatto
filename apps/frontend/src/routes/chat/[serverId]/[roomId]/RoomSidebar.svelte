@@ -67,7 +67,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomName = '',
     roomDescription = '',
     roomCreatedAt = null,
-    roomCreatedBy = null,
     activePanel = 'members',
     activeProfileUserId = null,
     presentation = 'desktop',
@@ -97,7 +96,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomName?: string;
     roomDescription?: string;
     roomCreatedAt?: string | null;
-    roomCreatedBy?: string | null;
     activePanel?: RoomSidebarPanel;
     activeProfileUserId?: string | null;
     presentation?: 'desktop' | 'overlay';
@@ -545,7 +543,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {roomName}
       {roomDescription}
       {roomCreatedAt}
-      {roomCreatedBy}
       memberCount={membersStore.hasFirstPage ? memberCount : null}
       {isUniversal}
       {pinsStore}

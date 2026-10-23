@@ -3,8 +3,6 @@
     "information": {
       "description": "תיאור",
       "created": "נוצר",
-      "created_by": "נוצר על ידי",
-      "system": "מערכת",
       "title": "מידע על החדר",
       "basic": "כללי",
       "pinned_messages": "הודעות נעוצות"

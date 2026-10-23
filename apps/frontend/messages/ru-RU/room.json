@@ -3,8 +3,6 @@
     "information": {
       "description": "Описание",
       "created": "Создана",
-      "created_by": "Создатель",
-      "system": "Система",
       "title": "Информация о комнате",
       "basic": "Общее",
       "pinned_messages": "Закреплённые сообщения"

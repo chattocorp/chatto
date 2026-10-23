@@ -3,8 +3,6 @@
     "information": {
       "description": "Description",
       "created": "Created",
-      "created_by": "Created by",
-      "system": "System",
       "title": "Room information",
       "basic": "General",
       "pinned_messages": "Pinned messages"

@@ -36,7 +36,6 @@ type RoomNameClaimSnapshot struct {
 type roomCatalogEntry struct {
 	// Immutable provenance from the RoomCreated event envelope.
 	createdAt             *timestamppb.Timestamp
-	createdBy             string
 	name                  string
 	description           string
 	kind                  evtv1.RoomKind
@@ -81,7 +80,6 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 		c := e.RoomCreated
 		p.rooms[c.GetRoomId()] = &roomCatalogEntry{
 			createdAt:     proto.Clone(event.GetCreatedAt()).(*timestamppb.Timestamp),
-			createdBy:     event.GetActorId(),
 			name:          c.GetName(),
 			description:   c.GetDescription(),
 			kind:          c.GetKind(),
@@ -218,7 +216,6 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) Ro
 func entryToRoom(id string, entry *roomCatalogEntry) *evtv1.Room {
 	r := &evtv1.Room{
 		CreatedAt:             entry.createdAt,
-		CreatedBy:             entry.createdBy,
 		Id:                    id,
 		Name:                  entry.name,
 		Description:           entry.description,

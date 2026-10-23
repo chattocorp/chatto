@@ -23,9 +23,10 @@ Direct-message rooms do not support pins.
   pinned-message state from the client.
 - Pins appear newest-first in the **Pinned messages** section of the **Room
   information** sidebar tab. The **General** section shows the
-  room name, relative creation time, creator, and live member count.
+  room name, relative creation time, and live member count, including effective
+  members of universal rooms. Creator identity is not exposed by the room API.
   The exact creation time is available on hover. Missing creation metadata is
-  shown as unknown; system-created rooms identify the system as their creator.
+  shown as unknown.
   A separate **Description** section follows General when the room has a description.
   It uses the same Markdown rendering as messages and the room join screen.
   All sections start expanded and can be collapsed

@@ -75,8 +75,8 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 			return fmt.Errorf("room directory snapshot repeats room %q", room.GetId())
 		}
 		rooms[room.GetId()] = &roomCatalogEntry{
-			createdAt: room.GetCreatedAt(), createdBy: room.GetCreatedBy(),
-			name: room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
+			createdAt: room.GetCreatedAt(),
+			name:      room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
 			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),
 			threadingMode:         room.GetThreadingMode(),
 			threadSlowModeSeconds: room.ThreadSlowModeSeconds,

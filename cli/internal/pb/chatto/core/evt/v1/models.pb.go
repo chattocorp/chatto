@@ -210,9 +210,7 @@ type Room struct {
 	// slow_mode_seconds; explicit zero disables thread slow mode.
 	ThreadSlowModeSeconds *uint32 `protobuf:"varint,12,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
 	// Creation-event timestamp, retained by the room catalog and its snapshot.
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Creation-event actor ID. Empty when legacy provenance is unavailable.
-	CreatedBy     string `protobuf:"bytes,14,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -322,13 +320,6 @@ func (x *Room) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
-}
-
-func (x *Room) GetCreatedBy() string {
-	if x != nil {
-		return x.CreatedBy
-	}
-	return ""
 }
 
 // User represents a user account
@@ -2046,7 +2037,7 @@ var File_chatto_core_evt_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x04\n" +
+	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x04\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -2060,9 +2051,7 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\x0ethreading_mode\x18\v \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\x12<\n" +
 	"\x18thread_slow_mode_seconds\x18\f \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01\x129\n" +
 	"\n" +
-	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
-	"\n" +
-	"created_by\x18\x0e \x01(\tR\tcreatedByB\x1b\n" +
+	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\x1b\n" +
 	"\x19_thread_slow_mode_secondsJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xc3\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +

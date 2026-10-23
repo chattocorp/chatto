@@ -37,23 +37,21 @@ describe('createRoomDirectoryAPI', () => {
     vi.resetAllMocks();
   });
 
-  it('maps creation provenance and accepts older servers without it', async () => {
+  it('maps creation time and accepts older servers without it', async () => {
     mocks.getRoom.mockReturnValueOnce({
       room: {
         room: {
           id: 'room',
-          createdAt: Timestamp.fromDate(new Date('2026-01-02T03:04:05Z')),
-          createdBy: 'creator'
+          createdAt: Timestamp.fromDate(new Date('2026-01-02T03:04:05Z'))
         }
       }
     });
     mocks.getRoom.mockReturnValueOnce({ room: { room: { id: 'legacy' } } });
     const api = directoryAPI();
     expect(await api.getRoom('room')).toMatchObject({
-      createdAt: '2026-01-02T03:04:05.000Z',
-      createdBy: 'creator'
+      createdAt: '2026-01-02T03:04:05.000Z'
     });
-    expect(await api.getRoom('legacy')).toMatchObject({ createdAt: null, createdBy: null });
+    expect(await api.getRoom('legacy')).toMatchObject({ createdAt: null });
   });
 
   it.each([true, false, undefined])(
@@ -161,7 +159,6 @@ describe('createRoomDirectoryAPI', () => {
     expect(rooms).toEqual([
       {
         createdAt: null,
-        createdBy: null,
         id: 'room-1',
         name: 'general',
         description: 'Lobby channel',
@@ -186,7 +183,6 @@ describe('createRoomDirectoryAPI', () => {
         name: 'random',
         description: null,
         createdAt: null,
-        createdBy: null,
         kind: RoomKind.DM,
         archived: true,
         isUniversal: false,
@@ -240,7 +236,6 @@ describe('createRoomDirectoryAPI', () => {
     expect(receivedRequest(mocks.getRoom)).toMatchObject({ roomId: 'room-1' });
     expect(room).toEqual({
       createdAt: null,
-      createdBy: null,
       id: 'room-1',
       name: 'general',
       description: 'Lobby channel',

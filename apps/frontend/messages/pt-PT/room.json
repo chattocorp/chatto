@@ -3,8 +3,6 @@
     "information": {
       "description": "Descrição",
       "created": "Criada",
-      "created_by": "Criada por",
-      "system": "Sistema",
       "title": "Informações da sala",
       "basic": "Geral",
       "pinned_messages": "Mensagens afixadas"

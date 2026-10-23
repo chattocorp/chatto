@@ -13,7 +13,6 @@ The sections share one scroll viewport and retain their disclosure preferences.
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { formatRelativeMessageTimestamp } from '$lib/messageTimestamps';
-  import RoomCreator from './RoomCreator.svelte';
   import type { RoomPinsStore } from '$lib/state/room';
   import { ScrollFader } from '$lib/ui';
   import RoomPinsPanel from './RoomPinsPanel.svelte';
@@ -23,7 +22,6 @@ The sections share one scroll viewport and retain their disclosure preferences.
     roomName,
     roomDescription,
     roomCreatedAt = null,
-    roomCreatedBy = null,
     memberCount = null,
     isUniversal = false,
     pinsStore,
@@ -33,7 +31,6 @@ The sections share one scroll viewport and retain their disclosure preferences.
     roomName: string;
     roomDescription: string;
     roomCreatedAt?: string | null;
-    roomCreatedBy?: string | null;
     /** Null means that the first member page has not loaded yet. */
     memberCount?: number | null;
     isUniversal?: boolean;
@@ -70,16 +67,6 @@ The sections share one scroll viewport and retain their disclosure preferences.
               </time>
             {:else}
               {m('common.unknown')}
-            {/if}
-          </dd>
-          <dt class="text-muted">{m('room.information.created_by')}</dt>
-          <dd class="min-w-0 text-end">
-            {#if roomCreatedBy === 'system'}
-              {m('room.information.system')}
-            {:else if roomCreatedBy}
-              <RoomCreator userId={roomCreatedBy} />
-            {:else}
-              {m('common.unknown_user')}
             {/if}
           </dd>
           <dt class="text-muted">{m('room.sidebar.members')}</dt>
