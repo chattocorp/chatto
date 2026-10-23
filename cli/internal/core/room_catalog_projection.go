@@ -2,6 +2,7 @@ package core
 
 import (
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -33,6 +34,9 @@ type RoomNameClaimSnapshot struct {
 // directly — callers go through Get() which clones into a *evtv1.Room
 // for type symmetry with the rest of the codebase.
 type roomCatalogEntry struct {
+	// Immutable provenance from the RoomCreated event envelope.
+	createdAt             *timestamppb.Timestamp
+	createdBy             string
 	name                  string
 	description           string
 	kind                  evtv1.RoomKind
@@ -76,6 +80,8 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_RoomCreated:
 		c := e.RoomCreated
 		p.rooms[c.GetRoomId()] = &roomCatalogEntry{
+			createdAt:     proto.Clone(event.GetCreatedAt()).(*timestamppb.Timestamp),
+			createdBy:     event.GetActorId(),
 			name:          c.GetName(),
 			description:   c.GetDescription(),
 			kind:          c.GetKind(),
@@ -211,6 +217,8 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) Ro
 // assignment lives in RoomGroupProjection.
 func entryToRoom(id string, entry *roomCatalogEntry) *evtv1.Room {
 	r := &evtv1.Room{
+		CreatedAt:             entry.createdAt,
+		CreatedBy:             entry.createdBy,
 		Id:                    id,
 		Name:                  entry.name,
 		Description:           entry.description,

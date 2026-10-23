@@ -730,6 +730,8 @@ Public room metadata returned by room commands.
 | `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
+| `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+| `created_by` | `optional string` | Account that created the room, or "system" for a system-created room. Absent when the creator is unknown. Resolve account IDs through UserService. |
 
 <a id="chatto-api-v1-RoomSummary"></a>
 

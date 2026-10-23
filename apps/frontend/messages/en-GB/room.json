@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Description",
+      "created": "Created",
+      "created_by": "Created by",
+      "system": "System",
+      "title": "Room information",
+      "basic": "General",
+      "pinned_messages": "Pinned messages"
+    },
     "create": {
       "title": "Create a New Room",
       "description": "Rooms are conversations within your server.",

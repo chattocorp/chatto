@@ -377,7 +377,13 @@ func apiRoom(room *evtv1.Room) *apiv1.Room {
 	if room == nil {
 		return nil
 	}
+	var createdBy *string
+	if room.GetCreatedBy() != "" {
+		createdBy = new(room.GetCreatedBy())
+	}
 	return &apiv1.Room{
+		CreatedAt:             room.GetCreatedAt(),
+		CreatedBy:             createdBy,
 		Id:                    room.Id,
 		Kind:                  apiRoomKind(room.Kind),
 		Name:                  room.Name,

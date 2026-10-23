@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Popis",
+      "created": "Vytvořeno",
+      "created_by": "Vytvořil",
+      "system": "Systém",
+      "title": "Informace o místnosti",
+      "basic": "Obecné",
+      "pinned_messages": "Připnuté zprávy"
+    },
     "create": {
       "title": "Vytvořit novou místnost",
       "description": "Místnosti jsou konverzace na vašem serveru.",

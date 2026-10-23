@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "説明",
+      "created": "作成日時",
+      "created_by": "作成者",
+      "system": "システム",
+      "title": "ルーム情報",
+      "basic": "概要",
+      "pinned_messages": "ピン留めされたメッセージ"
+    },
     "create": {
       "title": "新しいルームを作成する",
       "description": "ルームはサーバー内の会話です。",

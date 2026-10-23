@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Opis",
+      "created": "Utworzono",
+      "created_by": "Utworzył",
+      "system": "System",
+      "title": "Informacje o pokoju",
+      "basic": "Ogólne",
+      "pinned_messages": "Przypięte wiadomości"
+    },
     "create": {
       "title": "Utwórz nowy pokój",
       "description": "Pokoje to rozmowy prowadzone na Twoim serwerze.",

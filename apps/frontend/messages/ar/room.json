@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "الوصف",
+      "created": "أُنشئت",
+      "created_by": "أنشأها",
+      "system": "النظام",
+      "title": "معلومات الغرفة",
+      "basic": "عام",
+      "pinned_messages": "الرسائل المثبتة"
+    },
     "create": {
       "title": "قم بإنشاء غرفة جديدة",
       "description": "الغرف عبارة عن محادثات داخل الخادم الخاص بك.",

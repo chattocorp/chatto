@@ -26,6 +26,10 @@ export type DirectoryRoomSummary = {
   id: string;
   name: string;
   description: string | null;
+  /** Original room creation time; absent on older servers. */
+  createdAt?: string | null;
+  /** Creator account ID, or system; absent when provenance is unavailable. */
+  createdBy?: string | null;
   kind: RoomKind;
   archived: boolean;
   isUniversal: boolean;
@@ -213,6 +217,8 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     id: entry.room.id,
     name: entry.room.name,
     description: entry.room.description || null,
+    createdAt: entry.room.createdAt?.toDate().toISOString() ?? null,
+    createdBy: entry.room.createdBy ?? null,
     kind: entry.room.kind,
     archived: entry.room.archived,
     isUniversal: entry.room.universal,

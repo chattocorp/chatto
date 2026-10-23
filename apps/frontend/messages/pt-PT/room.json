@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Descrição",
+      "created": "Criada",
+      "created_by": "Criada por",
+      "system": "Sistema",
+      "title": "Informações da sala",
+      "basic": "Geral",
+      "pinned_messages": "Mensagens afixadas"
+    },
     "create": {
       "title": "Criar uma nova sala",
       "description": "As salas são conversas dentro do seu servidor.",

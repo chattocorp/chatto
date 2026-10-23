@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Beskrivelse",
+      "created": "Opprettet",
+      "created_by": "Opprettet av",
+      "system": "System",
+      "title": "Rominformasjon",
+      "basic": "Generelt",
+      "pinned_messages": "Festede meldinger"
+    },
     "create": {
       "title": "Opprett et nytt rom",
       "description": "Rom er samtaler på serveren din.",

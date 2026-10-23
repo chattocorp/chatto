@@ -59,11 +59,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import RoomSidebarProfile from './RoomSidebarProfile.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
   import RoomSearchPanel from './RoomSearchPanel.svelte';
-  import RoomPinsPanel from './RoomPinsPanel.svelte';
+  import RoomInformationPanel from './RoomInformationPanel.svelte';
 
   let {
     loading = false,
     roomId,
+    roomName = '',
+    roomDescription = '',
+    roomCreatedAt = null,
+    roomCreatedBy = null,
     activePanel = 'members',
     activeProfileUserId = null,
     presentation = 'desktop',
@@ -90,6 +94,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
   }: {
     loading?: boolean;
     roomId: string;
+    roomName?: string;
+    roomDescription?: string;
+    roomCreatedAt?: string | null;
+    roomCreatedBy?: string | null;
     activePanel?: RoomSidebarPanel;
     activeProfileUserId?: string | null;
     presentation?: 'desktop' | 'overlay';
@@ -139,7 +147,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     }
     if (activePanel === 'search') return m('search.in_room');
     if (activePanel === 'files') return m('room.sidebar.files');
-    if (activePanel === 'pins') return m('room.sidebar.pins');
+    if (activePanel === 'pins') return m('room.information.title');
     return m('room.sidebar.call');
   });
   const showMaximizeButton = $derived(
@@ -532,9 +540,17 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <EmptyState icon="icon-[mdi--file-outline]" title={m('room.sidebar.no_files')} />
     {/if}
   {:else if activePanel === 'pins'}
-    {#if pinsStore}
-      <RoomPinsPanel store={pinsStore} {onOpenPin} />
-    {/if}
+    <RoomInformationPanel
+      serverId={activeServerId}
+      {roomName}
+      {roomDescription}
+      {roomCreatedAt}
+      {roomCreatedBy}
+      memberCount={membersStore.hasFirstPage ? memberCount : null}
+      {isUniversal}
+      {pinsStore}
+      {onOpenPin}
+    />
   {:else if activePanel === 'call'}
     {#if livekitUrl}
       <VoiceCallPanel

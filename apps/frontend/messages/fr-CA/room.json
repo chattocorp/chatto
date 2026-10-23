@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Description",
+      "created": "Créé",
+      "created_by": "Créé par",
+      "system": "Système",
+      "title": "Informations du salon",
+      "basic": "Général",
+      "pinned_messages": "Messages épinglés"
+    },
     "create": {
       "title": "Créer une nouvelle salle",
       "description": "Les salons sont des conversations au sein de votre serveur.",

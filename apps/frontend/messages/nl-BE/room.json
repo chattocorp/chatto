@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Beschrijving",
+      "created": "Aangemaakt",
+      "created_by": "Aangemaakt door",
+      "system": "Systeem",
+      "title": "Ruiminformatie",
+      "basic": "Algemeen",
+      "pinned_messages": "Vastgezette berichten"
+    },
     "create": {
       "title": "Maak een nieuwe kamer",
       "description": "Kamers zijn gesprekken binnen uw server.",

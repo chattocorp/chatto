@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Priskribo",
+      "created": "Kreita",
+      "created_by": "Kreita de",
+      "system": "Sistemo",
+      "title": "Informoj pri la ĉambro",
+      "basic": "Ĝenerala",
+      "pinned_messages": "Fiksitaj mesaĝoj"
+    },
     "create": {
       "title": "Kreu Novan Ĉambron",
       "description": "Ĉambroj estas konversacioj en via servilo.",

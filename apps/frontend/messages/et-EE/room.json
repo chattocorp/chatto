@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "Kirjeldus",
+      "created": "Loodud",
+      "created_by": "Looja",
+      "system": "Süsteem",
+      "title": "Ruumi teave",
+      "basic": "Üldine",
+      "pinned_messages": "Kinnitatud sõnumid"
+    },
     "create": {
       "title": "Looge uus tuba",
       "description": "Ruumid on vestlused teie serveris.",

@@ -1,5 +1,14 @@
 {
   "room": {
+    "information": {
+      "description": "描述",
+      "created": "创建时间",
+      "created_by": "创建者",
+      "system": "系统",
+      "title": "聊天室信息",
+      "basic": "概览",
+      "pinned_messages": "置顶消息"
+    },
     "create": {
       "title": "创建新聊天室",
       "description": "聊天室是服务器内的对话空间。",
