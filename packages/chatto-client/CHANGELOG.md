@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-10-23)
+
+### Maintenance
+
+* Publish through GitHub Actions with npm trusted publishing after the manual 0.1.0 release.
+
 ## 0.1.0 (2026-10-23)
 
 
