@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
-"""Build a local Slack import plan. Never contact Slack or mutate Chatto.
-
-The plan retains source content for a later operator-API writer. Reports contain
-counts and issue codes only. Mapping files bind to the exact input archive.
-"""
+"""Import a Slack ZIP into a blank Chatto instance through its operator socket."""
 
 import argparse
 import collections
 import datetime
 import hashlib
+import http.client
 import json
-import os
 from pathlib import Path
 import re
 import sys
 import zipfile
 
+from slack_apply import ApplyError, Journal, Operator, apply, fingerprint
+
 
 class InvalidExport(ValueError):
-    """An export or mapping cannot be planned without guessing."""
+    """An export cannot be read without guessing."""
 
 
 def timestamp(value):
@@ -71,13 +69,8 @@ def read_archive(path):
         return data, names
 
 
-def make_plan(path, mapping=None):
-    """Return a source plan, reusable mapping, and content-free summary.
-
-    Null destination IDs mean unresolved, not permission to create an account.
-    The plan is not an executable API request file. In particular, source rich
-    text remains unchanged until a writer implements and verifies conversion.
-    """
+def read_export(path):
+    """Parse and validate source records in memory before any destination writes."""
     with open(path, "rb") as source:
         digest = hashlib.file_digest(source, "sha256").hexdigest()
     data, filenames = read_archive(path)
@@ -88,33 +81,12 @@ def make_plan(path, mapping=None):
         raise InvalidExport("Invalid channel directory name")
     if len(names) != len(set(names)):
         raise InvalidExport("Ambiguous channel directory name")
-    expected = {"version": 1, "archive_sha256": digest,
-                "users": {key: None for key in users},
-                "rooms": {key: None for key in channels}}
-    if mapping is None:
-        mapping = expected
-    else:
-        if not isinstance(mapping, dict):
-            raise InvalidExport("Mapping must be an object")
-        if mapping.get("version") != 1 or mapping.get("archive_sha256") != digest:
-            raise InvalidExport("Mapping does not match this archive")
-        for group in ("users", "rooms"):
-            values = mapping.get(group)
-            if not isinstance(values, dict) or set(values) != set(expected[group]):
-                raise InvalidExport("Mapping source IDs do not match this archive")
-            if any(value is not None and (not isinstance(value, str) or not value.strip())
-                   for value in values.values()):
-                raise InvalidExport("Destination IDs must be nonempty strings or null")
-            targets = [value for value in values.values() if value is not None]
-            if len(targets) != len(set(targets)):
-                raise InvalidExport("Mapping merges multiple source identities; resolve explicitly")
-
     issues = collections.Counter()
     planned_users = []
     for key, user in users.items():
         profile = user.get("profile") or {}
         planned_users.append({
-            "source_id": key, "target_id": mapping["users"][key],
+            "source_id": key,
             "proposed_login": user.get("name"),
             "proposed_display_name": profile.get("display_name") or profile.get("real_name") or user.get("name"),
             "deactivated": bool(user.get("deleted")),
@@ -135,7 +107,7 @@ def make_plan(path, mapping=None):
         if not isinstance(members, list) or any(member not in users for member in members):
             raise InvalidExport("Unresolved channel member")
         planned_rooms.append({
-            "source_id": key, "target_id": mapping["rooms"][key],
+            "source_id": key,
             "name": channel["name"], "topic": channel.get("topic"),
             "purpose": channel.get("purpose"), "members": members,
             "archived": bool(channel.get("is_archived")),
@@ -187,8 +159,7 @@ def make_plan(path, mapping=None):
                     issues["content_conversion_required"] += 1
                 messages.append({
                     "source_key": key + ":" + ts, "source_channel_id": key,
-                    "target_room_id": mapping["rooms"][key],
-                    "source_author_id": author, "target_author_id": mapping["users"].get(author),
+                    "source_author_id": author,
                     "created_at": created_at, "edited_at": edited_at,
                     "thread_root_key": key + ":" + root if root else None,
                     "source": message,
@@ -231,44 +202,44 @@ def make_plan(path, mapping=None):
         "reactions": issues["reaction_import_required"],
         "files": sum(len(item["source"].get("files", [])) for item in messages),
         "canvases": len(canvases),
-        "unmapped_users": sum(value is None for value in mapping["users"].values()),
-        "unmapped_rooms": sum(value is None for value in mapping["rooms"].values()),
         "issues": dict(sorted(issues.items())),
     }
-    plan = {"version": 1, "archive_sha256": digest, "mode": "plan-only",
+    plan = {"version": 1, "archive_sha256": digest,
             "summary": summary, "users": planned_users, "rooms": planned_rooms,
             "messages": messages, "canvases": canvases, "unhandled_entries": unhandled,
             "ignored_integration_logs": len(records(data.get("integration_logs.json", [])))}
-    return plan, mapping, summary
-
-
-def write_private(path, value):
-    """Create a new owner-only artifact. Never overwrite mappings or follow links."""
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
-        json.dump(value, output, ensure_ascii=False, indent=2)
-        output.write("\n")
+    return plan
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
-    parser.add_argument("--mapping", type=Path, help="existing mapping from a previous plan")
-    parser.add_argument("--output-dir", type=Path, required=True, help="new private directory for plan, mapping, and report")
+    parser.add_argument("--operator-socket", type=Path, required=True)
+    parser.add_argument("--allow-missing-files", action="store_true")
+    parser.add_argument("--skip-canvases", action="store_true")
+    parser.add_argument("--reconcile", type=Path, help="reviewed pending-write resolution JSON; exits without importing")
     args = parser.parse_args()
     try:
-        mapping = json.loads(args.mapping.read_text()) if args.mapping else None
-        plan, mapping, summary = make_plan(args.archive, mapping)
-        args.output_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
-        for name, value in (("plan.json", plan), ("mapping.json", mapping), ("report.json", summary)):
-            write_private(args.output_dir / name, value)
-        print(json.dumps(summary, indent=2))
-    except InvalidExport as error:
+        plan = read_export(args.archive)
+        api = Operator(args.operator_socket)
+        policy = {"allow_missing_files": args.allow_missing_files, "skip_canvases": args.skip_canvases}
+        binding = {"source": fingerprint(plan), "policy": policy, "socket": api.path}
+        journal = Journal(args.archive.resolve().with_name(args.archive.name + ".chatto-import"), binding)
+        try:
+            if args.reconcile:
+                journal.reconcile(json.loads(args.reconcile.read_text()))
+                print("Reconciliation recorded. Repeat the import command to resume.")
+            else:
+                print(json.dumps(apply(plan, api, journal, **policy), indent=2))
+        finally:
+            journal.close()
+    except (InvalidExport, ApplyError) as error:
         print(str(error), file=sys.stderr)
         return 1
-    except (OSError, ValueError, KeyError, TypeError, AttributeError, RuntimeError, zipfile.BadZipFile):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RuntimeError,
+            http.client.HTTPException, zipfile.BadZipFile):
         # Parser and filesystem exceptions can contain private source data.
-        print("Cannot build plan. Check input structure, paths, and a new output directory.", file=sys.stderr)
+        print("Import stopped. Progress was retained; repeat the command to resume.", file=sys.stderr)
         return 1
     return 0
 

@@ -1,8 +1,7 @@
-"""Exercise import planning with synthetic data only; never use a private export."""
+"""Exercise export parsing with synthetic data only; never use a private export."""
 
 import importlib.util
 import json
-import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -13,7 +12,7 @@ slack = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(slack)
 
 
-class PlannerTests(unittest.TestCase):
+class ExportTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -38,7 +37,8 @@ class PlannerTests(unittest.TestCase):
 
     def test_source_order_fidelity_and_gaps(self):
         self.archive()
-        plan, mapping, summary = slack.make_plan(self.path)
+        plan = slack.read_export(self.path)
+        summary = plan["summary"]
         self.assertEqual(plan["messages"][0]["created_at"], "2025-12-28T18:21:38.872519Z")
         self.assertEqual(plan["messages"][1]["created_at"], "2025-12-28T18:21:38.872520Z")
         self.assertEqual(plan["messages"][0]["source"], self.root)
@@ -47,28 +47,14 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(summary["reactions"], 1)
         self.assertEqual(summary["issues"]["file_hidden_by_limit"], 1)
         self.assertNotIn("incomplete_thread_replies", summary["issues"])
-        self.assertEqual(mapping["users"], {"U1": None, "U2": None})
         self.assertNotIn("Hello", json.dumps(summary))
 
-    def test_mapping_round_trip_and_wrong_archive(self):
+    def test_archive_digest_changes_with_source(self):
         self.archive()
-        _, mapping, _ = slack.make_plan(self.path)
-        mapping["users"]["U1"] = "target-user"
-        mapping["rooms"]["C1"] = "target-room"
-        plan, _, summary = slack.make_plan(self.path, mapping)
-        self.assertEqual(plan["messages"][0]["target_author_id"], "target-user")
-        self.assertEqual(plan["messages"][1]["target_room_id"], "target-room")
-        self.assertEqual(summary["unmapped_users"], 1)
-        mapping["archive_sha256"] = "wrong"
-        with self.assertRaises(slack.InvalidExport):
-            slack.make_plan(self.path, mapping)
-
-    def test_mapping_rejects_accidental_merges(self):
+        before = slack.read_export(self.path)["archive_sha256"]
+        self.reply["text"] = "Changed"
         self.archive()
-        _, mapping, _ = slack.make_plan(self.path)
-        mapping["users"] = {"U1": "same", "U2": "same"}
-        with self.assertRaises(slack.InvalidExport):
-            slack.make_plan(self.path, mapping)
+        self.assertNotEqual(before, slack.read_export(self.path)["archive_sha256"])
 
     def test_incomplete_history_is_reported(self):
         self.data["general/2025-12-28.json"] = [self.reply]
@@ -76,7 +62,7 @@ class PlannerTests(unittest.TestCase):
         self.reply["user"] = "UNKNOWN"
         self.data["private/2025-12-28.json"] = []
         self.archive()
-        _, _, summary = slack.make_plan(self.path)
+        summary = slack.read_export(self.path)["summary"]
         for issue in ("missing_thread_root", "incomplete_reaction_users",
                       "unresolved_message_author", "unhandled_archive_entries"):
             self.assertEqual(summary["issues"][issue], 1)
@@ -85,20 +71,12 @@ class PlannerTests(unittest.TestCase):
         self.data["general/2025-12-28.json"].append(self.root)
         self.archive()
         with self.assertRaises(slack.InvalidExport):
-            slack.make_plan(self.path)
+            slack.read_export(self.path)
 
     def test_timestamp_rejects_float_and_invalid_fraction(self):
         for value in (1766946098.872519, "1766946098.1", "bad"):
             with self.assertRaises(slack.InvalidExport):
                 slack.timestamp(value)
-
-    def test_private_artifacts_do_not_overwrite(self):
-        output = Path(self.temp.name) / "plan.json"
-        slack.write_private(output, {"test": True})
-        self.assertEqual(os.stat(output).st_mode & 0o777, 0o600)
-        with self.assertRaises(FileExistsError):
-            slack.write_private(output, {"test": False})
-        self.assertEqual(json.loads(output.read_text()), {"test": True})
 
     def test_duplicate_zip_entries_rejected(self):
         self.archive()
@@ -108,7 +86,7 @@ class PlannerTests(unittest.TestCase):
             with zipfile.ZipFile(self.path, "a") as output:
                 output.writestr("users.json", "[]")
         with self.assertRaises(slack.InvalidExport):
-            slack.make_plan(self.path)
+            slack.read_export(self.path)
 
 
 if __name__ == "__main__":
