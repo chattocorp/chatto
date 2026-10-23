@@ -517,10 +517,7 @@ jobs:
     name: test-workspace (${{ matrix.name }})
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
-    # Frontend needs separate budgets for environment setup, Playwright's
-    # system packages, and tests. Slow package downloads must not consume
-    # the test budget; the test step still has its own limit below.
-    timeout-minutes: ${{ matrix.timeout }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -528,11 +525,9 @@ jobs:
           - name: frontend
             filter: chatto-frontend
             playwright: true
-            timeout: 35
           - name: packages
             filter: '!chatto-frontend'
             playwright: false
-            timeout: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -550,7 +545,6 @@ jobs:
           save-cache: 'true'
 
       - name: Run workspace unit tests
-        timeout-minutes: 15
         env:
           TURBO_FILTER: ${{ matrix.filter }}
         run: pnpm turbo run test --concurrency=1 "--filter=$TURBO_FILTER"
