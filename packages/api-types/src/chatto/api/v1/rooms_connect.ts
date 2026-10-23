@@ -191,7 +191,8 @@ export const RoomService = {
      * Adds an account as an explicit channel-room member. room.manage for this
      * room or user.manage-accounts overrides the target's missing room.join.
      * Bot owners and bot.manage holders may also add bots, but without either
-     * override the bot needs effective room.join, bounded by its owner's authority.
+     * override the acting human needs effective room.join. The bot's own
+     * room.join is required only when the bot joins itself through JoinRoom.
      * Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
      *
      * @generated from rpc chatto.api.v1.RoomService.AddMember
