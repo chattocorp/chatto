@@ -1,5 +1,12 @@
 {
   "room": {
+    "information": {
+      "description": "Açıklama",
+      "created": "Oluşturuldu",
+      "title": "Oda bilgileri",
+      "basic": "Genel",
+      "pinned_messages": "Sabitlenmiş mesajlar"
+    },
     "create": {
       "title": "Yeni Oda Oluştur",
       "description": "Odalar sunucunuz içindeki konuşmalardır.",

@@ -24,8 +24,8 @@ Full license texts are available in [LICENSE](LICENSE) and [LICENSES/](LICENSES/
 The independent Runling package under `packages/runling/` uses MIT. Its
 original copyright and license are in [packages/runling/LICENSE](packages/runling/LICENSE).
 
-The internal `packages/chatto-client/` package preserves the MIT license of
-the client helpers extracted from Runling.
+The `@chatto/client` package under `packages/chatto-client/` uses Apache-2.0.
+See [packages/chatto-client/LICENSE](packages/chatto-client/LICENSE).
 
 The private ChattoBot package under `packages/chattobot/` also retains its MIT
 license. See [packages/chattobot/LICENSE](packages/chattobot/LICENSE).

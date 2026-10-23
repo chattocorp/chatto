@@ -7,8 +7,10 @@ that bots and integrations use. It keeps server data only: state of a host's
 UI belongs to the host. It has no dependency on a UI framework. The bundled
 Chatto frontend, ChattoBot, and the Runling bot example use it.
 
-It is an internal workspace package and is not published to npm yet. Module
-paths can change.
+Install with `npm install @chatto/client`. The npm package contains ES modules
+and TypeScript declarations, including generated protocol types. Use Node.js
+22 or later for bots. Svelte is optional; install Svelte 5 when you use
+`@chatto/client/svelte`. Module paths can change before 1.0.
 
 ## Clients and servers
 
@@ -281,4 +283,8 @@ mise test-chatto-client   # type checks, lint, and tests
 `@chatto/api-types`; `mise codegen-proto` updates them, and the package
 check fails when they are out of date.
 
-The package keeps its MIT license.
+See [MAINTAINING.md](https://github.com/chattocorp/chatto/blob/main/packages/chatto-client/MAINTAINING.md)
+for package checks and release instructions.
+
+The client and bundled generated protocol code use Apache-2.0;
+the npm package includes its license and a `NOTICE` file.

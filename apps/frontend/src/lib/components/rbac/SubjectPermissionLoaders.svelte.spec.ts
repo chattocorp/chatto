@@ -840,9 +840,50 @@ describe('account membership mutations', () => {
     expect(permissionMocks.addMember).not.toHaveBeenCalled();
   });
 
-  it('keeps a bot join locked without effective room.join or a manager override', async () => {
+  it.each([false, true])(
+    'lets the owner add a bot without a bot join grant, owner joined=%s',
+    async (isMember) => {
+      viewerPermissions.canAdminManageAccounts = false;
+      permissionMocks.batchGetRooms.mockResolvedValue([
+        {
+          id: 'work',
+          isUniversal: false,
+          archived: false,
+          canManageRoom: false,
+          canJoinRoom: !isMember,
+          canRejoin: true,
+          isMember
+        }
+      ]);
+      permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+      const { container } = render(UserPermissionsMatrix, {
+        props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+      });
+      const join = () =>
+        container.querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]');
+      await expect.poll(() => join()?.disabled).toBe(false);
+      join()!.click();
+      await confirmMembership();
+      expect(permissionMocks.addMember).toHaveBeenCalledWith({
+        roomId: 'work',
+        userId: 'membership-bot'
+      });
+      expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+    }
+  );
+
+  it('keeps a bot join locked when the actor cannot join despite the bot grant', async () => {
     viewerPermissions.canAdminManageAccounts = false;
-    permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+    permissionMocks.batchGetRooms.mockResolvedValue([
+      { id: 'work', isUniversal: false, archived: false, canManageRoom: false, canJoinRoom: false }
+    ]);
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue({
+      ...botMatrix(),
+      cells: [
+        ...botMatrix().cells,
+        { permission: 'room.join', scopeId: 'room:work', override: 'ALLOW', effective: 'ALLOW' }
+      ]
+    });
     const { container } = render(UserPermissionsMatrix, {
       props: { userId: 'membership-bot', ownerCapped: true }
     });

@@ -1,5 +1,12 @@
 {
   "room": {
+    "information": {
+      "description": "Kirjeldus",
+      "created": "Loodud",
+      "title": "Ruumi teave",
+      "basic": "Üldine",
+      "pinned_messages": "Kinnitatud sõnumid"
+    },
     "create": {
       "title": "Looge uus tuba",
       "description": "Ruumid on vestlused teie serveris.",

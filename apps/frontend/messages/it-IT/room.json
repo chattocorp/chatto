@@ -1,5 +1,12 @@
 {
   "room": {
+    "information": {
+      "description": "Descrizione",
+      "created": "Creata",
+      "title": "Informazioni sulla stanza",
+      "basic": "Generale",
+      "pinned_messages": "Messaggi fissati"
+    },
     "create": {
       "title": "Crea una nuova stanza",
       "description": "Le stanze virtuali sono conversazioni all'interno del tuo server.",

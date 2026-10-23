@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.strict.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rootDir": "..",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "../api-types/src/**/*.ts"],
+  "exclude": ["src/**/*.svelte.ts", "src/**/*.test.ts", "src/**/*.spec.ts", "src/testing/**"]
+}

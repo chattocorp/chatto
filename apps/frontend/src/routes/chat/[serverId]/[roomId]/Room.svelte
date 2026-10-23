@@ -342,6 +342,9 @@
   );
   const sharedRoomSidebarProps = $derived({
     roomId,
+    roomName: room.roomData?.room.name ?? '',
+    roomDescription: room.roomData?.room.description ?? '',
+    roomCreatedAt: room.roomData?.room.createdAt ?? null,
     hasActiveCall: hasActiveRoomCall,
     loading: room.isRoomLoading,
     searchStore: roomMessageSearchStore,

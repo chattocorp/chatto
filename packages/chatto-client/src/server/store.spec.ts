@@ -61,6 +61,7 @@ import {
   UserLeftRoomEvent,
   MessagePostedEvent,
   MessageEditedEvent,
+  MessageRetractedEvent,
   ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
@@ -3089,6 +3090,106 @@ describe('ServerStateStore unified realtime resources', () => {
     await expect(store.waitForRealtimeReconciliation()).rejects.toBe(failure);
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    { threadLoaded: false, rootDeleted: false },
+    { threadLoaded: true, rootDeleted: false },
+    { threadLoaded: false, rootDeleted: true },
+    { threadLoaded: true, rootDeleted: true }
+  ])(
+    'refreshes thread summaries after a reply retraction (loaded: $threadLoaded, deleted root: $rootDeleted)',
+    async ({ threadLoaded, rootDeleted }) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const messages = store.rooms.messages('R1');
+      const thread = threadLoaded ? store.rooms.thread('R1', 'ROOT') : null;
+      await flushPromises();
+      const postedAt = Timestamp.fromDate(new Date('2026-10-23T12:00:00Z'));
+      const root = new Message({
+        id: 'ROOT',
+        roomId: 'R1',
+        body: 'Root',
+        createdAt: postedAt,
+        thread: {
+          threadRootEventId: 'ROOT',
+          replyCount: 1,
+          lastReplyAt: postedAt,
+          participantCount: 1,
+          participantPreviewUserIds: ['U1']
+        }
+      });
+      const reply = new Message({
+        id: 'REPLY',
+        roomId: 'R1',
+        body: 'Reply',
+        createdAt: postedAt,
+        threadRootEventId: 'ROOT'
+      });
+      if (rootDeleted) {
+        root.body = undefined;
+        root.deletedAt = postedAt;
+      }
+      const users = { U1: new User({ id: 'U1', login: 'test-user' }) };
+      messages.ingestEvent(messageToTimelineEvent(root, users)!);
+      if (thread) {
+        const timeline = vi.mocked(createRoomTimelineAPI).mock.results.at(-1)!.value;
+        vi.mocked(timeline.getThreadEvents).mockResolvedValue({
+          events: [messageToTimelineEvent(root, users)!, messageToTimelineEvent(reply, users)!],
+          hasOlder: false,
+          hasNewer: false
+        });
+        await thread.refreshCurrentWindow();
+      }
+
+      const deletedAt = Timestamp.fromDate(new Date('2026-10-23T12:01:00Z'));
+      reply.body = undefined;
+      reply.deletedAt = deletedAt;
+      root.thread = new ThreadSummary({ threadRootEventId: 'ROOT' });
+      apiMocks.readMessages.mockImplementation(async (_roomId, ids) =>
+        (rootDeleted ? [] : [root])
+          .filter((message) => ids.includes(message.id))
+          .map((message) => ({ message, timeline: messageToTimelineEvent(message, {}) }))
+      );
+      for (const result of vi.mocked(createRoomTimelineAPI).mock.results) {
+        vi.mocked(result.value.getThreadEventsAround).mockResolvedValue({
+          events: [messageToTimelineEvent(root, {})!],
+          hasOlder: false,
+          hasNewer: false
+        });
+      }
+      const retraction = new RealtimeProjectionUpdate({
+        cursor: 'after-retraction',
+        event: new RealtimeEvent({
+          id: 'RETRACTION',
+          createdAt: deletedAt,
+          event: {
+            case: 'messageRetracted',
+            value: new MessageRetractedEvent({ roomId: 'R1', messageEventId: 'REPLY' })
+          }
+        })
+      });
+
+      // A duplicate delivery must use the summary, not decrement the count again.
+      for (let delivery = 0; delivery < 2; delivery++) {
+        store.realtimeProjectionHandler(retraction);
+        await store.waitForRealtimeReconciliation();
+        for (const timeline of [messages, ...(thread ? [thread] : [])]) {
+          expect(timeline.getEventById('ROOT')?.event).toMatchObject({
+            body: rootDeleted ? null : 'Root',
+            replyCount: 0,
+            lastReplyAt: null,
+            threadParticipantCount: 0,
+            threadParticipants: []
+          });
+        }
+      }
+      if (thread) {
+        expect(thread.getEventById('REPLY')?.event).toMatchObject({
+          body: null,
+          deletedAt: expect.any(String)
+        });
+      }
+    }
+  );
 
   it('does not complete a durable cursor when message hydration fails', async () => {
     const messageRead = deferred<MessageResource[]>();

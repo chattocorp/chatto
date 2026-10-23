@@ -1,5 +1,12 @@
 {
   "room": {
+    "information": {
+      "description": "Beschreibung",
+      "created": "Erstellt",
+      "title": "Rauminformationen",
+      "basic": "Allgemein",
+      "pinned_messages": "Angeheftete Nachrichten"
+    },
     "create": {
       "title": "Neuen Raum erstellen",
       "description": "Räume sind Unterhaltungen innerhalb deines Servers.",
@@ -117,7 +124,7 @@
       "meta": {
         "echo": "Echo",
         "edited_short": "Bearbeitet",
-        "pinned": "Angepinnte Nachricht",
+        "pinned": "Angeheftete Nachricht",
         "thread": "Thread",
         "edited": "Nachricht bearbeitet",
         "echoed_to_channel": "Auch an den Kanal gesendet",
@@ -221,7 +228,7 @@
       "offline": "Offline ({count})",
       "no_files": "Noch keine Dateien in diesem Raum.",
       "files": "Dateien",
-      "pins": "Angepinnte Nachrichten",
+      "pins": "Angeheftete Nachrichten",
       "call": "Anruf",
       "jump_to_file": "Zu {filename} springen",
       "loading_files": "Dateien werden geladen...",
@@ -235,16 +242,16 @@
       "search": "Suchen"
     },
     "pins": {
-      "unseen": "Neue angepinnte Nachrichten",
-      "pin": "Nachricht anpinnen",
-      "unpin": "Pin entfernen",
-      "unpin_prompt": "Möchtest du den Pin dieser Nachricht wirklich entfernen?",
-      "loading": "Angepinnte Nachrichten werden geladen...",
-      "empty_title": "Keine angepinnten Nachrichten",
+      "unseen": "Neue angeheftete Nachrichten",
+      "pin": "Nachricht anheften",
+      "unpin": "Nachricht lösen",
+      "unpin_prompt": "Möchtest du diese Nachricht wirklich lösen?",
+      "loading": "Angeheftete Nachrichten werden geladen...",
+      "empty_title": "Keine angehefteten Nachrichten",
       "empty_description": "Angeheftete Nachrichten erscheinen hier.",
-      "error_title": "Angepinnte Nachrichten nicht verfügbar",
-      "error_description": "Angepinnte Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
-      "update_failed": "Angepinnte Nachricht konnte nicht aktualisiert werden"
+      "error_title": "Angeheftete Nachrichten nicht verfügbar",
+      "error_description": "Angeheftete Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
+      "update_failed": "Angeheftete Nachricht konnte nicht aktualisiert werden"
     },
     "title": {
       "direct_message": "Direktnachricht"

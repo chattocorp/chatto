@@ -1,5 +1,12 @@
 {
   "room": {
+    "information": {
+      "description": "Beskrivning",
+      "created": "Skapat",
+      "title": "Rumsinformation",
+      "basic": "Allmänt",
+      "pinned_messages": "Fästa meddelanden"
+    },
     "create": {
       "title": "Skapa ett nytt rum",
       "description": "Rum är konversationer på din server.",

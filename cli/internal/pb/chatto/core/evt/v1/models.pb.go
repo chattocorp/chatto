@@ -209,8 +209,10 @@ type Room struct {
 	// Independent per-user thread interval. Absence in legacy records uses
 	// slow_mode_seconds; explicit zero disables thread slow mode.
 	ThreadSlowModeSeconds *uint32 `protobuf:"varint,12,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Creation-event timestamp, retained by the room catalog and its snapshot.
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Room) Reset() {
@@ -311,6 +313,13 @@ func (x *Room) GetThreadSlowModeSeconds() uint32 {
 		return *x.ThreadSlowModeSeconds
 	}
 	return 0
+}
+
+func (x *Room) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
 }
 
 // User represents a user account
@@ -2028,7 +2037,7 @@ var File_chatto_core_evt_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc9\x03\n" +
+	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x04\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -2040,7 +2049,9 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\x11slow_mode_seconds\x18\n" +
 	" \x01(\rR\x0fslowModeSeconds\x12L\n" +
 	"\x0ethreading_mode\x18\v \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\x12<\n" +
-	"\x18thread_slow_mode_seconds\x18\f \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01B\x1b\n" +
+	"\x18thread_slow_mode_seconds\x18\f \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\x1b\n" +
 	"\x19_thread_slow_mode_secondsJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xc3\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
@@ -2244,37 +2255,38 @@ var file_chatto_core_evt_v1_models_proto_goTypes = []any{
 var file_chatto_core_evt_v1_models_proto_depIdxs = []int32{
 	0,  // 0: chatto.core.evt.v1.Room.kind:type_name -> chatto.core.evt.v1.RoomKind
 	1,  // 1: chatto.core.evt.v1.Room.threading_mode:type_name -> chatto.core.evt.v1.RoomThreadingMode
-	24, // 2: chatto.core.evt.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	5,  // 3: chatto.core.evt.v1.User.custom_status:type_name -> chatto.core.evt.v1.CustomUserStatus
-	24, // 4: chatto.core.evt.v1.CustomUserStatus.expires_at:type_name -> google.protobuf.Timestamp
-	9,  // 5: chatto.core.evt.v1.DeprecatedAsset.nats:type_name -> chatto.core.evt.v1.NATSAsset
-	8,  // 6: chatto.core.evt.v1.DeprecatedAsset.s3:type_name -> chatto.core.evt.v1.S3Asset
-	9,  // 7: chatto.core.evt.v1.AssetRecord.nats:type_name -> chatto.core.evt.v1.NATSAsset
-	8,  // 8: chatto.core.evt.v1.AssetRecord.s3:type_name -> chatto.core.evt.v1.S3Asset
-	7,  // 9: chatto.core.evt.v1.Attachment.storage:type_name -> chatto.core.evt.v1.DeprecatedAsset
-	24, // 10: chatto.core.evt.v1.MessageBody.created_at:type_name -> google.protobuf.Timestamp
-	24, // 11: chatto.core.evt.v1.MessageBody.updated_at:type_name -> google.protobuf.Timestamp
-	13, // 12: chatto.core.evt.v1.MessageBody.attachments:type_name -> chatto.core.evt.v1.Attachment
-	15, // 13: chatto.core.evt.v1.MessageBody.attachment_descriptions:type_name -> chatto.core.evt.v1.EncryptedAttachmentDescription
-	16, // 14: chatto.core.evt.v1.MessageBody.link_preview:type_name -> chatto.core.evt.v1.LinkPreview
-	10, // 15: chatto.core.evt.v1.LinkPreview.image_asset:type_name -> chatto.core.evt.v1.AssetRecord
-	17, // 16: chatto.core.evt.v1.LinkPreview.social_post:type_name -> chatto.core.evt.v1.SocialPostPreview
-	18, // 17: chatto.core.evt.v1.SocialPostPreview.author:type_name -> chatto.core.evt.v1.SocialPostAuthor
-	24, // 18: chatto.core.evt.v1.SocialPostPreview.published_at:type_name -> google.protobuf.Timestamp
-	19, // 19: chatto.core.evt.v1.SocialPostPreview.images:type_name -> chatto.core.evt.v1.SocialPostImage
-	20, // 20: chatto.core.evt.v1.SocialPostPreview.external_link:type_name -> chatto.core.evt.v1.SocialPostExternalLink
-	17, // 21: chatto.core.evt.v1.SocialPostPreview.quoted_post:type_name -> chatto.core.evt.v1.SocialPostPreview
-	10, // 22: chatto.core.evt.v1.SocialPostAuthor.avatar_asset:type_name -> chatto.core.evt.v1.AssetRecord
-	10, // 23: chatto.core.evt.v1.SocialPostImage.asset:type_name -> chatto.core.evt.v1.AssetRecord
-	10, // 24: chatto.core.evt.v1.SocialPostExternalLink.image_asset:type_name -> chatto.core.evt.v1.AssetRecord
-	2,  // 25: chatto.core.evt.v1.SidebarGroupEntry.kind:type_name -> chatto.core.evt.v1.SidebarGroupEntry.Kind
-	22, // 26: chatto.core.evt.v1.RoomGroup.entries:type_name -> chatto.core.evt.v1.SidebarGroupEntry
-	21, // 27: chatto.core.evt.v1.RoomGroup.sidebar_links:type_name -> chatto.core.evt.v1.SidebarLink
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	24, // 2: chatto.core.evt.v1.Room.created_at:type_name -> google.protobuf.Timestamp
+	24, // 3: chatto.core.evt.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	5,  // 4: chatto.core.evt.v1.User.custom_status:type_name -> chatto.core.evt.v1.CustomUserStatus
+	24, // 5: chatto.core.evt.v1.CustomUserStatus.expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 6: chatto.core.evt.v1.DeprecatedAsset.nats:type_name -> chatto.core.evt.v1.NATSAsset
+	8,  // 7: chatto.core.evt.v1.DeprecatedAsset.s3:type_name -> chatto.core.evt.v1.S3Asset
+	9,  // 8: chatto.core.evt.v1.AssetRecord.nats:type_name -> chatto.core.evt.v1.NATSAsset
+	8,  // 9: chatto.core.evt.v1.AssetRecord.s3:type_name -> chatto.core.evt.v1.S3Asset
+	7,  // 10: chatto.core.evt.v1.Attachment.storage:type_name -> chatto.core.evt.v1.DeprecatedAsset
+	24, // 11: chatto.core.evt.v1.MessageBody.created_at:type_name -> google.protobuf.Timestamp
+	24, // 12: chatto.core.evt.v1.MessageBody.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 13: chatto.core.evt.v1.MessageBody.attachments:type_name -> chatto.core.evt.v1.Attachment
+	15, // 14: chatto.core.evt.v1.MessageBody.attachment_descriptions:type_name -> chatto.core.evt.v1.EncryptedAttachmentDescription
+	16, // 15: chatto.core.evt.v1.MessageBody.link_preview:type_name -> chatto.core.evt.v1.LinkPreview
+	10, // 16: chatto.core.evt.v1.LinkPreview.image_asset:type_name -> chatto.core.evt.v1.AssetRecord
+	17, // 17: chatto.core.evt.v1.LinkPreview.social_post:type_name -> chatto.core.evt.v1.SocialPostPreview
+	18, // 18: chatto.core.evt.v1.SocialPostPreview.author:type_name -> chatto.core.evt.v1.SocialPostAuthor
+	24, // 19: chatto.core.evt.v1.SocialPostPreview.published_at:type_name -> google.protobuf.Timestamp
+	19, // 20: chatto.core.evt.v1.SocialPostPreview.images:type_name -> chatto.core.evt.v1.SocialPostImage
+	20, // 21: chatto.core.evt.v1.SocialPostPreview.external_link:type_name -> chatto.core.evt.v1.SocialPostExternalLink
+	17, // 22: chatto.core.evt.v1.SocialPostPreview.quoted_post:type_name -> chatto.core.evt.v1.SocialPostPreview
+	10, // 23: chatto.core.evt.v1.SocialPostAuthor.avatar_asset:type_name -> chatto.core.evt.v1.AssetRecord
+	10, // 24: chatto.core.evt.v1.SocialPostImage.asset:type_name -> chatto.core.evt.v1.AssetRecord
+	10, // 25: chatto.core.evt.v1.SocialPostExternalLink.image_asset:type_name -> chatto.core.evt.v1.AssetRecord
+	2,  // 26: chatto.core.evt.v1.SidebarGroupEntry.kind:type_name -> chatto.core.evt.v1.SidebarGroupEntry.Kind
+	22, // 27: chatto.core.evt.v1.RoomGroup.entries:type_name -> chatto.core.evt.v1.SidebarGroupEntry
+	21, // 28: chatto.core.evt.v1.RoomGroup.sidebar_links:type_name -> chatto.core.evt.v1.SidebarLink
+	29, // [29:29] is the sub-list for method output_type
+	29, // [29:29] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_models_proto_init() }

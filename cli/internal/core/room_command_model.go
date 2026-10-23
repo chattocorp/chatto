@@ -306,8 +306,9 @@ func (s *RoomCommandModel) LeaveRoom(ctx context.Context, input RoomIDInput) err
 }
 
 // AddMember permits account and room managers to add members without room.join.
-// Bot managers without either override need the bot's effective room.join,
-// including its owner's ceiling. Bans and room lifecycle restrictions still apply.
+// Bot managers without either override need their own effective room.join.
+// The bot's join grant applies only to self-service joins. Bans and room
+// lifecycle restrictions still apply.
 func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (*evtv1.RoomMembership, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
@@ -382,7 +383,7 @@ func (s *RoomCommandModel) authorizeMembershipChange(ctx context.Context, input 
 		return ErrPermissionDenied
 	}
 	if joining && !accountManager && !roomManager {
-		allowed, err := s.authorization.CanJoinRoomAt(ctx, input.UserID, KindChannel, input.RoomID)
+		allowed, err := s.authorization.CanJoinRoomAt(ctx, input.ActorID, KindChannel, input.RoomID)
 		if err != nil {
 			return err
 		}

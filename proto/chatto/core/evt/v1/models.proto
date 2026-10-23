@@ -65,6 +65,8 @@ message Room {
   // Independent per-user thread interval. Absence in legacy records uses
   // slow_mode_seconds; explicit zero disables thread slow mode.
   optional uint32 thread_slow_mode_seconds = 12;
+  // Creation-event timestamp, retained by the room catalog and its snapshot.
+  google.protobuf.Timestamp created_at = 13;
 }
 
 // User represents a user account

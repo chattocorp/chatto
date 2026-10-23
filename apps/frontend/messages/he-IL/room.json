@@ -1,5 +1,12 @@
 {
   "room": {
+    "information": {
+      "description": "תיאור",
+      "created": "נוצר",
+      "title": "מידע על החדר",
+      "basic": "כללי",
+      "pinned_messages": "הודעות נעוצות"
+    },
     "create": {
       "title": "צור חדר חדש",
       "description": "חדרים הם שיחות בתוך השרת שלך.",

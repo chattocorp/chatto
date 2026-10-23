@@ -180,6 +180,7 @@ jobs:
           install-cli-deps: 'false'
       - run: mise check-chattobot
       - run: mise test-chatto-client
+      - run: mise x -- pnpm --filter @chatto/client test:package
       - run: mise test-chattobot
 
   build-main-image-contexts:

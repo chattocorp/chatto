@@ -2,11 +2,36 @@ package core
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
+
+func TestRoomCreationMetadataSurvivesUpdatesAndSnapshots(t *testing.T) {
+	t.Parallel()
+	p := NewRoomDirectoryProjection()
+	event := roomCreatedEvent("room", "General", "", evtv1.RoomKind_ROOM_KIND_CHANNEL)
+	event.CreatedAt = timestamppb.New(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	wantSeconds := event.CreatedAt.Seconds
+	require.NoError(t, p.Apply(event, 1))
+	event.CreatedAt.Seconds++ // The projection must own its timestamp.
+	require.NoError(t, p.Apply(roomUpdatedEvent("room", "Renamed", "Updated"), 2))
+	room, ok := p.Catalog.Get("room")
+	require.True(t, ok)
+	require.Equal(t, wantSeconds, room.GetCreatedAt().GetSeconds())
+	room.CreatedAt.Seconds++ // Reads must not mutate the projection either.
+	snapshot, err := p.Snapshot()
+	require.NoError(t, err)
+	restored := NewRoomDirectoryProjection()
+	require.NoError(t, restored.Restore(snapshot))
+	room, ok = restored.Catalog.Get("room")
+	require.True(t, ok)
+	require.Equal(t, wantSeconds, room.GetCreatedAt().GetSeconds())
+	require.Equal(t, "Renamed", room.GetName())
+}
 
 func roomCreatedEvent(roomID, name, description string, kind evtv1.RoomKind) *evtv1.Event {
 	return &evtv1.Event{
