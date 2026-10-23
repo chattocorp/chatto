@@ -1,10 +1,11 @@
 package connectapi
 
 import (
+	"testing"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"testing"
 )
 
 func TestAPIRoomCreationMetadata(t *testing.T) {

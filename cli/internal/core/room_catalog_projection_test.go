@@ -1,11 +1,11 @@
 package core
 
 import (
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
