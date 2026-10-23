@@ -198,13 +198,60 @@ describe('Call device settings', () => {
     preferences.setDevice('audioinput', 'missing');
     const screen = render(CallDeviceSettings, { preferences });
     await expect
-      .element(screen.getByRole('option', { name: 'Saved device unavailable' }))
+      .element(screen.getByRole('option', { name: 'System default (Saved device unavailable)' }))
       .toBeInTheDocument();
     expect(capture).not.toHaveBeenCalled();
     await screen.getByText('Join calls with microphone muted', { exact: true }).click();
     expect(new CallPreferencesState('settings-test').joinMuted).toBe(true);
     await screen.getByRole('combobox', { name: 'Microphone', exact: true }).selectOptions('');
     expect(new CallPreferencesState('settings-test').microphone).toBe('');
+  });
+
+  it('tests with default audio when saved devices are absent and retains them when they return', async () => {
+    const enumerate = vi
+      .spyOn(navigator.mediaDevices, 'enumerateDevices')
+      .mockResolvedValue([visibleCamera, visibleMicrophone]);
+    const context = new AudioContext();
+    const stream = context.createMediaStreamDestination().stream;
+    const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+    const sink = vi.spyOn(HTMLMediaElement.prototype, 'setSinkId').mockResolvedValue();
+    const preferences = new CallPreferencesState('missing-test-devices');
+    preferences.setDevice('audioinput', 'missing-mic');
+    preferences.setDevice('audiooutput', 'missing-speaker');
+    preferences.setVoiceBoosting(false);
+    const screen = render(CallDeviceSettings, { preferences });
+    try {
+      const microphone = screen.getByRole('combobox', { name: 'Microphone', exact: true });
+      await expect
+        .element(microphone)
+        .toHaveTextContent('System default (Saved device unavailable)');
+      await screen.getByRole('button', { name: 'Start microphone test' }).click();
+      await expect
+        .element(screen.getByRole('button', { name: 'Stop and play' }))
+        .toBeInTheDocument();
+      expect(capture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audio: expect.objectContaining({ deviceId: { ideal: 'missing-mic' } })
+        })
+      );
+      expect(sink).not.toHaveBeenCalled();
+      expect(preferences.microphone).toBe('missing-mic');
+      expect(preferences.speaker).toBe('missing-speaker');
+
+      enumerate.mockResolvedValue([
+        visibleCamera,
+        { ...visibleMicrophone, deviceId: 'missing-mic', label: 'Returned microphone' }
+      ]);
+      navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
+      await expect
+        .element(microphone.getByRole('option', { name: 'Returned microphone' }))
+        .toBeInTheDocument();
+      await expect.element(microphone).toHaveValue('missing-mic');
+      expect(capture).toHaveBeenCalledOnce();
+    } finally {
+      await screen.unmount();
+      await context.close();
+    }
   });
 
   it('keeps silent recording active when the device list refreshes', async () => {

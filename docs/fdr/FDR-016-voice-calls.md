@@ -91,8 +91,11 @@ Rooms support real-time voice conversations with optional camera video and scree
   default without erasing the saved choice. The next call can use a device
   that returns.
   Changes from this preferences page also switch the connected call. An explicit
-  microphone uses an exact capture constraint; only a missing device permits
-  fallback.
+  microphone is a preferred capture device when a call or local test starts.
+  The browser can use an available input without first rejecting capture for a
+  missing saved device. The device picker shows the system default fallback
+  and keeps the saved choice. A local test also uses the default output when
+  the saved speaker is absent or output selection is unsupported.
 - Camera selection does not start video. Joining muted does not request
   microphone access merely to list devices. Browser support controls whether
   a speaker can be selected.
