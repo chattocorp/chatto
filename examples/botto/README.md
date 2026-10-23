@@ -44,6 +44,8 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `chatto.url`                   | Required                 | Chatto server URL                                                                         |
 | `chatto.api_key`               | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`                   |
 | `chatto.mcp`                   | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                                  |
+| `memory.enabled`               | `false`                  | Enable local Means memory                                                               |
+| `memory.command`               | `means`                  | Means executable name or absolute path                                                  |
 | `chatto.allowed_user_id`       | Unset                    | Restrict requests to one Chatto user ID                                                   |
 | `agent.model`                  | Required                 | Pi model in `provider/model` format                                                       |
 | `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context                              |
@@ -162,6 +164,48 @@ The model is told that its final reply is posted automatically, so it should use
 the posting tool only for additional messages required by the task.
 
 ## Data and recovery
+
+### Local memory
+
+Install the `means` CLI and enable local memory in TOML:
+
+```toml
+[memory]
+enabled = true
+command = "means"
+```
+
+Run `means --help` and `means agents` for CLI setup and usage. The executable must
+be available to the Botto process; `command` can be an absolute path. This feature
+is independent of `chatto.mcp` and needs no additional network service.
+
+On the first memory-enabled turn, Botto creates a Means collection under
+`runtime.data_directory/memory/<server-and-bot-hash>/`. It copies the schema and
+`MEANS.md` workflow from this example without overwriting existing files. The
+collection has one global document and one document per user who sends a message
+in an accepted batch. Stable Chatto user IDs identify users; names do not.
+Documents are reused across threads and restarts. Different server origins and
+bot accounts use separate collections.
+
+Pi receives the current document IDs, the collection workflow, and the full Means
+tool catalog with a `memory_` prefix. The default system prompt tells it to read
+global and participant memory before answering and to update useful facts. Memory
+updates are model-driven. If you supply a custom `agent.system_prompt`, include
+your desired memory behavior there. Edit the collection's `MEANS.md` to change
+its workflow; new turns read it again through MCP.
+
+Means runs as a local subprocess for each turn and closes when the turn ends.
+Botto serializes Means calls and document creation within its process. Updates use
+Means content hashes to detect stale reads. Continue to run only one Botto process
+per data directory; do not edit memory concurrently through other processes.
+
+Memory contains private Markdown. User documents organize facts; they are not
+access-control boundaries. The model can access the complete collection. The
+workflow tells it to keep private user facts out of global memory and other users'
+replies, and to never store credentials. Memory read through tools is sent to the
+configured model provider and can also remain in Pi transcripts. Clearing a memory
+document does not erase older transcripts. Missing Means or invalid collection
+data fails the turn rather than silently disabling memory.
 
 Botto connects to the configured Chatto server and model provider. The provider
 receives addressed messages, recent thread text, author IDs, and saved context.

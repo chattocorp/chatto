@@ -55,7 +55,8 @@ export function createTurnHandler(
               ],
               prompt,
               signal,
-              context
+              context,
+              [...new Set(messages.map((item) => item.authorId))]
             ),
           metrics
         );

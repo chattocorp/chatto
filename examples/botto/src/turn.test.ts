@@ -88,7 +88,8 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
         { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
       ],
       olderContextOmitted: false
-    }
+    },
+    ['human', 'another']
   );
   expect(history).toHaveBeenCalledTimes(1);
   expect(server.postMessage).toHaveBeenCalledExactlyOnceWith(

@@ -13,6 +13,7 @@ import type { Settings } from './settings.ts';
 import { StartupError, startupStep } from './diagnostics.ts';
 import { log } from './log.ts';
 import { connectChattoMcp } from './mcp.ts';
+import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
 
 /** Runtime facts supplement the configurable behavior instructions. */
@@ -26,6 +27,7 @@ export function transcriptName(identity: readonly string[]): string {
 
 /** Prepare model access once. Credentials use Pi's normal auth store and provider environment. */
 export async function createAgent(settings: Settings) {
+  const openMemory = createMemory(settings);
   await startupStep('Cannot create the Botto data directory. Check runtime.data_directory.', () =>
     mkdir(settings.directory, { recursive: true, mode: 0o700 })
   );
@@ -57,11 +59,15 @@ export async function createAgent(settings: Settings) {
       identity: readonly string[],
       prompt: string,
       signal: AbortSignal,
-      context?: ThreadContext
+      context?: ThreadContext,
+      userIds: readonly string[] = []
     ): Promise<string> {
       signal.throwIfAborted();
       const mcp = settings.mcp ? await connectChattoMcp(settings, signal) : undefined;
+      let memory: Awaited<ReturnType<typeof openMemory>> | undefined;
       try {
+        if (settings.memory) memory = await openMemory(identity, userIds, signal);
+        const tools = [...(mcp?.tools ?? []), ...(memory?.tools ?? [])];
         const settingsManager = SettingsManager.inMemory();
         const resourceLoader = new DefaultResourceLoader({
           cwd: settings.directory,
@@ -78,8 +84,8 @@ export async function createAgent(settings: Settings) {
             `Your name is ${settings.name}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
               mcp
                 ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
-                : 'You have no tools.'
-            }`,
+                : 'Chatto MCP tools are disabled.'
+            }\n${memory ? `Local memory tools use the memory_ prefix. Memory document IDs: ${JSON.stringify(memory.documents)}.\n${memory.client.getInstructions() ?? ''}` : 'Local memory is disabled.'}`,
           appendSystemPromptOverride: () => []
         });
         await resourceLoader.reload();
@@ -91,8 +97,8 @@ export async function createAgent(settings: Settings) {
           model,
           settingsManager,
           resourceLoader,
-          tools: mcp?.tools.map((tool) => tool.name) ?? [],
-          customTools: mcp?.tools ?? [],
+          tools: tools.map((tool) => tool.name),
+          customTools: tools,
           sessionManager: SessionManager.open(
             join(settings.directory, transcriptName(identity)),
             settings.directory,
@@ -132,7 +138,11 @@ export async function createAgent(settings: Settings) {
           }
         }
       } finally {
-        await mcp?.close();
+        try {
+          await memory?.close();
+        } finally {
+          await mcp?.close();
+        }
       }
     }
   };
