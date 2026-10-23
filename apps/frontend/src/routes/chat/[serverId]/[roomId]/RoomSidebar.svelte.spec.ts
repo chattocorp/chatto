@@ -973,7 +973,7 @@ describe('RoomSidebar', () => {
       .toBeInTheDocument();
   });
 
-  it('renders connected participant cards video-first and exposes call controls', async () => {
+  it('features the camera once and exposes the remaining participant and call controls', async () => {
     const videoTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -1028,24 +1028,25 @@ describe('RoomSidebar', () => {
     const participantCards = Array.from(
       container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
     );
-    expect(participantCards).toHaveLength(2);
+    expect(participantCards).toHaveLength(1);
+    expect(participantCards[0].textContent).toContain('Bob');
     expect(participantCards[0].className).toContain('participant-card-compact');
     expect(q(container, '[data-testid="call-featured-stage-card"] video')).toBeTruthy();
+    expect(container.querySelectorAll('[data-stage-tile-key="viewer:person"]')).toHaveLength(1);
     expect(participantCards[0].querySelector('video')).toBeNull();
-    expect(participantCards[1].className).toContain('participant-card-compact');
-    const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
+    const mutedIndicator = q(participantCards[0], '[data-testid="call-muted-indicator"]');
     const participantMenuButton = q(
-      participantCards[1],
+      participantCards[0],
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
-    participantCards[1].style.width = '280px';
+    participantCards[0].style.width = '280px';
     await expect
-      .poll(() => q(participantCards[1], '[data-testid="call-feed-local-mute-button"]'))
+      .poll(() => q(participantCards[0], '[data-testid="call-feed-local-mute-button"]'))
       .toBeNull();
     await userEvent.click(participantMenuButton);
     expect(mutedIndicator).toBeTruthy();
-    expect(q(participantCards[1], '[data-testid="voice-activity"]')).toBeTruthy();
-    expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
+    expect(q(participantCards[0], '[data-testid="voice-activity"]')).toBeTruthy();
+    expect(q(participantCards[0], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
     await expect
       .element(page.getByRole('button', { name: 'Mute locally', exact: true }))
       .toBeVisible();
