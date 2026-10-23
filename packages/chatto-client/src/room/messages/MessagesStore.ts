@@ -113,6 +113,19 @@ function sameEventList(a: readonly TimelineEventView[], b: readonly TimelineEven
   });
 }
 
+/** Thread fields can refresh without replacing message content or reactions. */
+function threadSummary(payload: MessagePostedPayload) {
+  return {
+    threadExists: payload.threadExists,
+    replyCount: payload.replyCount,
+    lastReplyAt: payload.lastReplyAt,
+    threadParticipantCount: payload.threadParticipantCount,
+    threadParticipants: payload.threadParticipants,
+    viewerIsFollowingThread: payload.viewerIsFollowingThread,
+    viewerHasUnreadThread: payload.viewerHasUnreadThread
+  };
+}
+
 function snapshotEventFingerprints(events: readonly TimelineEventView[]): Map<string, string> {
   return new Map(events.map((event) => [event.id, eventFingerprint(event)]));
 }
@@ -387,6 +400,47 @@ export class MessagesStore {
       if (row.event.channelEchoEventId) ids.add(row.event.channelEchoEventId);
     }
     return [...ids];
+  }
+
+  /**
+   * Capture loaded roots for a shared summary read. Each callback updates only
+   * unchanged summary fields in this view. Content edits remain intact, and a
+   * reset, disposal, or access loss makes the captured callbacks stale.
+   */
+  captureThreadSummaries(): Map<string, (root: TimelineEventView) => void> {
+    const loadId = this.#loadId;
+    const capture = (rows: Iterable<TimelineEventView | null>) => {
+      const summaries = new Map<string, string>();
+      for (const row of rows) {
+        if (row && isMessagePostedPayload(row.event) && row.event.threadExists) {
+          summaries.set(row.id, JSON.stringify(threadSummary(row.event)));
+        }
+      }
+      return summaries;
+    };
+    const rowsBefore = capture(this.events);
+    const previewsBefore = capture(this.previewEvents.values());
+    const callbacks = new Map<string, (root: TimelineEventView) => void>();
+    for (const rootId of new Set([...rowsBefore.keys(), ...previewsBefore.keys()])) {
+      callbacks.set(rootId, (event) => {
+        if (this.isStale(loadId) || this.#projectionAccessRevoked || event.id !== rootId) return;
+        const root = this.unmaskEvents([event])[0];
+        if (!root || !isMessagePostedPayload(root.event)) return;
+        const summary = threadSummary(root.event);
+        const apply = (row: TimelineEventView, before: string | undefined): TimelineEventView =>
+          row.id === rootId &&
+          isMessagePostedPayload(row.event) &&
+          JSON.stringify(threadSummary(row.event)) === before
+            ? { ...row, event: { ...row.event, ...summary } }
+            : row;
+        batch(() => {
+          this.updateEvents((row) => apply(row, rowsBefore.get(rootId)));
+          const preview = this.previewEvents.get(rootId);
+          if (preview) this.previewEvents.set(rootId, apply(preview, previewsBefore.get(rootId)));
+        });
+      });
+    }
+    return callbacks;
   }
 
   /**

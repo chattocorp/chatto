@@ -28,6 +28,12 @@ export type TimelineSyncOptions = {
   rooms: RoomStores;
   /** Read the current resources of messages, at or after a cursor. */
   readMessages: (roomId: string, ids: string[], cursor?: string) => Promise<MessageResource[]>;
+  /** Read a root through its thread timeline, which also retains deleted roots. */
+  readThreadRoot: (
+    roomId: string,
+    rootId: string,
+    cursor?: string
+  ) => Promise<TimelineEventView | null>;
   /** The projection generation. A reset starts a new one and makes older reads stale. */
   generation: () => number;
   /** The cursor of the event that is being applied. Reads for it must reach this cursor. */
@@ -56,6 +62,8 @@ export class TimelineSync {
   readonly #reconciler: MessageReconciler;
   /** Timelines with a window read in progress, and the reads that wait for it. */
   readonly #windowQueues = new WeakMap<MessagesStore, WindowRefresh[]>();
+  /** One current summary refresh per room; newer retractions supersede older reads. */
+  readonly #threadSummaryReads = new Map<string, symbol>();
 
   constructor(options: TimelineSyncOptions) {
     this.#options = options;
@@ -160,6 +168,9 @@ export class TimelineSync {
     for (const store of this.#options.rooms.timelines(roomId || undefined)) {
       store.applyMessageRetraction(messageEventId, retractedAt);
     }
+    for (const [id] of this.#options.rooms.entries()) {
+      if (!roomId || id === roomId) this.#refreshThreadSummaries(id);
+    }
   }
 
   /**
@@ -191,11 +202,50 @@ export class TimelineSync {
   /** Discard the queued message reads of a room, for example when access to it ends. */
   invalidateRoom(roomId: string): void {
     this.#reconciler.invalidateRoom(roomId);
+    this.#threadSummaryReads.delete(roomId);
   }
 
   /** Discard all queued message reads, for example at a projection reset. */
   reset(): void {
     this.#reconciler.reset();
+    this.#threadSummaryReads.clear();
+  }
+
+  /**
+   * Read each loaded root once for all views. Deleted replies are absent from
+   * batch message reads, so their root may be unknown. Refresh all loaded roots
+   * through thread timelines, without changing any view's loaded window.
+   */
+  #refreshThreadSummaries(roomId: string): void {
+    const roots = new Map<string, ((root: TimelineEventView) => void)[]>();
+    for (const store of this.#options.rooms.timelines(roomId)) {
+      for (const [id, apply] of store.captureThreadSummaries()) {
+        const callbacks = roots.get(id) ?? [];
+        callbacks.push(apply);
+        roots.set(id, callbacks);
+      }
+    }
+    const owner = Symbol();
+    this.#threadSummaryReads.set(roomId, owner);
+    const generation = this.#options.generation();
+    const cursor = this.#options.eventCursor();
+    const current = () =>
+      this.#threadSummaryReads.get(roomId) === owner && generation === this.#options.generation();
+    const read = async () => {
+      try {
+        for (const [rootId, callbacks] of roots) {
+          if (!current()) return;
+          const root = await this.#options.readThreadRoot(roomId, rootId, cursor);
+          if (!current()) return;
+          if (root) for (const apply of callbacks) apply(root);
+        }
+      } catch (error) {
+        if (current()) throw error;
+      } finally {
+        if (this.#threadSummaryReads.get(roomId) === owner) this.#threadSummaryReads.delete(roomId);
+      }
+    };
+    this.#options.track(read(), generation);
   }
 
   /**

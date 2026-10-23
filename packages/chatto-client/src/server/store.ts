@@ -5,6 +5,7 @@
 
 import { TimelineSync, type LocalMessageMutation } from './timelineSync.js';
 import { createMessageResourcesAPI } from '../api/messageResources.js';
+import { createRoomTimelineAPI } from '../api/roomTimeline.js';
 import { affectsViewerPermissions } from './permissionEvents.js';
 import { runResetHandlers } from './resetHandlers.js';
 import {
@@ -359,10 +360,21 @@ export class ServerStateStore {
         return room?.room?.kind === RoomKind.DM ? room.memberUserIds : null;
       }
     });
+    const threadTimelineAPI = serverConnection.getAPI(createRoomTimelineAPI);
     this.#timelines = new TimelineSync({
       rooms: this.#rooms,
       readMessages: (roomId, ids, cursor) =>
         serverConnection.getAPI(createMessageResourcesAPI).read(roomId, ids, cursor),
+      readThreadRoot: async (roomId, rootId, minimumCursor) => {
+        const page = await threadTimelineAPI.getThreadEventsAround({
+          roomId,
+          threadRootEventId: rootId,
+          eventId: rootId,
+          limit: 1,
+          minimumCursor
+        });
+        return page.events.find((event) => event.id === rootId) ?? null;
+      },
       generation: () => this.#realtimeProjectionGeneration,
       eventCursor: () => this.#currentEventMinimumCursor,
       track: (read, generation) => this.trackProjectionReconciliation(read, generation),
