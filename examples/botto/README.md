@@ -144,7 +144,7 @@ same transcript. It does not preload all transcripts at process startup.
 
 New messages are skipped when the configured queue or thread limit is reached.
 Ordinary room posts and reactions do not start turns. Botto has no tools by default.
-It loads only its own request-context extension, not local
+It loads only host-selected extensions, not local
 Pi extensions, skills, prompt templates, or project instructions.
 
 ## Optional Chatto MCP tools
@@ -156,10 +156,14 @@ this includes write tools such as posting messages and joining or leaving rooms,
 subject to the bot account's permissions. `chatto.allowed_user_id` limits who
 can trigger a turn; it does not limit which rooms the tools can access.
 
-Each turn opens an MCP connection, reads the complete tool catalog, and closes
-the connection when the turn ends. The turn deadline also applies to MCP work.
-If MCP connection or discovery fails, the turn fails. Botto does not retry tool
-calls. Normal thread context and final replies still use `@chatto/client`.
+Pi's native MCP extension connects the configured servers, discovers their tools,
+and exposes them directly as `mcp__chatto__<tool>`. Built-in file and shell tools
+stay disabled. Botto does not load ambient Pi MCP configuration.
+Each turn closes its connections when it ends, including on cancellation.
+Pi waits up to 10 seconds for tools before the first model request. If a server
+fails or is still connecting, Pi can continue with the available tools; its
+request context includes server status. Botto does not retry tool calls.
+Normal thread context and final replies still use `@chatto/client`.
 The model is told that its final reply is posted automatically, so it should use
 the posting tool only for additional messages required by the task.
 
@@ -188,13 +192,14 @@ Documents are reused across threads and restarts. Different server origins and
 bot accounts use separate collections.
 
 Pi receives the current document IDs, the collection workflow, and the full Means
-tool catalog with a `memory_` prefix. The default system prompt tells it to read
+tool catalog with a `mcp__memory__` prefix. The default system prompt tells it to read
 global and participant memory before answering and to update useful facts. Memory
 updates are model-driven. If you supply a custom `agent.system_prompt`, include
 your desired memory behavior there. Edit the collection's `MEANS.md` to change
 its workflow; new turns read it again through MCP.
 
-Means runs as a local subprocess for each turn and closes when the turn ends.
+Botto uses a short-lived Means subprocess to prepare document IDs. Pi then opens
+its own Means connection for model tool calls and closes it when the turn ends.
 Botto serializes Means calls and document creation within its process. Updates use
 Means content hashes to detect stale reads. Continue to run only one Botto process
 per data directory; do not edit memory concurrently through other processes.
@@ -205,7 +210,8 @@ workflow tells it to keep private user facts out of global memory and other user
 replies, and to never store credentials. Memory read through tools is sent to the
 configured model provider and can also remain in Pi transcripts. Clearing a memory
 document does not erase older transcripts. Missing Means or invalid collection
-data fails the turn rather than silently disabling memory.
+data during document preparation fails the turn. Later connection failures follow
+Pi's MCP behavior described above.
 
 Botto connects to the configured Chatto server and model provider. The provider
 receives addressed messages, recent thread text, author IDs, and saved context.
@@ -259,9 +265,12 @@ owns Pi sessions; `src/thread-context.ts` connects Pi's request hook to the pure
 merge function in `src/context-messages.ts`. `src/context.ts` selects text from
 the shared client timeline in the same message format used by that merge.
 `src/settings.ts` validates TOML.
+`src/mcp.ts` configures Pi's native MCP extension and observes tool outcomes.
+`src/memory.ts` prepares memory documents and owns the shared memory lock.
 Most tests use a mocked Pi boundary. A restoration test opens a real Pi transcript
 in a fresh process and checks its session ID and model context. Tests do not
-contact a model provider. The `test-botto` GitHub Actions job runs the type check
+contact a model provider. Native MCP tests use real Pi sessions and in-memory
+protocol transports. The `test-botto` GitHub Actions job runs the type check
 and tests when Botto, its client dependencies, or shared CI configuration change.
 Its tests run without network connectivity, including child processes. No model
 credentials are required or supplied.

@@ -12,7 +12,7 @@ import {
 import type { Settings } from './settings.ts';
 import { StartupError, startupStep } from './diagnostics.ts';
 import { log } from './log.ts';
-import { connectChattoMcp } from './mcp.ts';
+import { mcpExtension, mcpObserver } from './mcp.ts';
 import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
 
@@ -63,87 +63,88 @@ export async function createAgent(settings: Settings) {
       userIds: readonly string[] = []
     ): Promise<string> {
       signal.throwIfAborted();
-      const mcp = settings.mcp
-        ? await connectChattoMcp(settings, signal, identity.at(-1))
-        : undefined;
-      let memory: Awaited<ReturnType<typeof openMemory>> | undefined;
+      const memory = settings.memory ? await openMemory(identity, userIds, signal) : undefined;
+      const settingsManager = SettingsManager.inMemory();
+      const resourceLoader = new DefaultResourceLoader({
+        cwd: settings.directory,
+        agentDir: settings.directory,
+        settingsManager,
+        noExtensions: true,
+        noSkills: true,
+        noPromptTemplates: true,
+        noThemes: true,
+        noContextFiles: true,
+        // Only host-selected extensions are loaded; local extensions remain disabled.
+        extensionFactories: [
+          mcpExtension(settings, memory?.directory),
+          mcpObserver(signal, identity.at(-1), memory?.acquire),
+          ...(context ? [threadContextExtension(context)] : [])
+        ],
+        systemPromptOverride: () =>
+          `Your name is ${settings.name}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
+            settings.mcp
+              ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
+              : 'Chatto MCP tools are disabled.'
+          }\n${memory ? `Local memory tools use the mcp__memory__ prefix. Memory document IDs: ${JSON.stringify(memory.documents)}.\n${memory.instructions ?? ''}` : 'Local memory is disabled.'}`,
+        appendSystemPromptOverride: () => []
+      });
+      await resourceLoader.reload();
+      signal.throwIfAborted();
+      const { session } = await createAgentSession({
+        cwd: settings.directory,
+        agentDir: settings.directory,
+        modelRuntime: runtime,
+        model,
+        settingsManager,
+        resourceLoader,
+        noTools: 'builtin',
+        sessionManager: SessionManager.open(
+          join(settings.directory, transcriptName(identity)),
+          settings.directory,
+          settings.directory
+        )
+      });
+      let shutdown: Promise<void> | undefined;
+      const shutdownExtensions = () =>
+        (shutdown ??= session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' }));
+      const abort = () => {
+        void session.abort().catch(() => {});
+        void shutdownExtensions().catch(() => {});
+      };
       try {
-        if (settings.memory) memory = await openMemory(identity, userIds, signal);
-        const tools = [...(mcp?.tools ?? []), ...(memory?.tools ?? [])];
-        const settingsManager = SettingsManager.inMemory();
-        const resourceLoader = new DefaultResourceLoader({
-          cwd: settings.directory,
-          agentDir: settings.directory,
-          settingsManager,
-          noExtensions: true,
-          noSkills: true,
-          noPromptTemplates: true,
-          noThemes: true,
-          noContextFiles: true,
-          // Only this host-owned extension is loaded; local extensions remain disabled.
-          extensionFactories: context ? [threadContextExtension(context)] : [],
-          systemPromptOverride: () =>
-            `Your name is ${settings.name}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
-              mcp
-                ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
-                : 'Chatto MCP tools are disabled.'
-            }\n${memory ? `Local memory tools use the memory_ prefix. Memory document IDs: ${JSON.stringify(memory.documents)}.\n${memory.client.getInstructions() ?? ''}` : 'Local memory is disabled.'}`,
-          appendSystemPromptOverride: () => []
-        });
-        await resourceLoader.reload();
         signal.throwIfAborted();
-        const { session } = await createAgentSession({
-          cwd: settings.directory,
-          agentDir: settings.directory,
-          modelRuntime: runtime,
-          model,
-          settingsManager,
-          resourceLoader,
-          tools: tools.map((tool) => tool.name),
-          customTools: tools,
-          sessionManager: SessionManager.open(
-            join(settings.directory, transcriptName(identity)),
-            settings.directory,
-            settings.directory
-          )
-        });
-        const abort = () => {
-          void session.abort().catch(() => {});
-        };
+        await session.bindExtensions({});
+        // Binding starts native MCP. Do not send shutdown before session_start.
         signal.addEventListener('abort', abort, { once: true });
+        signal.throwIfAborted();
+        const historyMessages = session.messages.length;
+        log('info', historyMessages ? 'Pi session resumed' : 'Pi session created', {
+          threadId: identity.at(-1),
+          sessionId: session.sessionId,
+          historyMessages
+        });
+        await session.prompt(prompt);
+        signal.throwIfAborted();
+        const last = session.messages.at(-1);
+        if (
+          last?.role !== 'assistant' ||
+          last.stopReason === 'error' ||
+          last.stopReason === 'aborted'
+        )
+          throw new Error('Pi did not complete the turn');
+        const text = session.getLastAssistantText()?.trim();
+        if (!text) throw new Error('Pi returned no answer');
+        return text;
+      } finally {
+        signal.removeEventListener('abort', abort);
         try {
-          signal.throwIfAborted();
-          const historyMessages = session.messages.length;
-          log('info', historyMessages ? 'Pi session resumed' : 'Pi session created', {
-            threadId: identity.at(-1),
-            sessionId: session.sessionId,
-            historyMessages
-          });
-          await session.prompt(prompt);
-          signal.throwIfAborted();
-          const last = session.messages.at(-1);
-          if (
-            last?.role !== 'assistant' ||
-            last.stopReason === 'error' ||
-            last.stopReason === 'aborted'
-          )
-            throw new Error('Pi did not complete the turn');
-          const text = session.getLastAssistantText()?.trim();
-          if (!text) throw new Error('Pi returned no answer');
-          return text;
+          await session.abort();
         } finally {
-          signal.removeEventListener('abort', abort);
           try {
-            await session.abort();
+            await shutdownExtensions();
           } finally {
             session.dispose();
           }
-        }
-      } finally {
-        try {
-          await memory?.close();
-        } finally {
-          await mcp?.close();
         }
       }
     }

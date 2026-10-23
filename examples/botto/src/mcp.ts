@@ -1,107 +1,82 @@
-/** Connect one turn to Chatto MCP. The caller owns and closes the connection. */
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
+/** Configure Pi's native MCP extension and observe calls without exposing their data. */
+import { devNull } from 'node:os';
+import {
+  createMcpExtension,
+  type ExtensionFactory,
+  type McpServerEntry,
+  type McpTransportFactory
+} from '@earendil-works/pi-coding-agent';
 import type { Settings } from './settings.ts';
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { logged } from './log.ts';
+import { log } from './log.ts';
 
-/** Discover the complete tool catalog. No tool calls are retried by this bridge. */
-export async function connectChattoMcp(settings: Settings, signal: AbortSignal, threadId?: string) {
-  const { tools, close } = await connectMcp(
-    new StreamableHTTPClientTransport(new URL('/mcp', settings.serverUrl), {
-      requestInit: { headers: { Authorization: `Bearer ${settings.apiKey}` }, redirect: 'error' }
-    }),
-    signal,
-    { threadId }
-  );
-  return { tools, close };
+/** Use only Botto's explicit servers, never ambient project or global MCP configuration. */
+export function mcpExtension(
+  settings: Settings,
+  memoryDirectory?: string,
+  createTransport?: McpTransportFactory
+): ExtensionFactory {
+  const servers: McpServerEntry[] = [];
+  if (settings.mcp)
+    servers.push({
+      name: 'chatto',
+      source: 'botto.toml',
+      scope: 'extension',
+      config: {
+        url: new URL('/mcp', settings.serverUrl).href,
+        headers: { Authorization: `Bearer ${settings.apiKey}` },
+        exposure: 'direct'
+      }
+    });
+  if (memoryDirectory)
+    servers.push({
+      name: 'memory',
+      source: 'botto.toml',
+      scope: 'extension',
+      config: {
+        command: settings.meansCommand,
+        args: ['mcp', '--path', memoryDirectory],
+        exposure: 'direct'
+      }
+    });
+  return createMcpExtension({
+    loadConfig: () => ({ servers, errors: [], autoEnableCodemode: false }),
+    // Server-generated diagnostic text can contain secrets. Only our outcome hooks log.
+    logPath: devNull,
+    createTransport
+  });
 }
 
-/** Adapt a turn-owned MCP connection to Pi. Prefixes keep separate catalogs distinct. */
-export async function connectMcp(
-  transport: Transport,
+/** Serialize Means calls across sessions and log exactly one outcome per MCP call. */
+export function mcpObserver(
   signal: AbortSignal,
-  {
-    prefix = '',
-    run = (work) => work(),
-    threadId
-  }: {
-    prefix?: string;
-    run?: <T>(work: () => Promise<T>) => Promise<T>;
-    threadId?: string;
-  } = {}
-) {
-  const client = new Client({ name: 'botto', version: '0.1.0' });
-  const close = () => client.close();
-  const abort = () => {
-    void close().catch(() => {});
-  };
-  signal.throwIfAborted();
-  signal.addEventListener('abort', abort, { once: true });
-  try {
-    await client.connect(transport, { signal });
-    const tools: ToolDefinition[] = [];
-    let cursor: string | undefined;
-    do {
-      const page = await client.listTools({ cursor }, { signal });
-      for (const tool of page.tools) {
-        tools.push({
-          name: prefix + tool.name,
-          label: tool.title ?? tool.name,
-          description: tool.description ?? tool.name,
-          // Pi consumes JSON Schema; MCP supplies the same schema without TypeBox's type marker.
-          parameters: tool.inputSchema as ToolDefinition['parameters'],
-          async execute(_id, args, toolSignal) {
-            const result = await run(() =>
-              callMcpTool(
-                client,
-                tool.name,
-                args as Record<string, unknown>,
-                toolSignal ? AbortSignal.any([signal, toolSignal]) : signal,
-                { threadId, tool: prefix + tool.name }
-              )
-            );
-            return {
-              content: [{ type: 'text', text: JSON.stringify(result) }],
-              details: result
-            };
-          }
-        });
-      }
-      cursor = page.nextCursor;
-    } while (cursor);
-    signal.throwIfAborted();
-    return {
-      tools,
-      client,
-      async close() {
-        signal.removeEventListener('abort', abort);
-        await close();
-      }
+  threadId: string | undefined,
+  acquireMemory?: (signal: AbortSignal) => Promise<() => void>
+): ExtensionFactory {
+  return (pi) => {
+    const calls = new Map<string, { tool: string; started: number; release?: () => void }>();
+    pi.on('tool_call', async (event) => {
+      if (!event.toolName.startsWith('mcp__')) return;
+      signal.throwIfAborted();
+      const release = event.toolName.startsWith('mcp__memory__')
+        ? await acquireMemory?.(signal)
+        : undefined;
+      calls.set(event.toolCallId, { tool: event.toolName, started: performance.now(), release });
+    });
+    const finish = (id: string, failed: boolean) => {
+      const call = calls.get(id);
+      if (!call) return;
+      calls.delete(id);
+      call.release?.();
+      log(failed ? 'error' : 'info', failed ? 'MCP tool failed.' : 'MCP tool completed', {
+        threadId,
+        tool: call.tool,
+        durationMs: Math.round(performance.now() - call.started)
+      });
     };
-  } catch (error) {
-    signal.removeEventListener('abort', abort);
-    await close().catch(() => {});
-    throw error;
-  }
-}
-
-/** Log one tool outcome, including protocol-level failures, without copying private data. */
-export function callMcpTool(
-  client: Client,
-  name: string,
-  args: Record<string, unknown>,
-  signal: AbortSignal,
-  metrics: { threadId?: string; tool: string }
-) {
-  return logged(
-    'MCP tool',
-    async () => {
-      const result = await client.callTool({ name, arguments: args }, undefined, { signal });
-      if (result.isError) throw new Error(JSON.stringify(result.content));
-      return result;
-    },
-    metrics
-  );
+    pi.on('tool_result', (event) => finish(event.toolCallId, event.isError));
+    // Shutdown follows model cancellation, so any unfinished call releases its lock.
+    pi.on('session_shutdown', () => {
+      for (const id of calls.keys()) finish(id, true);
+    });
+  };
 }

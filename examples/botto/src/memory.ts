@@ -1,41 +1,42 @@
-/** Own a private Means collection and serialize its MCP mutations within this process. */
+/** Provision Means documents; Pi's native MCP extension owns model-facing tools. */
+import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { callMcpTool, connectMcp } from './mcp.ts';
-import type { Settings } from './settings.ts';
-import { createHash } from 'node:crypto';
+import { McpClient, StdioTransport } from '@earendil-works/pi-mcp';
 import { untilAborted } from '@chatto/client/util/untilAborted';
+import type { Settings } from './settings.ts';
+import { logged } from './log.ts';
 
-/** One memory owner per bot process. No subprocess is started until a turn needs it. */
+/** One owner per bot process. Provisioning and native tool hooks share this lock. */
 export function createMemory(settings: Settings) {
-  let pending: Promise<unknown> = Promise.resolve();
-  // Means has no write lock. Serialize calls and whole find-or-create operations;
-  // stale read/update pairs still use Means hashes to detect intervening changes.
-  const run = <T>(work: () => Promise<T>): Promise<T> => {
-    const result = pending.then(work);
-    pending = result.catch(() => {});
-    return result;
+  let pending = Promise.resolve();
+  const acquire = async (signal: AbortSignal): Promise<() => void> => {
+    signal.throwIfAborted();
+    const previous = pending;
+    const gate = Promise.withResolvers<void>();
+    pending = previous.then(() => gate.promise);
+    try {
+      await untilAborted(previous, signal);
+      signal.throwIfAborted();
+      return () => gate.resolve();
+    } catch (error) {
+      gate.resolve();
+      throw error;
+    }
   };
   return async (identity: readonly string[], userIds: readonly string[], signal: AbortSignal) => {
-    signal.throwIfAborted();
-    const queued = <T>(work: () => Promise<T>): Promise<T> =>
-      untilAborted(
-        run(() => {
-          signal.throwIfAborted();
-          return work();
-        }),
-        signal
-      );
-    const key = createHash('sha256')
-      .update(JSON.stringify(identity.slice(0, 2)))
-      .digest('hex');
-    const directory = join(settings.directory, 'memory', key);
-    // Another turn must not start Means while template files are still being copied.
-    await queued(async () => {
-      signal.throwIfAborted();
+    const release = await acquire(signal);
+    const client = new McpClient({ name: 'botto-memory-setup', version: '0.1.0' });
+    const abort = () => {
+      void client.close().catch(() => {});
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    try {
+      const key = createHash('sha256')
+        .update(JSON.stringify(identity.slice(0, 2)))
+        .digest('hex');
+      const directory = join(settings.directory, 'memory', key);
       await mkdir(directory, { recursive: true, mode: 0o700 });
       for (const file of ['means.schema.json', 'MEANS.md']) {
         try {
@@ -48,64 +49,67 @@ export function createMemory(settings: Settings) {
           if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error;
         }
       }
-    });
-    const connection = await connectMcp(
-      new StdioClientTransport({
-        command: settings.meansCommand,
-        args: ['mcp', '--path', directory],
-        stderr: 'ignore'
-      }),
-      signal,
-      { prefix: 'memory_', run: queued, threadId: identity[3] }
-    );
-    try {
-      const documents = await queued(async () => {
-        const global = await ensureDocument(
-          connection.client,
-          { scope: 'global' },
+      signal.throwIfAborted();
+      await untilAborted(
+        client.connect(
+          new StdioTransport({
+            command: settings.meansCommand,
+            args: ['mcp', '--path', directory],
+            stderr: 'pipe'
+          })
+        ),
+        signal
+      );
+      const global = await ensureDocument(client, { scope: 'global' }, signal, identity[3]);
+      const users: Record<string, string> = Object.create(null);
+      for (const userId of new Set(userIds)) {
+        users[userId] = await ensureDocument(
+          client,
+          { scope: 'user', user_id: userId },
           signal,
           identity[3]
         );
-        const users: Record<string, string> = Object.create(null);
-        for (const userId of new Set(userIds)) {
-          users[userId] = await ensureDocument(
-            connection.client,
-            { scope: 'user', user_id: userId },
-            signal,
-            identity[3]
-          );
-        }
-        return { global, users };
-      });
-      return { ...connection, documents };
-    } catch (error) {
-      await connection.close();
-      throw error;
+      }
+      return {
+        directory,
+        documents: { global, users },
+        instructions: client.instructions,
+        acquire
+      };
+    } finally {
+      signal.removeEventListener('abort', abort);
+      try {
+        await client.close();
+      } finally {
+        release();
+      }
     }
   };
 }
 
-/** Host-owned document discovery makes repeated turns and restarts reuse the same IDs. */
+/** Reuse persisted IDs; never create a second document for an existing memory scope. */
 async function ensureDocument(
-  client: Client,
+  client: McpClient,
   data: { scope: string; user_id?: string },
   signal: AbortSignal,
   threadId?: string
 ): Promise<string> {
-  const call = async (name: string, args: Record<string, unknown>) => {
-    const result = await callMcpTool(client, name, args, signal, {
-      threadId,
-      tool: `memory_${name}`
-    });
-    if (
-      result.isError ||
-      !result.structuredContent ||
-      typeof result.structuredContent !== 'object' ||
-      Array.isArray(result.structuredContent)
-    )
-      throw new Error('Means memory operation failed');
-    return result.structuredContent as Record<string, unknown>;
-  };
+  const call = async (name: string, args: Record<string, unknown>) =>
+    logged(
+      'MCP tool',
+      async () => {
+        const result = await client.callTool(name, args, { signal });
+        if (
+          result.isError ||
+          !result.structuredContent ||
+          typeof result.structuredContent !== 'object' ||
+          Array.isArray(result.structuredContent)
+        )
+          throw new Error('Means memory operation failed');
+        return result.structuredContent as Record<string, unknown>;
+      },
+      { threadId, tool: `mcp__memory__${name}` }
+    );
   const found = await call('search', { filter: data, limit: 0 });
   if (
     !Array.isArray(found.documents) ||

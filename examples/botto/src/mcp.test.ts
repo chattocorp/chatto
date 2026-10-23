@@ -1,7 +1,7 @@
-/** Exercise the real MCP client with an HTTP fixture; no sockets or model requests. */
-import { afterEach, expect, test, vi } from 'vitest';
+/** Test native Pi MCP discovery, tool conversion, hooks, and shutdown without an LLM. */
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { afterEach, expect, test, vi } from 'vitest';
 import {
   createAgentSession,
   DefaultResourceLoader,
@@ -9,73 +9,45 @@ import {
   SessionManager,
   SettingsManager
 } from '@earendil-works/pi-coding-agent';
-import { connectChattoMcp } from './mcp.ts';
+import { mcpExtension, mcpObserver } from './mcp.ts';
+import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
 
-const settings = parseSettings(
-  '[chatto]\nurl="https://chat.example"\napi_key="test-key"\nmcp=true\n[agent]\nmodel="test/test"',
-  'botto.toml'
-);
-afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-});
-
-test('discovers every page, preserves schemas, authenticates calls, and reports tool errors', async () => {
-  const info = vi.spyOn(console, 'info').mockImplementation(() => {});
-  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const calls: string[] = [];
-  const schema = { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] };
-  const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
-    expect(String(url)).toBe('https://chat.example/mcp');
-    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-key');
-    if (init?.method !== 'POST') return new Response(null, { status: 405 });
-    expect(init.redirect).toBe('error');
-    const request = JSON.parse(String(init.body));
-    calls.push(request.method);
-    if (request.id === undefined) return new Response(null, { status: 202 });
-    let result: unknown;
-    switch (request.method) {
-      case 'initialize':
-        result = {
-          protocolVersion: request.params.protocolVersion,
-          capabilities: { tools: {} },
-          serverInfo: { name: 'fixture', version: '1' }
-        };
-        break;
-      case 'tools/list':
-        result = request.params?.cursor
-          ? { tools: [{ name: 'post_message', inputSchema: schema }] }
-          : {
-              tools: [{ name: 'list_rooms', inputSchema: { type: 'object' } }],
-              nextCursor: 'page2'
-            };
-        break;
-      case 'tools/call':
-        expect(request.params.name).toBe('post_message');
-        result =
-          request.params.arguments.text === 'fail'
-            ? { isError: true, content: [{ type: 'text', text: 'Denied' }] }
-            : {
-                content: [{ type: 'text', text: 'Posted' }],
-                structuredContent: { id: 'new-message' }
-              };
-        break;
-      default:
-        throw new Error('Unexpected request');
-    }
-    return Response.json({ jsonrpc: '2.0', id: request.id, result });
-  });
-  vi.stubGlobal('fetch', fetch);
-  const mcp = await connectChattoMcp(settings, new AbortController().signal, 'thread-test');
-  try {
-    expect(mcp.tools.map((tool) => tool.name)).toEqual(['list_rooms', 'post_message']);
-    const tool = mcp.tools[1]!;
-    expect(tool.parameters).toEqual(schema);
-    // Check the real Pi registry: an empty tools selection would silently hide custom tools.
+afterEach(() => vi.restoreAllMocks());
+test.each([false, true])(
+  'native MCP opt-in (%s), structured results, logs, and shutdown',
+  async (enabled) => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const root = resolve('../../.context');
     await mkdir(root, { recursive: true });
-    const directory = await mkdtemp(join(root, 'botto-mcp-'));
+    const directory = await mkdtemp(join(root, 'botto-native-mcp-'));
+    const settings = parseSettings(
+      '[chatto]\nurl="https://example.com"\napi_key="private-key"\nmcp=true\n[agent]\nmodel="test/test"',
+      'botto.toml'
+    );
+    settings.mcp = enabled;
+    const call = vi.fn(async (_name: string, args: Record<string, unknown>) =>
+      args.fail
+        ? { isError: true, content: [{ type: 'text' as const, text: 'private failure' }] }
+        : { content: [], structuredContent: { body: 'private memory' } }
+    );
+    const transports: Array<ReturnType<typeof mcpFixture>> = [];
+    const createTransport = vi.fn((entry) => {
+      expect(entry.config.exposure).toBe('direct');
+      if (entry.name === 'chatto')
+        expect(entry.config.headers).toEqual({ Authorization: 'Bearer private-key' });
+      const transport = mcpFixture(
+        ['read', 'post_message'].map((name) => ({
+          name,
+          inputSchema: { type: 'object' as const }
+        })),
+        call
+      );
+      vi.spyOn(transport, 'close');
+      transports.push(transport);
+      return transport;
+    });
     try {
       const modelRuntime = await ModelRuntime.create({
         authPath: join(directory, 'auth.json'),
@@ -84,7 +56,10 @@ test('discovers every page, preserves schemas, authenticates calls, and reports 
         allowModelNetwork: false
       });
       const settingsManager = SettingsManager.inMemory();
-      const resourceLoader = new DefaultResourceLoader({
+      const controller = new AbortController();
+      const release = vi.fn();
+      const acquire = vi.fn(async () => release);
+      const loader = new DefaultResourceLoader({
         cwd: directory,
         agentDir: directory,
         settingsManager,
@@ -92,95 +67,88 @@ test('discovers every page, preserves schemas, authenticates calls, and reports 
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,
-        noContextFiles: true
+        noContextFiles: true,
+        extensionFactories: [
+          mcpExtension(settings, enabled ? directory : undefined, createTransport),
+          mcpObserver(controller.signal, 'thread-test', acquire)
+        ]
       });
-      await resourceLoader.reload();
+      await loader.reload();
       const { session } = await createAgentSession({
         cwd: directory,
         agentDir: directory,
         modelRuntime,
         settingsManager,
-        resourceLoader,
+        resourceLoader: loader,
         sessionManager: SessionManager.inMemory(directory),
-        tools: mcp.tools.map((tool) => tool.name),
-        customTools: mcp.tools
+        noTools: 'builtin'
       });
       try {
-        expect(session.getActiveToolNames().sort()).toEqual(['list_rooms', 'post_message']);
+        await session.bindExtensions({});
+        if (!enabled) {
+          expect(session.getActiveToolNames()).toEqual([]);
+          expect(createTransport).not.toHaveBeenCalled();
+          return;
+        }
+        await vi.waitFor(() =>
+          expect(session.getActiveToolNames().sort()).toEqual([
+            'mcp__chatto__post_message',
+            'mcp__chatto__read',
+            'mcp__memory__post_message',
+            'mcp__memory__read'
+          ])
+        );
+        const execute = async (id: string, fail = false) => {
+          const toolName = 'mcp__memory__read';
+          const input = { fail, secret: 'private-argument' };
+          await session.extensionRunner.emitToolCall({
+            type: 'tool_call',
+            toolCallId: id,
+            toolName,
+            input
+          });
+          const tool = session.agent.state.tools.find((tool) => tool.name === toolName)!;
+          const result = await tool.execute(id, input, controller.signal);
+          await session.extensionRunner.emitToolResult({
+            type: 'tool_result',
+            toolCallId: id,
+            toolName,
+            input,
+            content: result.content,
+            details: result.details,
+            isError: result.isError === true
+          });
+          return result;
+        };
+        expect(JSON.stringify(await execute('success'))).toContain('private memory');
+        expect((await execute('failure', true)).isError).toBe(true);
+        expect(acquire).toHaveBeenCalledTimes(2);
+        expect(release).toHaveBeenCalledTimes(2);
+        expect(info).toHaveBeenCalledTimes(1);
+        expect(error).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(info.mock.calls)).toContain('mcp__memory__read');
+        expect(JSON.stringify(info.mock.calls)).toContain('thread-test');
+        expect(JSON.stringify([info.mock.calls, error.mock.calls])).not.toContain('private');
+        expect(call).toHaveBeenCalledTimes(2);
+        // Cancellation can leave a call without a result event. Shutdown must release it.
+        await session.extensionRunner.emitToolCall({
+          type: 'tool_call',
+          toolCallId: 'unfinished',
+          toolName: 'mcp__memory__read',
+          input: {}
+        });
+        expect(acquire).toHaveBeenCalledTimes(3);
+        expect(release).toHaveBeenCalledTimes(2);
+        controller.abort();
       } finally {
+        await session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' });
         session.dispose();
       }
+      for (const transport of transports) expect(transport.close).toHaveBeenCalled();
+      expect(release).toHaveBeenCalledTimes(3);
+      expect(error).toHaveBeenCalledTimes(2);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-    const execute = (text: string) =>
-      tool.execute(
-        'call',
-        { text },
-        undefined,
-        undefined,
-        {} as Parameters<typeof tool.execute>[4]
-      );
-    expect(await execute('hello')).toMatchObject({
-      details: { structuredContent: { id: 'new-message' } }
-    });
-    await expect(execute('fail')).rejects.toThrow('Denied');
-    expect(calls.filter((method) => method === 'tools/call')).toHaveLength(2);
-    expect(info).toHaveBeenCalledTimes(1);
-    expect(error).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(info.mock.calls[0]![0]))).toMatchObject({
-      message: 'MCP tool completed',
-      threadId: 'thread-test',
-      tool: 'post_message',
-      durationMs: expect.any(Number)
-    });
-    expect(JSON.parse(String(error.mock.calls[0]![0]))).toMatchObject({
-      message: 'MCP tool failed.',
-      threadId: 'thread-test',
-      tool: 'post_message',
-      durationMs: expect.any(Number)
-    });
-    const logs = JSON.stringify([info.mock.calls, error.mock.calls]);
-    for (const privateText of ['hello', 'Denied', 'Posted', 'new-message', 'test-key'])
-      expect(logs).not.toContain(privateText);
-  } finally {
-    await mcp.close();
   }
-});
-
-test('rejects an aborted turn before contacting the server', async () => {
-  const fetch = vi.fn();
-  vi.stubGlobal('fetch', fetch);
-  await expect(connectChattoMcp(settings, AbortSignal.abort())).rejects.toThrow();
-  expect(fetch).not.toHaveBeenCalled();
-});
-
-test('cancellation aborts an HTTP request in progress', async () => {
-  const controller = new AbortController();
-  let requestSignal: AbortSignal | undefined;
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((_url: unknown, init: RequestInit) => {
-      requestSignal = init.signal ?? undefined;
-      return new Promise<Response>((_resolve, reject) => {
-        requestSignal?.addEventListener('abort', () => reject(requestSignal?.reason), {
-          once: true
-        });
-      });
-    })
-  );
-  const pending = connectChattoMcp(settings, controller.signal);
-  const rejected = expect(pending).rejects.toThrow();
-  await vi.waitFor(() => expect(requestSignal).toBeDefined());
-  controller.abort();
-  await rejected;
-  expect(requestSignal?.aborted).toBe(true);
-});
-
-test('MCP is opt-in and requires a TOML boolean', () => {
-  const source = '[chatto]\nurl="https://chat.example"\napi_key="key"\n[agent]\nmodel="test/test"';
-  expect(parseSettings(source, 'botto.toml').mcp).toBe(false);
-  expect(() =>
-    parseSettings(source.replace('[agent]', 'mcp="true"\n[agent]'), 'botto.toml')
-  ).toThrow('boolean');
-});
+);

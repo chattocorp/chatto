@@ -18,7 +18,7 @@
     "@chatto/api-types": "workspace:*",
     "@chatto/client": "workspace:*",
     "@earendil-works/pi-coding-agent": "1.3.0",
-    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@earendil-works/pi-mcp": "1.3.0",
     "smol-toml": "^1.6.1",
     "tsx": "^4.20.0"
   },
