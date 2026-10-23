@@ -143,13 +143,13 @@ thread replies. This applies to conversations started by a mention or direct rep
 as well as accepted reports. Other rooms still require an addressed message to
 start a conversation.
 
-All incoming messages use a fixed three-second batching window, including the
-first post, pings, direct replies, and reactions to bot messages. The first queued message starts the window;
-later messages join it without extending it. This lets people finish a short
-sequence of messages before the bot answers. Accepted addressed messages in the same window
-reach one conversation turn, with each author's identity and authorization context
-kept separate. The window runs while the agent is busy, so it adds no further wait
-when the agent becomes available after the window has ended.
+Ordinary messages, including automatic report intake and reactions, use a fixed
+45-second batching window. Direct pings, replies to the bot, and DMs use two
+seconds. A direct request in an ordinary batch brings its deadline forward to
+at most two seconds after that request. Later arrivals never extend the window.
+This leaves room for human discussion while keeping direct requests responsive.
+Each message retains its author and authorization context. The window runs while
+the agent is busy, so elapsed windows add no further wait when it becomes available.
 
 All DM messages, including thread replies, are addressed input. DMs, explicit
 mentions, and verified replies to the bot always reach a conversation turn.

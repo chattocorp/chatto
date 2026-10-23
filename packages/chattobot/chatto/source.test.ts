@@ -34,6 +34,17 @@ vi.mock('@chatto/client', async (original) => ({
     readThread: mocks.readThread
   })
 }));
+// Exercise routing without real waits; message-batches.test.ts covers production timing.
+vi.mock('../harness/message-batches.ts', async (original) => {
+  const actual = await original<typeof import('../harness/message-batches.ts')>();
+  return {
+    ...actual,
+    messageBatches: (...args: Parameters<typeof actual.messageBatches>) => {
+      args[3] = 1;
+      return actual.messageBatches(...args);
+    }
+  };
+});
 vi.mock('../tasks/classify-intake.ts', async (original) => ({
   ...(await original<typeof import('../tasks/classify-intake.ts')>()),
   createIntakeClassifier: () =>
