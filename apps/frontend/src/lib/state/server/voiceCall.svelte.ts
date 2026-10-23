@@ -668,8 +668,10 @@ export class VoiceCallState implements CallConnection {
           ? { audioOutput: { deviceId: outputDevice } }
           : {}),
         audioCaptureDefaults: {
+          // A remembered microphone is a preference. Let the browser choose a
+          // replacement when it is absent, without first failing capture.
           ...(this.preferences?.microphone
-            ? { deviceId: { exact: this.preferences.microphone } }
+            ? { deviceId: { ideal: this.preferences.microphone } }
             : {}),
           channelCount: { ideal: 1 },
           autoGainControl: false,
@@ -911,7 +913,8 @@ export class VoiceCallState implements CallConnection {
           (error as OverconstrainedError).constraint === 'deviceId');
       if (!this.preferences?.microphone || !missingDevice || this.room !== room) throw error;
       // Preserve the saved choice so it can be restored when the device returns.
-      await room.switchActiveDevice('audioinput', 'default');
+      // Some browsers have no device with the literal ID "default".
+      await room.switchActiveDevice('audioinput', 'default', false);
       if (this.room === room) await room.localParticipant.setMicrophoneEnabled(true);
     }
   }
@@ -1251,7 +1254,11 @@ export class VoiceCallState implements CallConnection {
 
     try {
       const changed = await this.runExplicitMediaDeviceOperation(() =>
-        room.switchActiveDevice('audioinput', deviceId || 'default')
+        room.switchActiveDevice(
+          'audioinput',
+          deviceId || 'default',
+          !!deviceId && deviceId !== 'default'
+        )
       );
       if (changed === false) throw new Error('Device switch failed');
       if (this.room !== room) return;
