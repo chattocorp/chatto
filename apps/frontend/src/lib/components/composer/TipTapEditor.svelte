@@ -82,6 +82,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let linkDraftInitializedFor = $state<string | null>(null);
   let codeLanguageLoadToken = 0;
   let replayingEnter = false;
+  /** True while `setContent` runs, including plugin transactions appended to its change. */
+  let settingContent = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -324,13 +326,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     openRenderedLink(href);
   }
 
-  // ProseMirror's own read-only mode removes focus. This filter rejects edits
-  // except `setContent`, which callers can run inside their own effects.
-  const readOnlyKey = new PluginKey('composerReadOnly');
+  // ProseMirror's own read-only mode removes focus, so this filter rejects
+  // edits instead. `setContent` passes: the composer clears a sent draft
+  // while it is still read-only. `setContent` can run inside a caller's
+  // effect, and that effect must not depend on `readOnly`.
   const readOnlyFilter = new Plugin({
-    key: readOnlyKey,
-    filterTransaction: (tr) =>
-      !tr.docChanged || tr.getMeta(readOnlyKey) === true || !untrack(() => readOnly)
+    key: new PluginKey('composerReadOnly'),
+    filterTransaction: (tr) => !tr.docChanged || settingContent || !untrack(() => readOnly)
   });
 
   function buildApi(e: Editor): ComposerEditorApi {
@@ -346,8 +348,15 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         if (e.isDestroyed) return;
         const parser = e.markdown;
         if (!parser) return;
-        const content = parseMarkdownForEditor(markdown, (source) => parser.parse(source));
-        e.chain().setMeta(readOnlyKey, true).setContent(content, { emitUpdate: false }).run();
+        settingContent = true;
+        try {
+          e.commands.setContent(
+            parseMarkdownForEditor(markdown, (source) => parser.parse(source)),
+            { emitUpdate: false }
+          );
+        } finally {
+          settingContent = false;
+        }
         ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
@@ -611,7 +620,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           aria-label={m('composer.link_url')}
           title={m('composer.link_url')}
           value={linkHrefDraft}
-          disabled={!editable}
+          disabled={!editable || readOnly}
           oninput={(event) => (linkHrefDraft = event.currentTarget.value)}
           onkeydown={(event) => {
             if (event.key === 'Enter') {
@@ -636,7 +645,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           type="button"
           aria-label={m('composer.remove_link')}
           title={m('composer.remove_link')}
-          disabled={!editable}
+          disabled={!editable || readOnly}
           onclick={removeLink}
           class="icon-action"
         >
@@ -667,7 +676,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           aria-label={m('composer.code_language')}
           title={m('composer.code_language')}
           value={activeCodeBlockLanguage}
-          disabled={!editable}
+          disabled={!editable || readOnly}
           onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}
           class="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         >

@@ -60,7 +60,10 @@ export type ComposerEditorApi = {
 export type ComposerEditorProps = {
   placeholder?: string;
   editable?: boolean;
-  /** Rejects user edits but, unlike `editable: false`, keeps focus and the on-screen keyboard. */
+  /**
+   * Rejects input but, unlike `editable: false`, keeps focus and the on-screen
+   * keyboard. `setContent` still replaces the content.
+   */
   readOnly?: boolean;
   autofocus?: boolean;
   testid?: string;
