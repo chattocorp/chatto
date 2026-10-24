@@ -11,6 +11,7 @@ requests. On main, or on a same-repository pull request with the
 `ghcr.io/chattocorp/media-e2e`. A weekly build refreshes the base image and
 OS packages. Manual builds also refresh these packages. Each publication
 has a unique tag. Builds do not change the image used by CI automatically.
+Adding an unrelated pull request label does not run the image build.
 
 ## Publication and updates
 
@@ -22,10 +23,10 @@ has a unique tag. Builds do not change the image used by CI automatically.
    credentials. The image contains public tools, not application source.
 3. Review the build and its codec and Chromium checks. Copy the full
    `ghcr.io/chattocorp/media-e2e@sha256:...` reference from the job summary.
-4. To verify before merge, update the default digest in the pull request's
-   media job. This does not change other branches. The repository Actions
-   variable `MEDIA_E2E_IMAGE`, when set, overrides this default; clear it
-   before verifying a new default, or set it to the same digest.
+4. Update the digest in the pull request's media job in
+   `.github/workflows/ci.yml`. Include the digest change in the same pull
+   request as any Playwright upgrade. Each branch keeps its own image pin;
+   this change does not affect main or other open pull requests.
 5. Run CI and check the media job. Restore the previous digest to roll back.
 
 The job uses a published custom image pinned by digest in `ci.yml`. It does
@@ -36,7 +37,7 @@ pull it without credentials.
 
 When the locked Playwright version changes, build and select a matching image.
 The media job rejects a custom image with a different Playwright version;
-it does not download replacement browsers. Update the default digest with
+it does not download replacement browsers. Update the digest with
 the dependency so the change can pass CI before merge.
 
 The image build checks H.264 encoding, FFprobe, and a headless Chromium
