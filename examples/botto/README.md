@@ -199,10 +199,18 @@ is independent of `chatto.mcp` and needs no additional network service.
 
 `memory.path` selects one Means collection. It defaults to `memory`, relative to
 the TOML file, and also accepts an absolute path or `${VARIABLE}`. The example's
-`memory/` directory is the collection: Git tracks its schema and `MEANS.md`
-workflow, but ignores private memory documents and Means indexes. To use another
-directory, copy `means.schema.json`, `MEANS.md`, and `.gitignore` there first.
-Botto requires the schema and workflow files; it does not copy templates at runtime.
+`memory/` directory is the collection: Git tracks `MEANS.md`, which contains the
+schema in YAML frontmatter and the workflow in its Markdown body. Git ignores
+private memory documents and Means indexes. To use another directory, copy
+`MEANS.md` and `.gitignore` there first. Botto requires `MEANS.md`; it does not
+copy templates at runtime.
+
+To migrate an existing collection with `means.schema.json`, stop Botto and move
+the schema into the `schema` field of the YAML frontmatter in `MEANS.md`. Use the
+example's `memory/MEANS.md` as a template, and preserve any custom schema rules
+and workflow guidance. Remove `means.schema.json`, then run
+`means doctor --path <memory.path>` before restarting Botto. Keep the memory
+documents and their IDs unchanged.
 
 The collection has one global document and one document per user who sends a message
 in an accepted batch. Stable Chatto user IDs identify users; names do not.
