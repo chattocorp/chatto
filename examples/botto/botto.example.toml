@@ -43,6 +43,12 @@ enabled = false
 command = "means"
 path = "memory"
 
+[web]
+# Search the web and fetch pages through Exa's hosted MCP server. Exa receives
+# the queries and URLs. Without a key, Exa applies low per-IP rate limits.
+enabled = false
+# exa_api_key = "${EXA_API_KEY}"
+
 [runtime]
 # React to the message that starts a new conversation. An empty string disables this.
 acknowledgement_emoji = "eyes"

@@ -50,6 +50,24 @@ test('resolves memory paths relative to TOML and accepts environment variables a
   );
 });
 
+test('web access is opt-in and its Exa key is optional', () => {
+  expect(parse()).toMatchObject({ web: false, exaApiKey: undefined });
+  expect(parse(`${source}\n[web]\nenabled=true`)).toMatchObject({
+    web: true,
+    exaApiKey: undefined
+  });
+  expect(
+    parseSettings(`${source}\n[web]\nenabled=true\nexa_api_key="\${EXA_API_KEY}"`, 'botto.toml', {
+      ...env,
+      EXA_API_KEY: 'exa-secret'
+    }).exaApiKey
+  ).toBe('exa-secret');
+  expect(() => parse(`${source}\n[web]\nenabled="yes"`)).toThrow('web.enabled must be a boolean');
+  expect(() => parse(`${source}\n[web]\nexa_api_key=""`)).toThrow(
+    'web.exa_api_key must be a non-empty string'
+  );
+});
+
 test('loads persona, multiline prompt, and runtime overrides', () => {
   expect(
     parse(

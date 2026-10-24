@@ -31,6 +31,10 @@ export interface Settings extends InboxSettings {
   /** One Means collection, resolved relative to the TOML file. */
   memoryPath: string;
   meansCommand: string;
+  /** Expose web search and page fetching from Exa's hosted MCP server. */
+  web: boolean;
+  /** Optional Exa API key; without it, Exa applies its keyless rate limits. */
+  exaApiKey?: string;
   provider: string;
   modelId: string;
   name: string;
@@ -96,7 +100,7 @@ export function parseSettings(
         `Unsupported setting in ${label}. Check botto.example.toml; keep secrets in the environment.`
       );
   };
-  knownKeys(root, ['chatto', 'agent', 'runtime', 'memory'], 'the root table');
+  knownKeys(root, ['chatto', 'agent', 'runtime', 'memory', 'web'], 'the root table');
   const section = (name: string, keys: string[]): Record<string, unknown> => {
     const value = root[name] ?? {};
     if (
@@ -117,6 +121,9 @@ export function parseSettings(
   const memory = section('memory', ['enabled', 'command', 'path']);
   if (memory.enabled !== undefined && typeof memory.enabled !== 'boolean')
     throw new Error('memory.enabled must be a boolean');
+  const web = section('web', ['enabled', 'exa_api_key']);
+  if (web.enabled !== undefined && typeof web.enabled !== 'boolean')
+    throw new Error('web.enabled must be a boolean');
   const runtime = section('runtime', [
     'data_directory',
     'acknowledgement_emoji',
@@ -167,6 +174,9 @@ export function parseSettings(
       string(memory, 'path', 'memory.path', 'memory')
     ),
     meansCommand: string(memory, 'command', 'memory.command', 'means'),
+    web: web.enabled === true,
+    exaApiKey:
+      web.exa_api_key === undefined ? undefined : string(web, 'exa_api_key', 'web.exa_api_key'),
     provider: model.slice(0, separator),
     modelId: model.slice(separator + 1),
     name: string(agent, 'name', 'agent.name', 'Botto'),

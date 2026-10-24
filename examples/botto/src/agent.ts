@@ -90,6 +90,10 @@ export async function createAgent(settings: Settings) {
             settings.mcp
               ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
               : 'Chatto MCP tools are disabled.'
+          }\n${
+            settings.web
+              ? 'Exa web tools use the mcp__exa__ prefix. Cite the source URLs you use.'
+              : 'Web access is disabled.'
           }\n${memory ? `Local memory tools use the mcp__memory__ prefix. Memory document IDs: ${JSON.stringify(memory.documents)}.\n${memory.instructions ?? ''}` : 'Local memory is disabled.'}`,
         appendSystemPromptOverride: () => []
       });

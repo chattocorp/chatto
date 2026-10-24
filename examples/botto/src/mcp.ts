@@ -9,12 +9,11 @@ import {
 import type { Settings } from './settings.ts';
 import { log } from './log.ts';
 
-/** Use only Botto's explicit servers, never ambient project or global MCP configuration. */
-export function mcpExtension(
-  settings: Settings,
-  memoryDirectory?: string,
-  createTransport?: McpTransportFactory
-): ExtensionFactory {
+/** Exa's hosted MCP endpoint, pinned to the search and fetch tools. */
+export const EXA_MCP_URL = 'https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa';
+
+/** List Botto's explicit servers. Ambient project or global MCP configuration is never used. */
+export function mcpServers(settings: Settings, memoryDirectory?: string): McpServerEntry[] {
   const servers: McpServerEntry[] = [];
   if (settings.mcp)
     servers.push({
@@ -24,6 +23,18 @@ export function mcpExtension(
       config: {
         url: new URL('/mcp', settings.serverUrl).href,
         headers: { Authorization: `Bearer ${settings.apiKey}` },
+        exposure: 'direct'
+      }
+    });
+  if (settings.web)
+    servers.push({
+      name: 'exa',
+      source: 'botto.toml',
+      scope: 'extension',
+      config: {
+        url: EXA_MCP_URL,
+        // A header keeps the key out of URLs, which servers and proxies often log.
+        headers: settings.exaApiKey ? { 'x-api-key': settings.exaApiKey } : {},
         exposure: 'direct'
       }
     });
@@ -38,6 +49,16 @@ export function mcpExtension(
         exposure: 'direct'
       }
     });
+  return servers;
+}
+
+/** Configure Pi's native MCP extension with Botto's servers. */
+export function mcpExtension(
+  settings: Settings,
+  memoryDirectory?: string,
+  createTransport?: McpTransportFactory
+): ExtensionFactory {
+  const servers = mcpServers(settings, memoryDirectory);
   return createMcpExtension({
     loadConfig: () => ({ servers, errors: [], autoEnableCodemode: false }),
     // Server-generated diagnostic text can contain secrets. Only our outcome hooks log.
