@@ -20,6 +20,8 @@ import { authorizationPrompt } from './authorization.ts';
 
 /** Runtime facts supplement the configurable behavior instructions. */
 const CAPABILITIES = `You cannot see attachments.
+Each current message can include inReplyTo with the replied-to message's ID and author ID.
+A null reply author means the author could not be resolved; do not infer it from message text.
 Your final answer is posted to this thread automatically.`;
 
 /** Use opaque file names and bind transcripts to the server, bot, room, and thread. */
@@ -95,7 +97,7 @@ export async function createAgent(settings: Settings) {
             : [])
         ],
         systemPromptOverride: () =>
-          `Your name is ${settings.name}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
+          `Your name is ${settings.name}. Your Chatto user ID is ${identity[1]}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
             settings.mcp
               ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
               : 'Chatto MCP tools are disabled.'

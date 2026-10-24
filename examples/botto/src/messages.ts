@@ -52,6 +52,9 @@ export async function incomingMessage(
     return;
   const posted = event.event.value;
   if (!posted.roomId || !posted.bodyPlaintext?.trim()) return;
+  // An explicit reply selects its recipient, even when it also mentions the bot.
+  if (posted.threadRootEventId && posted.inReplyTo)
+    return server.addressedMessage(event, { signal, reasons: ['reply'] });
   const addressed = await server.addressedMessage(event, { signal });
   if (addressed) return addressed;
   if (

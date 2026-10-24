@@ -6,12 +6,13 @@ import { log, logged } from './log.ts';
 import { readContext, type ContextSource } from './context.ts';
 import { reactionExtension } from './reactions.ts';
 import { hasTranscript } from './messages.ts';
+import { Code, ConnectError } from '@connectrpc/connect';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
   settings: Settings,
   botId: string,
-  server: Pick<Server, 'postMessage' | 'withTyping' | 'addReaction'> & ContextSource,
+  server: Pick<Server, 'postMessage' | 'withTyping' | 'addReaction' | 'getMessage'> & ContextSource,
   agent: Awaited<ReturnType<typeof createAgent>>,
   shutdown: AbortSignal,
   beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
@@ -44,6 +45,21 @@ export function createTurnHandler(
           () => readContext(server, destination, settings.contextMessages, signal),
           metrics
         );
+        // Resolve reply authors before starting effects. Targets can be outside
+        // the recent context window; unavailable targets have an unknown author.
+        const currentMessages = await Promise.all(
+          messages.map(async (item) => {
+            const message = { id: item.id, author: item.authorId, text: item.body };
+            if (!item.inReplyTo) return message;
+            const author =
+              context.messages.find((target) => target.id === item.inReplyTo)?.author ??
+              (await readReplyAuthor(server, item.roomId, item.inReplyTo, signal));
+            return {
+              ...message,
+              inReplyTo: { id: item.inReplyTo, author }
+            };
+          })
+        );
         signal.throwIfAborted();
         beforeEffects(messages);
         // Existing transcripts identify ongoing conversations, including after a restart.
@@ -65,13 +81,7 @@ export function createTurnHandler(
         signal.throwIfAborted();
         // Persist only the accepted batch. The fresh snapshot travels through Pi's
         // request-only context hook, so old Chatto messages do not accumulate each turn.
-        const prompt = JSON.stringify({
-          currentMessages: messages.map((item) => ({
-            id: item.id,
-            author: item.authorId,
-            text: item.body
-          }))
-        });
+        const prompt = JSON.stringify({ currentMessages });
         const answer = await logged(
           'Model turn',
           () =>
@@ -106,4 +116,23 @@ export function createTurnHandler(
       { signal }
     );
   };
+}
+
+/** Missing or inaccessible targets have no known author. Other failures remain retryable. */
+async function readReplyAuthor(
+  server: Pick<Server, 'getMessage'>,
+  roomId: string,
+  messageId: string,
+  signal: AbortSignal
+): Promise<string | null> {
+  try {
+    return (await server.getMessage({ roomId, messageId }, { signal }))?.authorId ?? null;
+  } catch (error) {
+    if (
+      error instanceof ConnectError &&
+      [Code.NotFound, Code.PermissionDenied].includes(error.code)
+    )
+      return null;
+    throw error;
+  }
 }

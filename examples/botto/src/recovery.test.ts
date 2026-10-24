@@ -142,3 +142,17 @@ test('recovery ignores deleted messages, other bots, and disallowed authors', as
   await run(delivery, 'someone-else');
   expect(delivery.queued).toEqual([]);
 });
+
+test.each(['other', 'bot'])('recovery checks the reply recipient: %s', async (authorId) => {
+  const { delivery, getMessage, run } = setup();
+  getMessage.mockImplementation(async ({ messageId }) => ({
+    id: messageId,
+    roomId: 'room',
+    authorId: messageId === 'target' ? authorId : 'human',
+    body: 'Current text',
+    threadRootId: 'root',
+    ...(messageId !== 'target' ? { inReplyTo: 'target' } : {})
+  }));
+  await run();
+  expect(delivery.queued.map((item) => item.id)).toEqual(authorId === 'bot' ? ['one', 'two'] : []);
+});
