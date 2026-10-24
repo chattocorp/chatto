@@ -118,10 +118,10 @@
       "conflict": "Dit profiel is gewijzigd terwijl je het bewerkte. Laad de pagina opnieuw en sla je wijzigingen daarna opnieuw op.",
       "save_button": "Wijzigingen opslaan",
       "bio": {
-        "label": "Bio",
+        "label": "Over",
         "description": "Tot {max} tekens, zichtbaar in je profiel.",
         "placeholder": "Vertel anderen kort iets over jezelf",
-        "too_long": "De bio mag maximaal {max} tekens bevatten."
+        "too_long": "De tekst mag maximaal {max} tekens bevatten."
       }
     },
     "preferences": {

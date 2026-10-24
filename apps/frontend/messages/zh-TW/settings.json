@@ -118,7 +118,7 @@
       "conflict": "你編輯時此個人檔案已被變更。請重新載入頁面，然後再次儲存變更。",
       "save_button": "儲存變更",
       "bio": {
-        "label": "個人簡介",
+        "label": "簡介",
         "description": "最多 {max} 個字元，顯示在你的個人資料中。",
         "placeholder": "簡單介紹一下自己",
         "too_long": "簡介不能超過 {max} 個字元。"

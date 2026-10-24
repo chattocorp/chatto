@@ -46,6 +46,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Quick Switcher** — Cmd-K / Ctrl-K palette for jumping between rooms, DMs, servers, and admin pages. Distinct from the Server Gutter — both let you change server, but the Quick Switcher is keyboard-first and searchable. See [FDR-015](fdr/FDR-015-quick-switcher.md).
 
+**About** — Public Markdown text on a human or bot account's profile. The API field is `bio`. See [FDR-022](fdr/FDR-022-user-profile.md).
+
 **Profile Card** — Compact user profile shown in a popover on pointer devices or a bottom sheet on touch devices. It contains public identity details and relevant actions. See [FDR-022](fdr/FDR-022-user-profile.md).
 
 **Role Badge** — Compact label that identifies one of a user's assigned roles. A server operator selects which roles provide badges. See [FDR-001](fdr/FDR-001-roles-and-permissions.md) and [FDR-022](fdr/FDR-022-user-profile.md).

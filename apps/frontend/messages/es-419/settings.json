@@ -118,10 +118,10 @@
       "conflict": "Este perfil cambió mientras lo editabas. Vuelve a cargar la página y guarda tus cambios de nuevo.",
       "save_button": "Guardar cambios",
       "bio": {
-        "label": "Bio",
+        "label": "Acerca de",
         "description": "Hasta {max} caracteres, visible en tu perfil.",
         "placeholder": "Cuéntanos algo breve sobre ti",
-        "too_long": "La bio no puede tener más de {max} caracteres."
+        "too_long": "El texto no puede tener más de {max} caracteres."
       }
     },
     "preferences": {
