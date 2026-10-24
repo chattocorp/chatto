@@ -34,7 +34,8 @@ export interface ClientOptions {
   /**
    * Which servers keep a persistent WebSocket: `all` (the default), or only
    * the server that {@link ChattoClient.setActiveServer} selects. The others
-   * catch up by polling.
+   * catch up by polling. Polling does not keep their presence current; it
+   * becomes current when the server becomes active.
    */
   liveServers?: LiveServers;
 }

@@ -476,10 +476,13 @@ export class ServerStateStore {
   /** Complete auxiliary reads and event reconciliation through `cursor`.
    * The optional authorization generation reuses a privilege mutation's viewer
    * response on confirmed resume. Snapshot fallback always reads full state.
-   * Room-group permissions can change without a durable room-layout event. */
+   * Room-group permissions can change without a durable room-layout event.
+   * The catch-up of an inactive server's poll (`inactivePoll`) does not read
+   * users again after a resumed stream. */
   async completeRealtimeCatchUp(
     cursor: string,
-    authorizationRefreshGeneration?: number
+    authorizationRefreshGeneration?: number,
+    inactivePoll = false
   ): Promise<void> {
     if (this.#privacyCleanupFailed) throw new Error('Private data cleanup did not complete');
     if (authorizationRefreshGeneration !== undefined && !this.#realtimeSnapshotPending) {
@@ -509,52 +512,56 @@ export class ServerStateStore {
       }
     });
 
-    // Presence and other user current values are not durable replay events.
-    // Refresh every user that the retained projection still references after
-    // the authoritative room read has been applied.
-    const userIds = new Set(this.projection.users.keys());
-    for (const store of this.#rooms.all('members')) {
-      for (const member of store.members) userIds.add(member.id);
-    }
-    const viewerId = this.realtimeViewerId();
-    if (viewerId) userIds.add(viewerId);
-    for (const room of this.projection.rooms.values()) {
-      for (const userId of room.memberUserIds) userIds.add(userId);
-    }
-    // The snapshot user family is partial. Only this requested batch can
-    // confirm an omitted cached account, and a newer write wins the race.
-    const requestedCachedUsers = new Map(
-      [...userIds].flatMap((id) => {
-        const member = this.projection.users.get(id);
-        return member ? [[id, member] as const] : [];
-      })
-    );
-    const presenceReadVersion = this.presence.version;
-    const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
-    this.requireCurrentRealtimeProjection(generation);
-    const returnedUserIds = new Set(
-      userResources.flatMap((resource) =>
-        resource.resource.case === 'users'
-          ? resource.resource.value.users.flatMap((member) =>
-              member.user?.id ? [member.user.id] : []
-            )
-          : []
-      )
-    );
-    batch(() => {
-      for (const resource of userResources) {
-        this.publishProjectionUpdate(
-          new RealtimeProjectionUpdate({ resource }),
-          presenceReadVersion
-        );
+    // Read every user that the projection references again, because replay
+    // does not carry presence. Replay carries all other profile changes. The
+    // poll of an inactive server skips this read after a resumed stream, so its
+    // presence becomes stale until the server becomes active and catches up in
+    // full. After a snapshot, the read also detects deleted accounts.
+    if (!inactivePoll || this.#realtimeSnapshotPending) {
+      const userIds = new Set(this.projection.users.keys());
+      for (const store of this.#rooms.all('members')) {
+        for (const member of store.members) userIds.add(member.id);
       }
-      for (const [userId, member] of requestedCachedUsers) {
-        if (returnedUserIds.has(userId) || this.projection.users.get(userId) !== member) continue;
-        this.#deletedRealtimeUserIds.add(userId);
-        this.projection.removeUser(userId);
-        this.scrubRemovedUser(userId);
+      const viewerId = this.realtimeViewerId();
+      if (viewerId) userIds.add(viewerId);
+      for (const room of this.projection.rooms.values()) {
+        for (const userId of room.memberUserIds) userIds.add(userId);
       }
-    });
+      // The snapshot user family is partial. Only this requested batch can
+      // confirm an omitted cached account, and a newer write wins the race.
+      const requestedCachedUsers = new Map(
+        [...userIds].flatMap((id) => {
+          const member = this.projection.users.get(id);
+          return member ? [[id, member] as const] : [];
+        })
+      );
+      const presenceReadVersion = this.presence.version;
+      const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
+      this.requireCurrentRealtimeProjection(generation);
+      const returnedUserIds = new Set(
+        userResources.flatMap((resource) =>
+          resource.resource.case === 'users'
+            ? resource.resource.value.users.flatMap((member) =>
+                member.user?.id ? [member.user.id] : []
+              )
+            : []
+        )
+      );
+      batch(() => {
+        for (const resource of userResources) {
+          this.publishProjectionUpdate(
+            new RealtimeProjectionUpdate({ resource }),
+            presenceReadVersion
+          );
+        }
+        for (const [userId, member] of requestedCachedUsers) {
+          if (returnedUserIds.has(userId) || this.projection.users.get(userId) !== member) continue;
+          this.#deletedRealtimeUserIds.add(userId);
+          this.projection.removeUser(userId);
+          this.scrubRemovedUser(userId);
+        }
+      });
+    }
 
     if (this.#realtimeSnapshotPending) {
       await Promise.all(
