@@ -1535,19 +1535,21 @@ func TestAuthenticatedPublicDiscoveryDoesNotSetCookies(t *testing.T) {
 		t.Fatalf("browser login status = %d, want 200", loginResponse.StatusCode)
 	}
 
-	discoveryResponse, err := client.Get(ts.URL + serverDiscoveryConnectPath + "?connect=v1&encoding=json&message=%7B%7D")
-	if err != nil {
-		t.Fatalf("authenticated discovery GET: %v", err)
-	}
-	defer discoveryResponse.Body.Close()
-	if discoveryResponse.StatusCode != http.StatusOK {
-		t.Fatalf("authenticated discovery status = %d, want 200", discoveryResponse.StatusCode)
-	}
-	if got := discoveryResponse.Header.Get("Cache-Control"); got != "public, no-cache" {
-		t.Fatalf("authenticated discovery Cache-Control = %q, want public, no-cache", got)
-	}
-	if cookies := discoveryResponse.Header.Values("Set-Cookie"); len(cookies) != 0 {
-		t.Fatalf("authenticated discovery Set-Cookie = %v, want none", cookies)
+	for _, path := range []string{serverDiscoveryConnectPath + "?connect=v1&encoding=json", serverDiscoveryWellKnownPath} {
+		discoveryResponse, err := client.Get(ts.URL + path)
+		if err != nil {
+			t.Fatalf("authenticated discovery GET: %v", err)
+		}
+		defer discoveryResponse.Body.Close()
+		if discoveryResponse.StatusCode != http.StatusOK {
+			t.Fatalf("authenticated discovery status = %d, want 200", discoveryResponse.StatusCode)
+		}
+		if got := discoveryResponse.Header.Get("Cache-Control"); got != "public, no-cache" {
+			t.Fatalf("authenticated discovery Cache-Control = %q, want public, no-cache", got)
+		}
+		if cookies := discoveryResponse.Header.Values("Set-Cookie"); len(cookies) != 0 {
+			t.Fatalf("authenticated discovery Set-Cookie = %v, want none", cookies)
+		}
 	}
 }
 
