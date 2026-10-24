@@ -428,6 +428,12 @@ the authenticated public status does not expose server-wide event-log scale.
 `ListNeighborhoodServers` support side-effect-free GET. They also receive wildcard public CORS and conditional-response caching.
 Other bundled-client Connect traffic uses POST.
 
+`GET /.well-known/chatto` serves the `GetServer` JSON response through the
+same handler, with the same CORS and cache behavior and no query parameters.
+The HTTP adapter supplies an empty request for Connect GET calls that omit
+`message` and use JSON or protobuf without compression. Connect still enforces
+GET eligibility, authentication, and request validation.
+
 The discovery response includes the server software version as public
 pre-authentication state, along with configured provider metadata and the
 independently configured direct-registration and direct-login capabilities.
