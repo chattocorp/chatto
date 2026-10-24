@@ -95,3 +95,13 @@ test('rejects while Chatto is not connected', async () => {
   expect(history).not.toHaveBeenCalled();
   rooms.dispose();
 });
+
+test('does not mark rows without an author as the viewer’s without an account ID', async () => {
+  const { server, rooms } = contextFixture(
+    Promise.resolve(page([row('root', 'Root'), row('anonymous', 'Hi', null as never)]))
+  );
+  const anonymousServer = { ...server, accountId: null };
+  const context = await read(anonymousServer);
+  expect(context.messages.find((message) => message.id === 'anonymous')?.fromViewer).toBe(false);
+  rooms.dispose();
+});

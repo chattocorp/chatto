@@ -71,7 +71,7 @@ function selectContext(
         id: event.id,
         author: event.actorId ?? undefined,
         text: payload.body,
-        fromViewer: event.actorId === viewerId
+        fromViewer: viewerId !== null && event.actorId === viewerId
       }
     ];
   });
