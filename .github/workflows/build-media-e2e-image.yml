@@ -28,6 +28,8 @@ concurrency:
 
 jobs:
   image:
+    # Only the publication label requests another build without a code change.
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci:publish-media-image'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -97,5 +99,5 @@ jobs:
           {
             echo "Published ${IMAGE} (linux/amd64)."
             echo
-            echo "Set the MEDIA_E2E_IMAGE repository variable to ${digest_ref} after review."
+            echo "Update the media job's image in .github/workflows/ci.yml to ${digest_ref} in the same PR as any Playwright upgrade."
           } >> "$GITHUB_STEP_SUMMARY"
