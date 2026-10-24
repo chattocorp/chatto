@@ -786,6 +786,36 @@ describe('visual editor bare email addresses', () => {
 });
 
 describe('TipTapEditor read-only state', () => {
+  it('rejects pasted text while read-only', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const rendered = render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a reply',
+        readOnly: true,
+        onReady: (api: ComposerEditorApi) => readyApis.push(api)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0];
+    const editor = page.getByRole('textbox', { name: 'Write a reply' }).element();
+    api.setContent('Draft');
+    api.focus('end');
+
+    const paste = () => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/plain', ' pasted');
+      editor.dispatchEvent(
+        new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData })
+      );
+    };
+    paste();
+    expect(api.getText()).toBe('Draft');
+
+    await rendered.rerender({ readOnly: false });
+    paste();
+    expect(api.getText()).toBe('Draft pasted');
+  });
+
   it('applies setContent and its plugin follow-ups while read-only', async () => {
     const readyApis: ComposerEditorApi[] = [];
     render(TipTapEditor, {
