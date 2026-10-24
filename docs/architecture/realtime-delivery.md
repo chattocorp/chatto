@@ -471,7 +471,10 @@ and disposal permanently fences the retired owner. Profile expiry timers have
 the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 Snapshot user lists contain only referenced users. The client merges them into
 the shared store. During full recovery at `caught_up`, it requests cached user
-IDs at that cursor. A confirmed privilege-only resume reads only missing DM
+IDs at that cursor. The catch-up of an inactive server does not make this
+request after a resumed stream: replay carries every profile change, and an
+inactive server shows no presence. The full catch-up when the server becomes
+active makes it. A confirmed privilege-only resume reads only missing DM
 profiles, as described above.
 Only an omitted ID from this requested set confirms account removal. A reset
 generation and per-user revisions fence late reads and changes during the check.
