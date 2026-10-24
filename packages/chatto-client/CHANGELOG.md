@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/chattocorp/chatto/compare/chatto-client/v0.1.1...chatto-client/v0.2.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** bound room and thread stores with a recently-used limit ([#3160](https://github.com/chattocorp/chatto/issues/3160))
+
+### Features
+
+* **client:** bound room and thread stores with a recently-used limit ([#3160](https://github.com/chattocorp/chatto/issues/3160)) ([585b46f](https://github.com/chattocorp/chatto/commit/585b46ff204abc22a5c32f741cb46b404fe94fb2))
+* **client:** keep thread timelines live and report load errors ([#3149](https://github.com/chattocorp/chatto/issues/3149)) ([3b84f67](https://github.com/chattocorp/chatto/commit/3b84f6754f491b6645a32e9b4fdcc6e67239fcee))
+
 ## 0.1.1 (2026-10-23)
 
 ### Maintenance
