@@ -47,6 +47,8 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `memory.enabled`                | `false`                  | Enable local Means memory                                                     |
 | `memory.command`                | `means`                  | Means executable name or absolute path                                        |
 | `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                               |
+| `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server             |
+| `web.exa_api_key`               | Unset                    | Optional Exa API key; use an environment reference such as `${EXA_API_KEY}`   |
 | `chatto.allowed_user_id`        | Unset                    | Restrict requests to one Chatto user ID                                       |
 | `agent.model`                   | Required                 | Pi model in `provider/model` format                                           |
 | `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                  |
@@ -180,6 +182,25 @@ Normal thread context and final replies still use `@chatto/client`.
 The model is told that its final reply is posted automatically, so it should use
 the posting tool only for additional messages required by the task.
 
+## Optional web access
+
+Set `enabled = true` in the `[web]` table to connect Exa's hosted MCP server at
+`https://mcp.exa.ai/mcp`. Pi then exposes `mcp__exa__web_search_exa` and
+`mcp__exa__web_fetch_exa`, which search the web and read pages as Markdown.
+This uses Pi's native MCP extension, as described above, and adds no dependency.
+
+```toml
+[web]
+enabled = true
+exa_api_key = "${EXA_API_KEY}"
+```
+
+`exa_api_key` is optional. Without a key, Exa limits calls by the bot host's IP
+address and returns an error when the limit is reached. One research question
+can use several calls, so set a key for regular use. Create a key in the Exa
+dashboard; its free tier includes monthly credit. Botto sends the key in the
+`x-api-key` header, not in the URL.
+
 ## Data and recovery
 
 ### Local memory
@@ -252,7 +273,11 @@ With MCP enabled, the provider also receives tool definitions and tool results,
 which can include messages from other rooms the bot can access. Tool calls and
 results are saved in the Pi transcript. MCP uses the configured Chatto server;
 it adds no separate external service.
-Both services can observe the bot host's IP address. Chat participants' browsers
+With web access enabled, Botto connects to Exa. Exa receives the search queries
+and URLs that the model selects from the conversation, and fetches those pages
+from its own servers. The target sites do not see the bot host. The model
+provider receives the search and page results, and Pi transcripts keep them.
+Each connected service can observe the bot host's IP address. Chat participants' browsers
 do not connect to the model provider through this integration.
 
 Transcript file names bind conversations to the server origin, bot account,
@@ -271,7 +296,7 @@ entry, not a chat reply.
 Timestamped terminal logs show connection changes, accepted messages, debounce
 delays, batch sizes, context reads, model turns, reply posts, and shutdown.
 MCP tool calls log one completion or failure with `tool`, `threadId`, and
-`durationMs`. This includes Chatto tools, Means tools, and host-owned memory
+`durationMs`. This includes Chatto tools, Exa tools, Means tools, and host-owned memory
 document discovery and creation. Arguments, results, and raw errors are omitted.
 Terminals that support color show colored severity labels and dimmed metadata.
 Set `NO_COLOR` to disable colors. Other terminals use plain text. Redirected
@@ -305,7 +330,8 @@ owns Pi sessions; `src/thread-context.ts` connects Pi's request hook to the pure
 merge function in `src/context-messages.ts`. `src/context.ts` reads the thread and
 selects text in the same message format used by that merge.
 `src/settings.ts` validates TOML.
-`src/mcp.ts` configures Pi's native MCP extension and observes tool outcomes.
+`src/mcp.ts` lists the Chatto, Exa, and memory MCP servers, configures Pi's native
+MCP extension, and observes tool outcomes.
 `src/memory.ts` prepares memory documents and owns the shared memory lock.
 Most tests use a mocked Pi boundary. A restoration test opens a real Pi transcript
 in a fresh process and checks its session ID and model context. Tests do not

@@ -9,7 +9,7 @@ import {
   SessionManager,
   SettingsManager
 } from '@earendil-works/pi-coding-agent';
-import { mcpExtension, mcpObserver } from './mcp.ts';
+import { EXA_MCP_URL, mcpExtension, mcpObserver, mcpServers } from './mcp.ts';
 import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
 
@@ -215,3 +215,18 @@ test.each([false, true])(
     }
   }
 );
+
+test('Exa web tools are opt-in and send an optional key only in a header', () => {
+  const settings = parseSettings(
+    '[chatto]\nurl="https://example.com"\napi_key="private-key"\n[agent]\nmodel="test/test"',
+    'botto.toml'
+  );
+  expect(mcpServers(settings)).toEqual([]);
+  const exa = (exaApiKey?: string) =>
+    mcpServers({ ...settings, web: true, exaApiKey }).find((server) => server.name === 'exa');
+  expect(exa()?.config).toEqual({ url: EXA_MCP_URL, headers: {}, exposure: 'direct' });
+  expect(exa('exa-secret')?.config).toMatchObject({
+    url: EXA_MCP_URL,
+    headers: { 'x-api-key': 'exa-secret' }
+  });
+});
