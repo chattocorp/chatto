@@ -22,7 +22,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function setup() {
+function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}) {
   const settings = parseSettings(
     '[chatto]\nurl="https://chat.example.com"\napi_key="test"\n[agent]\nmodel="test/model"',
     'botto.toml',
@@ -40,7 +40,7 @@ function setup() {
     reply: vi.fn<Parameters<typeof createTurnHandler>[3]['reply']>().mockResolvedValue('One answer')
   };
   const controller = new AbortController();
-  const turn = createTurnHandler(settings, 'bot', server, agent, controller.signal);
+  const turn = createTurnHandler(settings, 'bot', server, agent, controller.signal, beforeEffects);
   const one: AddressedMessage = {
     id: 'one',
     roomId: 'room',
@@ -52,6 +52,27 @@ function setup() {
   const two: AddressedMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
   return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
+
+test('a failed durable start prevents reactions, model calls, and reply posts', async () => {
+  const beforeEffects = vi.fn(() => {
+    throw new Error('Storage unavailable');
+  });
+  const { turn, one, server, agent } = setup(beforeEffects);
+  await expect(turn([one])).rejects.toThrow('Storage unavailable');
+  expect(beforeEffects).toHaveBeenCalledExactlyOnceWith([one]);
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('failed context reads leave the batch safe to retry', async () => {
+  const beforeEffects = vi.fn();
+  const { turn, one, history, agent } = setup(beforeEffects);
+  history.mockRejectedValue(new Error('Offline'));
+  await expect(turn([one])).rejects.toThrow();
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+});
 
 test('later turns use the live timeline without another history request', async () => {
   const { turn, one, two, store, history, server, agent, controller } = setup();

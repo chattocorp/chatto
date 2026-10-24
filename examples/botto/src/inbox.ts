@@ -102,7 +102,12 @@ export class Inbox {
       .then(() => {
         if (!this.closed) return this.turn(batch);
       })
-      .catch(() => this.failed())
+      .catch(() => {
+        // The durable owner decides whether failed work is safe to retry.
+        // Permit re-enqueueing it without a separate duplicate-reset API.
+        for (const message of batch) this.seen.delete(message.id);
+        this.failed();
+      })
       .finally(() => {
         this.pending -= batch.length;
         conversation.running = undefined;
