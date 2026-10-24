@@ -118,10 +118,10 @@
       "conflict": "Tento profil se během úprav změnil. Znovu načtěte stránku a poté změny uložte znovu.",
       "save_button": "Uložit změny",
       "bio": {
-        "label": "Bio",
+        "label": "Informace",
         "description": "Maximálně {max} znaků, zobrazuje se ve vašem profilu.",
         "placeholder": "Napište o sobě pár slov",
-        "too_long": "Bio může mít nejvýše {max} znaků."
+        "too_long": "Text může mít nejvýše {max} znaků."
       }
     },
     "preferences": {

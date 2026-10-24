@@ -118,10 +118,10 @@
       "conflict": "Bu profil siz düzenlerken değişti. Sayfayı yeniden yükleyin, ardından değişikliklerinizi tekrar kaydedin.",
       "save_button": "Değişiklikleri Kaydet",
       "bio": {
-        "label": "Bio",
+        "label": "Hakkında",
         "description": "En fazla {max} karakter, profilinizde görünür.",
         "placeholder": "Kendinizden kısaca bahsedin",
-        "too_long": "Bio en fazla {max} karakter olabilir."
+        "too_long": "Metin en fazla {max} karakter olabilir."
       }
     },
     "preferences": {

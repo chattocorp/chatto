@@ -118,10 +118,10 @@
       "conflict": "Denne profilen ble endret mens du redigerte den. Last inn siden på nytt, og lagre endringene igjen.",
       "save_button": "Lagre endringer",
       "bio": {
-        "label": "Bio",
+        "label": "Om",
         "description": "Opptil {max} tegn, vises i profilen din.",
         "placeholder": "Fortell litt om deg selv",
-        "too_long": "Bioen kan ha maksimalt {max} tegn."
+        "too_long": "Teksten kan ha maksimalt {max} tegn."
       }
     },
     "preferences": {

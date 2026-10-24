@@ -118,10 +118,10 @@
       "conflict": "See profiil muutus sinu muutmise ajal. Laadi leht uuesti ja salvesta seejärel muudatused uuesti.",
       "save_button": "Salvesta muudatused",
       "bio": {
-        "label": "Bio",
+        "label": "Teave",
         "description": "Kuni {max} tähemärki, nähtav sinu profiilis.",
         "placeholder": "Räägi lühidalt endast",
-        "too_long": "Bio võib olla kuni {max} tähemärki."
+        "too_long": "Tekst võib olla kuni {max} tähemärki."
       }
     },
     "preferences": {

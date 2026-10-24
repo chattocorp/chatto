@@ -118,10 +118,10 @@
       "conflict": "Den här profilen ändrades medan du redigerade den. Läs in sidan igen och spara sedan dina ändringar på nytt.",
       "save_button": "Spara ändringar",
       "bio": {
-        "label": "Bio",
+        "label": "Om",
         "description": "Upp till {max} tecken, syns i din profil.",
         "placeholder": "Berätta lite om dig själv",
-        "too_long": "Biografin får vara högst {max} tecken."
+        "too_long": "Texten får vara högst {max} tecken."
       }
     },
     "preferences": {

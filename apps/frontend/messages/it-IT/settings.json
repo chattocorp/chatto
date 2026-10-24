@@ -118,10 +118,10 @@
       "conflict": "Questo profilo è cambiato mentre lo modificavi. Ricarica la pagina, quindi salva di nuovo le modifiche.",
       "save_button": "Salva modifiche",
       "bio": {
-        "label": "Bio",
+        "label": "Informazioni",
         "description": "Fino a {max} caratteri, mostrato nel tuo profilo.",
         "placeholder": "Racconta brevemente di te",
-        "too_long": "La bio può contenere al massimo {max} caratteri."
+        "too_long": "Il testo può contenere al massimo {max} caratteri."
       }
     },
     "preferences": {

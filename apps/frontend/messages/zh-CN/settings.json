@@ -118,7 +118,7 @@
       "conflict": "你编辑时此个人资料已被更改。请重新加载页面，然后再次保存更改。",
       "save_button": "保存更改",
       "bio": {
-        "label": "个人简介",
+        "label": "简介",
         "description": "最多 {max} 个字符，显示在你的个人资料中。",
         "placeholder": "简单介绍一下自己",
         "too_long": "简介不能超过 {max} 个字符。"

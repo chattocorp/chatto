@@ -118,10 +118,10 @@
       "conflict": "This profile changed while you were editing it. Reload the page, then save your changes again.",
       "save_button": "Save changes",
       "bio": {
-        "label": "Bio",
+        "label": "About",
         "description": "Up to {max} characters, shown on your profile.",
         "placeholder": "Tell others a little about yourself",
-        "too_long": "Bio must be {max} characters or fewer."
+        "too_long": "About text must be {max} characters or fewer."
       }
     },
     "preferences": {
