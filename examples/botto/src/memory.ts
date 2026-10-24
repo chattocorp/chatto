@@ -33,14 +33,12 @@ export function createMemory(settings: Settings) {
     signal.addEventListener('abort', abort, { once: true });
     try {
       const directory = settings.memoryPath;
-      for (const file of ['means.schema.json', 'MEANS.md']) {
-        try {
-          await access(join(directory, file), constants.R_OK);
-        } catch {
-          throw new Error(
-            `Cannot read ${file} in memory.path. Copy the collection configuration first.`
-          );
-        }
+      try {
+        await access(join(directory, 'MEANS.md'), constants.R_OK);
+      } catch {
+        throw new Error(
+          'Cannot read MEANS.md in memory.path. Copy the collection configuration first.'
+        );
       }
       signal.throwIfAborted();
       await untilAborted(

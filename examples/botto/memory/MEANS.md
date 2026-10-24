@@ -1,3 +1,30 @@
+---
+title: Botto memory
+description: Private persistent memory for one Chatto bot, with one global document and one document per Chatto user.
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    scope:
+      enum: [global, user]
+      description: Global bot knowledge or facts about one user.
+    user_id:
+      type: string
+      minLength: 1
+      description: Stable Chatto user ID; required only for user memory.
+  required: [scope]
+  additionalProperties: false
+  if:
+    properties:
+      scope:
+        const: user
+  then:
+    required: [user_id]
+  else:
+    not:
+      required: [user_id]
+---
+
 # Botto memory
 
 This collection belongs to one bot account on one Chatto server. It has exactly

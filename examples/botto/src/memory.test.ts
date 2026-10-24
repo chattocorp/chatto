@@ -21,9 +21,7 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
   const root = resolve('../../.context');
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, 'botto-memory-'));
-  for (const file of ['means.schema.json', 'MEANS.md']) {
-    await copyFile(new URL(`../memory/${file}`, import.meta.url), join(directory, file));
-  }
+  await copyFile(new URL('../memory/MEANS.md', import.meta.url), join(directory, 'MEANS.md'));
   const collections = new Map<
     string,
     Array<{ id: string; frontmatter: { data: Record<string, unknown> } }>
@@ -89,8 +87,8 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
     expect(await readFile(join(directory, 'MEANS.md'), 'utf8')).toBe(
       await readFile(new URL('../memory/MEANS.md', import.meta.url), 'utf8')
     );
-    await rm(join(directory, 'means.schema.json'));
-    await expect(open(threadId, ['user'], signal)).rejects.toThrow('Cannot read means.schema.json');
+    await rm(join(directory, 'MEANS.md'));
+    await expect(open(threadId, ['user'], signal)).rejects.toThrow('Cannot read MEANS.md');
     expect(fixture.transport).toHaveBeenCalledTimes(4);
   } finally {
     vi.restoreAllMocks();
