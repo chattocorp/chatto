@@ -3,7 +3,7 @@ import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { McpClient, StdioTransport } from '@earendil-works/pi-mcp';
-import { untilAborted } from '@chatto/client/util/untilAborted';
+import { untilAborted } from './abort.ts';
 import type { Settings } from './settings.ts';
 import { logged } from './log.ts';
 

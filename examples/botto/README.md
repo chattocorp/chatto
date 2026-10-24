@@ -39,26 +39,26 @@ Botto reads `botto.toml` from the working directory. Select another file with
 file. `.env` is still loaded from the working directory. Settings are read once;
 restart after changing them. `pnpm dev` restarts after source changes.
 
-| Setting                        | Default                  | Purpose                                                                                   |
-| ------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------- |
-| `chatto.url`                   | Required                 | Chatto server URL                                                                         |
-| `chatto.api_key`               | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`                   |
-| `chatto.mcp`                   | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                                  |
-| `memory.enabled`               | `false`                  | Enable local Means memory                                                               |
-| `memory.command`               | `means`                  | Means executable name or absolute path                                                  |
-| `memory.path`                  | `memory`                 | Collection directory, relative to the TOML file                                         |
-| `chatto.allowed_user_id`       | Unset                    | Restrict requests to one Chatto user ID                                                   |
-| `agent.model`                  | Required                 | Pi model in `provider/model` format                                                       |
-| `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context                              |
-| `agent.system_prompt`          | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings                        |
-| `runtime.data_directory`       | `.botto`                 | Private Pi transcript storage                                                             |
-| `runtime.acknowledgement_emoji` | `eyes` | Reaction when a new conversation starts; empty string disables it |
-| `runtime.debounce_ms`          | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
-| `runtime.passive_debounce_ms`  | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds                 |
-| `runtime.turn_timeout_ms`      | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                                  |
-| `runtime.context_messages`     | `30`                     | Recent thread messages to read, 1–100                                                     |
-| `runtime.max_pending_messages` | `100`                    | Accepted messages across queued and active batches, 1–10000                               |
-| `runtime.max_threads`          | `8`                      | Maximum active or queued threads, 1–100                                                   |
+| Setting                         | Default                  | Purpose                                                                       |
+| ------------------------------- | ------------------------ | ----------------------------------------------------------------------------- |
+| `chatto.url`                    | Required                 | Chatto server URL                                                             |
+| `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`       |
+| `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                       |
+| `memory.enabled`                | `false`                  | Enable local Means memory                                                     |
+| `memory.command`                | `means`                  | Means executable name or absolute path                                        |
+| `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                               |
+| `chatto.allowed_user_id`        | Unset                    | Restrict requests to one Chatto user ID                                       |
+| `agent.model`                   | Required                 | Pi model in `provider/model` format                                           |
+| `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                  |
+| `agent.system_prompt`           | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings            |
+| `runtime.data_directory`        | `.botto`                 | Private Pi transcript storage                                                 |
+| `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it             |
+| `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
+| `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds  |
+| `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                      |
+| `runtime.context_messages`      | `30`                     | Recent thread messages to read, 1–100                                         |
+| `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                   |
+| `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                       |
 
 Unknown settings and invalid values fail at startup. Keep API key values in the
 environment and refer to the Chatto key from `chatto.api_key`. The configured name does not rename the Chatto account;
@@ -121,18 +121,11 @@ typing delays queued root messages in that room, not replies in other threads.
 
 Turns in one thread run in order. Messages received during a turn form the next
 batch; its timer can elapse while the current turn runs. The model receives the
-batch and recent thread context. Botto opens the existing `@chatto/client`
-thread store on first use. The client loads history and keeps it current through
-its shared realtime synchronization, including targeted reads for changed
-messages and recovery after reconnects. Botto selects the root and up to
-`runtime.context_messages` recent text replies from that store. It has no
-separate thread cache or event reducer.
-Botto retries a failed initial history read once. It loads older pages when
-the selected window needs them. If loading fails or a page adds no events
-before the start of history, the turn stops instead of using incomplete context.
-Thread stores follow the client's
-session retention policy; `runtime.max_threads` limits queued or running
-conversations, not retained history. Client shutdown releases the stores.
+batch and recent thread context. Before each turn, Botto reads the thread with
+the client's `readThread` request. The read returns the root and up to
+`runtime.context_messages` recent replies. Botto keeps the messages that have
+text. Each turn reads again, so the context includes edits and removals. If the
+read fails, the turn stops instead of using incomplete context.
 Only the accepted batch and model responses
 are saved as conversation messages. The recent thread snapshot is added to the
 current model request without saving it again in the transcript. This preserves
@@ -301,8 +294,8 @@ mise x -- pnpm --filter @chatto/example-botto test
 messages and ordinary text in active threads. `src/inbox.ts` owns batching and
 ordering. `src/turn.ts` connects a batch to a model turn and reply. `src/agent.ts`
 owns Pi sessions; `src/thread-context.ts` connects Pi's request hook to the pure
-merge function in `src/context-messages.ts`. `src/context.ts` selects text from
-the shared client timeline in the same message format used by that merge.
+merge function in `src/context-messages.ts`. `src/context.ts` reads the thread and
+selects text in the same message format used by that merge.
 `src/settings.ts` validates TOML.
 `src/mcp.ts` configures Pi's native MCP extension and observes tool outcomes.
 `src/memory.ts` prepares memory documents and owns the shared memory lock.

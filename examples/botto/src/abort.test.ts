@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { untilAborted } from './untilAborted.js';
+import { untilAborted } from './abort.ts';
 
 it('cancels one waiter while another receives the shared result', async () => {
   let complete!: (value: string) => void;

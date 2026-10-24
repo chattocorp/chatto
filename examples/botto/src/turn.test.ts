@@ -1,4 +1,4 @@
-/** Exercise inbox, shared client timeline, Pi input, and reply routing together. */
+/** Exercise inbox, thread context, Pi input, and reply routing together. */
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { AddressedMessage, Destination, Server } from '@chatto/client';
 import { Inbox } from './inbox.ts';
@@ -50,13 +50,13 @@ function setup() {
   return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
 
-test('later turns use the shared live timeline without another history request', async () => {
-  const { turn, one, two, store, history, server, agent, controller } = setup();
+test('each turn reads current thread context', async () => {
+  const { turn, one, two, thread, readThread, server, agent, controller } = setup();
   await turn([one]);
   vi.mocked(hasTranscript).mockResolvedValue(true);
-  store.ingestEvent(row('unaddressed', 'Live context', 'another'));
+  thread.messages.push(row('unaddressed', 'Live context', 'another'));
   await turn([two]);
-  expect(history).toHaveBeenCalledTimes(1);
+  expect(readThread).toHaveBeenCalledTimes(2);
   expect(agent.reply.mock.calls[1]?.[3]?.messages).toContainEqual({
     id: 'unaddressed',
     author: 'another',
@@ -66,11 +66,10 @@ test('later turns use the shared live timeline without another history request',
   expect(server.postMessage).toHaveBeenCalledTimes(2);
   expect(server.addReaction).toHaveBeenCalledOnce();
   controller.abort();
-  store.dispose();
 });
 
 test('a debounced batch becomes one prompt and one reply in its original thread', async () => {
-  const { settings, server, agent, controller, turn, one, two, history, store } = setup();
+  const { settings, server, agent, controller, turn, one, two, readThread } = setup();
   const failed = vi.fn();
   const inbox = new Inbox(turn, failed, settings);
   inbox.accept(one);
@@ -99,7 +98,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
     ['human', 'another'],
     [expect.any(Function)]
   );
-  expect(history).toHaveBeenCalledTimes(1);
+  expect(readThread).toHaveBeenCalledOnce();
   expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
     { roomId: 'room', messageId: 'one' },
     'eyes',
@@ -115,11 +114,10 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
   );
   controller.abort();
   await inbox.close();
-  store.dispose();
 });
 
 test('failed acknowledgement still answers and acknowledgement can be disabled', async () => {
-  const { settings, server, agent, turn, one, store } = setup();
+  const { settings, server, agent, turn, one } = setup();
   server.addReaction.mockRejectedValueOnce(new Error('unavailable'));
   await turn([one]);
   expect(server.postMessage).toHaveBeenCalledOnce();
@@ -127,11 +125,10 @@ test('failed acknowledgement still answers and acknowledgement can be disabled',
   await turn([one]);
   expect(server.addReaction).toHaveBeenCalledOnce();
   expect(agent.reply).toHaveBeenCalledTimes(2);
-  store.dispose();
 });
 
 test('a stalled acknowledgement times out without stopping the answer', async () => {
-  const { server, agent, turn, one, store } = setup();
+  const { server, agent, turn, one } = setup();
   server.addReaction.mockImplementationOnce(
     (_message, _emoji, options) =>
       new Promise((_, reject) => {
@@ -152,11 +149,10 @@ test('a stalled acknowledgement times out without stopping the answer', async ()
   deadline.abort(new Error('deadline'));
   await pending;
   expect(server.postMessage).toHaveBeenCalledOnce();
-  store.dispose();
 });
 
 test('a resumed thread does not get another acknowledgement', async () => {
-  const { turn, one, server, store, settings } = setup();
+  const { turn, one, server, settings } = setup();
   vi.mocked(hasTranscript).mockResolvedValue(true);
   await turn([one]);
   expect(hasTranscript).toHaveBeenCalledWith(settings.directory, [
@@ -167,11 +163,10 @@ test('a resumed thread does not get another acknowledgement', async () => {
   ]);
   expect(server.addReaction).not.toHaveBeenCalled();
   expect(server.postMessage).toHaveBeenCalledOnce();
-  store.dispose();
 });
 
 test('failed or cancelled model work never posts a reply', async () => {
-  const { server, agent, controller, turn, one, store } = setup();
+  const { server, agent, controller, turn, one } = setup();
   agent.reply.mockRejectedValueOnce(new Error('model failure'));
   await expect(turn([one])).rejects.toThrow('model failure');
   expect(server.postMessage).not.toHaveBeenCalled();
@@ -181,5 +176,4 @@ test('failed or cancelled model work never posts a reply', async () => {
   });
   await expect(turn([one])).rejects.toThrow();
   expect(server.postMessage).not.toHaveBeenCalled();
-  store.dispose();
 });

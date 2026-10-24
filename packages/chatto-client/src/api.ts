@@ -19,7 +19,6 @@ import { connectEndpoint, createChattoTransport } from './api/connect.js';
 import { MessagingRequests, type AssetAccess } from './messaging/requests.js';
 import type { RequestOptions } from './messaging/types.js';
 import { parseServerUrl } from './util/serverUrl.js';
-import { untilAborted } from './util/untilAborted.js';
 
 /** Settings for {@link createApi}. */
 export interface ApiOptions {
@@ -105,6 +104,16 @@ function cachedViewerId(
       });
     return untilAborted(viewer, signal);
   };
+}
+
+/** Settle like `promise`, or reject with the abort reason when `signal` aborts first. */
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return promise;
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener('abort', abort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
 }
 
 /** Create a stateless API client with a fixed bearer token. */

@@ -32,7 +32,6 @@ import {
   type OptimisticThreadFollowHandle
 } from './optimisticThreadFollow.js';
 import { debugLog } from '../../util/debugLog.js';
-import { untilAborted } from '../../util/untilAborted.js';
 
 /** Messages requested per timeline page. */
 export const PAGE_SIZE = 50;
@@ -278,9 +277,6 @@ export class MessagesStore {
   #jumpId = 0;
   #windowId = 0;
   #pendingAuthoritativeLoadId: number | null = null;
-  /** The latest authoritative window read, shared by UI and non-UI consumers. */
-  #windowLoad: Promise<boolean> = Promise.resolve(false);
-  #disposed = false;
   #pendingJumpId: number | null = null;
   /** True when the retained room window is historical or its latest read failed. */
   #needsLatestWindow = false;
@@ -318,7 +314,6 @@ export class MessagesStore {
 
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    this.#disposed = true;
     // Invalidate every outstanding async read before its owner drops the
     // store. Server-event replay itself is managed by the singleton event bus.
     this.startLoad();
@@ -335,33 +330,6 @@ export class MessagesStore {
   get threadEvents(): TimelineEventView[] {
     const events = this.events;
     return this.source.threadEventsFrom(events);
-  }
-
-  /** Wait for the current history-window load. This does not start a read,
-   * retry, or load older pages. False means the load failed or a reset, jump,
-   * disposal, or access loss superseded it. Cancellation rejects only this
-   * caller; shared reads continue. Separate realtime message reconciliation
-   * and pagination reads are not included. */
-  async waitForLoad({ signal }: { signal?: AbortSignal } = {}): Promise<boolean> {
-    signal?.throwIfAborted();
-    const loadId = this.#loadId;
-    const loaded = await untilAborted(this.#windowLoad, signal);
-    signal?.throwIfAborted();
-    return (
-      loaded &&
-      !this.#disposed &&
-      !this.isStale(loadId) &&
-      this.#pendingAuthoritativeLoadId === null &&
-      this.#pendingJumpId === null &&
-      !this.#projectionAccessRevoked
-    );
-  }
-
-  /** Track readiness at the two window-read entry points. Preserve the original
-   * result and rejection for existing callers; readiness never consumes their errors. */
-  private trackWindowLoad<T>(read: Promise<T>, succeeded: (result: T) => boolean): Promise<T> {
-    this.#windowLoad = read.then(succeeded, () => false);
-    return read;
   }
 
   /** Look up an event already known to this room, including off-window preview targets. */
@@ -1035,19 +1003,7 @@ export class MessagesStore {
    * clearing the buffer. Used after tab wake / reconnect when the client may
    * have missed subscription events.
    */
-  refreshCurrentWindow(
-    anchorEventId?: string | null,
-    forward = false,
-    minimumCursor?: string,
-    acceptResult: () => boolean = () => true
-  ): Promise<RefreshCurrentWindowResult> {
-    return this.trackWindowLoad(
-      this.refreshWindow(anchorEventId, forward, minimumCursor, acceptResult),
-      (result) => result.refreshed
-    );
-  }
-
-  private async refreshWindow(
+  async refreshCurrentWindow(
     anchorEventId?: string | null,
     forward = false,
     minimumCursor?: string,
@@ -1556,11 +1512,7 @@ export class MessagesStore {
     return loaded;
   }
 
-  private fetchCurrent(...args: Parameters<MessagesStore['readCurrent']>): Promise<boolean> {
-    return this.trackWindowLoad(this.readCurrent(...args), (loaded) => loaded);
-  }
-
-  private async readCurrent(
+  private async fetchCurrent(
     thisLoad: number,
     minimumCursor?: string,
     acceptResult: () => boolean = () => true,
