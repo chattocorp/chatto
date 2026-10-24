@@ -46,6 +46,7 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `chatto.mcp`                   | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                                  |
 | `memory.enabled`               | `false`                  | Enable local Means memory                                                               |
 | `memory.command`               | `means`                  | Means executable name or absolute path                                                  |
+| `memory.path`                  | `memory`                 | Collection directory, relative to the TOML file                                         |
 | `chatto.allowed_user_id`       | Unset                    | Restrict requests to one Chatto user ID                                                   |
 | `agent.model`                  | Required                 | Pi model in `provider/model` format                                                       |
 | `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context                              |
