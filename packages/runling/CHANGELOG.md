@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.8.0](https://github.com/chattocorp/chatto/compare/runling/v0.7.0...runling/v0.8.0) (2026-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **runling:** type task steering and stream Paseo progress ([#3076](https://github.com/chattocorp/chatto/issues/3076))
+* **runling:** unify task execution and rebuild ChattoBot ([#2972](https://github.com/chattocorp/chatto/issues/2972))
+* **runling:** inspect task state beside run logs ([#2582](https://github.com/chattocorp/chatto/issues/2582))
+
+### Features
+
+* **chattobot:** add automatic report intake in configured rooms ([#3018](https://github.com/chattocorp/chatto/issues/3018)) ([04f470f](https://github.com/chattocorp/chatto/commit/04f470f4d79d1c14c6c3460006b77948bad163a9))
+* **chattobot:** add decision classifiers and realtime follow-ups ([#3081](https://github.com/chattocorp/chatto/issues/3081)) ([80a21aa](https://github.com/chattocorp/chatto/commit/80a21aa93afab54e9850857bc8934a41a461331e))
+* **chattobot:** check feasibility, work with GitHub, and read threads on request ([#2772](https://github.com/chattocorp/chatto/issues/2772)) ([6b78280](https://github.com/chattocorp/chatto/commit/6b78280badba21a74e075e4f948e6ff0d0ea8e26))
+* **chattobot:** implement changes through green CI with supervisor-led updates ([#2746](https://github.com/chattocorp/chatto/issues/2746)) ([936b7c8](https://github.com/chattocorp/chatto/commit/936b7c802d82b2bc123cd584290e764d936c814d))
+* **chattobot:** improve supervisor replies and gate web research ([#2796](https://github.com/chattocorp/chatto/issues/2796)) ([a4d3c33](https://github.com/chattocorp/chatto/commit/a4d3c33a84267db87dfb250f958c5ada2b2b45fb))
+* **chattobot:** mark handled reports and support GitHub issue fields ([#3046](https://github.com/chattocorp/chatto/issues/3046)) ([a735ad9](https://github.com/chattocorp/chatto/commit/a735ad9de56be742a78f761c1ebe47c9809a59bb))
+* **chattobot:** research the web in a separate agent and read more Chatto references ([#2702](https://github.com/chattocorp/chatto/issues/2702)) ([9202098](https://github.com/chattocorp/chatto/commit/92020989bbfc7c60dd90d61a814dec257f0ea551))
+* **runling:** add codemode to agents and enable it in ChattoBot ([#2793](https://github.com/chattocorp/chatto/issues/2793)) ([78e8238](https://github.com/chattocorp/chatto/commit/78e82381e6fe2f5af7fc3c55c06da425bbc53f82))
+* **runling:** add realtime sources and supervised ChattoBot tasks ([#2527](https://github.com/chattocorp/chatto/issues/2527)) ([7dc4405](https://github.com/chattocorp/chatto/commit/7dc4405447a4beea2a46b9d1c62b9a20fc2e826b))
+* **runling:** improve bot task handoffs and activity visibility ([#2537](https://github.com/chattocorp/chatto/issues/2537)) ([216236f](https://github.com/chattocorp/chatto/commit/216236fa6b873f91af623c13f896e16931b67812))
+* **runling:** inspect task state beside run logs ([#2582](https://github.com/chattocorp/chatto/issues/2582)) ([d58c53e](https://github.com/chattocorp/chatto/commit/d58c53e35a9d60bce6ecd1d6609eb03ffd944e74))
+* **runling:** make console logs the primary run view ([#2546](https://github.com/chattocorp/chatto/issues/2546)) ([c192407](https://github.com/chattocorp/chatto/commit/c192407455eb4bd7a62f1132c81a6cdde7ba4b47))
+* **runling:** persist workflow state and centralize agent infrastructure ([#3067](https://github.com/chattocorp/chatto/issues/3067)) ([6a2db5e](https://github.com/chattocorp/chatto/commit/6a2db5e4b1efdb166d94043c80c111257c5fb409))
+* **runling:** type task steering and stream Paseo progress ([#3076](https://github.com/chattocorp/chatto/issues/3076)) ([b50c6b6](https://github.com/chattocorp/chatto/commit/b50c6b6a041281dbf6323c2eb75291a9e88538b5))
+* **runling:** unify task execution and rebuild ChattoBot ([#2972](https://github.com/chattocorp/chatto/issues/2972)) ([3ccd10b](https://github.com/chattocorp/chatto/commit/3ccd10ba868744b0e5ffa6b19bb333bba7f40ec8))
+* **runling:** upgrade Pi to 1.0.0 ([#2782](https://github.com/chattocorp/chatto/issues/2782)) ([f7ec443](https://github.com/chattocorp/chatto/commit/f7ec4436c26904bac06a46530928685c76c2bd72))
+
+
+### Bug Fixes
+
+* **chattobot:** improve implementation progress and log clarity ([#2560](https://github.com/chattocorp/chatto/issues/2560)) ([2e30710](https://github.com/chattocorp/chatto/commit/2e307101ac905a7b7ac420f9d80f04bf40d5de56))
+* **chattobot:** preserve workflow follow-through and end turns reliably ([#2814](https://github.com/chattocorp/chatto/issues/2814)) ([d01dd4e](https://github.com/chattocorp/chatto/commit/d01dd4ec5324b2df20b4611e4560f36e5f16dd2e))
+* **runling:** refresh provider catalogs for missing models ([#3111](https://github.com/chattocorp/chatto/issues/3111)) ([663b8bd](https://github.com/chattocorp/chatto/commit/663b8bda4634f856dcb89174438d0dcaf813b6d9))
+
 ## [0.7.0](https://github.com/chattocorp/runling/compare/v0.6.0...v0.7.0) (2026-09-16)
 
 ### ⚠ BREAKING CHANGES
