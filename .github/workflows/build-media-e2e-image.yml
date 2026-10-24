@@ -2,6 +2,7 @@ name: build media E2E image
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - '.github/images/media-e2e/**'
       - '.github/workflows/build-media-e2e-image.yml'
@@ -70,14 +71,22 @@ jobs:
               npm exec --yes --package="playwright@$PLAYWRIGHT_VERSION" -- playwright screenshot --browser chromium about:blank /tmp/chromium.png
             '
       - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: >-
+          (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'ci:publish-media-image'))
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish verified image
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: >-
+          (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'ci:publish-media-image'))
         env:
           IMAGE: ghcr.io/chattocorp/media-e2e:pw-${{ steps.playwright.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
