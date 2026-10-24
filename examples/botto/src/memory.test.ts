@@ -1,4 +1,4 @@
-/** Exercise document provisioning and shared locking through Pi's MCP client. */
+/** Exercise memory discovery and shared locking through Pi's MCP client. */
 import { copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { expect, test, vi } from 'vitest';
@@ -16,7 +16,7 @@ vi.mock('@earendil-works/pi-mcp', async (importOriginal) => ({
   }
 }));
 
-test('concurrent turns and restarts reuse documents; cancelled waiters do not hold the memory lock', async () => {
+test('discovers all memories without creating files; cancelled waiters release the lock', async () => {
   vi.spyOn(console, 'info').mockImplementation(() => {});
   const root = resolve('../../.context');
   await mkdir(root, { recursive: true });
@@ -26,12 +26,20 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
     string,
     Array<{ id: string; frontmatter: { data: Record<string, unknown> } }>
   >();
+  collections.set(directory, [
+    { id: 'global-1', frontmatter: { data: { scope: 'global' } } },
+    { id: 'global-2', frontmatter: { data: { scope: 'global' } } },
+    { id: 'user-1', frontmatter: { data: { scope: 'user', user_id: 'user' } } },
+    { id: 'user-2', frontmatter: { data: { scope: 'user', user_id: 'user' } } },
+    { id: 'other-1', frontmatter: { data: { scope: 'user', user_id: 'other' } } }
+  ]);
   fixture.transport.mockImplementation(({ args }: { args: string[] }) => {
     const path = args.at(-1)!;
     const documents = collections.get(path) ?? [];
     collections.set(path, documents);
     return mcpFixture([], async (name, args) => {
       if (name === 'search') {
+        expect(args.limit).toBe(0);
         const found = documents.filter((doc) =>
           Object.entries(args.filter as Record<string, unknown>).every(
             ([key, value]) => doc.frontmatter.data[key] === value
@@ -43,12 +51,7 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
           structuredContent: { documents: found, diagnostics: [], has_more: false }
         };
       }
-      const document = {
-        id: String(documents.length + 1),
-        frontmatter: args.frontmatter as { data: Record<string, unknown> }
-      };
-      documents.push(document);
-      return { content: [], structuredContent: document };
+      throw new Error(`Unexpected memory operation: ${name}`);
     });
   });
   try {
@@ -64,11 +67,17 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
     const signal = new AbortController().signal;
     const [first, second] = await Promise.all([
       open(threadId, ['user', 'user'], signal),
-      open(threadId, ['user', 'other'], signal)
+      open(threadId, ['user', 'other', 'new-user'], signal)
     ]);
-    expect(first.documents.global).toBe(second.documents.global);
-    expect(first.documents.users.user).toBe(second.documents.users.user);
-    expect([...collections.values()][0]).toHaveLength(3);
+    expect(first.documents).toEqual({
+      global: ['global-1', 'global-2'],
+      users: { user: ['user-1', 'user-2'] }
+    });
+    expect(second.documents).toEqual({
+      global: first.documents.global,
+      users: { user: ['user-1', 'user-2'], other: ['other-1'], 'new-user': [] }
+    });
+    expect([...collections.values()][0]).toHaveLength(5);
     expect(first.directory).toBe(directory);
     expect((await createMemory(settings)(threadId, ['user'], signal)).documents).toEqual(
       first.documents
@@ -84,12 +93,17 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
     }
     await open('other-thread', ['user'], signal);
     expect(collections.size).toBe(1);
+    collections.set(directory, []);
+    expect((await open(threadId, ['user'], signal)).documents).toEqual({
+      global: [],
+      users: { user: [] }
+    });
     expect(await readFile(join(directory, 'MEANS.md'), 'utf8')).toBe(
       await readFile(new URL('../memory/MEANS.md', import.meta.url), 'utf8')
     );
     await rm(join(directory, 'MEANS.md'));
     await expect(open(threadId, ['user'], signal)).rejects.toThrow('Cannot read MEANS.md');
-    expect(fixture.transport).toHaveBeenCalledTimes(4);
+    expect(fixture.transport).toHaveBeenCalledTimes(5);
   } finally {
     vi.restoreAllMocks();
     await rm(directory, { recursive: true, force: true });

@@ -1,4 +1,4 @@
-/** Provision Means documents; Pi's native MCP extension owns model-facing tools. */
+/** Find Means memories; Pi's native MCP extension owns model-facing tools. */
 import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -7,7 +7,7 @@ import { untilAborted } from './abort.ts';
 import type { Settings } from './settings.ts';
 import { logged } from './log.ts';
 
-/** One owner per bot process. Provisioning and native tool hooks share this lock. */
+/** One owner per bot process. Discovery and native tool hooks share this lock. */
 export function createMemory(settings: Settings) {
   let pending = Promise.resolve();
   const acquire = async (signal: AbortSignal): Promise<() => void> => {
@@ -51,10 +51,10 @@ export function createMemory(settings: Settings) {
         ),
         signal
       );
-      const global = await ensureDocument(client, { scope: 'global' }, signal, threadId);
-      const users: Record<string, string> = Object.create(null);
+      const global = await findDocuments(client, { scope: 'global' }, signal, threadId);
+      const users: Record<string, string[]> = Object.create(null);
       for (const userId of new Set(userIds)) {
-        users[userId] = await ensureDocument(
+        users[userId] = await findDocuments(
           client,
           { scope: 'user', user_id: userId },
           signal,
@@ -78,13 +78,13 @@ export function createMemory(settings: Settings) {
   };
 }
 
-/** Reuse persisted IDs; never create a second document for an existing memory scope. */
-async function ensureDocument(
+/** Find all documents in a scope, including legacy files with several memories. */
+async function findDocuments(
   client: McpClient,
   data: { scope: string; user_id?: string },
   signal: AbortSignal,
   threadId?: string
-): Promise<string> {
+): Promise<string[]> {
   const call = async (name: string, args: Record<string, unknown>) =>
     logged(
       'MCP tool',
@@ -108,22 +108,14 @@ async function ensureDocument(
     found.diagnostics.length
   )
     throw new Error('Means memory has invalid documents');
-  if (found.documents.length > 1) throw new Error('Means memory has duplicate scopes');
-  const document =
-    found.documents[0] ??
-    (await call('create', {
-      frontmatter: {
-        title: data.scope === 'global' ? 'Global memory' : `User ${data.user_id}`,
-        data
-      },
-      body: ''
-    }));
-  if (
-    !document ||
-    typeof document !== 'object' ||
-    !('id' in document) ||
-    typeof document.id !== 'string'
-  )
-    throw new Error('Means returned an invalid document');
-  return document.id;
+  return found.documents.map((document: unknown) => {
+    if (
+      !document ||
+      typeof document !== 'object' ||
+      !('id' in document) ||
+      typeof document.id !== 'string'
+    )
+      throw new Error('Means returned an invalid document');
+    return document.id;
+  });
 }

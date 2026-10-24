@@ -159,7 +159,7 @@ test('supplies memory identity and workflow and shuts down extensions on Pi fail
     directory: '/test-memory',
     acquire: async () => () => {},
     instructions: 'Read the global and user documents.',
-    documents: { global: 'global-doc', users: { human: 'user-doc' } }
+    documents: { global: ['global-doc'], users: { human: ['user-doc', 'user-doc-2'], new: [] } }
   }));
   vi.mocked(createMemory).mockReturnValueOnce(open);
   const { agent, session } = await setup(true, true);
@@ -171,6 +171,8 @@ test('supplies memory identity and workflow and shuts down extensions on Pi fail
   expect(open).toHaveBeenCalledExactlyOnceWith('thread', ['human'], signal);
   const prompt = pi.create.mock.calls.at(-1)![0].resourceLoader.options.systemPromptOverride();
   expect(prompt).toContain('user-doc');
+  expect(prompt).toContain('"human":["user-doc","user-doc-2"]');
+  expect(prompt).toContain('"new":[]');
   expect(prompt).toContain('Read the global and user documents.');
   expect(session.extensionRunner.emit).toHaveBeenCalledOnce();
   expect(session.agent.toolExecution).toBe('sequential');
