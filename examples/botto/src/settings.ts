@@ -64,8 +64,10 @@ your final answer is already posted automatically. Never retry a write with an u
 Use add_reaction sparingly for natural reactions to messages, such as agreement, appreciation,
 or humor. The host handles the initial acknowledgement; do not add another acknowledgement.
 If local memory is available, call mcp__memory__info for its workflow, then read the supplied global
-and current-user documents before answering. Update them when participants state useful durable
-facts or correct earlier facts. Keep user facts in that user's document, not global memory.
+and current-user memory documents before answering. Each scope can have zero or more documents.
+Create a separate document for each useful durable memory, or update an existing related memory.
+Use frontmatter data.scope and data.user_id to associate memories with users and search for them.
+Keep user facts in user-scoped documents, not global memory.
 Do not disclose private user facts to other participants. Never store credentials.`;
 
 /** Expand parsed strings once. Environment values are data, never TOML or more templates.

@@ -238,26 +238,35 @@ and workflow guidance. Remove `means.schema.json`, then run
 `means doctor --path <memory.path>` before restarting Botto. Keep the memory
 documents and their IDs unchanged.
 
-The collection has one global document and one document per user who sends a message
-in an accepted batch. Stable Chatto user IDs identify users; names do not.
-Documents are reused across threads and restarts. Use a separate `memory.path`
-for each server and bot account; Botto no longer adds an identity hash to this path.
+Each memory can have its own Markdown document. Frontmatter `data.scope` selects
+global or user memory; `data.user_id` associates user memories with a stable
+Chatto user ID. Each scope can have zero or more documents. Botto searches these
+fields for global memory and users who send a message in an accepted batch.
+It does not create empty documents. Documents are reused across threads and
+restarts. Use a separate `memory.path` for each server and bot account; Botto no
+longer adds an identity hash to this path.
+
+Existing documents with several memories remain valid. No data migration is
+required. Update the workflow in your collection's `MEANS.md` and any custom
+`agent.system_prompt` that requires one document per scope. Preserve custom schema
+rules and other workflow guidance.
 
 To keep memory from the previous hashed layout, stop Botto and move the document
 Markdown files from `.botto/memory/<server-and-bot-hash>/` into `memory/`. Preserve
 any edits to the old `MEANS.md` and schema. Means rebuilds its indexes. Alternatively,
 set `memory.path` to the old collection directory. Pi session storage is unchanged.
 
-Pi receives the current document IDs, the collection workflow, and the full Means
-tool catalog with a `mcp__memory__` prefix. The default system prompt tells it to read
-global and participant memory before answering and to update useful facts. Memory
-updates are model-driven. If you supply a custom `agent.system_prompt`, include
+Pi receives lists of matching document IDs per scope and user, the collection
+workflow, and the full Means tool catalog with a `mcp__memory__` prefix. The default
+system prompt tells it to read global and participant memory before answering,
+create separate documents for new memories, and update existing related facts.
+Memory updates are model-driven. If you supply a custom `agent.system_prompt`, include
 your desired memory behavior there. Edit the collection's `MEANS.md` to change
 its workflow; new turns read it again through MCP.
 
-Botto uses a short-lived Means subprocess to prepare document IDs. Pi then opens
+Botto uses a short-lived Means subprocess to find document IDs. Pi then opens
 its own Means connection for model tool calls and closes it when the turn ends.
-Botto serializes Means calls and document creation within its process. It uses
+Botto serializes Means calls within its process. It uses
 Pi's sequential tool mode when memory is enabled, so a batch of memory calls
 cannot block itself while waiting for the shared lock. Updates use
 Means content hashes to detect stale reads. Continue to run only one Botto process
@@ -269,7 +278,7 @@ workflow tells it to keep private user facts out of global memory and other user
 replies, and to never store credentials. Memory read through tools is sent to the
 configured model provider and can also remain in Pi transcripts. Clearing a memory
 document does not erase older transcripts. Missing Means or invalid collection
-data during document preparation fails the turn. Later connection failures follow
+data during memory discovery fails the turn. Later connection failures follow
 Pi's MCP behavior described above.
 
 Botto connects to the configured Chatto server and model provider. The provider
@@ -337,7 +346,7 @@ the shared client timeline in the same message format used by that merge.
 `src/settings.ts` validates TOML.
 `src/mcp.ts` lists the Chatto, Exa, and memory MCP servers, configures Pi's native
 MCP extension, and observes tool outcomes.
-`src/memory.ts` prepares memory documents and owns the shared memory lock.
+`src/memory.ts` finds memory documents and owns the shared memory lock.
 Most tests use a mocked Pi boundary. A restoration test opens a real Pi transcript
 in a fresh process and checks its session ID and model context. Tests do not
 contact a model provider. Native MCP tests use real Pi sessions and in-memory
