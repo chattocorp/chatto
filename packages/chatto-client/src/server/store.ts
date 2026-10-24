@@ -512,11 +512,11 @@ export class ServerStateStore {
       }
     });
 
-    // Read every user that the projection references again: presence is not
-    // a durable replay event. Replay updates every other profile field, and an
-    // inactive server shows no presence, so its poll skips this read after a
-    // resumed stream; becoming active starts a full catch-up. After a
-    // snapshot, the read also detects deleted accounts.
+    // Read every user that the projection references again, because replay
+    // does not carry presence. Replay carries all other profile changes. The
+    // poll of an inactive server skips this read after a resumed stream, so its
+    // presence becomes stale until the server becomes active and catches up in
+    // full. After a snapshot, the read also detects deleted accounts.
     if (!inactivePoll || this.#realtimeSnapshotPending) {
       const userIds = new Set(this.projection.users.keys());
       for (const store of this.#rooms.all('members')) {

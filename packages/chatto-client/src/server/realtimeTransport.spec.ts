@@ -1242,6 +1242,41 @@ describe('eventBusManager realtime transport', () => {
     expect(pollSocket.closeCalls).toEqual([]);
   });
 
+  it('completes a poll in full when the server becomes active before caught_up', async () => {
+    const active = new FakeServerConnection();
+    const inactive = new FakeServerConnection();
+    inactive.realtimeUrl = 'ws://inactive.test/api/realtime';
+    const completeCatchUp = vi.fn().mockResolvedValue(undefined);
+    const registrations = [
+      {
+        serverId: 'active-server',
+        connection: active as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'inactive-server',
+        connection: inactive as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn(),
+        completeProjectionCatchUp: completeCatchUp
+      }
+    ];
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'active-server');
+    const pollSocket = sockets[1];
+    pollSocket.open();
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'inactive-server');
+    await pollSocket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'poll-ready' }) })
+    );
+
+    await vi.waitFor(() => expect(inactive.status).toBe('connected'));
+    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('poll-ready', undefined, false);
+  });
+
   it('reuses an inactive projection cursor when that server becomes active', async () => {
     const first = new FakeServerConnection();
     const second = new FakeServerConnection();
