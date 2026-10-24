@@ -328,7 +328,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   // ProseMirror's own read-only mode removes focus, so this filter rejects
   // edits instead. `setContent` passes: the composer clears a sent draft
-  // while it is still read-only. `setContent` can run inside a caller's
+  // while it is still read-only. Other API edits can run inside a caller's
   // effect, and that effect must not depend on `readOnly`.
   const readOnlyFilter = new Plugin({
     key: new PluginKey('composerReadOnly'),

@@ -232,8 +232,9 @@ the same API as the visual editor while keeping the stored Markdown visible.
                 event.preventDefault();
                 return true;
               },
-              paste: (event) => {
-                if (!onPaste?.(event)) return false;
+              paste: (event, view) => {
+                // The Markdown paste-as-link handler ignores the read-only state.
+                if (!view.state.readOnly && !onPaste?.(event)) return false;
                 event.preventDefault();
                 return true;
               }

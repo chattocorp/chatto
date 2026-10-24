@@ -382,8 +382,9 @@ export class MessageComposerState {
 
   handleEditorKeyDown(event: KeyboardEvent): boolean {
     if (this.submission.loading) {
-      // The editor keeps focus during a send. Swallow keys that would edit the
-      // draft or start an edit; let shortcuts, Tab, Escape, and IME input through.
+      // The editor keeps focus during a send. Swallow plain keys, so they can
+      // neither edit the draft nor start an edit. Let shortcuts, Tab, Escape,
+      // and IME input through.
       const passThrough =
         event.isComposing ||
         event.ctrlKey ||

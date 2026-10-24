@@ -193,6 +193,24 @@ describe('MarkdownEditor', () => {
     expect(onPaste).toHaveBeenCalledOnce();
   });
 
+  it('does not turn selected text into a link while read-only', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    await renderEditor({
+      readOnly: true,
+      onReady: (api: ComposerEditorApi) => readyApis.push(api)
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const textbox = page.getByRole('textbox', { name: 'Write Markdown' }).element();
+
+    api.setContent('Chatto docs');
+    api.focus();
+    selectCurrentLine(textbox);
+    pasteText(textbox, 'https://chatto.dev/docs');
+
+    expect(api.getText()).toBe('Chatto docs');
+  });
+
   it('performs Markdown list continuation through its normal Enter API', async () => {
     const readyApis: ComposerEditorApi[] = [];
     await renderEditor({ onReady: (api: ComposerEditorApi) => readyApis.push(api) });
