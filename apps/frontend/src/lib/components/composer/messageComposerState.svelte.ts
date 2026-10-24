@@ -381,6 +381,9 @@ export class MessageComposerState {
   }
 
   handleEditorKeyDown(event: KeyboardEvent): boolean {
+    // The editor keeps focus during a send. Its keys must neither edit the draft
+    // nor start or cancel edits; Tab still moves focus.
+    if (this.submission.loading) return event.key !== 'Tab';
     if (this.autocomplete.emoji?.query && this.autocomplete.emojiRef?.handleKeyDown(event)) {
       return true;
     }
@@ -588,7 +591,7 @@ export class MessageComposerState {
       this.#dependencies.context.scrollState.requestScrollToBottom();
       this.#dependencies.context.replyState.cancelReply();
       // Submission clears loading after this callback. Wait for that before
-      // restoring the caret, for example after a send with the keyboard on the button.
+      // restoring the caret, for example after a send from the focused Send button.
       void tick().then(() => {
         if (
           api &&

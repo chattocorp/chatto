@@ -1697,7 +1697,8 @@ describe('MessageComposer', () => {
           await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
           await expect.element(editor).toHaveAttribute('contenteditable', 'true');
           await expect.element(editor).toHaveFocus();
-          await userEvent.keyboard('Ignored');
+          await userEvent.keyboard('Ignored{Backspace}{Escape}');
+          await expect.element(editor).toHaveTextContent('First reply');
           expect(editor.textContent).not.toContain('Ignored');
           pendingSend.resolve({
             event: postedMessageEvent(
@@ -2596,6 +2597,27 @@ describe('MessageComposer', () => {
         eventId: 'evt_historical_thread_edit',
         body: 'historical reply'
       });
+    });
+
+    it('does not start editing on ArrowUp while a message sends', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+      roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue({
+        eventId: 'evt_last',
+        body: 'last message'
+      });
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
+
+      await pressEditorKey(editor, 'ArrowUp');
+
+      expect(roomStateMock.editState.startEdit).not.toHaveBeenCalled();
+      pendingSend.resolve({ event: postedMessageEvent() });
+      await expect.element(editor).not.toHaveAttribute('aria-readonly');
     });
 
     it('does not start editing on ArrowUp when no editable message is available', async () => {
