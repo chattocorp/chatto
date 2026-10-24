@@ -95,10 +95,15 @@ runs:
           ffmpeg -version
           ffprobe -version
         else
-          sudo timeout 120s apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          # Job containers run as root and do not necessarily include sudo.
+          elevate=()
+          if [ "$(id -u)" != 0 ]; then
+            elevate=(sudo)
+          fi
+          "${elevate[@]}" timeout 120s apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
           # A fresh runner downloads FFmpeg and its codec libraries. Allow slow
           # mirrors to finish, and omit recommended packages that tests do not use.
-          sudo timeout 600s apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --no-install-recommends -y ffmpeg
+          "${elevate[@]}" timeout 600s apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --no-install-recommends -y ffmpeg
         fi
 
     - name: Set up CLI

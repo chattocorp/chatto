@@ -820,22 +820,55 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
-    # Leave time for tests after a cold FFmpeg install and browser setup.
+    # Update this digest in a PR to verify a new image before changing main.
+    container:
+      image: ${{ vars.MEDIA_E2E_IMAGE || 'ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb' }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 25
     steps:
+      - name: Check selected image
+        env:
+          MEDIA_E2E_IMAGE: ${{ vars.MEDIA_E2E_IMAGE }}
+        run: |
+          if test -n "$MEDIA_E2E_IMAGE"; then
+            if [[ ! "$MEDIA_E2E_IMAGE" =~ ^ghcr\.io/chattocorp/media-e2e@sha256:[a-f0-9]{64}$ ]]; then
+              echo '::error::MEDIA_E2E_IMAGE must be a ghcr.io/chattocorp/media-e2e digest reference.'
+              exit 1
+            fi
+          fi
+          test -f /opt/media-e2e-playwright-version
+          ffmpeg -version
+          ffprobe -version
+
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Trust the mounted checkout
+        # The runner owns the mount; the container builds as root. Checkout's
+        # temporary Git configuration does not apply to later Go VCS stamping.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git status --porcelain
 
       - name: Setup environment
         uses: ./.github/actions/setup
         timeout-minutes: 15
         with:
           go-build-cache-scope: test-e2e
-          install-ffmpeg: 'true'
 
       - name: Setup Playwright
-        uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
+        run: |
+          expected="$(cat /opt/media-e2e-playwright-version)"
+          actual="$(pnpm --dir apps/frontend exec playwright --version)"
+          if test "$actual" != "Version $expected"; then
+            echo '::error::Rebuild the media E2E image and update the workflow digest or MEDIA_E2E_IMAGE.'
+            exit 1
+          fi
+          mkdir -p .context
+          pnpm --dir apps/frontend exec playwright screenshot --browser chromium about:blank "$GITHUB_WORKSPACE/.context/media-e2e-chromium.png"
 
       - name: Build E2E server
         run: mise build-e2e-server
