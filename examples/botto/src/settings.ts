@@ -41,6 +41,8 @@ export interface Settings extends InboxSettings {
   systemPrompt: string;
   directory: string;
   allowedUserId?: string;
+  /** Operator-selected Chatto user IDs. Chat and memory cannot grant this role. */
+  adminUserIds: readonly string[];
   turnTimeoutMs: number;
   contextMessages: number;
   /** Reaction on the first message of a new conversation; empty disables it. */
@@ -116,7 +118,13 @@ export function parseSettings(
     knownKeys(table, keys, name);
     return table;
   };
-  const chatto = section('chatto', ['url', 'api_key', 'allowed_user_id', 'mcp']);
+  const chatto = section('chatto', ['url', 'api_key', 'allowed_user_id', 'admin_user_ids', 'mcp']);
+  const adminUserIds = chatto.admin_user_ids ?? [];
+  if (
+    !Array.isArray(adminUserIds) ||
+    adminUserIds.some((id) => typeof id !== 'string' || !id.trim())
+  )
+    throw new Error('chatto.admin_user_ids must be an array of non-empty user IDs');
   if (chatto.mcp !== undefined && typeof chatto.mcp !== 'boolean')
     throw new Error('chatto.mcp must be a boolean');
   const agent = section('agent', ['name', 'model', 'system_prompt']);
@@ -169,6 +177,15 @@ export function parseSettings(
   return {
     serverUrl,
     apiKey,
+    adminUserIds: [
+      ...new Set(
+        adminUserIds.map((id: string) => {
+          const expanded = expandEnvironment(id, env, 'chatto.admin_user_ids').trim();
+          if (!expanded) throw new Error('chatto.admin_user_ids must contain non-empty user IDs');
+          return expanded;
+        })
+      )
+    ],
     mcp: chatto.mcp === true,
     memory: memory.enabled === true,
     memoryPath: resolve(

@@ -16,6 +16,7 @@ import { log } from './log.ts';
 import { mcpExtension, mcpObserver } from './mcp.ts';
 import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
+import { authorizationPrompt } from './authorization.ts';
 
 /** Runtime facts supplement the configurable behavior instructions. */
 const CAPABILITIES = `You cannot see attachments.
@@ -83,7 +84,15 @@ export async function createAgent(settings: Settings) {
           ...tools,
           mcpExtension(settings, memory?.directory),
           mcpObserver(signal, identity.at(-1), memory?.acquire),
-          ...(context ? [threadContextExtension(context)] : [])
+          ...(context || memory
+            ? [
+                threadContextExtension({
+                  messages: context?.messages ?? [],
+                  olderContextOmitted: context?.olderContextOmitted ?? false,
+                  ...(memory ? { memoryDocuments: memory.documents } : {})
+                })
+              ]
+            : [])
         ],
         systemPromptOverride: () =>
           `Your name is ${settings.name}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
@@ -94,7 +103,7 @@ export async function createAgent(settings: Settings) {
             settings.web
               ? 'Exa web tools use the mcp__exa__ prefix. Cite the source URLs you use.'
               : 'Web access is disabled.'
-          }\n${memory ? `Local memory tools use the mcp__memory__ prefix. Memory document IDs: ${JSON.stringify(memory.documents)}.\n${memory.instructions ?? ''}` : 'Local memory is disabled.'}`,
+          }\n${memory ? 'Local memory tools use the mcp__memory__ prefix. Current memory document IDs are in memoryDocuments in the input context. Call mcp__memory__info for the collection schema and workflow.' : 'Local memory is disabled.'}\n\n${authorizationPrompt(settings.adminUserIds)}`,
         appendSystemPromptOverride: () => []
       });
       await resourceLoader.reload();

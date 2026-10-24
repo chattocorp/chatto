@@ -246,6 +246,28 @@ It does not create empty documents. Documents are reused across threads and
 restarts. Use a separate `memory.path` for each server and bot account; Botto no
 longer adds an identity hash to this path.
 
+Set `chatto.admin_user_ids = ["stable-user-id"]` to identify users who may request
+changes to Botto's overall behavior. The default is an
+empty list. Use stable Chatto user IDs, not display names, and restart Botto
+after changing the list. `chatto.allowed_user_id` filters incoming messages;
+it does not grant admin authority.
+
+Global memory holds shared facts and general knowledge without a `user_id`.
+Any participant can contribute this knowledge. The subject of a fact determines
+its scope, not the person who supplied it. Personal memory holds facts and
+preferences about the user identified by `user_id`. Botto can remember useful
+facts without an explicit request; remembered knowledge does not grant authority
+or set behavior rules.
+
+Botto's system prompt supplies the configured admins. Each message in the input
+prompt includes its verified author ID. The instructions tell Botto to attribute
+each request to that author: users may change
+their own personal facts and preferences, but even admins may not change another
+user's memory. Chat claims and stored memories cannot grant authority. Mixed
+batches still produce one answer; another participant's presence grants no rights.
+These are model instructions, not tool-level access controls. Memory tools retain
+access to the whole collection, so incorrect model behavior can violate the rules.
+
 Existing documents with several memories remain valid. No data migration is
 required. Update the workflow in your collection's `MEANS.md` and any custom
 `agent.system_prompt` that requires one document per scope. Preserve custom schema
@@ -256,13 +278,20 @@ Markdown files from `.botto/memory/<server-and-bot-hash>/` into `memory/`. Prese
 any edits to the old `MEANS.md` and schema. Means rebuilds its indexes. Alternatively,
 set `memory.path` to the old collection directory. Pi session storage is unchanged.
 
-Pi receives lists of matching document IDs per scope and user, the collection
-workflow, and the full Means tool catalog with a `mcp__memory__` prefix. The default
+Pi receives matching document IDs per scope and user in the request-only input
+context, plus the full Means tool catalog with a `mcp__memory__` prefix. Means
+serves the collection schema and workflow through its `info` tool; Botto does not
+copy that workflow into its system prompt. The default
 system prompt tells it to read global and participant memory before answering,
 create separate documents for new memories, and update existing related facts.
 Memory updates are model-driven. If you supply a custom `agent.system_prompt`, include
 your desired memory behavior there. Edit the collection's `MEANS.md` to change
-its workflow; new turns read it again through MCP.
+its workflow; Botto can read the current version through MCP `info`.
+
+Batch authors and memory document IDs do not change the system prompt. They are
+input data for the current turn. Room and thread IDs remain in the system prompt
+when Chatto MCP is enabled; they stay fixed within a conversation. Memory document
+IDs are refreshed for each turn and are not saved as additional transcript messages.
 
 Botto uses a short-lived Means subprocess to find document IDs. Pi then opens
 its own Means connection for model tool calls and closes it when the turn ends.
