@@ -250,8 +250,13 @@ export class MessageComposerState {
     );
   }
 
+  /** A send only makes the editor read-only, so it keeps the on-screen keyboard. */
+  get editorEditable(): boolean {
+    return this.#dependencies.getCanPost() || this.isEditing;
+  }
+
   get inputDisabled(): boolean {
-    return this.submission.loading || (!this.#dependencies.getCanPost() && !this.isEditing);
+    return this.submission.loading || !this.editorEditable;
   }
 
   get hasSendableAttachments(): boolean {
@@ -582,8 +587,8 @@ export class MessageComposerState {
       }
       this.#dependencies.context.scrollState.requestScrollToBottom();
       this.#dependencies.context.replyState.cancelReply();
-      // Submission clears loading after this callback. Wait for the editor to
-      // become editable again before restoring the caret for the next message.
+      // Submission clears loading after this callback. Wait for that before
+      // restoring the caret, for example after a send with the keyboard on the button.
       void tick().then(() => {
         if (
           api &&
@@ -664,7 +669,7 @@ export class MessageComposerState {
     // Keep any draft or edit that has since taken its place.
     if (!saved || this.draftKey !== draftKey || this.editState.eventId !== eventId) return;
     this.cancelEdit();
-    // Submission has cleared loading and the editor is editable again.
+    // Submission has cleared loading, so the editor accepts input again.
     if (api && this.editorApi === api && !this.inputDisabled) {
       api.focus();
     }

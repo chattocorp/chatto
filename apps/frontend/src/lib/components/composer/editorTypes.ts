@@ -60,6 +60,8 @@ export type ComposerEditorApi = {
 export type ComposerEditorProps = {
   placeholder?: string;
   editable?: boolean;
+  /** Rejects user edits but, unlike `editable: false`, keeps focus and the on-screen keyboard. */
+  readOnly?: boolean;
   autofocus?: boolean;
   testid?: string;
   onUpdate?: (markdown: string) => void;

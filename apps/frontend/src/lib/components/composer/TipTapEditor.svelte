@@ -7,6 +7,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 **Props:**
 - `placeholder` - Placeholder text shown when editor is empty
 - `editable` - Whether the editor accepts input
+- `readOnly` - Rejects user edits but keeps focus and the on-screen keyboard
 - `autofocus` - Focus editor on mount
 - `testid` - data-testid attribute for E2E testing
 - `onUpdate` - Called with markdown content on each change
@@ -20,6 +21,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import { tick, untrack } from 'svelte';
   import { Editor } from '@tiptap/core';
   import { Slice } from '@tiptap/pm/model';
+  import { Plugin, PluginKey } from '@tiptap/pm/state';
   import { CODE_LANGUAGE_OPTIONS, ensureCodeLanguagesLoaded } from '$lib/codeHighlighting';
   import { m } from '$lib/i18n/messages';
   import type {
@@ -57,6 +59,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let {
     placeholder = m('composer.placeholder'),
     editable = true,
+    readOnly = false,
     autofocus = false,
     testid,
     onUpdate,
@@ -321,6 +324,15 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     openRenderedLink(href);
   }
 
+  // ProseMirror's own read-only mode removes focus. This filter rejects edits
+  // except `setContent`, which callers can run inside their own effects.
+  const readOnlyKey = new PluginKey('composerReadOnly');
+  const readOnlyFilter = new Plugin({
+    key: readOnlyKey,
+    filterTransaction: (tr) =>
+      !tr.docChanged || tr.getMeta(readOnlyKey) === true || !untrack(() => readOnly)
+  });
+
   function buildApi(e: Editor): ComposerEditorApi {
     const syncControls = () => {
       if (e.isDestroyed) return;
@@ -334,10 +346,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         if (e.isDestroyed) return;
         const parser = e.markdown;
         if (!parser) return;
-        e.commands.setContent(
-          parseMarkdownForEditor(markdown, (source) => parser.parse(source)),
-          { emitUpdate: false }
-        );
+        const content = parseMarkdownForEditor(markdown, (source) => parser.parse(source));
+        e.chain().setMeta(readOnlyKey, true).setContent(content, { emitUpdate: false }).run();
         ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
@@ -541,6 +551,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         })
     );
 
+    e.registerPlugin(readOnlyFilter);
     editor = e;
 
     const api = buildApi(e);
@@ -561,12 +572,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     };
   });
 
-  // React to editable prop changes
+  // React to editable and read-only prop changes
   $effect(() => {
-    if (editor && editor.isEditable !== editable) {
-      // Editability changes do not change the document or the parent draft.
-      editor.setEditable(editable, false);
-    }
+    if (!editor) return;
+    // Editability changes do not change the document or the parent draft.
+    if (editor.isEditable !== editable) editor.setEditable(editable, false);
+    if (readOnly) editor.view.dom.setAttribute('aria-readonly', 'true');
+    else editor.view.dom.removeAttribute('aria-readonly');
   });
 
   // React to placeholder prop changes (e.g., switching between normal and edit mode)

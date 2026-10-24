@@ -168,6 +168,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   let {
     placeholder = m('composer.placeholder'),
     editable = true,
+    readOnly = false,
     autofocus = false,
     testid,
     onUpdate,
@@ -185,7 +186,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     const editableCompartment = new Compartment();
     const placeholderCompartment = new Compartment();
     const attributesCompartment = new Compartment();
-    const initial = untrack(() => ({ editable, placeholder, testid, autofocus }));
+    const initial = untrack(() => ({ editable, readOnly, placeholder, testid, autofocus }));
     let destroyed = false;
     let suppressUpdate = false;
 
@@ -219,7 +220,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
           EditorView.perLineTextDirection.of(true),
           editableCompartment.of([
             EditorView.editable.of(initial.editable),
-            EditorState.readOnly.of(!initial.editable)
+            EditorState.readOnly.of(!initial.editable || initial.readOnly)
           ]),
           placeholderCompartment.of(editorPlaceholder(initial.placeholder)),
           attributesCompartment.of(contentAttributes(initial.placeholder, initial.testid)),
@@ -350,7 +351,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       editorView.dispatch({
         effects: editableCompartment.reconfigure([
           EditorView.editable.of(editable),
-          EditorState.readOnly.of(!editable)
+          EditorState.readOnly.of(!editable || readOnly)
         ])
       });
     });
