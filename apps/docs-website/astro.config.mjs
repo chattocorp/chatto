@@ -69,6 +69,7 @@ export default defineConfig({
           items: [
             'getting-started/introduction',
             'getting-started/quick-start',
+            'getting-started/install-pwa',
             'getting-started/faq'
           ]
         },

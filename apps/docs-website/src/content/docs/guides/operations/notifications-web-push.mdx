@@ -135,7 +135,7 @@ Operators do not need to change VAPID keys or push configuration for this behavi
 
 For security, Chatto connects directly only to absolute HTTPS push endpoints with public network addresses. It does not follow endpoint redirects or route push delivery through `HTTP_PROXY` or `HTTPS_PROXY`. Standard browser-created subscriptions already meet these requirements; private-network, redirecting, and proxy-only custom push endpoints are unsupported.
 
-On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
+On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Follow [Install Chatto on Your Phone](/getting-started/install-pwa/) to install the app, then open it from its Home Screen icon before you enable push notifications.
 
 <Aside type="note">
   In multi-server use, each server, including the server that hosts the app, registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it. This requires a 0.5 client and server.
