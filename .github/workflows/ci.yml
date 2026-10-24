@@ -820,14 +820,13 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
-    # Use the official image until the first verified custom digest is selected.
+    # Update this digest in a PR to verify a new image before changing main.
     container:
-      image: ${{ vars.MEDIA_E2E_IMAGE || 'mcr.microsoft.com/playwright:v1.63.0-noble' }}
+      image: ${{ vars.MEDIA_E2E_IMAGE || 'ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb' }}
       options: --init --ipc=host
     defaults:
       run:
         shell: bash
-    # The bootstrap image can still require an FFmpeg install.
     timeout-minutes: 25
     steps:
       - name: Check selected image
@@ -839,8 +838,10 @@ jobs:
               echo '::error::MEDIA_E2E_IMAGE must be a ghcr.io/chattocorp/media-e2e digest reference.'
               exit 1
             fi
-            test -f /opt/media-e2e-playwright-version
           fi
+          test -f /opt/media-e2e-playwright-version
+          ffmpeg -version
+          ffprobe -version
 
       - name: Checkout code
         uses: actions/checkout@v6
@@ -857,17 +858,13 @@ jobs:
         timeout-minutes: 15
         with:
           go-build-cache-scope: test-e2e
-          install-ffmpeg: 'true'
 
       - name: Setup Playwright
         run: |
-          expected='1.63.0'
-          if test -f /opt/media-e2e-playwright-version; then
-            expected="$(cat /opt/media-e2e-playwright-version)"
-          fi
+          expected="$(cat /opt/media-e2e-playwright-version)"
           actual="$(pnpm --dir apps/frontend exec playwright --version)"
           if test "$actual" != "Version $expected"; then
-            echo '::error::Rebuild the media E2E image and update MEDIA_E2E_IMAGE to its digest, or update the bootstrap image version.'
+            echo '::error::Rebuild the media E2E image and update the workflow digest or MEDIA_E2E_IMAGE.'
             exit 1
           fi
           mkdir -p .context
