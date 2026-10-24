@@ -673,6 +673,12 @@
     void requestBottomScroll();
   }
 
+  /** Read the latest window again after a failed read left the timeline empty. */
+  function retryLoad() {
+    viewport.retryEntry();
+    void jumpState.returnToLatest(messageStore);
+  }
+
   async function handleJumpToPresentClick() {
     onJumpToPresent?.();
     // The replacement latest window must perform a fresh initial-style bottom
@@ -979,10 +985,9 @@
         <!-- Sits at the bottom, where the newest messages will appear. -->
         <LoadingDots class="py-4" label={m('room.timeline.loading')} />
       {:else if showLoadRetry}
-        <!-- A failed read left no window. Retry repeats it, and the normal first
-             landing then places the view, for example on the unread separator. -->
+        <!-- A failed read left no window; see retryLoad. -->
         <LoadRetry
-          onretry={() => void jumpState.returnToLatest(messageStore)}
+          onretry={retryLoad}
           message={errorMessage(loadError, m('room.timeline.load_failed'))}
         />
       {:else if virtualItems.length === 0}
