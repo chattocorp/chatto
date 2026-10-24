@@ -3,6 +3,21 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AddressedMessage, RealtimeEvent, Server, ThreadLocation } from '@chatto/client';
 import { transcriptName } from './agent.ts';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+
+/** Check current author state for live and recovered messages. Read failures
+ * reject so delivery can retry; other bots must never trigger reply loops. */
+export async function isHumanAuthor(
+  server: Pick<Server, 'service'>,
+  authorId: string,
+  signal: AbortSignal
+): Promise<boolean> {
+  const { users } = await server
+    .service(UserService)
+    .batchGetUsers({ userIds: [authorId] }, { signal, timeoutMs: 10_000 });
+  const author = users.find((item) => item.user?.id === authorId)?.user;
+  return !!author && !author.bot && !author.deleted;
+}
 
 /** A saved Pi transcript keeps a thread active across restarts. No message cache is kept. */
 export async function hasTranscript(

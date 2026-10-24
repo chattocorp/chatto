@@ -162,7 +162,7 @@ The live Pi session closes after each turn; its transcript stays on disk.
 On the next message in that thread, including after a restart, Botto reopens the
 same transcript. It does not preload all transcripts at process startup.
 
-New messages are skipped when the configured queue or thread limit is reached.
+Messages that exceed the in-memory queue or thread limit wait in the delivery file.
 Ordinary room posts and reactions do not start turns. Botto always provides the reaction tool.
 It loads only host-selected extensions, not local
 Pi extensions, skills, prompt templates, or project instructions.
@@ -299,11 +299,33 @@ room, and thread. The data directory contains private conversation data. New
 files use private permissions. There is no automatic retention limit; stop
 Botto before deleting transcripts.
 
-Restart restores context on the next accepted message in the thread. It does not resume a
-turn or replay missed messages. Queues and bounded duplicate detection exist
-only in memory. A saved model reply does not prove that Chatto received it.
-Botto does not retry failed or uncertain posts. Failed turns produce a local log
-entry, not a chat reply.
+Botto saves accepted messages in a private `delivery-*.json` file in the same
+data directory. Keep this directory on persistent storage. Run only one Botto
+process for each server/account pair. Queued messages survive a restart,
+including messages still in their quiet period and messages that exceed the
+in-memory limits. Completed message IDs prevent duplicate turns after recovery.
+
+On startup, after reconnect, and every 30 seconds, Botto checks retained Chatto
+notifications for missed DMs, mentions, replies, and activity in threads where
+it participates. It reads current message content and checks the author before
+accepting recovered work. It does not dismiss notifications. Keep the relevant
+notification classes enabled for the bot account; muted classes and ordinary
+thread activity without a notification cannot be recovered this way. Chatto
+retains message notifications for up to 90 days. The first run of this version
+starts recovery at its startup time; it does not answer historical notifications.
+Later runs use the saved boundary. Removing the delivery file loses this boundary
+and duplicate detection. Recovery scans all retained notifications since that
+boundary, so accounts with many notifications require more requests.
+
+Connection startup waits through temporary outages. Failed message verification
+and read-only turn preparation are retried. Before the first model or reaction
+operation, Botto saves the batch as `running`. A failed or interrupted running
+batch stays in the delivery file for operator review and is not repeated
+automatically. Check the Chatto thread and Pi transcript before deciding whether
+to repeat that work. A saved model reply does not prove that Chatto received it;
+model tools can also have completed an external action before interruption.
+Botto does not retry uncertain posts or tool calls. Failed turns produce a local
+log entry, not a chat reply. These changes add no external service connections.
 
 ## Logs and development
 

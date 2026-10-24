@@ -181,6 +181,18 @@ test('duplicates do not reset the quiet period', async () => {
   await inbox.close();
 });
 
+test('failed work can be re-enqueued while successful work remains deduplicated', async () => {
+  const turn = vi.fn(async () => {}).mockRejectedValueOnce(new Error('Offline'));
+  const inbox = new Inbox(turn, vi.fn());
+  inbox.accept(message('one'));
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(inbox.accept(message('one'))).toBe('accepted');
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(turn).toHaveBeenCalledTimes(2);
+  expect(inbox.accept(message('one'))).toBe('duplicate');
+  await inbox.close();
+});
+
 test('applies configured debounce and queue limits', async () => {
   const turn = vi.fn(async () => {});
   const inbox = new Inbox(turn, vi.fn(), {

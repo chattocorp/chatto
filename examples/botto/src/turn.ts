@@ -13,7 +13,8 @@ export function createTurnHandler(
   botId: string,
   server: Pick<Server, 'postMessage' | 'withTyping' | 'addReaction'> & ContextSource,
   agent: Awaited<ReturnType<typeof createAgent>>,
-  shutdown: AbortSignal
+  shutdown: AbortSignal,
+  beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
 ) {
   let turnCounter = 0;
   return async (messages: readonly AddressedMessage[]): Promise<void> => {
@@ -37,6 +38,14 @@ export function createTurnHandler(
     await server.withTyping(
       destination,
       async () => {
+        // Read-only failures remain queued and can be retried after reconnect.
+        const context = await logged(
+          'Thread context read',
+          () => readContext(server, destination, settings.contextMessages, signal),
+          metrics
+        );
+        signal.throwIfAborted();
+        beforeEffects(messages);
         // Existing transcripts identify ongoing conversations, including after a restart.
         if (settings.acknowledgementEmoji && !(await hasTranscript(settings.directory, identity))) {
           signal.throwIfAborted();
@@ -54,11 +63,6 @@ export function createTurnHandler(
           ).catch(() => {});
         }
         signal.throwIfAborted();
-        const context = await logged(
-          'Thread context read',
-          () => readContext(server, destination, settings.contextMessages, signal),
-          metrics
-        );
         // Persist only the accepted batch. The fresh snapshot travels through Pi's
         // request-only context hook, so old Chatto messages do not accumulate each turn.
         const prompt = JSON.stringify({

@@ -17,6 +17,7 @@
   "dependencies": {
     "@chatto/api-types": "workspace:*",
     "@chatto/client": "workspace:*",
+    "@connectrpc/connect": "^1.7.0",
     "@earendil-works/pi-coding-agent": "1.3.0",
     "@earendil-works/pi-mcp": "1.3.0",
     "smol-toml": "^1.6.1",

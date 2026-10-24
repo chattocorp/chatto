@@ -1,14 +1,17 @@
 /** Botto CLI: own the Chatto connection, inbox, and shutdown signal. */
 import './env.ts';
 import { createClient } from '@chatto/client';
-import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { createAgent } from './agent.ts';
 import { Inbox } from './inbox.ts';
 import { readSettings, type Settings } from './settings.ts';
 import { StartupError, startupStep } from './diagnostics.ts';
 import { log, logged } from './log.ts';
 import { createTurnHandler } from './turn.ts';
-import { hasTranscript, incomingMessage } from './messages.ts';
+import { hasTranscript, incomingMessage, isHumanAuthor } from './messages.ts';
+import { Delivery } from './delivery.ts';
+import { recover } from './recovery.ts';
+import { setTimeout as delay } from 'node:timers/promises';
+import { Code, ConnectError } from '@connectrpc/connect';
 
 async function run(settings: Settings) {
   const controller = new AbortController();
@@ -17,6 +20,7 @@ async function run(settings: Settings) {
   process.once('SIGTERM', stop);
   const client = createClient();
   let inbox: Inbox | undefined;
+  let recovery: Promise<void> | undefined;
   try {
     const agent = await logged('Pi setup', () => createAgent(settings));
     controller.signal.throwIfAborted();
@@ -24,70 +28,136 @@ async function run(settings: Settings) {
     const server = client.connect({ serverUrl: settings.serverUrl, apiKey: settings.apiKey });
     const { viewerId } = await startupStep(
       'Cannot connect to Chatto. Check chatto.url, chatto.api_key, and server compatibility.',
-      () =>
-        server.ready({ signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]) })
+      () => server.ready({ signal: controller.signal })
     );
     log('info', 'Chatto authenticated');
+    const delivery = new Delivery(settings.directory, [
+      new URL(settings.serverUrl).origin,
+      viewerId
+    ]);
+    if (delivery.uncertain)
+      log('warn', 'Interrupted work needs operator review in the delivery state file', {
+        messages: delivery.uncertain
+      });
+    const turn = createTurnHandler(
+      settings,
+      viewerId,
+      server,
+      agent,
+      controller.signal,
+      (messages) => delivery.start(messages)
+    );
     inbox = new Inbox(
-      createTurnHandler(settings, viewerId, server, agent, controller.signal),
+      async (messages) => {
+        await turn(messages);
+        delivery.complete(messages);
+      },
       () => {
-        if (!controller.signal.aborted) log('error', 'Botto could not complete a turn');
+        if (!controller.signal.aborted)
+          log(
+            'error',
+            'Botto could not complete a turn; queued work will retry, running work needs operator review'
+          );
       },
       settings
     );
     const activeInbox = inbox;
+    const isActive = async (location: { roomId: string; threadRootId: string }) =>
+      activeInbox.isActive(location) ||
+      delivery.queued.some(
+        (item) =>
+          item.roomId === location.roomId &&
+          (item.threadRootId ?? item.id) === location.threadRootId
+      ) ||
+      hasTranscript(settings.directory, [
+        new URL(settings.serverUrl).origin,
+        viewerId,
+        location.roomId,
+        location.threadRootId
+      ]);
+    const pump = () => {
+      for (const message of delivery.queued) {
+        if (settings.allowedUserId && message.authorId !== settings.allowedUserId) continue;
+        activeInbox.accept(message);
+      }
+    };
+    pump();
+    // Recovery also runs periodically: notification projection and the realtime
+    // connection can become ready at different times. Only one scan runs at once.
+    let nextRecovery = 0;
+    recovery = (async () => {
+      while (!controller.signal.aborted) {
+        try {
+          await server.ready({ signal: controller.signal });
+          if (Date.now() >= nextRecovery) {
+            nextRecovery = Date.now() + 30_000;
+            await recover(server, delivery, isActive, controller.signal, settings.allowedUserId);
+          }
+        } catch {
+          if (!controller.signal.aborted) log('warn', 'Message recovery failed; Botto will retry');
+        }
+        if (controller.signal.aborted) break;
+        pump();
+        await delay(5000, undefined, { signal: controller.signal }).catch(() => {});
+      }
+    })();
     await server.consumeEvents({
       signal: controller.signal,
       onStatus(status) {
-        if (status.state === 'ready')
+        if (status.state === 'ready') {
+          nextRecovery = 0;
           log(
             status.gap ? 'warn' : 'info',
-            status.gap ? 'Botto connected; some messages may have been missed.' : 'Botto connected.'
+            status.gap
+              ? 'Botto connected; checking retained notifications for missed messages.'
+              : 'Botto connected.'
           );
-        else log('info', 'Realtime connection is not ready');
+        } else log('info', 'Realtime connection is not ready');
       },
-      async onEvent(event) {
+      async onEvent(event, { signal }) {
         if (settings.allowedUserId && event.actorId !== settings.allowedUserId) return;
         if (event.event.case === 'userTyping') {
           activeInbox.typing(event, viewerId);
           return;
         }
-        try {
-          const message = await incomingMessage(
-            server,
-            event,
-            async (location) =>
-              activeInbox.isActive(location) ||
-              hasTranscript(settings.directory, [
-                new URL(settings.serverUrl).origin,
-                viewerId,
-                location.roomId,
-                location.threadRootId
-              ]),
-            controller.signal
-          );
-          if (!message) return;
-          // Other bots must not create an endless reply loop with Botto.
-          const { users } = await server
-            .service(UserService)
-            .batchGetUsers(
-              { userIds: [message.authorId] },
-              { signal: controller.signal, timeoutMs: 10_000 }
-            );
-          const author = users.find((item) => item.user?.id === message.authorId)?.user;
-          if (!author || author.bot || author.deleted) return;
-          const result = activeInbox.accept(message);
-          const thread = { threadId: message.threadRootId ?? message.id };
-          if (result === 'accepted')
-            log('info', 'Message accepted', {
-              ...thread,
-              waitMs: activeInbox.debounceMs(message)
-            });
-          else if (result === 'full') log('warn', 'Botto inbox is full; message skipped', thread);
-          else if (result === 'duplicate') log('info', 'Duplicate message skipped', thread);
-        } catch {
-          if (!controller.signal.aborted)
-            log('error', 'Botto could not verify an incoming message');
+        while (!signal.aborted) {
+          try {
+            const message = await incomingMessage(server, event, isActive, signal);
+            if (!message) return;
+            if (delivery.has(message.id)) return;
+            if (!(await isHumanAuthor(server, message.authorId, signal))) return;
+            delivery.accept(message);
+            const result = activeInbox.accept(message);
+            const thread = { threadId: message.threadRootId ?? message.id };
+            if (result === 'accepted')
+              log('info', 'Message accepted', {
+                ...thread,
+                waitMs: activeInbox.debounceMs(message)
+              });
+            else if (result === 'full')
+              log('warn', 'Botto inbox is full; message saved for later', thread);
+            else if (result === 'duplicate') log('info', 'Duplicate message skipped', thread);
+            return;
+          } catch (error) {
+            // Removed content and revoked access cannot be repaired by retrying
+            // this event. Do not block later messages on a permanent rejection.
+            if (
+              error instanceof ConnectError &&
+              [
+                Code.NotFound,
+                Code.PermissionDenied,
+                Code.Unauthenticated,
+                Code.InvalidArgument,
+                Code.FailedPrecondition
+              ].includes(error.code)
+            ) {
+              log('warn', 'Incoming message is no longer available or permitted');
+              return;
+            }
+            if (!signal.aborted)
+              log('error', 'Botto could not verify or save an incoming message; retrying');
+            await delay(5000, undefined, { signal }).catch(() => {});
+          }
         }
       }
     });
@@ -96,6 +166,7 @@ async function run(settings: Settings) {
   } finally {
     log('info', 'Botto stopping');
     controller.abort();
+    await recovery;
     await inbox?.close();
     client.close();
     process.removeListener('SIGINT', stop);
