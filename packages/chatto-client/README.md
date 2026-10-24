@@ -110,8 +110,9 @@ does not read the thread again for each change.
   reload is pending. `events` then has the latest messages.
 - `loadError` has the error of a failed read, or of lost room access. Call
   `restoreLatestWindow()` to read again after a failed read.
-- The client keeps the stores of the 10 most recently used rooms (timeline,
-  file list, pin list, and member list) and the 20 most recently used threads.
+- By default, the client keeps the stores of the 10 most recently used rooms
+  (timeline, file list, pin list, and member list) and the 20 most recently
+  used threads.
   A call to `rooms.messages`, `rooms.files`, `rooms.pins`, or `rooms.members`
   uses the room; a call to `rooms.thread` uses only the thread. The client
   disposes the stores of older ones; the next call returns a new store, which

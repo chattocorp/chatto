@@ -85,16 +85,16 @@ export type RoomStoresOptions = {
  * The room-scoped stores of one server: room and thread timelines, file lists,
  * pins, and members.
  *
- * Each accessor creates its store on first use and then returns the same
- * store. A call to an accessor uses the room or thread. The registry keeps the
- * stores of the most recently used rooms and threads, by default
+ * Each accessor creates its store on first use and then returns the same store.
+ * A call to an accessor uses the room or thread. The registry keeps the stores
+ * of the most recently used rooms and threads, by default
  * {@link RECENT_ROOM_LIMIT} and {@link RECENT_THREAD_LIMIT} (see
- * {@link KeepRecent}), and disposes the others. A disposed store gets no more realtime updates; the accessor then
- * returns a new store. So a host must not use more rooms or threads at the
- * same time than these limits. A host that keeps a timeline across a long wait
- * checks `isDisposed` and gets the timeline again. Use of a thread does not
- * keep its room's stores. Clearing a room's message access with `forget` removes its
- * timelines, file list, and pin list.
+ * {@link KeepRecent}), and disposes the others. A disposed store gets no more realtime updates; the
+ * accessor then returns a new store. So a host must not use more rooms or
+ * threads at the same time than these limits. A host that keeps a timeline
+ * across a long wait checks `isDisposed` and gets the timeline again. Use of a
+ * thread does not keep its room's stores. Clearing a room's message access with
+ * `forget` removes its timelines, file list, and pin list.
  *
  * The registry is not reactive on purpose. The stores are reactive, and a
  * selector can create a store while a UI framework evaluates a derived value.

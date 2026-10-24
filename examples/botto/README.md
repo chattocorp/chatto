@@ -138,10 +138,11 @@ While Chatto reconnects, a turn waits for the connection, until the turn
 deadline. If a read fails, Botto reads again once. If the client disposes the
 timeline while Botto waits for it, Botto gets the timeline again once. If the
 second attempt also fails, the turn stops instead of using incomplete context.
-The client keeps the most recently used thread timelines, at least 20 and at
-least `runtime.max_threads`, and disposes older ones; a later turn in such a
-thread reads it again. So the client does not dispose a timeline that a turn
-uses.
+The client keeps the 20 most recently used thread timelines, or
+`runtime.max_threads` when that is higher, and disposes older ones. A later
+turn in such a thread reads it again. The client can dispose a timeline that a
+turn waits for only when many other threads start a read during that wait;
+Botto then gets the timeline again once.
 Only the accepted batch and model responses
 are saved as conversation messages. The recent thread snapshot is added to the
 current model request without saving it again in the transcript. This preserves
