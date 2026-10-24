@@ -196,12 +196,16 @@ describe('EventList jump completion', () => {
   });
   it('shows a failed read with a retry that loads the latest window', async () => {
     const onJumpToPresent = vi.fn(async () => true);
+    const onPresentRequested = vi.fn();
+    const onReachedBottom = vi.fn();
     const rendered = render(EventListTestHarness, {
       props: {
         eventIds: [],
         scrollToEventId: null,
         loadError: new ConnectError('offline', Code.Unavailable),
-        onJumpToPresent
+        onJumpToPresent,
+        onPresentRequested,
+        onReachedBottom
       }
     });
     await expect.element(page.getByRole('alert')).toHaveTextContent(m('common.error.network'));
@@ -209,6 +213,10 @@ describe('EventList jump completion', () => {
 
     await page.getByRole('button', { name: m('common.retry') }).click();
     expect(onJumpToPresent).toHaveBeenCalledOnce();
+    // A retry is not a jump to the present: it keeps the unread separator
+    // and the highlight for the normal first landing.
+    expect(onPresentRequested).not.toHaveBeenCalled();
+    expect(onReachedBottom).not.toHaveBeenCalled();
 
     await rendered.rerender({ eventIds: [], scrollToEventId: null, loadError: new Error('') });
     await expect.element(page.getByRole('alert')).toHaveTextContent('Could not load messages.');

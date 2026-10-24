@@ -979,10 +979,10 @@
         <!-- Sits at the bottom, where the newest messages will appear. -->
         <LoadingDots class="py-4" label={m('room.timeline.loading')} />
       {:else if showLoadRetry}
-        <!-- A failed read left no window; retry loads the latest one. -->
-
+        <!-- A failed read left no window. Retry repeats it, and the normal first
+             landing then places the view, for example on the unread separator. -->
         <LoadRetry
-          onretry={handleJumpToPresentClick}
+          onretry={() => void jumpState.returnToLatest(messageStore)}
           message={errorMessage(loadError, m('room.timeline.load_failed'))}
         />
       {:else if virtualItems.length === 0}

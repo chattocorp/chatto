@@ -38,7 +38,8 @@
     unreadAfterEventId = null,
     onComposerReady,
     onStoreRead,
-    onReadPosition
+    onReadPosition,
+    onReachedBottom
   }: {
     eventIds: string[];
     roomId?: string;
@@ -59,6 +60,7 @@
     onComposerReady?: (context: ComposerContext) => void;
     onStoreRead?: () => void;
     onReadPosition?: (position: TimelineReadPosition) => void;
+    onReachedBottom?: () => void;
   } = $props();
 
   const composerContext = createComposerContext();
@@ -178,4 +180,5 @@
   onScrollToEventComplete={onComplete}
   onJumpToPresent={onPresentRequested}
   {onReadPosition}
+  {onReachedBottom}
 />
