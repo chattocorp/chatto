@@ -2369,6 +2369,8 @@ describe('MessageComposer', () => {
           }
           await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
           await expect.element(editor).toHaveFocus();
+          await userEvent.keyboard('{Escape}');
+          expect(editState.eventId).toBe('focus-edit');
           pendingEdit.resolve(true);
 
           await expect.element(editor).not.toHaveAttribute('aria-readonly');

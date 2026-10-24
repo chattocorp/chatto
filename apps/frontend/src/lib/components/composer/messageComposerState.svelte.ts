@@ -381,9 +381,16 @@ export class MessageComposerState {
   }
 
   handleEditorKeyDown(event: KeyboardEvent): boolean {
-    // The editor keeps focus during a send. Its keys must neither edit the draft
-    // nor start or cancel edits; Tab still moves focus.
-    if (this.submission.loading) return event.key !== 'Tab';
+    if (this.submission.loading) {
+      // The editor keeps focus during a send. Swallow keys that would edit the
+      // draft or start an edit; let shortcuts, Tab, Escape, and IME input through.
+      const passThrough =
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        ['Tab', 'Escape'].includes(event.key);
+      return !passThrough;
+    }
     if (this.autocomplete.emoji?.query && this.autocomplete.emojiRef?.handleKeyDown(event)) {
       return true;
     }

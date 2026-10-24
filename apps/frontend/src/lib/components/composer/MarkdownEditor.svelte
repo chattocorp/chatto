@@ -59,6 +59,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     editorView: EditorView,
     command: ComposerFormattingCommand
   ): boolean => {
+    if (editorView.state.readOnly) return false;
     const main = editorView.state.selection.main;
     const result = applySourceFormatting(
       editorView.state.doc.toString(),

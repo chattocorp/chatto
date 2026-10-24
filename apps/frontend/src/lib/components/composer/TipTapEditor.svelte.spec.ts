@@ -784,3 +784,25 @@ describe('visual editor bare email addresses', () => {
     expect(container.querySelector('.tiptap a')).toBeNull();
   });
 });
+
+describe('TipTapEditor read-only state', () => {
+  it('applies setContent and its plugin follow-ups while read-only', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a reply',
+        readOnly: true,
+        onReady: (api: ComposerEditorApi) => readyApis.push(api)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const editor = page.getByRole('textbox', { name: 'Write a reply' });
+    await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
+
+    readyApis[0].setContent('```\ncode\n```');
+
+    // The trailing paragraph comes from a transaction that a plugin appends.
+    await expect.element(editor).toHaveTextContent('code');
+    expect(editor.element().lastElementChild?.tagName).toBe('P');
+  });
+});
