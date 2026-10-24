@@ -19,7 +19,8 @@ actionlint = "1.7.12"
 buf = "latest"
 go = "1.27.3"
 goreleaser = "latest"
-node = "lts"
+# Includes the Brotli decoder fix for CVE-2026-111497.
+node = "24.22.1"
 pnpm = "11.25.0"
 uv = "0.11.30"
 
