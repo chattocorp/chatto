@@ -13,6 +13,8 @@ export interface ContextMessage {
 export interface ThreadContext {
   messages: ContextMessage[];
   olderContextOmitted: boolean;
+  /** Fresh memory lookup results for this turn, supplied only in request context. */
+  memoryDocuments?: { global: string[]; users: Record<string, string[]> };
 }
 
 /** Combine the actual, compaction-aware request with current Chatto messages.

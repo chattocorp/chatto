@@ -64,11 +64,15 @@ test('fresh snapshots reach requests but never enter saved history across turns 
     });
     const first = await open({
       messages: [{ id: 'ordinary', author: 'human', text: 'snapshot version one' }],
+      memoryDocuments: { global: ['old-global-memory'], users: { human: ['old-user-memory'] } },
       olderContextOmitted: false
     });
     try {
       const request = await first.session.extensionRunner.emitContext(first.session.messages);
       expect(JSON.stringify(request)).toContain('snapshot version one');
+      expect(JSON.stringify(request)).toContain('old-global-memory');
+      expect(JSON.stringify(request)).toContain('old-user-memory');
+      expect(await readFile(file, 'utf8')).not.toContain('old-global-memory');
       expect(JSON.stringify(first.session.messages)).not.toContain('snapshot version one');
       expect(await readFile(file, 'utf8')).not.toContain('snapshot version one');
       // A repeated transform (such as a retry) starts from history, not the previous request copy.
@@ -103,6 +107,7 @@ test('fresh snapshots reach requests but never enter saved history across turns 
       timestamp: Date.now()
     });
     const second = await open({
+      memoryDocuments: { global: ['new-global-memory'], users: { human: [] } },
       messages: [
         { id: 'ordinary', author: 'human', text: 'snapshot version two' },
         { id: 'first', text: 'edited first batch' },
@@ -115,6 +120,10 @@ test('fresh snapshots reach requests but never enter saved history across turns 
     try {
       const request = await second.session.extensionRunner.emitContext(second.session.messages);
       const text = JSON.stringify(request);
+      expect(text).toContain('new-global-memory');
+      expect(text).not.toContain('old-global-memory');
+      expect(text).not.toContain('old-user-memory');
+      expect(await readFile(file, 'utf8')).not.toContain('new-global-memory');
       expect(text).toContain('snapshot version two');
       expect(text).not.toContain('snapshot version one');
       expect(text.match(/snapshot version two/g)).toHaveLength(1);

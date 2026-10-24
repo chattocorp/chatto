@@ -64,7 +64,6 @@ export function createMemory(settings: Settings) {
       return {
         directory,
         documents: { global, users },
-        instructions: client.instructions,
         acquire
       };
     } finally {
