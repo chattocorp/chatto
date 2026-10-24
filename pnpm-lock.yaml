@@ -428,6 +428,9 @@ importers:
       js-sha256:
         specifier: ^1.0.0
         version: 1.0.0
+      lru-cache:
+        specifier: ^11.5.1
+        version: 11.5.1
       semver:
         specifier: ^7.8.5
         version: 7.8.5

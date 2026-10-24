@@ -99,7 +99,7 @@ the server rejects the key or does not support this client, and, without
   `notifications.occurrences`, `projection.users`, and `rooms.messages(id)`
   for a paged, live room timeline.
 
-### Live timelines
+### Live timelines and room stores
 
 `rooms.messages(roomId)` and `rooms.thread(roomId, rootId)` return a live
 timeline. The timeline reads its latest page when you first get it. Realtime
@@ -110,11 +110,15 @@ does not read the thread again for each change.
   reload is pending. `events` then has the latest messages.
 - `loadError` has the error of a failed read, or of lost room access. Call
   `restoreLatestWindow()` to read again after a failed read.
-- Retain a thread with `rooms.retainThread(roomId, rootId, store)` while you
-  use it, and release it with `rooms.releaseThread(...)` after. The client
-  keeps the 20 most recently used threads without consumers and disposes
-  older ones. A disposed timeline is never current; get a new one from
-  `rooms.thread`.
+- The client keeps the stores of the 10 most recently used rooms (timeline,
+  file list, pin list, and member list) and the 20 most recently used threads.
+  A call to `rooms.messages`, `rooms.files`, `rooms.pins`, or `rooms.members`
+  uses the room; a call to `rooms.thread` uses only the thread. The client
+  disposes the stores of older ones; the next call returns a new store, which
+  reads again. Do not use more rooms or threads at the same time.
+- A disposed timeline gets no more updates and is never current. If you keep
+  a timeline across a long wait, for example until `isCurrent`, also stop when
+  `isDisposed` becomes true, and get the timeline again.
 
 Use `readThread` instead when you need one snapshot and no live updates.
 

@@ -725,9 +725,13 @@ export class ServerStateStore {
     );
   }
 
-  /** Load the latest room window at a route boundary when retained data needs it. */
+  /**
+   * Load the latest room window at a route boundary when retained data needs
+   * it. A room without a timeline needs nothing: a new timeline reads the
+   * latest window.
+   */
   restoreProjectedRoomWindow(roomId: string): void {
-    void this.#rooms.messages(roomId).restoreLatestWindow();
+    void this.#rooms.loaded(roomId)?.messages?.restoreLatestWindow();
   }
 
   private updateRoomMembership(roomId: string, userId: string, joined: boolean): void {

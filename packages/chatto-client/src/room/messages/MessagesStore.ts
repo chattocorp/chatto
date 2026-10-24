@@ -380,6 +380,16 @@ export class MessagesStore {
     return this.source.threadRootEventId ?? '';
   }
 
+  /**
+   * True after {@link dispose}. A disposed store gets no more realtime updates,
+   * and it is never current. A host that keeps a store across a long wait, for
+   * example a wait for {@link isCurrent}, gets a new store from its registry
+   * when this becomes true. Reactive.
+   */
+  get isDisposed(): boolean {
+    return this.#disposedSignal.get();
+  }
+
   /** Tear down lifecycle listeners. Idempotent. A disposed store is never current. */
   dispose(): void {
     this.#disposedSignal.set(true);

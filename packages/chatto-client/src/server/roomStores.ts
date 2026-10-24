@@ -1,3 +1,4 @@
+import { LRUCache } from 'lru-cache';
 import { MessagesStore } from '../room/messages/MessagesStore.js';
 import { RoomFilesStore } from '../room/files.js';
 import { RoomMembersStore } from '../room/members.js';
@@ -19,24 +20,27 @@ export type LoadedRoomStores = {
 type StoreKind = 'messages' | 'files' | 'pins' | 'members';
 
 /**
- * Thread timelines without consumers that a registry keeps for reuse. They
- * stay current through realtime delivery, so opening one again needs no read.
- * The registry disposes the least recently used ones beyond this limit.
+ * The number of most recently used rooms whose stores a registry keeps. The
+ * stores stay current through realtime delivery, so a room used again needs
+ * no read. The registry disposes the stores of less recently used rooms.
  */
-export const IDLE_THREAD_LIMIT = 20;
+export const RECENT_ROOM_LIMIT = 10;
+
+/** Like {@link RECENT_ROOM_LIMIT}, for thread timelines. */
+export const RECENT_THREAD_LIMIT = 20;
 
 type RoomEntry = {
   -readonly [K in keyof LoadedRoomStores]: LoadedRoomStores[K];
 } & {
   threads: Record<string, MessagesStore>;
-  /** Mounted consumers of each thread timeline. */
-  threadRefs: Record<string, number>;
 };
+
+type ThreadLocation = { roomId: string; threadRootEventId: string };
 
 /** The part of {@link RoomStores} that components use: the store accessors. */
 export type RoomStoreAccess = Pick<
   RoomStores,
-  'messages' | 'thread' | 'retainThread' | 'releaseThread' | 'files' | 'pins' | 'members'
+  'messages' | 'thread' | 'files' | 'pins' | 'members'
 >;
 
 /** What {@link RoomStores} needs from its server. */
@@ -57,10 +61,15 @@ export type RoomStoresOptions = {
  * pins, and members.
  *
  * Each accessor creates its store on first use and then returns the same
- * store until the registry is disposed. Clearing a room's message access with
- * `forget` removes its timelines, file list, and pin list. Thread timelines
- * without consumers are the exception: the registry keeps only the
- * {@link IDLE_THREAD_LIMIT} most recently used ones.
+ * store. A call to an accessor uses the room or thread. The registry keeps the
+ * stores of the {@link RECENT_ROOM_LIMIT} most recently used rooms and the
+ * {@link RECENT_THREAD_LIMIT} most recently used threads, and disposes the
+ * others. A disposed store gets no more realtime updates; the accessor then
+ * returns a new store. So a host must not use more rooms or threads at the
+ * same time than these limits. A host that keeps a timeline across a long wait
+ * checks `isDisposed` and gets the timeline again. Use of a thread does not
+ * keep its room's stores. Clearing a room's message access with `forget` removes its
+ * timelines, file list, and pin list.
  *
  * The registry is not reactive on purpose. The stores are reactive, and a
  * selector can create a store while a UI framework evaluates a derived value.
@@ -68,18 +77,34 @@ export type RoomStoresOptions = {
 export class RoomStores {
   readonly #options: RoomStoresOptions;
   #rooms: Record<string, RoomEntry> = Object.create(null);
-  /** Thread timelines without consumers, least recently used first. */
-  #idleThreads = new Map<MessagesStore, { roomId: string; threadRootEventId: string }>();
+  /** The rooms whose own stores were used, most recently used last. */
+  readonly #recentRooms = new LRUCache<string, true>({
+    max: RECENT_ROOM_LIMIT,
+    dispose: (_, roomId, reason) => {
+      if (reason === 'evict') this.#disposeRoom(roomId);
+    }
+  });
+  /** Thread timelines, like {@link #recentRooms}. */
+  readonly #recentThreads = new LRUCache<MessagesStore, ThreadLocation>({
+    max: RECENT_THREAD_LIMIT,
+    dispose: (location, store, reason) => {
+      if (reason === 'evict') this.#disposeThread(store, location);
+    }
+  });
 
   constructor(options: RoomStoresOptions) {
     this.#options = options;
   }
 
   #entry(roomId: string): RoomEntry {
-    return (this.#rooms[roomId] ??= {
-      threads: Object.create(null),
-      threadRefs: Object.create(null)
-    });
+    return (this.#rooms[roomId] ??= { threads: Object.create(null) });
+  }
+
+  /** The entry of a room whose own stores a caller uses now. */
+  #usedRoom(roomId: string): RoomEntry {
+    const entry = this.#entry(roomId);
+    this.#recentRooms.set(roomId, true);
+    return entry;
   }
 
   /** The stores of one room that exist, without creating any. */
@@ -126,78 +151,65 @@ export class RoomStores {
 
   /** The timeline of one room. */
   messages(roomId: string): MessagesStore {
-    return (this.#entry(roomId).messages ??= new MessagesStore(
+    return (this.#usedRoom(roomId).messages ??= new MessagesStore(
       this.#options.connection,
       this.#options.realtimeViewerId,
       { roomId }
     ));
   }
 
-  /**
-   * The timeline of one thread. It receives projection updates after it is
-   * opened. Retain it with {@link retainThread} while you use it: the registry
-   * can dispose a thread timeline without consumers when other threads open.
-   */
+  /** The timeline of one thread. It receives projection updates after it is opened. */
   thread(roomId: string, threadRootEventId: string): MessagesStore {
-    const entry = this.#entry(roomId);
-    const store = (entry.threads[threadRootEventId] ??= new MessagesStore(
+    const store = (this.#entry(roomId).threads[threadRootEventId] ??= new MessagesStore(
       this.#options.connection,
       this.#options.realtimeViewerId,
       { roomId, threadRootEventId }
     ));
-    if (!entry.threadRefs[threadRootEventId]) this.#markIdle(store, roomId, threadRootEventId);
+    this.#recentThreads.set(store, { roomId, threadRootEventId });
     return store;
   }
 
-  /** Keep a thread timeline until its last consumer releases it. */
-  retainThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
+  #disposeThread(store: MessagesStore, { roomId, threadRootEventId }: ThreadLocation): void {
+    store.dispose();
     const entry = this.#rooms[roomId];
     if (entry?.threads[threadRootEventId] !== store) return;
-    entry.threadRefs[threadRootEventId] = (entry.threadRefs[threadRootEventId] ?? 0) + 1;
-    this.#idleThreads.delete(store);
+    delete entry.threads[threadRootEventId];
+    if (this.#isEmpty(entry)) delete this.#rooms[roomId];
   }
 
-  /**
-   * Release one consumer of a thread timeline. After the last one, the
-   * timeline forgets its anchor but keeps its window for the next open, until
-   * it is no longer one of the most recently used idle threads.
-   */
-  releaseThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
+  #isEmpty(entry: RoomEntry): boolean {
+    return (
+      !entry.messages &&
+      !entry.files &&
+      !entry.pins &&
+      !entry.members &&
+      !Object.keys(entry.threads).length
+    );
+  }
+
+  /** Dispose the room's own stores. Its thread timelines have their own lifetime. */
+  #disposeRoom(roomId: string): void {
     const entry = this.#rooms[roomId];
-    if (entry?.threads[threadRootEventId] !== store) return;
-    const remaining = (entry.threadRefs[threadRootEventId] ?? 1) - 1;
-    if (remaining > 0) {
-      entry.threadRefs[threadRootEventId] = remaining;
-      return;
-    }
-    store.clearAnchor();
-    delete entry.threadRefs[threadRootEventId];
-    this.#markIdle(store, roomId, threadRootEventId);
+    if (!entry) return;
+    entry.messages?.dispose();
+    entry.messages = undefined;
+    entry.files?.dispose();
+    entry.files = undefined;
+    entry.pins?.dispose();
+    entry.pins = undefined;
+    entry.members?.dispose();
+    entry.members = undefined;
+    if (this.#isEmpty(entry)) delete this.#rooms[roomId];
   }
 
-  /** Move an idle thread to the most recently used end, and dispose the oldest beyond the limit. */
-  #markIdle(store: MessagesStore, roomId: string, threadRootEventId: string): void {
-    this.#idleThreads.delete(store);
-    this.#idleThreads.set(store, { roomId, threadRootEventId });
-    for (const [oldest, location] of this.#idleThreads) {
-      if (this.#idleThreads.size <= IDLE_THREAD_LIMIT) break;
-      this.#idleThreads.delete(oldest);
-      oldest.dispose();
-      const threads = this.#rooms[location.roomId]?.threads;
-      if (threads?.[location.threadRootEventId] === oldest) {
-        delete threads[location.threadRootEventId];
-      }
-    }
-  }
-
-  /** The file list of one room. It loads when a consumer retains it. */
+  /** The file list of one room. It loads when a consumer calls its `retain()`. */
   files(roomId: string): RoomFilesStore {
-    return (this.#entry(roomId).files ??= new RoomFilesStore(this.#options.connection, roomId));
+    return (this.#usedRoom(roomId).files ??= new RoomFilesStore(this.#options.connection, roomId));
   }
 
   /** The pin list of one room. */
   pins(roomId: string): RoomPinsStore {
-    return (this.#entry(roomId).pins ??= new RoomPinsStore(
+    return (this.#usedRoom(roomId).pins ??= new RoomPinsStore(
       this.#options.connection,
       this.#options.serverId,
       this.#options.viewerId(),
@@ -205,9 +217,9 @@ export class RoomStores {
     ));
   }
 
-  /** The member list of one room. It survives route changes. */
+  /** The member list of one room. */
   members(roomId: string): RoomMembersStore {
-    const entry = this.#entry(roomId);
+    const entry = this.#usedRoom(roomId);
     if (entry.members) return entry.members;
     return (entry.members = new RoomMembersStore(roomId, this.#options.connection, {
       presence: this.#options.presence,
@@ -250,10 +262,9 @@ export class RoomStores {
     entry.pins = undefined;
     for (const thread of Object.values(entry.threads)) {
       thread.dispose();
-      this.#idleThreads.delete(thread);
+      this.#recentThreads.delete(thread);
     }
     entry.threads = Object.create(null);
-    entry.threadRefs = Object.create(null);
   }
 
   /**
@@ -272,11 +283,14 @@ export class RoomStores {
   /** Dispose every store. */
   dispose(): void {
     for (const entry of Object.values(this.#rooms)) {
+      // Unlike an eviction, disposal of the registry clears the member lists too.
       entry.members?.resetProjectionState();
+      entry.members?.dispose();
       this.#disposeTimelines(entry);
       entry.files?.dispose();
     }
     this.#rooms = Object.create(null);
-    this.#idleThreads.clear();
+    this.#recentRooms.clear();
+    this.#recentThreads.clear();
   }
 }
