@@ -1333,7 +1333,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('lets a replacement refresh complete loading after a projection reset', async () => {
+  it('refreshes the reloaded window after a projection reset', async () => {
     type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
     const resetRead = deferred<RoomPage>();
     const getRoomEvents = vi
@@ -1351,15 +1351,18 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     store.resetProjectionState();
     const hydration = store.hydrateRealtimeProjection('opaque-reset-cursor', () => true);
-    await store.refreshCurrentWindow();
-
-    expect(store.isInitialLoading).toBe(false);
-    expect(store.rootEvents.map((event) => event.id)).toEqual(['replacement']);
-
-    resetRead.resolve(pageFromEvent(threadMessageEvent('stale-reset')));
-    await hydration;
+    // The refresh waits for the reload instead of superseding it.
+    const refresh = store.refreshCurrentWindow();
     await settle();
-    expect(store.rootEvents.map((event) => event.id)).toEqual(['replacement']);
+    expect(store.isInitialLoading).toBe(true);
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+
+    resetRead.resolve(pageFromEvent(threadMessageEvent('reloaded')));
+    await expect(hydration).resolves.toBe(true);
+    await refresh;
+    expect(store.isInitialLoading).toBe(false);
+    // A room refresh merges its latest page into the reloaded window.
+    expect(store.rootEvents.map((event) => event.id).sort()).toEqual(['reloaded', 'replacement']);
     store.dispose();
   });
 
@@ -1853,14 +1856,14 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('releases initial-load ownership when a refresh supersedes it', async () => {
+  it('keeps initial-load ownership while a refresh waits for the first read', async () => {
     const fake = new FakeQueryClient();
     type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
-    const unresolvedInitial = new Promise<RoomPage>(() => {});
+    const initial = deferred<RoomPage>();
     const timeline = fakeTimelineAPI({
       getRoomEvents: vi
         .fn()
-        .mockReturnValueOnce(unresolvedInitial)
+        .mockReturnValueOnce(initial.promise)
         .mockResolvedValueOnce({
           events: [threadMessageEvent('refreshed') as never],
           startCursor: 'tl:refreshed',
@@ -1877,10 +1880,16 @@ describe('MessagesStore — room lifecycle ownership', () => {
     );
     expect(store.isInitialLoading).toBe(true);
 
-    await store.refreshCurrentWindow();
+    const refresh = store.refreshCurrentWindow();
+    await settle();
+    expect(store.isInitialLoading).toBe(true);
+    expect(store.isCurrent).toBe(false);
 
-    expect(store.rootEvents.map((event) => event.id)).toEqual(['refreshed']);
+    initial.resolve(pageFromEvent(threadMessageEvent('initial')));
+    await refresh;
+    expect(store.rootEvents.map((event) => event.id).sort()).toEqual(['initial', 'refreshed']);
     expect(store.isInitialLoading).toBe(false);
+    expect(store.isCurrent).toBe(true);
     store.dispose();
   });
 
@@ -4963,96 +4972,99 @@ describe('MessagesStore — load errors and current windows', () => {
     store.dispose();
   });
 
-  it('a window refresh restarts a pending first read instead of superseding it', async () => {
+  it('a window refresh waits for a pending first read', async () => {
     const first = deferred<EventConnectionPage>();
-    const getThreadEvents = vi
-      .fn<RoomTimelineAPI['getThreadEvents']>()
-      .mockReturnValueOnce(first.promise)
-      .mockResolvedValueOnce(threadPage('t1', 'r1'));
-    const getThreadEventsAround = vi.fn<RoomTimelineAPI['getThreadEventsAround']>();
-    const { store } = threadStore(getThreadEvents, { getThreadEventsAround });
+    const getThreadEventsAround = vi
+      .fn<RoomTimelineAPI['getThreadEventsAround']>()
+      .mockRejectedValue(new ConnectError('missing', Code.NotFound));
+    const { store } = threadStore(vi.fn().mockReturnValueOnce(first.promise), {
+      getThreadEventsAround
+    });
     const refreshed = store.refreshCurrentWindow('join-event');
+    await settle();
     expect(store.isCurrent).toBe(false);
     expect(store.isInitialLoading).toBe(true);
-
-    await expect(refreshed).resolves.toMatchObject({ refreshed: true });
     expect(getThreadEventsAround).not.toHaveBeenCalled();
+
+    first.resolve(threadPage('t1', 'r1'));
+    await refreshed;
+    expect(getThreadEventsAround).toHaveBeenCalledOnce();
     expect(store.isCurrent).toBe(true);
-    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
-    first.resolve(threadPage('t1'));
-    await settle();
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
     store.dispose();
   });
 
-  it('reports a failed restarted read instead of a current, empty window', async () => {
-    const failure = new Error('offline');
-    const getThreadEvents = vi
-      .fn<RoomTimelineAPI['getThreadEvents']>()
-      .mockReturnValueOnce(new Promise(() => {}))
-      .mockRejectedValueOnce(failure);
+  it('a failed window refresh after the first read keeps the window current', async () => {
+    const first = deferred<EventConnectionPage>();
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { store } = threadStore(getThreadEvents);
-    await store.refreshCurrentWindow('t1');
-    expect(store.loadError).toBe(failure);
-    expect(store.isCurrent).toBe(false);
+    const { store } = threadStore(vi.fn().mockReturnValueOnce(first.promise), {
+      getThreadEventsAround: vi.fn().mockRejectedValue(new Error('offline'))
+    });
+    const refreshed = store.refreshCurrentWindow('t1');
+    first.resolve(threadPage('t1', 'r1'));
+    await refreshed;
+    expect(store.isCurrent).toBe(true);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
     error.mockRestore();
     store.dispose();
   });
 
-  it('keeps a restarted read pending when the refresh result is rejected', async () => {
-    const getThreadEvents = vi
-      .fn<RoomTimelineAPI['getThreadEvents']>()
-      .mockReturnValueOnce(new Promise(() => {}))
-      .mockResolvedValueOnce(threadPage('t1'));
-    const { store } = threadStore(getThreadEvents);
-    await store.refreshCurrentWindow(null, false, undefined, () => false);
-    expect(store.isInitialLoading).toBe(true);
-    expect(store.isCurrent).toBe(false);
-    expect(store.threadEvents).toHaveLength(0);
-    store.dispose();
-  });
-
-  it('a window refresh restarts a reconnect reload at its cursor', async () => {
+  it('a window refresh does not supersede a reconnect reload', async () => {
     const reload = deferred<EventConnectionPage>();
     const getThreadEvents = vi
       .fn<RoomTimelineAPI['getThreadEvents']>()
       .mockResolvedValueOnce(threadPage('t1', 'r1'))
       .mockReturnValueOnce(reload.promise)
-      .mockResolvedValueOnce(threadPage('t1', 'r1', 'r2'));
+      .mockResolvedValue(threadPage('t1', 'r1', 'r2'));
     const { store } = threadStore(getThreadEvents);
     await settle();
 
     store.resetProjectionState();
     const hydrated = store.hydrateRealtimeProjection('cursor', () => true);
-    const refreshed = store.refreshCurrentWindow(null);
+    const refreshed = store.refreshCurrentWindow(null, false, 'later-cursor');
+    await settle();
     expect(store.isCurrent).toBe(false);
+    expect(getThreadEvents).toHaveBeenCalledTimes(2);
+
+    reload.resolve(threadPage('t1', 'r1'));
+    await expect(hydrated).resolves.toBe(true);
     await refreshed;
+    // Each read keeps its own cursor requirement.
     expect(getThreadEvents).toHaveBeenLastCalledWith(
-      expect.objectContaining({ minimumCursor: 'cursor' })
+      expect.objectContaining({ minimumCursor: 'later-cursor' })
     );
     expect(store.isCurrent).toBe(true);
-    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2']);
-
-    reload.resolve(threadPage('t1'));
-    await expect(hydrated).resolves.toBe(false);
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2']);
     store.dispose();
   });
 
-  it('a window refresh reads the window while a reset waits for its reload', async () => {
+  it('skips a window refresh while a reset waits for its reload', async () => {
     const getThreadEvents = vi
       .fn<RoomTimelineAPI['getThreadEvents']>()
-      .mockResolvedValueOnce(threadPage('t1', 'r1'))
-      .mockResolvedValueOnce(threadPage('t1', 'r1', 'r2'));
+      .mockResolvedValue(threadPage('t1', 'r1'));
     const { store } = threadStore(getThreadEvents);
     await settle();
 
     store.resetProjectionState();
+    await expect(store.refreshCurrentWindow(null)).resolves.toMatchObject({ refreshed: false });
+    expect(getThreadEvents).toHaveBeenCalledOnce();
     expect(store.isCurrent).toBe(false);
-    await store.refreshCurrentWindow(null);
-    expect(store.isCurrent).toBe(true);
-    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2']);
+    store.dispose();
+  });
+
+  it('skips a window refresh when the pending read result is rejected', async () => {
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValue(threadPage('t1', 'r1'));
+    const { store } = threadStore(getThreadEvents);
+    await settle();
+
+    store.resetProjectionState();
+    const hydrated = store.hydrateRealtimeProjection('cursor', () => false);
+    await expect(store.refreshCurrentWindow(null)).resolves.toMatchObject({ refreshed: false });
+    await expect(hydrated).resolves.toBe(false);
+    expect(getThreadEvents).toHaveBeenCalledTimes(2);
+    expect(store.isCurrent).toBe(false);
     store.dispose();
   });
 
