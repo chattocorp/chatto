@@ -7,6 +7,9 @@ url = "https://chat.example.com"
 # Enable every tool advertised by this server's /mcp endpoint, including writes.
 mcp = false
 # allowed_user_id = "one-user-id"
+# Only these stable Chatto user IDs may request changes to Botto's overall behavior.
+# Empty by default. allowed_user_id does not grant admin authority.
+admin_user_ids = []
 
 [agent]
 name = "Botto"

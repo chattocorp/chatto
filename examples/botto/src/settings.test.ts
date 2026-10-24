@@ -9,6 +9,18 @@ const source =
 const env = { BOTTO_CHATTO_API_KEY: 'secret' };
 const parse = (text = source) => parseSettings(text, '/config/botto.toml', env);
 
+test('admin IDs default to none and must be explicit nonempty strings', () => {
+  expect(parse().adminUserIds).toEqual([]);
+  const withAdmins = (value: string) =>
+    source.replace('[chatto]', `[chatto]\nadmin_user_ids=${value}`);
+  expect(parse(withAdmins('["admin", "admin", "second"]')).adminUserIds).toEqual([
+    'admin',
+    'second'
+  ]);
+  for (const invalid of ['"admin"', '[1]', '[""]', '[" "]'])
+    expect(() => parse(withAdmins(invalid))).toThrow('chatto.admin_user_ids');
+});
+
 test('uses defaults and preserves slashes in the model ID', () => {
   expect(parse()).toMatchObject({
     name: 'Botto',

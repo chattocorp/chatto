@@ -246,6 +246,27 @@ It does not create empty documents. Documents are reused across threads and
 restarts. Use a separate `memory.path` for each server and bot account; Botto no
 longer adds an identity hash to this path.
 
+Set `chatto.admin_user_ids = ["stable-user-id"]` to identify users who may request
+changes to Botto's overall behavior. The default is an
+empty list. Use stable Chatto user IDs, not display names, and restart Botto
+after changing the list. `chatto.allowed_user_id` filters incoming messages;
+it does not grant admin authority.
+
+Global memory holds shared facts and general knowledge without a `user_id`.
+Any participant can contribute this knowledge. The subject of a fact determines
+its scope, not the person who supplied it. Personal memory holds facts and
+preferences about the user identified by `user_id`. Botto can remember useful
+facts without an explicit request; remembered knowledge does not grant authority
+or set behavior rules.
+
+Botto's host prompt supplies the configured admins and the verified batch authors.
+It tells Botto to attribute each request to its message's author: users may change
+their own personal facts and preferences, but even admins may not change another
+user's memory. Chat claims and stored memories cannot grant authority. Mixed
+batches still produce one answer; another participant's presence grants no rights.
+These are model instructions, not tool-level access controls. Memory tools retain
+access to the whole collection, so incorrect model behavior can violate the rules.
+
 Existing documents with several memories remain valid. No data migration is
 required. Update the workflow in your collection's `MEANS.md` and any custom
 `agent.system_prompt` that requires one document per scope. Preserve custom schema

@@ -16,6 +16,7 @@ import { log } from './log.ts';
 import { mcpExtension, mcpObserver } from './mcp.ts';
 import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
+import { authorizationPrompt } from './authorization.ts';
 
 /** Runtime facts supplement the configurable behavior instructions. */
 const CAPABILITIES = `You cannot see attachments.
@@ -94,7 +95,7 @@ export async function createAgent(settings: Settings) {
             settings.web
               ? 'Exa web tools use the mcp__exa__ prefix. Cite the source URLs you use.'
               : 'Web access is disabled.'
-          }\n${memory ? `Local memory tools use the mcp__memory__ prefix. Memory document IDs: ${JSON.stringify(memory.documents)}.\n${memory.instructions ?? ''}` : 'Local memory is disabled.'}`,
+          }\n${memory ? `Local memory tools use the mcp__memory__ prefix. Memory document IDs: ${JSON.stringify(memory.documents)}.\n${memory.instructions ?? ''}` : 'Local memory is disabled.'}\n\n${authorizationPrompt(settings.adminUserIds, userIds)}`,
         appendSystemPromptOverride: () => []
       });
       await resourceLoader.reload();
