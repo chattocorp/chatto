@@ -1667,8 +1667,10 @@ export class MessagesStore {
       this.#pendingAuthoritativeLoadId = null;
       // A concurrent historical jump still owns its loading state.
       this.isInitialLoading = this.#pendingJumpId !== null;
+      // A read without an anchor installs the latest page, also after an
+      // earlier read failed.
+      this.#needsLatestWindow = anchorEventId ? page.hasNewer : false;
       if (anchorEventId) {
-        this.#needsLatestWindow = page.hasNewer;
         const recovery = this.recoveryAnchor;
         if (recovery) this.#recoveryAnchorSignal.set({ ...recovery, hasNewer: page.hasNewer });
       }

@@ -4946,6 +4946,29 @@ describe('MessagesStore — load errors and current windows', () => {
     store.dispose();
   });
 
+  it('is current again when a reconnect reload succeeds after it failed', async () => {
+    const failure = new Error('offline');
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(threadPage('t1', 'r1'))
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(threadPage('t1', 'r1', 'r2'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { store } = threadStore(getThreadEvents);
+    await settle();
+
+    // A later snapshot keeps the retained window and reloads it without a reset.
+    await expect(store.hydrateRealtimeProjection('cursor-1', () => true, true)).rejects.toBe(
+      failure
+    );
+    expect(store.isCurrent).toBe(false);
+    await expect(store.hydrateRealtimeProjection('cursor-2', () => true, true)).resolves.toBe(true);
+    expect(store.loadError).toBeNull();
+    expect(store.isCurrent).toBe(true);
+    error.mockRestore();
+    store.dispose();
+  });
+
   it('is not current after access loss and reports a failed reload after access returns', async () => {
     const failure = new Error('offline');
     const getThreadEvents = vi
