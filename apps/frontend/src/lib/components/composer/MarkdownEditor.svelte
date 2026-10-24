@@ -59,6 +59,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     editorView: EditorView,
     command: ComposerFormattingCommand
   ): boolean => {
+    if (editorView.state.readOnly) return false;
     const main = editorView.state.selection.main;
     const result = applySourceFormatting(
       editorView.state.doc.toString(),
@@ -168,6 +169,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   let {
     placeholder = m('composer.placeholder'),
     editable = true,
+    readOnly = false,
     autofocus = false,
     testid,
     onUpdate,
@@ -185,7 +187,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     const editableCompartment = new Compartment();
     const placeholderCompartment = new Compartment();
     const attributesCompartment = new Compartment();
-    const initial = untrack(() => ({ editable, placeholder, testid, autofocus }));
+    const initial = untrack(() => ({ editable, readOnly, placeholder, testid, autofocus }));
     let destroyed = false;
     let suppressUpdate = false;
 
@@ -219,7 +221,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
           EditorView.perLineTextDirection.of(true),
           editableCompartment.of([
             EditorView.editable.of(initial.editable),
-            EditorState.readOnly.of(!initial.editable)
+            EditorState.readOnly.of(!initial.editable || initial.readOnly)
           ]),
           placeholderCompartment.of(editorPlaceholder(initial.placeholder)),
           attributesCompartment.of(contentAttributes(initial.placeholder, initial.testid)),
@@ -230,8 +232,9 @@ the same API as the visual editor while keeping the stored Markdown visible.
                 event.preventDefault();
                 return true;
               },
-              paste: (event) => {
-                if (!onPaste?.(event)) return false;
+              paste: (event, view) => {
+                // The Markdown paste-as-link handler ignores the read-only state.
+                if (!view.state.readOnly && !onPaste?.(event)) return false;
                 event.preventDefault();
                 return true;
               }
@@ -350,7 +353,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       editorView.dispatch({
         effects: editableCompartment.reconfigure([
           EditorView.editable.of(editable),
-          EditorState.readOnly.of(!editable)
+          EditorState.readOnly.of(!editable || readOnly)
         ])
       });
     });

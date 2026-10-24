@@ -362,7 +362,8 @@
           {:then { default: Editor }}
             <Editor
               placeholder={composer.currentPlaceholder}
-              editable={!composer.inputDisabled}
+              editable={composer.editorEditable}
+              readOnly={composer.submission.loading}
               autofocus={autoFocus && shouldAutoFocus()}
               testid={composer.testid}
               onUpdate={(text) => composer.handleEditorUpdate(text)}
