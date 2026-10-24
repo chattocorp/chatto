@@ -56,7 +56,7 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
 | `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds  |
 | `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                      |
-| `runtime.context_messages`      | `30`                     | Recent thread messages to read, 1–100                                         |
+| `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                        |
 | `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                   |
 | `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                       |
 
@@ -121,11 +121,16 @@ typing delays queued root messages in that room, not replies in other threads.
 
 Turns in one thread run in order. Messages received during a turn form the next
 batch; its timer can elapse while the current turn runs. The model receives the
-batch and recent thread context. Before each turn, Botto reads the thread with
-the client's `readThread` request. The read returns the root and up to
-`runtime.context_messages` recent replies. Botto keeps the messages that have
-text. Each turn reads again, so the context includes edits and removals. If the
-read fails, the turn stops instead of using incomplete context.
+batch and recent thread context. Botto gets the thread's live timeline from
+`@chatto/client`. The client reads the latest page once, when the thread first
+becomes active, and keeps it current through realtime delivery. This includes
+edits, deletions, and the reload after a reconnect. Botto selects the root and
+up to `runtime.context_messages` recent text replies from that timeline. It
+has no separate thread cache or event reducer.
+Botto retains the timeline while it reads it. If a read fails, Botto reads
+again once; if that also fails, the turn stops instead of using incomplete
+context. The client keeps the most recently used thread timelines and
+disposes older ones; a later turn in such a thread reads it again.
 Only the accepted batch and model responses
 are saved as conversation messages. The recent thread snapshot is added to the
 current model request without saving it again in the transcript. This preserves
@@ -302,8 +307,8 @@ mise x -- pnpm --filter @chatto/example-botto test
 messages and ordinary text in active threads. `src/inbox.ts` owns batching and
 ordering. `src/turn.ts` connects a batch to a model turn and reply. `src/agent.ts`
 owns Pi sessions; `src/thread-context.ts` connects Pi's request hook to the pure
-merge function in `src/context-messages.ts`. `src/context.ts` reads the thread and
-selects text in the same message format used by that merge.
+merge function in `src/context-messages.ts`. `src/context.ts` selects text from
+the shared client timeline in the same message format used by that merge.
 `src/settings.ts` validates TOML.
 `src/mcp.ts` configures Pi's native MCP extension and observes tool outcomes.
 `src/memory.ts` prepares memory documents and owns the shared memory lock.

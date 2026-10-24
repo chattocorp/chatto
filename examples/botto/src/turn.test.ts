@@ -1,4 +1,4 @@
-/** Exercise inbox, thread context, Pi input, and reply routing together. */
+/** Exercise inbox, shared client timeline, Pi input, and reply routing together. */
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { AddressedMessage, Destination, Server } from '@chatto/client';
 import { Inbox } from './inbox.ts';
@@ -15,7 +15,9 @@ beforeEach(() => {
   vi.spyOn(console, 'info').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
+const fixtures: { dispose(): void }[] = [];
 afterEach(() => {
+  for (const rooms of fixtures.splice(0)) rooms.dispose();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -27,6 +29,7 @@ function setup() {
     {}
   );
   const fixture = contextFixture();
+  fixtures.push(fixture.rooms);
   const server = {
     ...fixture.server,
     addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
@@ -50,13 +53,13 @@ function setup() {
   return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
 
-test('each turn reads current thread context', async () => {
-  const { turn, one, two, thread, readThread, server, agent, controller } = setup();
+test('later turns use the live timeline without another history request', async () => {
+  const { turn, one, two, store, history, server, agent, controller } = setup();
   await turn([one]);
   vi.mocked(hasTranscript).mockResolvedValue(true);
-  thread.messages.push(row('unaddressed', 'Live context', 'another'));
+  store().ingestEvent(row('unaddressed', 'Live context', 'another'));
   await turn([two]);
-  expect(readThread).toHaveBeenCalledTimes(2);
+  expect(history).toHaveBeenCalledOnce();
   expect(agent.reply.mock.calls[1]?.[3]?.messages).toContainEqual({
     id: 'unaddressed',
     author: 'another',
@@ -69,7 +72,7 @@ test('each turn reads current thread context', async () => {
 });
 
 test('a debounced batch becomes one prompt and one reply in its original thread', async () => {
-  const { settings, server, agent, controller, turn, one, two, readThread } = setup();
+  const { settings, server, agent, controller, turn, one, two, history } = setup();
   const failed = vi.fn();
   const inbox = new Inbox(turn, failed, settings);
   inbox.accept(one);
@@ -98,7 +101,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
     ['human', 'another'],
     [expect.any(Function)]
   );
-  expect(readThread).toHaveBeenCalledOnce();
+  expect(history).toHaveBeenCalledOnce();
   expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
     { roomId: 'room', messageId: 'one' },
     'eyes',

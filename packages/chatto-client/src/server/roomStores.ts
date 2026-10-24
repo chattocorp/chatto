@@ -18,6 +18,13 @@ export type LoadedRoomStores = {
 
 type StoreKind = 'messages' | 'files' | 'pins' | 'members';
 
+/**
+ * Thread timelines without consumers that a registry keeps for reuse. They
+ * stay current through realtime delivery, so opening one again needs no read.
+ * The registry disposes the least recently used ones beyond this limit.
+ */
+export const IDLE_THREAD_LIMIT = 20;
+
 type RoomEntry = {
   -readonly [K in keyof LoadedRoomStores]: LoadedRoomStores[K];
 } & {
@@ -51,7 +58,9 @@ export type RoomStoresOptions = {
  *
  * Each accessor creates its store on first use and then returns the same
  * store until the registry is disposed. Clearing a room's message access with
- * `forget` removes its timelines, file list, and pin list.
+ * `forget` removes its timelines, file list, and pin list. Thread timelines
+ * without consumers are the exception: the registry keeps only the
+ * {@link IDLE_THREAD_LIMIT} most recently used ones.
  *
  * The registry is not reactive on purpose. The stores are reactive, and a
  * selector can create a store while a UI framework evaluates a derived value.
@@ -59,6 +68,8 @@ export type RoomStoresOptions = {
 export class RoomStores {
   readonly #options: RoomStoresOptions;
   #rooms: Record<string, RoomEntry> = Object.create(null);
+  /** Thread timelines without consumers, least recently used first. */
+  #idleThreads = new Map<MessagesStore, { roomId: string; threadRootEventId: string }>();
 
   constructor(options: RoomStoresOptions) {
     this.#options = options;
@@ -122,25 +133,34 @@ export class RoomStores {
     ));
   }
 
-  /** The timeline of one thread. It receives projection updates after it is opened. */
+  /**
+   * The timeline of one thread. It receives projection updates after it is
+   * opened. Retain it with {@link retainThread} while you use it: the registry
+   * can dispose a thread timeline without consumers when other threads open.
+   */
   thread(roomId: string, threadRootEventId: string): MessagesStore {
-    return (this.#entry(roomId).threads[threadRootEventId] ??= new MessagesStore(
+    const entry = this.#entry(roomId);
+    const store = (entry.threads[threadRootEventId] ??= new MessagesStore(
       this.#options.connection,
       this.#options.realtimeViewerId,
       { roomId, threadRootEventId }
     ));
+    if (!entry.threadRefs[threadRootEventId]) this.#markIdle(store, roomId, threadRootEventId);
+    return store;
   }
 
-  /** Keep a mounted thread timeline until its last consumer unmounts. */
+  /** Keep a thread timeline until its last consumer releases it. */
   retainThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
     const entry = this.#rooms[roomId];
     if (entry?.threads[threadRootEventId] !== store) return;
     entry.threadRefs[threadRootEventId] = (entry.threadRefs[threadRootEventId] ?? 0) + 1;
+    this.#idleThreads.delete(store);
   }
 
   /**
    * Release one consumer of a thread timeline. After the last one, the
-   * timeline forgets its anchor but keeps its window for the next open.
+   * timeline forgets its anchor but keeps its window for the next open, until
+   * it is no longer one of the most recently used idle threads.
    */
   releaseThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
     const entry = this.#rooms[roomId];
@@ -152,6 +172,22 @@ export class RoomStores {
     }
     store.clearAnchor();
     delete entry.threadRefs[threadRootEventId];
+    this.#markIdle(store, roomId, threadRootEventId);
+  }
+
+  /** Move an idle thread to the most recently used end, and dispose the oldest beyond the limit. */
+  #markIdle(store: MessagesStore, roomId: string, threadRootEventId: string): void {
+    this.#idleThreads.delete(store);
+    this.#idleThreads.set(store, { roomId, threadRootEventId });
+    for (const [oldest, location] of this.#idleThreads) {
+      if (this.#idleThreads.size <= IDLE_THREAD_LIMIT) break;
+      this.#idleThreads.delete(oldest);
+      oldest.dispose();
+      const threads = this.#rooms[location.roomId]?.threads;
+      if (threads?.[location.threadRootEventId] === oldest) {
+        delete threads[location.threadRootEventId];
+      }
+    }
   }
 
   /** The file list of one room. It loads when a consumer retains it. */
@@ -212,7 +248,10 @@ export class RoomStores {
     entry.messages = undefined;
     entry.pins?.dispose();
     entry.pins = undefined;
-    for (const thread of Object.values(entry.threads)) thread.dispose();
+    for (const thread of Object.values(entry.threads)) {
+      thread.dispose();
+      this.#idleThreads.delete(thread);
+    }
     entry.threads = Object.create(null);
     entry.threadRefs = Object.create(null);
   }
@@ -238,5 +277,6 @@ export class RoomStores {
       entry.files?.dispose();
     }
     this.#rooms = Object.create(null);
+    this.#idleThreads.clear();
   }
 }

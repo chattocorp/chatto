@@ -84,7 +84,8 @@
       "beginning": "Tas ir šīs sarunas sākums.",
       "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā.",
       "limited_empty": "Vēl nav sarunu, kuras vari lasīt.",
-      "loading": "Ielādē ziņas..."
+      "loading": "Ielādē ziņas...",
+      "load_failed": "Neizdevās ielādēt ziņas."
     },
     "message": {
       "empty": "Vēl nav ziņojumu",

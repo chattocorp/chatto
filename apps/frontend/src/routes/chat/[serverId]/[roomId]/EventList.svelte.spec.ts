@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
 import EventListTestHarness from './EventListTestHarness.svelte';
 import {
   setVirtualizerForcedRenderedIndex,
   setVirtualizerFoundItemIndex,
   setVirtualizerScrollOffset
 } from './EventListVirtualizerMock.svelte';
-import { loadLocaleMessages } from '$lib/i18n/messages';
+import { loadLocaleMessages, m } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import type { JumpToMessageState } from '$lib/state/room';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
@@ -193,6 +194,56 @@ describe('EventList jump completion', () => {
     await expect.element(indicator).not.toBeInTheDocument();
     await expect.element(page.getByText('No messages yet')).toBeVisible();
   });
+  it('shows a failed read with a retry that loads the latest window', async () => {
+    const onJumpToPresent = vi.fn(async () => true);
+    const onPresentRequested = vi.fn();
+    const onReachedBottom = vi.fn();
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: [],
+        scrollToEventId: null,
+        loadError: new ConnectError('offline', Code.Unavailable),
+        onJumpToPresent,
+        onPresentRequested,
+        onReachedBottom
+      }
+    });
+    await expect.element(page.getByRole('alert')).toHaveTextContent(m('common.error.network'));
+    await expect.element(page.getByText('No messages yet')).not.toBeInTheDocument();
+
+    await page.getByRole('button', { name: m('common.retry') }).click();
+    expect(onJumpToPresent).toHaveBeenCalledOnce();
+    // A retry is not a jump to the present: it keeps the unread separator
+    // and the highlight for the normal first landing.
+    expect(onPresentRequested).not.toHaveBeenCalled();
+    expect(onReachedBottom).not.toHaveBeenCalled();
+
+    await rendered.rerender({ eventIds: [], scrollToEventId: null, loadError: new Error('') });
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Could not load messages.');
+  });
+  it('keeps retained rows visible after a failed read', async () => {
+    render(EventListTestHarness, {
+      props: {
+        eventIds: ['msg-retained'],
+        scrollToEventId: null,
+        loadError: new ConnectError('offline', Code.Unavailable)
+      }
+    });
+    await expect.element(page.getByText('msg-retained', { exact: true })).toBeVisible();
+    await expect.element(page.getByRole('alert')).not.toBeInTheDocument();
+  });
+  it.each([Code.NotFound, Code.PermissionDenied])(
+    'shows the empty message without a retry for code %s',
+    async (code) => {
+      render(EventListTestHarness, {
+        props: { eventIds: [], scrollToEventId: null, loadError: new ConnectError('', code) }
+      });
+      await expect.element(page.getByText('No messages yet')).toBeVisible();
+      await expect
+        .element(page.getByRole('button', { name: m('common.retry') }))
+        .not.toBeInTheDocument();
+    }
+  );
   it('releases the saved position when recovery produces an empty timeline', async () => {
     render(EventListTestHarness, {
       props: {

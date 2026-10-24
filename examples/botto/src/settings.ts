@@ -189,7 +189,7 @@ export function parseSettings(
     maxPendingMessages: number('max_pending_messages', DEFAULT_INBOX.maxPendingMessages, 1, 10_000),
     maxThreads: number('max_threads', DEFAULT_INBOX.maxThreads, 1, 100),
     turnTimeoutMs: number('turn_timeout_ms', 120_000, 1000, 3_600_000),
-    contextMessages: number('context_messages', 30, 1, 100),
+    contextMessages: number('context_messages', 30, 1, 50),
     acknowledgementEmoji: string(
       runtime,
       'acknowledgement_emoji',

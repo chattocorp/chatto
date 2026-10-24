@@ -27,6 +27,7 @@
     scrollToEventId,
     onComplete,
     isLoading = false,
+    loadError = null,
     isJumpedMode = false,
     onJumpToPresent,
     onPresentRequested,
@@ -37,7 +38,8 @@
     unreadAfterEventId = null,
     onComposerReady,
     onStoreRead,
-    onReadPosition
+    onReadPosition,
+    onReachedBottom
   }: {
     eventIds: string[];
     roomId?: string;
@@ -46,6 +48,7 @@
     scrollToEventId: string | null;
     onComplete?: () => void;
     isLoading?: boolean;
+    loadError?: unknown;
     isJumpedMode?: boolean;
     onJumpToPresent?: () => Promise<boolean>;
     onPresentRequested?: () => void;
@@ -57,6 +60,7 @@
     onComposerReady?: (context: ComposerContext) => void;
     onStoreRead?: () => void;
     onReadPosition?: (position: TimelineReadPosition) => void;
+    onReachedBottom?: () => void;
   } = $props();
 
   const composerContext = createComposerContext();
@@ -124,6 +128,9 @@
     get isInitialLoading() {
       return isLoading;
     },
+    get loadError() {
+      return loadError;
+    },
     isLoadingMore: false,
     get hasReachedStart() {
       return hasReachedStart;
@@ -173,4 +180,5 @@
   onScrollToEventComplete={onComplete}
   onJumpToPresent={onPresentRequested}
   {onReadPosition}
+  {onReachedBottom}
 />

@@ -78,7 +78,7 @@ test.each([
   'passive_debounce_ms=600001',
   'max_threads=0',
   'turn_timeout_ms=0',
-  'context_messages=101'
+  'context_messages=51'
 ])('rejects invalid runtime value %s', (setting) => {
   expect(() => parse(`${source}\n[runtime]\n${setting}`)).toThrow('must be an integer');
 });

@@ -84,7 +84,8 @@
       "beginning": "Voici le début de cette conversation.",
       "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon.",
       "limited_empty": "Aucune conversation que tu peux lire pour le moment.",
-      "loading": "Chargement des messages..."
+      "loading": "Chargement des messages...",
+      "load_failed": "Impossible de charger les messages."
     },
     "message": {
       "empty": "Aucun message pour l'instant",

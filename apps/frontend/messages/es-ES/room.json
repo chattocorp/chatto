@@ -84,7 +84,8 @@
       "beginning": "Este es el comienzo de esta conversación.",
       "read_denied": "No tienes permiso para leer mensajes en esta sala.",
       "limited_empty": "Aún no hay conversaciones que puedas leer.",
-      "loading": "Cargando mensajes..."
+      "loading": "Cargando mensajes...",
+      "load_failed": "No se han podido cargar los mensajes."
     },
     "message": {
       "empty": "Aún no hay mensajes",

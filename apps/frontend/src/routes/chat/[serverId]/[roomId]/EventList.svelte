@@ -39,7 +39,9 @@
     type TimelineSelectionKeys
   } from './timelineSelection';
   import { findLastEditableMessage } from './lastEditableMessage';
-  import { LoadingDots, ScrollFader } from '$lib/ui';
+  import { LoadingDots, LoadRetry, ScrollFader } from '$lib/ui';
+  import { errorMessage } from '$lib/utils/errorMessage';
+  import { Code, isConnectCode } from '@chatto/client/api/connect';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '@chatto/client/room/messages/MessagesStore';
   import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -146,6 +148,7 @@
   const scrollState = composerContext.scrollState;
   const jumpState = composerContext.jumpState;
   const isLoading = $derived(messageStore.isInitialLoading);
+  const loadError = $derived(messageStore.loadError);
   // Stays true one frame after a page, so virtua's `shift` keeps the position.
   const isLoadingMore = $derived(isLoadingOlder(messageStore));
   const hasReachedStart = $derived(messageStore.hasReachedStart);
@@ -232,6 +235,15 @@
   // Build flat array for the virtualizer (events + interleaved separators)
   let virtualItems = $derived(
     buildVirtualItems(eventsWithMeta, effectiveUnreadAfterEventId, hasReachedStart, showStartMarker)
+  );
+
+  // A failed reconnect reload keeps its retained rows visible. A missing thread
+  // root or lost read access shows the empty message: a retry cannot fix them.
+  const showLoadRetry = $derived(
+    !!loadError &&
+      virtualItems.length === 0 &&
+      !isConnectCode(loadError, Code.NotFound) &&
+      !isConnectCode(loadError, Code.PermissionDenied)
   );
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
@@ -661,6 +673,12 @@
     void requestBottomScroll();
   }
 
+  /** Read the latest window again after a failed read left the timeline empty. */
+  function retryLoad() {
+    viewport.retryEntry();
+    void jumpState.returnToLatest(messageStore);
+  }
+
   async function handleJumpToPresentClick() {
     onJumpToPresent?.();
     // The replacement latest window must perform a fresh initial-style bottom
@@ -966,6 +984,12 @@
       {#if isLoading}
         <!-- Sits at the bottom, where the newest messages will appear. -->
         <LoadingDots class="py-4" label={m('room.timeline.loading')} />
+      {:else if showLoadRetry}
+        <!-- A failed read left no window; see retryLoad. -->
+        <LoadRetry
+          onretry={retryLoad}
+          message={errorMessage(loadError, m('room.timeline.load_failed'))}
+        />
       {:else if virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted">{emptyMessage}</div>
