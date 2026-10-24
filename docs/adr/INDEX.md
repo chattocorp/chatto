@@ -131,3 +131,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-114](ADR-114-jetstream-storage-conventions.md)                      | JetStream Storage Conventions                                    | Accepted             | 2026-10-08 |
 | [ADR-115](ADR-115-in-process-domain-services.md)                         | In-Process Domain Services                                       | Accepted             | 2026-10-12 |
 | [ADR-116](ADR-116-consume-internal-packages-from-source.md)              | Consume Internal TypeScript Packages from Source                 | Accepted             | 2026-10-18 |
+| [ADR-117](ADR-117-message-post-idempotency.md)                           | Message Post Idempotency in Runtime State                        | Accepted             | 2026-10-08 |

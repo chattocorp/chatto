@@ -8,6 +8,9 @@ import (
 
 // Sentinel errors for common error conditions in ChattoCore.
 var (
+	// ErrMessageIdempotencyConflict means a caller reused a live send key with
+	// a different room or request. The new request has not been applied.
+	ErrMessageIdempotencyConflict = errors.New("message send key was reused with different arguments")
 	// ErrNotFound is returned when a requested resource does not exist.
 	ErrNotFound = errors.New("not found")
 

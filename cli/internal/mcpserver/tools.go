@@ -149,8 +149,9 @@ func listRoomMessagesHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[lis
 }
 
 type postMessageInput struct {
-	RoomID string `json:"room_id" jsonschema:"Required Chatto room ID."`
-	Body   string `json:"body" jsonschema:"Required message body, maximum 10000 bytes."`
+	RoomID         string `json:"room_id" jsonschema:"Required Chatto room ID."`
+	Body           string `json:"body" jsonschema:"Required message body, maximum 10000 bytes."`
+	IdempotencyKey string `json:"idempotency_key,omitempty" jsonschema:"Optional caller-generated UUID. Reuse the same key and exact arguments to retry safely within 30 minutes of the first attempt. Retries do not extend the window. Generate a new key only for an intended new message."`
 }
 
 type postMessageOutput struct {
@@ -176,15 +177,16 @@ func postMessageHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[postMess
 		if err := requireVisibleToolRoom(ctx, chattoCore, userID, input.RoomID); err != nil {
 			return nil, postMessageOutput{}, err
 		}
-		result, err := chattoCore.Messages().PostMessage(ctx, core.MessagePostInput{ActorID: userID, RoomID: input.RoomID, Body: input.Body})
+		result, err := chattoCore.Messages().PostMessage(ctx, core.MessagePostInput{ActorID: userID, RoomID: input.RoomID, Body: input.Body, IdempotencyKey: input.IdempotencyKey})
 		if err != nil {
-			return nil, postMessageOutput{}, toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessagePost}, err, "post_message")
+			f := toolOperationError(ctx, chattoCore, userID, input.RoomID, []core.Permission{core.PermMessagePost}, err, "post_message")
+			return nil, postMessageOutput{}, keyedPostFailure(f, input.IdempotencyKey)
 		}
 		message, err := mcpMessageResult(core.WithDEKRequestCache(ctx), chattoCore, result.Event)
 		if err != nil {
-			// The canonical command succeeded. A failed response must never
-			// tell a host to post the same message again.
-			return nil, postMessageOutput{}, postedMessageResultError(err)
+			// The canonical command succeeded. Only the exact keyed request
+			// can be retried; an unkeyed caller must check the result.
+			return nil, postMessageOutput{}, keyedPostFailure(postedMessageResultError(err), input.IdempotencyKey)
 		}
 		return nil, postMessageOutput{ServerName: chattoCore.ConfigModel().GetEffectiveServerName(), Message: message}, nil
 	}

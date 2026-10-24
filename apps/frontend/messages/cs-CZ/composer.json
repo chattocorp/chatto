@@ -25,6 +25,8 @@
     "drop_files_title": "Sem přetáhněte soubory",
     "drop_files_subtitle": "Do vaší zprávy budou přidány obrázky a videa",
     "send_failed": "Odeslání zprávy se nezdařilo",
+    "send_retry_expired": "Lhůta pro opakování odeslání vypršela. Než zprávu odešlete znovu, zkontrolujte, zda dorazila.",
+    "send_retry_reset": "Připojení bylo obnoveno. Než zprávu odešlete znovu, zkontrolujte, zda dorazila.",
     "slow_mode_ready": "Pomalý režim: jedna zpráva za {interval}.",
     "slow_mode_waiting": "Pomalý režim: další zprávu můžete poslat za {countdown}.",
     "slow_mode_bypassed": "Pomalý režim: {interval} (máte výjimku).",

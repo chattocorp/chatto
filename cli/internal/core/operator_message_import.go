@@ -164,10 +164,10 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 	var err error
 	if input.CreateThread {
 		_, err = c.appendRootMessageWithThread(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
-			threadCreated, nil, attachedEvents, processingEvents, validateRoomAndReply, nil)
+			threadCreated, nil, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
 	} else {
 		_, err = c.appendMessageWithOptionalThreadCreated(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
-			threadCreated, input.ThreadRootEventID, false, attachedEvents, processingEvents, validateRoomAndReply, nil)
+			threadCreated, input.ThreadRootEventID, false, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("import historical message: %w", err)

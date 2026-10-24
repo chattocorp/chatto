@@ -3,7 +3,8 @@
  *
  * A {@link Connection} and a stateless `Api` both expose these helpers. They
  * need no realtime connection. Each request has a ten-second timeout and is
- * never retried: a failed write can still have reached the server.
+ * not automatically retried: a failed write can still have reached the server.
+ * Retain a `prepareMessage` operation for explicit retries of one message.
  */
 
 import type { ServiceType } from '@bufbuild/protobuf';
@@ -18,6 +19,7 @@ import type { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { withTyping } from './typing.js';
+import { createMessageSend, type MessageSendOperation } from './messageSend.js';
 import type {
   AttachmentContent,
   AttachmentReadOptions,
@@ -172,20 +174,33 @@ export class MessagingRequests {
   async createMessage(
     destination: Destination,
     body: string,
-    { signal, inReplyTo }: RequestOptions & { inReplyTo?: string } = {}
+    { signal, ...options }: RequestOptions & { inReplyTo?: string; idempotencyKey?: string } = {}
   ): Promise<{ id: string }> {
-    const response = await this.#messages.createMessage(
-      {
-        roomId: destination.roomId,
-        body,
-        threadRootEventId: destination.threadRootId,
-        inReplyTo: inReplyTo ?? destination.inReplyTo ?? ''
-      },
-      callOptions(signal)
-    );
-    const id = response.message?.id;
-    if (!id) throw new Error('Chatto did not return the ID of the new message');
-    return { id };
+    return this.prepareMessage(destination, body, options).send({ signal });
+  }
+
+  /** Prepare one message for retries with a stable UUID and exact arguments. */
+  prepareMessage(
+    destination: Destination,
+    body: string,
+    { inReplyTo, idempotencyKey }: { inReplyTo?: string; idempotencyKey?: string } = {}
+  ): MessageSendOperation<{ id: string }> {
+    const request = {
+      roomId: destination.roomId,
+      body,
+      threadRootEventId: destination.threadRootId,
+      inReplyTo: inReplyTo ?? destination.inReplyTo ?? ''
+    };
+    return createMessageSend({
+      idempotencyKey,
+      prepare: async (key) => ({ ...request, idempotencyKey: key }),
+      post: async (request, { signal }) => {
+        const response = await this.#messages.createMessage(request, callOptions(signal));
+        const id = response.message?.id;
+        if (!id) throw new Error('Chatto did not return the ID of the new message');
+        return { id };
+      }
+    });
   }
 
   /**

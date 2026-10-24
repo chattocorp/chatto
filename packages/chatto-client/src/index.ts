@@ -50,6 +50,11 @@ export type {
 } from './messaging/types.js';
 export { withTyping, startTyping, type TypingUpdate } from './messaging/typing.js';
 export { createDeliveryTracker, type DeliveryTracker } from './messaging/deliveries.js';
+export {
+  MessageSendExpiredError,
+  MESSAGE_SEND_RETRY_WINDOW_MS,
+  type MessageSendOperation
+} from './messaging/messageSend.js';
 export type { LiveServers } from './server/realtimeTransport.js';
 export { setDebugLogging } from './util/debugLog.js';
 export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
