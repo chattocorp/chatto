@@ -1,4 +1,5 @@
 /** Botto CLI: own the Chatto connection, inbox, and shutdown signal. */
+import './env.ts';
 import { createClient } from '@chatto/client';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { createAgent } from './agent.ts';

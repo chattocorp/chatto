@@ -9,8 +9,8 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "start": "tsx --env-file-if-exists=.env src/main.ts",
-    "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
+    "start": "tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
     "check": "tsc --noEmit",
     "test": "vitest run"
   },
