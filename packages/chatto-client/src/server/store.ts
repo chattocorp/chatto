@@ -42,7 +42,7 @@ import { ReactiveMap, ReactiveSet, batch, computed, signal } from '../reactivity
 import { ServerProjectionStore } from './projection.js';
 import { clearUserStores, getUserStore } from './users.js';
 import type { RoomMember } from '../room/members.js';
-import { RoomStores, type RoomStoreAccess } from './roomStores.js';
+import { RoomStores, type KeepRecent, type RoomStoreAccess } from './roomStores.js';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -89,6 +89,8 @@ function viewerAuthorizationLost(
 export interface ServerStoreContext {
   /** The client's realtime transports. */
   readonly realtime: EventBusManager;
+  /** The number of recently used rooms and threads to keep; see {@link KeepRecent}. */
+  readonly keepRecent?: KeepRecent;
 }
 
 export class ServerStateStore {
@@ -358,7 +360,8 @@ export class ServerStateStore {
         // Only a DM projection lists every member of its room.
         const room = this.projection.rooms.get(roomId);
         return room?.room?.kind === RoomKind.DM ? room.memberUserIds : null;
-      }
+      },
+      keepRecent: context.keepRecent
     });
     const threadTimelineAPI = serverConnection.getAPI(createRoomTimelineAPI);
     this.#timelines = new TimelineSync({

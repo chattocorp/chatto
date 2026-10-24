@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ServerPresence } from './presence.js';
 import type { ServerConnection } from './serverConnection.js';
-import { RECENT_ROOM_LIMIT, RECENT_THREAD_LIMIT, RoomStores } from './roomStores.js';
+import {
+  RECENT_ROOM_LIMIT,
+  RECENT_THREAD_LIMIT,
+  RoomStores,
+  type KeepRecent
+} from './roomStores.js';
 
 const mocks = vi.hoisted(() => ({ clearRoomPinsSeenMarker: vi.fn() }));
 
@@ -30,14 +35,15 @@ vi.mock('../room/pins.js', () => ({
   clearRoomPinsSeenMarker: mocks.clearRoomPinsSeenMarker
 }));
 
-function makeRooms(viewerId: string | null = 'viewer'): RoomStores {
+function makeRooms(viewerId: string | null = 'viewer', keepRecent?: KeepRecent): RoomStores {
   return new RoomStores({
     serverId: 'server',
     connection: {} as ServerConnection,
     presence: {} as ServerPresence,
     realtimeViewerId: () => viewerId,
     viewerId: () => viewerId,
-    projectedMemberIds: () => null
+    projectedMemberIds: () => null,
+    keepRecent
   });
 }
 
@@ -92,6 +98,21 @@ describe('RoomStores', () => {
     for (const store of first) expect(store.dispose).not.toHaveBeenCalled();
     expect(rooms.loaded('R1')).toBeUndefined();
     expect(rooms.messages('R1')).not.toBe(second[0]);
+  });
+
+  it('keeps as many rooms and threads as keepRecent allows', () => {
+    const rooms = makeRooms('viewer', { rooms: 1, threads: 2 });
+    const first = useRoom(rooms, 'A');
+    useRoom(rooms, 'B');
+    expect(first[0].dispose).toHaveBeenCalledOnce();
+
+    const [oldest, ...kept] = [
+      rooms.thread('A', 'T0'),
+      rooms.thread('A', 'T1'),
+      rooms.thread('A', 'T2')
+    ];
+    expect(oldest.dispose).toHaveBeenCalledOnce();
+    for (const thread of kept) expect(thread.dispose).not.toHaveBeenCalled();
   });
 
   it('keeps the thread timelines of a disposed room', () => {

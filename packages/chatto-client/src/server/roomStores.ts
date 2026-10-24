@@ -29,6 +29,29 @@ export const RECENT_ROOM_LIMIT = 10;
 /** Like {@link RECENT_ROOM_LIMIT}, for thread timelines. */
 export const RECENT_THREAD_LIMIT = 20;
 
+/**
+ * How many recently used rooms and threads a client keeps live stores for;
+ * it disposes the stores of older ones. The defaults are
+ * {@link RECENT_ROOM_LIMIT} and {@link RECENT_THREAD_LIMIT}. Each value is a
+ * positive integer. A host that uses more rooms or threads at the same time
+ * needs a higher value.
+ */
+export type KeepRecent = { rooms?: number; threads?: number };
+
+/** The limits of `keepRecent` with defaults. Throws for a value that is not a positive integer. */
+export function keepRecentLimits(keepRecent: KeepRecent = {}): Required<KeepRecent> {
+  const { rooms = RECENT_ROOM_LIMIT, threads = RECENT_THREAD_LIMIT } = keepRecent;
+  for (const [name, value] of [
+    ['rooms', rooms],
+    ['threads', threads]
+  ] as const) {
+    if (!Number.isInteger(value) || value < 1) {
+      throw new Error(`keepRecent.${name} must be a positive integer`);
+    }
+  }
+  return { rooms, threads };
+}
+
 type RoomEntry = {
   -readonly [K in keyof LoadedRoomStores]: LoadedRoomStores[K];
 } & {
@@ -54,6 +77,8 @@ export type RoomStoresOptions = {
   viewerId: () => string | null;
   /** The complete member IDs of a room from the realtime projection, or null. */
   projectedMemberIds: (roomId: string) => readonly string[] | null;
+  /** The number of recently used rooms and threads to keep; see {@link KeepRecent}. */
+  keepRecent?: KeepRecent;
 };
 
 /**
@@ -62,9 +87,9 @@ export type RoomStoresOptions = {
  *
  * Each accessor creates its store on first use and then returns the same
  * store. A call to an accessor uses the room or thread. The registry keeps the
- * stores of the {@link RECENT_ROOM_LIMIT} most recently used rooms and the
- * {@link RECENT_THREAD_LIMIT} most recently used threads, and disposes the
- * others. A disposed store gets no more realtime updates; the accessor then
+ * stores of the most recently used rooms and threads, by default
+ * {@link RECENT_ROOM_LIMIT} and {@link RECENT_THREAD_LIMIT} (see
+ * {@link KeepRecent}), and disposes the others. A disposed store gets no more realtime updates; the accessor then
  * returns a new store. So a host must not use more rooms or threads at the
  * same time than these limits. A host that keeps a timeline across a long wait
  * checks `isDisposed` and gets the timeline again. Use of a thread does not
@@ -78,22 +103,25 @@ export class RoomStores {
   readonly #options: RoomStoresOptions;
   #rooms: Record<string, RoomEntry> = Object.create(null);
   /** The rooms whose own stores were used, by recency of use. */
-  readonly #recentRooms = new LRUCache<string, true>({
-    max: RECENT_ROOM_LIMIT,
-    dispose: (_, roomId, reason) => {
-      if (reason === 'evict') this.#disposeRoom(roomId);
-    }
-  });
+  readonly #recentRooms: LRUCache<string, true>;
   /** Thread timelines, like {@link #recentRooms}. */
-  readonly #recentThreads = new LRUCache<MessagesStore, ThreadLocation>({
-    max: RECENT_THREAD_LIMIT,
-    dispose: (location, store, reason) => {
-      if (reason === 'evict') this.#disposeThread(store, location);
-    }
-  });
+  readonly #recentThreads: LRUCache<MessagesStore, ThreadLocation>;
 
   constructor(options: RoomStoresOptions) {
     this.#options = options;
+    const limits = keepRecentLimits(options.keepRecent);
+    this.#recentRooms = new LRUCache({
+      max: limits.rooms,
+      dispose: (_, roomId, reason) => {
+        if (reason === 'evict') this.#disposeRoom(roomId);
+      }
+    });
+    this.#recentThreads = new LRUCache({
+      max: limits.threads,
+      dispose: (location, store, reason) => {
+        if (reason === 'evict') this.#disposeThread(store, location);
+      }
+    });
   }
 
   #entry(roomId: string): RoomEntry {

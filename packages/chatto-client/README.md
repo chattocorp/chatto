@@ -115,7 +115,9 @@ does not read the thread again for each change.
   A call to `rooms.messages`, `rooms.files`, `rooms.pins`, or `rooms.members`
   uses the room; a call to `rooms.thread` uses only the thread. The client
   disposes the stores of older ones; the next call returns a new store, which
-  reads again. Do not use more rooms or threads at the same time.
+  reads again. Do not use more rooms or threads at the same time. To keep
+  more, set the client option `keepRecent`, for example
+  `createClient({ keepRecent: { threads: 50 } })`.
 - A disposed timeline gets no more updates and is never current. If you keep
   a timeline across a long wait, for example until `isCurrent`, also stop when
   `isDisposed` becomes true, and get the timeline again.

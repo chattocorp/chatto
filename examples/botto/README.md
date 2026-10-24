@@ -60,7 +60,7 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                      |
 | `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                        |
 | `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                   |
-| `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–20                                        |
+| `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                       |
 
 Unknown settings and invalid values fail at startup. Keep API key values in the
 environment and refer to the Chatto key from `chatto.api_key`. The configured name does not rename the Chatto account;
@@ -138,9 +138,10 @@ While Chatto reconnects, a turn waits for the connection, until the turn
 deadline. If a read fails, Botto reads again once. If the client disposes the
 timeline while Botto waits for it, Botto gets the timeline again once. If the
 second attempt also fails, the turn stops instead of using incomplete context.
-The client keeps the 20 most recently used thread timelines and disposes older
-ones; a later turn in such a thread reads it again. `runtime.max_threads` is at
-most 20, so the client does not dispose a timeline that a turn uses.
+The client keeps the most recently used thread timelines, at least 20 and at
+least `runtime.max_threads`, and disposes older ones; a later turn in such a
+thread reads it again. So the client does not dispose a timeline that a turn
+uses.
 Only the accepted batch and model responses
 are saved as conversation messages. The recent thread snapshot is added to the
 current model request without saving it again in the transcript. This preserves
