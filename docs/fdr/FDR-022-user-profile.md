@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-10-03
+**Last reviewed:** 2026-10-24
 
 ## Overview
 
