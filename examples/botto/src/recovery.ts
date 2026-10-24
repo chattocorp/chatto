@@ -69,6 +69,18 @@ export async function recover(
         { roomId: candidate.roomId, messageId: candidate.id },
         { signal }
       );
+      // Apply the live reply-recipient rule to retained notifications too.
+      if (message?.threadRootId && message.inReplyTo) {
+        const target = await server.getMessage(
+          { roomId: message.roomId, messageId: message.inReplyTo },
+          { signal }
+        );
+        if (
+          target?.authorId !== server.accountId ||
+          (target.threadRootId || target.id) !== message.threadRootId
+        )
+          continue;
+      }
     } catch (error) {
       if (
         error instanceof ConnectError &&

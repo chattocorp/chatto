@@ -106,6 +106,11 @@ It also answers ordinary text in threads where it has queued or running work,
 or a saved Pi transcript. Saved transcripts keep threads active across restarts;
 this does not make other threads in the room active. Messages from other bots
 and from users outside `chatto.allowed_user_id`, when set, are ignored.
+In a thread, an explicit reply to another user's message does not start a turn,
+even if it mentions Botto. This rule also applies to recovered notifications.
+Accepted messages include the reply target's ID and author ID in the model input.
+Botto reads targets outside the recent context window separately. If a target is
+missing or access is denied, its author is `null`.
 
 Ordinary messages in active room threads wait for 5 seconds of quiet by default
 (`runtime.passive_debounce_ms`). A mention, verified reply to Botto, or DM

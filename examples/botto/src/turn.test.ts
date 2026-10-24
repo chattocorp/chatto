@@ -32,6 +32,7 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
   fixtures.push(fixture.rooms);
   const server = {
     ...fixture.server,
+    getMessage: vi.fn<Server['getMessage']>().mockResolvedValue(undefined),
     addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
     postMessage: vi.fn<Server['postMessage']>().mockResolvedValue({ ids: ['reply'] }),
     withTyping: async <T>(_destination: Destination, work: () => Promise<T>) => work()
@@ -70,6 +71,35 @@ test('failed context reads leave the batch safe to retry', async () => {
   const { turn, one, history, agent } = setup(beforeEffects);
   history.mockRejectedValue(new Error('Offline'));
   await expect(turn([one])).rejects.toThrow();
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+});
+
+test.each(['root', 'outside'])('includes the reply target ID and author: %s', async (target) => {
+  const { turn, one, server, agent } = setup();
+  server.getMessage.mockResolvedValue({ id: target, roomId: 'room', authorId: 'human' });
+  await turn([{ ...one, inReplyTo: target }]);
+  expect(JSON.parse(agent.reply.mock.calls[0]![1]).currentMessages[0].inReplyTo).toEqual({
+    id: target,
+    author: 'human'
+  });
+  expect(server.getMessage).toHaveBeenCalledTimes(target === 'root' ? 0 : 1);
+});
+
+test('an unavailable reply target has an unknown author', async () => {
+  const { turn, one, agent } = setup();
+  await turn([{ ...one, inReplyTo: 'missing' }]);
+  expect(JSON.parse(agent.reply.mock.calls[0]![1]).currentMessages[0].inReplyTo).toEqual({
+    id: 'missing',
+    author: null
+  });
+});
+
+test('a failed reply target lookup leaves the batch safe to retry', async () => {
+  const beforeEffects = vi.fn();
+  const { turn, one, server, agent } = setup(beforeEffects);
+  server.getMessage.mockRejectedValue(new Error('Offline'));
+  await expect(turn([{ ...one, inReplyTo: 'outside' }])).rejects.toThrow('Offline');
   expect(beforeEffects).not.toHaveBeenCalled();
   expect(agent.reply).not.toHaveBeenCalled();
 });

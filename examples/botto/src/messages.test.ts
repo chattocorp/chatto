@@ -96,3 +96,20 @@ test('does not enqueue after cancellation while checking participation', async (
   });
   await expect(read(controller.signal)).rejects.toThrow();
 });
+
+test.each([false, true])('ignores replies to another user (mention: %s)', async (mention) => {
+  const { event, active, getMessage, read } = setup();
+  if (event.event.case !== 'messagePosted') throw new Error('Fixture');
+  event.event.value.inReplyTo = 'target';
+  if (mention) event.event.value.mentions.push(new MessageMention({ includesViewer: true }));
+  getMessage.mockResolvedValue({
+    message: new Message({
+      id: 'target',
+      roomId: 'room',
+      actorId: 'other',
+      threadRootEventId: 'root'
+    })
+  });
+  expect(await read()).toBeUndefined();
+  expect(active).not.toHaveBeenCalled();
+});

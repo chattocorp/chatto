@@ -11,7 +11,12 @@ test('merges IDs and edits without mutating inputs or confusing identical human 
     user(
       JSON.stringify({
         currentMessages: [
-          { id: 'one', author: 'human', text: 'Old body' },
+          {
+            id: 'one',
+            author: 'human',
+            text: 'Old body',
+            inReplyTo: { id: 'target', author: 'bot' }
+          },
           { id: 'outside', text: 'Older context' }
         ]
       })
@@ -33,6 +38,8 @@ test('merges IDs and edits without mutating inputs or confusing identical human 
   expect(encoded.match(/Edited body/g)).toHaveLength(2);
   expect(encoded.match(/New request/g)).toHaveLength(1);
   expect(encoded).toContain('Older context');
+  expect(encoded).toContain('inReplyTo');
+  expect(encoded).toContain('target');
   expect({ history, snapshot }).toEqual(original);
   expect(mergeThreadContext(history, snapshot)).toEqual(result);
 });

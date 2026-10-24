@@ -48,7 +48,7 @@ export function mergeThreadContext(
         return item;
       represented.add(item.id);
       const fresh = freshById.get(item.id);
-      return fresh ? { id: fresh.id, author: fresh.author, text: fresh.text } : item;
+      return fresh ? { ...item, id: fresh.id, author: fresh.author, text: fresh.text } : item;
     });
     return { ...message, content: JSON.stringify({ ...batch, currentMessages }) };
   });
