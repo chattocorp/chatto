@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'smol-toml';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
+import { RECENT_THREAD_LIMIT } from '@chatto/client/server/roomStores';
 
 /** Queue limits and the quiet period shared by the inbox and its logs. */
 export interface InboxSettings {
@@ -216,7 +217,9 @@ export function parseSettings(
       600_000
     ),
     maxPendingMessages: number('max_pending_messages', DEFAULT_INBOX.maxPendingMessages, 1, 10_000),
-    maxThreads: number('max_threads', DEFAULT_INBOX.maxThreads, 1, 100),
+    // The client keeps this many thread timelines. With more active threads, it
+    // could dispose a timeline that a turn waits for.
+    maxThreads: number('max_threads', DEFAULT_INBOX.maxThreads, 1, RECENT_THREAD_LIMIT),
     turnTimeoutMs: number('turn_timeout_ms', 120_000, 1000, 3_600_000),
     contextMessages: number('context_messages', 30, 1, 50),
     acknowledgementEmoji: string(

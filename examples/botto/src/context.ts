@@ -12,9 +12,10 @@ export type ContextSource = Pick<Server, 'accountId' | 'status'> & {
 };
 
 /** The client loads a thread once and keeps it current through realtime delivery.
- * Botto makes one more attempt: it reads again when a load fails, or gets the
- * timeline again when the client disposed it during the wait. The returned context contains the root and
- * up to limit recent text replies; limit must fit in one thread page (50 replies). */
+ * Botto waits while Chatto reconnects. It makes one more attempt: it reads again
+ * when a load fails, or gets the timeline again when the client disposed it
+ * during the wait. The returned context contains the root and up to limit recent
+ * text replies; limit must fit in one thread page (50 replies). */
 export async function readContext(
   server: ContextSource,
   location: ThreadLocation,
@@ -22,7 +23,8 @@ export async function readContext(
   signal: AbortSignal
 ): Promise<ThreadContext> {
   signal.throwIfAborted();
-  if (server.status !== 'connected') throw new Error('Chatto is not connected');
+  // A reconnect reloads the timelines before the status becomes connected.
+  await settled(() => (server.status === 'connected' ? true : undefined), signal);
   const { roomId, threadRootId } = location;
   let store = server.rooms.thread(roomId, threadRootId);
   let state = await loadSettled(store, signal);
@@ -37,21 +39,26 @@ type LoadState = 'current' | 'failed' | 'disposed';
 
 /** Resolve when the timeline is current, its read failed, or the client disposed it. */
 function loadSettled(store: MessagesStore, signal: AbortSignal): Promise<LoadState> {
-  const state = computed((): LoadState | undefined => {
+  return settled((): LoadState | undefined => {
     if (store.isCurrent) return 'current';
     if (store.isDisposed) return 'disposed';
     if (store.loadError) return 'failed';
     return undefined;
-  });
+  }, signal);
+}
+
+/** Resolve with the first value of `read` that is not undefined. `read` reads reactive state. */
+function settled<T>(read: () => T | undefined, signal: AbortSignal): Promise<T> {
+  const state = computed(read);
   const current = state.get();
   if (current !== undefined) return Promise.resolve(current);
   return untilAborted(
-    new Promise<LoadState>((resolve) => {
+    new Promise<T>((resolve) => {
       const stop = subscribe(state, () => {
-        const settled = state.get();
-        if (settled === undefined) return;
+        const value = state.get();
+        if (value === undefined) return;
         stop();
-        resolve(settled);
+        resolve(value);
       });
       signal.addEventListener('abort', stop, { once: true });
     }),

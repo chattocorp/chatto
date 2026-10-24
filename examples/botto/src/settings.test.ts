@@ -107,6 +107,7 @@ test.each([
   'passive_debounce_ms=1999',
   'passive_debounce_ms=600001',
   'max_threads=0',
+  'max_threads=21',
   'turn_timeout_ms=0',
   'context_messages=51'
 ])('rejects invalid runtime value %s', (setting) => {

@@ -1,6 +1,8 @@
 /** Real client thread timelines with an in-memory history API for Botto tests. */
 import { vi } from 'vitest';
 import { RoomStores } from '@chatto/client/server/roomStores';
+import { signal } from '@chatto/client/reactivity';
+import type { ServerStatus } from '@chatto/client/server/server';
 import { messagePostedPayload, type EventConnectionPage } from '@chatto/client/api/roomTimeline';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import type { ServerPresence } from '@chatto/client/server/presence';
@@ -55,10 +57,17 @@ export function contextFixture(initial?: Promise<EventConnectionPage>) {
     viewerId: () => 'bot',
     projectedMemberIds: () => null
   });
+  // Reactive like the client's status, so that a read can wait for a reconnect.
+  const status = signal<ServerStatus>('connected');
   const server = {
     rooms,
     accountId: 'bot',
-    status: 'connected' as 'connected' | 'connecting'
+    get status() {
+      return status.get();
+    },
+    set status(value: ServerStatus) {
+      status.set(value);
+    }
   };
   const store = () => rooms.thread('room', 'root');
   return { history, rooms, store, server };

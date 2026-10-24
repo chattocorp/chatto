@@ -89,10 +89,25 @@ test('waits for a reconnect reload and rejects after access loss', async () => {
   rooms.dispose();
 });
 
-test('rejects while Chatto is not connected', async () => {
+test('waits while Chatto reconnects', async () => {
   const { server, history, rooms } = contextFixture();
   server.status = 'connecting';
-  await expect(read(server)).rejects.toThrow('not connected');
+  const waiting = read(server);
+  await Promise.resolve();
+  expect(history).not.toHaveBeenCalled();
+
+  server.status = 'connected';
+  expect((await waiting).messages.map((message) => message.id)).toEqual(['root', 'one', 'two']);
+  rooms.dispose();
+});
+
+test('stops waiting for a reconnect when the turn ends', async () => {
+  const { server, history, rooms } = contextFixture();
+  server.status = 'disconnected';
+  const controller = new AbortController();
+  const waiting = readContext(server, location, 2, controller.signal);
+  controller.abort(new Error('Turn timed out'));
+  await expect(waiting).rejects.toThrow('Turn timed out');
   expect(history).not.toHaveBeenCalled();
   rooms.dispose();
 });
