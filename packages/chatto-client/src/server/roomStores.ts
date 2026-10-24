@@ -77,7 +77,7 @@ export type RoomStoresOptions = {
 export class RoomStores {
   readonly #options: RoomStoresOptions;
   #rooms: Record<string, RoomEntry> = Object.create(null);
-  /** The rooms whose own stores were used, most recently used last. */
+  /** The rooms whose own stores were used, by recency of use. */
   readonly #recentRooms = new LRUCache<string, true>({
     max: RECENT_ROOM_LIMIT,
     dispose: (_, roomId, reason) => {
@@ -139,13 +139,7 @@ export class RoomStores {
   /** Rooms with a timeline, file list, pin list, or member list. */
   roomIds(): string[] {
     return Object.entries(this.#rooms).flatMap(([roomId, entry]) =>
-      entry.messages ||
-      entry.files ||
-      entry.pins ||
-      entry.members ||
-      Object.keys(entry.threads).length
-        ? [roomId]
-        : []
+      this.#isEmpty(entry) ? [] : [roomId]
     );
   }
 

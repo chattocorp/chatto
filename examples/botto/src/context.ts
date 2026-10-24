@@ -12,8 +12,8 @@ export type ContextSource = Pick<Server, 'accountId' | 'status'> & {
 };
 
 /** The client loads a thread once and keeps it current through realtime delivery.
- * Botto reads again once when a load fails, or gets the timeline again when the
- * client disposed it during the wait. The returned context contains the root and
+ * Botto makes one more attempt: it reads again when a load fails, or gets the
+ * timeline again when the client disposed it during the wait. The returned context contains the root and
  * up to limit recent text replies; limit must fit in one thread page (50 replies). */
 export async function readContext(
   server: ContextSource,
