@@ -130,6 +130,14 @@ function snapshotEventFingerprints(events: readonly TimelineEventView[]): Map<st
   return new Map(events.map((event) => [event.id, eventFingerprint(event)]));
 }
 
+/** The parameters of a read that replaces the window; see `fetchCurrent`. */
+type AuthoritativeRead = {
+  minimumCursor?: string;
+  acceptResult?: () => boolean;
+  anchorEventId?: string;
+  replaceWindow?: boolean;
+};
+
 function skippedRefreshResult(): RefreshCurrentWindowResult {
   return { hasOlder: false, hasNewer: false, refreshed: false, changed: false };
 }
@@ -311,6 +319,8 @@ export class MessagesStore {
     this.#projectionAccessRevokedSignal.set(value);
   }
   readonly #disposedSignal = signal(false);
+  /** The parameters of the latest authoritative read; see {@link refreshCurrentWindow}. */
+  #authoritativeRead: (AuthoritativeRead & { loadId: number }) | null = null;
 
   readonly #loadErrorSignal = signal<unknown>(null);
   /**
@@ -730,13 +740,12 @@ export class MessagesStore {
       this.isInitialLoading = this.events.length === 0;
       return thisLoad;
     });
-    return this.fetchCurrent(
-      thisLoad,
+    return this.readAuthoritativeWindow(thisLoad, {
       minimumCursor,
       acceptResult,
-      this.recoveryAnchor?.eventId,
+      anchorEventId: this.recoveryAnchor?.eventId,
       replaceWindow
-    );
+    });
   }
 
   /**
@@ -774,7 +783,7 @@ export class MessagesStore {
       this.#pendingAuthoritativeLoadId = thisLoad;
       return thisLoad;
     });
-    if (thisLoad !== null) void this.fetchCurrent(thisLoad);
+    if (thisLoad !== null) void this.readAuthoritativeWindow(thisLoad);
   }
 
   /**
@@ -1085,7 +1094,8 @@ export class MessagesStore {
   /**
    * Refresh the currently displayed message window from projected state without
    * clearing the buffer. Used after tab wake / reconnect when the client may
-   * have missed subscription events.
+   * have missed subscription events. While a read that replaces the window is
+   * pending, the refresh restarts that read instead; see {@link isCurrent}.
    */
   async refreshCurrentWindow(
     anchorEventId?: string | null,
@@ -1094,6 +1104,13 @@ export class MessagesStore {
     acceptResult: () => boolean = () => true
   ): Promise<RefreshCurrentWindowResult> {
     const source = this.source;
+
+    // Without an authoritative window, there is no window to refresh. A
+    // refresh that superseded the pending read would leave the store current
+    // without a window, so the refresh restarts that read instead.
+    if (this.#pendingAuthoritativeLoadId !== null) {
+      return this.restartAuthoritativeRead(minimumCursor, acceptResult);
+    }
 
     const thisLoad = this.startLoad();
     const deadlineBeforeFetch = this.#threadSlowModeDeadline.get();
@@ -1595,9 +1612,52 @@ export class MessagesStore {
       this.isInitialLoading = true;
       return thisLoad;
     });
-    const loaded = await this.fetchCurrent(thisLoad);
+    const loaded = await this.readAuthoritativeWindow(thisLoad);
     if (!this.isStale(thisLoad)) this.#needsLatestWindow = !loaded;
     return loaded;
+  }
+
+  /** Read the window of the pending authoritative load `thisLoad`. */
+  private readAuthoritativeWindow(
+    thisLoad: number,
+    read: AuthoritativeRead = {}
+  ): Promise<boolean> {
+    this.#authoritativeRead = { ...read, loadId: thisLoad };
+    return this.fetchCurrent(
+      thisLoad,
+      read.minimumCursor,
+      read.acceptResult,
+      read.anchorEventId,
+      read.replaceWindow
+    );
+  }
+
+  /**
+   * Replace the pending authoritative read with the same read at
+   * `minimumCursor`, when one is given. A reset that waits for its realtime
+   * reload has no read yet; this reads the window that the reload would read.
+   */
+  private async restartAuthoritativeRead(
+    minimumCursor: string | undefined,
+    acceptResult: () => boolean
+  ): Promise<RefreshCurrentWindowResult> {
+    const pending: AuthoritativeRead =
+      this.#authoritativeRead?.loadId === this.#pendingAuthoritativeLoadId
+        ? this.#authoritativeRead
+        : { anchorEventId: this.recoveryAnchor?.eventId };
+    const thisLoad = batch(() => {
+      const isInitialLoading = this.isInitialLoading;
+      const thisLoad = this.startLoad();
+      this.#pendingAuthoritativeLoadId = thisLoad;
+      this.isInitialLoading = isInitialLoading;
+      return thisLoad;
+    });
+    const loaded = await this.readAuthoritativeWindow(thisLoad, {
+      ...pending,
+      minimumCursor: minimumCursor ?? pending.minimumCursor,
+      acceptResult: () => (pending.acceptResult?.() ?? true) && acceptResult()
+    });
+    return { ...skippedRefreshResult(), refreshed: loaded, changed: loaded };
   }
 
   private async fetchCurrent(

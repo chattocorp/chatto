@@ -4963,6 +4963,99 @@ describe('MessagesStore — load errors and current windows', () => {
     store.dispose();
   });
 
+  it('a window refresh restarts a pending first read instead of superseding it', async () => {
+    const first = deferred<EventConnectionPage>();
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce(threadPage('t1', 'r1'));
+    const getThreadEventsAround = vi.fn<RoomTimelineAPI['getThreadEventsAround']>();
+    const { store } = threadStore(getThreadEvents, { getThreadEventsAround });
+    const refreshed = store.refreshCurrentWindow('join-event');
+    expect(store.isCurrent).toBe(false);
+    expect(store.isInitialLoading).toBe(true);
+
+    await expect(refreshed).resolves.toMatchObject({ refreshed: true });
+    expect(getThreadEventsAround).not.toHaveBeenCalled();
+    expect(store.isCurrent).toBe(true);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
+    first.resolve(threadPage('t1'));
+    await settle();
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
+    store.dispose();
+  });
+
+  it('reports a failed restarted read instead of a current, empty window', async () => {
+    const failure = new Error('offline');
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockRejectedValueOnce(failure);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { store } = threadStore(getThreadEvents);
+    await store.refreshCurrentWindow('t1');
+    expect(store.loadError).toBe(failure);
+    expect(store.isCurrent).toBe(false);
+    error.mockRestore();
+    store.dispose();
+  });
+
+  it('keeps a restarted read pending when the refresh result is rejected', async () => {
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValueOnce(threadPage('t1'));
+    const { store } = threadStore(getThreadEvents);
+    await store.refreshCurrentWindow(null, false, undefined, () => false);
+    expect(store.isInitialLoading).toBe(true);
+    expect(store.isCurrent).toBe(false);
+    expect(store.threadEvents).toHaveLength(0);
+    store.dispose();
+  });
+
+  it('a window refresh restarts a reconnect reload at its cursor', async () => {
+    const reload = deferred<EventConnectionPage>();
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(threadPage('t1', 'r1'))
+      .mockReturnValueOnce(reload.promise)
+      .mockResolvedValueOnce(threadPage('t1', 'r1', 'r2'));
+    const { store } = threadStore(getThreadEvents);
+    await settle();
+
+    store.resetProjectionState();
+    const hydrated = store.hydrateRealtimeProjection('cursor', () => true);
+    const refreshed = store.refreshCurrentWindow(null);
+    expect(store.isCurrent).toBe(false);
+    await refreshed;
+    expect(getThreadEvents).toHaveBeenLastCalledWith(
+      expect.objectContaining({ minimumCursor: 'cursor' })
+    );
+    expect(store.isCurrent).toBe(true);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2']);
+
+    reload.resolve(threadPage('t1'));
+    await expect(hydrated).resolves.toBe(false);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2']);
+    store.dispose();
+  });
+
+  it('a window refresh reads the window while a reset waits for its reload', async () => {
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(threadPage('t1', 'r1'))
+      .mockResolvedValueOnce(threadPage('t1', 'r1', 'r2'));
+    const { store } = threadStore(getThreadEvents);
+    await settle();
+
+    store.resetProjectionState();
+    expect(store.isCurrent).toBe(false);
+    await store.refreshCurrentWindow(null);
+    expect(store.isCurrent).toBe(true);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2']);
+    store.dispose();
+  });
+
   it('is never current after dispose', async () => {
     const { store } = threadStore(vi.fn(async () => threadPage('t1')));
     await settle();
