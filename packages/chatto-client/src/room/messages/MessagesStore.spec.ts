@@ -4798,3 +4798,175 @@ describe('MessagesStore — reactive updates', () => {
     store.dispose();
   });
 });
+
+describe('MessagesStore — load errors and current windows', () => {
+  const threadPage = (...ids: string[]) => ({
+    events: ids.map((id) => threadMessageEvent(id, id === 't1' ? null : 't1') as never),
+    startCursor: 'tl:start',
+    endCursor: 'tl:end',
+    hasOlder: false,
+    hasNewer: false
+  });
+
+  function threadStore(
+    getThreadEvents: RoomTimelineAPI['getThreadEvents'],
+    overrides: Partial<RoomTimelineAPI> = {}
+  ) {
+    const timeline = fakeTimelineAPI({ getThreadEvents, ...overrides });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1', threadRootEventId: 't1' },
+      timeline
+    );
+    return { store, timeline };
+  }
+
+  /** Record every value of `isCurrent` that an observer sees. */
+  function observeCurrent(store: MessagesStore) {
+    const values: boolean[] = [];
+    const stop = effect(() => {
+      values.push(store.isCurrent);
+    });
+    return { values, stop };
+  }
+
+  it('is current after the first read succeeds', async () => {
+    const { store } = threadStore(vi.fn(async () => threadPage('t1', 'r1')));
+    expect(store.isCurrent).toBe(false);
+    await settle();
+    expect(store.isCurrent).toBe(true);
+    expect(store.loadError).toBeNull();
+    store.dispose();
+  });
+
+  it('reports a failed first read and reads again on restoreLatestWindow', async () => {
+    const failure = new Error('offline');
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(threadPage('t1', 'r1'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { store } = threadStore(getThreadEvents);
+    const { values, stop } = observeCurrent(store);
+    await settle();
+
+    expect(store.loadError).toBe(failure);
+    expect(store.isCurrent).toBe(false);
+    expect(store.isInitialLoading).toBe(false);
+    expect(values).not.toContain(true);
+
+    await expect(store.restoreLatestWindow()).resolves.toBe(true);
+    expect(store.loadError).toBeNull();
+    expect(store.isCurrent).toBe(true);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
+    expect(getThreadEvents).toHaveBeenCalledTimes(2);
+    stop();
+    error.mockRestore();
+    store.dispose();
+  });
+
+  it('clears a failed read when a jump replaces the window', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { store } = threadStore(vi.fn().mockRejectedValue(new Error('offline')), {
+      getThreadEventsAround: vi.fn(async () => threadPage('t1', 'r1'))
+    });
+    await settle();
+    expect(store.loadError).not.toBeNull();
+
+    await expect(store.jumpToMessage('r1')).resolves.toMatchObject({ status: 'loaded' });
+    expect(store.loadError).toBeNull();
+    expect(store.isCurrent).toBe(true);
+    error.mockRestore();
+    store.dispose();
+  });
+
+  it('reports a missing thread root as a load error', async () => {
+    const missing = new ConnectError('missing', Code.NotFound);
+    const { store } = threadStore(vi.fn().mockRejectedValue(missing));
+    await settle();
+    expect(store.loadError).toBe(missing);
+    expect(store.isCurrent).toBe(false);
+    store.dispose();
+  });
+
+  it('is not current while a reconnect reload keeps retained rows visible', async () => {
+    const reload = deferred<EventConnectionPage>();
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(threadPage('t1', 'r1'))
+      .mockReturnValueOnce(reload.promise);
+    const { store } = threadStore(getThreadEvents);
+    await settle();
+
+    const hydrated = store.hydrateRealtimeProjection('cursor', () => true);
+    expect(store.isInitialLoading).toBe(false);
+    expect(store.events).not.toHaveLength(0);
+    expect(store.isCurrent).toBe(false);
+
+    reload.resolve(threadPage('t1', 'r1', 'r2'));
+    await expect(hydrated).resolves.toBe(true);
+    expect(store.isCurrent).toBe(true);
+    store.dispose();
+  });
+
+  it('reports a failed reconnect reload instead of an empty, current window', async () => {
+    const failure = new Error('offline');
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(threadPage('t1', 'r1'))
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(threadPage('t1', 'r1', 'r2'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { store } = threadStore(getThreadEvents);
+    await settle();
+    const { values, stop } = observeCurrent(store);
+
+    store.resetProjectionState();
+    await expect(store.hydrateRealtimeProjection('cursor', () => true)).rejects.toBe(failure);
+    expect(store.events).toHaveLength(0);
+    expect(store.loadError).toBe(failure);
+    expect(store.isCurrent).toBe(false);
+    expect(values.slice(1)).not.toContain(true);
+
+    await expect(store.restoreLatestWindow()).resolves.toBe(true);
+    expect(store.isCurrent).toBe(true);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1', 'r2']);
+    stop();
+    error.mockRestore();
+    store.dispose();
+  });
+
+  it('is not current after access loss and reports a failed reload after access returns', async () => {
+    const failure = new Error('offline');
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce(threadPage('t1', 'r1'))
+      .mockRejectedValueOnce(failure);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { store } = threadStore(getThreadEvents);
+    await settle();
+    const { values, stop } = observeCurrent(store);
+
+    store.clearForAccessRevocation();
+    expect(store.isCurrent).toBe(false);
+    expect(store.loadError).toMatchObject({ code: Code.PermissionDenied });
+
+    store.restoreAfterAccessGrant();
+    expect(store.isCurrent).toBe(false);
+    await settle();
+    expect(store.loadError).toBe(failure);
+    expect(store.isCurrent).toBe(false);
+    expect(values.slice(1)).not.toContain(true);
+    stop();
+    error.mockRestore();
+    store.dispose();
+  });
+
+  it('is never current after dispose', async () => {
+    const { store } = threadStore(vi.fn(async () => threadPage('t1')));
+    await settle();
+    store.dispose();
+    expect(store.isCurrent).toBe(false);
+  });
+});

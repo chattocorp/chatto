@@ -84,7 +84,8 @@
       "beginning": "See on selle vestluse algus.",
       "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
       "limited_empty": "Veel pole vestlusi, mida saad lugeda.",
-      "loading": "Sõnumite laadimine..."
+      "loading": "Sõnumite laadimine...",
+      "load_failed": "Sõnumeid ei õnnestunud laadida."
     },
     "message": {
       "empty": "Sõnumeid pole veel",

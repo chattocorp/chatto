@@ -99,6 +99,25 @@ the server rejects the key or does not support this client, and, without
   `notifications.occurrences`, `projection.users`, and `rooms.messages(id)`
   for a paged, live room timeline.
 
+### Live timelines
+
+`rooms.messages(roomId)` and `rooms.thread(roomId, rootId)` return a live
+timeline. The timeline reads its latest page when you first get it. Realtime
+delivery then adds new messages and applies edits and deletions, so a host
+does not read the thread again for each change.
+
+- `isCurrent` is true when the latest page loaded and no read or reconnect
+  reload is pending. `events` then has the latest messages.
+- `loadError` has the error of a failed read, or of lost room access. Call
+  `restoreLatestWindow()` to read again after a failed read.
+- Retain a thread with `rooms.retainThread(roomId, rootId, store)` while you
+  use it, and release it with `rooms.releaseThread(...)` after. The client
+  keeps the 20 most recently used threads without consumers and disposes
+  older ones. A disposed timeline is never current; get a new one from
+  `rooms.thread`.
+
+Use `readThread` instead when you need one snapshot and no live updates.
+
 ### Readiness and failures
 
 - `ready()` rejects when the server rejects the key, when the server is

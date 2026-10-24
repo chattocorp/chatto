@@ -84,7 +84,8 @@
       "beginning": "Bu, bu konuşmanın başlangıcıdır.",
       "read_denied": "Bu odadaki mesajları okuma izniniz yok.",
       "limited_empty": "Henüz okuyabileceğiniz konuşma yok.",
-      "loading": "Mesajlar yükleniyor..."
+      "loading": "Mesajlar yükleniyor...",
+      "load_failed": "Mesajlar yüklenemedi."
     },
     "message": {
       "empty": "Henüz mesaj yok",

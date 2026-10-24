@@ -84,7 +84,8 @@
       "beginning": "Dies ist der Anfang dieser Unterhaltung.",
       "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen.",
       "limited_empty": "Noch keine Gespräche, die du lesen kannst.",
-      "loading": "Nachrichten werden geladen..."
+      "loading": "Nachrichten werden geladen...",
+      "load_failed": "Nachrichten konnten nicht geladen werden."
     },
     "message": {
       "empty": "Noch keine Nachrichten",

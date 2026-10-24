@@ -84,7 +84,8 @@
       "beginning": "Det här är början på den här konversationen.",
       "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet.",
       "limited_empty": "Det finns inga konversationer du kan läsa ännu.",
-      "loading": "Läser in meddelanden..."
+      "loading": "Läser in meddelanden...",
+      "load_failed": "Det gick inte att läsa in meddelanden."
     },
     "message": {
       "empty": "Inga meddelanden än",

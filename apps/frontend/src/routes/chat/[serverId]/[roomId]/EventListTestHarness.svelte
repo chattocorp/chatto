@@ -27,6 +27,7 @@
     scrollToEventId,
     onComplete,
     isLoading = false,
+    loadError = null,
     isJumpedMode = false,
     onJumpToPresent,
     onPresentRequested,
@@ -46,6 +47,7 @@
     scrollToEventId: string | null;
     onComplete?: () => void;
     isLoading?: boolean;
+    loadError?: unknown;
     isJumpedMode?: boolean;
     onJumpToPresent?: () => Promise<boolean>;
     onPresentRequested?: () => void;
@@ -123,6 +125,9 @@
   const messageStore = $derived({
     get isInitialLoading() {
       return isLoading;
+    },
+    get loadError() {
+      return loadError;
     },
     isLoadingMore: false,
     get hasReachedStart() {
