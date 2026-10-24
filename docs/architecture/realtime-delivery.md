@@ -450,17 +450,18 @@ reads at that cursor use the same boundary when they load profiles. An unknown
 typing user starts one shared profile read during a typing burst. Room and
 thread labels can use that profile before member-list loading finishes.
 Each server store keeps one presence map, `ServerStateStore.presence`, for the
-whole server. The store writes it from presence events and user resources,
-also while the server is not on screen. A partial user read without a presence
-value does not change a known value. A complete replacement, such as the
-snapshot, which never carries presence, removes all values until catch-up reads
-the users again. Presence dots and the member list read this map. Catch-up
-refreshes profiles and presence for retained members. A user read that this
-client starts does not replace a presence change that arrived during the read.
-An event during offset pagination restarts
-the membership read with the event's minimum cursor. Recovery resets and room
-access loss clear retained membership. Universal-room eligibility changes require
-a new authoritative read rather than client-side permission calculations.
+whole server. The store writes it from presence events and user resources. While
+the client polls an inactive server, presence is not kept current. It becomes
+current at the full catch-up when the server becomes active. A partial user read
+without a presence value does not change a known value. A complete replacement,
+such as the snapshot, which never carries presence, removes all values until
+catch-up reads the users again. Presence dots and the member list read this map.
+The catch-up of a live server refreshes profiles and presence for retained
+members. A user read that this client starts does not replace a presence change
+that arrived during the read. An event during offset pagination restarts the
+membership read with the event's minimum cursor. Recovery resets and room access
+loss clear retained membership. Universal-room eligibility changes require a new
+authoritative read rather than client-side permission calculations.
 
 [UserStore](../../packages/chatto-client/src/server/users.ts) stores
 public profiles by server, connection scope, and user ID. Directory and timeline
@@ -471,7 +472,10 @@ and disposal permanently fences the retired owner. Profile expiry timers have
 the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 Snapshot user lists contain only referenced users. The client merges them into
 the shared store. During full recovery at `caught_up`, it requests cached user
-IDs at that cursor. A confirmed privilege-only resume reads only missing DM
+IDs at that cursor. The catch-up of an inactive server's poll does not make
+this request after a resumed stream. Replay carries every profile change, and
+only presence becomes stale. The full catch-up when the server becomes active
+makes the request. A confirmed privilege-only resume reads only missing DM
 profiles, as described above.
 Only an omitted ID from this requested set confirms account removal. A reset
 generation and per-user revisions fence late reads and changes during the check.

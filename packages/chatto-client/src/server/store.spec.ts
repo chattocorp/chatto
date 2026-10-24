@@ -3006,6 +3006,26 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(store.projection.serverState?.motd).toBe('Current MOTD');
   });
 
+  it('skips the user read in the poll of an inactive server after a resumed stream', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    await store.completeRealtimeCatchUp('poll-cursor', undefined, true);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'poll-cursor');
+    expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
+
+    await store.completeRealtimeCatchUp('live-cursor');
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
+  it('reads users in the poll of an inactive server after a snapshot', async () => {
+    // Only this read can detect accounts that were deleted during the gap.
+    const store = makeStore(new FakeServerConnection([]));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    await store.completeRealtimeCatchUp('snapshot-cursor', undefined, true);
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
   it('reconciles latest-value resources and snapshot timelines at catch-up', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.rooms.messages('R1');
