@@ -1,6 +1,7 @@
 /** Exercise Botto's context selection against the client's real thread timelines. */
 import { afterEach, expect, test, vi } from 'vitest';
 import type { EventConnectionPage } from '@chatto/client/api/roomTimeline';
+import { RECENT_THREAD_LIMIT } from '@chatto/client/server/roomStores';
 import { readContext } from './context.ts';
 import { contextFixture, page, row } from './context.fixture.ts';
 
@@ -37,13 +38,13 @@ test('reports omitted older replies when the first page has older events', async
   rooms.dispose();
 });
 
-test('releases the thread after reading so the client can dispose it later', async () => {
-  const { server, rooms } = contextFixture();
-  const retain = vi.spyOn(rooms, 'retainThread');
-  const release = vi.spyOn(rooms, 'releaseThread');
-  await read(server);
-  expect(retain).toHaveBeenCalledOnce();
-  expect(release).toHaveBeenCalledOnce();
+test('gets the thread again when the client disposes it during the wait', async () => {
+  const { server, rooms, history } = contextFixture(new Promise(() => {}));
+  const waiting = read(server);
+  history.mockResolvedValue(page([row('root', 'Root again')]));
+  // Using more threads than the client keeps disposes the waiting one.
+  for (let index = 0; index < RECENT_THREAD_LIMIT; index++) rooms.thread('room', `other-${index}`);
+  expect((await waiting).messages[0]?.text).toBe('Root again');
   rooms.dispose();
 });
 

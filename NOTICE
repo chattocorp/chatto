@@ -97,6 +97,7 @@ Frontend, Examples, and Documentation Components:
 - LiveKit client SDK for JS (https://github.com/livekit/client-sdk-js) -
   Apache License 2.0
 - lowlight (https://github.com/wooorm/lowlight) - MIT License
+- lru-cache, used by @chatto/client (https://github.com/isaacs/node-lru-cache) - Blue Oak Model License 1.0.0
 - machina (https://github.com/ifandelse/machina.js) - MIT License
 - markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
 - markdown-it-footnote (https://github.com/markdown-it/markdown-it-footnote) - MIT License

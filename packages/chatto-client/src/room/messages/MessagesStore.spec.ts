@@ -5091,10 +5091,12 @@ describe('MessagesStore — load errors and current windows', () => {
     store.dispose();
   });
 
-  it('is never current after dispose', async () => {
+  it('is disposed and never current after dispose', async () => {
     const { store } = threadStore(vi.fn(async () => threadPage('t1')));
     await settle();
+    expect(store.isDisposed).toBe(false);
     store.dispose();
+    expect(store.isDisposed).toBe(true);
     expect(store.isCurrent).toBe(false);
   });
 });

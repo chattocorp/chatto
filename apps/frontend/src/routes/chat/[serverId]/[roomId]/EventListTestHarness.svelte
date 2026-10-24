@@ -39,7 +39,8 @@
     onComposerReady,
     onStoreRead,
     onReadPosition,
-    onReachedBottom
+    onReachedBottom,
+    onClearAnchor
   }: {
     eventIds: string[];
     roomId?: string;
@@ -61,6 +62,8 @@
     onStoreRead?: () => void;
     onReadPosition?: (position: TimelineReadPosition) => void;
     onReachedBottom?: () => void;
+    /** Called when the timeline clears the store's anchor. */
+    onClearAnchor?: () => void;
   } = $props();
 
   const composerContext = createComposerContext();
@@ -150,6 +153,7 @@
     },
     clearAnchor: () => {
       recoveryViewport = null;
+      onClearAnchor?.();
     },
     setAnchor: () => true,
     refreshCurrentWindow: async () => ({

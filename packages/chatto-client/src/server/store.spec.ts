@@ -9,6 +9,7 @@ import type { AuthenticatedServerState } from '../api/serverState.js';
 import type { RoomFileItem } from '../api/attachments.js';
 import type { MemberDirectoryPage } from '../api/memberDirectory.js';
 import { createRoomTimelineAPI } from '../api/roomTimeline.js';
+import { MessagesStore } from '../room/messages/MessagesStore.js';
 import type { MessageResource } from '../api/messageResources.js';
 import {
   Message,
@@ -1320,6 +1321,21 @@ describe('ServerStateStore privileged mode', () => {
     expect(reloadChanged).toHaveBeenCalledOnce();
     expect(reloadChanged).toHaveBeenCalledWith('privilege-cursor', expect.any(Function));
     expect(reloadUnchanged).not.toHaveBeenCalled();
+  });
+
+  it('restores the latest window only of a room timeline that exists', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const restore = vi.spyOn(MessagesStore.prototype, 'restoreLatestWindow');
+    // A new timeline reads the latest window itself, so nothing is created.
+    store.restoreProjectedRoomWindow('R1');
+    expect(restore).not.toHaveBeenCalled();
+
+    store.rooms.messages('R1');
+    await flushPromises();
+    store.restoreProjectedRoomWindow('R1');
+    expect(restore).toHaveBeenCalledOnce();
+    restore.mockRestore();
+    store.dispose();
   });
 
   it('refreshes thread cooldowns after an exemption is lost without clearing readable messages', async () => {

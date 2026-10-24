@@ -8,12 +8,13 @@ import type { ThreadContext } from './context-messages.ts';
 
 /** The thread timelines and connection identity that context selection needs. */
 export type ContextSource = Pick<Server, 'accountId' | 'status'> & {
-  rooms: Pick<Server['rooms'], 'thread' | 'retainThread' | 'releaseThread'>;
+  rooms: Pick<Server['rooms'], 'thread'>;
 };
 
 /** The client loads a thread once and keeps it current through realtime delivery.
- * Botto retries a failed load once. The returned context contains the root and up
- * to limit recent text replies; limit must fit in one thread page (50 replies). */
+ * Botto makes one more attempt: it reads again when a load fails, or gets the
+ * timeline again when the client disposed it during the wait. The returned context contains the root and
+ * up to limit recent text replies; limit must fit in one thread page (50 replies). */
 export async function readContext(
   server: ContextSource,
   location: ThreadLocation,
@@ -23,27 +24,29 @@ export async function readContext(
   signal.throwIfAborted();
   if (server.status !== 'connected') throw new Error('Chatto is not connected');
   const { roomId, threadRootId } = location;
-  const store = server.rooms.thread(roomId, threadRootId);
-  // Retain the timeline while reading, so that the client keeps it.
-  server.rooms.retainThread(roomId, threadRootId, store);
-  try {
-    if (!(await loadSettled(store, signal))) {
-      await untilAborted(store.restoreLatestWindow(), signal);
-      if (!(await loadSettled(store, signal))) throw new Error('Thread history is not ready');
-    }
-    return selectContext(store, server.accountId, location, limit);
-  } finally {
-    server.rooms.releaseThread(roomId, threadRootId, store);
-  }
+  let store = server.rooms.thread(roomId, threadRootId);
+  let state = await loadSettled(store, signal);
+  if (state === 'disposed') store = server.rooms.thread(roomId, threadRootId);
+  else if (state === 'failed') await untilAborted(store.restoreLatestWindow(), signal);
+  if (state !== 'current') state = await loadSettled(store, signal);
+  if (state !== 'current') throw new Error('Thread history is not ready');
+  return selectContext(store, server.accountId, location, limit);
 }
 
-/** Resolve true when the timeline is current, or false when its read fails. */
-function loadSettled(store: MessagesStore, signal: AbortSignal): Promise<boolean> {
-  const state = computed(() => (store.isCurrent ? true : store.loadError ? false : undefined));
+type LoadState = 'current' | 'failed' | 'disposed';
+
+/** Resolve when the timeline is current, its read failed, or the client disposed it. */
+function loadSettled(store: MessagesStore, signal: AbortSignal): Promise<LoadState> {
+  const state = computed((): LoadState | undefined => {
+    if (store.isCurrent) return 'current';
+    if (store.isDisposed) return 'disposed';
+    if (store.loadError) return 'failed';
+    return undefined;
+  });
   const current = state.get();
   if (current !== undefined) return Promise.resolve(current);
   return untilAborted(
-    new Promise<boolean>((resolve) => {
+    new Promise<LoadState>((resolve) => {
       const stop = subscribe(state, () => {
         const settled = state.get();
         if (settled === undefined) return;

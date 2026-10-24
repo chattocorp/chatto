@@ -221,6 +221,18 @@ describe('EventList jump completion', () => {
     await rendered.rerender({ eventIds: [], scrollToEventId: null, loadError: new Error('') });
     await expect.element(page.getByRole('alert')).toHaveTextContent('Could not load messages.');
   });
+  it('clears the anchor of its store when it unmounts', async () => {
+    // A closed thread pane relies on this to show the latest replies next time.
+    const onClearAnchor = vi.fn();
+    const rendered = render(EventListTestHarness, {
+      props: { eventIds: ['msg-a'], scrollToEventId: null, onClearAnchor }
+    });
+    await expect.element(page.getByText('msg-a', { exact: true })).toBeVisible();
+    expect(onClearAnchor).not.toHaveBeenCalled();
+
+    rendered.unmount();
+    expect(onClearAnchor).toHaveBeenCalledOnce();
+  });
   it('keeps retained rows visible after a failed read', async () => {
     render(EventListTestHarness, {
       props: {
