@@ -4,12 +4,14 @@ import type { createAgent } from './agent.ts';
 import type { Settings } from './settings.ts';
 import { log, logged } from './log.ts';
 import { readContext, type ContextSource } from './context.ts';
+import { reactionExtension } from './reactions.ts';
+import { hasTranscript } from './messages.ts';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
   settings: Settings,
   botId: string,
-  server: Pick<Server, 'postMessage' | 'withTyping'> & ContextSource,
+  server: Pick<Server, 'postMessage' | 'withTyping' | 'addReaction'> & ContextSource,
   agent: Awaited<ReturnType<typeof createAgent>>,
   shutdown: AbortSignal
 ) {
@@ -19,6 +21,12 @@ export function createTurnHandler(
     const message = messages.at(-1);
     if (!message) return;
     const destination = replyDestination(message);
+    const identity = [
+      new URL(settings.serverUrl).origin,
+      botId,
+      destination.roomId,
+      destination.threadRootId
+    ];
     const metrics = {
       threadId: destination.threadRootId,
       turn: ++turnCounter,
@@ -29,6 +37,23 @@ export function createTurnHandler(
     await server.withTyping(
       destination,
       async () => {
+        // Existing transcripts identify ongoing conversations, including after a restart.
+        if (settings.acknowledgementEmoji && !(await hasTranscript(settings.directory, identity))) {
+          signal.throwIfAborted();
+          const first = messages[0]!;
+          // A failed acknowledgement must not stop the answer or consume its whole deadline.
+          await logged(
+            'Acknowledgement',
+            () =>
+              server.addReaction(
+                { roomId: first.roomId, messageId: first.id },
+                settings.acknowledgementEmoji,
+                { signal: AbortSignal.any([signal, AbortSignal.timeout(2000)]) }
+              ),
+            metrics
+          ).catch(() => {});
+        }
+        signal.throwIfAborted();
         const context = await logged(
           'Thread context read',
           () => readContext(server, destination, settings.contextMessages, signal),
@@ -47,16 +72,23 @@ export function createTurnHandler(
           'Model turn',
           () =>
             agent.reply(
-              [
-                new URL(settings.serverUrl).origin,
-                botId,
-                destination.roomId,
-                destination.threadRootId
-              ],
+              identity,
               prompt,
               signal,
               context,
-              [...new Set(messages.map((item) => item.authorId))]
+              [...new Set(messages.map((item) => item.authorId))],
+              [
+                reactionExtension(
+                  server,
+                  destination.roomId,
+                  destination.threadRootId,
+                  new Set([
+                    ...messages.map((item) => item.id),
+                    ...context.messages.map((item) => item.id)
+                  ]),
+                  signal
+                )
+              ]
             ),
           metrics
         );

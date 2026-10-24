@@ -1,5 +1,5 @@
 /** Exercise document provisioning and shared locking through Pi's MCP client. */
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { createMemory } from './memory.ts';
@@ -21,6 +21,9 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
   const root = resolve('../../.context');
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, 'botto-memory-'));
+  for (const file of ['means.schema.json', 'MEANS.md']) {
+    await copyFile(new URL(`../memory/${file}`, import.meta.url), join(directory, file));
+  }
   const collections = new Map<
     string,
     Array<{ id: string; frontmatter: { data: Record<string, unknown> } }>
@@ -56,32 +59,39 @@ test('concurrent turns and restarts reuse documents; cancelled waiters do not ho
         '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="test/test"\n[memory]\nenabled=true',
         'botto.toml'
       ),
-      directory
+      memoryPath: directory
     };
     const open = createMemory(settings);
-    const identity = ['server', 'bot', 'room', 'thread'];
+    const threadId = 'thread';
     const signal = new AbortController().signal;
     const [first, second] = await Promise.all([
-      open(identity, ['user', 'user'], signal),
-      open(identity, ['user', 'other'], signal)
+      open(threadId, ['user', 'user'], signal),
+      open(threadId, ['user', 'other'], signal)
     ]);
     expect(first.documents.global).toBe(second.documents.global);
     expect(first.documents.users.user).toBe(second.documents.users.user);
     expect([...collections.values()][0]).toHaveLength(3);
-    expect((await createMemory(settings)(identity, ['user'], signal)).documents).toEqual(
+    expect(first.directory).toBe(directory);
+    expect((await createMemory(settings)(threadId, ['user'], signal)).documents).toEqual(
       first.documents
     );
     const release = await first.acquire(signal);
     try {
       const controller = new AbortController();
-      const waiting = open(identity, ['waiting'], controller.signal);
+      const waiting = open(threadId, ['waiting'], controller.signal);
       controller.abort(new Error('cancelled while queued'));
       await expect(waiting).rejects.toThrow('cancelled while queued');
     } finally {
       release();
     }
-    await open(['server', 'other-bot'], ['user'], signal);
-    expect(collections.size).toBe(2);
+    await open('other-thread', ['user'], signal);
+    expect(collections.size).toBe(1);
+    expect(await readFile(join(directory, 'MEANS.md'), 'utf8')).toBe(
+      await readFile(new URL('../memory/MEANS.md', import.meta.url), 'utf8')
+    );
+    await rm(join(directory, 'means.schema.json'));
+    await expect(open(threadId, ['user'], signal)).rejects.toThrow('Cannot read means.schema.json');
+    expect(fixture.transport).toHaveBeenCalledTimes(4);
   } finally {
     vi.restoreAllMocks();
     await rm(directory, { recursive: true, force: true });

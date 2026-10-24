@@ -168,11 +168,7 @@ test('supplies memory identity and workflow and shuts down extensions on Pi fail
   await expect(
     agent.reply(['server', 'bot', 'room', 'thread'], 'hello', signal, undefined, ['human'])
   ).rejects.toThrow('model failed');
-  expect(open).toHaveBeenCalledExactlyOnceWith(
-    ['server', 'bot', 'room', 'thread'],
-    ['human'],
-    signal
-  );
+  expect(open).toHaveBeenCalledExactlyOnceWith('thread', ['human'], signal);
   const prompt = pi.create.mock.calls.at(-1)![0].resourceLoader.options.systemPromptOverride();
   expect(prompt).toContain('user-doc');
   expect(prompt).toContain('Read the global and user documents.');

@@ -5,8 +5,12 @@ import { Inbox } from './inbox.ts';
 import { createTurnHandler } from './turn.ts';
 import { parseSettings } from './settings.ts';
 import { contextFixture, row } from './context.fixture.ts';
+import { hasTranscript } from './messages.ts';
+
+vi.mock('./messages.ts', () => ({ hasTranscript: vi.fn() }));
 
 beforeEach(() => {
+  vi.mocked(hasTranscript).mockReset().mockResolvedValue(false);
   vi.useFakeTimers();
   vi.spyOn(console, 'info').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -25,6 +29,7 @@ function setup() {
   const fixture = contextFixture();
   const server = {
     ...fixture.server,
+    addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
     postMessage: vi.fn<Server['postMessage']>().mockResolvedValue({ ids: ['reply'] }),
     withTyping: async <T>(_destination: Destination, work: () => Promise<T>) => work()
   };
@@ -48,6 +53,7 @@ function setup() {
 test('later turns use the shared live timeline without another history request', async () => {
   const { turn, one, two, store, history, server, agent, controller } = setup();
   await turn([one]);
+  vi.mocked(hasTranscript).mockResolvedValue(true);
   store.ingestEvent(row('unaddressed', 'Live context', 'another'));
   await turn([two]);
   expect(history).toHaveBeenCalledTimes(1);
@@ -58,6 +64,7 @@ test('later turns use the shared live timeline without another history request',
     text: 'Live context'
   });
   expect(server.postMessage).toHaveBeenCalledTimes(2);
+  expect(server.addReaction).toHaveBeenCalledOnce();
   controller.abort();
   store.dispose();
 });
@@ -89,9 +96,18 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
       ],
       olderContextOmitted: false
     },
-    ['human', 'another']
+    ['human', 'another'],
+    [expect.any(Function)]
   );
   expect(history).toHaveBeenCalledTimes(1);
+  expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
+    { roomId: 'room', messageId: 'one' },
+    'eyes',
+    { signal: expect.any(AbortSignal) }
+  );
+  expect(server.addReaction.mock.invocationCallOrder[0]).toBeLessThan(
+    agent.reply.mock.invocationCallOrder[0]!
+  );
   expect(server.postMessage).toHaveBeenCalledExactlyOnceWith(
     { roomId: 'room', threadRootId: 'root', inReplyTo: 'two' },
     'One answer',
@@ -99,6 +115,58 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
   );
   controller.abort();
   await inbox.close();
+  store.dispose();
+});
+
+test('failed acknowledgement still answers and acknowledgement can be disabled', async () => {
+  const { settings, server, agent, turn, one, store } = setup();
+  server.addReaction.mockRejectedValueOnce(new Error('unavailable'));
+  await turn([one]);
+  expect(server.postMessage).toHaveBeenCalledOnce();
+  settings.acknowledgementEmoji = '';
+  await turn([one]);
+  expect(server.addReaction).toHaveBeenCalledOnce();
+  expect(agent.reply).toHaveBeenCalledTimes(2);
+  store.dispose();
+});
+
+test('a stalled acknowledgement times out without stopping the answer', async () => {
+  const { server, agent, turn, one, store } = setup();
+  server.addReaction.mockImplementationOnce(
+    (_message, _emoji, options) =>
+      new Promise((_, reject) => {
+        options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason), {
+          once: true
+        });
+      })
+  );
+  // Native AbortSignal.timeout uses real timers, so inject the acknowledgement deadline.
+  const deadline = new AbortController();
+  const timeout = AbortSignal.timeout;
+  vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) =>
+    ms === 2000 ? deadline.signal : timeout(ms)
+  );
+  const pending = turn([one]);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(agent.reply).not.toHaveBeenCalled();
+  deadline.abort(new Error('deadline'));
+  await pending;
+  expect(server.postMessage).toHaveBeenCalledOnce();
+  store.dispose();
+});
+
+test('a resumed thread does not get another acknowledgement', async () => {
+  const { turn, one, server, store, settings } = setup();
+  vi.mocked(hasTranscript).mockResolvedValue(true);
+  await turn([one]);
+  expect(hasTranscript).toHaveBeenCalledWith(settings.directory, [
+    'https://chat.example.com',
+    'bot',
+    'room',
+    'root'
+  ]);
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(server.postMessage).toHaveBeenCalledOnce();
   store.dispose();
 });
 

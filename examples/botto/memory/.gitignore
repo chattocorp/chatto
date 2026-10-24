@@ -1,0 +1,5 @@
+# Keep only collection configuration in Git. Memory documents and indexes are private.
+*
+!.gitignore
+!MEANS.md
+!means.schema.json

@@ -51,6 +51,7 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `agent.name`                   | `Botto`                  | Name given to the model and used to label its thread context                              |
 | `agent.system_prompt`          | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings                        |
 | `runtime.data_directory`       | `.botto`                 | Private Pi transcript storage                                                             |
+| `runtime.acknowledgement_emoji` | `eyes` | Reaction when a new conversation starts; empty string disables it |
 | `runtime.debounce_ms`          | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
 | `runtime.passive_debounce_ms`  | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds                 |
 | `runtime.turn_timeout_ms`      | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                                  |
@@ -142,6 +143,18 @@ a retained assistant response; human messages with the same text are kept.
 This check uses Pi's current request context, so messages removed by compaction
 can be supplied by the snapshot again. Compaction summaries can still describe
 the same events. These request changes do not rewrite the saved transcript.
+When Botto first joins a conversation, it adds an 👀 reaction to the first message
+in that initial batch. Later turns do not get this automatic reaction. An existing
+Pi transcript also suppresses the acknowledgement after a restart. Set
+`runtime.acknowledgement_emoji` to another emoji shortcode or `""` to disable it.
+Reaction failures do not stop the answer. Botto leaves this reaction in place as
+an acknowledgement, not a completion indicator.
+
+The model can also use `add_reaction` for agreement, appreciation, or humor. This
+native Pi tool uses the Chatto client and works without Chatto MCP. It can react
+only to messages in the current batch or supplied thread context. The default
+prompt tells the model not to duplicate the automatic acknowledgement.
+
 Botto shows a typing indicator and posts the
 final answer in the thread, referencing the last message in the batch.
 The live Pi session closes after each turn; its transcript stays on disk.
@@ -149,7 +162,7 @@ On the next message in that thread, including after a restart, Botto reopens the
 same transcript. It does not preload all transcripts at process startup.
 
 New messages are skipped when the configured queue or thread limit is reached.
-Ordinary room posts and reactions do not start turns. Botto has no tools by default.
+Ordinary room posts and reactions do not start turns. Botto always provides the reaction tool.
 It loads only host-selected extensions, not local
 Pi extensions, skills, prompt templates, or project instructions.
 
@@ -183,19 +196,29 @@ Install the `means` CLI and enable local memory in TOML:
 [memory]
 enabled = true
 command = "means"
+path = "memory"
 ```
 
 Run `means --help` and `means agents` for CLI setup and usage. The executable must
 be available to the Botto process; `command` can be an absolute path. This feature
 is independent of `chatto.mcp` and needs no additional network service.
 
-On the first memory-enabled turn, Botto creates a Means collection under
-`runtime.data_directory/memory/<server-and-bot-hash>/`. It copies the schema and
-`MEANS.md` workflow from this example without overwriting existing files. The
-collection has one global document and one document per user who sends a message
+`memory.path` selects one Means collection. It defaults to `memory`, relative to
+the TOML file, and also accepts an absolute path or `${VARIABLE}`. The example's
+`memory/` directory is the collection: Git tracks its schema and `MEANS.md`
+workflow, but ignores private memory documents and Means indexes. To use another
+directory, copy `means.schema.json`, `MEANS.md`, and `.gitignore` there first.
+Botto requires the schema and workflow files; it does not copy templates at runtime.
+
+The collection has one global document and one document per user who sends a message
 in an accepted batch. Stable Chatto user IDs identify users; names do not.
-Documents are reused across threads and restarts. Different server origins and
-bot accounts use separate collections.
+Documents are reused across threads and restarts. Use a separate `memory.path`
+for each server and bot account; Botto no longer adds an identity hash to this path.
+
+To keep memory from the previous hashed layout, stop Botto and move the document
+Markdown files from `.botto/memory/<server-and-bot-hash>/` into `memory/`. Preserve
+any edits to the old `MEANS.md` and schema. Means rebuilds its indexes. Alternatively,
+set `memory.path` to the old collection directory. Pi session storage is unchanged.
 
 Pi receives the current document IDs, the collection workflow, and the full Means
 tool catalog with a `mcp__memory__` prefix. The default system prompt tells it to read
@@ -210,7 +233,7 @@ Botto serializes Means calls and document creation within its process. It uses
 Pi's sequential tool mode when memory is enabled, so a batch of memory calls
 cannot block itself while waiting for the shared lock. Updates use
 Means content hashes to detect stale reads. Continue to run only one Botto process
-per data directory; do not edit memory concurrently through other processes.
+per data directory and memory collection; do not edit memory concurrently through other processes.
 
 Memory contains private Markdown. User documents organize facts; they are not
 access-control boundaries. The model can access the complete collection. The

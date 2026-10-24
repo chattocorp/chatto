@@ -9,6 +9,7 @@ import {
   SessionManager,
   SettingsManager
 } from '@earendil-works/pi-coding-agent';
+import type { ExtensionFactory } from '@earendil-works/pi-coding-agent';
 import type { Settings } from './settings.ts';
 import { StartupError, startupStep } from './diagnostics.ts';
 import { log } from './log.ts';
@@ -60,10 +61,13 @@ export async function createAgent(settings: Settings) {
       prompt: string,
       signal: AbortSignal,
       context?: ThreadContext,
-      userIds: readonly string[] = []
+      userIds: readonly string[] = [],
+      tools: ExtensionFactory[] = []
     ): Promise<string> {
       signal.throwIfAborted();
-      const memory = settings.memory ? await openMemory(identity, userIds, signal) : undefined;
+      const memory = settings.memory
+        ? await openMemory(identity.at(-1), userIds, signal)
+        : undefined;
       const settingsManager = SettingsManager.inMemory();
       const resourceLoader = new DefaultResourceLoader({
         cwd: settings.directory,
@@ -76,6 +80,7 @@ export async function createAgent(settings: Settings) {
         noContextFiles: true,
         // Only host-selected extensions are loaded; local extensions remain disabled.
         extensionFactories: [
+          ...tools,
           mcpExtension(settings, memory?.directory),
           mcpObserver(signal, identity.at(-1), memory?.acquire),
           ...(context ? [threadContextExtension(context)] : [])

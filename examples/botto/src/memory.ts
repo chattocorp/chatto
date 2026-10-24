@@ -1,7 +1,6 @@
 /** Provision Means documents; Pi's native MCP extension owns model-facing tools. */
-import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { copyFile, mkdir } from 'node:fs/promises';
+import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { McpClient, StdioTransport } from '@earendil-works/pi-mcp';
 import { untilAborted } from '@chatto/client/util/untilAborted';
@@ -25,7 +24,7 @@ export function createMemory(settings: Settings) {
       throw error;
     }
   };
-  return async (identity: readonly string[], userIds: readonly string[], signal: AbortSignal) => {
+  return async (threadId: string | undefined, userIds: readonly string[], signal: AbortSignal) => {
     const release = await acquire(signal);
     const client = new McpClient({ name: 'botto-memory-setup', version: '0.1.0' });
     const abort = () => {
@@ -33,20 +32,14 @@ export function createMemory(settings: Settings) {
     };
     signal.addEventListener('abort', abort, { once: true });
     try {
-      const key = createHash('sha256')
-        .update(JSON.stringify(identity.slice(0, 2)))
-        .digest('hex');
-      const directory = join(settings.directory, 'memory', key);
-      await mkdir(directory, { recursive: true, mode: 0o700 });
+      const directory = settings.memoryPath;
       for (const file of ['means.schema.json', 'MEANS.md']) {
         try {
-          await copyFile(
-            new URL(`../memory/${file}`, import.meta.url),
-            join(directory, file),
-            constants.COPYFILE_EXCL
+          await access(join(directory, file), constants.R_OK);
+        } catch {
+          throw new Error(
+            `Cannot read ${file} in memory.path. Copy the collection configuration first.`
           );
-        } catch (error) {
-          if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error;
         }
       }
       signal.throwIfAborted();
@@ -60,14 +53,14 @@ export function createMemory(settings: Settings) {
         ),
         signal
       );
-      const global = await ensureDocument(client, { scope: 'global' }, signal, identity[3]);
+      const global = await ensureDocument(client, { scope: 'global' }, signal, threadId);
       const users: Record<string, string> = Object.create(null);
       for (const userId of new Set(userIds)) {
         users[userId] = await ensureDocument(
           client,
           { scope: 'user', user_id: userId },
           signal,
-          identity[3]
+          threadId
         );
       }
       return {

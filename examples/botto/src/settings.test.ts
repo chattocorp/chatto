@@ -20,8 +20,34 @@ test('uses defaults and preserves slashes in the model ID', () => {
     maxPendingMessages: 100,
     turnTimeoutMs: 120000,
     contextMessages: 30,
-    directory: '/config/.botto'
+    directory: '/config/.botto',
+    memoryPath: '/config/memory',
+    acknowledgementEmoji: 'eyes'
   });
+});
+
+test('acknowledgement emoji can be changed or disabled', () => {
+  expect(parse(`${source}\n[runtime]\nacknowledgement_emoji="wave"`).acknowledgementEmoji).toBe(
+    'wave'
+  );
+  expect(parse(`${source}\n[runtime]\nacknowledgement_emoji=""`).acknowledgementEmoji).toBe('');
+  expect(() => parse(`${source}\n[runtime]\nacknowledgement_emoji=false`)).toThrow(
+    'runtime.acknowledgement_emoji'
+  );
+});
+
+test('resolves memory paths relative to TOML and accepts environment variables and absolute paths', () => {
+  expect(parse(`${source}\n[memory]\npath="notes"`).memoryPath).toBe('/config/notes');
+  expect(parse(`${source}\n[memory]\npath="/private/notes"`).memoryPath).toBe('/private/notes');
+  expect(
+    parseSettings(source + '\n[memory]\npath="${MEMORY_PATH}"', '/config/botto.toml', {
+      ...env,
+      MEMORY_PATH: 'notes'
+    }).memoryPath
+  ).toBe('/config/notes');
+  expect(() => parse(`${source}\n[memory]\npath=""`)).toThrow(
+    'memory.path must be a non-empty string'
+  );
 });
 
 test('loads persona, multiline prompt, and runtime overrides', () => {
