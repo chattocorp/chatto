@@ -55,7 +55,8 @@ test('keeps Runling versioning independent of Chatto prereleases', async () => {
     component: 'runling',
     versioning: 'default',
     prerelease: false,
-    draft: false,
+    // The workflow publishes this draft with Latest explicitly disabled.
+    draft: true,
     'include-component-in-tag': true,
     'tag-separator': '/',
     'extra-files': [{ type: 'json', path: 'package.json', jsonpath: '$.version' }]
