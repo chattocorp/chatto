@@ -57,8 +57,9 @@ then permits HTTP or HTTPS navigation inside that child while denying nested
 windows. Main-window navigation away from the app origin is denied and normal
 web links open in the system browser.
 
-The host grants camera, microphone, notification, and clipboard write permission
-only to the fixed app origin. Clipboard reads remain blocked.
+The host grants camera, microphone, notification, clipboard write, and fullscreen
+permission only to the fixed app origin. Clipboard reads and automatic fullscreen
+without a user gesture remain blocked.
 Screen capture requires a user gesture and an explicit native
 source choice. No preload bridge or Chatto domain API is exposed to renderer
 code.
