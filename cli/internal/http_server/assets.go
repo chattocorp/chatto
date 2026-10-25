@@ -51,11 +51,14 @@ type transformRequest struct {
 	AssetID string
 	// JPEGQuality overrides the default quality for opaque static derivatives.
 	JPEGQuality int
-	// FetchAsset returns the asset data and content type.
+	// FetchAsset returns the asset data and content type. Concurrent requests
+	// for the same derivative call it only once, after Authorize.
 	// The reader will be closed if it implements io.Closer.
 	FetchAsset func(ctx context.Context) (io.Reader, string, error)
 	// Authorize checks if access is allowed. Return true if authorized.
-	// If nil, asset is considered public and no authorization is needed.
+	// It runs before the cache lookup and FetchAsset, so it must not depend on
+	// FetchAsset. If nil, asset is considered public and no authorization is
+	// needed.
 	Authorize func(c *gin.Context) bool
 }
 
@@ -670,16 +673,15 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	// Build cache key with prefix to distinguish between asset types
 	cacheKey := core.ImageCacheKey(req.CachePrefix, req.AssetID, params.Width, params.Height, params.Fit)
 
+	if req.Authorize != nil && !req.Authorize(c) {
+		return
+	}
+
 	// Try cache first
 	if cached, err := s.core.GetCachedResize(ctx, cacheKey); err == nil && cached != nil {
 		s.logger.Debug("Cache hit for transformed asset",
 			"asset_id", req.AssetID,
 			"cache_key", cacheKey)
-
-		// Still need to check authorization if required
-		if req.Authorize != nil && !req.Authorize(c) {
-			return
-		}
 
 		c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
 		c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
@@ -689,32 +691,20 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 		return
 	}
 
-	// Cache miss - fetch the asset first
-	// (FetchAsset may cache metadata like room ID needed by Authorize)
-	reader, contentType, err := req.FetchAsset(ctx)
-	if err != nil {
-		s.logger.Error("Failed to get asset", "error", err, "asset_id", req.AssetID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
-		return
-	}
-	// Close the reader if it implements io.Closer
-	if closer, ok := reader.(io.Closer); ok {
-		defer closer.Close()
-	}
-
-	// Check authorization after fetching (Authorize can use metadata cached by FetchAsset)
-	if req.Authorize != nil && !req.Authorize(c) {
-		return
-	}
-
-	// Check if content type is an image
-	if contentType == "" || !isImageContentType(contentType) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Asset is not an image"})
-		return
-	}
-
+	// Cache miss. Only the request that does the shared transform opens the
+	// source, so waiting requests do not buffer source bytes.
 	result, err := s.imageTransforms.do(ctx, cacheKey,
 		func() ([]byte, error) {
+			reader, contentType, err := req.FetchAsset(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %w", errTransformSourceNotFound, err)
+			}
+			if closer, ok := reader.(io.Closer); ok {
+				defer closer.Close()
+			}
+			if contentType == "" || !isImageContentType(contentType) {
+				return nil, errTransformSourceNotImage
+			}
 			data, err := io.ReadAll(reader)
 			if err != nil {
 				return nil, fmt.Errorf("read asset: %w", err)
@@ -749,7 +739,15 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 			return &transformedImage{Data: transformedData, ContentType: result.ContentType}, nil
 		},
 	)
-	if err != nil {
+	switch {
+	case errors.Is(err, errTransformSourceNotFound):
+		s.logger.Error("Failed to get asset", "error", err, "asset_id", req.AssetID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		return
+	case errors.Is(err, errTransformSourceNotImage):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Asset is not an image"})
+		return
+	case err != nil:
 		s.logger.Error("Failed to transform image", "error", err, "asset_id", req.AssetID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transform image"})
 		return

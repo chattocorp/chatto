@@ -156,16 +156,16 @@ already in the cache and newly posted attachments are inserted directly.
 
 ### 16. Upload and image memory has per-process bounds
 
-**Decision:** The memory that uploads and image transforms use does not increase with the file size. Each server process applies these bounds:
+**Decision:** Each server process applies these bounds to uploads and image transforms:
 
-- `CompleteUpload` joins the chunks in a temporary file and streams the file to storage. For an image, it reads only the image headers to get the dimensions and frame count. It does not decode pixels.
-- At most four `UploadChunk` requests are in progress. Other chunk requests wait before the server reads their body.
-- Concurrent requests for the same image derivative share one transform. Transforms in progress hold at most 40 million decoded pixels together. A large image waits until enough pixels are free.
+- `CompleteUpload` joins the chunks in a temporary file and streams the file to storage. Thus, its memory use does not increase with the file size. For an image, it reads only the image headers to get the dimensions and frame count. It does not decode pixels. Image derivatives from workers use the same header check.
+- At most four `UploadChunk` requests are in progress, and at most two for one user. Other chunk requests wait before the server reads their body. A request that holds a slot must send its body within five minutes.
+- Concurrent requests for the same image derivative share one transform, and only one of them reads the source. Transforms in progress hold at most 40 million decoded pixels together. A large image waits until enough pixels are free, and transforms that start to wait later wait behind it.
 - When the `GOMEMLIMIT` environment variable is not set, `chatto run` sets the Go memory limit to 90% of the cgroup memory limit of the container.
 
 **Why:** A full decode of a 40 megapixel image needs approximately 160 MB. In a small container, the kernel can stop the process during uploads or when many clients load a new image together. Go does not read the container memory limit, so without a limit the heap can grow to twice the live data before Go frees memory.
 
-**Tradeoff:** An image with valid headers but damaged pixel data is accepted at upload. Its derivatives fail when a client requests them, and the original stays available for download. Chunk uploads and large transforms can wait during peaks. The bounds apply to each process, not to the cluster.
+**Tradeoff:** An image with valid headers but damaged pixel data is accepted at upload. Its derivatives fail when a client requests them, and the original stays available for download. Chunk uploads and large transforms can wait during peaks, and a client on a link slower than approximately 0.3 Mbit/s cannot send a full 10 MiB chunk. A waiting transform holds its source bytes, and an animated GIF counts as at most 40 million pixels although its frames together can have more. The bounds apply to each process, not to the cluster.
 
 ## Permissions
 

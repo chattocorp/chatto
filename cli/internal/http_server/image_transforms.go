@@ -3,6 +3,8 @@ package http_server
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/chattocorp/chatto/cli/internal/assets"
@@ -15,10 +17,17 @@ import (
 // megapixel image needs approximately 160 MB. The limits are per process
 // because memory is per process.
 //
-//   - Concurrent requests for the same derivative share one transform.
+//   - Concurrent requests for the same derivative share one transform. Only
+//     one of them reads the source.
 //   - Transforms in progress hold at most assets.MaxDecodedImagePixels pixels
 //     together. Small images run concurrently. A large image waits until the
-//     transforms in progress release their pixels.
+//     transforms in progress release their pixels, and transforms that start
+//     to wait later wait behind it.
+//
+// A transform reads its source before it waits for pixels, so a waiting
+// transform holds its source bytes. An animated GIF counts as at most
+// assets.MaxDecodedImagePixels pixels, although its frames together can have
+// more.
 //
 // The zero value is ready for use.
 type imageTransforms struct {
@@ -34,46 +43,65 @@ type transformedImage struct {
 	ContentType string
 }
 
+var (
+	// errTransformSourceNotFound marks a failure to open the source asset.
+	errTransformSourceNotFound = errors.New("transform source not found")
+	// errTransformSourceNotImage marks a source asset that is not an image.
+	errTransformSourceNotImage = errors.New("transform source is not an image")
+	// errTransformRequestEnded marks a failure after the context of the
+	// request that did the work ended.
+	errTransformRequestEnded = errors.New("transform request ended")
+)
+
 // do returns the transform result for key. If another request already
 // transforms key, do waits for that result and does not call read. Otherwise,
 // it calls read to get the source bytes, waits until enough pixels are free,
 // and calls transform.
 //
-// The first request does the work with its own context. If that work fails,
-// each waiting request whose context is still active does the work again
-// with its own read, so a cancelled first request does not fail the others.
+// The request that does the work uses its own context. If that context ends,
+// one of the waiting requests whose context is still active does the work
+// again with its own read. Other failures are shared with all waiting
+// requests.
 func (t *imageTransforms) do(
 	ctx context.Context,
 	key string,
 	read func() ([]byte, error),
 	transform func([]byte) (*transformedImage, error),
 ) (*transformedImage, error) {
-	run := func() (*transformedImage, error) {
-		data, err := read()
-		if err != nil {
-			return nil, err
+	run := func() (any, error) {
+		result, err := t.run(ctx, read, transform)
+		if err != nil && ctx.Err() != nil {
+			return nil, fmt.Errorf("%w: %w", errTransformRequestEnded, err)
 		}
-		t.pixelsOnce.Do(func() { t.pixels = semaphore.NewWeighted(assets.MaxDecodedImagePixels) })
-		weight := transformPixelWeight(data)
-		if err := t.pixels.Acquire(ctx, weight); err != nil {
-			return nil, err
-		}
-		defer t.pixels.Release(weight)
-		return transform(data)
+		return result, err
 	}
+	for {
+		result, err, _ := t.flight.Do(key, run)
+		if err == nil {
+			return result.(*transformedImage), nil
+		}
+		if !errors.Is(err, errTransformRequestEnded) || ctx.Err() != nil {
+			return nil, err
+		}
+	}
+}
 
-	ran := false
-	result, err, _ := t.flight.Do(key, func() (any, error) {
-		ran = true
-		return run()
-	})
-	if err != nil && !ran && ctx.Err() == nil {
-		return run()
-	}
+func (t *imageTransforms) run(
+	ctx context.Context,
+	read func() ([]byte, error),
+	transform func([]byte) (*transformedImage, error),
+) (*transformedImage, error) {
+	data, err := read()
 	if err != nil {
 		return nil, err
 	}
-	return result.(*transformedImage), nil
+	t.pixelsOnce.Do(func() { t.pixels = semaphore.NewWeighted(assets.MaxDecodedImagePixels) })
+	weight := transformPixelWeight(data)
+	if err := t.pixels.Acquire(ctx, weight); err != nil {
+		return nil, err
+	}
+	defer t.pixels.Release(weight)
+	return transform(data)
 }
 
 // transformPixelWeight returns the number of pixels that a decoder can hold

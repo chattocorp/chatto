@@ -6,9 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
-	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/assets"
@@ -52,18 +52,15 @@ func TestTransformPixelWeight(t *testing.T) {
 
 func TestImageTransformsShareConcurrentWork(t *testing.T) {
 	t.Parallel()
-	var transforms imageTransforms
-	ctx := t.Context()
-	release := make(chan struct{})
-	var reads, runs atomic.Int32
+	synctest.Test(t, func(t *testing.T) {
+		var transforms imageTransforms
+		release := make(chan struct{})
+		var reads, runs atomic.Int32
 
-	const callers = 5
-	var wg sync.WaitGroup
-	results := make([]*transformedImage, callers)
-	errs := make([]error, callers)
-	for i := range callers {
-		wg.Go(func() {
-			results[i], errs[i] = transforms.do(ctx, "key",
+		const callers = 5
+		results := make(chan *transformedImage, callers)
+		call := func() {
+			result, err := transforms.do(t.Context(), "key",
 				func() ([]byte, error) {
 					reads.Add(1)
 					return testPNGHeader(1, 1), nil
@@ -73,142 +70,148 @@ func TestImageTransformsShareConcurrentWork(t *testing.T) {
 					<-release
 					return &transformedImage{Data: []byte("out"), ContentType: "image/jpeg"}, nil
 				})
-		})
-	}
-	// Wait until the first transform runs. singleflight does not show when
-	// the other callers join, so give them time before the transform ends.
-	waitFor(t, func() bool { return runs.Load() == 1 })
-	time.Sleep(100 * time.Millisecond)
-	close(release)
-	wg.Wait()
-
-	if reads.Load() != 1 || runs.Load() != 1 {
-		t.Fatalf("reads = %d, runs = %d, want one shared transform", reads.Load(), runs.Load())
-	}
-	for i := range callers {
-		if errs[i] != nil || string(results[i].Data) != "out" {
-			t.Fatalf("caller %d got %v, %v", i, results[i], errs[i])
+			if err != nil {
+				result = nil
+			}
+			results <- result
 		}
-	}
+		go call()
+		synctest.Wait() // The first call runs its transform.
+		for range callers - 1 {
+			go call()
+		}
+		synctest.Wait() // The other calls wait for the first.
+		close(release)
+
+		for range callers {
+			if result := <-results; result == nil || string(result.Data) != "out" {
+				t.Fatalf("caller got %v, want the shared result", result)
+			}
+		}
+		if reads.Load() != 1 || runs.Load() != 1 {
+			t.Fatalf("reads = %d, runs = %d, want one shared transform", reads.Load(), runs.Load())
+		}
+	})
 }
 
-func TestImageTransformsRetryAfterCancelledFirstRequest(t *testing.T) {
+func TestImageTransformsFailures(t *testing.T) {
 	t.Parallel()
-	var transforms imageTransforms
-	firstCtx, cancelFirst := context.WithCancel(t.Context())
-	firstStarted := make(chan struct{})
-	firstDone := make(chan error, 1)
-	go func() {
-		_, err := transforms.do(firstCtx, "key",
-			func() ([]byte, error) {
-				close(firstStarted)
-				<-firstCtx.Done()
-				return nil, firstCtx.Err()
-			},
-			func([]byte) (*transformedImage, error) { panic("first request must not transform") })
-		firstDone <- err
-	}()
-	<-firstStarted
+	tests := []struct {
+		name string
+		// cancelFirst ends the first request's work by cancelling its context.
+		// Otherwise, the first read fails.
+		cancelFirst bool
+		// wantRetry is true when a waiting request does the work again.
+		wantRetry bool
+	}{
+		{name: "first request ends", cancelFirst: true, wantRetry: true},
+		{name: "first read fails", cancelFirst: false, wantRetry: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var transforms imageTransforms
+				firstCtx, cancelFirst := context.WithCancel(t.Context())
+				defer cancelFirst()
+				failRead := make(chan struct{})
+				firstErr := make(chan error, 1)
+				go func() {
+					_, err := transforms.do(firstCtx, "key",
+						func() ([]byte, error) {
+							select {
+							case <-firstCtx.Done():
+								return nil, firstCtx.Err()
+							case <-failRead:
+								return nil, errors.New("broken source")
+							}
+						},
+						func([]byte) (*transformedImage, error) { panic("first request must not transform") })
+					firstErr <- err
+				}()
+				synctest.Wait()
 
-	secondDone := make(chan error, 1)
-	var secondResult *transformedImage
-	go func() {
-		var err error
-		secondResult, err = transforms.do(t.Context(), "key",
-			func() ([]byte, error) { return testPNGHeader(1, 1), nil },
-			func([]byte) (*transformedImage, error) {
-				return &transformedImage{Data: []byte("second")}, nil
+				var secondReads atomic.Int32
+				secondErr := make(chan error, 1)
+				var secondResult *transformedImage
+				go func() {
+					var err error
+					secondResult, err = transforms.do(t.Context(), "key",
+						func() ([]byte, error) {
+							secondReads.Add(1)
+							return testPNGHeader(1, 1), nil
+						},
+						func([]byte) (*transformedImage, error) {
+							return &transformedImage{Data: []byte("second")}, nil
+						})
+					secondErr <- err
+				}()
+				synctest.Wait() // The second request waits for the first.
+				if tt.cancelFirst {
+					cancelFirst()
+				} else {
+					close(failRead)
+				}
+
+				err := <-firstErr
+				if tt.cancelFirst && !errors.Is(err, context.Canceled) {
+					t.Fatalf("first request error = %v, want context.Canceled", err)
+				}
+				err = <-secondErr
+				if tt.wantRetry {
+					if err != nil || secondReads.Load() != 1 || string(secondResult.Data) != "second" {
+						t.Fatalf("second request = %v, %v after %d reads, want its own result", secondResult, err, secondReads.Load())
+					}
+					return
+				}
+				if err == nil || secondReads.Load() != 0 {
+					t.Fatalf("second request error = %v after %d reads, want the shared error without a read", err, secondReads.Load())
+				}
 			})
-		secondDone <- err
-	}()
-	// Let the second request join the first before the first fails.
-	time.Sleep(100 * time.Millisecond)
-	cancelFirst()
-
-	if err := <-firstDone; !errors.Is(err, context.Canceled) {
-		t.Fatalf("first request error = %v, want context.Canceled", err)
-	}
-	if err := <-secondDone; err != nil {
-		t.Fatalf("second request error = %v", err)
-	}
-	if string(secondResult.Data) != "second" {
-		t.Fatalf("second request result = %q", secondResult.Data)
+		})
 	}
 }
 
 func TestImageTransformsLimitDecodedPixels(t *testing.T) {
 	t.Parallel()
-	var transforms imageTransforms
-	ctx := t.Context()
-	large := testPNGHeader(8000, 5000)
-	var running, peak atomic.Int32
-	release := make(chan struct{})
-
-	var wg sync.WaitGroup
-	for _, key := range []string{"a", "b"} {
-		wg.Go(func() {
-			_, err := transforms.do(ctx, key,
-				func() ([]byte, error) { return large, nil },
-				func([]byte) (*transformedImage, error) {
-					n := running.Add(1)
-					for {
-						p := peak.Load()
-						if n <= p || peak.CompareAndSwap(p, n) {
-							break
-						}
-					}
-					<-release
-					running.Add(-1)
-					return &transformedImage{}, nil
-				})
-			if err != nil {
-				t.Error(err)
-			}
-		})
-	}
-	waitFor(t, func() bool { return running.Load() == 1 })
-	// The other transform must not start while the first holds all pixels.
-	time.Sleep(100 * time.Millisecond)
-	if running.Load() != 1 {
-		t.Fatalf("%d largest-image transforms run together, want 1", running.Load())
-	}
-	close(release)
-	wg.Wait()
-	if peak.Load() != 1 {
-		t.Fatalf("peak concurrent largest-image transforms = %d, want 1", peak.Load())
-	}
-
-	// A cancelled wait for pixels returns the context error.
-	held := make(chan struct{})
-	releaseHolder := make(chan struct{})
-	defer close(releaseHolder)
-	go func() {
-		_, _ = transforms.do(ctx, "holder",
-			func() ([]byte, error) { return large, nil },
-			func([]byte) (*transformedImage, error) {
-				close(held)
-				<-releaseHolder
-				return &transformedImage{}, nil
-			})
-	}()
-	<-held
-	waitCtx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
-	defer cancel()
-	_, err := transforms.do(waitCtx, "waiter",
-		func() ([]byte, error) { return testPNGHeader(1, 1), nil },
-		func([]byte) (*transformedImage, error) { return &transformedImage{}, nil })
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("waiting transform error = %v, want context.DeadlineExceeded", err)
-	}
-}
-
-func waitFor(t *testing.T, condition func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for !condition() {
-		if time.Now().After(deadline) {
-			t.Fatal("condition not met before deadline")
+	synctest.Test(t, func(t *testing.T) {
+		var transforms imageTransforms
+		large := testPNGHeader(8000, 5000)
+		var running atomic.Int32
+		release := make(chan struct{})
+		done := make(chan error, 2)
+		for _, key := range []string{"a", "b"} {
+			go func() {
+				_, err := transforms.do(t.Context(), key,
+					func() ([]byte, error) { return large, nil },
+					func([]byte) (*transformedImage, error) {
+						running.Add(1)
+						<-release
+						running.Add(-1)
+						return &transformedImage{}, nil
+					})
+				done <- err
+			}()
 		}
-		time.Sleep(time.Millisecond)
-	}
+		synctest.Wait()
+		if running.Load() != 1 {
+			t.Fatalf("%d largest-image transforms run together, want 1", running.Load())
+		}
+
+		// A wait for pixels ends with the context of its request.
+		waitCtx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		_, err := transforms.do(waitCtx, "waiter",
+			func() ([]byte, error) { return testPNGHeader(1, 1), nil },
+			func([]byte) (*transformedImage, error) { return &transformedImage{}, nil })
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("waiting transform error = %v, want context.DeadlineExceeded", err)
+		}
+
+		close(release)
+		for range 2 {
+			if err := <-done; err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
 }

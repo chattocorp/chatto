@@ -2,77 +2,145 @@ package connectapi
 
 import (
 	"context"
+	"errors"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"connectrpc.com/authn"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 )
 
-func TestLimitUploadChunks(t *testing.T) {
+func TestUploadChunkLimiterSlots(t *testing.T) {
 	t.Parallel()
-	const limit = 2
-	var inside atomic.Int32
-	entered := make(chan struct{}, limit+1)
-	release := make(chan struct{})
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == apiv1connect.AssetUploadServiceUploadChunkProcedure {
-			inside.Add(1)
-			entered <- struct{}{}
-			<-release
-			inside.Add(-1)
-		}
-		w.WriteHeader(http.StatusOK)
-	})
-	handler := limitUploadChunks(next, limit, HandlerOptions()...)
-	serve := func(ctx context.Context, path string) *httptest.ResponseRecorder {
-		req := httptest.NewRequestWithContext(ctx, http.MethodPost, path, strings.NewReader("{}"))
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-		return rec
-	}
-
-	var wg sync.WaitGroup
-	for range limit + 1 {
-		wg.Go(func() {
-			if rec := serve(t.Context(), apiv1connect.AssetUploadServiceUploadChunkProcedure); rec.Code != http.StatusOK {
-				t.Errorf("chunk status = %d", rec.Code)
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		releaseAll := sync.OnceFunc(func() { close(release) })
+		// Let blocked requests end when the test fails early.
+		defer releaseAll()
+		inside := map[string]int{}
+		entered := make(chan string, 10)
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == apiv1connect.AssetUploadServiceUploadChunkProcedure {
+				entered <- authn.GetInfo(r.Context()).(Caller).UserID
+				<-release
 			}
+			w.WriteHeader(http.StatusOK)
 		})
+		limiter := newUploadChunkLimiter(next, HandlerOptions()...)
+		serve := func(ctx context.Context, userID, path string) *httptest.ResponseRecorder {
+			req := httptest.NewRequestWithContext(authn.SetInfo(ctx, Caller{UserID: userID}), http.MethodPost, path, strings.NewReader("{}"))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			limiter.ServeHTTP(rec, req)
+			return rec
+		}
+		statuses := make(chan int, 10)
+		chunk := func(userID string) {
+			go func() {
+				statuses <- serve(t.Context(), userID, apiv1connect.AssetUploadServiceUploadChunkProcedure).Code
+			}()
+		}
+		drain := func() {
+			synctest.Wait()
+			for {
+				select {
+				case userID := <-entered:
+					inside[userID]++
+				default:
+					return
+				}
+			}
+		}
+
+		// One user gets at most maxConcurrentUploadChunksPerUser slots.
+		for range maxConcurrentUploadChunksPerUser + 1 {
+			chunk("a")
+		}
+		drain()
+		if inside["a"] != maxConcurrentUploadChunksPerUser {
+			t.Fatalf("user a has %d chunk requests inside, want %d", inside["a"], maxConcurrentUploadChunksPerUser)
+		}
+
+		// Other users get the remaining process slots, then wait.
+		for _, userID := range []string{"b", "c", "d"} {
+			chunk(userID)
+			drain()
+		}
+		total := 0
+		for _, n := range inside {
+			total += n
+		}
+		if total != maxConcurrentUploadChunks || inside["d"] != 0 {
+			t.Fatalf("chunk requests inside = %v, want %d in total and none for d", inside, maxConcurrentUploadChunks)
+		}
+
+		// Other procedures do not wait for a slot.
+		if rec := serve(t.Context(), "a", apiv1connect.AssetUploadServiceCreateUploadProcedure); rec.Code != http.StatusOK {
+			t.Fatalf("create status = %d", rec.Code)
+		}
+
+		// A chunk request that ends while it waits gets a Connect error.
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		rec := serve(ctx, "e", apiv1connect.AssetUploadServiceUploadChunkProcedure)
+		if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), `"code":"unavailable"`) {
+			t.Fatalf("waiting chunk response = %d %s, want a Connect unavailable error", rec.Code, rec.Body.String())
+		}
+
+		releaseAll()
+		synctest.Wait()
+		close(statuses)
+		for status := range statuses {
+			if status != http.StatusOK {
+				t.Errorf("chunk status = %d, want %d", status, http.StatusOK)
+			}
+		}
+		limiter.mu.Lock()
+		defer limiter.mu.Unlock()
+		if len(limiter.users) != 0 || len(limiter.slots) != 0 {
+			t.Fatalf("limiter keeps %d user entries and %d process slots after all requests", len(limiter.users), len(limiter.slots))
+		}
+	})
+}
+
+func TestUploadChunkLimiterReadTimeout(t *testing.T) {
+	t.Parallel()
+	readErr := make(chan error, 1)
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.ReadAll(r.Body)
+		readErr <- err
+	})
+	limiter := newUploadChunkLimiter(next, HandlerOptions()...)
+	limiter.readTimeout = 100 * time.Millisecond
+	server := httptest.NewServer(limiter)
+	defer server.Close()
+
+	// The client sends the headers and part of the body, then stops.
+	conn, err := net.Dial("tcp", server.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
 	}
-	for range limit {
-		<-entered
+	defer conn.Close()
+	_, err = io.WriteString(conn, "POST "+apiv1connect.AssetUploadServiceUploadChunkProcedure+" HTTP/1.1\r\n"+
+		"Host: example.com\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n{")
+	if err != nil {
+		t.Fatal(err)
 	}
+
 	select {
-	case <-entered:
-		t.Fatal("a chunk request entered while all slots were in use")
-	case <-time.After(100 * time.Millisecond):
-	}
-	if inside.Load() != limit {
-		t.Fatalf("%d chunk requests inside, want %d", inside.Load(), limit)
-	}
-
-	// Other procedures do not wait for a slot.
-	if rec := serve(t.Context(), apiv1connect.AssetUploadServiceCreateUploadProcedure); rec.Code != http.StatusOK {
-		t.Fatalf("create status = %d", rec.Code)
-	}
-
-	// A chunk request that ends while it waits gets a Connect error.
-	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
-	defer cancel()
-	rec := serve(ctx, apiv1connect.AssetUploadServiceUploadChunkProcedure)
-	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), `"code":"unavailable"`) {
-		t.Fatalf("waiting chunk response = %d %s, want a Connect unavailable error", rec.Code, rec.Body.String())
-	}
-
-	close(release)
-	wg.Wait()
-	if inside.Load() != 0 {
-		t.Fatalf("%d chunk requests still inside", inside.Load())
+	case err := <-readErr:
+		var netErr net.Error
+		if !errors.As(err, &netErr) || !netErr.Timeout() {
+			t.Fatalf("body read error = %v, want a timeout", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("body read did not time out")
 	}
 }
