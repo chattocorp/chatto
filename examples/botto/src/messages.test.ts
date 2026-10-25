@@ -1,10 +1,21 @@
 /** Exercise participation with the real client addressing rules, without a network. */
 import { expect, test, vi } from 'vitest';
 import { RealtimeEvent } from '@chatto/client';
-import { MessagingRequests } from '@chatto/client/messaging/requests';
+import { type AddressingReason, MessagingRequests } from '@chatto/client/messaging/requests';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import { MessageMention } from '@chatto/api-types/realtime/v1/events_pb';
+import {
+  DirectUserMention,
+  HereMessageMention,
+  MessageMention
+} from '@chatto/api-types/realtime/v1/events_pb';
+
+/** A mention of Botto by name. */
+const directMention = () =>
+  new MessageMention({
+    includesViewer: true,
+    cause: { case: 'direct', value: new DirectUserMention({ userId: 'bot' }) }
+  });
 import { incomingMessage } from './messages.ts';
 
 function setup() {
@@ -40,9 +51,25 @@ function setup() {
     event,
     active,
     getMessage,
-    read: (signal = new AbortController().signal) => incomingMessage(server, event, active, signal)
+    read: (signal = new AbortController().signal, respondTo?: readonly AddressingReason[]) =>
+      incomingMessage(server, event, active, signal, respondTo)
   };
 }
+
+test('answers @here only when respond_to enables it', async () => {
+  const { event, active, read } = setup();
+  if (event.event.case !== 'messagePosted') throw new Error('Fixture');
+  event.event.value.threadRootEventId = '';
+  event.event.value.mentions.push(
+    new MessageMention({
+      includesViewer: true,
+      cause: { case: 'here', value: new HereMessageMention() }
+    })
+  );
+  expect(await read()).toBeUndefined();
+  expect((await read(undefined, ['mention', 'here_mention']))?.reasons).toEqual(['here_mention']);
+  expect(active).not.toHaveBeenCalled();
+});
 
 test('ordinary text is accepted only in an active thread', async () => {
   const { active, read, getMessage } = setup();
@@ -63,8 +90,7 @@ test.each(['mention', 'reply', 'direct_message'] as const)(
   async (reason) => {
     const { event, active, read } = setup();
     if (event.event.case !== 'messagePosted') throw new Error('Fixture');
-    if (reason === 'mention')
-      event.event.value.mentions.push(new MessageMention({ includesViewer: true }));
+    if (reason === 'mention') event.event.value.mentions.push(directMention());
     if (reason === 'reply') event.event.value.inReplyTo = 'target';
     if (reason === 'direct_message') event.event.value.roomKind = RoomKind.DM;
     active.mockResolvedValue(false);
@@ -101,7 +127,7 @@ test.each([false, true])('ignores replies to another user (mention: %s)', async 
   const { event, active, getMessage, read } = setup();
   if (event.event.case !== 'messagePosted') throw new Error('Fixture');
   event.event.value.inReplyTo = 'target';
-  if (mention) event.event.value.mentions.push(new MessageMention({ includesViewer: true }));
+  if (mention) event.event.value.mentions.push(directMention());
   getMessage.mockResolvedValue({
     message: new Message({
       id: 'target',

@@ -44,12 +44,40 @@ const DEFAULT_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 /** Timeout of one attachment download. */
 const ATTACHMENT_TIMEOUT_MS = 30_000;
 
-/** Why a message is addressed to the viewer; see `addressedMessage`. */
-export type AddressingReason = 'direct_message' | 'mention' | 'reply';
+/**
+ * Why a message is addressed to the viewer; see `addressedMessage`.
+ *
+ * - `direct_message`: a message in a direct message room.
+ * - `mention`: a mention of the viewer by name.
+ * - `role_mention`: a mention of a role that the viewer has.
+ * - `here_mention`: an `@here` mention while the viewer was not offline.
+ * - `all_mention`: an `@all` mention.
+ * - `reply`: a reply to one of the viewer's messages.
+ */
+export type AddressingReason =
+  'direct_message' | 'mention' | 'role_mention' | 'here_mention' | 'all_mention' | 'reply';
+
+/** The reasons that `addressedMessage` recognizes by default. */
+export const DEFAULT_ADDRESSING_REASONS: readonly AddressingReason[] = [
+  'direct_message',
+  'mention',
+  'reply'
+];
+
+/** The reason for each kind of mention that includes the viewer. */
+const MENTION_REASONS = {
+  direct: 'mention',
+  role: 'role_mention',
+  here: 'here_mention',
+  all: 'all_mention'
+} as const satisfies Record<string, AddressingReason>;
 
 /** Options for `addressedMessage`. */
 export interface AddressingOptions extends RequestOptions {
-  /** The reasons to recognize. Default: all three. */
+  /**
+   * The reasons to recognize. Default: {@link DEFAULT_ADDRESSING_REASONS},
+   * so role, `@here`, and `@all` mentions do not address the viewer.
+   */
   reasons?: readonly AddressingReason[];
 }
 
@@ -409,8 +437,9 @@ export class MessagingRequests {
   }
 
   /**
-   * Recognize a realtime event as a message addressed to the viewer: a
-   * textual direct message, a mention of the viewer, or a reply to one of the
+   * Recognize a realtime event as a message addressed to the viewer for one of
+   * the enabled reasons (see {@link AddressingReason}): a textual direct
+   * message, a mention that includes the viewer, or a reply to one of the
    * viewer's messages. Only an unmentioned reply needs a lookup, which
    * verifies the author, room, and thread. The viewer's own messages,
    * other events, and messages without text return undefined. Lookup errors
@@ -418,7 +447,7 @@ export class MessagingRequests {
    */
   async addressedMessage(
     event: RealtimeEvent,
-    { signal, reasons: enabled = ['direct_message', 'mention', 'reply'] }: AddressingOptions = {}
+    { signal, reasons: enabled = DEFAULT_ADDRESSING_REASONS }: AddressingOptions = {}
   ): Promise<AddressedMessage | undefined> {
     signal?.throwIfAborted();
     if (event.event.case !== 'messagePosted' || !event.id || !event.actorId) return;
@@ -429,8 +458,11 @@ export class MessagingRequests {
     const reasons: AddressingReason[] = [];
     if (enabled.includes('direct_message') && message.roomKind === RoomKind.DM)
       reasons.push('direct_message');
-    if (enabled.includes('mention') && message.mentions.some((mention) => mention.includesViewer))
-      reasons.push('mention');
+    for (const mention of message.mentions) {
+      if (!mention.includesViewer || !mention.cause.case) continue;
+      const reason = MENTION_REASONS[mention.cause.case];
+      if (enabled.includes(reason) && !reasons.includes(reason)) reasons.push(reason);
+    }
     if (enabled.includes('reply') && !reasons.length && message.inReplyTo) {
       const target = await this.getMessage(
         { roomId: message.roomId, messageId: message.inReplyTo },

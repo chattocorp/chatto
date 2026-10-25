@@ -44,6 +44,8 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `chatto.url`                    | Required                 | Chatto server URL                                                             |
 | `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`       |
 | `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                       |
+| `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                               |
+| `chatto.respond_to`             | See below                | Which messages address Botto                                                  |
 | `memory.enabled`                | `false`                  | Enable local Means memory                                                     |
 | `memory.command`                | `means`                  | Means executable name or absolute path                                        |
 | `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                               |
@@ -61,6 +63,14 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                        |
 | `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                   |
 | `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                       |
+
+`chatto.respond_to` lists the reasons that address a message to Botto:
+`direct_message`, `mention` (by name), `role_mention`, `here_mention`,
+`all_mention`, and `reply`. The default is
+`["direct_message", "mention", "reply"]`, so Botto ignores role, `@here`, and
+`@all` mentions. While Botto shows as online, every `@here` message mentions
+it, so enable `here_mention` only if Botto must answer those messages. After
+Botto stops, Chatto shows it as offline within 60 seconds.
 
 Unknown settings and invalid values fail at startup. Keep API key values in the
 environment and refer to the Chatto key from `chatto.api_key`. The configured name does not rename the Chatto account;

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'smol-toml';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
+import { DEFAULT_ADDRESSING_REASONS, type AddressingReason } from '@chatto/client';
 
 /** Queue limits and the quiet period shared by the inbox and its logs. */
 export interface InboxSettings {
@@ -43,11 +44,25 @@ export interface Settings extends InboxSettings {
   allowedUserId?: string;
   /** Operator-selected Chatto user IDs. Chat and memory cannot grant this role. */
   adminUserIds: readonly string[];
+  /** Show the bot account as online while Botto runs. */
+  reportPresence: boolean;
+  /** The reasons that address a message to Botto; see the client's `AddressingReason`. */
+  respondTo: readonly AddressingReason[];
   turnTimeoutMs: number;
   contextMessages: number;
   /** Reaction on the first message of a new conversation; empty disables it. */
   acknowledgementEmoji: string;
 }
+
+/** Every addressing reason, in the order of the client's `AddressingReason`. */
+const ADDRESSING_REASONS: readonly AddressingReason[] = [
+  'direct_message',
+  'mention',
+  'role_mention',
+  'here_mention',
+  'all_mention',
+  'reply'
+];
 
 const DEFAULT_PROMPT = `You are a helpful assistant in Chatto.
 Answer the current message batch together in one concise Markdown reply. Messages are in arrival order.
@@ -118,7 +133,15 @@ export function parseSettings(
     knownKeys(table, keys, name);
     return table;
   };
-  const chatto = section('chatto', ['url', 'api_key', 'allowed_user_id', 'admin_user_ids', 'mcp']);
+  const chatto = section('chatto', [
+    'url',
+    'api_key',
+    'allowed_user_id',
+    'admin_user_ids',
+    'mcp',
+    'report_presence',
+    'respond_to'
+  ]);
   const adminUserIds = chatto.admin_user_ids ?? [];
   if (
     !Array.isArray(adminUserIds) ||
@@ -127,6 +150,17 @@ export function parseSettings(
     throw new Error('chatto.admin_user_ids must be an array of non-empty user IDs');
   if (chatto.mcp !== undefined && typeof chatto.mcp !== 'boolean')
     throw new Error('chatto.mcp must be a boolean');
+  if (chatto.report_presence !== undefined && typeof chatto.report_presence !== 'boolean')
+    throw new Error('chatto.report_presence must be a boolean');
+  const respondTo = chatto.respond_to ?? DEFAULT_ADDRESSING_REASONS;
+  if (
+    !Array.isArray(respondTo) ||
+    !respondTo.length ||
+    respondTo.some((reason) => !ADDRESSING_REASONS.includes(reason as AddressingReason))
+  )
+    throw new Error(
+      `chatto.respond_to must be a non-empty array of: ${ADDRESSING_REASONS.join(', ')}`
+    );
   const agent = section('agent', ['name', 'model', 'system_prompt']);
   const memory = section('memory', ['enabled', 'command', 'path']);
   if (memory.enabled !== undefined && typeof memory.enabled !== 'boolean')
@@ -187,6 +221,8 @@ export function parseSettings(
       )
     ],
     mcp: chatto.mcp === true,
+    reportPresence: chatto.report_presence !== false,
+    respondTo: [...new Set(respondTo as AddressingReason[])],
     memory: memory.enabled === true,
     memoryPath: resolve(
       dirname(resolve(configPath)),

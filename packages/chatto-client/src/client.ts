@@ -16,6 +16,8 @@ import { ServerConnectionManager } from './server/serverConnection.js';
 import { startClientRuntime, type ClientRuntime } from './server/runtime.js';
 import { emptyServerSession } from './server/sessions.js';
 import { keepRecentLimits, type KeepRecent } from './server/roomStores.js';
+import { reportPresence } from './server/presenceTracking.js';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 
 /** Settings for {@link createClient}. */
 export interface ClientOptions {
@@ -147,13 +149,19 @@ export class ChattoClient {
       // A server that a host handles events of stays live in every client.
       this.realtime.keepLive(serverId);
       this.#connected.add(server);
+      let stopPresence: (() => void) | undefined;
       server.onDispose(() => {
+        stopPresence?.();
         this.realtime.keepLive(serverId, false);
         this.#connected.delete(server);
         // Without work left, no timer must keep a Node host alive.
         this.#stopRuntimeWhenIdle();
       });
       this.#ensureRuntime();
+      if (options.reportPresence) {
+        const account = server.service(MyAccountService);
+        stopPresence = reportPresence(() => account.refreshPresence({}, { timeoutMs: 10_000 }));
+      }
     } catch (error) {
       // Leave nothing behind: no server, live transport, or subscription.
       server.close();

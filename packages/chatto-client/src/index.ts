@@ -28,6 +28,7 @@ export { Api, createApi, type ApiOptions } from './api.js';
 export {
   conversationKey,
   MessagingRequests,
+  DEFAULT_ADDRESSING_REASONS,
   replyDestination,
   type AddressedMessage,
   type AddressingOptions,

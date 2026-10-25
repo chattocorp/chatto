@@ -7,7 +7,13 @@ import type { CurrentUser } from './api/viewer.js';
 
 const mocks = vi.hoisted(() => ({
   viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>(),
-  recoveryFails: false
+  recoveryFails: false,
+  stopPresence: vi.fn(),
+  reportPresence: vi.fn()
+}));
+vi.mock('./server/presenceTracking.js', async (original) => ({
+  ...(await original<typeof import('./server/presenceTracking.js')>()),
+  reportPresence: mocks.reportPresence
 }));
 vi.mock('./server/serverRecovery.js', async (original) => {
   const actual = await original<typeof import('./server/serverRecovery.js')>();
@@ -138,6 +144,24 @@ describe('isolated clients', () => {
     const second = server.rooms.thread('room', 'two');
     expect(first.isDisposed).toBe(true);
     expect(second.isDisposed).toBe(false);
+  });
+
+  it('reports presence of a connected server only with reportPresence', async () => {
+    mocks.reportPresence.mockReset().mockReturnValue(mocks.stopPresence);
+    mocks.stopPresence.mockReset();
+    const bots = client();
+    bots.connect({ serverUrl: 'https://quiet.example', apiKey: 'quiet' });
+    expect(mocks.reportPresence).not.toHaveBeenCalled();
+
+    const present = bots.connect({
+      serverUrl: 'https://present.example',
+      apiKey: 'present',
+      reportPresence: true
+    });
+    expect(mocks.reportPresence).toHaveBeenCalledOnce();
+    expect(mocks.stopPresence).not.toHaveBeenCalled();
+    present.close();
+    expect(mocks.stopPresence).toHaveBeenCalledOnce();
   });
 
   it('rejects keepRecent values that are not positive integers', () => {

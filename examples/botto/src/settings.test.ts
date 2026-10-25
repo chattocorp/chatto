@@ -21,6 +21,21 @@ test('admin IDs default to none and must be explicit nonempty strings', () => {
     expect(() => parse(withAdmins(invalid))).toThrow('chatto.admin_user_ids');
 });
 
+test('presence and addressing default to online and direct addressing', () => {
+  const withChatto = (line: string) => source.replace('[chatto]', `[chatto]\n${line}`);
+  expect(parse()).toMatchObject({
+    reportPresence: true,
+    respondTo: ['direct_message', 'mention', 'reply']
+  });
+  expect(parse(withChatto('report_presence = false')).reportPresence).toBe(false);
+  expect(
+    parse(withChatto('respond_to = ["mention", "here_mention", "mention"]')).respondTo
+  ).toEqual(['mention', 'here_mention']);
+  expect(() => parse(withChatto('report_presence = "yes"'))).toThrow('chatto.report_presence');
+  for (const invalid of ['[]', '["everyone"]', '"mention"'])
+    expect(() => parse(withChatto(`respond_to = ${invalid}`))).toThrow('chatto.respond_to');
+});
+
 test('uses defaults and preserves slashes in the model ID', () => {
   expect(parse()).toMatchObject({
     name: 'Botto',

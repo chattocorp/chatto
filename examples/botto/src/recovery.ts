@@ -1,5 +1,11 @@
 /** Recover retained notification sources using current authorized message content. */
-import type { AddressedMessage, Server, ThreadLocation } from '@chatto/client';
+import {
+  DEFAULT_ADDRESSING_REASONS,
+  type AddressedMessage,
+  type AddressingReason,
+  type Server,
+  type ThreadLocation
+} from '@chatto/client';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { Delivery } from './delivery.ts';
@@ -12,7 +18,8 @@ export async function recover(
   delivery: Delivery,
   isActive: (location: ThreadLocation) => Promise<boolean>,
   signal: AbortSignal,
-  allowedUserId?: string
+  allowedUserId?: string,
+  respondTo: readonly AddressingReason[] = DEFAULT_ADDRESSING_REASONS
 ): Promise<void> {
   const notifications = server.service(NotificationService);
   const candidates: { roomId: string; id: string; reasons: AddressedMessage['reasons'] }[] = [];
@@ -40,10 +47,16 @@ export async function recover(
           reasons = ['direct_message'];
           break;
         case 'directMentionReceived':
-        case 'roleMentionReceived':
-        case 'hereMentionReceived':
-        case 'allMentionReceived':
           reasons = ['mention'];
+          break;
+        case 'roleMentionReceived':
+          reasons = ['role_mention'];
+          break;
+        case 'hereMentionReceived':
+          reasons = ['here_mention'];
+          break;
+        case 'allMentionReceived':
+          reasons = ['all_mention'];
           break;
         case 'replyReceived':
           reasons = ['reply'];
@@ -54,6 +67,8 @@ export async function recover(
         default:
           continue;
       }
+      // Followed-thread activity is passive; other kinds need an enabled reason.
+      if (reasons.length && !reasons.some((reason) => respondTo.includes(reason))) continue;
       candidates.push({ roomId: reference.room.id, id: reference.eventId, reasons });
     }
     if (reachedStart || !page.page?.hasMore) break;

@@ -52,6 +52,13 @@ export interface ConnectOptions {
   serverUrl: string;
   /** Bearer token, for example a bot API key. It is kept only in memory. */
   apiKey: string;
+  /**
+   * Show the account as online while the server is open: the client sends a
+   * presence heartbeat every 30 seconds. After `close()`, the server shows
+   * the account as offline within 60 seconds. It never changes the account's
+   * saved presence choice. Default: false.
+   */
+  reportPresence?: boolean;
 }
 
 /** A new projection snapshot; see {@link Server.onSnapshot}. */
@@ -86,7 +93,10 @@ export interface ConsumeEventsOptions {
 export interface RunOptions {
   /** Stops the handler loop. Without it, the loop stops when the server closes. */
   signal?: AbortSignal;
-  /** The addressing reasons to handle. Default: direct messages, mentions, and replies. */
+  /**
+   * The addressing reasons to handle. Default: direct messages, mentions by
+   * name, and replies; see `DEFAULT_ADDRESSING_REASONS`.
+   */
   reasons?: readonly AddressingReason[];
   /**
    * Receive realtime status changes; see {@link ConsumeEventsOptions.onStatus}.
@@ -464,8 +474,9 @@ export class Server extends ServerStateStore {
   }
 
   /**
-   * Handle the messages addressed to the viewer, in order: direct messages,
-   * mentions, and verified replies (see `addressedMessage`). Each message
+   * Handle the messages addressed to the viewer, in order: by default direct
+   * messages, mentions by name, and verified replies (see `addressedMessage`).
+   * Each message
    * gets a {@link MessageContext} with the operations to answer it.
    *
    * Waits for {@link ready} first, also through failed attempts while the
