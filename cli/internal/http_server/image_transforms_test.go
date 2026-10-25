@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"sync/atomic"
 	"testing"
@@ -212,6 +213,134 @@ func TestImageTransformsLimitDecodedPixels(t *testing.T) {
 			if err := <-done; err != nil {
 				t.Fatal(err)
 			}
+		}
+	})
+}
+
+// Waiting for the pixel budget must not let distinct requests accumulate an
+// unbounded number of encoded source buffers.
+func TestImageTransformsBoundSourcesBeforeReading(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var transforms imageTransforms
+		var reads, runs atomic.Int32
+		release := make(chan struct{})
+		defer close(release)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		const requests = 8
+		done := make(chan error, requests)
+		for i := range requests {
+			go func() {
+				_, err := transforms.do(ctx, fmt.Sprintf("source-%d", i),
+					func() ([]byte, error) {
+						reads.Add(1)
+						return testPNGHeader(8000, 5000), nil
+					},
+					func([]byte) (*transformedImage, error) {
+						runs.Add(1)
+						<-release
+						return &transformedImage{}, nil
+					})
+				done <- err
+			}()
+		}
+		synctest.Wait()
+		// One large transform runs and one buffered source waits for pixels.
+		// All other requests must wait before their read callback runs.
+		if got := reads.Load(); got != 2 {
+			t.Fatalf("read %d sources, want 2", got)
+		}
+		if got := runs.Load(); got != 1 {
+			t.Fatalf("ran %d transforms, want 1", got)
+		}
+		cancel()
+		for range requests - 1 {
+			if err := <-done; !errors.Is(err, context.Canceled) {
+				t.Fatalf("waiting request error = %v, want context.Canceled", err)
+			}
+		}
+		if got := reads.Load(); got != 2 {
+			t.Fatalf("canceled waiters read sources: got %d reads, want 2", got)
+		}
+		// The canceled pixel waiter released its source slot even though the
+		// running transform still holds the entire pixel budget.
+		probeErr := errors.New("probe read")
+		_, err := transforms.do(t.Context(), "probe", func() ([]byte, error) {
+			return nil, probeErr
+		}, func([]byte) (*transformedImage, error) { panic("probe must not transform") })
+		if !errors.Is(err, probeErr) {
+			t.Fatalf("probe error = %v, want released source slot", err)
+		}
+	})
+}
+
+func TestImageTransformsReleaseSourceSlotsOnFailure(t *testing.T) {
+	t.Parallel()
+	for _, stage := range []string{"read", "transform"} {
+		t.Run(stage, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var transforms imageTransforms
+				failure := errors.New("operation failed")
+				// More failures than slots expose a leak at either stage. The
+				// virtual deadline makes a leaked slot fail without a real wait.
+				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+				defer cancel()
+				for range maxConcurrentImageSources + 1 {
+					_, err := transforms.do(ctx, "key", func() ([]byte, error) {
+						if stage == "read" {
+							return nil, failure
+						}
+						return testPNGHeader(1, 1), nil
+					}, func([]byte) (*transformedImage, error) { return nil, failure })
+					if !errors.Is(err, failure) {
+						t.Fatalf("operation error = %v, want %v", err, failure)
+					}
+				}
+				for range maxConcurrentImageSources + 1 {
+					_, err := transforms.do(ctx, "success", func() ([]byte, error) {
+						return testPNGHeader(1, 1), nil
+					}, func([]byte) (*transformedImage, error) { return &transformedImage{}, nil })
+					if err != nil {
+						t.Fatalf("transform after failures: %v", err)
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestImageTransformsSharedFollowersDoNotHoldSourceSlots(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var transforms imageTransforms
+		var reads atomic.Int32
+		release := make(chan struct{})
+		defer close(release)
+		call := func(key string) {
+			go func() {
+				_, err := transforms.do(t.Context(), key, func() ([]byte, error) {
+					reads.Add(1)
+					return testPNGHeader(1, 1), nil
+				}, func([]byte) (*transformedImage, error) {
+					<-release
+					return &transformedImage{}, nil
+				})
+				if err != nil {
+					t.Errorf("transform %s: %v", key, err)
+				}
+			}()
+		}
+		call("shared")
+		synctest.Wait()
+		for range 3 {
+			call("shared")
+		}
+		synctest.Wait()
+		call("distinct")
+		synctest.Wait()
+		if got := reads.Load(); got != 2 {
+			t.Fatalf("read %d sources, want shared and distinct requests to run together", got)
 		}
 	})
 }
