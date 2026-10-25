@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -12,8 +14,8 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-// HistoricalMessageInput is one operator import. The source script owns
-// deduplication and retry decisions; every successful call creates a message.
+// HistoricalMessageInput is one operator import. A UUID enables the same
+// bounded retry window as interactive sends, scoped separately to imports.
 type HistoricalMessageInput struct {
 	RoomID             string
 	AuthorID           string
@@ -27,12 +29,84 @@ type HistoricalMessageInput struct {
 	ThreadRootEventID string
 	// CreateThread establishes an empty thread on the new root without a follow.
 	CreateThread bool
+	// IdempotencyKey reserves one import identity for MessageIdempotencyWindow.
+	IdempotencyKey string
+}
+
+const messageImportClaimPrefix = "message_import."
+
+// claimHistoricalMessage uses the shared send reservation without granting
+// interactive posting privileges to the historical author.
+func (c *ChattoCore) claimHistoricalMessage(ctx context.Context, input HistoricalMessageInput, authorize func(context.Context) error) (*messagePostClaim, error) {
+	if input.IdempotencyKey == "" {
+		return nil, nil
+	}
+	key, err := messageClaimKey(messageImportClaimPrefix, SystemActorID, input.IdempotencyKey)
+	if err != nil {
+		return nil, err
+	}
+	input.IdempotencyKey = ""
+	input.CreatedAt = input.CreatedAt.UTC()
+	if input.EditedAt != nil {
+		edited := input.EditedAt.UTC()
+		input.EditedAt = &edited
+	}
+	if len(input.AttachmentAssetIDs) == 0 {
+		input.AttachmentAssetIDs = nil
+	}
+	data, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("encode historical message intent: %w", err)
+	}
+	fingerprint, err := hex.DecodeString(c.runtimeTokenHash("message_import_request_v1", string(data)))
+	if err != nil {
+		return nil, err
+	}
+	return c.claimMessageIdentity(ctx, key, fingerprint, authorize)
+}
+
+// lookupHistoricalMessage runs at a captured room cut or inside room OCC.
+// Operator access is root-equivalent; a committed result survives retraction
+// and archival without rechecking interactive read or posting permissions.
+func (c *ChattoCore) lookupHistoricalMessage(ctx context.Context, input HistoricalMessageInput, claim *messagePostClaim) error {
+	entry, exists := c.roomModel.timelineEntry(claim.messageID)
+	if !exists {
+		return nil
+	}
+	if !entry.IsMessagePost() || entry.RoomID != input.RoomID {
+		return fmt.Errorf("historical claim points to an invalid identity")
+	}
+	stored, err := c.eventReader.EventAt(ctx, entry.StreamSeq)
+	if err != nil {
+		return err
+	}
+	if stored.Event.GetActorId() != SystemActorID || !stored.Event.GetMessagePosted().GetHistoricalImport() || messageAuthorID(stored.Event) != input.AuthorID {
+		return fmt.Errorf("historical claim points to an invalid author or operation")
+	}
+	claim.committed = stored
+	return nil
+}
+
+func (c *ChattoCore) readHistoricalClaim(ctx context.Context, input HistoricalMessageInput, claim *messagePostClaim) error {
+	position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(input.RoomID).AllEventsFilter())
+	if err != nil {
+		return err
+	}
+	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, position); err != nil {
+		return err
+	}
+	return c.lookupHistoricalMessage(ctx, input, claim)
 }
 
 // ImportHistoricalMessage appends a source-time message without user posting
 // policy or live posting effects. EVT records the system actor, while the
 // message fact and encrypted body retain the mapped historical author.
-func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input HistoricalMessageInput) (*evtv1.Event, error) {
+func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input HistoricalMessageInput) (result *evtv1.Event, resultErr error) {
+	if input.IdempotencyKey != "" {
+		if _, err := messageClaimKey(messageImportClaimPrefix, SystemActorID, input.IdempotencyKey); err != nil {
+			return nil, err
+		}
+	}
 	if input.RoomID == "" || input.AuthorID == "" || input.CreatedAt.IsZero() {
 		return nil, invalidArgument("room_id, author_id, and created_at are required")
 	}
@@ -100,6 +174,41 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 		}
 		return nil
 	}
+	claim, err := c.claimHistoricalMessage(ctx, input, validateRoomAndReply)
+	if err != nil {
+		return nil, err
+	}
+	if claim != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, claim.expiresAt)
+		defer cancel()
+		if err := c.readHistoricalClaim(ctx, input, claim); err != nil {
+			return nil, err
+		}
+		if claim.committed != nil {
+			return claim.committed.Event, nil
+		}
+		// A concurrent commit can attach assets or change room state while this
+		// request prepares. Resolve that result before returning a write error.
+		defer func() {
+			if resultErr != nil {
+				if err := c.readHistoricalClaim(ctx, input, claim); err == nil && claim.committed != nil {
+					result, resultErr = claim.committed.Event, nil
+				}
+			}
+		}()
+	}
+	authorize := func(ctx context.Context) error {
+		if claim != nil {
+			if err := c.lookupHistoricalMessage(ctx, input, claim); err != nil {
+				return err
+			}
+			if claim.committed != nil {
+				return nil
+			}
+		}
+		return validateRoomAndReply(ctx)
+	}
 	if err := validateRoomAndReply(ctx); err != nil {
 		return nil, err
 	}
@@ -116,6 +225,9 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 		assetIDs = append(assetIDs, assetID)
 	}
 	messageID, bodyEventID := NewEventID(), NewEventID()
+	if claim != nil {
+		messageID = claim.messageID
+	}
 	createdAt := timestamppb.New(input.CreatedAt.UTC())
 	messageBody := &evtv1.MessageBody{CreatedAt: createdAt, AuthorId: input.AuthorID, AssetIds: assetIDs, LinkPreview: input.LinkPreview}
 	if input.EditedAt != nil {
@@ -161,16 +273,18 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 			}},
 		})
 	}
-	var err error
 	if input.CreateThread {
 		_, err = c.appendRootMessageWithThread(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
-			threadCreated, nil, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
+			threadCreated, nil, attachedEvents, processingEvents, authorize, nil, claim)
 	} else {
 		_, err = c.appendMessageWithOptionalThreadCreated(ctx, evtstream.RoomAggregate(input.RoomID), bodyEvent, postedEvent,
-			threadCreated, input.ThreadRootEventID, false, attachedEvents, processingEvents, validateRoomAndReply, nil, nil)
+			threadCreated, input.ThreadRootEventID, false, attachedEvents, processingEvents, authorize, nil, claim)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("import historical message: %w", err)
+	}
+	if claim != nil && claim.committed != nil {
+		return claim.committed.Event, nil
 	}
 	return postedEvent, nil
 }

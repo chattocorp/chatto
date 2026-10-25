@@ -34,6 +34,9 @@ message ImportMessageRequest {
   string thread_root_event_id = 12;
   // Establish this new root as an empty thread without following it.
   bool create_thread = 13;
+  // Optional non-zero UUID. Exact retries return the same ID for 30 minutes.
+  // Scoped to operator imports; changed arguments conflict. Expiry permits reuse.
+  string idempotency_key = 14;
 }
 
 // Stable Chatto identity of the new historical message.
@@ -63,7 +66,8 @@ message ImportReactionResponse {
 // Private historical import. Only the Operator Unix socket serves this RPC.
 service OperatorMessageService {
   // Appends an encrypted historical message as a system operation. A repeated
-  // request creates another message; import scripts own retry decisions.
+  // request without a key creates another message. Keyed retries must stop
+  // before the fixed 30-minute window expires. All replicas must support keys.
   rpc ImportMessage(ImportMessageRequest) returns (ImportMessageResponse);
   // Adds a historical reaction without notifications or live delivery. Repeats
   // are idempotent. Bypasses the interactive per-user reaction count limit.

@@ -28,6 +28,7 @@ func operatorMessageImportCmd() *cobra.Command {
 	var previewURL, previewTitle, previewDescription, previewType string
 	var bodyStdin bool
 	var threadRootID string
+	var idempotencyKey string
 	var createThread bool
 	var assetIDs []string
 	cmd := &cobra.Command{
@@ -85,7 +86,8 @@ func operatorMessageImportCmd() *cobra.Command {
 				RoomId: roomID, AuthorId: authorID, CreatedAt: timestamppb.New(created),
 				InReplyTo: inReplyTo, AttachmentAssetIds: assetIDs, Body: body,
 				ThreadRootEventId: threadRootID, CreateThread: createThread,
-				PreviewUrl: previewURL, PreviewTitle: previewTitle, PreviewDescription: previewDescription, PreviewType: previewType,
+				IdempotencyKey: idempotencyKey,
+				PreviewUrl:     previewURL, PreviewTitle: previewTitle, PreviewDescription: previewDescription, PreviewType: previewType,
 			}
 			if editedAt != "" {
 				edited, err := time.Parse(time.RFC3339Nano, editedAt)
@@ -112,6 +114,7 @@ func operatorMessageImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&editedAt, "edited-at", "", "original edit time in RFC3339")
 	cmd.Flags().StringVar(&inReplyTo, "in-reply-to", "", "Chatto message ID in the same room")
 	cmd.Flags().StringVar(&threadRootID, "thread-id", "", "thread ID (the root message ID) to place the message in")
+	cmd.Flags().StringVar(&idempotencyKey, "idempotency-key", "", "UUID for exact retries within 30 minutes of the first attempt")
 	cmd.Flags().BoolVar(&createThread, "create-thread", false, "establish an empty thread on the imported root")
 	cmd.MarkFlagsMutuallyExclusive("thread-id", "create-thread")
 	cmd.Flags().StringSliceVar(&assetIDs, "attachment-asset-id", nil, "attachment asset ID (repeatable)")

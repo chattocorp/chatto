@@ -2,7 +2,7 @@
 
 Import a Slack ZIP into a **blank Chatto instance** through its local operator
 socket. Python 3.11 or later is required; there are no external dependencies.
-The server must include the historical thread and reaction APIs (#483 and #478).
+The server must support historical threads, reactions, and import idempotency keys.
 Update every server replica before import.
 
 ```sh
@@ -59,8 +59,15 @@ the pending deterministic login or channel name and records its ID. If absent,
 it retries creation. Existing names without a matching pending operation are
 never adopted. Membership and reaction writes can also be retried safely.
 
-Message imports do not yet have server-side idempotency keys. If a message
-response is lost, the script stops instead of risking a duplicate. Inspect the
+Each message gets a UUID and first-attempt time, saved before dispatch. If its
+response is lost, repeat the command: the script sends the exact saved request
+and UUID and recovers the original ID. It does not refresh the first-attempt
+time. Retries stop at 29 minutes, leaving a margin before the server's fixed
+30-minute collision window. Keep the system clock correct; a detected backward
+clock jump also stops recovery. Server support is checked before any writes.
+
+Older journals with an unkeyed pending message and requests outside the retry
+window still require reconciliation instead of risking a duplicate. Inspect the
 pending request in `journal.json` and the destination message through an
 authenticated read API. Verify room, author, timestamp, body, and thread.
 
@@ -84,8 +91,8 @@ the write did not occur; a timeout is not proof. Then repeat the normal command.
   summary records all these omissions.
 
 See [FDR-028](../docs/fdr/FDR-028-operator-api-and-cli.md) for the operator API.
-Automatic recovery of uncertain message writes, broader formatting support, and
-file acquisition remain separate work.
+Recovery beyond the bounded retry window, broader formatting support, and file
+acquisition remain separate work.
 
 ## Tests
 

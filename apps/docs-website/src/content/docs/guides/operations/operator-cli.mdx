@@ -177,7 +177,11 @@ The command prints the new Chatto message ID. Use `--json` to read `messageId` i
 
 Use `--edited-at RFC3339` to preserve the last edit time. Use `--in-reply-to CHATTO_MESSAGE_ID` to refer to an existing message in the same room. A reply reference does not create a Chatto thread. To preserve an exported preview, use `--preview-url URL` with optional `--preview-title`, `--preview-description`, and `--preview-type` fields. The URL must use HTTP or HTTPS. Chatto stores these values without fetching the URL.
 
-The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. Update all server replicas before you start an import so each replica recognizes historical messages. The command does not require a user session or room membership. Each successful call creates a new message. Save the returned ID in your import script. If a response is lost, stop and reconcile the result before retrying: the first request might have stored the message.
+The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. The command does not require a user session or room membership.
+
+For safe retries, supply `--idempotency-key UUID` and retain the same UUID and arguments for that message. Exact retries return the original message ID for 30 minutes after the server first accepts the key. Changed arguments conflict, and retries do not extend the window. A completed retry returns the original ID even after the message is retracted or its channel archived. Without a key, each successful call creates a new message.
+
+Save the UUID and first-attempt time before sending, and save the returned message ID. Stop retries before 30 minutes; after expiry the same UUID can create another message. Reconcile an older uncertain result manually. Finish upgrading all replicas to support import keys before relying on this guarantee: older servers can ignore the field.
 
 To establish an empty thread on a new root, add `--create-thread`. To import a reply inside a thread, use the existing root's ID:
 

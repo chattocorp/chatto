@@ -1,7 +1,7 @@
 """Import Slack records through Chatto's local operator Connect API.
 
 No Slack downloads occur. A durable pending record precedes every mutation;
-uncertain message responses require reconciliation before another write.
+uncertain message responses can be retried within the server's collision window.
 """
 
 import fcntl
@@ -13,7 +13,13 @@ from pathlib import Path
 import re
 import socket
 import tempfile
+import time
 import unicodedata
+import uuid
+
+# Stop before the server's fixed 30-minute window, allowing transport margin.
+MESSAGE_RETRY_SECONDS = 29 * 60
+INVALID_IDEMPOTENCY_KEY = "idempotency_key must be a non-zero UUID in hyphenated form"
 
 
 class ApplyError(ValueError):
@@ -21,9 +27,10 @@ class ApplyError(ValueError):
 
 
 class APIError(ApplyError):
-    def __init__(self, code):
+    def __init__(self, code, invalid_idempotency_key=False):
         super().__init__("Operator request failed (" + code + ").")
         self.code = code
+        self.invalid_idempotency_key = invalid_idempotency_key
 
 
 class Operator:
@@ -45,7 +52,8 @@ class Operator:
             value = json.loads(response.read())
             if response.status != 200:
                 code = value.get("code")
-                raise APIError(code if code in {"invalid_argument", "not_found", "already_exists", "unimplemented"} else "request_error")
+                raise APIError(code if code in {"invalid_argument", "not_found", "already_exists", "unimplemented"} else "request_error",
+                               value.get("message") == INVALID_IDEMPOTENCY_KEY)
             return value
         finally:
             connection.close()
@@ -128,6 +136,10 @@ class Journal:
         if key in self.data["done"]:
             return self.data["done"][key]
         self.data["pending"] = {"key": key, "service": service, "method": method, "request": request}
+        if method == "ImportMessage":
+            request = dict(request, idempotencyKey=str(uuid.uuid4()))
+            self.data["pending"]["request"] = request
+            self.data["pending"]["first_attempt_at"] = time.time()
         save(self.path, self.data)
         response = api.call(service, method, request)
         self.data["done"][key] = response
@@ -135,7 +147,7 @@ class Journal:
         save(self.path, self.data)
         return response
 
-    def recover(self, users, rooms):
+    def recover(self, users, rooms, api):
         """Resolve uncertain unique-name creates; retry idempotent operations.
 
         Only a persisted pending create permits name-based recovery. An
@@ -146,8 +158,14 @@ class Journal:
             return
         method, request = pending["method"], pending["request"]
         if method == "ImportMessage":
-            raise ApplyError("Uncertain message write: inspect journal.json beside the ZIP and reconcile before resuming.")
-        if method == "CreateUser":
+            first_attempt = pending.get("first_attempt_at")
+            if (not request.get("idempotencyKey") or not isinstance(first_attempt, (int, float))
+                    or not 0 <= time.time() - first_attempt < MESSAGE_RETRY_SECONDS):
+                raise ApplyError("Uncertain message write outside the safe retry window: reconcile before resuming.")
+            # Replay the exact persisted request and key. Never extend its window
+            # or regenerate the body from current destination profile state.
+            response = api.call("Message", "ImportMessage", request)
+        elif method == "CreateUser":
             matches = [u for u in users.values() if u["login"].lower() == request["login"].lower()]
             response = {"member": {"user": matches[0]}} if matches else None
         elif method == "CreateRoom":
@@ -249,6 +267,16 @@ def list_all(api, service, method, field):
 
 def apply(plan, api, journal, allow_missing_files=False, skip_canvases=False):
     """Import into a blank instance, with internal IDs and resumable creation."""
+    # Old servers can ignore unknown protobuf fields. Require the specific UUID
+    # validation response before any write or uncertain-message replay.
+    try:
+        api.call("Message", "ImportMessage", {"roomId": "slack-import-probe", "authorId": "slack-import-probe",
+                 "createdAt": "2025-01-01T00:00:00Z", "body": "probe", "idempotencyKey": "invalid"})
+    except APIError as error:
+        if error.code != "invalid_argument" or not error.invalid_idempotency_key:
+            raise ApplyError("Server must support idempotent historical imports before importing or resuming.") from None
+    else:
+        raise ApplyError("Unexpected idempotency capability response.")
     allowed = {"deactivated_user_policy", "bot_identity_policy", "operator_avatar_import_missing",
                "reaction_import_required", "thread_import_required", "content_conversion_required",
                "uncertain_write_recovery_required", "file_hidden_by_limit",
@@ -288,7 +316,16 @@ def apply(plan, api, journal, allow_missing_files=False, skip_canvases=False):
     baseline = journal.data["baseline"]
     if not set(baseline["users"]) <= by_id.keys() or not set(baseline["rooms"]) <= rooms.keys():
         raise ApplyError("Destination bootstrap state changed; refusing to resume.")
-    journal.recover(by_id, rooms)
+    imported_users = {v["member"]["user"]["id"] for k, v in journal.data["done"].items() if k.startswith("user:")}
+    imported_rooms = {v["room"]["id"] for k, v in journal.data["done"].items() if k.startswith("room:")}
+    # Verify known destination identities before recovery can replay a write.
+    if not imported_users <= by_id.keys() or not imported_rooms <= rooms.keys():
+        raise ApplyError("Imported destination objects are missing; refusing to resume.")
+    if journal.data["pending"] and journal.data["pending"]["method"] == "ImportMessage":
+        if (set(by_id) != set(baseline["users"]) | imported_users
+                or set(rooms) != set(baseline["rooms"]) | imported_rooms):
+            raise ApplyError("Destination objects changed outside this import; refusing to retry.")
+    journal.recover(by_id, rooms, api)
     imported_users = {v["member"]["user"]["id"] for k, v in journal.data["done"].items() if k.startswith("user:")}
     imported_rooms = {v["room"]["id"] for k, v in journal.data["done"].items() if k.startswith("room:")}
     if (set(by_id) != set(baseline["users"]) | imported_users

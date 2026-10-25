@@ -45,7 +45,8 @@ const (
 // service.
 type OperatorMessageServiceClient interface {
 	// Appends an encrypted historical message as a system operation. A repeated
-	// request creates another message; import scripts own retry decisions.
+	// request without a key creates another message. Keyed retries must stop
+	// before the fixed 30-minute window expires. All replicas must support keys.
 	ImportMessage(context.Context, *connect.Request[v1.ImportMessageRequest]) (*connect.Response[v1.ImportMessageResponse], error)
 	// Adds a historical reaction without notifications or live delivery. Repeats
 	// are idempotent. Bypasses the interactive per-user reaction count limit.
@@ -98,7 +99,8 @@ func (c *operatorMessageServiceClient) ImportReaction(ctx context.Context, req *
 // chatto.operator.v1.OperatorMessageService service.
 type OperatorMessageServiceHandler interface {
 	// Appends an encrypted historical message as a system operation. A repeated
-	// request creates another message; import scripts own retry decisions.
+	// request without a key creates another message. Keyed retries must stop
+	// before the fixed 30-minute window expires. All replicas must support keys.
 	ImportMessage(context.Context, *connect.Request[v1.ImportMessageRequest]) (*connect.Response[v1.ImportMessageResponse], error)
 	// Adds a historical reaction without notifications or live delivery. Repeats
 	// are idempotent. Bypasses the interactive per-user reaction count limit.

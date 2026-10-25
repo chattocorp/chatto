@@ -43,6 +43,14 @@ No caller key, key hash, fingerprint, receipt event, or new field enters EVT.
 EVT remains the sole evidence that the message committed. There is no lease,
 completion update, or new resource. No-key posts use the existing behavior.
 
+Historical operator imports reuse the same claim record, TTL, KV reservation,
+and room OCC protocol under `message_import.{systemActorId}.{uuid}`. Their
+request HMAC also binds the historical author, creation/edit times, and explicit
+thread placement. The key is separate from interactive sends. Operator socket
+authority permits returning the original ID after archival or retraction;
+interactive membership and read gates do not apply to this root-equivalent API.
+No import key or fingerprint enters EVT.
+
 The shared client retains one key and prepared request per logical send,
 including uploaded asset IDs. It does not persist these objects on the device
 ([ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)). A retry reaches the

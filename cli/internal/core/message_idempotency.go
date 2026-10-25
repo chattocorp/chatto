@@ -46,11 +46,15 @@ type messagePostClaim struct {
 }
 
 func messagePostClaimKey(actorID, key string) (string, error) {
+	return messageClaimKey(messagePostClaimPrefix, actorID, key)
+}
+
+func messageClaimKey(prefix, actorID, key string) (string, error) {
 	parsed, err := uuid.Parse(key)
 	if err != nil || len(key) != 36 || parsed == uuid.Nil || parsed.Variant() != uuid.RFC4122 {
 		return "", invalidArgument("idempotency_key must be a non-zero UUID in hyphenated form")
 	}
-	return messagePostClaimPrefix + actorID + "." + parsed.String(), nil
+	return prefix + actorID + "." + parsed.String(), nil
 }
 
 // claimMessagePost uses a leader read after each Create collision. A collision
@@ -71,7 +75,21 @@ func (s *MessageModel) claimMessagePost(ctx context.Context, input MessagePostIn
 	if err != nil {
 		return nil, err
 	}
-	kv := s.core.storage.runtimeStateKV
+	return s.core.claimMessageIdentity(ctx, key, fingerprint, func(ctx context.Context) error {
+		prepared, err := s.applyAutomaticThreadCreation(ctx, input)
+		if err != nil {
+			return err
+		}
+		_, err = s.AuthorizePost(ctx, authorizationInputForPost(prepared, prepared.ThreadRootEventID))
+		return err
+	})
+}
+
+// claimMessageIdentity shares the bounded KV reservation protocol between
+// interactive posts and historical imports. Each operation owns its key scope,
+// fingerprint, authorization, and committed-result lookup.
+func (c *ChattoCore) claimMessageIdentity(ctx context.Context, key string, fingerprint []byte, authorize func(context.Context) error) (*messagePostClaim, error) {
+	kv := c.storage.runtimeStateKV
 	for range 5 {
 		entry, err := kv.Get(ctx, key)
 		if err == nil {
@@ -81,11 +99,7 @@ func (s *MessageModel) claimMessagePost(ctx context.Context, input MessagePostIn
 			return nil, fmt.Errorf("read message send claim: %w", err)
 		}
 		// Check current posting authority before allocating runtime storage.
-		prepared, err := s.applyAutomaticThreadCreation(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := s.AuthorizePost(ctx, authorizationInputForPost(prepared, prepared.ThreadRootEventID)); err != nil {
+		if err := authorize(ctx); err != nil {
 			return nil, err
 		}
 		record := &runtimestatev1.MessagePostClaim{MessageId: NewEventID(), RequestFingerprint: fingerprint}
