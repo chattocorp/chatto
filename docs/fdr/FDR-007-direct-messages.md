@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-10-22
+**Last reviewed:** 2026-10-25
 
 ## Overview
 
@@ -25,6 +25,10 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - Selecting **Send message** or a quick-switcher user result first opens that recipient's DM destination. The destination creates or finds the room, shows a loading state until room data is available, and then opens the conversation. A failed attempt stays at the destination with a retry action. Opening a user menu does not create a room.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
+- DMs are sorted by latest message time, newest first, including thread replies.
+  A new message moves an older conversation into its current position without a
+  page reload. **Show older** uses the same order. Unknown activity times follow
+  known times; equal times keep their existing navigation order.
 - The expanded DM section shows conversations with a message in the last seven
   days. Thread replies count. Unread conversations, conversations with
   notifications that need attention, the current conversation, and conversations

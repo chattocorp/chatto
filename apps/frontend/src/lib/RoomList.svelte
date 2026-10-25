@@ -581,8 +581,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // contain channels, while every visible collection is normalized into the
   // same collapsible navigation-section presentation below.
   let channels = $derived(navigation.rooms.filter((r) => r.type === RoomKind.CHANNEL));
+  // Projection insertion order does not change when an older DM receives a message.
+  // Sort by the same posting time as the age label; unknown times stay at the end.
   let dmRooms = $derived(
-    navigation.rooms.filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
+    navigation.rooms
+      .filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
+      .sort(
+        (a, b) =>
+          (Date.parse(b.lastMessageAt ?? '') || 0) - (Date.parse(a.lastMessageAt ?? '') || 0)
+      )
   );
 
   // This display preference belongs to the mounted sidebar, not the room directory.
@@ -597,10 +604,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
     if (visible.length >= 3) return visible;
 
-    // Fill the minimum with the newest older conversations, then keep navigation order.
-    const older = dmRooms
-      .filter((room) => !visible.includes(room))
-      .sort((a, b) => Date.parse(b.lastMessageAt!) - Date.parse(a.lastMessageAt!));
+    // Fill the minimum from the already sorted older conversations.
+    const older = dmRooms.filter((room) => !visible.includes(room));
     visible.push(...older.slice(0, 3 - visible.length));
     return dmRooms.filter((room) => visible.includes(room));
   });
