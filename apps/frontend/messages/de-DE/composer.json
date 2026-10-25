@@ -44,6 +44,7 @@
       "remove": "{filename} entfernen",
       "video_disabled": "Video-Uploads sind auf diesem Server deaktiviert.",
       "prepare_failed": "Anhang konnte nicht vorbereitet werden",
+      "too_many": "Du kannst bis zu {max} Dateien pro Nachricht anhängen. Weitere Dateien wurden nicht hinzugefügt.",
       "too_large": "{filename} ist zu groß ({size}). Maximal erlaubt: {limit}."
     },
     "format": {

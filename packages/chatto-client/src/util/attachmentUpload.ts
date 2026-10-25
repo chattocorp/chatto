@@ -1,3 +1,6 @@
+/** Per-message attachment limit from CreateMessageRequest in messages.proto. */
+export const MAX_MESSAGE_ATTACHMENTS = 10;
+
 /** Server policy for user attachment uploads. Byte limits do not depend on file type. */
 export type AttachmentUploadLimits = {
   videoProcessingEnabled: boolean;
