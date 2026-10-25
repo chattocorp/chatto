@@ -481,7 +481,11 @@ export class ServerStateStore {
    * response on confirmed resume. Snapshot fallback always reads full state.
    * Room-group permissions can change without a durable room-layout event.
    * The catch-up of an inactive server's poll (`inactivePoll`) does not read
-   * users again after a resumed stream. */
+   * users again after a resumed stream.
+   *
+   * Every catch-up also reads the public server profile. A server upgrade
+   * restarts the server but emits no event, so a resumed stream alone would
+   * keep the old version and its compatibility warning until a reload. */
   async completeRealtimeCatchUp(
     cursor: string,
     authorizationRefreshGeneration?: number,
@@ -498,6 +502,7 @@ export class ServerStateStore {
     const batches = await Promise.all(
       (
         [
+          'server',
           'serverState',
           'viewer',
           'rooms',
