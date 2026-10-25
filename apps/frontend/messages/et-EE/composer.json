@@ -44,6 +44,7 @@
       "remove": "Eemalda {filename}",
       "video_disabled": "Videote üleslaadimine on selles serveris keelatud.",
       "prepare_failed": "Manuse ettevalmistamine ebaõnnestus",
+      "too_many": "Ühele sõnumile saab lisada kuni {max} faili. Ülejäänud faile ei lisatud.",
       "too_large": "{filename} on liiga suur ({size}). Maksimum on {limit}."
     },
     "format": {

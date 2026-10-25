@@ -44,6 +44,7 @@
       "remove": "{filename}を削除",
       "video_disabled": "このサーバーでは動画のアップロードが無効になっています。",
       "prepare_failed": "添付ファイルの準備に失敗しました",
+      "too_many": "1件のメッセージに添付できるファイルは{max}個までです。超過分のファイルは追加されませんでした。",
       "too_large": "{filename} は大きすぎます ({size})。上限は {limit} です。"
     },
     "format": {

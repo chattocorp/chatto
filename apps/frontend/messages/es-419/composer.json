@@ -44,6 +44,7 @@
       "remove": "Eliminar {filename}",
       "video_disabled": "La carga de videos está deshabilitada en este servidor.",
       "prepare_failed": "No se pudo preparar el archivo adjunto",
+      "too_many": "Puedes adjuntar hasta {max} archivos por mensaje. Los archivos adicionales no se agregaron.",
       "too_large": "{filename} es demasiado grande ({size}). El máximo es {limit}."
     },
     "format": {

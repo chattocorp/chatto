@@ -44,6 +44,7 @@
       "remove": "{filename} öğesini kaldır",
       "video_disabled": "Bu sunucuda video yüklemeleri devre dışı.",
       "prepare_failed": "Ek hazırlanamadı",
+      "too_many": "Her mesaja en fazla {max} dosya ekleyebilirsiniz. Fazladan dosyalar eklenmedi.",
       "too_large": "{filename} çok büyük ({size}). En fazla {limit} olabilir."
     },
     "format": {
