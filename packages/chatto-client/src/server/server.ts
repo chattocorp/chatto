@@ -596,12 +596,12 @@ export class Server extends ServerStateStore {
 
   /**
    * Show the account as online while the server is open, for servers that
-   * `ChattoClient.connect` added for hosts without a person, such as bots. Once
-   * the server accepts the key, also after failed
-   * attempts, the client sends a presence heartbeat every 30 seconds, until
-   * {@link close} or the end of the session. Then the server shows the account
-   * as offline within 60 seconds. It never changes the account's saved
-   * presence choice. Later calls do nothing.
+   * `ChattoClient.connect` added for hosts without a person, such as bots.
+   * Once the server accepts the key, also after failed attempts, the client
+   * sends a presence heartbeat every 30 seconds, until {@link close} or the
+   * end of the session. Then the server shows the account as offline within
+   * 60 seconds. It never changes the account's saved presence choice. Later
+   * calls do nothing.
    */
   reportPresence(): void {
     if (this.#reportingPresence) return;
