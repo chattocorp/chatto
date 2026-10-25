@@ -53,7 +53,8 @@ export interface ConnectOptions {
   /** Bearer token, for example a bot API key. It is kept only in memory. */
   apiKey: string;
   /**
-   * Show the account as online while the server is open: the client sends a
+   * Show the account as online while the server is open: once the server
+   * accepts the key, also after a failed first attempt, the client sends a
    * presence heartbeat every 30 seconds. After `close()`, the server shows
    * the account as offline within 60 seconds. It never changes the account's
    * saved presence choice. Default: false.

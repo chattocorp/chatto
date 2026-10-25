@@ -39,8 +39,8 @@ try {
 `connect()` adds a server with a fixed bearer token, such as a bot API key,
 and returns it. The token is kept only in memory: it is never renewed or
 written to device storage. With `reportPresence: true`, the account shows as
-online while the server is open: the client sends a presence heartbeat every
-30 seconds. After `close()`, the account shows as offline within 60 seconds.
+online while the server is open: once the server accepts the key, the client
+sends a presence heartbeat every 30 seconds. After `close()`, the account shows as offline within 60 seconds.
 The option never changes the account's saved presence choice.
 `client.server(id)` returns a server that the client has. Both return the same
 `Server` type: the server's data, events, and requests are one object.

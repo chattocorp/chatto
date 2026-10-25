@@ -162,15 +162,21 @@ export class ChattoClient {
       this.#ensureRuntime();
       if (options.reportPresence) {
         // Report presence only after the server accepted the key, until the session ends.
-        void server.ready().then(
-          () => {
-            if (closed) return;
-            const account = server.service(MyAccountService);
-            stopPresence = reportPresence(() => account.refreshPresence({}, { timeoutMs: 10_000 }));
-            server.onSessionEnded(() => stopPresence?.());
-          },
-          () => {}
-        );
+        void (async () => {
+          // Each ready() call waits for the next recovery attempt, so this does not spin.
+          for (;;) {
+            try {
+              await server.ready();
+              break;
+            } catch {
+              if (closed || server.sessionEnded || server.realtimeUnsupported) return;
+            }
+          }
+          if (closed) return;
+          const account = server.service(MyAccountService);
+          stopPresence = reportPresence(() => account.refreshPresence({}, { timeoutMs: 10_000 }));
+          server.onSessionEnded(() => stopPresence?.());
+        })();
       }
     } catch (error) {
       // Leave nothing behind: no server, live transport, or subscription.

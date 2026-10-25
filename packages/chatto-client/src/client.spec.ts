@@ -167,6 +167,29 @@ describe('isolated clients', () => {
     expect(mocks.stopPresence).toHaveBeenCalledOnce();
   });
 
+  it('starts reporting presence after a failed first attempt succeeds later', async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      mocks.reportPresence.mockReset().mockReturnValue(mocks.stopPresence);
+      mocks.viewer.mockRejectedValueOnce(new TypeError('fetch failed'));
+      const bots = client();
+      const server = bots.connect({
+        serverUrl: 'https://late.example',
+        apiKey: 'late',
+        reportPresence: true
+      });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(mocks.reportPresence).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(30_000);
+      await server.ready();
+      await vi.waitFor(() => expect(mocks.reportPresence).toHaveBeenCalledOnce());
+    } finally {
+      logged.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('rejects keepRecent values that are not positive integers', () => {
     expect(() => client({ keepRecent: { rooms: 0 } })).toThrow(
       'keepRecent.rooms must be a positive integer'
