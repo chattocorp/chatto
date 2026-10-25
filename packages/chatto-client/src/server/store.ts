@@ -483,7 +483,7 @@ export class ServerStateStore {
    * The catch-up of an inactive server's poll (`inactivePoll`) does not read
    * users again after a resumed stream.
    *
-   * Every catch-up also reads the public server profile. A server upgrade
+   * Every full catch-up also reads the public server profile. A server upgrade
    * restarts the server but emits no event, so a resumed stream alone would
    * keep the old version and its compatibility warning until a reload. */
   async completeRealtimeCatchUp(
