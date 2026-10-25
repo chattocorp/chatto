@@ -50,6 +50,11 @@ Browsers upload message attachments in chunks of up to 10 MiB. If your reverse
 proxy limits the request body size, allow at least 11 MiB for each request.
 Avatar and branding uploads can need larger request bodies.
 
+The bundled client adjusts chunk sizes to the connection speed and retries
+temporary upload failures from the progress confirmed by the server. Keep the
+page open during recovery. Reloading the page does not resume an unfinished
+upload automatically. Older clients can still use fixed chunk sizes.
+
 ## Attachment Descriptions
 
 Members add a description in the attachment preview before they send a
