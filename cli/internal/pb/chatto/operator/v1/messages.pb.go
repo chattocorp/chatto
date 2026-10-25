@@ -52,9 +52,12 @@ type ImportMessageRequest struct {
 	// Cannot be combined with create_thread. Does not create a channel echo.
 	ThreadRootEventId string `protobuf:"bytes,12,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	// Establish this new root as an empty thread without following it.
-	CreateThread  bool `protobuf:"varint,13,opt,name=create_thread,json=createThread,proto3" json:"create_thread,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CreateThread bool `protobuf:"varint,13,opt,name=create_thread,json=createThread,proto3" json:"create_thread,omitempty"`
+	// Optional non-zero UUID. Exact retries return the same ID for 30 minutes.
+	// Scoped to operator imports; changed arguments conflict. Expiry permits reuse.
+	IdempotencyKey string `protobuf:"bytes,14,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ImportMessageRequest) Reset() {
@@ -176,6 +179,13 @@ func (x *ImportMessageRequest) GetCreateThread() bool {
 		return x.CreateThread
 	}
 	return false
+}
+
+func (x *ImportMessageRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 // Stable Chatto identity of the new historical message.
@@ -347,7 +357,7 @@ var File_chatto_operator_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/operator/v1/messages.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb0\x04\n" +
+	"!chatto/operator/v1/messages.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd9\x04\n" +
 	"\x14ImportMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12$\n" +
 	"\tauthor_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bauthorId\x12A\n" +
@@ -364,7 +374,8 @@ const file_chatto_operator_v1_messages_proto_rawDesc = "" +
 	" \x01(\tR\x12previewDescription\x12!\n" +
 	"\fpreview_type\x18\v \x01(\tR\vpreviewType\x12/\n" +
 	"\x14thread_root_event_id\x18\f \x01(\tR\x11threadRootEventId\x12#\n" +
-	"\rcreate_thread\x18\r \x01(\bR\fcreateThread\"6\n" +
+	"\rcreate_thread\x18\r \x01(\bR\fcreateThread\x12'\n" +
+	"\x0fidempotency_key\x18\x0e \x01(\tR\x0eidempotencyKey\"6\n" +
 	"\x15ImportMessageResponse\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\"\xad\x01\n" +

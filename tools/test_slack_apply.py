@@ -4,8 +4,9 @@ import copy
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from slack_apply import APIError, ApplyError, Journal, apply, convert, fingerprint
+from slack_apply import APIError, ApplyError, Journal, MESSAGE_RETRY_SECONDS, apply, convert, fingerprint, save
 
 
 class FakeOperator:
@@ -17,8 +18,14 @@ class FakeOperator:
         self.lose_message_response = False
         self.lose_create_response = None
         self.fail_before_create = False
+        self.message_results = {}
+        self.supports_idempotency = True
 
     def call(self, service, method, request):
+        if method == "ImportMessage" and request.get("idempotencyKey") == "invalid":
+            if self.supports_idempotency:
+                raise APIError("invalid_argument", invalid_idempotency_key=True)
+            raise APIError("not_found")
         if method == "ListUsers":
             return {"users": [{"user": u} for u in self.users]}
         if method == "ListRooms":
@@ -45,10 +52,20 @@ class FakeOperator:
                 raise OSError("simulated lost response")
             return {"room": room}
         if method == "ImportMessage":
+            key = request.get("idempotencyKey")
+            if key in self.message_results:
+                previous, response = self.message_results[key]
+                if previous != request:
+                    raise APIError("invalid_argument")
+                if self.lose_message_response:
+                    raise OSError("simulated lost retry response")
+                return response
             self.messages.append(request)
+            response = {"messageId": "message-" + str(len(self.messages))}
+            self.message_results[key] = (copy.deepcopy(request), response)
             if self.lose_message_response:
                 raise OSError("simulated lost response")
-            return {"messageId": "message-" + str(len(self.messages))}
+            return response
         return {}
 
 
@@ -92,16 +109,75 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual(len(self.api.writes), count)
         self.assertEqual(journal.path.stat().st_mode & 0o777, 0o600)
 
-    def test_lost_response_blocks_resume_after_server_commit(self):
+    def test_legacy_unkeyed_lost_response_still_blocks_resume(self):
         journal = self.journal()
         self.api.lose_message_response = True
         with self.assertRaises(OSError):
             apply(self.plan, self.api, journal)
         self.assertEqual(len(self.api.messages), 1)
+        del journal.data["pending"]["request"]["idempotencyKey"]
+        save(journal.path, journal.data)
         journal.close()
         with self.assertRaisesRegex(ApplyError, "Uncertain message"):
             apply(self.plan, self.api, self.journal())
         self.assertEqual(len(self.api.messages), 1)
+
+    def test_lost_response_replays_exact_request_after_restart(self):
+        journal = self.journal()
+        self.api.lose_message_response = True
+        with self.assertRaises(OSError):
+            apply(self.plan, self.api, journal)
+        pending = copy.deepcopy(journal.data["pending"])
+        journal.close()
+        self.api.lose_message_response = False
+        apply(self.plan, self.api, self.journal())
+        requests = [r for method, r in self.api.writes if method == "ImportMessage"]
+        self.assertEqual(requests[0], requests[1])
+        self.assertEqual(requests[1], pending["request"])
+        self.assertNotEqual(requests[1]["idempotencyKey"], requests[2]["idempotencyKey"])
+        self.assertEqual(len(self.api.messages), 2)
+
+    def test_expired_or_backward_clock_blocks_replay_without_writes(self):
+        journal = self.journal()
+        self.api.lose_message_response = True
+        with self.assertRaises(OSError):
+            apply(self.plan, self.api, journal)
+        first = journal.data["pending"]["first_attempt_at"]
+        count = len(self.api.writes)
+        for now in (first + MESSAGE_RETRY_SECONDS, first - 1):
+            with patch("slack_apply.time.time", return_value=now):
+                with self.assertRaisesRegex(ApplyError, "safe retry window"):
+                    apply(self.plan, self.api, journal)
+        self.assertEqual(len(self.api.writes), count)
+
+    def test_repeated_lost_response_does_not_extend_window(self):
+        journal = self.journal()
+        self.api.lose_message_response = True
+        with self.assertRaises(OSError):
+            apply(self.plan, self.api, journal)
+        pending = copy.deepcopy(journal.data["pending"])
+        with patch("slack_apply.time.time", return_value=pending["first_attempt_at"] + 60):
+            with self.assertRaises(OSError):
+                apply(self.plan, self.api, journal)
+        self.assertEqual(journal.data["pending"], pending)
+        self.assertEqual(len(self.api.messages), 1)
+
+    def test_destination_changes_block_pending_message_replay(self):
+        journal = self.journal()
+        self.api.lose_message_response = True
+        with self.assertRaises(OSError):
+            apply(self.plan, self.api, journal)
+        count = len(self.api.writes)
+        self.api.users.append({"id": "other", "login": "other"})
+        with self.assertRaisesRegex(ApplyError, "outside this import"):
+            apply(self.plan, self.api, journal)
+        self.assertEqual(len(self.api.writes), count)
+
+    def test_old_server_rejected_before_writes(self):
+        self.api.supports_idempotency = False
+        with self.assertRaisesRegex(ApplyError, "idempotent historical imports"):
+            apply(self.plan, self.api, self.journal())
+        self.assertEqual(self.api.writes, [])
 
     def test_source_error_causes_zero_writes(self):
         self.plan["messages"][-1]["source"]["blocks"] = [{"type": "image"}]

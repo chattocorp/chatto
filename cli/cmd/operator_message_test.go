@@ -60,7 +60,9 @@ func TestOperatorMessageImportThreadAndReaction(t *testing.T) {
 	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "cli-thread-room", "")
 	require.NoError(t, err)
 	args := []string{"operator", "message", "import", "--room-id", room.Id, "--author-id", author.Id, "--created-at", "2025-12-28T18:21:38.872519Z", "--body", "Imported"}
-	rootID := strings.TrimSpace(env.run(t, append(append([]string(nil), args...), "--create-thread")...))
+	rootArgs := append(append([]string(nil), args...), "--create-thread", "--idempotency-key", "d04a221e-8a36-44ce-95a4-c422f6063135")
+	rootID := strings.TrimSpace(env.run(t, rootArgs...))
+	require.Equal(t, rootID, strings.TrimSpace(env.run(t, rootArgs...)))
 	require.True(t, env.core.GetThreadMetadata(rootID).Exists)
 	replyID := strings.TrimSpace(env.run(t, append(append([]string(nil), args...), "--thread-id", rootID)...))
 	reply, err := env.core.GetRoomEventByEventID(env.ctx, core.KindChannel, room.Id, replyID)

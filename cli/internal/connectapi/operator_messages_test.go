@@ -67,9 +67,16 @@ func TestOperatorImportThreadAndReactionPublicRead(t *testing.T) {
 	require.NoError(t, err)
 	service := &operatorMessageService{api: env.api}
 	root, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
-		RoomId: room.Id, AuthorId: author.Id, Body: "root", CreatedAt: timestamppb.Now(), CreateThread: true,
+		RoomId: room.Id, AuthorId: author.Id, Body: "root", CreatedAt: timestamppb.New(time.Unix(1700000000, 0)), CreateThread: true,
+		IdempotencyKey: "d04a221e-8a36-44ce-95a4-c422f6063135",
 	}))
 	require.NoError(t, err)
+	retried, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: author.Id, Body: "root", CreatedAt: timestamppb.New(time.Unix(1700000000, 0)), CreateThread: true,
+		IdempotencyKey: "d04a221e-8a36-44ce-95a4-c422f6063135",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, root.Msg.GetMessageId(), retried.Msg.GetMessageId())
 	reply, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
 		RoomId: room.Id, AuthorId: author.Id, Body: "reply", CreatedAt: timestamppb.Now(), ThreadRootEventId: root.Msg.GetMessageId(),
 	}))

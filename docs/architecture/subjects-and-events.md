@@ -270,7 +270,9 @@ An operator historical import uses the existing message-body and message-post
 subjects. The body and post commit with any asset claims in one batch. The
 post's event actor is the system; its `author_id` names the displayed author.
 Its `historical_import` field remains in EVT so replay consumers suppress
-posting effects. No source ID or deduplication record is stored.
+posting effects. No source ID or deduplication record is stored in EVT.
+Optional import UUIDs reserve message IDs in `RUNTIME_STATE` using the shared
+bounded message-claim protocol; see [runtime state](runtime-state.md).
 
 Historical thread creation uses `ThreadCreatedEvent.historical_import` on the
 existing thread-created subject. It commits with the root or first reply and
