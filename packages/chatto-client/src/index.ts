@@ -51,6 +51,7 @@ export type {
 export { withTyping, startTyping, type TypingUpdate } from './messaging/typing.js';
 export { createDeliveryTracker, type DeliveryTracker } from './messaging/deliveries.js';
 export type { LiveServers } from './server/realtimeTransport.js';
+export type { KeepRecent } from './server/roomStores.js';
 export { setDebugLogging } from './util/debugLog.js';
 export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 export { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';

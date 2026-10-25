@@ -1,6 +1,7 @@
 /** Botto CLI: own the Chatto connection, inbox, and shutdown signal. */
 import './env.ts';
 import { createClient } from '@chatto/client';
+import { RECENT_THREAD_LIMIT } from '@chatto/client/server/roomStores';
 import { createAgent } from './agent.ts';
 import { Inbox } from './inbox.ts';
 import { readSettings, type Settings } from './settings.ts';
@@ -18,7 +19,10 @@ async function run(settings: Settings) {
   const stop = () => controller.abort();
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
-  const client = createClient();
+  // Keep at least one thread timeline for each thread that can have a turn.
+  const client = createClient({
+    keepRecent: { threads: Math.max(RECENT_THREAD_LIMIT, settings.maxThreads) }
+  });
   let inbox: Inbox | undefined;
   let recovery: Promise<void> | undefined;
   try {

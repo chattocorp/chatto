@@ -130,6 +130,25 @@ describe('isolated clients', () => {
     );
   });
 
+  it('keeps as many recently used threads as keepRecent allows', async () => {
+    const bots = client({ keepRecent: { threads: 1 } });
+    const server = bots.connect({ serverUrl: 'https://bot.example', apiKey: 'bot' });
+    await server.ready();
+    const first = server.rooms.thread('room', 'one');
+    const second = server.rooms.thread('room', 'two');
+    expect(first.isDisposed).toBe(true);
+    expect(second.isDisposed).toBe(false);
+  });
+
+  it('rejects keepRecent values that are not positive integers', () => {
+    expect(() => client({ keepRecent: { rooms: 0 } })).toThrow(
+      'keepRecent.rooms must be a positive integer'
+    );
+    expect(() => client({ keepRecent: { threads: 1.5 } })).toThrow(
+      'keepRecent.threads must be a positive integer'
+    );
+  });
+
   it('keep connections live in a client with one selected live server', async () => {
     const app = client({ liveServers: 'selected' });
     const connection = app.connect({ serverUrl: 'https://bot.example', apiKey: 'bot' });
