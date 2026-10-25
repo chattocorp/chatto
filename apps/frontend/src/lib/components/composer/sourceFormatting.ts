@@ -10,6 +10,7 @@ type SourceEdit = { from: number; to: number; insert: string };
 const inlineDelimiters: Partial<Record<ComposerFormattingCommand, [string, string]>> = {
   bold: ['**', '**'],
   italic: ['*', '*'],
+  underline: ['__', '__'],
   inlineCode: ['`', '`']
 };
 
@@ -42,15 +43,22 @@ function insertFootnote(text: string, selection: SourceSelection): SourceFormatt
 /** Compute the toolbar state from CodeMirror's parsed Markdown at the primary selection. */
 export function getSourceFormattingState(state: EditorState): ComposerFormattingState {
   const activeNames = new Set<string>();
+  let bold = false;
+  let underline = false;
   let node = syntaxTree(state).resolveInner(state.selection.main.head, -1);
   for (;;) {
     activeNames.add(node.name);
+    if (node.name === 'StrongEmphasis') {
+      if (state.sliceDoc(node.from, node.from + 2) === '__') underline = true;
+      else bold = true;
+    }
     if (!node.parent) break;
     node = node.parent;
   }
 
   return {
-    bold: activeNames.has('StrongEmphasis'),
+    bold,
+    underline,
     italic: activeNames.has('Emphasis'),
     inlineCode: activeNames.has('InlineCode'),
     heading: [...activeNames].some((name) => /^ATXHeading[1-6]$/.test(name)),

@@ -54,6 +54,8 @@
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-bold": "3.31.3",
+    "@tiptap/extension-underline": "3.31.3",
     "@tiptap/extension-code-block-lowlight": "3.31.3",
     "@tiptap/extension-link": "3.31.3",
     "@tiptap/extension-placeholder": "^3.31.3",

@@ -25,6 +25,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { tags } from '@lezer/highlight';
   import { Table } from '@lezer/markdown';
   import { sourceAutolinks } from './sourceAutolinks';
+  import { sourceEmphasisHighlighting, sourceEmphasisSyntax } from './sourceEmphasisHighlighting';
   import { sourceLinkHighlighting, sourceLinkSyntax } from './sourceLinkHighlighting';
   import { m } from '$lib/i18n/messages';
   import { codeFenceHighlighting } from './codeFenceHighlighting';
@@ -42,6 +43,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   const emptyFormattingState: ComposerFormattingState = {
     bold: false,
     italic: false,
+    underline: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -199,6 +201,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
           keymap.of([
             { key: 'Mod-b', run: (view) => toggleSourceFormatting(view, 'bold') },
             { key: 'Mod-i', run: (view) => toggleSourceFormatting(view, 'italic') },
+            { key: 'Mod-u', run: (view) => toggleSourceFormatting(view, 'underline') },
             {
               key: '`',
               run: (view) =>
@@ -209,12 +212,13 @@ the same API as the visual editor while keeping the stored Markdown visible.
           ]),
           markdown({
             base: commonmarkLanguage,
-            extensions: [Table, sourceAutolinks, sourceLinkSyntax],
+            extensions: [Table, sourceAutolinks, sourceLinkSyntax, sourceEmphasisSyntax],
             completeHTMLTags: false,
             pasteURLAsLink: true
           }),
           syntaxHighlighting(markdownHighlightStyle),
           sourceLinkHighlighting,
+          sourceEmphasisHighlighting,
           codeFenceHighlighting,
           markdownTheme,
           EditorView.lineWrapping,

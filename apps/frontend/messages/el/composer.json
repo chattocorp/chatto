@@ -50,6 +50,7 @@
       "too_large": "Το {filename} είναι πολύ μεγάλο ({size}). Το μέγιστο είναι {limit}."
     },
     "format": {
+      "underline": "Υπογράμμιση",
       "bold": "Έντονα",
       "italic": "Πλάγια",
       "inline_code": "Ενσωματωμένος κώδικας",

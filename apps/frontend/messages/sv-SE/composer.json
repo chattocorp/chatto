@@ -50,6 +50,7 @@
       "too_large": "{filename} är för stor ({size}). Maxstorleken är {limit}."
     },
     "format": {
+      "underline": "Understruken",
       "bold": "Fet",
       "italic": "Kursiv",
       "inline_code": "Radkod",

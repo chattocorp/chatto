@@ -50,6 +50,7 @@
       "too_large": "{filename} は大きすぎます ({size})。上限は {limit} です。"
     },
     "format": {
+      "underline": "下線",
       "bold": "太字",
       "italic": "斜体",
       "inline_code": "インラインコード",

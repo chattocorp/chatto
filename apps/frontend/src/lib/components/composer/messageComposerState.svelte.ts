@@ -35,6 +35,7 @@ import type { DraftReplies } from '$lib/state/server/draftReplies';
 const emptyFormattingState: ComposerFormattingState = {
   bold: false,
   italic: false,
+  underline: false,
   inlineCode: false,
   heading: false,
   bulletList: false,

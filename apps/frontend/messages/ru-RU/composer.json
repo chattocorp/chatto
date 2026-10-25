@@ -50,6 +50,7 @@
       "too_large": "Файл {filename} слишком большой ({size}). Максимум — {limit}."
     },
     "format": {
+      "underline": "Подчёркнутый",
       "bold": "Жирный",
       "italic": "Курсив",
       "inline_code": "Встроенный код",

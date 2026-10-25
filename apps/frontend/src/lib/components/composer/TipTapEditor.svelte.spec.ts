@@ -33,6 +33,45 @@ it('opens a registered Chatto link from the composer through local routing', asy
   expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
 });
 
+describe('Composer underline editing', () => {
+  it('converts typed underline syntax and toggles it with the platform shortcut', async () => {
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      placeholder: 'Underline editor',
+      onUpdate: (markdown) => updates.push(markdown)
+    });
+    const editor = page.getByRole('textbox', { name: 'Underline editor' });
+    await userEvent.click(editor);
+    await userEvent.type(editor, '__underlined__');
+    await vi.waitFor(() => expect(container.querySelector('u')?.textContent).toBe('underlined'));
+    expect(updates.at(-1)).toBe('__underlined__');
+    await userEvent.keyboard('{Shift>}{Home}{/Shift}');
+    editor.element().dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'u',
+        bubbles: true,
+        cancelable: true,
+        ...(navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true })
+      })
+    );
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('underlined'));
+    expect(container.querySelector('u')).toBeNull();
+  });
+
+  it('does not apply typed underline syntax inside a code block', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(TipTapEditor, {
+      placeholder: 'Underline editor',
+      onReady: (ready) => (api = ready)
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.toggleFormatting('codeBlock');
+    await userEvent.type(page.getByRole('textbox', { name: 'Underline editor' }), '__literal__');
+    expect(container.querySelector('pre code')?.textContent).toBe('__literal__');
+    expect(container.querySelector('u')).toBeNull();
+  });
+});
+
 describe('Composer footnote editing', () => {
   it.each([
     { content: '- First item\n    - Second item', expected: '- Edited First item' },

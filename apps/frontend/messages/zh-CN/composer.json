@@ -50,6 +50,7 @@
       "too_large": "{filename} 太大（{size}）。上限为 {limit}。"
     },
     "format": {
+      "underline": "下划线",
       "bold": "粗体",
       "italic": "斜体",
       "inline_code": "行内代码",

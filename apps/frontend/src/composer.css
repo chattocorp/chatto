@@ -10,6 +10,11 @@
     font-style: italic;
   }
 
+  & .ProseMirror u,
+  & .cm-format-underline {
+    text-decoration: underline;
+  }
+
   & .ProseMirror strong,
   & .cm-format-strong {
     font-weight: 600;

@@ -50,6 +50,7 @@
       "too_large": "{filename} ir pārāk liels ({size}). Maksimālais izmērs ir {limit}."
     },
     "format": {
+      "underline": "Pasvītrojums",
       "bold": "Treknrakstā",
       "italic": "Kursīvs",
       "inline_code": "Iekļauts kods",

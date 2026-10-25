@@ -50,6 +50,7 @@
       "too_large": "{filename} on liiga suur ({size}). Maksimum on {limit}."
     },
     "format": {
+      "underline": "Allajoonitud",
       "bold": "Paks",
       "italic": "Kursiiv",
       "inline_code": "Tekstisisene kood",

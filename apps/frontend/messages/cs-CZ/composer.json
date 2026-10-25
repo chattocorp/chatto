@@ -50,6 +50,7 @@
       "too_large": "Soubor {filename} je příliš velký ({size}). Maximum je {limit}."
     },
     "format": {
+      "underline": "Podtržení",
       "bold": "Tučné",
       "italic": "kurzíva",
       "inline_code": "Vložený kód",

@@ -50,6 +50,7 @@
       "too_large": "{filename} كبير جدًا ({size}). الحد الأقصى هو {limit}."
     },
     "format": {
+      "underline": "تسطير",
       "bold": "جريئة",
       "italic": "مائل",
       "inline_code": "شفرة مضمنة",

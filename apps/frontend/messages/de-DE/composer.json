@@ -50,6 +50,7 @@
       "too_large": "{filename} ist zu groß ({size}). Maximal erlaubt: {limit}."
     },
     "format": {
+      "underline": "Unterstrichen",
       "bold": "Fett",
       "italic": "Kursiv",
       "inline_code": "Inline-Code",

@@ -50,6 +50,7 @@
       "too_large": "{filename} er for stor ({size}). Maksimum er {limit}."
     },
     "format": {
+      "underline": "Understreking",
       "bold": "Fet",
       "italic": "Kursiv",
       "inline_code": "Innebygd kode",

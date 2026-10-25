@@ -476,6 +476,15 @@ function initialize(): void {
   // runs are consumed as literal text.
   md.inline.ruler.before('emphasis', 'word_boundary_emphasis', wordBoundaryEmphasis);
 
+  // Reuse emphasis parsing so code, link destinations, and literal marker runs
+  // stay untouched. Only paired double underscores change their rendered tag.
+  for (const type of ['strong_open', 'strong_close']) {
+    md.renderer.rules[type] = (tokens, index, options, _env, self) => {
+      if (tokens[index].markup === '__') tokens[index].tag = 'u';
+      return self.renderToken(tokens, index, options);
+    };
+  }
+
   // CommonMark decodes entities in prose but leaves them literal in code. Turn
   // decoded NBSPs into collapsible spaces only in ordinary inline text so long
   // `&nbsp;` runs cannot create giant blank message rows without corrupting

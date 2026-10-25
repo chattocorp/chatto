@@ -3,6 +3,7 @@ import type { QuoteInsertionContent } from '$lib/state/room';
 export type ComposerFormattingCommand =
   | 'bold'
   | 'italic'
+  | 'underline'
   | 'inlineCode'
   | 'heading'
   | 'bulletList'
