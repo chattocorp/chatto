@@ -343,6 +343,27 @@ jobs:
           ARTIFACT_PATH: ${{ matrix.artifact-path }}
         run: test -e "$ARTIFACT_PATH"
 
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        run: mise x -- pnpm --filter chatto-desktop build:windows-installer
+
+      - name: Test Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.exe)
+          if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
+          ./tools/test-desktop-windows-installer.ps1 -Installer $installer[0].FullName
+
+      - name: Upload unsigned Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-windows-installer-unsigned
+          path: apps/desktop/dist/installer/*_Setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify macOS bundle signature
         if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"

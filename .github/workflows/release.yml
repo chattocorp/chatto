@@ -513,6 +513,26 @@ jobs:
           }
           Write-Host "Verified $($files.Count) valid, timestamped Windows executable signatures; chatto-desktop.exe is published by '$env:EXPECTED_PUBLISHER'."
 
+      # The signing hook also signs and verifies the generated uninstaller
+      # before NSIS embeds it, using the Azure login and module above.
+      - name: Build signed Windows installer
+        if: runner.os == 'Windows'
+        env:
+          CHATTO_WINDOWS_SIGN_INSTALLER: 'true'
+          CHATTO_WINDOWS_SIGNING_ENDPOINT: ${{ vars.CHATTO_WINDOWS_SIGNING_ENDPOINT }}
+          CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME: ${{ vars.CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME }}
+          CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME: ${{ vars.CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME }}
+          CHATTO_WINDOWS_EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
+        run: mise x -- pnpm --filter chatto-desktop build:windows-installer
+
+      - name: Test signed Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.exe)
+          if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
+          ./tools/test-desktop-windows-installer.ps1 -Installer $installer[0].FullName
+
       - name: Package macOS release
         if: runner.os == 'macOS'
         shell: bash
@@ -567,6 +587,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           New-Item -ItemType Directory -Force .context/desktop-release | Out-Null
+          Copy-Item apps/desktop/dist/installer/*_Setup.exe .context/desktop-release/
           Compress-Archive `
             -Path "apps/desktop/dist/windows" `
             -DestinationPath ".context/desktop-release/chatto-desktop_$env:VERSION`_Windows_$env:RUNNER_ARCH.zip"

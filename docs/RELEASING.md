@@ -90,6 +90,10 @@ tag. The release workflow checks and builds macOS, Windows, and Linux
 bundles from that tag, signs and notarises the macOS bundle, signs and verifies
 every Windows executable, requires the expected ChattoCorp publisher on the
 main application, and uploads archives and SHA-256 checksums to that release.
+Windows releases also include a per-user `*_Windows_X64_Setup.exe` installer.
+Its installer and embedded uninstaller are signed and verified before upload.
+The ZIP remains available. See the desktop README for installation and the
+interactive Windows verification checklist; PR builds are unsigned.
 The server job alone publishes the release and does not wait for Desktop.
 Desktop assets can arrive before or after publication. If signing fails, retry
 the failed jobs on the same tagged run; a server security release must not wait
