@@ -61,12 +61,14 @@ func singleLayerH264TestPreservesTheFullResolutionBudget() throws {
   #expect(options.preferredCodec == .h264)
   #expect(options.preferredBackupCodec == nil)
   #expect(options.screenShareEncoding == regular.screenShareEncoding)
-  #expect(options.degradationPreference == regular.degradationPreference)
+  #expect(options.degradationPreference == .maintainResolution)
+  #expect(regular.degradationPreference == .maintainFramerate)
   #expect(options.streamName == regular.streamName)
 
-  let diagnostic = PublisherDiagnostic(phase: "sample", requestedCodec: "h264", simulcast: false, availableOutgoingBps: 6_000_000)
+  let diagnostic = PublisherDiagnostic(phase: "sample", requestedCodec: "h264", simulcast: false, maintainsResolution: true, availableOutgoingBps: 6_000_000)
   let json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(diagnostic)) as? [String: Any])
   #expect(json["simulcast"] as? Bool == false)
+  #expect(json["maintainsResolution"] as? Bool == true)
   #expect(json["availableOutgoingBps"] as? Double == 6_000_000)
 }
 

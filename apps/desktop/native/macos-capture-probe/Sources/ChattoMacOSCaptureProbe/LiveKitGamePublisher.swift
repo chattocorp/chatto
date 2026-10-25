@@ -143,7 +143,12 @@ enum LiveKitGamePublisher {
       )
     )
 
-    let diagnostics = Task { await PublisherDiagnostics.monitor(track: videoTrack, requestedCodec: requestedCodec, simulcast: simulcast) }
+    let diagnostics = Task {
+      await PublisherDiagnostics.monitor(
+        track: videoTrack, requestedCodec: requestedCodec, simulcast: simulcast,
+        maintainsResolution: videoOptions.degradationPreference == .maintainResolution
+      )
+    }
     defer { diagnostics.cancel() }
 
     // Desktop owns process lifetime. Convert SIGTERM into a graceful LiveKit
@@ -162,6 +167,7 @@ enum LiveKitGamePublisher {
   /// lower layers let LiveKit serve thumbnails and constrained subscribers
   /// without sending them the full stream. The single-layer experiment removes
   /// lower layers while preserving the full layer's bitrate and frame-rate limits.
+  /// It prioritizes resolution so adaptation can reduce FPS instead of detail.
   static func makeVideoPublishOptions(frameRate: Int, codec: VideoCodec = .h265, simulcast: Bool = true) -> VideoPublishOptions {
     let lowerLayers = [
       VideoParameters(
@@ -178,7 +184,7 @@ enum LiveKitGamePublisher {
       simulcast: simulcast,
       screenShareSimulcastLayers: simulcast ? lowerLayers : [],
       preferredCodec: codec,
-      degradationPreference: .maintainFramerate,
+      degradationPreference: simulcast ? .maintainFramerate : .maintainResolution,
       streamName: "game-capture"
     )
   }

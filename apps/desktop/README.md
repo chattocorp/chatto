@@ -91,12 +91,15 @@ If the server explicitly rejects that codec, the helper retries H.264. It does
 not publish both codecs at once. If a viewer cannot receive HEVC, select H.264
 and restart the share.
 
-To isolate the effect of simulcast, select **Test H.264 Single Layer (8 Mbps)
-for Next Share**, then restart sharing. This test publishes one video layer
-with the same capture settings and frame-rate limit. Its video ceiling is
-8 Mbps; audio and transport overhead are additional. It does not force a
+To test resolution priority, select **Test H.264 Single Layer (8 Mbps,
+Resolution First) for Next Share**, then restart sharing. This test publishes
+one video layer with the same capture settings and frame-rate limit. It prefers
+to preserve resolution and lets frame rate decrease under pressure. Its video
+ceiling is 8 Mbps; audio and transport overhead are additional. It does not force a
 constant bitrate. All viewers receive the same encoded resolution. Select
-either regular codec option to restore simulcast on the next share.
+either regular codec option to restore simulcast and frame-rate priority on the
+next share. Diagnostic samples include `maintainsResolution` to identify the
+adaptation preference.
 
 To report a problem, share a moving scene for at least 15 seconds, then select
 **Diagnostics → Copy Screen Sharing Diagnostics**. Paste the report into the

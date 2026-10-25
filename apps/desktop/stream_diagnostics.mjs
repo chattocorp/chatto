@@ -62,6 +62,7 @@ export function parseStreamDiagnostic(value) {
     phase: value.phase,
     requestedCodec: value.requestedCodec,
     ...layerConfiguration(value.simulcast ?? true),
+    maintainsResolution: boolean(value.maintainsResolution),
     availableOutgoingBps: number(value.availableOutgoingBps),
     captureWidth: number(value.captureWidth),
     captureHeight: number(value.captureHeight),

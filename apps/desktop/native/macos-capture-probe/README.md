@@ -201,11 +201,12 @@ the publisher's bounded diagnostic report. Both codecs use the same limits,
 and there is no parallel backup-codec publication. An explicit server rejection
 of HEVC retries H.264. Receivers must support the chosen codec; use the H.264
 menu option and restart sharing if a viewer cannot receive HEVC.
-The **Test H.264 Single Layer (8 Mbps) for Next Share** option disables
-simulcast for a controlled comparison. It keeps the same capture settings and
-full-layer ceiling, with no lower layers or backup codec. Diagnostic records
-include the layer mode and, when available, the outgoing bandwidth estimate
-from the selected publisher transport candidate pair. No candidate identifiers
+The **Test H.264 Single Layer (8 Mbps, Resolution First) for Next Share** option
+disables simulcast and prioritizes resolution, allowing frame rate to decrease
+under pressure. It keeps the same capture settings and full-layer ceiling,
+with no lower layers or backup codec. Diagnostic samples include
+`maintainsResolution`, the layer mode and, when available, the outgoing bandwidth
+estimate from the selected publisher transport candidate pair. No candidate identifiers
 or addresses enter the report.
 Window publication also includes 128 kbps stereo owning-application audio. Display publication is
 video-only because system audio would include Chatto's remote call playback and

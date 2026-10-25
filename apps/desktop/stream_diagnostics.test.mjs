@@ -46,6 +46,7 @@ test('mixed share reports keep the layer mode and limits with each record', () =
     phase: 'sample',
     requestedCodec: 'h264',
     simulcast: false,
+    maintainsResolution: true,
     availableOutgoingBps: 6_000_000,
     layers: []
   };
@@ -59,6 +60,17 @@ test('mixed share reports keep the layer mode and limits with each record', () =
     assert.deepEqual(record.limitsBps, [8_000_000]);
   }
   assert.equal(sample.availableOutgoingBps, 6_000_000);
+  assert.equal(sample.maintainsResolution, true);
+  for (const preference of [false, undefined]) {
+    assert.equal(
+      parseStreamDiagnostic({ ...value, maintainsResolution: preference }).maintainsResolution,
+      preference
+    );
+  }
+  assert.equal(
+    parseStreamDiagnostic({ ...value, maintainsResolution: 'private value' }).maintainsResolution,
+    undefined
+  );
   for (const invalid of [-1, Infinity, NaN, 'private value']) {
     assert.equal(
       parseStreamDiagnostic({ ...value, availableOutgoingBps: invalid }).availableOutgoingBps,

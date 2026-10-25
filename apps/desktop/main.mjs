@@ -685,7 +685,7 @@ function configureDiagnosticsMenu() {
           }
         },
         {
-          label: 'Test H.264 Single Layer (8 Mbps) for Next Share',
+          label: 'Test H.264 Single Layer (8 Mbps, Resolution First) for Next Share',
           type: 'radio',
           checked: screenShareCodec === 'h264' && !screenShareSimulcast,
           click: () => {

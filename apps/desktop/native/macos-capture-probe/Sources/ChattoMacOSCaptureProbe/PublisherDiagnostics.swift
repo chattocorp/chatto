@@ -12,6 +12,8 @@ struct PublisherDiagnostic: Encodable {
   let phase: String
   let requestedCodec: String
   let simulcast: Bool
+  /// Whether the publish options prefer resolution over frame rate during adaptation.
+  var maintainsResolution: Bool?
   /// Congestion-control estimate for the shared publisher transport, including audio.
   var availableOutgoingBps: Double?
   var captureWidth: Int32?
@@ -73,11 +75,12 @@ struct VideoCounterSample {
 enum PublisherDiagnostics {
   /// Runs only for the publisher lifetime. Each sample includes all active
   /// simulcast and backup-codec streams, without exposing their identifiers.
-  static func monitor(track: LocalVideoTrack, requestedCodec: String, simulcast: Bool) async {
+  static func monitor(track: LocalVideoTrack, requestedCodec: String, simulcast: Bool, maintainsResolution: Bool) async {
     var previous: [String: VideoCounterSample] = [:]
     while !Task.isCancelled {
       do { try await Task.sleep(for: .seconds(5)) } catch { return }
       var diagnostic = PublisherDiagnostic(phase: "sample", requestedCodec: requestedCodec, simulcast: simulcast)
+      diagnostic.maintainsResolution = maintainsResolution
       diagnostic.captureWidth = track.dimensions?.width
       diagnostic.captureHeight = track.dimensions?.height
       let reports = [track.statistics].compactMap { $0 } + Array(track.simulcastStatistics.values)
