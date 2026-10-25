@@ -11,6 +11,17 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import type { Delivery } from './delivery.ts';
 import { isHumanAuthor } from './messages.ts';
 
+/** The addressing reason of each notification kind that recovery handles; null is passive. */
+const NOTIFICATION_REASONS = new Map<string, AddressingReason | null>([
+  ['directMessageReceived', 'direct_message'],
+  ['directMentionReceived', 'mention'],
+  ['roleMentionReceived', 'role_mention'],
+  ['hereMentionReceived', 'here_mention'],
+  ['allMentionReceived', 'all_mention'],
+  ['replyReceived', 'reply'],
+  ['followedThreadActivity', null]
+]);
+
 /** Scan newest-first pages, then admit messages oldest-first. Never acknowledge or
  * dismiss notifications: the bot account can also be open in a human client. */
 export async function recover(
@@ -41,34 +52,10 @@ export async function recover(
       if (!kind || !kind.value || !('message' in kind.value)) continue;
       const reference = kind.value.message;
       if (!reference?.room?.id || !reference.eventId || delivery.has(reference.eventId)) continue;
-      let reasons: AddressedMessage['reasons'];
-      switch (kind.case) {
-        case 'directMessageReceived':
-          reasons = ['direct_message'];
-          break;
-        case 'directMentionReceived':
-          reasons = ['mention'];
-          break;
-        case 'roleMentionReceived':
-          reasons = ['role_mention'];
-          break;
-        case 'hereMentionReceived':
-          reasons = ['here_mention'];
-          break;
-        case 'allMentionReceived':
-          reasons = ['all_mention'];
-          break;
-        case 'replyReceived':
-          reasons = ['reply'];
-          break;
-        case 'followedThreadActivity':
-          reasons = [];
-          break;
-        default:
-          continue;
-      }
+      const reason = NOTIFICATION_REASONS.get(kind.case);
+      if (reason === undefined) continue;
       // A kind without an enabled reason counts as passive, as on the live path.
-      if (!reasons.some((reason) => respondTo.includes(reason))) reasons = [];
+      const reasons = reason && respondTo.includes(reason) ? [reason] : [];
       candidates.push({ roomId: reference.room.id, id: reference.eventId, reasons });
     }
     if (reachedStart || !page.page?.hasMore) break;

@@ -29,11 +29,8 @@ async function run(settings: Settings) {
     const agent = await logged('Pi setup', () => createAgent(settings));
     controller.signal.throwIfAborted();
     log('info', 'Connecting to Chatto');
-    const server = client.connect({
-      serverUrl: settings.serverUrl,
-      apiKey: settings.apiKey,
-      reportPresence: settings.reportPresence
-    });
+    const server = client.connect({ serverUrl: settings.serverUrl, apiKey: settings.apiKey });
+    if (settings.reportPresence) server.reportPresence();
     const { viewerId } = await startupStep(
       'Cannot connect to Chatto. Check chatto.url, chatto.api_key, and server compatibility.',
       () => server.ready({ signal: controller.signal })

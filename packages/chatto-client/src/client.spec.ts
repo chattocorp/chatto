@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => ({
   viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>(),
   recoveryFails: false,
   stopPresence: vi.fn(),
-  reportPresence: vi.fn()
+  sendPresenceHeartbeats: vi.fn()
 }));
 vi.mock('./server/presenceTracking.js', async (original) => ({
   ...(await original<typeof import('./server/presenceTracking.js')>()),
-  reportPresence: mocks.reportPresence
+  sendPresenceHeartbeats: mocks.sendPresenceHeartbeats
 }));
 vi.mock('./server/serverRecovery.js', async (original) => {
   const actual = await original<typeof import('./server/serverRecovery.js')>();
@@ -146,22 +146,21 @@ describe('isolated clients', () => {
     expect(second.isDisposed).toBe(false);
   });
 
-  it('reports presence of a connected server only with reportPresence', async () => {
-    mocks.reportPresence.mockReset().mockReturnValue(mocks.stopPresence);
+  it('reports presence of a server only after reportPresence()', async () => {
+    mocks.sendPresenceHeartbeats.mockReset().mockReturnValue(mocks.stopPresence);
     mocks.stopPresence.mockReset();
     const bots = client();
-    bots.connect({ serverUrl: 'https://quiet.example', apiKey: 'quiet' });
-    expect(mocks.reportPresence).not.toHaveBeenCalled();
+    const quiet = bots.connect({ serverUrl: 'https://quiet.example', apiKey: 'quiet' });
+    await quiet.ready();
+    expect(mocks.sendPresenceHeartbeats).not.toHaveBeenCalled();
 
-    const present = bots.connect({
-      serverUrl: 'https://present.example',
-      apiKey: 'present',
-      reportPresence: true
-    });
-    // Heartbeats start only after the server accepted the key.
-    expect(mocks.reportPresence).not.toHaveBeenCalled();
+    const present = bots.connect({ serverUrl: 'https://present.example', apiKey: 'present' });
+    present.reportPresence();
+    present.reportPresence();
+    // Heartbeats start only after the server accepted the key, once.
+    expect(mocks.sendPresenceHeartbeats).not.toHaveBeenCalled();
     await present.ready();
-    await vi.waitFor(() => expect(mocks.reportPresence).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.sendPresenceHeartbeats).toHaveBeenCalledOnce());
     expect(mocks.stopPresence).not.toHaveBeenCalled();
     present.close();
     expect(mocks.stopPresence).toHaveBeenCalledOnce();
@@ -171,19 +170,16 @@ describe('isolated clients', () => {
     vi.useFakeTimers();
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      mocks.reportPresence.mockReset().mockReturnValue(mocks.stopPresence);
+      mocks.sendPresenceHeartbeats.mockReset().mockReturnValue(mocks.stopPresence);
       mocks.viewer.mockRejectedValueOnce(new TypeError('fetch failed'));
       const bots = client();
-      const server = bots.connect({
-        serverUrl: 'https://late.example',
-        apiKey: 'late',
-        reportPresence: true
-      });
+      const server = bots.connect({ serverUrl: 'https://late.example', apiKey: 'late' });
+      server.reportPresence();
       await vi.advanceTimersByTimeAsync(500);
-      expect(mocks.reportPresence).not.toHaveBeenCalled();
+      expect(mocks.sendPresenceHeartbeats).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(30_000);
       await server.ready();
-      await vi.waitFor(() => expect(mocks.reportPresence).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(mocks.sendPresenceHeartbeats).toHaveBeenCalledOnce());
     } finally {
       logged.mockRestore();
       vi.useRealTimers();

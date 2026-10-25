@@ -4,7 +4,7 @@ import { PresencePreference, PresenceStatus } from '@chatto/api-types/api/v1/pre
 import { PresencePreferences } from './presencePreference.js';
 import {
   createPresenceTracker,
-  reportPresence,
+  sendPresenceHeartbeats,
   type PresenceReporter,
   type PresenceTracker
 } from './presenceTracking.js';
@@ -265,7 +265,7 @@ describe('shared account presence', () => {
   });
 });
 
-describe('reportPresence', () => {
+describe('sendPresenceHeartbeats', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -275,7 +275,7 @@ describe('reportPresence', () => {
 
   it('refreshes presence now and every 30 seconds until it stops', async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
-    const stop = reportPresence(refresh);
+    const stop = sendPresenceHeartbeats(refresh);
     expect(refresh).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(30_000);
     expect(refresh).toHaveBeenCalledTimes(2);
@@ -291,7 +291,7 @@ describe('reportPresence', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockImplementationOnce(() => new Promise<void>((done) => (finish = done)))
       .mockResolvedValue(undefined);
-    const stop = reportPresence(refresh);
+    const stop = sendPresenceHeartbeats(refresh);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(refresh).toHaveBeenCalledTimes(2);
     // The second heartbeat is still pending, so the next interval skips.

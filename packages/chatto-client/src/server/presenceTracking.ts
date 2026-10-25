@@ -17,11 +17,10 @@ const PRESENCE_REFRESH_MS = 30_000;
  * 60 seconds. For hosts without a person, such as bots; interactive hosts use
  * `createPresenceTracker`.
  */
-export function reportPresence(refresh: () => Promise<unknown>): () => void {
-  let stopped = false;
+export function sendPresenceHeartbeats(refresh: () => Promise<unknown>): () => void {
   let pending = false;
   const beat = () => {
-    if (stopped || pending) return;
+    if (pending) return;
     pending = true;
     refresh()
       .catch((error: unknown) => debugLog('[presence] heartbeat failed', error))
@@ -31,10 +30,7 @@ export function reportPresence(refresh: () => Promise<unknown>): () => void {
   };
   beat();
   const timer = setInterval(beat, PRESENCE_REFRESH_MS);
-  return () => {
-    stopped = true;
-    clearInterval(timer);
-  };
+  return () => clearInterval(timer);
 }
 
 /** The presence requests of one account on one server. */

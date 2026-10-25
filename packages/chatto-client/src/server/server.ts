@@ -45,6 +45,8 @@ import type { ServerRegistration } from './catalog.js';
 import type { ServerConnection } from './serverConnection.js';
 import type { ServerSession } from './sessions.js';
 import { ServerStateStore, type ServerStoreContext } from './store.js';
+import { sendPresenceHeartbeats } from './presenceTracking.js';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 
 /** Settings for `ChattoClient.connect`. */
 export interface ConnectOptions {
@@ -52,14 +54,6 @@ export interface ConnectOptions {
   serverUrl: string;
   /** Bearer token, for example a bot API key. It is kept only in memory. */
   apiKey: string;
-  /**
-   * Show the account as online while the server is open: once the server
-   * accepts the key, also after a failed first attempt, the client sends a
-   * presence heartbeat every 30 seconds. After `close()`, the server shows
-   * the account as offline within 60 seconds. It never changes the account's
-   * saved presence choice. Default: false.
-   */
-  reportPresence?: boolean;
 }
 
 /** A new projection snapshot; see {@link Server.onSnapshot}. */
@@ -596,6 +590,34 @@ export class Server extends ServerStateStore {
   /** Recognize an event as a message addressed to the viewer; see `run`. */
   addressedMessage(event: RealtimeEvent, options?: AddressingOptions) {
     return this.#requests.addressedMessage(event, options);
+  }
+
+  #reportingPresence = false;
+
+  /**
+   * Show the account as online while the server is open, for hosts without a
+   * person, such as bots. Once the server accepts the key, also after failed
+   * attempts, the client sends a presence heartbeat every 30 seconds, until
+   * {@link close} or the end of the session. Then the server shows the account
+   * as offline within 60 seconds. It never changes the account's saved
+   * presence choice. Later calls do nothing.
+   */
+  reportPresence(): void {
+    if (this.#reportingPresence) return;
+    this.#reportingPresence = true;
+    this.#readyForLoop(undefined, undefined).then(
+      (viewerId) => {
+        if (viewerId === undefined || this.#closed.peek()) return;
+        const account = this.service(MyAccountService);
+        const stop = sendPresenceHeartbeats(() =>
+          account.refreshPresence({}, { timeoutMs: 10_000 })
+        );
+        this.onDispose(stop);
+        this.onSessionEnded(stop);
+      },
+      // The key was rejected, or the server release is not supported.
+      () => {}
+    );
   }
 
   /**
