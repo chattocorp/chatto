@@ -42,6 +42,7 @@ if (buildProfile.variant === 'development') {
 }
 const streamDiagnostics = new StreamDiagnostics();
 let screenShareCodec = 'h265';
+let screenShareSimulcast = true;
 
 const desktopRoot = path.dirname(fileURLToPath(import.meta.url));
 // Match the NSIS shortcut identity for Windows taskbar grouping and notifications.
@@ -523,7 +524,9 @@ function configureGameCaptureIPC() {
 function startGameCaptureSession(source, publisherRequest, port) {
   stopActiveGameCaptureSession();
   const requestedCodec = screenShareCodec;
-  streamDiagnostics.recordLifecycle('start', requestedCodec);
+  // Snapshot the next-share settings so menu changes cannot relabel an active share.
+  const simulcast = screenShareSimulcast;
+  streamDiagnostics.recordLifecycle('start', requestedCodec, simulcast);
   const sourceArguments = [
     source.kind === 'window' ? '--window' : '--display',
     String(source.nativeId)
@@ -567,7 +570,7 @@ function startGameCaptureSession(source, publisherRequest, port) {
             console.info('[screen-share]', JSON.stringify(record));
           } else {
             const status = parseGameCapturePublisherStatus(line);
-            streamDiagnostics.recordLifecycle('started', requestedCodec);
+            streamDiagnostics.recordLifecycle('started', requestedCodec, simulcast);
             port.postMessage(status);
           }
         }
@@ -586,14 +589,18 @@ function startGameCaptureSession(source, publisherRequest, port) {
     if (stderr.length > 64 * 1024) stderr = stderr.slice(-64 * 1024);
   });
   child.once('error', () => {
-    streamDiagnostics.recordLifecycle('failed', requestedCodec);
+    streamDiagnostics.recordLifecycle('failed', requestedCodec, simulcast);
     port.postMessage({
       kind: 'error',
       message: 'The native screen-share helper could not start.'
     });
   });
   child.once('exit', (code, signal) => {
-    streamDiagnostics.recordLifecycle(code === 0 || stopping ? 'ended' : 'failed', requestedCodec);
+    streamDiagnostics.recordLifecycle(
+      code === 0 || stopping ? 'ended' : 'failed',
+      requestedCodec,
+      simulcast
+    );
     clearTimeout(forceStopTimer);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
     if (!stopping && (code !== 0 || signal)) {
@@ -617,14 +624,15 @@ function startGameCaptureSession(source, publisherRequest, port) {
       livekitURL: publisherRequest.livekitUrl,
       token: publisherRequest.token,
       e2eeKey: publisherRequest.e2eeKey,
-      videoCodec: requestedCodec
+      videoCodec: requestedCodec,
+      videoSimulcast: simulcast
     })
   );
 
   function stop() {
     if (stopping) return;
     stopping = true;
-    streamDiagnostics.recordLifecycle('stop', requestedCodec);
+    streamDiagnostics.recordLifecycle('stop', requestedCodec, simulcast);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
     if (child.exitCode === null && child.signalCode === null) {
       child.kill('SIGTERM');
@@ -664,14 +672,25 @@ function configureDiagnosticsMenu() {
           checked: screenShareCodec === 'h265',
           click: () => {
             screenShareCodec = 'h265';
+            screenShareSimulcast = true;
           }
         },
         {
           label: 'Use H.264 for Next Share',
           type: 'radio',
-          checked: screenShareCodec === 'h264',
+          checked: screenShareCodec === 'h264' && screenShareSimulcast,
           click: () => {
             screenShareCodec = 'h264';
+            screenShareSimulcast = true;
+          }
+        },
+        {
+          label: 'Test H.264 Single Layer (8 Mbps) for Next Share',
+          type: 'radio',
+          checked: screenShareCodec === 'h264' && !screenShareSimulcast,
+          click: () => {
+            screenShareCodec = 'h264';
+            screenShareSimulcast = false;
           }
         }
       ]

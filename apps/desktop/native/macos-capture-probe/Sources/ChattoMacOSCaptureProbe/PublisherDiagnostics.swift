@@ -11,6 +11,9 @@ struct PublisherDiagnostic: Encodable {
   let kind = "diagnostic"
   let phase: String
   let requestedCodec: String
+  let simulcast: Bool
+  /// Congestion-control estimate for the shared publisher transport, including audio.
+  var availableOutgoingBps: Double?
   var captureWidth: Int32?
   var captureHeight: Int32?
   var layers: [PublisherLayerDiagnostic] = []
@@ -70,16 +73,24 @@ struct VideoCounterSample {
 enum PublisherDiagnostics {
   /// Runs only for the publisher lifetime. Each sample includes all active
   /// simulcast and backup-codec streams, without exposing their identifiers.
-  static func monitor(track: LocalVideoTrack, requestedCodec: String) async {
+  static func monitor(track: LocalVideoTrack, requestedCodec: String, simulcast: Bool) async {
     var previous: [String: VideoCounterSample] = [:]
     while !Task.isCancelled {
       do { try await Task.sleep(for: .seconds(5)) } catch { return }
-      var diagnostic = PublisherDiagnostic(phase: "sample", requestedCodec: requestedCodec)
+      var diagnostic = PublisherDiagnostic(phase: "sample", requestedCodec: requestedCodec, simulcast: simulcast)
       diagnostic.captureWidth = track.dimensions?.width
       diagnostic.captureHeight = track.dimensions?.height
       let reports = [track.statistics].compactMap { $0 } + Array(track.simulcastStatistics.values)
       var next: [String: VideoCounterSample] = [:]
       for report in reports {
+        // Select the transport's current pair, not an arbitrary nominated or stale
+        // candidate. Neither the pair ID nor any address crosses the log boundary.
+        if let pairID = report.transportStats?.selectedCandidatePairId,
+          let estimate = report.iceCandidatePair.first(where: { $0.id == pairID })?.availableOutgoingBitrate,
+          estimate.isFinite, estimate >= 0
+        {
+          diagnostic.availableOutgoingBps = estimate
+        }
         for stream in report.outboundRtpStream {
           let codecStats = report.codec.first { $0.id == stream.codecId }
           let codec = codecStats?.mimeType?.lowercased() ?? ""

@@ -5,9 +5,13 @@ export class StreamDiagnostics {
   #entries = [];
   #started = performance.now();
 
-  recordLifecycle(phase, codec) {
+  recordLifecycle(phase, codec, simulcast = true) {
     if (!['start', 'started', 'stop', 'ended', 'failed'].includes(phase)) return;
-    this.#append({ phase, requestedCodec: codec === 'h264' ? 'h264' : 'h265' });
+    this.#append({
+      phase,
+      requestedCodec: codec === 'h264' ? 'h264' : 'h265',
+      ...layerConfiguration(simulcast)
+    });
   }
 
   recordNative(value) {
@@ -30,8 +34,7 @@ export class StreamDiagnostics {
         platform,
         arch,
         variant,
-        limitsBps: [1_000_000, 4_000_000, 8_000_000],
-        note: 'Publisher samples only. Rates are bits/s; delays are ms. Missing fields are unavailable. QP is codec-specific. Counters are cumulative.'
+        note: 'Publisher samples only. Rates are bits/s; delays are ms. limitsBps lists configured video layer ceilings per record. availableOutgoingBps is the shared publisher transport estimate, not a per-layer limit. Missing fields are unavailable. QP is codec-specific. Counters are cumulative.'
       }),
       ...this.#entries.map((entry) => JSON.stringify(entry))
     ].join('\n');
@@ -45,6 +48,7 @@ export function parseStreamDiagnostic(value) {
     value?.kind !== 'diagnostic' ||
     !['connecting', 'sample', 'fallback'].includes(value.phase) ||
     !['h264', 'h265'].includes(value.requestedCodec) ||
+    (value.simulcast !== undefined && typeof value.simulcast !== 'boolean') ||
     !Array.isArray(value.layers) ||
     value.layers.length > 12
   ) {
@@ -57,6 +61,8 @@ export function parseStreamDiagnostic(value) {
   return {
     phase: value.phase,
     requestedCodec: value.requestedCodec,
+    ...layerConfiguration(value.simulcast ?? true),
+    availableOutgoingBps: number(value.availableOutgoingBps),
     captureWidth: number(value.captureWidth),
     captureHeight: number(value.captureHeight),
     layers: value.layers.map((layer) => {
@@ -97,4 +103,9 @@ export function parseStreamDiagnostic(value) {
       return result;
     })
   };
+}
+
+/** Include limits with each record because one report can contain several share modes. */
+function layerConfiguration(simulcast) {
+  return { simulcast, limitsBps: simulcast ? [1_000_000, 4_000_000, 8_000_000] : [8_000_000] };
 }

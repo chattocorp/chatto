@@ -80,6 +80,11 @@ system-browser authentication, and clean-machine media behavior are hardened.
   next share. Both use the same bitrate ceilings; the publisher does not send
   a parallel backup codec. An explicit server rejection of HEVC retries H.264.
   If a viewer cannot receive HEVC, the sender must select H.264 and restart.
+- The Diagnostics menu also offers a single-layer H.264 comparison at up to
+  8 Mbps of video. It removes lower-resolution layers without changing the
+  capture settings or frame-rate limit. All viewers receive the same encoded
+  resolution. Reports identify the selected layer mode and include an outgoing
+  bandwidth estimate when available. Regular codec options restore simulcast.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
   callback. Desktop API and realtime access use bearer credentials and require
   no origin configuration.

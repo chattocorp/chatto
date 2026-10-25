@@ -91,6 +91,13 @@ If the server explicitly rejects that codec, the helper retries H.264. It does
 not publish both codecs at once. If a viewer cannot receive HEVC, select H.264
 and restart the share.
 
+To isolate the effect of simulcast, select **Test H.264 Single Layer (8 Mbps)
+for Next Share**, then restart sharing. This test publishes one video layer
+with the same capture settings and frame-rate limit. Its video ceiling is
+8 Mbps; audio and transport overhead are additional. It does not force a
+constant bitrate. All viewers receive the same encoded resolution. Select
+either regular codec option to restore simulcast on the next share.
+
 To report a problem, share a moving scene for at least 15 seconds, then select
 **Diagnostics → Copy Screen Sharing Diagnostics**. Paste the report into the
 issue or conversation. Reports contain the last 60 lifecycle and performance
@@ -104,6 +111,11 @@ delay when the SDK supplies them. Missing values mean unavailable; QP values
 must be compared within the same codec. The first sample has no measured rate
 because it establishes the counter baseline. Reports cover the native
 publisher, not the viewer's decoder or the browser screen-share path.
+
+Each record identifies whether simulcast is enabled and lists its configured
+video layer ceilings in `limitsBps`. `availableOutgoingBps`, when available,
+is WebRTC's bandwidth estimate for the shared publisher transport, including
+audio. It is not a separate budget for each layer or a speed-test result.
 
 Reports stay in memory and contain no account or source names, participant or
 track IDs, server addresses, IP addresses, tokens, or encryption keys. Copying

@@ -53,6 +53,24 @@ func h264OverrideKeepsTheSameLimitsWithoutABackupCodec() {
 }
 
 @Test
+func singleLayerH264TestPreservesTheFullResolutionBudget() throws {
+  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h264, simulcast: false)
+  let regular = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h264)
+  #expect(!options.simulcast)
+  #expect(options.screenShareSimulcastLayers.isEmpty)
+  #expect(options.preferredCodec == .h264)
+  #expect(options.preferredBackupCodec == nil)
+  #expect(options.screenShareEncoding == regular.screenShareEncoding)
+  #expect(options.degradationPreference == regular.degradationPreference)
+  #expect(options.streamName == regular.streamName)
+
+  let diagnostic = PublisherDiagnostic(phase: "sample", requestedCodec: "h264", simulcast: false, availableOutgoingBps: 6_000_000)
+  let json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(diagnostic)) as? [String: Any])
+  #expect(json["simulcast"] as? Bool == false)
+  #expect(json["availableOutgoingBps"] as? Double == 6_000_000)
+}
+
+@Test
 func developmentAndReleaseWindowsAreExcludedFromCapture() {
   #expect(isChattoDesktopApplication("run.chatto.desktop"))
   #expect(isChattoDesktopApplication("run.chatto.desktop.dev"))

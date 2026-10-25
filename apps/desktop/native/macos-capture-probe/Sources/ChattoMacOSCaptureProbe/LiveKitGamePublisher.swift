@@ -12,6 +12,7 @@ private struct PublisherCredential: Decodable {
   let token: String
   let e2eeKey: String
   let videoCodec: String?
+  let videoSimulcast: Bool?
 }
 
 private struct PublisherStatus: Encodable {
@@ -80,8 +81,9 @@ enum LiveKitGamePublisher {
     try AudioManager.shared.setManualRenderingMode(true)
 
     let requestedCodec = credential.videoCodec ?? "h265"
-    var videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: requestedCodec == "h264" ? .h264 : .h265)
-    PublisherDiagnostic(phase: "connecting", requestedCodec: requestedCodec).write()
+    let simulcast = credential.videoSimulcast ?? true
+    var videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: requestedCodec == "h264" ? .h264 : .h265, simulcast: simulcast)
+    PublisherDiagnostic(phase: "connecting", requestedCodec: requestedCodec, simulcast: simulcast).write()
     let audioOptions = AudioPublishOptions(
       encoding: .presetMusicHighQualityStereo,
       dtx: false,
@@ -126,8 +128,8 @@ enum LiveKitGamePublisher {
     } catch let error as LiveKitError where error.type == .codecNotSupported && requestedCodec == "h265" {
       // Older SFUs can reject HEVC before publication. Do not retry unrelated
       // failures or change encryption to make a codec work.
-      PublisherDiagnostic(phase: "fallback", requestedCodec: requestedCodec).write()
-      videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: .h264)
+      PublisherDiagnostic(phase: "fallback", requestedCodec: requestedCodec, simulcast: simulcast).write()
+      videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: .h264, simulcast: simulcast)
       _ = try await room.localParticipant.publish(videoTrack: videoTrack, options: videoOptions)
     }
 
@@ -141,7 +143,7 @@ enum LiveKitGamePublisher {
       )
     )
 
-    let diagnostics = Task { await PublisherDiagnostics.monitor(track: videoTrack, requestedCodec: requestedCodec) }
+    let diagnostics = Task { await PublisherDiagnostics.monitor(track: videoTrack, requestedCodec: requestedCodec, simulcast: simulcast) }
     defer { diagnostics.cancel() }
 
     // Desktop owns process lifetime. Convert SIGTERM into a graceful LiveKit
@@ -158,8 +160,9 @@ enum LiveKitGamePublisher {
   /// Build the gaming-oriented screen-share encodings. The full-resolution
   /// layer preserves the original 1920-pixel, 60 fps ceiling, while explicit
   /// lower layers let LiveKit serve thumbnails and constrained subscribers
-  /// without sending them the full stream.
-  static func makeVideoPublishOptions(frameRate: Int, codec: VideoCodec = .h265) -> VideoPublishOptions {
+  /// without sending them the full stream. The single-layer experiment removes
+  /// lower layers while preserving the full layer's bitrate and frame-rate limits.
+  static func makeVideoPublishOptions(frameRate: Int, codec: VideoCodec = .h265, simulcast: Bool = true) -> VideoPublishOptions {
     let lowerLayers = [
       VideoParameters(
         dimensions: .h360_169,
@@ -172,8 +175,8 @@ enum LiveKitGamePublisher {
     ]
     return VideoPublishOptions(
       screenShareEncoding: VideoEncoding(maxBitrate: 8_000_000, maxFps: frameRate),
-      simulcast: true,
-      screenShareSimulcastLayers: lowerLayers,
+      simulcast: simulcast,
+      screenShareSimulcastLayers: simulcast ? lowerLayers : [],
       preferredCodec: codec,
       degradationPreference: .maintainFramerate,
       streamName: "game-capture"

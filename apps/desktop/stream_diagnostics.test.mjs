@@ -8,6 +8,8 @@ test('diagnostics strip identifiers, credentials, addresses, SDP, and arbitrary 
     kind: 'diagnostic',
     phase: 'sample',
     requestedCodec: 'h265',
+    availableOutgoingBps: 9_000_000,
+    candidatePair: { address: 'private transport', id: 'private pair' },
     token: 'secret',
     address: '192.0.2.10',
     window: 'private window',
@@ -29,8 +31,41 @@ test('diagnostics strip identifiers, credentials, addresses, SDP, and arbitrary 
   assert.equal(parsed.layers[0].encoder, 'unknown');
   assert.equal(parsed.layers[0].actualBps, 7_500_000);
   assert.equal(parsed.layers[0].limitation, 'bandwidth');
+  assert.equal(parsed.availableOutgoingBps, 9_000_000);
   assert.throws(() => parseStreamDiagnostic({ ...value, layers: Array(13).fill({}) }));
   assert.throws(() => parseStreamDiagnostic({ ...value, requestedCodec: 'private value' }));
+});
+
+test('mixed share reports keep the layer mode and limits with each record', () => {
+  const log = new StreamDiagnostics();
+  log.recordLifecycle('start', 'h265');
+  log.recordLifecycle('start', 'h264', false);
+  const value = {
+    protocolVersion: 1,
+    kind: 'diagnostic',
+    phase: 'sample',
+    requestedCodec: 'h264',
+    simulcast: false,
+    availableOutgoingBps: 6_000_000,
+    layers: []
+  };
+  log.recordNative(value);
+  const [, hevc, start, sample] = log.report({ version: 'test' }).split('\n').map(JSON.parse);
+  assert.equal(hevc.simulcast, true);
+  assert.deepEqual(hevc.limitsBps, [1_000_000, 4_000_000, 8_000_000]);
+  for (const record of [start, sample]) {
+    assert.equal(record.requestedCodec, 'h264');
+    assert.equal(record.simulcast, false);
+    assert.deepEqual(record.limitsBps, [8_000_000]);
+  }
+  assert.equal(sample.availableOutgoingBps, 6_000_000);
+  for (const invalid of [-1, Infinity, NaN, 'private value']) {
+    assert.equal(
+      parseStreamDiagnostic({ ...value, availableOutgoingBps: invalid }).availableOutgoingBps,
+      undefined
+    );
+  }
+  assert.throws(() => parseStreamDiagnostic({ ...value, simulcast: 'false' }));
 });
 
 test('reports retain only the most recent 60 records and omit invalid numbers', () => {
