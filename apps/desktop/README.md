@@ -203,8 +203,9 @@ Azure and GitHub audit logs, replace the Entra application if its identity was
 compromised, and publish incident-specific user guidance before signing with a
 replacement identity.
 
-Electron handles camera, microphone, and notification permission requests only
-for the fixed app origin. Screen sharing presents a native source picker.
+Electron allows camera, microphone, notification, and clipboard write permission
+requests only for the fixed app origin. Clipboard reads remain blocked.
+Screen sharing presents a native source picker.
 Navigation outside the app is restricted to OAuth popup windows or opened in
 the system browser; renderer Node.js integration is disabled and the renderer
 is sandboxed.
