@@ -25,6 +25,8 @@
     "drop_files_title": "Dateien hier ablegen",
     "drop_files_subtitle": "Bilder und Videos werden deiner Nachricht hinzugefügt",
     "send_failed": "Nachricht konnte nicht gesendet werden",
+    "send_retry_expired": "Die Frist für einen erneuten Sendeversuch ist abgelaufen. Prüfe, ob deine Nachricht angekommen ist, bevor du sie erneut sendest.",
+    "send_retry_reset": "Die Verbindung wurde zurückgesetzt. Prüfe, ob deine Nachricht angekommen ist, bevor du sie erneut sendest.",
     "slow_mode_ready": "Langsamer Modus: eine Nachricht alle {interval}.",
     "slow_mode_waiting": "Langsamer Modus: erneut senden in {countdown}.",
     "slow_mode_bypassed": "Langsamer Modus: {interval} (du bist ausgenommen).",

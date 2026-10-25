@@ -198,7 +198,10 @@ export class Server extends ServerStateStore {
         if (current) return current;
         return (await this.ready(options)).viewerId;
       },
-      { origin: new URL(registration.url).origin, fetch: (input, init) => fetch(input, init) }
+      { origin: new URL(registration.url).origin, fetch: (input, init) => fetch(input, init) },
+      // Fixed credentials cannot switch accounts. Other sends must not survive
+      // a privacy reset, even when the reset happens between request attempts.
+      () => (context.fixedToken ? 0 : this.connection.dataGeneration)
     );
     this.#disposeBusSubscription = effectRoot(() => this.#subscribeToBus());
     this.onDispose(() => this.#release());
@@ -526,13 +529,26 @@ export class Server extends ServerStateStore {
     return this.#requests.getMessage(message, options);
   }
 
-  /** Send one message; resolves to `{ id }` of the new message. */
+  /** Send one message with an optional caller UUID; resolves to `{ id }`. */
   createMessage(
     destination: Destination,
     body: string,
-    options?: RequestOptions & { inReplyTo?: string }
+    options?: Parameters<MessagingRequests['createMessage']>[2]
   ) {
     return this.#requests.createMessage(destination, body, options);
+  }
+
+  /**
+   * Prepare one logical send for explicit retries with a stable UUID and
+   * arguments. Retain the operation and pass cancellation to its `send` method.
+   * For renewable credentials, a privacy reset invalidates the operation.
+   */
+  prepareMessage(
+    destination: Destination,
+    body: string,
+    options?: Parameters<MessagingRequests['prepareMessage']>[2]
+  ) {
+    return this.#requests.prepareMessage(destination, body, options);
   }
 
   /** Send text of any length, split at 8000 Unicode code points and sent in order. */

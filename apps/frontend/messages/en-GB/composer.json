@@ -25,6 +25,8 @@
     "drop_files_title": "Drop files here",
     "drop_files_subtitle": "Images and videos will be added to your message",
     "send_failed": "Failed to send message",
+    "send_retry_expired": "The send retry period has ended. Check whether your message arrived before sending again.",
+    "send_retry_reset": "The connection was reset. Check whether your message arrived before sending again.",
     "slow_mode_ready": "Slow Mode: one message every {interval}.",
     "slow_mode_waiting": "Slow Mode: send again in {countdown}.",
     "slow_mode_bypassed": "Slow Mode: {interval} (you're exempt).",

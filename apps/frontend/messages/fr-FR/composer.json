@@ -25,6 +25,8 @@
     "drop_files_title": "Déposez les fichiers ici",
     "drop_files_subtitle": "Des images et des vidéos seront ajoutées à votre message",
     "send_failed": "Échec de l'envoi du message",
+    "send_retry_expired": "Le délai pour réessayer l’envoi est écoulé. Vérifiez si votre message est arrivé avant de l’envoyer à nouveau.",
+    "send_retry_reset": "La connexion a été réinitialisée. Vérifiez si votre message est arrivé avant de l’envoyer à nouveau.",
     "slow_mode_ready": "Mode lent : un message toutes les {interval}.",
     "slow_mode_waiting": "Mode lent : nouvel envoi dans {countdown}.",
     "slow_mode_bypassed": "Mode lent : {interval} (vous êtes exempté).",
