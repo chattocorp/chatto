@@ -76,10 +76,24 @@ to the dev app once. The official app keeps `run.chatto.desktop`; switching
 between these installs does not replace its permission identity.
 
 An ad-hoc signature changes when the binary changes, so macOS can still ask
-again after a dev rebuild. To preserve the dev identity across rebuilds, set
-`CHATTO_MACOS_SIGN_IDENTITY` to the same installed code-signing certificate
-each time. The dev build does not need notarisation. Do not reset the official
-app's permissions to repair a dev build.
+again after a dev rebuild. Use the same installed code-signing certificate
+for each build to keep its permission identity stable. List valid identities
+with `security find-identity -v -p codesigning`. An Apple Development certificate
+is sufficient for local builds; notarisation is not required.
+
+Create `mise.local.toml` at the repository root with the exact certificate name:
+
+```toml
+[tasks.desktop-build-dev.env]
+CHATTO_MACOS_SIGN_IDENTITY = "Apple Development: Your Name (IDENTIFIER)"
+```
+
+This file is gitignored. Both `mise desktop-build-dev` and
+`mise desktop-run-dev` now use that identity. The setting applies only to the
+development build task. After you switch from ad-hoc signing, macOS can require
+one more permission grant and app restart. Later builds should retain that
+grant while the signing identity stays the same. Quit the dev app before
+rebuilding it. Do not reset the official app's permissions to repair a dev build.
 
 ### Screen-share diagnostics and codec selection
 
