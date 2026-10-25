@@ -10,16 +10,26 @@ const workflow = readFileSync(
   new URL('../../../.github/workflows/release.yml', import.meta.url),
   'utf8'
 );
-const versionStep = workflow
-  .split('      - name: Resolve desktop version\n')[1]
-  ?.split('\n      - name:')[0];
-assert.ok(versionStep, 'The desktop release must resolve its version');
-const versionScript = versionStep
-  .split('        run: |\n')[1]
-  .split('\n')
-  .map((line) => line.slice(10))
-  .join('\n');
+/** Extract the workflow step from both LF and Windows CRLF checkouts. */
+function extractVersionScript(source) {
+  const versionStep = source
+    .replaceAll('\r\n', '\n')
+    .split('      - name: Resolve desktop version\n')[1]
+    ?.split('\n      - name:')[0];
+  assert.ok(versionStep, 'The desktop release must resolve its version');
+  return versionStep
+    .split('        run: |\n')[1]
+    .split('\n')
+    .map((line) => line.slice(10))
+    .join('\n');
+}
+const versionScript = extractVersionScript(workflow);
 const sha = '1234567890abcdef1234567890abcdef12345678';
+
+test('workflow extraction supports Windows checkout line endings', () => {
+  const lf = workflow.replaceAll('\r\n', '\n');
+  assert.equal(extractVersionScript(lf.replaceAll('\n', '\r\n')), extractVersionScript(lf));
+});
 
 /** Run the actual workflow shell step without a checkout, signing, or network access. */
 function resolveVersion(
