@@ -44,11 +44,31 @@ jobs:
       MANIFEST_FILE: .release-please-manifest.json
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release_please
         with:
           token: ${{ secrets.RELEASE_PLEASE_PAT }}
           config-file: ${{ env.CONFIG_FILE }}
           manifest-file: ${{ env.MANIFEST_FILE }}
           target-branch: ${{ env.TARGET_BRANCH }}
+
+      # Publish components only after creation as drafts, so they never claim
+      # the repository-wide Latest designation, even briefly.
+      - name: Publish component releases without Latest
+        if: steps.release_please.outputs.releases_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_PAT }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_OUTPUTS: ${{ toJSON(steps.release_please.outputs) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r path; do
+            tag="$(jq -er --arg path "$path" \
+              '.[$path + "--tag_name"] | select(type == "string" and contains("/"))' \
+              <<< "$RELEASE_OUTPUTS")"
+            gh release edit "$tag" --draft=false --latest=false
+          done < <(jq -r '.paths_released | fromjson | .[] | select(. != ".")' <<< "$RELEASE_OUTPUTS")
 
   build-image:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'image' }}
@@ -788,12 +808,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
+          MAKE_LATEST: ${{ steps.release_meta.outputs.push_latest }}
         run: |
           set -euo pipefail
 
           gh release edit "v${VERSION}" \
             --repo chattocorp/chatto \
-            --draft=false
+            --draft=false \
+            --latest="$MAKE_LATEST"
 
       - name: Update Homebrew tap
         if: ${{ !contains(steps.version.outputs.version, '-') }}

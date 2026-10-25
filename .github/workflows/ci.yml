@@ -291,6 +291,9 @@ jobs:
       - name: Check workflows and shell scripts
         run: mise lint-actions
 
+      - name: Test release publication policy
+        run: mise test-release-policy
+
       - name: Test development launchers and routing
         run: mise test-dev-tooling
 

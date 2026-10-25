@@ -6,6 +6,26 @@ same `.release-please-config.json` and `.release-please-manifest.json` paths; th
 configuration committed to that branch determines whether it produces
 prereleases or stable releases.
 
+## GitHub Latest release
+
+The repository-wide **Latest** designation belongs only to the newest stable
+Chatto version. Prereleases and independently versioned components such as
+Translatto, Runling, and `@chatto/client` must not claim it.
+
+Release-please creates component releases as drafts and creates their tags.
+The next workflow step publishes those component releases with `--latest=false`.
+Their tag-triggered package workflows continue to run as before. The root Chatto
+release stays a draft until its build workflow publishes it, explicitly setting
+Latest only when it is the highest stable Chatto tag.
+
+If component publication fails after release-please creates its draft, publish
+that existing release with `gh release edit <component-tag> --draft=false
+--latest=false`. Do not create another release or tag. Release-please may not
+emit an already-created release in its outputs on a rerun.
+
+Maintenance branches carry their own workflow and release configuration.
+Backport this policy before publishing from those branches.
+
 ## Documentation channels
 
 The public documentation has two independently deployed channels:
