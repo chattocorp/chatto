@@ -368,7 +368,7 @@ relationships. The operation remains the source of truth.
   ADR-044 (ConnectRPC service conventions), ADR-045 (public API stability
   tiers), ADR-071 (CIMD-identified OAuth clients), ADR-079 (renewable bearer
   sessions), ADR-080 (message-read permission), ADR-085 (user-scoped MCP
-  integration), ADR-115 (message-post idempotency)
+  integration), ADR-117 (message-post idempotency)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-023 (Authentication & Sessions),
   FDR-028 (Operator API & CLI), FDR-031 (Client–Server Compatibility
   Discovery), FDR-033 (Message Search), FDR-038 (Bot Accounts), FDR-039
