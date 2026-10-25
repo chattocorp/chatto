@@ -713,44 +713,46 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 		return
 	}
 
-	// Read asset data into bytes for transformation
-	data, err := io.ReadAll(reader)
+	result, err := s.imageTransforms.do(ctx, cacheKey,
+		func() ([]byte, error) {
+			data, err := io.ReadAll(reader)
+			if err != nil {
+				return nil, fmt.Errorf("read asset: %w", err)
+			}
+			return data, nil
+		},
+		func(data []byte) (*transformedImage, error) {
+			var result *assets.TransformResult
+			var err error
+			if req.JPEGQuality > 0 {
+				result, err = assets.TransformImageWithOptions(data, params.Width, params.Height, assets.FitMode(params.Fit), assets.TransformOptions{
+					JPEGQuality: req.JPEGQuality,
+				})
+			} else {
+				result, err = assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+			}
+			if err != nil {
+				return nil, fmt.Errorf("transform image: %w", err)
+			}
+			transformedData, err := io.ReadAll(result.Reader)
+			if err != nil {
+				return nil, fmt.Errorf("read transformed image: %w", err)
+			}
+			// Store in cache (fire-and-forget, skip animated GIFs which are large)
+			if result.ContentType != "image/gif" {
+				go func() {
+					if err := s.core.StoreCachedResize(context.Background(), cacheKey, transformedData); err != nil {
+						s.logger.Warn("Failed to cache transformed image", "error", err, "cache_key", cacheKey)
+					}
+				}()
+			}
+			return &transformedImage{Data: transformedData, ContentType: result.ContentType}, nil
+		},
+	)
 	if err != nil {
-		s.logger.Error("Failed to read asset", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read asset"})
-		return
-	}
-
-	// Transform the image
-	var result *assets.TransformResult
-	if req.JPEGQuality > 0 {
-		result, err = assets.TransformImageWithOptions(data, params.Width, params.Height, assets.FitMode(params.Fit), assets.TransformOptions{
-			JPEGQuality: req.JPEGQuality,
-		})
-	} else {
-		result, err = assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
-	}
-	if err != nil {
-		s.logger.Error("Failed to transform image", "error", err)
+		s.logger.Error("Failed to transform image", "error", err, "asset_id", req.AssetID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transform image"})
 		return
-	}
-
-	// Read transformed bytes for caching and response
-	transformedData, err := io.ReadAll(result.Reader)
-	if err != nil {
-		s.logger.Error("Failed to read transformed image", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read transformed image"})
-		return
-	}
-
-	// Store in cache (fire-and-forget, skip animated GIFs which are large)
-	if result.ContentType != "image/gif" {
-		go func() {
-			if err := s.core.StoreCachedResize(context.Background(), cacheKey, transformedData); err != nil {
-				s.logger.Warn("Failed to cache transformed image", "error", err, "cache_key", cacheKey)
-			}
-		}()
 	}
 
 	// Set cache headers for long-term caching (immutable content)
@@ -760,7 +762,7 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	c.Header("X-Cache", "MISS")
 
 	// Serve the transformed image with appropriate content type
-	c.Data(http.StatusOK, result.ContentType, transformedData)
+	c.Data(http.StatusOK, result.ContentType, result.Data)
 }
 
 func transformedAssetCacheControl(public bool) string {

@@ -2,16 +2,49 @@ package connectapi
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type assetUploadService struct {
 	api *API
+}
+
+// maxConcurrentUploadChunks limits the UploadChunk requests that one process
+// reads at the same time. Connect reads a complete request into memory before
+// the handler runs, and storage makes more copies. Thus, one request can use
+// several times core.DefaultAssetUploadChunkSize. Memory is per process, so
+// the limit is per process too.
+const maxConcurrentUploadChunks = 4
+
+// limitUploadChunks makes UploadChunk requests wait for one of limit slots
+// before next reads their body. Other procedures pass through. A request that
+// ends while it waits gets an Unavailable error, and the client can retry the
+// chunk.
+func limitUploadChunks(next http.Handler, limit int, options ...connect.HandlerOption) http.Handler {
+	slots := make(chan struct{}, limit)
+	errorWriter := connect.NewErrorWriter(options...)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != apiv1connect.AssetUploadServiceUploadChunkProcedure {
+			next.ServeHTTP(w, r)
+			return
+		}
+		select {
+		case slots <- struct{}{}:
+			defer func() { <-slots }()
+		case <-r.Context().Done():
+			_ = errorWriter.Write(w, r, connect.NewError(connect.CodeUnavailable, errors.New("upload chunk was not accepted before the request ended")))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *assetUploadService) CreateUpload(ctx context.Context, req *connect.Request[apiv1.CreateUploadRequest]) (*connect.Response[apiv1.CreateUploadResponse], error) {
