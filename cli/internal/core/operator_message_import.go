@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -45,16 +46,29 @@ func (c *ChattoCore) claimHistoricalMessage(ctx context.Context, input Historica
 	if err != nil {
 		return nil, err
 	}
-	input.IdempotencyKey = ""
-	input.CreatedAt = input.CreatedAt.UTC()
+	var editedAt *time.Time
 	if input.EditedAt != nil {
-		edited := input.EditedAt.UTC()
-		input.EditedAt = &edited
+		editedAt = new(input.EditedAt.UTC())
 	}
-	if len(input.AttachmentAssetIDs) == 0 {
-		input.AttachmentAssetIDs = nil
+	var preview []byte
+	if input.LinkPreview != nil {
+		preview, err = (proto.MarshalOptions{Deterministic: true}).Marshal(input.LinkPreview)
+		if err != nil {
+			return nil, fmt.Errorf("encode historical preview intent: %w", err)
+		}
 	}
-	data, err := json.Marshal(input)
+	// List every hashed field explicitly so new input fields cannot silently
+	// change fingerprints across replicas during a rolling upgrade.
+	intent := struct {
+		RoomID, AuthorID, InReplyTo, Body, ThreadRootID string
+		CreatedAt                                       time.Time
+		EditedAt                                        *time.Time `json:",omitempty"`
+		AssetIDs                                        []string   `json:",omitempty"`
+		CreateThread                                    bool
+		Preview                                         []byte `json:",omitempty"`
+	}{input.RoomID, input.AuthorID, input.InReplyTo, input.Body, input.ThreadRootEventID,
+		input.CreatedAt.UTC(), editedAt, input.AttachmentAssetIDs, input.CreateThread, preview}
+	data, err := json.Marshal(intent)
 	if err != nil {
 		return nil, fmt.Errorf("encode historical message intent: %w", err)
 	}

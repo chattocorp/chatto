@@ -83,6 +83,7 @@ func TestHistoricalMessageIdempotencyFingerprintAndReservation(t *testing.T) {
 		func(v *HistoricalMessageInput) { v.EditedAt = &v.CreatedAt },
 		func(v *HistoricalMessageInput) { v.CreateThread = true },
 		func(v *HistoricalMessageInput) { v.RoomID = "different-room" },
+		func(v *HistoricalMessageInput) { v.LinkPreview = &evtv1.LinkPreview{Url: "https://example.com"} },
 	} {
 		changed := input
 		change(&changed)
