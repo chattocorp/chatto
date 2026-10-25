@@ -583,8 +583,8 @@ export function createComposerExtensions(placeholder: string) {
       trailingNode: false,
       link: false
     }),
-    ComposerBold,
-    ComposerUnderline,
+    ComposerBold.configure(),
+    ComposerUnderline.configure(),
     ComposerLink.configure({
       autolink: true,
       shouldAutoLink: hasAutoLinkPrefix,
