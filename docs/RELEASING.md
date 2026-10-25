@@ -59,38 +59,52 @@ publisher setup and local verification commands, see
 
 ## Chatto Desktop releases
 
-Chatto Desktop is an independently versioned component under `apps/desktop`.
-Its release-please package owns `apps/desktop/CHANGELOG.md` and
-`apps/desktop/package.json`, and its tags use
-`chatto-desktop/vX.Y.Z`. Desktop-only changes are excluded from Chatto's root
-server release component.
+Chatto Desktop shares the server and frontend version, release commit, and
+`vX.Y.Z` tag. The root release-please component updates both package versions
+and `cli/version.go`. Desktop-only changes contribute to the root changelog
+and the next Chatto release. The old desktop changelog and
+`chatto-desktop/v*` tags are historical records, not a separate release stream.
 
-Merging a Chatto Desktop release PR creates a draft GitHub release and the
-component tag. The release workflow checks and builds macOS, Windows, and Linux
+Merging a Chatto release PR creates a draft GitHub release and the shared
+tag. The release workflow checks and builds macOS, Windows, and Linux
 bundles from that tag, signs and notarises the macOS bundle, signs and verifies
 every Windows executable, requires the expected ChattoCorp publisher on the
-main application, uploads archives and SHA-256 checksums, then publishes the
-release. Linux and ordinary CI artifacts remain unsigned experimental builds.
+main application, and uploads archives and SHA-256 checksums to that release.
+The server job alone publishes the release and does not wait for Desktop.
+Desktop assets can arrive before or after publication. If signing fails, retry
+the failed jobs on the same tagged run; a server security release must not wait
+for a signing service. Linux and ordinary CI artifacts remain unsigned experimental builds.
 Windows and macOS use separate protected signing environments. Signing-service
 provisioning, protected-environment settings, renewal, and emergency revocation
 are documented in [`apps/desktop/README.md`](../apps/desktop/README.md).
 
-The desktop shell version and the bundled Chatto frontend version answer
-different questions. The desktop version identifies packaging and runtime
-changes; client-server compatibility continues to use the official frontend
-version embedded by the tagged commit.
+Tagged desktop builds use the exact shared version for the shell and frontend.
+Manual verification builds retain the checked-in package version for native
+packaging, but identify the frontend as `{development-version}+{commit-sha}`.
+Matching release versions do not require matching client and server versions;
+the existing client-server compatibility rules still apply. See
+[ADR-117](adr/ADR-117-synchronized-chatto-desktop-releases.md).
 
 Before publishing a tag, the release workflow can verify the complete desktop
 packaging path without creating a release or building a Chatto server image.
 Run the `release` workflow manually, select the `desktop` target, and optionally
-provide a branch, tag, or commit reachable from `origin/main` in the `ref`
+provide a branch, tag, or commit reachable from `origin/main` or an
+`origin/release-*` branch in the `ref`
 input. Signed desktop builds reject other commits before running repository
 code or requesting signing credentials. The workflow builds and packages all
 three platforms, generates the same checksum file used by a tagged release, and
 uploads the assembled files as a one-day verification artifact.
 
-Desktop release tags must also point to commits reachable from `origin/main`.
+Desktop release tags must also point to commits reachable from `origin/main`
+or an `origin/release-*` branch.
 The signing jobs enforce this before running repository code.
+
+Before the first synchronized release, add the `v*` tag policy to both protected
+signing environments. After this change lands, close the pending independent
+Desktop release PR and remove the old `chatto-desktop/v*` environment policies.
+Keep required reviewers and the `main` policy for manual verification. Existing
+maintenance branches keep their old workflow until this release change is
+backported; do not rerun old tags to add synchronized desktop assets.
 
 ## Create a stable release branch
 

@@ -1,9 +1,11 @@
 # Chatto Desktop
 
 This directory packages the official Chatto SvelteKit frontend as an
-experimental Electron application. Chatto Desktop has its own pre-1.0 version
-and release-please component; tags use `chatto-desktop/vX.Y.Z`, independently of
-the Chatto server version.
+experimental Electron application. Chatto Desktop, the server, and the frontend
+share one version and release commit. Tags use `vX.Y.Z`; desktop archives and
+checksums are attached to the same Chatto GitHub release. Tagged builds display
+that exact version in the frontend. Manual verification builds display the
+development version and commit SHA instead.
 
 There is no desktop-specific frontend. Electron embeds the unchanged static
 artifacts from `apps/frontend/build` and exposes them to its renderer at the
@@ -77,7 +79,7 @@ as repository-wide secrets:
 | `CHATTO_MACOS_NOTARY_API_KEY_ID`     | App Store Connect API key ID                 |
 | `CHATTO_MACOS_NOTARY_API_ISSUER_ID`  | App Store Connect team issuer ID             |
 
-The environment permits deployments only from `chatto-desktop/v*` tags and the
+The environment permits deployments only from `v*` tags and the
 `main` branch used for manually dispatched verification builds. Its required
 reviewer must approve a release before any matrix runner can access the signing
 secrets. The desktop release workflow then fails closed when any secret is
@@ -164,7 +166,7 @@ An Azure administrator must complete the one-time service setup:
 | Variable | `CHATTO_WINDOWS_EXPECTED_PUBLISHER`       | Complete certificate subject, exactly as Windows reports it |
 
 Configure `desktop-windows-signing` to permit deployments only from
-`chatto-desktop/v*` tags and the `main` branch used for manually dispatched
+`v*` tags and the `main` branch used for manually dispatched
 verification builds. Require a reviewer, who must approve a release before the
 Windows runner can request an Azure token.
 Enable prevention of self-review when another authorised reviewer is available;
