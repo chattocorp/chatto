@@ -54,6 +54,16 @@ system-browser authentication, and clean-machine media behavior are hardened.
 - Desktop downloads are attached to the Chatto release. Signing failures can
   delay those downloads, but do not block server publication. Matching desktop
   and server versions are not required; existing compatibility rules apply.
+- Windows users can install through a self-contained installer without
+  administrator rights. It adds a Start menu shortcut and a Windows Settings
+  uninstall entry. Running a newer installer updates the application while
+  preserving the existing profile. The installer and uninstaller are signed
+  with ChattoCorp's publisher identity. The ZIP remains available.
+- The installed Windows application uses the same profile as the ZIP version.
+  Uninstall removes application files and shortcuts but preserves registrations,
+  credentials, and preferences. Users must close the ZIP application before
+  switching to the installed application. Old extracted folders are not removed.
+  Updates remain manual.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
@@ -225,8 +235,8 @@ The iOS shell shares the frontend but uses native system authentication. See
 
 - How system-browser OAuth callbacks and normal external links should return to
   or focus the application on every platform.
-- Which installer and automatic-update strategy should follow the first
-  downloadable archives.
+- Which automatic-update strategy and macOS/Linux installers should follow the
+  Windows installer and downloadable archives.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
 - Which higher native screen-share quality profiles should be offered once representative

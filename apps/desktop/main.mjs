@@ -30,6 +30,8 @@ import {
 import { hasAppOrigin, isAuthorizationLaunchUrl, isDesktopPermissionAllowed } from './security.mjs';
 
 const desktopRoot = path.dirname(fileURLToPath(import.meta.url));
+// Match the NSIS shortcut identity for Windows taskbar grouping and notifications.
+if (process.platform === 'win32') app.setAppUserModelId('run.chatto.desktop');
 const frontendRoot = app.isPackaged
   ? path.join(process.resourcesPath, 'build')
   : path.resolve(desktopRoot, '../frontend/build');

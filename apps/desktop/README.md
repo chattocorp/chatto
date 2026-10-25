@@ -36,6 +36,25 @@ the default session beneath the platform's application-data directory for
 
 ## Verify and build
 
+### Windows installation
+
+Download `chatto-desktop_<version>_Windows_X64_Setup.exe` from the Chatto release
+and run it. The installer installs for the current Windows user without
+administrator rights and adds a **Chatto Desktop** Start menu shortcut. Run a
+newer installer to update the application. Automatic updates are not available.
+Close Chatto Desktop before an update.
+
+The installer uses the same profile as the ZIP application. Existing server
+registrations and sessions remain available. Quit the ZIP application before
+using the installed application; the installer does not remove old extracted
+folders. The ZIP download remains available.
+
+Remove the installed application through Windows Settings. Uninstall preserves
+the local profile, including sessions and preferences. It does not sign out
+registered servers or erase local credentials.
+
+### Build commands
+
 ```sh
 mise test-desktop
 mise desktop-build
@@ -52,6 +71,19 @@ Microsoft Artifact Signing on Windows. CI verifies every shipped Windows
 executable and library has a valid RFC 3161-timestamped signature, and verifies
 `chatto-desktop.exe` against ChattoCorp's expected publisher identity before
 creating the release archive.
+
+On Windows x64, after `mise desktop-build`, build the installer with:
+
+```sh
+mise x -- pnpm --filter chatto-desktop build:windows-installer
+```
+
+The output is in `apps/desktop/dist/installer/`. electron-builder wraps the
+existing bundle in a per-user NSIS installer. The application ID
+`run.chatto.desktop` is the persistent upgrade identity; do not change it between
+releases. CI tests silent installation, reinstall, shortcut and uninstall
+registration, removal, and profile preservation on a disposable Windows runner.
+PR installer artifacts are explicitly labelled unsigned.
 
 ### Configure macOS release signing
 
@@ -176,6 +208,10 @@ setting is missing or when the repository is not using the documented default
 immutable OIDC subject. After building, it signs every `.exe`, `.dll`, and
 native `.node` module recursively with SHA-256 and an RFC 3161 timestamp, then
 rejects missing, invalid, or untimestamped signatures before packaging the ZIP.
+The installer build then uses the same Azure login and ArtifactSigning module
+to sign and verify its generated uninstaller before embedding it, and to sign
+and verify the final installer. Both require the expected publisher and a valid
+timestamp. A signing or verification failure stops desktop publication.
 The main `chatto-desktop.exe` must also report the expected ChattoCorp publisher;
 bundled third-party libraries may retain their original valid publisher, such
 as Microsoft.
@@ -186,6 +222,13 @@ Windows verification ZIP on a clean supported Windows installation. In File
 Explorer, the Digital Signatures tab on `chatto-desktop.exe` must show the same
 publisher configured in `CHATTO_WINDOWS_EXPECTED_PUBLISHER`; PowerShell's
 `Get-AuthenticodeSignature` must report `Valid`.
+
+For installer changes, also test the signed `*_Setup.exe` on Windows before
+releasing. Check the publisher shown by Windows, installation as a standard
+user, Start menu launch, existing ZIP-profile reuse, an upgrade from the previous
+installed version, the prompt with the application running, and uninstall from
+Windows Settings. Confirm that registrations and sessions survive the upgrade.
+The automated reinstall test does not replace these interactive checks.
 
 Artifact Signing keeps the signing keys and short-lived leaf certificates in
 Azure, so routine renewal does not require rotating a PFX secret. Renew the
@@ -213,7 +256,7 @@ is sandboxed.
 
 ## Prototype boundaries
 
-This scaffold does not yet provide auto-update, OS deep links, installers, or
+This scaffold does not yet provide auto-update, OS deep links, macOS or Linux installers, or
 end-to-end desktop tests. Some identity providers
 reject authentication inside embedded user agents, so a system-browser OAuth
 handoff may still be required before treating this as a general release.
