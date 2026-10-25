@@ -6,10 +6,13 @@ import { fileURLToPath } from 'node:url';
 import {
   app,
   BrowserWindow,
+  clipboard,
   desktopCapturer,
   dialog,
   ipcMain,
   MessageChannelMain,
+  Menu,
+  MenuItem,
   net,
   protocol,
   session,
@@ -28,6 +31,17 @@ import {
   supportsMacOSGameCapture
 } from './game_capture.mjs';
 import { hasAppOrigin, isAuthorizationLaunchUrl, isDesktopPermissionAllowed } from './security.mjs';
+import packageJson from './package.json' with { type: 'json' };
+import { desktopBuildProfile } from './build_profile.mjs';
+import { StreamDiagnostics } from './stream_diagnostics.mjs';
+
+const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
+if (buildProfile.variant === 'development') {
+  app.setName(buildProfile.productName);
+  app.setPath('userData', path.join(app.getPath('appData'), buildProfile.productName));
+}
+const streamDiagnostics = new StreamDiagnostics();
+let screenShareCodec = 'h265';
 
 const desktopRoot = path.dirname(fileURLToPath(import.meta.url));
 // Match the NSIS shortcut identity for Windows taskbar grouping and notifications.
@@ -102,6 +116,7 @@ async function start() {
   configureSession(session.defaultSession);
   configureGameCaptureIPC();
   mainWindow = createMainWindow();
+  configureDiagnosticsMenu();
 
   app.on('second-instance', () => {
     if (!mainWindow) return;
@@ -507,6 +522,8 @@ function configureGameCaptureIPC() {
 
 function startGameCaptureSession(source, publisherRequest, port) {
   stopActiveGameCaptureSession();
+  const requestedCodec = screenShareCodec;
+  streamDiagnostics.recordLifecycle('start', requestedCodec);
   const sourceArguments = [
     source.kind === 'window' ? '--window' : '--display',
     String(source.nativeId)
@@ -543,7 +560,17 @@ function startGameCaptureSession(source, publisherRequest, port) {
         if (lineEnd < 0) break;
         const line = stdout.slice(0, lineEnd).trim();
         stdout = stdout.slice(lineEnd + 1);
-        if (line) port.postMessage(parseGameCapturePublisherStatus(line));
+        if (line) {
+          const value = JSON.parse(line);
+          if (value?.kind === 'diagnostic') {
+            const record = streamDiagnostics.recordNative(value);
+            console.info('[screen-share]', JSON.stringify(record));
+          } else {
+            const status = parseGameCapturePublisherStatus(line);
+            streamDiagnostics.recordLifecycle('started', requestedCodec);
+            port.postMessage(status);
+          }
+        }
       }
     } catch {
       port.postMessage({
@@ -559,12 +586,14 @@ function startGameCaptureSession(source, publisherRequest, port) {
     if (stderr.length > 64 * 1024) stderr = stderr.slice(-64 * 1024);
   });
   child.once('error', () => {
+    streamDiagnostics.recordLifecycle('failed', requestedCodec);
     port.postMessage({
       kind: 'error',
       message: 'The native screen-share helper could not start.'
     });
   });
   child.once('exit', (code, signal) => {
+    streamDiagnostics.recordLifecycle(code === 0 || stopping ? 'ended' : 'failed', requestedCodec);
     clearTimeout(forceStopTimer);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
     if (!stopping && (code !== 0 || signal)) {
@@ -587,13 +616,15 @@ function startGameCaptureSession(source, publisherRequest, port) {
       protocolVersion: 1,
       livekitURL: publisherRequest.livekitUrl,
       token: publisherRequest.token,
-      e2eeKey: publisherRequest.e2eeKey
+      e2eeKey: publisherRequest.e2eeKey,
+      videoCodec: requestedCodec
     })
   );
 
   function stop() {
     if (stopping) return;
     stopping = true;
+    streamDiagnostics.recordLifecycle('stop', requestedCodec);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
     if (child.exitCode === null && child.signalCode === null) {
       child.kill('SIGTERM');
@@ -603,6 +634,50 @@ function startGameCaptureSession(source, publisherRequest, port) {
       forceStopTimer.unref();
     }
   }
+}
+
+/** Copy only our bounded, allowlisted report. Nothing is sent to a service. */
+function configureDiagnosticsMenu() {
+  const menu = Menu.getApplicationMenu() ?? new Menu();
+  menu.append(
+    new MenuItem({
+      label: 'Diagnostics',
+      submenu: [
+        {
+          label: 'Copy Screen Sharing Diagnostics',
+          click: () => {
+            clipboard.writeText(
+              streamDiagnostics.report({
+                version: app.getVersion(),
+                electron: process.versions.electron,
+                platform: process.platform,
+                arch: process.arch,
+                variant: buildProfile.variant
+              })
+            );
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Prefer HEVC for Next Share',
+          type: 'radio',
+          checked: screenShareCodec === 'h265',
+          click: () => {
+            screenShareCodec = 'h265';
+          }
+        },
+        {
+          label: 'Use H.264 for Next Share',
+          type: 'radio',
+          checked: screenShareCodec === 'h264',
+          click: () => {
+            screenShareCodec = 'h264';
+          }
+        }
+      ]
+    })
+  );
+  Menu.setApplicationMenu(menu);
 }
 
 function stopActiveGameCaptureSession() {

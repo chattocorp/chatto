@@ -187,16 +187,26 @@ short-lived, single-use random source offers to the renderer, verifies the
 selected window still belongs to the enumerated application, and excludes
 Chatto Desktop's own windows from the application list.
 The initial profile captures up to a 1920-pixel maximum edge at 60 fps and
-publishes three aspect-ratio-preserving H.264 resolution classes: 1920-edge at
+publishes three aspect-ratio-preserving resolution classes: 1920-edge at
 60 fps and up to 8 Mbps, 1280-edge at 60 fps and up to 4 Mbps, and 640-edge at
 30 fps and up to 1 Mbps. Exact widths and heights retain the source window's
 aspect ratio. LiveKit selects a suitable layer for each receiver, while
-dynacast pauses layers that no receiver is consuming. Window publication also
-includes 128 kbps stereo owning-application audio. Display publication is
+dynacast pauses layers that no receiver is consuming. These are bitrate
+ceilings, not guaranteed transmission rates. If receivers need all three
+layers, the combined video ceiling is 13 Mbps. The frontend requests video
+dimensions in physical pixels to preserve detail on HiDPI displays.
+Development and release builds prefer HEVC. The desktop
+Diagnostics menu selects the preferred codec for the next share and copies
+the publisher's bounded diagnostic report. Both codecs use the same limits,
+and there is no parallel backup-codec publication. An explicit server rejection
+of HEVC retries H.264. Receivers must support the chosen codec; use the H.264
+menu option and restart sharing if a viewer cannot receive HEVC.
+Window publication also includes 128 kbps stereo owning-application audio. Display publication is
 video-only because system audio would include Chatto's remote call playback and
 echo it back into the room. Both paths use the active call's shared E2EE key.
-Only `started`, `error`, and `ended` lifecycle messages cross the desktop
-bridge. The active screen-share control stops the helper; camera and microphone
+The helper also emits allowlisted `diagnostic` JSON lines every five seconds.
+The desktop host keeps these in memory; only `started`, `error`, and `ended`
+lifecycle messages cross the renderer bridge. The active screen-share control stops the helper; camera and microphone
 remain independent. Non-macOS builds omit this platform provider, so the same
 control continues through LiveKit and the browser's native source chooser.
 

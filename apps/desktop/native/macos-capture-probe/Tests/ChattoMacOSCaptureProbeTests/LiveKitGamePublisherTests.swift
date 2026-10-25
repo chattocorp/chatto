@@ -12,7 +12,8 @@ func gameVideoOptionsPublishThreeGamingLayers() throws {
   let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60)
 
   #expect(options.simulcast)
-  #expect(options.preferredCodec == .h264)
+  #expect(options.preferredCodec == .h265)
+  #expect(options.preferredBackupCodec == nil)
   #expect(options.degradationPreference == .maintainFramerate)
   #expect(options.streamName == "game-capture")
 
@@ -41,6 +42,44 @@ func lowerLayersDoNotExceedRequestedFrameRate() {
   #expect(options.screenShareEncoding?.maxFps == 24)
   #expect(options.screenShareSimulcastLayers[0].encoding.maxFps == 24)
   #expect(options.screenShareSimulcastLayers[1].encoding.maxFps == 24)
+}
+
+@Test
+func h264OverrideKeepsTheSameLimitsWithoutABackupCodec() {
+  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h264)
+  #expect(options.preferredCodec == .h264)
+  #expect(options.preferredBackupCodec == nil)
+  #expect(options.screenShareEncoding?.maxBitrate == 8_000_000)
+}
+
+@Test
+func developmentAndReleaseWindowsAreExcludedFromCapture() {
+  #expect(isChattoDesktopApplication("run.chatto.desktop"))
+  #expect(isChattoDesktopApplication("run.chatto.desktop.dev"))
+  #expect(!isChattoDesktopApplication("com.example.game"))
+  #expect(!LiveKitGamePublisher.capturesAudio(for: .window(42), windowBundleIdentifier: "run.chatto.desktop.dev"))
+}
+
+@Test
+func diagnosticRatesUseCounterDeltasAndHandleResetOrInactiveStreams() throws {
+  let start = VideoCounterSample(timestamp: 1_000_000, bytes: 100, frames: 10, qp: 200, encodeSeconds: 0.2)
+  let next = VideoCounterSample(timestamp: 2_000_000, bytes: 1_000_100, frames: 70, qp: 1400, encodeSeconds: 0.5)
+  let rates = next.rates(since: start)
+  #expect(rates.bps == 8_000_000)
+  #expect(rates.qp == 20)
+  #expect(abs(try #require(rates.encodeMs) - 5) < 0.0001)
+  #expect(start.rates(since: next).bps == nil)
+  #expect(start.rates(since: start).bps == nil)
+  #expect(next.rates(since: nil).bps == nil)
+  let idle = VideoCounterSample(timestamp: 3_000_000, bytes: next.bytes, frames: next.frames, qp: next.qp, encodeSeconds: next.encodeSeconds)
+  #expect(idle.rates(since: next).bps == 0)
+  #expect(idle.rates(since: next).qp == nil)
+  let reset = VideoCounterSample(timestamp: 4_000_000, bytes: 0, frames: 0, qp: 0, encodeSeconds: 0)
+  #expect(reset.rates(since: idle).bps == nil)
+  #expect(PublisherDiagnostics.encoderCategory("VideoToolbox" ) == "VideoToolbox")
+  #expect(PublisherDiagnostics.encoderCategory("arbitrary private text") == "unknown")
+  #expect(PublisherDiagnostics.codecProfile("level-asymmetry-allowed=1;profile-level-id=640c34") == "640c34")
+  #expect(PublisherDiagnostics.codecProfile("profile-id=private text") == nil)
 }
 
 @Test

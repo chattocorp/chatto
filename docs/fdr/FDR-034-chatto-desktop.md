@@ -66,6 +66,20 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Updates remain manual.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
+- Local macOS development bundles can use the separate **Chatto Desktop Dev**
+  identity, helper identity, and app-data directory. This keeps development
+  permissions and sessions separate from the official app. Ad-hoc signed
+  rebuilds can still require a new permission grant; a stable signing
+  certificate preserves the code identity across rebuilds.
+- The Diagnostics menu can copy a bounded, in-memory native screen-share
+  performance report. It includes codec, encoder, resolution, frame rate,
+  bitrate, and network statistics without source names, account identifiers,
+  addresses, or credentials. Reports are not sent automatically.
+- Development and release builds prefer HEVC for native macOS sharing.
+  The Diagnostics menu can select HEVC or H.264 for the
+  next share. Both use the same bitrate ceilings; the publisher does not send
+  a parallel backup codec. An explicit server rejection of HEVC retries H.264.
+  If a viewer cannot receive HEVC, the sender must select H.264 and restart.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
   callback. Desktop API and realtime access use bearer credentials and require
   no origin configuration.
@@ -196,7 +210,7 @@ participant model shared across platform providers.
 **Tradeoff:** Chatto needs an auxiliary publisher-token RPC, companion-aware
 webhook and reconciliation filtering, and frontend participant merging. The
 native helper also becomes responsible for matching the primary call's E2EE
-and publication policy. Its aspect-ratio-preserving H.264 publication includes
+and publication policy. Its aspect-ratio-preserving HEVC publication includes
 1920-, 1280-, and 640-pixel maximum-edge quality classes at 60, 60, and 30 fps,
 and dynacast pauses layers that no subscriber requests. Simultaneously active
 qualities increase native encoding and upload cost. These are explicit

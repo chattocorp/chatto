@@ -268,6 +268,18 @@ depends = ["build-frontend"]
 dir = "apps/desktop"
 run = "pnpm build"
 
+[tasks.desktop-build-dev]
+description = "Build Chatto Desktop Dev with separate macOS permissions and app data"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+env.CHATTO_DESKTOP_BUILD = "development"
+run = "pnpm build"
+
+[tasks.desktop-run-dev]
+description = "Build and open Chatto Desktop Dev on macOS"
+depends = ["desktop-build-dev"]
+run = 'open "apps/desktop/dist/Chatto Desktop Dev.app"'
+
 [tasks.mobile-ios-sync]
 description = "Bundle the shared frontend into the experimental iOS app"
 depends = ["build-frontend"]

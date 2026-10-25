@@ -60,6 +60,55 @@ mise test-desktop
 mise desktop-build
 ```
 
+To build and open a local macOS app with its own screen-recording permission, use:
+
+```sh
+mise desktop-run-dev
+```
+
+`mise desktop-build-dev` builds the app without opening it. To open an existing
+build, run `open "apps/desktop/dist/Chatto Desktop Dev.app"` from the repository
+root. Quit a running dev app before rebuilding it to test the new binary.
+
+This creates **Chatto Desktop Dev** (`run.chatto.desktop.dev`) with a separate
+capture-helper identity and app-data directory. Sign in and grant permission
+to the dev app once. The official app keeps `run.chatto.desktop`; switching
+between these installs does not replace its permission identity.
+
+An ad-hoc signature changes when the binary changes, so macOS can still ask
+again after a dev rebuild. To preserve the dev identity across rebuilds, set
+`CHATTO_MACOS_SIGN_IDENTITY` to the same installed code-signing certificate
+each time. The dev build does not need notarisation. Do not reset the official
+app's permissions to repair a dev build.
+
+### Screen-share diagnostics and codec selection
+
+Native macOS screen sharing prefers HEVC in development and release builds.
+In the app's **Diagnostics** menu, select **Prefer HEVC for Next
+Share** or **Use H.264 for Next Share**, then stop and start sharing. Both use
+the same 8/4/1 Mbps layer limits. HEVC needs receiver and LiveKit server support.
+If the server explicitly rejects that codec, the helper retries H.264. It does
+not publish both codecs at once. If a viewer cannot receive HEVC, select H.264
+and restart the share.
+
+To report a problem, share a moving scene for at least 15 seconds, then select
+**Diagnostics → Copy Screen Sharing Diagnostics**. Paste the report into the
+issue or conversation. Reports contain the last 60 lifecycle and performance
+records from this app process. Native publisher samples arrive every five
+seconds and also appear on the terminal when the app is launched from one.
+
+Each sample reports negotiated codec/profile, encoder category, capture and
+encoded dimensions, fps, target and measured bitrate, mean QP, encoding time,
+quality-limit reason, packet-loss counters, retransmissions, and round-trip
+delay when the SDK supplies them. Missing values mean unavailable; QP values
+must be compared within the same codec. The first sample has no measured rate
+because it establishes the counter baseline. Reports cover the native
+publisher, not the viewer's decoder or the browser screen-share path.
+
+Reports stay in memory and contain no account or source names, participant or
+track IDs, server addresses, IP addresses, tokens, or encryption keys. Copying
+puts the report on the clipboard; the app does not send it to a service.
+
 The build task first produces the frontend, then packages the host-platform
 bundle beneath `apps/desktop/dist/`. macOS builds include the native
 ScreenCaptureKit game-capture helper and its pinned LiveKit frameworks. CI

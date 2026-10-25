@@ -11,6 +11,7 @@ private struct PublisherCredential: Decodable {
   let livekitURL: String
   let token: String
   let e2eeKey: String
+  let videoCodec: String?
 }
 
 private struct PublisherStatus: Encodable {
@@ -34,8 +35,8 @@ enum LiveKitGamePublisher {
     maximumWidth: Int,
     maximumHeight: Int
   ) async throws {
-    // The helper reports only its small JSON lifecycle protocol. In particular,
-    // signaling URLs and credentials must never leak into application logs.
+    // Keep SDK logging disabled. Our allowlisted diagnostics exclude signaling
+    // URLs, credentials, source names, and participant identifiers.
     LiveKitSDK.disableLogging()
     let lifetime = PublisherLifetime()
     let credential = try readCredential()
@@ -51,7 +52,7 @@ enum LiveKitGamePublisher {
         }),
         let owningBundleIdentifier = window.owningApplication?.bundleIdentifier,
         owningBundleIdentifier == expectedWindowBundleIdentifier,
-        owningBundleIdentifier != chattoDesktopApplicationBundleIdentifier
+        !isChattoDesktopApplication(owningBundleIdentifier)
       else { throw PublisherError.sourceNotFound }
       captureSource = window
       capturesAudio = Self.capturesAudio(
@@ -78,7 +79,9 @@ enum LiveKitGamePublisher {
 
     try AudioManager.shared.setManualRenderingMode(true)
 
-    let videoOptions = makeVideoPublishOptions(frameRate: frameRate)
+    let requestedCodec = credential.videoCodec ?? "h265"
+    var videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: requestedCodec == "h264" ? .h264 : .h265)
+    PublisherDiagnostic(phase: "connecting", requestedCodec: requestedCodec).write()
     let audioOptions = AudioPublishOptions(
       encoding: .presetMusicHighQualityStereo,
       dtx: false,
@@ -118,7 +121,15 @@ enum LiveKitGamePublisher {
       options: captureOptions,
       reportStatistics: true
     )
-    _ = try await room.localParticipant.publish(videoTrack: videoTrack, options: videoOptions)
+    do {
+      _ = try await room.localParticipant.publish(videoTrack: videoTrack, options: videoOptions)
+    } catch let error as LiveKitError where error.type == .codecNotSupported && requestedCodec == "h265" {
+      // Older SFUs can reject HEVC before publication. Do not retry unrelated
+      // failures or change encryption to make a codec work.
+      PublisherDiagnostic(phase: "fallback", requestedCodec: requestedCodec).write()
+      videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: .h264)
+      _ = try await room.localParticipant.publish(videoTrack: videoTrack, options: videoOptions)
+    }
 
     try writeStatus(
       PublisherStatus(
@@ -129,6 +140,9 @@ enum LiveKitGamePublisher {
         frameRate: frameRate
       )
     )
+
+    let diagnostics = Task { await PublisherDiagnostics.monitor(track: videoTrack, requestedCodec: requestedCodec) }
+    defer { diagnostics.cancel() }
 
     // Desktop owns process lifetime. Convert SIGTERM into a graceful LiveKit
     // disconnect so receivers see the companion publisher disappear before
@@ -145,7 +159,7 @@ enum LiveKitGamePublisher {
   /// layer preserves the original 1920-pixel, 60 fps ceiling, while explicit
   /// lower layers let LiveKit serve thumbnails and constrained subscribers
   /// without sending them the full stream.
-  static func makeVideoPublishOptions(frameRate: Int) -> VideoPublishOptions {
+  static func makeVideoPublishOptions(frameRate: Int, codec: VideoCodec = .h265) -> VideoPublishOptions {
     let lowerLayers = [
       VideoParameters(
         dimensions: .h360_169,
@@ -160,7 +174,7 @@ enum LiveKitGamePublisher {
       screenShareEncoding: VideoEncoding(maxBitrate: 8_000_000, maxFps: frameRate),
       simulcast: true,
       screenShareSimulcastLayers: lowerLayers,
-      preferredCodec: .h264,
+      preferredCodec: codec,
       degradationPreference: .maintainFramerate,
       streamName: "game-capture"
     )
@@ -173,7 +187,7 @@ enum LiveKitGamePublisher {
     windowBundleIdentifier: String? = nil
   ) -> Bool {
     if case .window = source {
-      return windowBundleIdentifier != chattoDesktopApplicationBundleIdentifier
+      return !isChattoDesktopApplication(windowBundleIdentifier)
     }
     return false
   }
@@ -211,6 +225,9 @@ enum LiveKitGamePublisher {
       !credential.token.isEmpty,
       !credential.e2eeKey.isEmpty
     else {
+      throw PublisherError.invalidCredential
+    }
+    guard credential.videoCodec == nil || ["h264", "h265"].contains(credential.videoCodec!) else {
       throw PublisherError.invalidCredential
     }
     return credential
