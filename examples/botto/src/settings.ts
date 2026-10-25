@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'smol-toml';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
-import { DEFAULT_ADDRESSING_REASONS, type AddressingReason } from '@chatto/client';
+import {
+  ADDRESSING_REASONS,
+  DEFAULT_ADDRESSING_REASONS,
+  type AddressingReason
+} from '@chatto/client';
 
 /** Queue limits and the quiet period shared by the inbox and its logs. */
 export interface InboxSettings {
@@ -53,16 +57,6 @@ export interface Settings extends InboxSettings {
   /** Reaction on the first message of a new conversation; empty disables it. */
   acknowledgementEmoji: string;
 }
-
-/** Every addressing reason, in the order of the client's `AddressingReason`. */
-const ADDRESSING_REASONS: readonly AddressingReason[] = [
-  'direct_message',
-  'mention',
-  'role_mention',
-  'here_mention',
-  'all_mention',
-  'reply'
-];
 
 const DEFAULT_PROMPT = `You are a helpful assistant in Chatto.
 Answer the current message batch together in one concise Markdown reply. Messages are in arrival order.

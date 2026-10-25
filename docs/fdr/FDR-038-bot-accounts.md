@@ -31,6 +31,9 @@ exercise more authority than its human owner currently possesses.
   It shows the section only when the room has bots. Bot presence does not move
   them to another section. Offline bots are not dimmed and have no presence
   dot. Bots with Online, Away, or Do Not Disturb presence show their normal dot.
+  A bot is Online while its host sends presence heartbeats with the bot's API
+  key, as `@chatto/client` does with `reportPresence`. Without heartbeats, the
+  bot is Offline.
 
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card

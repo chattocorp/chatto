@@ -158,7 +158,10 @@ describe('isolated clients', () => {
       apiKey: 'present',
       reportPresence: true
     });
-    expect(mocks.reportPresence).toHaveBeenCalledOnce();
+    // Heartbeats start only after the server accepted the key.
+    expect(mocks.reportPresence).not.toHaveBeenCalled();
+    await present.ready();
+    await vi.waitFor(() => expect(mocks.reportPresence).toHaveBeenCalledOnce());
     expect(mocks.stopPresence).not.toHaveBeenCalled();
     present.close();
     expect(mocks.stopPresence).toHaveBeenCalledOnce();

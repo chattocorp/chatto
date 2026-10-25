@@ -67,8 +67,8 @@ export async function recover(
         default:
           continue;
       }
-      // Followed-thread activity is passive; other kinds need an enabled reason.
-      if (reasons.length && !reasons.some((reason) => respondTo.includes(reason))) continue;
+      // A kind without an enabled reason counts as passive, as on the live path.
+      if (!reasons.some((reason) => respondTo.includes(reason))) reasons = [];
       candidates.push({ roomId: reference.room.id, id: reference.eventId, reasons });
     }
     if (reachedStart || !page.page?.hasMore) break;
@@ -84,8 +84,9 @@ export async function recover(
         { roomId: candidate.roomId, messageId: candidate.id },
         { signal }
       );
-      // Apply the live reply-recipient rule to retained notifications too.
+      // Apply the live reply rules to retained notifications too.
       if (message?.threadRootId && message.inReplyTo) {
+        if (!respondTo.includes('reply')) continue;
         const target = await server.getMessage(
           { roomId: message.roomId, messageId: message.inReplyTo },
           { signal }

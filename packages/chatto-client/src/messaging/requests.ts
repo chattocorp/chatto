@@ -54,15 +54,24 @@ const ATTACHMENT_TIMEOUT_MS = 30_000;
  * - `all_mention`: an `@all` mention.
  * - `reply`: a reply to one of the viewer's messages.
  */
-export type AddressingReason =
-  'direct_message' | 'mention' | 'role_mention' | 'here_mention' | 'all_mention' | 'reply';
+export type AddressingReason = (typeof ADDRESSING_REASONS)[number];
+
+/** Every {@link AddressingReason}. */
+export const ADDRESSING_REASONS = Object.freeze([
+  'direct_message',
+  'mention',
+  'role_mention',
+  'here_mention',
+  'all_mention',
+  'reply'
+] as const);
 
 /** The reasons that `addressedMessage` recognizes by default. */
-export const DEFAULT_ADDRESSING_REASONS: readonly AddressingReason[] = [
+export const DEFAULT_ADDRESSING_REASONS: readonly AddressingReason[] = Object.freeze([
   'direct_message',
   'mention',
   'reply'
-];
+] as const);
 
 /** The reason for each kind of mention that includes the viewer. */
 const MENTION_REASONS = {

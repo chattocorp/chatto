@@ -10,13 +10,14 @@ import {
   MessageMention
 } from '@chatto/api-types/realtime/v1/events_pb';
 
+import { incomingMessage } from './messages.ts';
+
 /** A mention of Botto by name. */
 const directMention = () =>
   new MessageMention({
     includesViewer: true,
     cause: { case: 'direct', value: new DirectUserMention({ userId: 'bot' }) }
   });
-import { incomingMessage } from './messages.ts';
 
 function setup() {
   const getMessage = vi.fn().mockResolvedValue({
@@ -55,6 +56,16 @@ function setup() {
       incomingMessage(server, event, active, signal, respondTo)
   };
 }
+
+test('ignores explicit thread replies when respond_to excludes reply', async () => {
+  const { event, active, getMessage, read } = setup();
+  if (event.event.case !== 'messagePosted') throw new Error('Fixture');
+  event.event.value.inReplyTo = 'target';
+  event.event.value.mentions.push(directMention());
+  expect(await read(undefined, ['direct_message', 'mention'])).toBeUndefined();
+  expect(getMessage).not.toHaveBeenCalled();
+  expect(active).not.toHaveBeenCalled();
+});
 
 test('answers @here only when respond_to enables it', async () => {
   const { event, active, read } = setup();

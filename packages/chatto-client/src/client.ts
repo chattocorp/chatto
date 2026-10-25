@@ -150,7 +150,9 @@ export class ChattoClient {
       this.realtime.keepLive(serverId);
       this.#connected.add(server);
       let stopPresence: (() => void) | undefined;
+      let closed = false;
       server.onDispose(() => {
+        closed = true;
         stopPresence?.();
         this.realtime.keepLive(serverId, false);
         this.#connected.delete(server);
@@ -159,8 +161,16 @@ export class ChattoClient {
       });
       this.#ensureRuntime();
       if (options.reportPresence) {
-        const account = server.service(MyAccountService);
-        stopPresence = reportPresence(() => account.refreshPresence({}, { timeoutMs: 10_000 }));
+        // Report presence only after the server accepted the key, until the session ends.
+        void server.ready().then(
+          () => {
+            if (closed) return;
+            const account = server.service(MyAccountService);
+            stopPresence = reportPresence(() => account.refreshPresence({}, { timeoutMs: 10_000 }));
+            server.onSessionEnded(() => stopPresence?.());
+          },
+          () => {}
+        );
       }
     } catch (error) {
       // Leave nothing behind: no server, live transport, or subscription.

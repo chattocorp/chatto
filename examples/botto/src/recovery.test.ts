@@ -179,8 +179,27 @@ test('recovers @here mentions only when respond_to enables them', async () => {
       occurrences: [occurrence('here', 2000, 'hereMentionReceived')]
     })
   );
+  // Without here_mention, the message counts as passive; Botto is not in the thread.
   await run();
-  expect(getMessage).not.toHaveBeenCalled();
+  expect(delivery.has('here')).toBe(false);
   await run(delivery, undefined, ['mention', 'here_mention']);
-  expect(getMessage).toHaveBeenCalledOnce();
+  expect(delivery.has('here')).toBe(true);
+  expect(getMessage).toHaveBeenCalledTimes(2);
+});
+
+test('skips recovered thread replies when respond_to excludes reply', async () => {
+  const { delivery, getMessage, run } = setup();
+  getMessage.mockImplementation(async ({ messageId }: { messageId: string }) => ({
+    id: messageId,
+    roomId: 'room',
+    authorId: 'human',
+    body: 'Reply text',
+    threadRootId: 'root',
+    inReplyTo: 'target'
+  }));
+  await run(delivery, undefined, ['direct_message', 'mention']);
+  // Only the recovered messages are read; no reply target lookup follows.
+  expect(getMessage).toHaveBeenCalledTimes(2);
+  expect(delivery.has('one')).toBe(false);
+  expect(delivery.has('two')).toBe(false);
 });

@@ -476,8 +476,8 @@ export class Server extends ServerStateStore {
   /**
    * Handle the messages addressed to the viewer, in order: by default direct
    * messages, mentions by name, and verified replies (see `addressedMessage`).
-   * Each message
-   * gets a {@link MessageContext} with the operations to answer it.
+   * Each message gets a {@link MessageContext} with the operations to answer
+   * it.
    *
    * Waits for {@link ready} first, also through failed attempts while the
    * server is unreachable, and then behaves like {@link consumeEvents}.

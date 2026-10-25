@@ -500,6 +500,23 @@ describe('addressing', () => {
     ]);
   });
 
+  test('reports a mention by name together with @here only when both are enabled', async () => {
+    const { api } = lookup();
+    const incoming = event();
+    if (incoming.event.case !== 'messagePosted') throw new Error('fixture');
+    incoming.event.value.inReplyTo = '';
+    incoming.event.value.mentions = [
+      { includesViewer: true, cause: { case: 'here', value: {} } },
+      { includesViewer: true, cause: { case: 'direct', value: {} } },
+      // A mention without a known kind never addresses the viewer.
+      { includesViewer: true, cause: { case: undefined } }
+    ] as unknown as typeof incoming.event.value.mentions;
+    expect((await api.addressedMessage(incoming))?.reasons).toEqual(['mention']);
+    expect(
+      (await api.addressedMessage(incoming, { reasons: ['mention', 'here_mention'] }))?.reasons
+    ).toEqual(['here_mention', 'mention']);
+  });
+
   test.each(['self', 'missing-text', 'missing-id', 'missing-actor', 'other-event', 'unaddressed'])(
     'ignores %s without a lookup',
     async (kind) => {
