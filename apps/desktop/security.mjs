@@ -1,4 +1,5 @@
-const desktopPermissions = new Set(['media', 'notifications']);
+// Browser copy actions require clipboard-sanitized-write in Electron.
+const desktopPermissions = new Set(['media', 'notifications', 'clipboard-sanitized-write']);
 
 /** Whether a URL belongs to the privileged Chatto Desktop renderer origin. */
 export function hasAppOrigin(value) {
