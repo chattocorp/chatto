@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-25
 
 ## Overview
 
@@ -55,10 +55,12 @@ Users can attach files to messages — images, videos, documents — via drag-an
 ### 1. Attachment uploads use chunked ConnectRPC sessions
 
 **Decision:** Public message attachment uploads use `AssetUploadService`: `CreateUpload`, `UploadChunk`, `GetUpload`, `CompleteUpload`, and `CancelUpload`. Chunks are bounded unary ConnectRPC requests instead of browser client-streaming RPCs. Each upload declares the final file size and lowercase SHA-256 digest, each chunk carries its offset and chunk SHA-256, and `CompleteUpload` verifies the assembled digest before creating the durable asset. `CreateMessage` accepts only completed, live, room-matching asset IDs uploaded by the caller and atomically attaches each asset exclusively to the message.
-New sessions accept chunks up to 10 MiB. Clients use the limit returned by the server. The limit is fixed; operators do not need to configure it. Larger chunks reduce the number of acknowledgement waits on connections with high latency. Each request needs more memory, and a failed chunk can require more bytes to be sent again.
+New sessions accept chunks up to 10 MiB. The client starts at 256 KiB or the server's maximum, whichever is smaller. It adjusts the next chunk toward 15 seconds per request, including server wait time, with at most twofold growth after each success. It uses at least 64 KiB unless the server's maximum is smaller. The final chunk can be smaller. This lets slow connections commit progress frequently while fast connections use larger chunks.
+
+Each chunk request has a 60-second client deadline. After a timeout, the client halves the chunk size down to its minimum. Before it sends more bytes after a transient failure, it checks the server's committed offset. It retries transient chunk, status, and completion failures up to four times with increasing, randomized delays. Authorization failures stop the upload. Recovery stays in the same upload session; a page reload does not resume it automatically. The client does not retry session creation because a lost creation response leaves it without the session ID.
 
 **Why:** Attachments should remain inside the protobuf/ConnectRPC API surface instead of introducing a second REST upload endpoint. Unary chunks work with the current browser Connect stack and give resumable progress through the committed offset.
-**Tradeoff:** Clients must hash the full file before completion and issue several RPCs for larger files. Temporary chunks and open sessions need cleanup if the browser disappears before completion. Retrying a send after the first attempt actually committed must hydrate the created message rather than attach the same asset to a second message.
+**Tradeoff:** Clients must hash the full file before completion and issue several RPCs for larger files. Small initial chunks add acknowledgement waits on fast connections. Request duration includes storage and queue time, so a busy server can reduce the chosen chunk size. Extremely slow connections can still exceed the deadline at the minimum chunk size, and prolonged outages exhaust the retry budget. Temporary chunks and open sessions need cleanup if the browser disappears before completion. Retrying a send after the first attempt actually committed must hydrate the created message rather than attach the same asset to a second message.
 
 ### 2. Dual storage backends (NATS ObjectStore + S3)
 
