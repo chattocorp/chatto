@@ -46,3 +46,20 @@ test('denies clipboard reads even for the desktop origin', () => {
     false
   );
 });
+
+test('allows fullscreen only for the desktop origin', () => {
+  assert.equal(isDesktopPermissionAllowed('fullscreen', 'chatto://desktop'), true);
+  assert.equal(isDesktopPermissionAllowed('fullscreen', 'chatto://desktop/chat/room'), true);
+  for (const origin of [
+    'https://chat.example',
+    'chatto://desktop.evil',
+    'https://desktop',
+    'null'
+  ]) {
+    assert.equal(isDesktopPermissionAllowed('fullscreen', origin), false);
+  }
+});
+
+test('denies automatic fullscreen even for the desktop origin', () => {
+  assert.equal(isDesktopPermissionAllowed('automatic-fullscreen', 'chatto://desktop'), false);
+});
