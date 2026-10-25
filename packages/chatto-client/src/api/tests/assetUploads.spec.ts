@@ -1,4 +1,5 @@
 import { ConnectError, Code, createRouterTransport } from '@connectrpc/connect';
+import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
 import { createAssetUploadAPI } from '../assetUploads.js';
@@ -38,6 +39,77 @@ async function settle<T>(promise: Promise<T>): Promise<T> {
 }
 
 describe('createAssetUploadAPI', () => {
+  it('preserves every byte when a chunk is stored but its acknowledgement is lost', async () => {
+    // Reproducible, varied bytes make offsets and ordering matter. Node's hash
+    // implementation independently checks the client's js-sha256 digests.
+    const original = new Uint8Array(2 * 1024 * 1024 + 137);
+    let seed = 0x12345678;
+    for (let i = 0; i < original.length; i++) {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      original[i] = seed & 0xff;
+    }
+    const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+    const chunks: Uint8Array[] = [];
+    let committedOffset = 0n;
+    let declaredHash = '';
+    let declaredSize = 0n;
+    const uploadId = 'stateful-upload';
+    const progress = vi.fn();
+
+    mocks.createUpload.mockImplementation((request) => {
+      declaredHash = request.sha256;
+      declaredSize = request.size;
+      expect(declaredSize).toBe(BigInt(original.length));
+      expect(declaredHash).toBe(digest(original));
+      return { upload: { uploadId, committedOffset, maxChunkSize: 1024 * 1024 } };
+    });
+    mocks.uploadChunk.mockImplementation((request) => {
+      expect(request.uploadId).toBe(uploadId);
+      expect(request.offset).toBe(committedOffset);
+      expect(request.content.length).toBeGreaterThan(0);
+      expect(request.content.length).toBeLessThanOrEqual(1024 * 1024);
+      expect(request.chunkSha256).toBe(digest(request.content));
+      chunks.push(request.content.slice());
+      committedOffset += BigInt(request.content.length);
+      expect(committedOffset).toBeLessThanOrEqual(declaredSize);
+      // Persist first, fail second: recovery must discover this committed
+      // chunk rather than send its bytes again or create another session.
+      if (chunks.length === 2) throw new ConnectError('lost acknowledgement', Code.Unavailable);
+      return { upload: { uploadId, committedOffset } };
+    });
+    mocks.getUpload.mockImplementation((request) => {
+      expect(request.uploadId).toBe(uploadId);
+      return { upload: { uploadId, committedOffset } };
+    });
+    mocks.completeUpload.mockImplementation((request) => {
+      expect(request.uploadId).toBe(uploadId);
+      expect(committedOffset).toBe(declaredSize);
+      const stored = Buffer.concat(chunks);
+      expect(stored.equals(Buffer.from(original))).toBe(true);
+      expect(digest(stored)).toBe(declaredHash);
+      return { asset: { ...asset, size: declaredSize } };
+    });
+
+    const result = await settle(
+      api().uploadAttachment({
+        roomId: 'R1',
+        file: new File([original], 'varied.bin'),
+        onProgress: progress
+      })
+    );
+
+    expect(result.size).toBe(BigInt(original.length));
+    expect(mocks.createUpload).toHaveBeenCalledOnce();
+    expect(mocks.getUpload).toHaveBeenCalledOnce();
+    expect(mocks.completeUpload).toHaveBeenCalledOnce();
+    expect(new Set(chunks.map((chunk) => chunk.length)).size).toBeGreaterThan(1);
+    let cumulativeBytes = 0;
+    const committedProgress = [0, ...chunks.map((chunk) => (cumulativeBytes += chunk.length))];
+    expect(progress.mock.calls).toEqual(committedProgress.map((bytes) => [bytes, original.length]));
+  });
+
   it('uploads a file in chunks and reports progress', async () => {
     mocks.createUpload.mockReturnValue({ upload: { uploadId: 'up-1', maxChunkSize: 4 } });
     mocks.uploadChunk.mockImplementation((request) => ({
