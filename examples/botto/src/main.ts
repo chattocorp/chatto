@@ -30,6 +30,7 @@ async function run(settings: Settings) {
     controller.signal.throwIfAborted();
     log('info', 'Connecting to Chatto');
     const server = client.connect({ serverUrl: settings.serverUrl, apiKey: settings.apiKey });
+    if (settings.reportPresence) server.reportPresence();
     const { viewerId } = await startupStep(
       'Cannot connect to Chatto. Check chatto.url, chatto.api_key, and server compatibility.',
       () => server.ready({ signal: controller.signal })
@@ -95,7 +96,14 @@ async function run(settings: Settings) {
           await server.ready({ signal: controller.signal });
           if (Date.now() >= nextRecovery) {
             nextRecovery = Date.now() + 30_000;
-            await recover(server, delivery, isActive, controller.signal, settings.allowedUserId);
+            await recover(
+              server,
+              delivery,
+              isActive,
+              controller.signal,
+              settings.allowedUserId,
+              settings.respondTo
+            );
           }
         } catch {
           if (!controller.signal.aborted) log('warn', 'Message recovery failed; Botto will retry');
@@ -126,7 +134,13 @@ async function run(settings: Settings) {
         }
         while (!signal.aborted) {
           try {
-            const message = await incomingMessage(server, event, isActive, signal);
+            const message = await incomingMessage(
+              server,
+              event,
+              isActive,
+              signal,
+              settings.respondTo
+            );
             if (!message) return;
             if (delivery.has(message.id)) return;
             if (!(await isHumanAuthor(server, message.authorId, signal))) return;

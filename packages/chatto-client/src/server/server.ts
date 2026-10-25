@@ -45,6 +45,8 @@ import type { ServerRegistration } from './catalog.js';
 import type { ServerConnection } from './serverConnection.js';
 import type { ServerSession } from './sessions.js';
 import { ServerStateStore, type ServerStoreContext } from './store.js';
+import { sendPresenceHeartbeats } from './presenceTracking.js';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 
 /** Settings for `ChattoClient.connect`. */
 export interface ConnectOptions {
@@ -86,7 +88,10 @@ export interface ConsumeEventsOptions {
 export interface RunOptions {
   /** Stops the handler loop. Without it, the loop stops when the server closes. */
   signal?: AbortSignal;
-  /** The addressing reasons to handle. Default: direct messages, mentions, and replies. */
+  /**
+   * The addressing reasons to handle. Default: direct messages, mentions by
+   * name, and replies; see `DEFAULT_ADDRESSING_REASONS`.
+   */
   reasons?: readonly AddressingReason[];
   /**
    * Receive realtime status changes; see {@link ConsumeEventsOptions.onStatus}.
@@ -467,9 +472,10 @@ export class Server extends ServerStateStore {
   }
 
   /**
-   * Handle the messages addressed to the viewer, in order: direct messages,
-   * mentions, and verified replies (see `addressedMessage`). Each message
-   * gets a {@link MessageContext} with the operations to answer it.
+   * Handle the messages addressed to the viewer, in order: by default direct
+   * messages, mentions by name, and verified replies (see `addressedMessage`).
+   * Each message gets a {@link MessageContext} with the operations to answer
+   * it.
    *
    * Waits for {@link ready} first, also through failed attempts while the
    * server is unreachable, and then behaves like {@link consumeEvents}.
@@ -600,6 +606,35 @@ export class Server extends ServerStateStore {
   /** Recognize an event as a message addressed to the viewer; see `run`. */
   addressedMessage(event: RealtimeEvent, options?: AddressingOptions) {
     return this.#requests.addressedMessage(event, options);
+  }
+
+  #reportingPresence = false;
+
+  /**
+   * Show the account as online while the server is open, for servers that
+   * `ChattoClient.connect` added for hosts without a person, such as bots.
+   * Once the server accepts the key, also after failed attempts, the client
+   * sends a presence heartbeat every 30 seconds, until {@link close} or the
+   * end of the session. Then the server shows the account as offline within
+   * 60 seconds. It never changes the account's saved presence choice. Later
+   * calls do nothing.
+   */
+  reportPresence(): void {
+    if (this.#reportingPresence) return;
+    this.#reportingPresence = true;
+    this.#readyForLoop(undefined, undefined).then(
+      (viewerId) => {
+        if (viewerId === undefined || this.#closed.peek()) return;
+        const account = this.service(MyAccountService);
+        const stop = sendPresenceHeartbeats(() =>
+          account.refreshPresence({}, { timeoutMs: 10_000 })
+        );
+        this.onDispose(stop);
+        this.onSessionEnded(stop);
+      },
+      // The key was rejected, or the server release is not supported.
+      () => {}
+    );
   }
 
   /**

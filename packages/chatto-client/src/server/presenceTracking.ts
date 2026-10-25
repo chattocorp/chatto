@@ -3,9 +3,35 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import type { PresenceAPI } from '../api/presence.js';
 import { PresenceStatus, type PresencePreference } from '@chatto/api-types/api/v1/presence_pb';
 import type { PresencePreferences, PresenceScope } from './presencePreference.js';
+import { debugLog } from '../util/debugLog.js';
 
 /** Interval of presence heartbeats. A heartbeat keeps the account present. */
 const PRESENCE_REFRESH_MS = 30_000;
+
+/**
+ * Keep an account online: call `refresh` (a presence heartbeat) now and then
+ * every 30 seconds, until the returned function stops it. It never changes
+ * the account's saved presence choice, so an account that chose to appear
+ * offline stays offline. A failed heartbeat is retried at the next interval.
+ * After the last heartbeat, the server shows the account as offline within
+ * 60 seconds. For hosts without a person, such as bots; interactive hosts use
+ * `createPresenceTracker`.
+ */
+export function sendPresenceHeartbeats(refresh: () => Promise<unknown>): () => void {
+  let pending = false;
+  const beat = () => {
+    if (pending) return;
+    pending = true;
+    refresh()
+      .catch((error: unknown) => debugLog('[presence] heartbeat failed', error))
+      .finally(() => {
+        pending = false;
+      });
+  };
+  beat();
+  const timer = setInterval(beat, PRESENCE_REFRESH_MS);
+  return () => clearInterval(timer);
+}
 
 /** The presence requests of one account on one server. */
 export type PresenceReporter = PresenceScope &

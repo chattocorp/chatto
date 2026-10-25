@@ -17,13 +17,17 @@ afterEach(() => {
   for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 
-function occurrence(id: string, time = 2000) {
+function occurrence(
+  id: string,
+  time = 2000,
+  kind: 'directMentionReceived' | 'hereMentionReceived' = 'directMentionReceived'
+) {
   return new NotificationOccurrence({
     id: `notification-${id}`,
     createdAt: { seconds: BigInt(Math.floor(time / 1000)), nanos: (time % 1000) * 1_000_000 },
     signal: {
       kind: {
-        case: 'directMentionReceived',
+        case: kind,
         value: {
           message: { room: { id: 'room' }, eventId: id }
         }
@@ -59,8 +63,19 @@ function setup() {
         ? { listNotificationOccurrences: list }
         : { batchGetUsers: users }
   } as unknown as Pick<Server, 'accountId' | 'getMessage' | 'service'>;
-  const run = (target = delivery, allowedUserId?: string) =>
-    recover(server, target, async () => false, new AbortController().signal, allowedUserId);
+  const run = (
+    target = delivery,
+    allowedUserId?: string,
+    respondTo?: Parameters<typeof recover>[5]
+  ) =>
+    recover(
+      server,
+      target,
+      async () => false,
+      new AbortController().signal,
+      allowedUserId,
+      respondTo
+    );
   return { path, delivery, list, getMessage, users, run };
 }
 
@@ -155,4 +170,36 @@ test.each(['other', 'bot'])('recovery checks the reply recipient: %s', async (au
   }));
   await run();
   expect(delivery.queued.map((item) => item.id)).toEqual(authorId === 'bot' ? ['one', 'two'] : []);
+});
+
+test('recovers @here mentions only when respond_to enables them', async () => {
+  const { delivery, list, getMessage, run } = setup();
+  list.mockResolvedValue(
+    new ListNotificationOccurrencesResponse({
+      occurrences: [occurrence('here', 2000, 'hereMentionReceived')]
+    })
+  );
+  // Without here_mention, the message counts as passive; Botto is not in the thread.
+  await run();
+  expect(delivery.has('here')).toBe(false);
+  await run(delivery, undefined, ['mention', 'here_mention']);
+  expect(delivery.has('here')).toBe(true);
+  expect(getMessage).toHaveBeenCalledTimes(2);
+});
+
+test('skips recovered thread replies when respond_to excludes reply', async () => {
+  const { delivery, getMessage, run } = setup();
+  getMessage.mockImplementation(async ({ messageId }: { messageId: string }) => ({
+    id: messageId,
+    roomId: 'room',
+    authorId: 'human',
+    body: 'Reply text',
+    threadRootId: 'root',
+    inReplyTo: 'target'
+  }));
+  await run(delivery, undefined, ['direct_message', 'mention']);
+  // Only the recovered messages are read; no reply target lookup follows.
+  expect(getMessage).toHaveBeenCalledTimes(2);
+  expect(delivery.has('one')).toBe(false);
+  expect(delivery.has('two')).toBe(false);
 });

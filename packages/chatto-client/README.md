@@ -39,15 +39,22 @@ try {
 `connect()` adds a server with a fixed bearer token, such as a bot API key,
 and returns it. The token is kept only in memory: it is never renewed or
 written to device storage. `client.server(id)` returns a server that the
-client has. Both return the same `Server` type: the server's data, events,
-and requests are one object.
+client has. Both return the same `Server` type: the server's data, events, and
+requests are one object.
+
+`server.reportPresence()` shows the account as online while the server is
+open: once the server accepts the key, the client sends a presence heartbeat
+every 30 seconds. After `close()`, the account shows as offline within 60
+seconds. It never changes the account's saved presence choice.
 
 ### Answering messages
 
 `server.run(handler)` waits until the server accepted the key, also while
 the server is unreachable, then calls `handler` for each message addressed to
-the viewer (the account of the key):
-direct messages, mentions, and replies to the viewer's messages. Messages are
+the viewer (the account of the key). By default, these are direct messages,
+mentions of the viewer by name, and replies to the viewer's messages. Role,
+`@here`, and `@all` mentions are separate reasons (`role_mention`,
+`here_mention`, `all_mention`) that you enable with `reasons`. Messages are
 handled in order. The handler receives a context:
 
 ```ts
@@ -62,7 +69,7 @@ await server.run(
   },
   {
     signal, // stops the loop; without it, the loop stops when the server closes
-    reasons: ['mention', 'direct_message'], // default: all three
+    reasons: ['mention', 'direct_message'], // default: also 'reply'
     onStatus: (status) => console.log(status.state),
     onError: (error) => console.error(error) // keep running after a failure
   }

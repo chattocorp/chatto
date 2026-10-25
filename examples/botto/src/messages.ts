@@ -1,7 +1,14 @@
 /** Botto's participation policy, separate from the client's addressing rules. */
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { AddressedMessage, RealtimeEvent, Server, ThreadLocation } from '@chatto/client';
+import {
+  DEFAULT_ADDRESSING_REASONS,
+  type AddressedMessage,
+  type AddressingReason,
+  type RealtimeEvent,
+  type Server,
+  type ThreadLocation
+} from '@chatto/client';
 import { transcriptName } from './agent.ts';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 
@@ -33,14 +40,16 @@ export async function hasTranscript(
   }
 }
 
-/** Accept verified addressing, or ordinary text in a thread Botto already participates in.
- * Passive messages use an empty reasons list. The caller still checks the author
- * and enforces its allowlist before enqueueing; self messages never qualify. */
+/** Accept verified addressing for one of the `respondTo` reasons, or ordinary text
+ * in a thread Botto already participates in. Passive messages use an empty reasons
+ * list. The caller still checks the author and enforces its allowlist before
+ * enqueueing; self messages never qualify. */
 export async function incomingMessage(
   server: Pick<Server, 'accountId' | 'addressedMessage'>,
   event: RealtimeEvent,
   isActive: (location: ThreadLocation) => Promise<boolean>,
-  signal: AbortSignal
+  signal: AbortSignal,
+  respondTo: readonly AddressingReason[] = DEFAULT_ADDRESSING_REASONS
 ): Promise<AddressedMessage | undefined> {
   signal.throwIfAborted();
   if (
@@ -54,8 +63,10 @@ export async function incomingMessage(
   if (!posted.roomId || !posted.bodyPlaintext?.trim()) return;
   // An explicit reply selects its recipient, even when it also mentions the bot.
   if (posted.threadRootEventId && posted.inReplyTo)
-    return server.addressedMessage(event, { signal, reasons: ['reply'] });
-  const addressed = await server.addressedMessage(event, { signal });
+    return respondTo.includes('reply')
+      ? server.addressedMessage(event, { signal, reasons: ['reply'] })
+      : undefined;
+  const addressed = await server.addressedMessage(event, { signal, reasons: respondTo });
   if (addressed) return addressed;
   if (
     !posted.threadRootEventId ||

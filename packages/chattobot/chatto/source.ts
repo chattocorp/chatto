@@ -2,7 +2,7 @@
 import { statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createApi, createClient, type Server } from '@chatto/client';
+import { ADDRESSING_REASONS, createApi, createClient, type Server } from '@chatto/client';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { parseServerUrl } from '@chatto/client/util/serverUrl';
@@ -237,11 +237,14 @@ async function consume(
     async onEvent(event) {
       // Disallowed senders cannot start or continue a conversation.
       if (allowedUserId && event.actorId !== allowedUserId) return;
-      const message = await server.addressedMessage(event, { signal: ctx.signal }).catch(() => {
-        ctx.signal.throwIfAborted();
-        console.warn('ChattoBot could not verify a reply target; ignoring the message.');
-        return undefined;
-      });
+      // ChattoBot also answers role, @here, and @all mentions.
+      const message = await server
+        .addressedMessage(event, { signal: ctx.signal, reasons: ADDRESSING_REASONS })
+        .catch(() => {
+          ctx.signal.throwIfAborted();
+          console.warn('ChattoBot could not verify a reply target; ignoring the message.');
+          return undefined;
+        });
       if (message?.authorId === botId) return;
       try {
         if (message)
