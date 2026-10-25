@@ -199,6 +199,10 @@ run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
 description = "Check GitHub Actions workflows and repository shell scripts"
 run = ["actionlint", "shellcheck --severity=warning tools/*.sh"]
 
+[tasks.test-release-policy]
+description = "Test GitHub release publication and Latest selection"
+run = "node --test tools/release-policy.test.mjs"
+
 # =============================================================================
 # Code Generation
 # =============================================================================
