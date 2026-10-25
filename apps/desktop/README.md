@@ -95,6 +95,12 @@ one more permission grant and app restart. Later builds should retain that
 grant while the signing identity stays the same. Quit the dev app before
 rebuilding it. Do not reset the official app's permissions to repair a dev build.
 
+Local development builds skip online signature timestamps to reduce build time.
+Certificate signing stays enabled. Release builds and builds configured for
+notarisation retain online timestamps. The build prints when signing starts
+and reports the time when signing and packaging finish. A signing failure stops
+the build.
+
 ### Screen-share diagnostics and codec selection
 
 Native macOS screen sharing prefers HEVC in development and release builds.

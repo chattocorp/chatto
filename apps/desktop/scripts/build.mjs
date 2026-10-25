@@ -20,6 +20,7 @@ const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-$
 const embedCaptureHelper = platform === 'darwin';
 const macVersions = platform === 'darwin' ? macOSVersions(packageJson.version) : undefined;
 const macOSDistribution = macOSDistributionOptions(platform, process.env);
+let signingStartedAt;
 const supportedLocales = (
   await readdir(path.resolve(desktopRoot, '../frontend/messages'), {
     withFileTypes: true
@@ -96,6 +97,18 @@ const [bundleRoot] = await packager({
     : undefined,
   osxSign: macOSDistribution.osxSign,
   osxNotarize: macOSDistribution.osxNotarize,
+  afterCopyExtraResources: macOSDistribution.osxSign
+    ? [
+        async () => {
+          signingStartedAt = performance.now();
+          console.log(
+            macOSDistribution.osxNotarize
+              ? 'Signing and notarising macOS app and nested code...'
+              : 'Signing macOS app and nested code...'
+          );
+        }
+      ]
+    : undefined,
   ignore: [
     /^\/dist(?:\/|$)/,
     /^\/native(?:\/|$)/,
@@ -104,6 +117,12 @@ const [bundleRoot] = await packager({
     /\.test\.mjs$/
   ]
 });
+
+if (signingStartedAt !== undefined) {
+  console.log(
+    `macOS signing and packaging finished in ${((performance.now() - signingStartedAt) / 1000).toFixed(1)}s`
+  );
+}
 
 const appBundle =
   platform === 'darwin' ? path.join(bundleRoot, `${profile.productName}.app`) : bundleRoot;
