@@ -33,6 +33,8 @@ it('uses the same preview typography in both composers across themes and edits',
   document.documentElement.style.transition = 'none';
 
   for (const delimiter of ['*', '_']) {
+    const strongTag = delimiter === '_' ? 'u' : 'strong';
+    const strongClass = delimiter === '_' ? 'cm-format-underline' : 'cm-format-strong';
     const markdown = `# Heading
 ${delimiter}${delimiter}Strong${delimiter}${delimiter} and ${delimiter}emphasis${delimiter}, \`code\`, [link](https://example.com).
 > Quote with ${delimiter}${delimiter}strong${delimiter}${delimiter}, ${delimiter}emphasis${delimiter}, \`code\`, and [link](https://example.com).`;
@@ -45,12 +47,12 @@ ${delimiter}${delimiter}Strong${delimiter}${delimiter} and ${delimiter}emphasis$
       document.documentElement.dataset.theme = theme;
       const pairs = [
         ['h1', '.cm-format-heading:last-child'],
-        ['p > strong', '.cm-line:nth-child(2) .cm-format-strong'],
+        [`p > ${strongTag}`, `.cm-line:nth-child(2) .${strongClass}`],
         ['p > em', '.cm-line:nth-child(2) .cm-format-emphasis'],
         ['p > code', '.cm-line:nth-child(2) .cm-format-code'],
         ['p > a', '.cm-line:nth-child(2) .cm-link-label'],
         ['blockquote', '.cm-line:nth-child(3) .cm-format-quote:nth-child(2)'],
-        ['blockquote strong', '.cm-format-quote.cm-format-strong'],
+        [`blockquote ${strongTag}`, `.cm-line:nth-child(3) .${strongClass} .cm-format-quote`],
         ['blockquote em', '.cm-format-quote.cm-format-emphasis'],
         ['blockquote code', '.cm-format-quote.cm-format-code']
       ];
@@ -71,9 +73,16 @@ ${delimiter}${delimiter}Strong${delimiter}${delimiter} and ${delimiter}emphasis$
           'text-underline-offset',
           'background-color'
         ]) {
-          expect(actual.getPropertyValue(property), `${theme}: ${sourceSelector} ${property}`).toBe(
-            expected.getPropertyValue(property)
-          );
+          // Underline belongs to the decoration wrapper and propagates to its
+          // descendants; computed styles on a quote's inner span omit it.
+          const sourceStyle =
+            property === 'text-decoration-line' && right.closest('.cm-format-underline')
+              ? getComputedStyle(right.closest('.cm-format-underline')!)
+              : actual;
+          expect(
+            sourceStyle.getPropertyValue(property),
+            `${theme}: ${sourceSelector} ${property}`
+          ).toBe(expected.getPropertyValue(property));
         }
       }
       const quoteLink = getComputedStyle(visual.querySelector('blockquote a')!);

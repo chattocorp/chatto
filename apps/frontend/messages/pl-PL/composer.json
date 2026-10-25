@@ -50,6 +50,7 @@
       "too_large": "Plik {filename} jest za duży ({size}). Maksymalny rozmiar to {limit}."
     },
     "format": {
+      "underline": "Podkreślenie",
       "bold": "Pogrubienie",
       "italic": "Kursywa",
       "inline_code": "Kod w wierszu",

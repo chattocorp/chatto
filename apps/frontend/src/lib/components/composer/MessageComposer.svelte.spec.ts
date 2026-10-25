@@ -3327,24 +3327,30 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('posts markdown after composer formatting buttons are applied', async () => {
-      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
-      const editor = await findEditor(container);
-      await openFormattingShelf(container);
-      const boldButton = q(container, 'button[aria-label="Bold"]') as HTMLButtonElement;
+    it.each([
+      { label: 'Bold', tag: 'strong', text: 'bold', markdown: '**bold**' },
+      { label: 'Underline', tag: 'u', text: 'underlined', markdown: '__underlined__' }
+    ])(
+      'posts markdown after the $label composer formatting button is applied',
+      async ({ label, tag, text, markdown }) => {
+        const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+        const editor = await findEditor(container);
+        await openFormattingShelf(container);
+        const boldButton = q(container, `button[aria-label="${label}"]`) as HTMLButtonElement;
 
-      await userEvent.click(boldButton);
-      await expect.element(boldButton).toHaveAttribute('aria-pressed', 'true');
-      await insertEditorLiteralText(editor, 'bold');
-      await vi.waitFor(() => expect(editor.querySelector('strong')?.textContent).toBe('bold'));
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        await userEvent.click(boldButton);
+        await expect.element(boldButton).toHaveAttribute('aria-pressed', 'true');
+        await insertEditorLiteralText(editor, text);
+        await vi.waitFor(() => expect(editor.querySelector(tag)?.textContent).toBe(text));
+        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
-        roomId,
-        body: '**bold**'
-      });
-    });
+        await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+        expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+          roomId,
+          body: markdown
+        });
+      }
+    );
 
     it('clears inline code formatting after an inline-code-only draft is deleted', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });

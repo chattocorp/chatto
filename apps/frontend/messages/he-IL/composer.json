@@ -50,6 +50,7 @@
       "too_large": "{filename} גדול מדי ({size}). הגודל המרבי הוא {limit}."
     },
     "format": {
+      "underline": "קו תחתון",
       "bold": "מודגש",
       "italic": "נטוי",
       "inline_code": "קוד מוטבע",

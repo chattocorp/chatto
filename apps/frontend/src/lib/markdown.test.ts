@@ -309,9 +309,9 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<strong>foo:</strong>');
     });
 
-    it('renders `__foo:__` as bold with trailing colon', async () => {
+    it('renders `__foo:__` as underline with trailing colon', async () => {
       const html = await renderMarkdown('__foo:__');
-      expect(html).toContain('<strong>foo:</strong>');
+      expect(html).toContain('<u>foo:</u>');
     });
 
     it('renders `*foo:*` as italic with trailing colon', async () => {

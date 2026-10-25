@@ -133,7 +133,7 @@ describe('MarkdownEditor', () => {
     expect(formatting.at(-1)?.bulletList).toBe(true);
   });
 
-  it('toggles bold and italic with the platform modifier shortcuts', async () => {
+  it('toggles bold, italic, and underline with the platform modifier shortcuts', async () => {
     const readyApis: ComposerEditorApi[] = [];
     await renderEditor({ onReady: (api: ComposerEditorApi) => readyApis.push(api) });
     await vi.waitFor(() => expect(readyApis).toHaveLength(1));
@@ -151,6 +151,14 @@ describe('MarkdownEditor', () => {
     selectCurrentLine(textbox);
     pressPrimaryModifierKey(textbox, 'i');
     await vi.waitFor(() => expect(api.getText()).toBe('*italic*'));
+
+    api.setContent('underline');
+    api.focus();
+    selectCurrentLine(textbox);
+    pressPrimaryModifierKey(textbox, 'u');
+    await vi.waitFor(() => expect(api.getText()).toBe('__underline__'));
+    pressPrimaryModifierKey(textbox, 'u');
+    await vi.waitFor(() => expect(api.getText()).toBe('underline'));
   });
 
   it('wraps selected text in inline-code markers when backtick is pressed', async () => {

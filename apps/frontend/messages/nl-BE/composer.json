@@ -50,6 +50,7 @@
       "too_large": "{filename} is te groot ({size}). Het maximum is {limit}."
     },
     "format": {
+      "underline": "Onderstrepen",
       "bold": "Vet",
       "italic": "Cursief",
       "inline_code": "Inline-code",

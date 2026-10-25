@@ -50,6 +50,7 @@
       "too_large": "{filename} est trop volumineux ({size}). La taille maximale est de {limit}."
     },
     "format": {
+      "underline": "Souligné",
       "bold": "Gras",
       "italic": "Italique",
       "inline_code": "Code en ligne",

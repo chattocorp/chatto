@@ -48,6 +48,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   const emptyFormattingState: ComposerFormattingState = {
     bold: false,
     italic: false,
+    underline: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -164,6 +165,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return {
       bold: e.isActive('bold'),
       italic: e.isActive('italic'),
+      underline: e.isActive('underline'),
       inlineCode: e.isActive('code'),
       heading: e.isActive('heading', { level: 2 }),
       bulletList: e.isActive('bulletList'),
@@ -413,6 +415,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             break;
           case 'italic':
             chain.toggleItalic().run();
+            break;
+          case 'underline':
+            chain.toggleUnderline().run();
             break;
           case 'inlineCode':
             chain.toggleCode().run();

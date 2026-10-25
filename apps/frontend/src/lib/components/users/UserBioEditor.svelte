@@ -54,6 +54,7 @@ external value changes, such as a successful save, update the mounted editor.
   let formattingState = $state<ComposerFormattingState>({
     bold: false,
     italic: false,
+    underline: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
