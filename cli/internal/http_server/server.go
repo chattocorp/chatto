@@ -56,6 +56,7 @@ type HTTPServer struct {
 	logger              *log.Logger
 	metrics             *processMetrics
 	realtimeCatchUps    *realtimeCatchUpAdmission
+	imageTransforms     imageTransforms
 	trustedProxies      trustedProxySet
 	oauthClientResolver *OAuthClientResolver
 	browserSessions     *scs.SessionManager
