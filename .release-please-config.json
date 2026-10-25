@@ -31,6 +31,7 @@
       "changelog-path": "CHANGELOG.md",
       "exclude-paths": [
         "authling",
+        "examples/botto",
         "packages/runling",
         "packages/chattobot",
         "pnpm-lock.yaml",
