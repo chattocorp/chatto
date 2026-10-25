@@ -159,7 +159,7 @@ already in the cache and newly posted attachments are inserted directly.
 **Decision:** Each server process applies these bounds to uploads and image transforms:
 
 - `CompleteUpload` joins the chunks in a temporary file and streams the file to storage. Thus, its memory use does not increase with the file size. For an image, it reads only the image headers to get the dimensions and frame count. It does not decode pixels. Image derivatives from workers use the same header check.
-- At most four `UploadChunk` requests are in progress, and at most two for one user. Other chunk requests wait before the server reads their body. A request that holds a slot must send its body within five minutes.
+- At most four `UploadChunk` requests are in progress, and at most two for one user. Each bot counts as a separate user. Other chunk requests wait before the server reads their body. A request that holds a slot must send its body within five minutes.
 - Concurrent requests for the same image derivative share one transform, and only one of them reads the source. Transforms in progress hold at most 40 million decoded pixels together. A large image waits until enough pixels are free, and transforms that start to wait later wait behind it.
 - When the `GOMEMLIMIT` environment variable is not set, `chatto run` sets the Go memory limit to 90% of the cgroup memory limit of the container.
 

@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
+	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 )
 
@@ -16,10 +17,12 @@ const (
 	// process reads at the same time. Connect reads a complete request into
 	// memory before the handler runs, and storage makes more copies. Thus, one
 	// request can use several times core.DefaultAssetUploadChunkSize. Memory is
-	// per process, so the limit is per process too.
+	// per process, so the limit is per process too. The trusted local operator
+	// API has no limit.
 	maxConcurrentUploadChunks = 4
 	// maxConcurrentUploadChunksPerUser keeps one user from holding all slots.
-	// Two slots let a user upload two files in parallel.
+	// Two slots let a user upload two files in parallel. Each bot is a
+	// separate user.
 	maxConcurrentUploadChunksPerUser = 2
 	// uploadChunkReadTimeout is the time that a request can hold a slot while
 	// its body arrives. A 10 MiB chunk needs approximately 0.3 Mbit/s.
@@ -34,6 +37,8 @@ type uploadChunkLimiter struct {
 	perUser     int
 	readTimeout time.Duration
 	errorWriter *connect.ErrorWriter
+
+	warnDeadlineOnce sync.Once
 
 	mu    sync.Mutex
 	users map[string]*userUploadSlots
@@ -87,7 +92,13 @@ func (l *uploadChunkLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Without a deadline, a slow client could hold its slot without limit.
-	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(l.readTimeout))
+	// net/http removes the deadline when the body is complete, so the deadline
+	// does not limit the time that the handler needs to store the chunk.
+	if err := http.NewResponseController(w).SetReadDeadline(time.Now().Add(l.readTimeout)); err != nil {
+		l.warnDeadlineOnce.Do(func() {
+			log.Warn("Upload chunk requests have no read deadline", "error", err)
+		})
+	}
 	l.next.ServeHTTP(w, r)
 }
 

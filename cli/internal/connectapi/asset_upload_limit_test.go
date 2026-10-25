@@ -144,3 +144,34 @@ func TestUploadChunkLimiterReadTimeout(t *testing.T) {
 		t.Fatal("body read did not time out")
 	}
 }
+
+// TestUploadChunkLimiterDeadlineEndsWithBody makes sure that the read deadline
+// does not cancel the request while the handler stores a complete chunk.
+// net/http removes the deadline when the body is complete.
+func TestUploadChunkLimiterDeadlineEndsWithBody(t *testing.T) {
+	t.Parallel()
+	ctxErr := make(chan error, 1)
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := io.ReadAll(r.Body); err != nil {
+			ctxErr <- err
+			return
+		}
+		// The handler works longer than the read timeout after the body is
+		// complete, as a slow storage write can.
+		time.Sleep(300 * time.Millisecond)
+		ctxErr <- r.Context().Err()
+	})
+	limiter := newUploadChunkLimiter(next, HandlerOptions()...)
+	limiter.readTimeout = 100 * time.Millisecond
+	server := httptest.NewServer(limiter)
+	defer server.Close()
+
+	resp, err := http.Post(server.URL+apiv1connect.AssetUploadServiceUploadChunkProcedure, "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if err := <-ctxErr; err != nil {
+		t.Fatalf("request context error after the body was complete = %v, want nil", err)
+	}
+}
