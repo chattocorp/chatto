@@ -121,6 +121,32 @@ describe('ComposerSubmissionState', () => {
     );
   });
 
+  it('retains the original request when a preview arrives after a failed send', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    createMessage.mockRejectedValueOnce(new Error('response lost'));
+    await state.requestPost(preparedPost());
+    await state.requestPost(preparedPost({ linkPreviewToken: 'loaded-preview' }));
+    expect(prepareMessage).toHaveBeenCalledOnce();
+    expect(createMessage.mock.calls[1]![0]).toBe(createMessage.mock.calls[0]![0]);
+    expect(createMessage.mock.calls[1]![0].linkPreviewToken).toBeNull();
+  });
+
+  it.each([
+    { bodyToSend: 'Edited message' },
+    { linkPreviewToken: null },
+    { filesToSend: [new File(['content'], 'new.txt')] }
+  ])('starts a new send for an explicit draft edit: %j', async (edit) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    createMessage.mockRejectedValueOnce(new Error('response lost'));
+    const original = preparedPost({ linkPreviewToken: 'existing-preview' });
+    await state.requestPost(original);
+    await state.requestPost({ ...original, ...edit });
+    expect(prepareMessage).toHaveBeenCalledTimes(2);
+    expect(createMessage.mock.calls[1]![0].idempotencyKey).not.toBe(
+      createMessage.mock.calls[0]![0].idempotencyKey
+    );
+  });
+
   it.each([false, true])(
     'releases a stale send without automatically reposting (mutationSucceeded: %s)',
     async (mutationSucceeded) => {

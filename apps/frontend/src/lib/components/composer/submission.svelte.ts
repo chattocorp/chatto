@@ -234,7 +234,9 @@ function samePreparedPost(first: PreparedPost, second: PreparedPost): boolean {
     first.bodyToSend === second.bodyToSend &&
     first.threadRootEventId === second.threadRootEventId &&
     first.inReplyTo === second.inReplyTo &&
-    first.linkPreviewToken === second.linkPreviewToken &&
+    // A preview can finish loading after an uncertain send. Keep the original
+    // request without that preview. Removing an existing preview is a draft edit.
+    (first.linkPreviewToken === null || first.linkPreviewToken === second.linkPreviewToken) &&
     first.alsoSendToChannel === second.alsoSendToChannel &&
     first.createThread === second.createThread &&
     (first.attachmentAssetIds?.length ?? 0) === (second.attachmentAssetIds?.length ?? 0) &&

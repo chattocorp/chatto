@@ -114,6 +114,61 @@ func TestMessagePostIdempotencyMismatchAndAccountScope(t *testing.T) {
 	require.NotEqual(t, first.Event.Id, otherPost.Event.Id)
 }
 
+func TestMessagePostIdempotencyConcurrentReplyWithEcho(t *testing.T) {
+	t.Parallel()
+	c, nc, input := setupMessageRetry(t)
+	ctx := testContext(t)
+	rootInput := input
+	rootInput.IdempotencyKey = ""
+	root, err := c.Messages().PostMessage(ctx, rootInput)
+	require.NoError(t, err)
+	asset := uploadRoomAttachmentForUser(t, c, ctx, input.ActorID, input.RoomID, "reply.png")
+	input.ThreadRootEventID = root.Event.Id
+	input.AlsoSendToChannel = true
+	input.AttachmentAssetIDs = []string{asset.Id}
+	replica, err := NewChattoCore(ctx, nc, c.config)
+	require.NoError(t, err)
+	startCoreServices(t, replica)
+	type result struct {
+		post *MessagePostResult
+		err  error
+	}
+	start := make(chan struct{})
+	results := make(chan result, 12)
+	for index := range cap(results) {
+		go func() {
+			<-start
+			posting := []*ChattoCore{c, replica}[index%2]
+			post, err := posting.Messages().PostMessage(ctx, input)
+			results <- result{post, err}
+		}()
+	}
+	close(start)
+	var replyID string
+	for range cap(results) {
+		result := <-results
+		require.NoError(t, result.err)
+		if replyID == "" {
+			replyID = result.post.Event.Id
+		}
+		require.Equal(t, replyID, result.post.Event.Id)
+	}
+	agg := evtstream.RoomAggregate(input.RoomID)
+	posts, _, err := c.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Len(t, posts, 3, "one root, one reply, and one channel echo")
+	require.Equal(t, replyID, posts[1].Id)
+	require.Equal(t, replyID, posts[2].GetMessagePosted().GetEchoOfEventId())
+	for eventType, count := range map[string]int{evtstream.EventMessageBody: 2, evtstream.EventThreadCreated: 1} {
+		facts, _, err := c.EventPublisher.SubjectEvents(ctx, agg.Subject(eventType))
+		require.NoError(t, err)
+		require.Len(t, facts, count, eventType)
+	}
+	attached, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(asset.Id).Subject(evtstream.EventAssetAttached))
+	require.NoError(t, err)
+	require.Len(t, attached, 1)
+}
+
 func TestMessagePostIdempotencyReservedIdentityAndLostResponse(t *testing.T) {
 	t.Parallel()
 	c, nc, input := setupMessageRetry(t)

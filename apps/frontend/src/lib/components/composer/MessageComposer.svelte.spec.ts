@@ -4539,6 +4539,52 @@ describe('MessageComposer', () => {
   });
 
   describe('link preview composer behavior', () => {
+    it('retries the original request when a preview loads after a lost response', async () => {
+      const url = 'https://example.com/late-preview';
+      let finishPreview!: () => void;
+      fetchLinkPreviewConnectMock.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishPreview = () =>
+              resolve({
+                url,
+                previewToken: 'late-preview',
+                title: 'Late preview',
+                description: null,
+                imageUrl: null,
+                siteName: null,
+                embedType: null,
+                embedId: null,
+                imageAssetId: null
+              });
+          })
+      );
+      mutationMock.mockResolvedValueOnce({ data: null, error: new Error('response lost') });
+      const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const { container } = renderMessageComposer({ roomId: 'room_456' });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, `Look ${url}`);
+        await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalledOnce());
+        const send = q(container, 'button[aria-label="Send message"]') as HTMLButtonElement;
+        send.click();
+        await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+        await expect
+          .poll(() => getToasts().some(({ message }) => message === 'Failed to send message'))
+          .toBe(true);
+        finishPreview();
+        await expect.poll(() => q(container, '[data-testid="composer-link-preview"]')).toBeTruthy();
+        send.click();
+        await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(2));
+        expect(createMessageConnectMock.mock.calls[1][0]).toBe(
+          createMessageConnectMock.mock.calls[0][0]
+        );
+        expect(mutationMock.mock.calls[1][1].input.linkPreviewToken).toBeNull();
+      } finally {
+        errorLog.mockRestore();
+      }
+    });
+
     function mockLinkPreview(url: string) {
       fetchLinkPreviewConnectMock.mockResolvedValueOnce({
         url,

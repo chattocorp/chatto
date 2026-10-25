@@ -198,7 +198,10 @@ export class Server extends ServerStateStore {
         if (current) return current;
         return (await this.ready(options)).viewerId;
       },
-      { origin: new URL(registration.url).origin, fetch: (input, init) => fetch(input, init) }
+      { origin: new URL(registration.url).origin, fetch: (input, init) => fetch(input, init) },
+      // Fixed credentials cannot switch accounts. Other sends must not survive
+      // a privacy reset, even when the reset happens between request attempts.
+      () => (context.fixedToken ? 0 : this.connection.dataGeneration)
     );
     this.#disposeBusSubscription = effectRoot(() => this.#subscribeToBus());
     this.onDispose(() => this.#release());
@@ -538,6 +541,7 @@ export class Server extends ServerStateStore {
   /**
    * Prepare one logical send for explicit retries with a stable UUID and
    * arguments. Retain the operation and pass cancellation to its `send` method.
+   * For renewable credentials, a privacy reset invalidates the operation.
    */
   prepareMessage(
     destination: Destination,

@@ -25,6 +25,11 @@ response without posting the same intended message twice.
   preserves the draft. The composer
   asks the user to check whether the message arrived. Another Send click starts
   a new send; the composer does not post again automatically.
+- A link preview that finishes loading after a failed send does not start a
+  new send. The retry keeps the original request without that preview.
+- A prepared send with renewable credentials cannot cross a privacy reset or
+  account change. A send with a fixed token can survive a privacy reset, but
+  closing its server prevents further requests.
 - Prepared sends stay in memory. They do not survive a client restart. A client
   stops retries at its 30-minute deadline and asks the caller to check the result.
 - MCP tells a host when it can retry the same request. Without a key, an

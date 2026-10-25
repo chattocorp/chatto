@@ -157,6 +157,11 @@ all serving replicas to support message-create idempotency; older servers can
 ignore the key. `postMessage` and `reply` can send multiple parts; retrying the
 whole helper starts new sends for those parts.
 
+For a server with renewable credentials, a privacy reset invalidates retained
+sends. Their next `send()` throws `StaleResponseError` without posting again.
+Check the original result before starting a new send. Fixed-token sends remain
+valid across privacy resets, but cannot send after the server is closed.
+
 For any other request, `service(Service)` creates a typed Connect client with
 the server's authentication. `@chatto/client/types` has the protocol's
 messages and services, and `@chatto/client/types/admin` the administration

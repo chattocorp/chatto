@@ -20,6 +20,7 @@ import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { withTyping } from './typing.js';
 import { createMessageSend, type MessageSendOperation } from './messageSend.js';
+import { StaleResponseError } from '../api/connect.js';
 import type {
   AttachmentContent,
   AttachmentReadOptions,
@@ -123,15 +124,18 @@ export class MessagingRequests {
   readonly #rooms: Client<typeof RoomService>;
   readonly #threads: Client<typeof ThreadService>;
   readonly #viewerId: (options: RequestOptions) => Promise<string>;
+  readonly #dataGeneration?: () => number;
 
   /**
    * `viewerId` returns the account of the source's token. Thread reads and
    * addressing use it. `assets` lets `readAttachment` fetch attachment content.
+   * `dataGeneration` binds prepared sends to the current account and privacy scope.
    */
   constructor(
     source: ServiceSource,
     viewerId: (options: RequestOptions) => Promise<string>,
-    assets?: AssetAccess
+    assets?: AssetAccess,
+    dataGeneration?: () => number
   ) {
     this.#assetService = source.service(AssetService);
     this.#assets = assets;
@@ -139,6 +143,7 @@ export class MessagingRequests {
     this.#rooms = source.service(RoomService);
     this.#threads = source.service(ThreadService);
     this.#viewerId = viewerId;
+    this.#dataGeneration = dataGeneration;
   }
 
   /**
@@ -185,6 +190,7 @@ export class MessagingRequests {
     body: string,
     { inReplyTo, idempotencyKey }: { inReplyTo?: string; idempotencyKey?: string } = {}
   ): MessageSendOperation<{ id: string }> {
+    const generation = this.#dataGeneration?.();
     const request = {
       roomId: destination.roomId,
       body,
@@ -193,6 +199,9 @@ export class MessagingRequests {
     };
     return createMessageSend({
       idempotencyKey,
+      assertScope: () => {
+        if (generation !== this.#dataGeneration?.()) throw new StaleResponseError(false);
+      },
       prepare: async (key) => ({ ...request, idempotencyKey: key }),
       post: async (request, { signal }) => {
         const response = await this.#messages.createMessage(request, callOptions(signal));
