@@ -44,6 +44,15 @@ automatic TLS certificate issuance do not gate this message. If any listener
 cannot bind, startup closes the listeners already opened and does not log
 readiness. Shutdown and serve failures close all HTTP servers.
 
+The HTTP server owns a process-local
+[`imageTransforms`](../../cli/internal/http_server/image_transforms.go)
+coordinator for uncached image derivatives. It shares work for the same
+derivative and admits distinct operations before they open source files.
+Source admission covers reads, waits for the pixel budget, and transformation;
+the operation releases its slot when it returns. These memory controls are
+ephemeral and independent on each replica. Cache hits bypass the coordinator.
+See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
+
 INFO projection summaries report the projection name, rounded startup
 duration, replayed message count, restore source, and final sequence. Each
 projection logs one completion record, also at DEBUG verbosity. Expected
