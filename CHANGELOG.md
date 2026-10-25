@@ -3,6 +3,49 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.21](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.20...v0.5.0-beta.21) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** report bot presence and separate broadcast mentions ([#3170](https://github.com/chattocorp/chatto/issues/3170))
+* **client:** bound room and thread stores with a recently-used limit ([#3160](https://github.com/chattocorp/chatto/issues/3160))
+
+### Features
+
+* **api:** add short public discovery URL ([#3154](https://github.com/chattocorp/chatto/issues/3154)) ([92fa0aa](https://github.com/chattocorp/chatto/commit/92fa0aaec7412df96a7d12b21b8335e092f717bc))
+* **client:** bound room and thread stores with a recently-used limit ([#3160](https://github.com/chattocorp/chatto/issues/3160)) ([585b46f](https://github.com/chattocorp/chatto/commit/585b46ff204abc22a5c32f741cb46b404fe94fb2))
+* **client:** keep thread timelines live and report load errors ([#3149](https://github.com/chattocorp/chatto/issues/3149)) ([3b84f67](https://github.com/chattocorp/chatto/commit/3b84f6754f491b6645a32e9b4fdcc6e67239fcee))
+* **client:** publish Apache-2.0 client packages to npm ([#3135](https://github.com/chattocorp/chatto/issues/3135)) ([181a521](https://github.com/chattocorp/chatto/commit/181a521e60238be52d2abf1493a1c0ef929724b3))
+* **client:** report bot presence and separate broadcast mentions ([#3170](https://github.com/chattocorp/chatto/issues/3170)) ([ebc9ac7](https://github.com/chattocorp/chatto/commit/ebc9ac796af5aab1d6c399536fc320310b280ab9))
+* **desktop:** synchronize releases with Chatto ([#3172](https://github.com/chattocorp/chatto/issues/3172)) ([bff3b33](https://github.com/chattocorp/chatto/commit/bff3b33ab5ebdfc152ed55da2d770029c4daf15e))
+* **frontend:** expand pinned messages into room information ([#3131](https://github.com/chattocorp/chatto/issues/3131)) ([7a31dd6](https://github.com/chattocorp/chatto/commit/7a31dd6b34deee543c3e3717eeaa17a8ad8a0b3a))
+* **import:** add Slack imports with historical threads and reactions ([#3133](https://github.com/chattocorp/chatto/issues/3133)) ([bf075e0](https://github.com/chattocorp/chatto/commit/bf075e0d52838042e65c4f27f62488be68031702))
+* **import:** reuse message idempotency for historical imports ([#3171](https://github.com/chattocorp/chatto/issues/3171)) ([f88012f](https://github.com/chattocorp/chatto/commit/f88012fe0248af98f3ebdee6dab3dc83a5bbee1f))
+* **messages:** make keyed sends safe to retry across transports ([#2880](https://github.com/chattocorp/chatto/issues/2880)) ([1d355e1](https://github.com/chattocorp/chatto/commit/1d355e18b27148ea35359273172c4e9f3d1106cd))
+
+
+### Bug Fixes
+
+* **bots:** use owner authority for managed room joins ([#3134](https://github.com/chattocorp/chatto/issues/3134)) ([369802b](https://github.com/chattocorp/chatto/commit/369802bc90407c6f979d99daaefe1a046c2cbdb3))
+* **ci:** keep media image pins local to each branch ([#3144](https://github.com/chattocorp/chatto/issues/3144)) ([446e6b9](https://github.com/chattocorp/chatto/commit/446e6b9e3a5750a2f08788617aead2d51c4d5ab0))
+* **client:** read the server version again at each realtime catch-up ([#3169](https://github.com/chattocorp/chatto/issues/3169)) ([742cf9b](https://github.com/chattocorp/chatto/commit/742cf9be9cf23ed5b5d1218ba2e1d223001755ef))
+* **frontend:** enforce the message attachment limit in the composer ([#3168](https://github.com/chattocorp/chatto/issues/3168)) ([57028ee](https://github.com/chattocorp/chatto/commit/57028eefe53841499b637b0a92b2c79b7d5b1729))
+* **frontend:** fall back gracefully from missing audio devices ([#3141](https://github.com/chattocorp/chatto/issues/3141)) ([ccba55a](https://github.com/chattocorp/chatto/commit/ccba55afc30111cf427482d43e6e7990b5699e2a))
+* **frontend:** keep composer focus while a message sends ([#3163](https://github.com/chattocorp/chatto/issues/3163)) ([e0ab8fe](https://github.com/chattocorp/chatto/commit/e0ab8fe9c195bc7316bc759f64a21b005858f5e7))
+* **frontend:** keep Escape within the active modal ([#3126](https://github.com/chattocorp/chatto/issues/3126)) ([fa386da](https://github.com/chattocorp/chatto/commit/fa386da8ece0e3cfa4cf6aae946208684ba56ec9))
+* **frontend:** label profile text as About ([#3159](https://github.com/chattocorp/chatto/issues/3159)) ([355e231](https://github.com/chattocorp/chatto/commit/355e23160a61484f5ccddf65861aa5bf38cf8621))
+* **frontend:** preserve DM conversations during thread navigation ([#3136](https://github.com/chattocorp/chatto/issues/3136)) ([533e16c](https://github.com/chattocorp/chatto/commit/533e16c17dc1ba7a16d16225e97f3242c4f1df75))
+* **frontend:** show featured call participants once in sidebar ([#3127](https://github.com/chattocorp/chatto/issues/3127)) ([ddc9649](https://github.com/chattocorp/chatto/commit/ddc9649d76d6a5375b2ea2a02583bf765ab93bc1))
+* **frontend:** simplify password prompts and validation messages ([#3152](https://github.com/chattocorp/chatto/issues/3152)) ([f3eeee2](https://github.com/chattocorp/chatto/commit/f3eeee2bb01ae518dc853a5bceb5635cffb2431b))
+* **frontend:** sort direct messages by latest activity ([#3167](https://github.com/chattocorp/chatto/issues/3167)) ([4ae93dd](https://github.com/chattocorp/chatto/commit/4ae93dd2347309d227edd0e39b9a81b2ae298db9))
+* **tooling:** pin Node 24.22.1 for Brotli security fix ([#3145](https://github.com/chattocorp/chatto/issues/3145)) ([9df433b](https://github.com/chattocorp/chatto/commit/9df433b2080af3b0404f4ad2a5eab7a81cda25a9))
+
+
+### Performance Improvements
+
+* **client:** skip the user re-read in inactive-server polls ([#3165](https://github.com/chattocorp/chatto/issues/3165)) ([55e92ac](https://github.com/chattocorp/chatto/commit/55e92acd109502317d4a724ce451eacaab259180))
+
 ## [0.5.0-beta.20](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.19...v0.5.0-beta.20) (2026-10-22)
 
 
