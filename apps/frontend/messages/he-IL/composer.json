@@ -46,6 +46,7 @@
       "remove": "הסר את {filename}",
       "video_disabled": "העלאת סרטונים מושבתת בשרת זה.",
       "prepare_failed": "הכנת הקובץ המצורף נכשלה",
+      "too_many": "אפשר לצרף עד {max} קבצים לכל הודעה. הקבצים הנוספים לא נוספו.",
       "too_large": "{filename} גדול מדי ({size}). הגודל המרבי הוא {limit}."
     },
     "format": {

@@ -46,6 +46,7 @@
       "remove": "移除 {filename}",
       "video_disabled": "此服务器已禁用视频上传。",
       "prepare_failed": "准备附件失败",
+      "too_many": "每条消息最多可附加 {max} 个文件。超出的文件未添加。",
       "too_large": "{filename} 太大（{size}）。上限为 {limit}。"
     },
     "format": {

@@ -46,6 +46,7 @@
       "remove": "Noņemt {filename}",
       "video_disabled": "Video augšupielāde šajā serverī ir atspējota.",
       "prepare_failed": "Neizdevās sagatavot pielikumu",
+      "too_many": "Vienam ziņojumam var pievienot līdz {max} failiem. Papildu faili netika pievienoti.",
       "too_large": "{filename} ir pārāk liels ({size}). Maksimālais izmērs ir {limit}."
     },
     "format": {

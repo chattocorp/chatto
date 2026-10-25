@@ -46,6 +46,7 @@
       "remove": "Usuń {filename}",
       "video_disabled": "Przesyłanie filmów jest wyłączone na tym serwerze.",
       "prepare_failed": "Nie udało się przygotować załącznika",
+      "too_many": "Do jednej wiadomości możesz dołączyć maksymalnie {max} plików. Dodatkowe pliki nie zostały dodane.",
       "too_large": "Plik {filename} jest za duży ({size}). Maksymalny rozmiar to {limit}."
     },
     "format": {

@@ -46,6 +46,7 @@
       "remove": "Odebrat {filename}",
       "video_disabled": "Nahrávání videí je na tomto serveru zakázáno.",
       "prepare_failed": "Přílohu se nepodařilo připravit",
+      "too_many": "Ke zprávě můžete připojit nejvýše {max} souborů. Další soubory nebyly přidány.",
       "too_large": "Soubor {filename} je příliš velký ({size}). Maximum je {limit}."
     },
     "format": {

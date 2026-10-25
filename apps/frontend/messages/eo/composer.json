@@ -46,6 +46,7 @@
       "remove": "Forigi {filename}",
       "video_disabled": "Alŝutoj de videoj estas malŝaltitaj en ĉi tiu servilo.",
       "prepare_failed": "Malsukcesis prepari kunsendaĵon",
+      "too_many": "Vi povas aldoni ĝis {max} dosierojn al ĉiu mesaĝo. Kromaj dosieroj ne estis aldonitaj.",
       "too_large": "{filename} estas tro granda ({size}). La maksimumo estas {limit}."
     },
     "format": {

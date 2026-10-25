@@ -46,6 +46,7 @@
       "remove": "Supprimer {filename}",
       "video_disabled": "Le téléversement de vidéos est désactivé sur ce serveur.",
       "prepare_failed": "Échec de la préparation de la pièce jointe",
+      "too_many": "Vous pouvez joindre jusqu’à {max} fichiers par message. Les fichiers supplémentaires n’ont pas été ajoutés.",
       "too_large": "{filename} est trop volumineux ({size}). La taille maximale est de {limit}."
     },
     "format": {

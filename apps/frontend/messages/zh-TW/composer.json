@@ -46,6 +46,7 @@
       "remove": "移除 {filename}",
       "video_disabled": "此伺服器已停用影片上傳。",
       "prepare_failed": "無法準備附件",
+      "too_many": "每則訊息最多可附加 {max} 個檔案。超出的檔案未新增。",
       "too_large": "{filename} 太大（{size}）。上限為 {limit}。"
     },
     "format": {
