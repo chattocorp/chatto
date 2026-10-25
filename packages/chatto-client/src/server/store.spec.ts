@@ -19,6 +19,7 @@ import {
 import { messageToTimelineEvent } from '../api/roomTimeline.js';
 import { TimelineEventKind, type TimelineEventView } from '../timeline/timelineEvents.js';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import { MINIMUM_SUPPORTED_SERVER_VERSION } from './compatibility.js';
 import {
   GetMotdResponse,
   GetRuntimeConfigResponse,
@@ -1382,6 +1383,7 @@ describe('ServerStateStore privileged mode', () => {
     await store.completeRealtimeCatchUp('snapshot-cursor', generation);
 
     expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
+      'server',
       'serverState',
       'viewer',
       'rooms',
@@ -1405,6 +1407,7 @@ describe('ServerStateStore privileged mode', () => {
     apiMocks.readRealtimeResource.mockClear();
     await store.completeRealtimeCatchUp('retry-cursor');
     expect(apiMocks.readRealtimeResource.mock.calls.map(([family]) => family)).toEqual([
+      'server',
       'serverState',
       'viewer',
       'rooms',
@@ -3014,6 +3017,33 @@ describe('ServerStateStore unified realtime resources', () => {
 
     await store.completeRealtimeCatchUp('live-cursor');
     expect(apiMocks.readRealtimeUsers).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
+  it('reads the server version again when a resumed stream catches up', async () => {
+    // An upgrade restarts the server without an event. Only this read clears
+    // the compatibility warning of the older version without a reload.
+    const store = makeStore(new FakeServerConnection([]));
+    const profile = (version: string) =>
+      new RealtimeResourceUpdate({
+        resource: { case: 'server', value: new ServerPublicProfile({ name: 'Remote', version }) }
+      });
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'server' ? [profile('0.5.0-beta.9')] : []
+    );
+    await store.completeRealtimeCatchUp('before-upgrade', undefined, true);
+    expect(store.serverInfo.compatibility).toEqual({
+      status: 'limited',
+      reason: 'server-too-old'
+    });
+
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'server' ? [profile(MINIMUM_SUPPORTED_SERVER_VERSION)] : []
+    );
+    await store.completeRealtimeCatchUp('after-upgrade', undefined, true);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('server', 'after-upgrade');
+    expect(store.serverInfo.version).toBe(MINIMUM_SUPPORTED_SERVER_VERSION);
+    expect(store.serverInfo.compatibilityProblem).toBeNull();
     store.dispose();
   });
 
