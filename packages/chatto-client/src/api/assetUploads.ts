@@ -91,7 +91,12 @@ export function createAssetUploadAPI(config: ConnectAPIConfig) {
             options.file.size
           );
           if (ConnectError.from(err).code === Code.DeadlineExceeded) {
-            chunkSize = Math.max(minimum, Math.floor(chunkSize / 2));
+            // A full deadline is four target intervals. Reduce aggressively
+            // enough to recover from a bandwidth drop within the retry budget.
+            chunkSize = Math.max(
+              minimum,
+              Math.floor((chunk.length * targetChunkDurationMs) / chunkTimeoutMs)
+            );
           }
           if (resumedOffset > offset) {
             offset = resumedOffset;
@@ -142,6 +147,8 @@ function isTransientUploadError(error: unknown): boolean {
     err.code === Code.DeadlineExceeded ||
     err.code === Code.ResourceExhausted ||
     err.code === Code.Aborted ||
+    // The server maps storage failures, including session OCC conflicts, to Internal.
+    err.code === Code.Internal ||
     // Connect wraps fetch network failures as Unknown with a TypeError cause.
     (err.code === Code.Unknown && err.cause instanceof TypeError)
   );

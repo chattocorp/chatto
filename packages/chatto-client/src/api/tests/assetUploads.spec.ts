@@ -1,4 +1,4 @@
-import { ConnectError, Code } from '@connectrpc/connect';
+import { ConnectError, Code, createRouterTransport } from '@connectrpc/connect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
 import { createAssetUploadAPI } from '../assetUploads.js';
@@ -164,6 +164,34 @@ describe('createAssetUploadAPI', () => {
     expect(sizes.slice(0, 4)).toEqual([256 * 1024, 512 * 1024, 120_000, 120_000]);
   });
 
+  it('recovers within the retry budget when a fast link drops to 64 kbit/s', async () => {
+    let now = 0;
+    let committedOffset = 0n;
+    let slow = false;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    mocks.createUpload.mockReturnValue({
+      upload: { uploadId: 'up-1', maxChunkSize: 10 * 1024 * 1024 }
+    });
+    mocks.uploadChunk.mockImplementation((request) => {
+      slow ||= request.content.length === 10 * 1024 * 1024;
+      const duration = slow ? (request.content.length / 8000) * 1000 : 1000;
+      now += Math.min(duration, 60_000);
+      if (duration > 60_000) throw new ConnectError('timeout', Code.DeadlineExceeded);
+      committedOffset = request.offset + BigInt(request.content.length);
+      return { upload: { committedOffset } };
+    });
+    mocks.getUpload.mockImplementation(() => ({ upload: { committedOffset } }));
+    mocks.completeUpload.mockReturnValue({ asset });
+    await settle(
+      api().uploadAttachment({
+        roomId: 'R1',
+        file: new File([new Uint8Array(26 * 1024 * 1024)], 'f')
+      })
+    );
+    expect(committedOffset).toBe(26n * 1024n * 1024n);
+    expect(mocks.getUpload).toHaveBeenCalledTimes(3);
+  });
+
   it('shrinks a timed-out chunk only after checking committed progress', async () => {
     mocks.createUpload.mockReturnValue({
       upload: { uploadId: 'up-1', maxChunkSize: 10 * 1024 * 1024 }
@@ -188,8 +216,9 @@ describe('createAssetUploadAPI', () => {
       ])
     ).toEqual([
       [0, 256 * 1024],
-      [0, 128 * 1024],
-      [128 * 1024, 128 * 1024]
+      [0, 64 * 1024],
+      [64 * 1024, 128 * 1024],
+      [192 * 1024, 64 * 1024]
     ]);
     expect(mocks.getUpload).toHaveBeenCalledTimes(2);
     expect(mocks.completeUpload).toHaveBeenCalledTimes(2);
@@ -255,6 +284,49 @@ describe('createAssetUploadAPI', () => {
     mocks.completeUpload.mockReturnValue({ asset });
     await api().uploadAttachment({ roomId: 'R1', file: new File(['abc'], 'f') });
     expect(mocks.uploadChunk).toHaveBeenCalledOnce();
+  });
+
+  it.each([Code.Internal, Code.ResourceExhausted, Code.Aborted])(
+    'recovers from temporary server failure %s',
+    async (code) => {
+      mocks.createUpload.mockReturnValue({ upload: { uploadId: 'up-1' } });
+      mocks.uploadChunk.mockRejectedValueOnce(new ConnectError('temporary failure', code));
+      mocks.uploadChunk.mockReturnValue({ upload: { committedOffset: 3n } });
+      mocks.getUpload.mockReturnValue({ upload: { committedOffset: 0n } });
+      mocks.completeUpload.mockReturnValue({ asset });
+      await settle(api().uploadAttachment({ roomId: 'R1', file: new File(['abc'], 'f') }));
+      expect(mocks.uploadChunk).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('recovers from a fetch network error without shrinking the chunk', async () => {
+    mocks.createUpload.mockReturnValue({ upload: { uploadId: 'up-1' } });
+    mocks.uploadChunk.mockReturnValue({ upload: { committedOffset: 3n } });
+    mocks.getUpload.mockReturnValue({ upload: { committedOffset: 0n } });
+    mocks.completeUpload.mockReturnValue({ asset });
+    let failed = false;
+    const client = createAssetUploadAPI({
+      baseUrl: 'https://chatto.test',
+      bearerToken: null,
+      transport: (interceptors) =>
+        createRouterTransport((router) => router.service(AssetUploadService, mocks), {
+          transport: {
+            interceptors: [
+              ...interceptors,
+              (next) => async (request) => {
+                if (request.method.name === 'UploadChunk' && !failed) {
+                  failed = true;
+                  throw new TypeError('Failed to fetch');
+                }
+                return next(request);
+              }
+            ]
+          }
+        })
+    });
+    await settle(client.uploadAttachment({ roomId: 'R1', file: new File(['abc'], 'f') }));
+    expect(mocks.getUpload).toHaveBeenCalledOnce();
+    expect(receivedRequest(mocks.uploadChunk)?.content.length).toBe(3);
   });
 
   it('does not retry a validation failure when no progress was committed', async () => {
