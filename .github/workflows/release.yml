@@ -10,7 +10,6 @@ on:
   push:
     tags:
       - 'v*'
-      - 'chatto-desktop/v*'
   workflow_dispatch:
     inputs:
       target:
@@ -167,7 +166,7 @@ jobs:
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
   build-desktop-release:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     name: build-desktop-release (${{ matrix.platform }})
     environment: ${{ matrix.environment }}
     timeout-minutes: 45
@@ -201,9 +200,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch origin '+refs/heads/main:refs/remotes/origin/main'
-          if ! git merge-base --is-ancestor HEAD origin/main; then
-            echo "::error::Desktop signing is restricted to commits reachable from origin/main."
+          git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
+          trusted=false
+          while IFS= read -r ref; do
+            if git merge-base --is-ancestor HEAD "$ref"; then
+              trusted=true
+              break
+            fi
+          done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/main 'refs/remotes/origin/release-*')
+          if [[ "$trusted" != true ]]; then
+            echo "::error::Desktop signing is restricted to commits reachable from origin/main or an origin/release-* branch."
             exit 1
           fi
 
@@ -244,11 +250,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            version="${GITHUB_REF_NAME#chatto-desktop/v}"
-          else
-            version="$(jq -r '.version' apps/desktop/package.json)"
-          fi
+          version="$(jq -r '.version' apps/desktop/package.json)"
+          frontend_package_version="$(jq -r '.version' apps/frontend/package.json)"
           sha="$(git rev-parse HEAD)"
 
           if [[ -z "$version" || "$version" == "null" ]]; then
@@ -260,7 +263,24 @@ jobs:
             exit 1
           fi
 
-          frontend_version="${version}+${sha:0:12}"
+          if [[ "$version" != "$frontend_package_version" ]]; then
+            echo "::error::Desktop and frontend package versions must match."
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            if [[ "$version" != "${GITHUB_REF_NAME#v}" ]]; then
+              echo "::error::The Chatto tag and package versions must match."
+              exit 1
+            fi
+            frontend_version="$version"
+          else
+            development_version="$(mise env --json | jq -r '.CHATTO_DEVELOPMENT_VERSION // empty')"
+            if [[ -z "$development_version" ]]; then
+              echo "::error::CHATTO_DEVELOPMENT_VERSION is required for verification builds."
+              exit 1
+            fi
+            frontend_version="${development_version}+${sha:0:12}"
+          fi
           {
             echo "version=${version}"
             echo "sha=${sha}"
@@ -540,7 +560,7 @@ jobs:
           retention-days: 1
 
   assemble-desktop-release:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     needs: build-desktop-release
     runs-on: ubuntu-latest
     permissions:
@@ -568,7 +588,9 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Upload and publish desktop release
+      # The server job owns publication. Desktop uploads may finish before or
+      # after it, and signing failures must not block a server security release.
+      - name: Upload desktop assets to the Chatto release
         if: github.event_name == 'push'
         shell: bash
         env:
@@ -576,7 +598,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release upload "$GITHUB_REF_NAME" .context/desktop-release/* --clobber
-          gh release edit "$GITHUB_REF_NAME" --draft=false
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
@@ -639,7 +660,8 @@ jobs:
               .release-please-manifest-main.json|\
               CHANGELOG.md|\
               cli/version.go|\
-              apps/frontend/package.json)
+              apps/frontend/package.json|\
+              apps/desktop/package.json)
                 ;;
               *)
                 disallowed+=("$path")

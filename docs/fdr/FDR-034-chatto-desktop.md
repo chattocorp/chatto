@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-10-25
 
 ## Overview
 
@@ -47,12 +47,13 @@ system-browser authentication, and clean-machine media behavior are hardened.
   publisher identity; bundled third-party libraries may retain their original
   valid publisher. Local, pull-request, and Linux artifacts are not trusted
   release builds.
-- Chatto Desktop has an independent version and changelog. Its release tags use
-  `chatto-desktop/v{version}` and do not change the Chatto server version.
-- Each release rebuilds and embeds the official frontend from the Desktop tag's
-  commit. The frontend build identity combines the Desktop version with that
-  commit's abbreviated SHA so the bundled source revision remains explicit
-  even while Chatto and Chatto Desktop release independently.
+- Chatto Desktop shares the server and frontend version, release commit,
+  changelog, and `v{version}` tag. Each release embeds the frontend from that
+  commit and displays the shared version. Manual verification builds display
+  a development version and abbreviated commit SHA.
+- Desktop downloads are attached to the Chatto release. Signing failures can
+  delay those downloads, but do not block server publication. Matching desktop
+  and server versions are not required; existing compatibility rules apply.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
@@ -111,17 +112,16 @@ must tightly constrain popup and navigation behavior. The host opens a new
 window only on the frontend's `/servers/authorize` launch page and sends all
 other window requests to the system browser.
 
-### 5. Release the desktop shell independently
+### 5. Synchronize Desktop and Chatto releases
 
-**Decision:** Chatto Desktop uses an independent pre-1.0 release stream,
-changelog, tag namespace, and artifacts while continuing to bundle the official
-frontend revision at its release tag. Release builds identify that frontend as
-`{desktop-version}+{commit-sha}` and verify the generated identity before
-packaging.
-**Why:** Desktop packaging, platform fixes, and runtime upgrades have a cadence
-different from Chatto server releases.
-**Tradeoff:** Compatibility diagnostics must distinguish the desktop shell
-version from the bundled Chatto client version.
+**Decision:** Desktop and Chatto share one version, release commit, changelog,
+and GitHub release. Every release builds Desktop from the same source and
+uses the shared version for its frontend. See ADR-118.
+**Why:** Users can compare desktop and web frontend versions directly, and
+maintainers prepare one release instead of two.
+**Tradeoff:** Each release requires desktop builds and signing approvals, and
+desktop-only fixes also advance the Chatto version. Desktop uploads can arrive
+after server publication so signing failures do not block security fixes.
 
 ### 6. Build all supported host bundles and sign trusted releases
 
@@ -218,7 +218,7 @@ The iOS shell shares the frontend but uses native system authentication. See
 [FDR-048](FDR-048-chatto-mobile.md) and
 [ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-118 (synchronized releases)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-013 (Web Push Notifications), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions
