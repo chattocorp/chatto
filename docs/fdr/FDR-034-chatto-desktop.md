@@ -116,7 +116,7 @@ other window requests to the system browser.
 
 **Decision:** Desktop and Chatto share one version, release commit, changelog,
 and GitHub release. Every release builds Desktop from the same source and
-uses the shared version for its frontend. See ADR-117.
+uses the shared version for its frontend. See ADR-118.
 **Why:** Users can compare desktop and web frontend versions directly, and
 maintainers prepare one release instead of two.
 **Tradeoff:** Each release requires desktop builds and signing approvals, and
@@ -218,7 +218,7 @@ The iOS shell shares the frontend but uses native system authentication. See
 [FDR-048](FDR-048-chatto-mobile.md) and
 [ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-117 (synchronized releases)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-118 (synchronized releases)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-013 (Web Push Notifications), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions

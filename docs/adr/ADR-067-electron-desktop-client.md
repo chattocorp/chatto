@@ -9,7 +9,7 @@ which permits narrow optional preload capabilities while retaining the renderer
 sandbox and context isolation.
 
 The independent desktop release stream is superseded by
-[ADR-117](ADR-117-synchronized-chatto-desktop-releases.md), which synchronizes
+[ADR-118](ADR-118-synchronized-chatto-desktop-releases.md), which synchronizes
 Desktop, server, and frontend releases.
 
 ## Context

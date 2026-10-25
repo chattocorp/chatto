@@ -77,6 +77,75 @@ describe('AttachmentsState', () => {
     expect(state.filesWithUrls[1].description).toBe('A chart\nwith two lines.');
   });
 
+  it('caps a batch at ten files and explains why extra files were not added', async () => {
+    const files = Array.from({ length: 12 }, (_, i) => imageFile(`${i}.png`));
+
+    await state.stageFiles(files);
+
+    expect(state.selectedFiles).toEqual(files.slice(0, 10));
+    expect(prepareFilesMock).toHaveBeenCalledWith(files.slice(0, 10));
+    expect(getToasts().map((t) => t.message)).toEqual([
+      'You can attach up to 10 files per message. Extra files were not added.'
+    ]);
+  });
+
+  it('counts earlier selections and frees a slot when a file is removed', async () => {
+    await state.stageFiles(Array.from({ length: 10 }, (_, i) => imageFile(`${i}.png`)));
+    expect(getToasts()).toHaveLength(0);
+    prepareFilesMock.mockClear();
+
+    await state.stageFiles([imageFile('extra.png')]);
+    expect(prepareFilesMock).not.toHaveBeenCalled();
+    state.removeFile(0);
+    await state.stageFiles([imageFile('replacement.png'), imageFile('extra.png')]);
+
+    expect(state.selectedFiles).toHaveLength(10);
+    expect(state.selectedFiles.at(-1)?.name).toBe('replacement.png');
+  });
+
+  it('reserves slots while another selection is still being prepared', async () => {
+    const first = Array.from({ length: 9 }, (_, i) => imageFile(`${i}.png`));
+    const preparation = Promise.withResolvers<File[]>();
+    prepareFilesMock.mockImplementation((files: File[]) =>
+      files[0] === first[0] ? preparation.promise : Promise.resolve(files)
+    );
+
+    const pending = state.stageFiles(first);
+    await state.stageFiles([imageFile('last.png'), imageFile('extra.png')]);
+    expect(state.pendingCount).toBe(9);
+    preparation.resolve(first);
+    await pending;
+
+    expect(state.selectedFiles).toHaveLength(10);
+    expect(state.selectedFiles.some((file) => file.name === 'extra.png')).toBe(false);
+    expect(state.pendingCount).toBe(0);
+  });
+
+  it('releases slots after preparation fails', async () => {
+    prepareFilesMock.mockRejectedValueOnce(new Error('conversion failed'));
+    await state.stageFiles(Array.from({ length: 10 }, () => imageFile()));
+    expect(state.pendingCount).toBe(0);
+
+    await state.stageFiles([imageFile('retry.png')]);
+    expect(state.selectedFiles.map((file) => file.name)).toEqual(['retry.png']);
+  });
+
+  it.each(['clear', 'restore'] as const)('discards pending files after %s', async (operation) => {
+    const preparation = Promise.withResolvers<File[]>();
+    prepareFilesMock.mockReturnValueOnce(preparation.promise);
+    const pending = state.stageFiles([imageFile('old.png')]);
+
+    if (operation === 'clear') state.clear();
+    else state.restore([]);
+    await state.stageFiles(Array.from({ length: 10 }, () => imageFile('new.png')));
+    preparation.resolve([imageFile('old.png')]);
+    await pending;
+
+    expect(state.selectedFiles).toHaveLength(10);
+    expect(state.selectedFiles.every((file) => file.name === 'new.png')).toBe(true);
+    expect(state.pendingCount).toBe(0);
+  });
+
   it('rejects video files when video processing is disabled', async () => {
     await state.stageFiles([videoFile()]);
 

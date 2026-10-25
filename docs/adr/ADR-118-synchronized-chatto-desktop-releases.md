@@ -1,4 +1,4 @@
-# ADR-117: Synchronize Chatto and Desktop Releases
+# ADR-118: Synchronize Chatto and Desktop Releases
 
 **Date:** 2026-10-25
 

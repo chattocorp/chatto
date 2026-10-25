@@ -83,7 +83,7 @@ Manual verification builds retain the checked-in package version for native
 packaging, but identify the frontend as `{development-version}+{commit-sha}`.
 Matching release versions do not require matching client and server versions;
 the existing client-server compatibility rules still apply. See
-[ADR-117](adr/ADR-117-synchronized-chatto-desktop-releases.md).
+[ADR-118](adr/ADR-118-synchronized-chatto-desktop-releases.md).
 
 Before publishing a tag, the release workflow can verify the complete desktop
 packaging path without creating a release or building a Chatto server image.
