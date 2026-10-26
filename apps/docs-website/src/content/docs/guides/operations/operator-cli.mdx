@@ -25,6 +25,53 @@ The socket mode is always `0600`. Its parent directory must be owned by the Chat
   Anyone who can access the operator socket can create accounts, set passwords, assign roles, and delete accounts. Never publish the socket over TCP or mount it into an untrusted container.
 </Aside>
 
+## Import a portable archive
+
+The draft v1 importer accepts a directory in Chatto's interchange format.
+It does not accept a Slack export directly.
+
+```sh
+chatto operator import ./archive --validate-only \
+  --channel-prefix old- --username-suffix -imported
+
+chatto operator import ./archive --accept-omissions \
+  --channel-prefix old- --username-suffix -imported
+```
+
+Validation checks local files and destination compatibility without writes.
+The server must be running with the Operator API enabled. Both commands use the
+same naming options. Channel and username prefixes and suffixes are optional;
+defaults preserve source names. Invalid names and collisions stop validation.
+
+Start with a destination that has no messages. Existing accounts are permitted.
+Existing empty channels are permitted if their names do not collide. Keep the
+destination unused until import completes. To resume after a failure, repeat
+the command with the same archive and options. Progress is stored on the server
+without an expiry. Changed input cannot resume an existing import. Unrelated
+server changes stop an unfinished import. A completed import can be repeated
+without duplicates.
+
+The first version supports public channels, active human users, known message
+creation times, and available local files. New accounts require usernames.
+It preserves edits, threads, reactions, tombstone snapshots, and membership
+history. Final membership does not create invented join notices. Files must
+belong to one message; original bytes are stored without starting derivative
+media processing. Unsupported data fails validation. The initial limits are
+64 MiB total, 20,000 JSON records, and 1 MiB per record.
+
+Email addresses match existing accounts after trimming whitespace and ignoring
+case. Matched accounts keep their usernames, profiles, and credentials; naming
+prefixes and suffixes apply only to new accounts. Source records sharing emails
+resolve to one account. For a new account, the first record supplies the profile.
+If emails point to different existing accounts, validation fails.
+
+The importer trusts the archive's email claims and adds unowned addresses as
+verified emails. They can enable the configured email sign-in flow. It creates
+no passwords. Accounts without emails need access configured separately.
+The importer does not send historical notifications or fetch source
+URLs. Files go to the configured attachment store, including S3 when enabled.
+Declared losses require `--accept-omissions`. Generic export is not available yet.
+
 ## Create a user
 
 <Steps>

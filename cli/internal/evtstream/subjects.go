@@ -258,6 +258,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventServerSetupOffered
 	case *evtv1.Event_ServerInitialized:
 		return EventServerInitialized
+	case *evtv1.Event_ImportProgressed:
+		return EventImportProgressed
 	case *evtv1.Event_BotOutboundWebhookConfigured:
 		return "bot_outbound_webhook_configured"
 	case *evtv1.Event_BotOutboundWebhookRevoked:
@@ -858,3 +860,9 @@ const (
 
 // SetupAggregate owns first-run eligibility and permanent completion.
 func SetupAggregate() Aggregate { return Aggregate{Type: AggregateSetup, ID: "server"} }
+
+// ImportAggregate binds the initial destination import and its durable receipts.
+func ImportAggregate() Aggregate { return Aggregate{Type: "import", ID: "server"} }
+
+// EventImportProgressed is a permanent import receipt, committed with its facts.
+const EventImportProgressed = "import_progressed"

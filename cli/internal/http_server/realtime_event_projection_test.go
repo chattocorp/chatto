@@ -17,6 +17,21 @@ import (
 	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 )
 
+func TestImportedMembershipAndRetractionDoNotDeliverLive(t *testing.T) {
+	for _, source := range []*evtv1.Event{
+		{Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "room"}}},
+		{Event: &evtv1.Event_MessageRetracted{MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "room", EventId: "message"}}},
+	} {
+		if projectRealtimeEvent("viewer", source) == nil {
+			t.Fatal("ordinary event should deliver")
+		}
+		source.ImportContext = &evtv1.ImportContext{ExportId: "import"}
+		if projectRealtimeEvent("viewer", source) != nil {
+			t.Fatal("historical event delivered live")
+		}
+	}
+}
+
 func TestRealtimeMentionsCompactTargetsAndPreserveViewerResolution(t *testing.T) {
 	values := []*evtv1.MessageMention{
 		nil, {}, {UserId: "unknown-cause"},

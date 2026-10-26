@@ -67,6 +67,8 @@ message Room {
   optional uint32 thread_slow_mode_seconds = 12;
   // Creation-event timestamp, retained by the room catalog and its snapshot.
   google.protobuf.Timestamp created_at = 13;
+  // Separate room purpose retained by history interchange.
+  string purpose = 14;
 }
 
 // User represents a user account

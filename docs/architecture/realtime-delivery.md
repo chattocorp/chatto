@@ -3,8 +3,11 @@
 Historical message, thread-creation, and reaction-add facts are excluded from
 live room delivery and reconnect replay. Their durable historical markers also
 make the public event mapper reject them. Clients obtain imported state through
-resource reads. Tombstone imports use ordinary retractions, which are eligible
-for live delivery and reconnect replay.
+resource reads. The older per-record tombstone API uses ordinary retractions,
+which remain eligible for live delivery and reconnect replay. Generic archive
+imports mark all native facts with `ImportContext`; live and reconnect delivery
+and the public mapper exclude these facts, including retractions and membership
+changes. Hidden reconciliation facts also stay out of the visible room timeline.
 
 Key files:
 
