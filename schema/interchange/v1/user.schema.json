@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatto.chat/schema/interchange/v1/user.schema.json",
+  "description": "User identity at capture time. Email addresses are source claims, not login authority.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "username": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": ["human", "bot"]
+    },
+    "status": {
+      "enum": ["active", "deactivated", "deleted"]
+    },
+    "emails": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "email"
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": ["id", "username", "display_name", "kind", "status", "emails"],
+  "additionalProperties": false
+}

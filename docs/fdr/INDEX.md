@@ -37,7 +37,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-025](FDR-025-user-search-and-member-directory.md)      | User Search & Member Directory        | Active       | 2026-09-27    |
 | [FDR-026](FDR-026-last-room-memory.md)                      | Last-Room Memory                      | Active       | 2026-06-16    |
 | [FDR-027](FDR-027-pwa-and-service-worker.md)                | PWA & Service Worker                  | Active       | 2026-10-26    |
-| [FDR-028](FDR-028-operator-api-and-cli.md)                  | Operator API & CLI                    | Active       | 2026-10-25    |
+| [FDR-028](FDR-028-operator-api-and-cli.md)                  | Operator API & CLI                    | Active       | 2026-10-26    |
 | [FDR-029](FDR-029-chatto-shields.md)                        | Chatto Shields                        | Active       | 2026-08-23    |
 | [FDR-030](FDR-030-inline-message-timestamps.md)             | Inline Message Timestamps             | Active       | 2026-10-15    |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-10-16    |
@@ -49,7 +49,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-037](FDR-037-pinned-messages.md)                       | Pinned Messages                       | Active       | 2026-10-12    |
 | [FDR-038](FDR-038-bot-accounts.md)                          | Bot Accounts                          | Experimental | 2026-09-23    |
 | [FDR-039](FDR-039-message-access-and-interactions.md)       | Message Access & Interactions         | Experimental | 2026-09-20    |
-| [FDR-040](FDR-040-backup-and-restore.md)                    | Backup and Restore                    | Active       | 2026-08-27    |
+| [FDR-040](FDR-040-backup-and-restore.md)                    | Backup and Restore                    | Active       | 2026-10-26    |
 | [FDR-041](FDR-041-transactional-email-delivery.md)          | Transactional Email Delivery          | Active       | 2026-08-28    |
 | [FDR-042](FDR-042-chatto-neighbors.md)                      | Chatto Neighbors                      | Experimental | 2026-09-26    |
 | [FDR-043](FDR-043-model-context-protocol-integration.md)    | Model Context Protocol Integration    | Experimental | 2026-10-08    |
@@ -62,3 +62,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-050](FDR-050-provider-group-roles.md)                  | Provider Group Roles                  | Active       | 2026-10-14    |
 | [FDR-051](FDR-051-room-invitations.md)                      | Room Invitations                      | Experimental | 2026-10-22    |
 | [FDR-052](FDR-052-message-send-retries.md)                  | Message Send Retries                  | Experimental | 2026-10-08    |
+| [FDR-053](FDR-053-history-import-export.md)                 | History Import and Export             | Experimental | 2026-10-26    |

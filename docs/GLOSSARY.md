@@ -224,6 +224,15 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 domain fact. EVT stores this value. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
+**Interchange archive** — Portable catalogs, an ordered event file, and local
+asset bytes for transferring supported channel history. Its draft contract is
+separate from EVT and server backups. See [the format specification](interchange/v1.md).
+
+**Interchange event** — A source historical fact or an explicit final-state
+snapshot in an interchange archive. Historical facts retain known occurrence
+times. Snapshots preserve state without inventing timeline activity. They are
+not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
+
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).

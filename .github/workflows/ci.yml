@@ -294,6 +294,9 @@ jobs:
       - name: Test release publication policy
         run: mise test-release-policy
 
+      - name: Test interchange format contract
+        run: mise test-interchange
+
       - name: Test development launchers and routing
         run: mise test-dev-tooling
 

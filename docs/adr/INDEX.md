@@ -133,3 +133,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-116](ADR-116-consume-internal-packages-from-source.md)              | Consume Internal TypeScript Packages from Source                 | Accepted             | 2026-10-18 |
 | [ADR-117](ADR-117-message-post-idempotency.md)                           | Message Post Idempotency in Runtime State                        | Accepted             | 2026-10-08 |
 | [ADR-118](ADR-118-synchronized-chatto-desktop-releases.md)               | Synchronize Chatto and Desktop Releases                          | Accepted             | 2026-10-25 |
+| [ADR-119](ADR-119-portable-history-interchange.md)                       | Portable History Interchange                                    | Accepted             | 2026-10-26 |

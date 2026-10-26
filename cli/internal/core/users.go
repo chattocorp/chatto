@@ -47,6 +47,13 @@ type userCreationOptions struct {
 	botAPIKeyOut  *string
 	botAPIKeyName string
 	authorize     func() error
+	// importReceipt commits identity mapping with account creation. Retain keys
+	// after an ambiguous acknowledgement so a resumed import can hydrate it.
+	importReceipt func(string) evtstream.BatchEntry
+	importContext *evtv1.ImportContext
+	// importEmails are operator-trusted email claims, committed with the new
+	// account and its receipt. They use the normal encrypted email ownership index.
+	importEmails []string
 }
 
 func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*evtv1.User, error) {
@@ -247,8 +254,12 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		})
 	}
 
+	creationEmails := options.importEmails
 	if options.verifiedEmail != "" {
-		email := strings.ToLower(strings.TrimSpace(options.verifiedEmail))
+		creationEmails = []string{options.verifiedEmail}
+	}
+	for _, sourceEmail := range creationEmails {
+		email := strings.ToLower(strings.TrimSpace(sourceEmail))
 		verifiedEmailEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserVerifiedEmailAdded{
 			UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{UserId: userID},
 		}})
@@ -290,6 +301,13 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		// destroy the only owner's credentials and profile after successful setup.
 		cleanupEncryptionKey = false
 	}
+	if options.importReceipt != nil {
+		for _, entry := range entries {
+			entry.Event.ImportContext = options.importContext
+		}
+		entries = append(entries, options.importReceipt(userID))
+		cleanupEncryptionKey = false
+	}
 	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
 		if options.setup != nil {
 			if err := c.requireSetupAvailable(ctx); err != nil {
@@ -321,8 +339,8 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 				return ErrLimitExceeded
 			}
 		}
-		if options.verifiedEmail != "" {
-			if _, claimed := c.userModel.emailOwnerID(options.verifiedEmail); claimed {
+		for _, email := range creationEmails {
+			if _, claimed := c.userModel.emailOwnerID(email); claimed {
 				return ErrEmailAlreadyVerified
 			}
 		}
@@ -331,7 +349,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 				return ErrExternalIdentityAlreadyClaimed
 			}
 		}
-		if (options.verifiedEmail != "" || options.external != nil) && c.config.Limits.MaxUsersOrDefault() >= 0 {
+		if (len(creationEmails) > 0 || options.external != nil) && c.config.Limits.MaxUsersOrDefault() >= 0 {
 			if err := c.requireVerifiedAccountCapacity(ctx, ""); err != nil {
 				return err
 			}
