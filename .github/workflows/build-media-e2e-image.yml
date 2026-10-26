@@ -99,5 +99,5 @@ jobs:
           {
             echo "Published ${IMAGE} (linux/amd64)."
             echo
-            echo "Update the media job's image in .github/workflows/ci.yml to ${digest_ref} in the same PR as any Playwright upgrade."
+            echo "Update all test image digests in .github/workflows/ci.yml to ${digest_ref} in the same PR as any Playwright upgrade. Keep the frontend and Authling Playwright versions aligned."
           } >> "$GITHUB_STEP_SUMMARY"
