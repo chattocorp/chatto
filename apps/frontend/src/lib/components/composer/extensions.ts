@@ -586,7 +586,7 @@ export function createComposerExtensions(placeholder: string) {
     }),
     ComposerBold.configure(),
     ComposerUnderline.configure(),
-    ...textDecorationMarks,
+    ...textDecorationMarks.map((mark) => mark.configure()),
     ComposerLink.configure({
       autolink: true,
       shouldAutoLink: hasAutoLinkPrefix,
