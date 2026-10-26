@@ -50,6 +50,10 @@ Server and CLI Go Components:
 - Goth OAuth/OIDC authentication (https://github.com/markbates/goth) -
   MIT License
 - imageorient (https://github.com/disintegration/imageorient) - MIT License
+- heic (https://github.com/gen2brain/heic) - MIT License. Its embedded WASM
+  decoder includes imazen/heic (https://github.com/imazen/heic), AGPL-3.0-only.
+- purego (https://github.com/ebitengine/purego) - Apache License 2.0
+- wazero (https://github.com/tetratelabs/wazero) - Apache License 2.0
 - jellydator/ttlcache (https://github.com/jellydator/ttlcache) - MIT License
 - rs/cors (https://github.com/rs/cors) - MIT License
 - SCS session management (https://github.com/alexedwards/scs) - MIT License

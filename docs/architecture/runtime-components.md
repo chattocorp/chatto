@@ -53,6 +53,11 @@ the operation releases its slot when it returns. These memory controls are
 ephemeral and independent on each replica. Cache hits bypass the coordinator.
 See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
 
+The shared asset image decoder also accepts HEIC still images. Public and
+Operator uploads use header inspection; the image transform coordinator owns
+preview decoding. Original HEIC bytes remain in attachment storage. HEIC
+sequence containers are rejected before pixel decoding.
+
 INFO projection summaries report the projection name, rounded startup
 duration, replayed message count, restore source, and final sequence. Each
 projection logs one completion record, also at DEBUG verbosity. Expected

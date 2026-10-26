@@ -97,6 +97,11 @@ func InspectImage(r io.ReadSeeker) (ImageInfo, error) {
 	if err != nil {
 		return ImageInfo{}, fmt.Errorf("failed to decode image configuration: %w", err)
 	}
+	if format == "heic" {
+		if err := validateHEICStill(r); err != nil {
+			return ImageInfo{}, err
+		}
+	}
 	if config.Width <= 0 || config.Height <= 0 || config.Width > MaxDecodedImageDimension || config.Height > MaxDecodedImageDimension {
 		return ImageInfo{}, fmt.Errorf("image dimensions %dx%d exceed the supported limit", config.Width, config.Height)
 	}

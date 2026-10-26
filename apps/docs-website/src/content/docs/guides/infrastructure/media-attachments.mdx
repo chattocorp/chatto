@@ -25,6 +25,10 @@ files, use S3-compatible storage.
 | ----- | ------- | ------- |
 | All uploaded files, including GIFs and videos | 25 MB | `core.assets.max_upload_size` |
 
+API clients and import tools can upload HEIC still images with content type
+`image/heic` or `image/heif`. The server keeps the original file for download
+and generates JPEG or WebP previews. HEIC image sequences are not supported.
+
 Set one limit for all files:
 
 ```toml
