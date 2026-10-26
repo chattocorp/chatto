@@ -33,7 +33,11 @@ def file_references(message):
 
 
 def file_inventory(plan):
-    """Deduplicate downloads by source ID, preferring full metadata to stubs."""
+    """Combine compatible references by ID without changing source records.
+
+    A message can contain only an ID while another reference supplies download
+    metadata. Hidden stubs never override an available file description.
+    """
     result = {}
     for message in plan["messages"]:
         for item in file_references(message["source"]):
@@ -42,11 +46,14 @@ def file_inventory(plan):
                 raise ApplyError("Slack file reference has no ID.")
             previous = result.get(key)
             if previous and previous.get("mode") != "hidden_by_limit" and item.get("mode") != "hidden_by_limit":
-                for field in ("size", "name", "mimetype"):
-                    if previous.get(field) is not None and item.get(field) is not None and previous[field] != item[field]:
+                for field in ("size", "name", "mimetype", "mode", "is_external", "filetype"):
+                    if previous.get(field) not in (None, "") and item.get(field) not in (None, "") and previous[field] != item[field]:
                         raise ApplyError("Slack file metadata conflicts across references.")
+                for field, value in item.items():
+                    if previous.get(field) in (None, ""):
+                        previous[field] = value
             if previous is None or previous.get("mode") == "hidden_by_limit":
-                result[key] = item
+                result[key] = dict(item)
     return result
 
 

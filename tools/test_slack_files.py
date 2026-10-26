@@ -113,6 +113,24 @@ class DownloadTests(unittest.TestCase):
         self.assertEqual(convert(message, {}, False, has_attachments=True), "")
         self.assertNotIn("private-token", json.dumps(files.binding()))
 
+    def test_sparse_file_references_do_not_hide_later_download_metadata(self):
+        full = file_record()
+        sparse = {"id": full["id"], "name": full["name"]}
+        for references in ([sparse, full], [full, sparse]):
+            plan = {"messages": [{"source": {"files": [item]}} for item in references]}
+            self.assertEqual(file_inventory(plan), {full["id"]: full})
+        self.assertEqual(sparse, {"id": full["id"], "name": full["name"]})
+
+    def test_complementary_file_metadata_is_merged_but_conflicts_fail(self):
+        full = file_record()
+        first = {k:v for k,v in full.items() if k != "url_private_download"}
+        later = {"id": full["id"], "url_private_download": full["url_private_download"]}
+        plan = {"messages": [{"source": {"files": [first, later]}}]}
+        self.assertEqual(file_inventory(plan), {full["id"]: full})
+        later["size"] = full["size"] + 1
+        with self.assertRaisesRegex(ApplyError, "metadata conflicts"):
+            file_inventory(plan)
+
     def test_hidden_files_and_tombstones_stay_explicit(self):
         plan = {"messages": [{"source": {"files": [{"id": "F1", "mode": "hidden_by_limit"}]}}]}
         files = FileImports(plan, self.cache)
