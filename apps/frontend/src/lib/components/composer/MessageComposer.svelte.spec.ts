@@ -954,7 +954,7 @@ describe('MessageComposer', () => {
         expect(q(container, '[data-testid="message-composer"]')).toHaveClass('@container/composer');
         const toolbar = q(container, '[data-testid="composer-formatting-toolbar"]')!;
         expect(toolbar).toHaveClass('overflow-x-auto');
-        for (const button of toolbar.querySelectorAll('button')) {
+        for (const button of toolbar.querySelectorAll('button.pill-button')) {
           await expect
             .poll(() => button.getBoundingClientRect().height)
             .toBe(largeTargets ? 44 : 28);
@@ -965,6 +965,11 @@ describe('MessageComposer', () => {
             largeTargets ? 20 : 15
           );
         }
+        const effects = toolbar.querySelector('select')!;
+        await expect
+          .poll(() => effects.getBoundingClientRect().height)
+          .toBe(largeTargets ? 44 : 28);
+        expect(effects.getBoundingClientRect().width).toBeGreaterThanOrEqual(44);
       }
     );
 

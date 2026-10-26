@@ -156,7 +156,9 @@ block in the DOM until it finishes.
         {/each}
       </PillButtonGroup>
     {/each}
-    <div class="w-36 shrink-0">
+    <div
+      class="w-36 shrink-0 mobile-presentation:[&_option]:min-h-11 [&_select]:h-7 [&_select]:min-h-7 [&_select]:py-0 [&_select]:text-sm mobile-presentation:[&_select]:h-11 mobile-presentation:[&_select]:min-h-11"
+    >
       <Select
         id={`${id}-effects`}
         label={m('composer.effects.title')}
