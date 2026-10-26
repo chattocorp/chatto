@@ -121,9 +121,6 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_MessageEdited{MessageEdited: &realtimev1.MessageEditedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetEventId()}}
 	case *evtv1.Event_MessageRetracted:
 		v := e.MessageRetracted
-		if v.GetHistoricalImport() {
-			return nil
-		}
 		target.Event = &realtimev1.RealtimeEvent_MessageRetracted{MessageRetracted: &realtimev1.MessageRetractedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetEventId()}}
 	case *evtv1.Event_MessagePinned:
 		v := e.MessagePinned

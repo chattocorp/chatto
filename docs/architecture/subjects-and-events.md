@@ -276,8 +276,8 @@ bounded message-claim protocol; see [runtime state](runtime-state.md).
 
 Deleted imports commit `MessagePostedEvent`, optional `ThreadCreatedEvent`, and
 `MessageRetractedEvent` in one room-OCC batch without a body event or body key.
-The retraction's `historical_import` marker suppresses live delivery and
-reconnect replay. The post retains source creation time; the retraction records
+The retraction uses ordinary live delivery and reconnect replay, without an
+import-specific field. The post retains source creation time; the retraction records
 import time because the source deletion time is unknown. Historical replies can
 target deleted roots. The interactive posting rules do not change.
 

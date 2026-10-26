@@ -183,6 +183,8 @@ For safe retries, supply `--idempotency-key UUID` and retain the same UUID and a
 
 Use `--deleted` to import an already deleted message as a native tombstone. Omit body, attachments, preview, and edit time. The original creation time and author remain; Chatto records the retraction at import time because the source deletion time is unknown. You can combine `--deleted` with `--create-thread` or `--thread-id`. Historical replies can target a deleted root. Upgrade all server replicas before using deleted imports.
 
+Tombstone retractions use ordinary live delivery and reconnect replay. Connected clients can receive deletion updates during import.
+
 Save the UUID and first-attempt time before sending, and save the returned message ID. Stop retries before 30 minutes; after expiry the same UUID can create another message. Reconcile an older uncertain result manually. Finish upgrading all replicas to support import keys before relying on this guarantee: older servers can ignore the field.
 
 To establish an empty thread on a new root, add `--create-thread`. To import a reply inside a thread, use the existing root's ID:

@@ -330,7 +330,7 @@ func (c *ChattoCore) appendHistoricalTombstone(ctx context.Context, input Histor
 		}},
 	})
 	retracted := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_MessageRetracted{
-		MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: input.RoomID, EventId: messageID, HistoricalImport: true},
+		MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: input.RoomID, EventId: messageID},
 	}})
 	rootID := input.ThreadRootEventID
 	if input.CreateThread {

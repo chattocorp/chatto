@@ -57,7 +57,11 @@ func TestHistoricalTombstoneConcurrentReplayAndReplies(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, stored, count)
 		for _, event := range stored {
-			require.False(t, isDeliverableLiveEVTRoomEvent(event))
+			if event.GetMessageRetracted() != nil {
+				require.True(t, isDeliverableLiveEVTRoomEvent(event))
+			} else {
+				require.False(t, isDeliverableLiveEVTRoomEvent(event))
+			}
 		}
 	}
 	require.True(t, c.roomModel.messageTombstoned(rootID))
