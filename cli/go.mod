@@ -36,6 +36,7 @@ require (
 	github.com/charmbracelet/log v1.0.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/disintegration/imageorient v0.0.0-20180920195336-8147d86e83ec
+	github.com/gen2brain/heic v0.7.2
 	github.com/gin-contrib/sessions v1.1.2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-jose/go-jose/v4 v4.1.5
@@ -88,8 +89,10 @@ require (
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
+	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
+	github.com/tetratelabs/wazero v1.12.0 // indirect
 )
 
 require (

@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-25
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -168,6 +168,20 @@ already in the cache and newly posted attachments are inserted directly.
 **Why:** A full decode of a 40 megapixel image needs approximately 160 MB. In a small container, the kernel can stop the process during uploads or when many clients load a new image together. Go does not read the container memory limit, so without a limit the heap can grow to twice the live data before Go frees memory.
 
 **Tradeoff:** An image with valid headers but damaged pixel data is accepted at upload. Its derivatives fail when a client requests them, and the original stays available for download. Chunk uploads and transforms can wait during peaks, and a client on a link slower than approximately 0.3 Mbit/s cannot send a full 10 MiB chunk. Only two distinct transforms can run concurrently, even for small images. An admitted transform waiting for pixels holds its source bytes, but later requests cannot accumulate an unbounded number of source buffers. This limits concurrent source files rather than total memory: file sizes, pixel formats, output buffers, and results retained by callers vary. An animated GIF counts as at most 40 million pixels although its frames together can have more. The bounds apply to each process, not to the cluster.
+
+### 17. HEIC attachments keep their original bytes
+
+**Decision:** The server accepts HEIC still images through both the public and
+Operator upload APIs. It keeps the original bytes, filename, and content type
+for download, and generates JPEG or WebP previews on request. Import tools do
+not need to convert HEIC files before upload.
+
+**Why:** Imports must preserve the source file and checksum while browsers need
+a supported display format.
+
+**Tradeoff:** HEIC image sequences are rejected because their decode cost is
+not covered by the still-image pixel limit. The bundled frontend retains its
+upload conversion for older servers.
 
 ## Permissions
 

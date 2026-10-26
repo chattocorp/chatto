@@ -191,6 +191,8 @@ func TestIsImageContentType(t *testing.T) {
 		{"png", "image/png", true},
 		{"gif", "image/gif", true},
 		{"webp", "image/webp", true},
+		{"heic", "image/heic", true},
+		{"heif", "image/heif", true},
 		{"text plain", "text/plain", false},
 		{"application json", "application/json", false},
 		{"video mp4", "video/mp4", false},
