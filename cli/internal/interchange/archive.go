@@ -45,8 +45,8 @@ type Archive struct {
 	Events   []Event           `json:"-"`
 }
 
-// Manifest describes the capture and declared losses. Source claims do not
-// authorize account activation or grant trust to source email addresses.
+// Manifest describes the capture and declared losses. The destination importer
+// defines the trust policy for source identities and email claims.
 type Manifest struct {
 	ExportID    string     `json:"export_id"`
 	CapturedAt  *string    `json:"captured_at"`

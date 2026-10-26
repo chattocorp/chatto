@@ -3,6 +3,7 @@ package interchange
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,9 +103,7 @@ func TestArchiveHistoryRules(t *testing.T) {
 		}, "invalid message reference"},
 		{"duplicate thread", func(events []map[string]any) []map[string]any {
 			event := map[string]any{}
-			for k, v := range events[3] {
-				event[k] = v
-			}
+			maps.Copy(event, events[3])
 			event["id"] = "another-thread-event"
 			return append(events, event)
 		}, "invalid thread declaration"},
@@ -131,7 +130,7 @@ func TestArchiveHistoryRules(t *testing.T) {
 			a, err := ReadDirectory(exampleDirectory)
 			require.NoError(t, err)
 			var events []map[string]any
-			for _, line := range bytes.Split(bytes.TrimSpace(a.Metadata["events.jsonl"]), []byte{'\n'}) {
+			for line := range bytes.SplitSeq(bytes.TrimSpace(a.Metadata["events.jsonl"]), []byte{'\n'}) {
 				var event map[string]any
 				require.NoError(t, json.Unmarshal(line, &event))
 				events = append(events, event)

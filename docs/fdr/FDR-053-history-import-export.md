@@ -15,7 +15,7 @@ subset and implementation limits.
 ## Behavior
 
 - `chatto operator import PATH` validates and imports a directory into a
-  blank destination through the configured operator socket. Repeating the same
+  destination without conversation history through the configured operator socket. Repeating the same
   immutable import will resume it; no separate plan or mapping file is required.
 - `--validate-only` checks the archive and destination over the local operator
   socket without writes. Invalid references,

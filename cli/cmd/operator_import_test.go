@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -50,9 +51,7 @@ func TestOperatorImportLostResponse(t *testing.T) {
 			}
 			return
 		}
-		for key, values := range recorded.Header() {
-			w.Header()[key] = values
-		}
+		maps.Copy(w.Header(), recorded.Header())
 		w.WriteHeader(recorded.Code)
 		_, _ = w.Write(recorded.Body.Bytes())
 	})

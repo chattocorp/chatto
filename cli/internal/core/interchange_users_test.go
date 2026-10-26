@@ -26,6 +26,7 @@ func archiveWithEmails(t *testing.T, emails ...[]string) *interchange.Archive {
 }
 
 func TestImportArchiveMatchesExistingEmailsAndCreatesUnownedEmails(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	existing, err := c.CreateVerifiedUser(ctx, SystemActorID, "existing", "Existing profile", "password123", "alice@example.com")
@@ -61,6 +62,7 @@ func TestImportArchiveMatchesExistingEmailsAndCreatesUnownedEmails(t *testing.T)
 }
 
 func TestImportArchiveCoalescesSourceEmailAliases(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	a := archiveWithEmails(t, []string{"shared@example.com"}, []string{"SHARED@example.com", "alias@example.com"})
@@ -80,6 +82,7 @@ func TestImportArchiveCoalescesSourceEmailAliases(t *testing.T) {
 }
 
 func TestImportArchiveRejectsConflictingEmailOwnersBeforeWrites(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	_, err := c.CreateVerifiedUser(ctx, SystemActorID, "first", "First", "", "first@example.com")

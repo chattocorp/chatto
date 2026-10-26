@@ -9,12 +9,14 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	"github.com/chattocorp/chatto/cli/internal/interchange"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestImportArchiveConversation(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	a, err := interchange.ReadDirectory("../../../schema/interchange/v1/examples/conversation")
@@ -110,6 +112,7 @@ func TestImportArchiveConversation(t *testing.T) {
 }
 
 func TestImportArchivePreflightRejectsWithoutWrites(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ name, old, replacement, want string }{
 		{"private channel", `"visibility":"public"`, `"visibility":"private"`, "unsupported destination channel"},
 		{"username collision", `"username":"bob"`, `"username":"alice"`, "username collision"},
@@ -140,6 +143,7 @@ func TestImportArchivePreflightRejectsWithoutWrites(t *testing.T) {
 }
 
 func TestImportArchiveReconcilesMembershipWithoutInventedJoin(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	a, err := interchange.ReadDirectory("../../../schema/interchange/v1/examples/conversation")
@@ -167,9 +171,12 @@ func TestImportArchiveReconcilesMembershipWithoutInventedJoin(t *testing.T) {
 }
 
 func TestImportArchiveResumesAcrossFreshCore(t *testing.T) {
+	t.Parallel()
 	for _, cut := range []uint64{1, 2, 3, 4, 5, 8, 15, 16} {
 		t.Run(fmt.Sprint(cut), func(t *testing.T) {
-			c, nc := newTestCore(t)
+			ns, nc := testutil.StartNATS(t)
+			c, err := NewChattoCore(testContext(t), nc, testCoreConfig())
+			require.NoError(t, err)
 			original := c.EventPublisher.TypedEventLog
 			injected := errors.New("injected interruption")
 			// Fail encoding before one atomic batch. Every earlier operation is
@@ -188,13 +195,13 @@ func TestImportArchiveResumesAcrossFreshCore(t *testing.T) {
 			startCoreServices(t, c)
 			ctx := testContext(t)
 			a := archiveWithEmails(t, []string{"alice@example.com"}, []string{"bob@example.com"})
-			_, err := c.ImportArchive(ctx, a, ImportNaming{}, false, true)
+			_, err = c.ImportArchive(ctx, a, ImportNaming{}, false, true)
 			require.ErrorIs(t, err, injected)
 			receipts, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.ImportAggregate().AllEventsFilter())
 			require.NoError(t, err)
 			require.Len(t, receipts, int(cut))
 			// A new core cold-replays EVT; it has no import memory from c.
-			restarted, err := NewChattoCore(ctx, nc, testCoreConfig())
+			restarted, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
 			require.NoError(t, err)
 			startCoreServices(t, restarted)
 			result, err := restarted.ImportArchive(ctx, a, ImportNaming{}, false, true)
@@ -221,13 +228,16 @@ func TestImportArchiveResumesAcrossFreshCore(t *testing.T) {
 }
 
 func TestImportArchiveConcurrentWriters(t *testing.T) {
-	c, _ := setupTestCore(t)
+	t.Parallel()
+	ns, _ := testutil.StartNATS(t)
+	c := startReplica(t, ns, testCoreConfig())
+	other := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
 	finished := make(chan error, 2)
-	for range 2 {
+	for _, writer := range []*ChattoCore{c, other} {
 		a, err := interchange.ReadDirectory("../../../schema/interchange/v1/examples/conversation")
 		require.NoError(t, err)
-		go func() { _, err := c.ImportArchive(ctx, a, ImportNaming{}, false, true); finished <- err }()
+		go func() { _, err := writer.ImportArchive(ctx, a, ImportNaming{}, false, true); finished <- err }()
 	}
 	first, second := <-finished, <-finished
 	if first != nil && second != nil {
