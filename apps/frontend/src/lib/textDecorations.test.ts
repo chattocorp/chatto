@@ -21,6 +21,26 @@ function roundTrip(source: string) {
 }
 
 describe('inline text decorations', () => {
+  it('serializes visual marks across hard breaks as separate inline pairs', async () => {
+    const manager = new MarkdownManager({ extensions: createComposerExtensions('') });
+    const marks = [{ type: 'text-wave' }];
+    const source = manager.serialize({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'first', marks },
+            { type: 'hardBreak', marks },
+            { type: 'text', text: 'second', marks }
+          ]
+        }
+      ]
+    });
+    const html = await renderMarkdown(source);
+    expect(html).not.toContain('&lt;text-wave&gt;');
+    expect(html.match(/class="text-decoration text-wave"/g)).toHaveLength(2);
+  });
   it.each(TEXT_DECORATIONS)('renders and round-trips %s', async (tag) => {
     const source = `Before <${tag}>hello **world** 👩🏽‍🚀 مرحبا</${tag}> after`;
     const html = await renderMarkdown(source);
