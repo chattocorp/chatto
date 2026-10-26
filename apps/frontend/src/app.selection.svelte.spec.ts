@@ -55,7 +55,9 @@ it('allows mouse selection of ordinary content without a selection override', as
 it.each(['btn', 'menu-item', 'menu-entry'])(
   'does not select the label of a %s control during a drag',
   async (className) => {
-    fixture = document.createElement('button');
+    // Use a custom control so native button behavior cannot hide a missing CSS rule.
+    fixture = document.createElement('div');
+    fixture.setAttribute('role', 'button');
     fixture.className = className;
     fixture.textContent = 'Example action';
     document.body.append(fixture);
