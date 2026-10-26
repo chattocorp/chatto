@@ -101,7 +101,9 @@ operations do not duplicate these outcomes.
   `search.BleveProvider`, started by `[search_provider].enabled` under
   `chatto run` or as `chatto search-provider`; opens existing EVT and encryption
   resources without starting `ChattoCore`, exposes status during startup replay,
-  and joins the shared query queue only after replay is current.
+  and joins the shared query queue only after replay is current. After query and
+  status endpoints are registered, it logs `stage=service_ready`; the operator's
+  standalone search wrapper uses this field to mark the pod ready.
 - **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
