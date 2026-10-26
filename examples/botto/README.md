@@ -465,7 +465,10 @@ the shared client timeline in the same message format used by that merge.
 MCP extension, and observes tool outcomes.
 `src/memory.ts` finds memory documents and owns the shared memory lock.
 Agent tests use a mocked Runling boundary. Botto's conversation tests use Runling's real
-persistent host to check routing, restart, failure, and shutdown. A restoration test opens a real Pi transcript
+persistent host to check routing, restart, failure, and shutdown. A usage test runs
+Botto through real Runling and Pi sessions with a synthetic provider stream. It
+checks journal costs and confirms that reopening a transcript does not count old
+tokens again or expose prompt and reply text. A restoration test opens a real Pi transcript
 in a fresh process and checks its session ID and model context. Tests do not
 contact a model provider. Native MCP tests use real Pi sessions and in-memory
 protocol transports. The `test-botto` GitHub Actions job runs the type check

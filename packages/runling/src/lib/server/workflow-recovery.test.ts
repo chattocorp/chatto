@@ -80,7 +80,7 @@ test('run usage includes prior attempts in live records and repeated journal rea
     priced = false;
     let browser: RunDetail | undefined;
     const unsubscribe = history.subscribe((_id, record) => {
-      if (record.type === 'started') browser = record.run;
+      if (record.type === 'started') browser = structuredClone(record.run);
       else browser = applyRecord(browser!, record);
     });
     await history.restore({ meter: root });

@@ -4,6 +4,8 @@ import { getRunStore } from './run-store.ts';
 
 const state = globalThis as typeof globalThis & {
   __runlingSourceHost?: Promise<{ close(): Promise<void> }>;
+  __runlingRunStore?: ReturnType<typeof getRunStore>;
+  __runlingConfigReloader?: ReturnType<typeof getConfigReloader>;
 };
 
 /** Eager singleton shared by the development server, packaged server, and HTTP routes. */
@@ -11,7 +13,11 @@ export function startSourceHost() {
   return (state.__runlingSourceHost ??= (async () => {
     const config = getConfigReloader();
     const store = await getRunStore().catch(async (error) => {
-      await config.close();
+      try {
+        await config.close();
+      } finally {
+        delete state.__runlingRunStore;
+      }
       throw error;
     });
     const manager = new SourceManager(
@@ -20,6 +26,27 @@ export function startSourceHost() {
           store.start(name, task, input, 'source'),
       (name) => store.sourceRuns(name)
     );
+    let unsubscribe = () => {};
+    // Release every owner even when the final snapshot cannot be saved. A later
+    // host must never reuse a rejected store or a closed source generation.
+    const close = async () => {
+      unsubscribe();
+      try {
+        try {
+          await config.close();
+        } finally {
+          try {
+            await manager.close();
+          } finally {
+            await store.close();
+          }
+        }
+      } finally {
+        delete state.__runlingRunStore;
+        delete state.__runlingSourceHost;
+        delete state.__runlingConfigReloader;
+      }
+    };
     let revision = -1;
     const reload = async () => {
       const next = await config.load();
@@ -31,32 +58,16 @@ export function startSourceHost() {
     try {
       await reload();
     } catch (error) {
-      await config.close();
-      await manager.close();
-      await store.close();
-      delete (globalThis as typeof globalThis & { __runlingRunStore?: unknown }).__runlingRunStore;
+      await close();
       throw error;
     }
-    const unsubscribe = config.subscribe(() => {
+    unsubscribe = config.subscribe(() => {
       void reload().catch(() => {});
     });
-    return {
-      async close() {
-        unsubscribe();
-        await config.close();
-        await manager.close();
-        await store.close();
-        delete (globalThis as typeof globalThis & { __runlingRunStore?: unknown })
-          .__runlingRunStore;
-        delete state.__runlingSourceHost;
-        delete (globalThis as typeof globalThis & { __runlingConfigReloader?: unknown })
-          .__runlingConfigReloader;
-      }
-    };
+    return { close };
   })().catch((error) => {
     delete state.__runlingSourceHost;
-    delete (globalThis as typeof globalThis & { __runlingConfigReloader?: unknown })
-      .__runlingConfigReloader;
+    delete state.__runlingConfigReloader;
     throw error;
   }));
 }

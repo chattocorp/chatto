@@ -143,6 +143,38 @@ try {
   });
   assert.equal(process.listenerCount('SIGTERM'), originalSignals);
   await final[Symbol.asyncDispose]();
+  // A failed final snapshot must still release the singleton store and sources.
+  const invalidReady = Promise.withResolvers();
+  const invalid = task(
+    { name: 'Invalid state', input: Type.Null(), result: Type.Null() },
+    async (ctx) => {
+      ctx.state.invalid = 1n;
+      invalidReady.resolve();
+      for await (const _ of ctx.steering);
+      return null;
+    }
+  );
+  const broken = await serve({
+    config: defineWebConfig({
+      sources: {
+        fixture: async (source) => {
+          await source.dispatch(async (route) => {
+            await route.start(invalid, { input: null });
+          }, null);
+          if (!source.signal.aborted)
+            await new Promise((resolve) =>
+              source.signal.addEventListener('abort', resolve, { once: true })
+            );
+        }
+      }
+    }),
+    dataDirectory: join(directory, 'invalid-state'),
+    port: 0,
+    signals: false
+  });
+  await invalidReady.promise;
+  await assert.rejects(broken.close(), /JSON|BigInt/);
+  assert.equal(process.env.RUNLING_DATA_DIRECTORY, originalDirectory);
   // File-based project setup selects storage before any log or run store opens.
   const projectData = join(directory, 'project-data');
   const configPath = join(directory, 'runling.config.ts');

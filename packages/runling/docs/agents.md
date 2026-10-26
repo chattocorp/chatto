@@ -437,7 +437,8 @@ them.
 `agent()` now returns a task synchronously. For code that used
 `await agent(options)` and then called `.run()`, `.runOutcome()`, `.steer()`, or
 `.fork()`, replace the constructor with `await createAgentSession(options)`.
-The session methods and `AgentOptions` type are unchanged.
+The interaction methods and `AgentOptions` type are unchanged. Await `dispose()`
+as described above, or use asynchronous disposal.
 
 For a task that only created a text session, ran a prompt, and returned its
 summary, use `agent({ name, ... })` directly. Remove manual run and disposal
