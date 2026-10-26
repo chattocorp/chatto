@@ -1,6 +1,10 @@
 name: Setup Playwright
-description: Cache and install the Chromium browser and system dependencies used by Playwright
+description: Verify Chromium in the E2E image, or install it on a host runner
 inputs:
+  use-image:
+    description: Require the preinstalled browser from the E2E test image
+    required: false
+    default: 'false'
   working-directory:
     description: Directory whose Playwright dependency selects the browser build
     required: false
@@ -12,7 +16,23 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Verify image Playwright version and Chromium
+      if: inputs.use-image == 'true'
+      shell: bash
+      env:
+        PLAYWRIGHT_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        expected="$(cat /opt/media-e2e-playwright-version)"
+        actual="$(pnpm --dir "$PLAYWRIGHT_DIRECTORY" exec playwright --version)"
+        if test "$actual" != "Version $expected"; then
+          echo '::error::Align Playwright versions, rebuild the E2E image, and update all workflow image digests in this branch.'
+          exit 1
+        fi
+        mkdir -p "$GITHUB_WORKSPACE/.context"
+        pnpm --dir "$PLAYWRIGHT_DIRECTORY" exec playwright screenshot --browser chromium about:blank "$GITHUB_WORKSPACE/.context/e2e-chromium.png"
+
     - name: Resolve Playwright version
+      if: inputs.use-image != 'true'
       id: playwright-version
       shell: bash
       run: |
@@ -20,7 +40,7 @@ runs:
         echo "version=${version// /-}" >> "$GITHUB_OUTPUT"
 
     - name: Restore Playwright browsers
-      if: inputs.save-cache != 'true'
+      if: inputs.use-image != 'true' && inputs.save-cache != 'true'
       uses: actions/cache/restore@v5
       with:
         path: ~/.cache/ms-playwright
@@ -29,7 +49,7 @@ runs:
           playwright-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Restore and save Playwright browsers
-      if: inputs.save-cache == 'true'
+      if: inputs.use-image != 'true' && inputs.save-cache == 'true'
       uses: actions/cache@v5
       with:
         path: ~/.cache/ms-playwright
@@ -38,5 +58,6 @@ runs:
           playwright-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Install Playwright dependencies
+      if: inputs.use-image != 'true'
       shell: bash
       run: pnpm --dir "${{ inputs.working-directory }}" exec playwright install chromium --with-deps
