@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.2.0](https://github.com/chattocorp/chatto/compare/chatto-client/v0.1.1...chatto-client/v0.2.0) (2026-10-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** report bot presence and separate broadcast mentions ([#3170](https://github.com/chattocorp/chatto/issues/3170))
+* **client:** bound room and thread stores with a recently-used limit ([#3160](https://github.com/chattocorp/chatto/issues/3160))
+
+### Features
+
+* **client:** adapt upload chunks to connection speed ([#3181](https://github.com/chattocorp/chatto/issues/3181)) ([bf769cf](https://github.com/chattocorp/chatto/commit/bf769cf82403a337409b7ea8c11d993357692bcc))
+* **client:** bound room and thread stores with a recently-used limit ([#3160](https://github.com/chattocorp/chatto/issues/3160)) ([585b46f](https://github.com/chattocorp/chatto/commit/585b46ff204abc22a5c32f741cb46b404fe94fb2))
+* **client:** keep thread timelines live and report load errors ([#3149](https://github.com/chattocorp/chatto/issues/3149)) ([3b84f67](https://github.com/chattocorp/chatto/commit/3b84f6754f491b6645a32e9b4fdcc6e67239fcee))
+* **client:** make the number of kept rooms and threads configurable ([#3166](https://github.com/chattocorp/chatto/issues/3166)) ([2ff7578](https://github.com/chattocorp/chatto/commit/2ff7578223ae654614ccc0e8af2a7ef043afd6b1))
+* **client:** report bot presence and separate broadcast mentions ([#3170](https://github.com/chattocorp/chatto/issues/3170)) ([ebc9ac7](https://github.com/chattocorp/chatto/commit/ebc9ac796af5aab1d6c399536fc320310b280ab9))
+* **messages:** make keyed sends safe to retry across transports ([#2880](https://github.com/chattocorp/chatto/issues/2880)) ([1d355e1](https://github.com/chattocorp/chatto/commit/1d355e18b27148ea35359273172c4e9f3d1106cd))
+
+
+### Bug Fixes
+
+* **client:** read the server version again at each realtime catch-up ([#3169](https://github.com/chattocorp/chatto/issues/3169)) ([742cf9b](https://github.com/chattocorp/chatto/commit/742cf9be9cf23ed5b5d1218ba2e1d223001755ef))
+* **frontend:** enforce the message attachment limit in the composer ([#3168](https://github.com/chattocorp/chatto/issues/3168)) ([57028ee](https://github.com/chattocorp/chatto/commit/57028eefe53841499b637b0a92b2c79b7d5b1729))
+
+
+### Performance Improvements
+
+* **client:** skip the user re-read in inactive-server polls ([#3165](https://github.com/chattocorp/chatto/issues/3165)) ([55e92ac](https://github.com/chattocorp/chatto/commit/55e92acd109502317d4a724ce451eacaab259180))
+
 ## 0.1.1 (2026-10-23)
 
 ### Maintenance
