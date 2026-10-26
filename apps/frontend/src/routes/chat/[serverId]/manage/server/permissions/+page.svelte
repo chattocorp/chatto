@@ -30,7 +30,10 @@
 />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.permissions.title')} subtitle={m('admin.permissions.subtitle')} />
+  <PaneHeader
+    title={m('admin.permissions.title')}
+    subtitle={canManageRoles ? m('admin.permissions.subtitle') : undefined}
+  />
 
   <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col gap-6">

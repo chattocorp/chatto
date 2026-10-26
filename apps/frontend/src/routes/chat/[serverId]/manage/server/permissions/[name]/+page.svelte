@@ -222,7 +222,7 @@
 
 <div class="pane-page">
   <PaneHeader
-    title={m('admin.permissions.edit_role_title')}
+    title={canManageRoles ? m('admin.permissions.edit_role_title') : m('admin.common.role_details')}
     subtitle={role?.displayName ?? m('admin.permissions.loading_role')}
     subtitleContent={roleSubtitle}
     backHref={permissionsHref}
