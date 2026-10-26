@@ -28,6 +28,16 @@
   const codeHtml = renderMarkdown(
     '```js\nconst answer = 42;\n\nconsole.log("A long line of code stays inside its block and scrolls horizontally", answer);\n```\n\n    Indented code'
   );
+  const ansiHtml = renderMarkdown(
+    '```ansi\n' +
+      '\x1b[1;36m╔══════════════════════════════════════╗\n' +
+      '║            C H A T T O                ║\n' +
+      '╚══════════════════════════════════════╝\n\x1b[0m' +
+      '\x1b[31m████\x1b[33m████\x1b[32m████\x1b[36m████\x1b[34m████\x1b[35m████\x1b[0m\n' +
+      '\x1b[38;2;255;150;90m▀▄▀▄▀▄  Unicode + true color  ▄▀▄▀▄▀\x1b[0m\n' +
+      'Drawing...\x1b[6;1H\x1b[2K\x1b[92mCursor movement works.\x1b[0m\n' +
+      '```'
+  );
   const quoteHtml = renderMarkdown(`Text *marked with stars* and _marked with underscores_.
 
 > Quoted text *marked with stars* and _marked with underscores_.
@@ -95,6 +105,16 @@
       {#await codeHtml}
         <span class="text-muted">Rendering code…</span>
       {:then html}
+        <MarkdownHtml {html} />
+      {/await}
+    </div>
+  </div>
+</Story>
+
+<Story name="ANSI art" asChild>
+  <div class="w-xl max-w-full rounded-md border border-border bg-surface p-3">
+    <div class="prose max-w-none min-w-0">
+      {#await ansiHtml then html}
         <MarkdownHtml {html} />
       {/await}
     </div>

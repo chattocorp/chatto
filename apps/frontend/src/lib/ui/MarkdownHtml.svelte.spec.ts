@@ -158,6 +158,21 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it('renders ANSI screen cells in the browser and copies the original escape codes', async () => {
+    const source = '\x1b[31mwrong\x1b[1GART\x1b[K\n';
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```ansi\n' + source + '```')
+    });
+    container.classList.add('prose');
+    const code = container.querySelector('.markdown-ansi code')!;
+    expect(code.textContent?.trim()).toBe('ART');
+    expect(getComputedStyle(code.querySelector('span')!).color).toBe('rgb(170, 0, 0)');
+    expect(getComputedStyle(code.parentElement!).backgroundColor).toBe('rgb(0, 0, 0)');
+    expect(getComputedStyle(code).whiteSpace).toBe('pre');
+    await userEvent.click(container.querySelector('button[data-markdown-copy]')!);
+    expect(writeText).toHaveBeenCalledWith(source);
+  });
+
   it('copies the original code from each block by mouse and keyboard', async () => {
     const html = await renderMarkdown('```text\n\tfirst\n```\n\n    second\n\n`inline`');
     const { container } = render(MarkdownHtml, { html });
