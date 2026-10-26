@@ -3,13 +3,45 @@ package connectapi
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPermissionExplanationReportsPrivilegedModeGate(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage))
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "explanation-target", "Explanation Target", "password123")
+	require.NoError(t, err)
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, target.Id, core.PermServerManage))
+	ctx := authctx.WithCredential(withCaller(env.ctx, env.viewer), authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindBearerToken, UserID: env.viewer.Id,
+		Handle: "inspector-session", PrivilegedModeExpiresAt: time.Now().Add(time.Hour),
+	})
+	response, err := env.permissions.ExplainPermissions(ctx, connect.NewRequest(&adminv1.ExplainPermissionsRequest{UserId: target.Id}))
+	require.NoError(t, err)
+	found := false
+	for _, explanation := range response.Msg.Explanations {
+		if explanation.Permission != string(core.PermServerManage) {
+			continue
+		}
+		found = true
+		require.Equal(t, adminv1.PermissionDecision_PERMISSION_DECISION_DENY, explanation.State)
+		require.Equal(t, "@privileged-mode", explanation.DecidedByRole)
+		require.Len(t, explanation.Trace, 2)
+		require.True(t, explanation.Trace[0].Applied)
+		require.Equal(t, "@privileged-mode", explanation.Trace[0].RoleName)
+		require.False(t, explanation.Trace[1].Applied)
+		require.Equal(t, adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW, explanation.Trace[1].Decision)
+	}
+	require.True(t, found, "server.manage explanation missing")
+}
 
 func TestPermissionMatricesExcludeArchivedChannels(t *testing.T) {
 	t.Parallel()

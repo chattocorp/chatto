@@ -222,7 +222,7 @@
 
 <div class="pane-page">
   <PaneHeader
-    title={m('admin.permissions.edit_role_title')}
+    title={canManageRoles ? m('admin.permissions.edit_role_title') : m('admin.common.role_details')}
     subtitle={role?.displayName ?? m('admin.permissions.loading_role')}
     subtitleContent={roleSubtitle}
     backHref={permissionsHref}
@@ -235,9 +235,9 @@
         <LoadingFog class="h-40 w-full" label={m('admin.permissions.loading_role')} />
       {:else if !role}
         <Hint tone="danger">{m('admin.permissions.role_not_found')}</Hint>
-      {:else if !canManageRoles}
+      {:else if !canManageRoles && !canAssignRoles}
         <Hint tone="danger">{m('admin.permissions.need_manage_edit')}</Hint>
-      {:else}
+      {:else if canManageRoles}
         {#if error}
           <FormError {error} />
         {/if}
@@ -267,7 +267,7 @@
         <RolePermissionsMatrix {roleName} />
       {/if}
 
-      {#if role && canManageRoles}
+      {#if role && (canManageRoles || canAssignRoles)}
         <!-- Users with this role -->
         {#if canAssignRoles || role.name === 'everyone'}
           <Panel
@@ -289,7 +289,7 @@
                   loadingMore={membersQuery.isFetchingNextPage}
                   onLoadMore={loadMoreMembers}
                   loadMoreRoot={scrollContainer}
-                  clickable={canAssignRoles}
+                  clickable={serverScope.store.permissions.canAdminViewUsers}
                   emptyMessage={m('admin.permissions.no_users_with_role')}
                 />
               {/if}

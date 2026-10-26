@@ -11,9 +11,10 @@ import { testSnippet } from '$lib/test-utils';
 import { RealtimeProjectionSyncState } from '@chatto/client/server/realtimeSync';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
-vi.mock('$app/state', () => ({
+const { page } = vi.hoisted(() => ({
   page: { url: new URL('https://example.test/chat/origin/manage/server/permissions') }
 }));
+vi.mock('$app/state', () => ({ page }));
 vi.mock('$app/paths', () => ({
   base: '',
   assets: '',
@@ -34,6 +35,7 @@ let server: TestServerScope;
 let sync: RealtimeProjectionSyncState;
 
 beforeEach(() => {
+  page.url = new URL('https://example.test/chat/origin/manage/server/permissions');
   sync = new RealtimeProjectionSyncState();
   sync.markCaughtUp('initial');
   server = createTestServerScope({
@@ -44,6 +46,39 @@ beforeEach(() => {
 });
 
 describe('management route admission', () => {
+  it.each(['', '/moderator'])(
+    'admits role assigners to the role list and roster: %s',
+    async (suffix) => {
+      page.url = new URL(`https://example.test/chat/origin/manage/server/permissions${suffix}`);
+      server.permissions.canAdminManageRoles = false;
+      server.permissions.canAssignRoles = true;
+      const { container } = render(Layout, {
+        props: { children: testSnippet('<p>Role roster</p>') }
+      });
+      await tick();
+      expect(container.textContent).toContain('Role roster');
+      server.permissions.canAssignRoles = false;
+      await tick();
+      expect(container.textContent).not.toContain('Role roster');
+      expect(container.textContent).toContain('Access Denied');
+    }
+  );
+
+  it.each(['/permissions/new', '/members'])(
+    'keeps broader tools blocked for role assigners: %s',
+    async (suffix) => {
+      page.url = new URL(`https://example.test/chat/origin/manage/server${suffix}`);
+      server.permissions.canAdminManageRoles = false;
+      server.permissions.canAssignRoles = true;
+      const { container } = render(Layout, {
+        props: { children: testSnippet('<p>Private editor</p>') }
+      });
+      await tick();
+      expect(container.textContent).not.toContain('Private editor');
+      expect(container.textContent).toContain('Access Denied');
+    }
+  );
+
   it('retains an admitted page through refresh and removes it on confirmed access loss', async () => {
     const { container } = render(Layout, {
       props: { children: testSnippet('<input data-testid="filter" />') }
