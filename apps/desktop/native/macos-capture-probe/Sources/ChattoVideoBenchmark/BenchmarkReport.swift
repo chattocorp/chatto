@@ -23,20 +23,26 @@ enum BenchmarkReport {
 
   static func write(_ results: [BenchmarkResult], options: BenchmarkOptions) throws {
     func number(_ value: Double?) -> String { value.map { String(format: "%.3f", $0) } ?? "" }
+    func flag(_ value: Bool?) -> String { value.map { $0 ? "true" : "false" } ?? "" }
     var rows = ["configuration,repeat,hardware,encoded_frames,dropped_frames,average_mbps,peak_1s_mbps,peak_5s_mbps,encode_p95_ms,submit_lateness_max_ms,still_psnr_db,motion_psnr_db,unsupported_properties,exceeds_configured_5s_ceiling,exceeds_8mbps_5s_ceiling,failed"]
     for result in results {
-      rows.append([
-        result.configuration.name, String(result.repetition), result.hardware.map(String.init) ?? "",
+      var columns: [String] = [
+        result.configuration.name, String(result.repetition), flag(result.hardware),
         String(result.encodedFrames), String(result.droppedFrames),
+      ]
+      columns.append(contentsOf: [
         number(result.averageBps.map { $0 / 1_000_000 }),
         number(result.peakOneSecondBps.map { $0 / 1_000_000 }),
         number(result.peakFiveSecondBps.map { $0 / 1_000_000 }),
         number(result.p95EncodeLatencyMs), number(result.maximumSubmitLatenessMs),
         number(result.stillLumaPSNR), number(result.motionLumaPSNR),
+      ])
+      columns.append(contentsOf: [
         String(result.properties.filter { $0.setStatus != 0 }.count),
-        result.exceedsConfiguredFiveSecondCeiling.map(String.init) ?? "",
-        result.exceedsEightMbpsFiveSecondCeiling.map(String.init) ?? "", String(result.error != nil),
-      ].joined(separator: ","))
+        flag(result.exceedsConfiguredFiveSecondCeiling),
+        flag(result.exceedsEightMbpsFiveSecondCeiling), String(result.error != nil),
+      ])
+      rows.append(columns.joined(separator: ","))
     }
     try (rows.joined(separator: "\n") + "\n").write(to: options.output.appendingPathComponent("summary.csv"), atomically: true, encoding: .utf8)
     try comparison(results, options: options)
