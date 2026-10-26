@@ -26,7 +26,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   const started = performance.now();
   const response = await resolve(event);
   serverLog(
-    response.status >= 500 ? 'error' : response.status >= 400 ? 'warn' : 'info',
+    response.status >= 500 ? 'error' : response.status >= 400 ? 'warn' : 'debug',
     'http.response',
     {
       method: event.request.method,

@@ -1,6 +1,7 @@
 /** Define the journal events shared by workflows, the server, and the console. */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TokenUsage } from './usage.ts';
+import type { LogFields } from './log-fields.ts';
 
 export type RunlingEventPayload =
   /** Links a task invocation's message channel to the step that runs the task. */
@@ -26,8 +27,10 @@ export type RunlingEventPayload =
     }
   | {
       type: 'log';
-      level: 'debug' | 'info' | 'success' | 'error';
+      level: 'debug' | 'info' | 'success' | 'warn' | 'error';
       message: string;
+      /** Host-supplied metadata, without model content or credentials. */
+      fields?: LogFields;
       depth: number;
       color: string;
       source?: 'step' | 'agent' | 'command';

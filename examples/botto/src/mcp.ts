@@ -7,7 +7,6 @@ import {
   type McpTransportFactory
 } from '@earendil-works/pi-coding-agent';
 import type { Settings } from './settings.ts';
-import { log } from './log.ts';
 
 /** Exa's hosted MCP endpoint, pinned to the search and fetch tools. */
 export const EXA_MCP_URL = 'https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa';
@@ -61,43 +60,35 @@ export function mcpExtension(
   const servers = mcpServers(settings, memoryDirectory);
   return createMcpExtension({
     loadConfig: () => ({ servers, errors: [], autoEnableCodemode: false }),
-    // Server-generated diagnostic text can contain secrets. Only our outcome hooks log.
+    // Server-generated diagnostic text can contain secrets. Runling observes tool activity.
     logPath: devNull,
     createTransport
   });
 }
 
-/** Serialize Means calls across sessions and log exactly one outcome per MCP call. */
-export function mcpObserver(
+/** Serialize Means calls across sessions. Runling owns tool activity logging. */
+export function memoryLockExtension(
   signal: AbortSignal,
-  threadId: string | undefined,
   acquireMemory?: (signal: AbortSignal) => Promise<() => void>
 ): ExtensionFactory {
   return (pi) => {
-    const calls = new Map<string, { tool: string; started: number; release?: () => void }>();
+    const calls = new Map<string, () => void>();
     pi.on('tool_call', async (event) => {
-      if (!event.toolName.startsWith('mcp__')) return;
+      if (!event.toolName.startsWith('mcp__memory__') || !acquireMemory) return;
       signal.throwIfAborted();
-      const release = event.toolName.startsWith('mcp__memory__')
-        ? await acquireMemory?.(signal)
-        : undefined;
-      calls.set(event.toolCallId, { tool: event.toolName, started: performance.now(), release });
+      const release = await acquireMemory(signal);
+      calls.set(event.toolCallId, release);
     });
-    const finish = (id: string, failed: boolean) => {
-      const call = calls.get(id);
-      if (!call) return;
+    const finish = (id: string) => {
+      const release = calls.get(id);
+      if (!release) return;
       calls.delete(id);
-      call.release?.();
-      log(failed ? 'error' : 'info', failed ? 'MCP tool failed.' : 'MCP tool completed', {
-        threadId,
-        tool: call.tool,
-        durationMs: Math.round(performance.now() - call.started)
-      });
+      release();
     };
-    pi.on('tool_result', (event) => finish(event.toolCallId, event.isError));
+    pi.on('tool_result', (event) => finish(event.toolCallId));
     // Shutdown follows model cancellation, so any unfinished call releases its lock.
     pi.on('session_shutdown', () => {
-      for (const id of calls.keys()) finish(id, true);
+      for (const id of calls.keys()) finish(id);
     });
   };
 }

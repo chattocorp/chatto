@@ -70,7 +70,8 @@ export function createServerActivityLog(
         terminalRunLog(
           event.level,
           context(taskId, event.source === 'agent' ? event.sourceId : undefined),
-          event.message
+          event.message,
+          ...(event.fields ? [event.fields] : [])
         );
       return;
     }

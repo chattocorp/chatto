@@ -8,6 +8,9 @@ import { ConfigReloader } from './config-reloader.ts';
 import type { WebConfig } from './web-config.ts';
 import type { ServeOptions } from './cli.ts';
 
+/** @internal Shared with the packaged console so sources use the application's log context. */
+export { SourceManager } from './source-manager.ts';
+
 /** One web host can run in a process. Configuration objects are loaded once. */
 export interface ServerOptions {
   config: WebConfig | string;

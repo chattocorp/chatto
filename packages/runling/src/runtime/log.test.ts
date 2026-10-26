@@ -20,6 +20,34 @@ function terminal(destination: 'stdout' | 'stderr', isTTY: boolean, columns = 80
 }
 
 describe('log', () => {
+  test('keeps concurrent structured fields separate and emits warnings once', async () => {
+    const events: RunlingEvent[] = [];
+    const output = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await observeRunlingEvents(
+      (event) => events.push(event),
+      () =>
+        Promise.all([
+          log.withFields({ worker: 'one' }, async () => {
+            await Promise.resolve();
+            log.warn('Retrying', { count: 2, text: 'one\ntwo' });
+          }),
+          log.withFields({ worker: 'two' }, async () => {
+            await Promise.resolve();
+            log.warn('Waiting');
+          })
+        ])
+    );
+    expect(events).toEqual([
+      expect.objectContaining({
+        level: 'warn',
+        message: 'Retrying',
+        fields: { worker: 'one', count: 2, text: 'one\ntwo' }
+      }),
+      expect.objectContaining({ level: 'warn', message: 'Waiting', fields: { worker: 'two' } })
+    ]);
+    expect(output).toHaveBeenCalledTimes(2);
+    expect(output.mock.calls[0]![0]).toContain('text="one\\ntwo"');
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();

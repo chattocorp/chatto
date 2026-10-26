@@ -8,7 +8,8 @@ import { createAgent } from './agent.ts';
 import { Inbox } from './inbox.ts';
 import { type Settings } from './settings.ts';
 import { startupStep } from './diagnostics.ts';
-import { log, logged } from './log.ts';
+import { log } from 'runling';
+import { safeStep } from './steps.ts';
 import { createTurnHandler } from './turn.ts';
 import { hasTranscript, incomingMessage, isHumanAuthor } from './messages.ts';
 import { Delivery } from './delivery.ts';
@@ -28,22 +29,22 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
   let inbox: Inbox | undefined;
   let recovery: Promise<void> | undefined;
   try {
-    const agent = await logged('Pi setup', () => createAgent(settings));
+    const agent = await safeStep('Agent setup', () => createAgent(settings));
     controller.signal.throwIfAborted();
-    log('info', 'Connecting to Chatto');
+    log.info('Connecting to Chatto');
     const server = client.connect({ serverUrl: settings.serverUrl, apiKey: settings.apiKey });
     if (settings.reportPresence) server.reportPresence();
     const { viewerId } = await startupStep(
       'Cannot connect to Chatto. Check chatto.url, chatto.api_key, and server compatibility.',
       () => server.ready({ signal: controller.signal })
     );
-    log('info', 'Chatto authenticated');
+    log.info('Chatto authenticated');
     const delivery = new Delivery(settings.directory, [
       new URL(settings.serverUrl).origin,
       viewerId
     ]);
     if (delivery.uncertain)
-      log('warn', 'Interrupted work needs operator review in the delivery state file', {
+      log.warn('Interrupted work needs operator review in the delivery state file', {
         messages: delivery.uncertain
       });
     const turn = createTurnHandler(
@@ -65,8 +66,7 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
       },
       () => {
         if (!controller.signal.aborted)
-          log(
-            'error',
+          log.error(
             'Botto could not complete a turn; queued work will retry, running work needs operator review'
           );
       },
@@ -106,7 +106,7 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
             );
           }
         } catch {
-          if (!controller.signal.aborted) log('warn', 'Message recovery failed; Botto will retry');
+          if (!controller.signal.aborted) log.warn('Message recovery failed; Botto will retry');
         }
         if (controller.signal.aborted) break;
         pump();
@@ -118,13 +118,12 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
       onStatus(status) {
         if (status.state === 'ready') {
           nextRecovery = 0;
-          log(
-            status.gap ? 'warn' : 'info',
+          log[status.gap ? 'warn' : 'info'](
             status.gap
               ? 'Botto connected; checking retained notifications for missed messages.'
               : 'Botto connected.'
           );
-        } else log('info', 'Realtime connection is not ready');
+        } else log.info('Realtime connection is not ready');
       },
       async onEvent(event, { signal }) {
         if (settings.allowedUserId && event.actorId !== settings.allowedUserId) return;
@@ -148,13 +147,13 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
             const result = activeInbox.accept(message);
             const thread = { threadId: message.threadRootId ?? message.id };
             if (result === 'accepted')
-              log('info', 'Message accepted', {
+              log.info('Message accepted', {
                 ...thread,
                 waitMs: activeInbox.debounceMs(message)
               });
             else if (result === 'full')
-              log('warn', 'Botto inbox is full; message saved for later', thread);
-            else if (result === 'duplicate') log('info', 'Duplicate message skipped', thread);
+              log.warn('Botto inbox is full; message saved for later', thread);
+            else if (result === 'duplicate') log.debug('Duplicate message skipped', thread);
             return;
           } catch (error) {
             // Removed content and revoked access cannot be repaired by retrying
@@ -169,11 +168,11 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
                 Code.FailedPrecondition
               ].includes(error.code)
             ) {
-              log('warn', 'Incoming message is no longer available or permitted');
+              log.warn('Incoming message is no longer available or permitted');
               return;
             }
             if (!signal.aborted)
-              log('error', 'Botto could not verify or save an incoming message; retrying');
+              log.error('Botto could not verify or save an incoming message; retrying');
             await delay(5000, undefined, { signal }).catch(() => {});
           }
         }
@@ -182,12 +181,12 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
   } catch (error) {
     if (!controller.signal.aborted) throw error;
   } finally {
-    log('info', 'Botto stopping');
+    log.info('Botto stopping');
     controller.abort();
     await recovery;
     await inbox?.close();
     client.close();
     source.signal.removeEventListener('abort', stop);
-    log('info', 'Botto stopped');
+    log.info('Botto stopped');
   }
 }

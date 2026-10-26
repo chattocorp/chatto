@@ -61,6 +61,7 @@ export {
 export { WorkingDirectory, workingTreeHash } from './git.ts';
 export type { RunlingEvent, RunlingEventListener, RunlingEventPayload } from './events.ts';
 export { log, type LogLevel } from './log.ts';
+export type { LogFields } from './log-fields.ts';
 export { step, type StepWork } from './step.ts';
 export {
   shell,

@@ -76,7 +76,7 @@ or configuration changes. Use this full restart for development rather than
 | `agent.model`                   | Required                 | Pi model in `provider/model` format                                           |
 | `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                  |
 | `agent.system_prompt`           | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings            |
-| `runtime.data_directory`        | `.botto`                 | Private transcripts, delivery ledger, and Runling history                      |
+| `runtime.data_directory`        | `.botto`                 | Private transcripts, delivery ledger, and Runling history                     |
 | `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it             |
 | `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
 | `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds  |
@@ -420,18 +420,16 @@ the run journal; the agent continues from its saved transcript.
 
 ## Logs and development
 
-Timestamped terminal logs show connection changes, accepted messages, debounce
-delays, batch sizes, context reads, model turns, reply posts, and shutdown.
-MCP tool calls log one completion or failure with `tool`, `threadId`, and
-`durationMs`. This includes Chatto tools, Exa tools, Means tools, and host-owned memory
-document discovery and creation. Arguments, results, and raw errors are omitted.
-Terminals that support color show colored severity labels and dimmed metadata.
-Set `NO_COLOR` to disable colors. Other terminals use plain text. Redirected
-output uses one JSON object per line, with `timestamp`, `level`, `message`, and
-metric fields. Botto checks each output stream separately: informational logs
-use stdout; warnings and errors use stderr.
+Runling owns all log output. Connection and intake messages use a `[source:chatto]`
+prefix. Work inside a conversation uses its run and task context and appears in
+the console and run journal. Context reads, model turns, reply posts, and memory
+operations are timed Runling steps. Runling reports model tool activity; Botto
+does not add a second MCP completion log. Arguments, results, and raw errors are
+omitted. `NO_COLOR` disables terminal colors. Terminal output remains readable
+text when redirected; use Runling's JSON log files for structured records.
+Successful HTTP request logs are hidden unless `RUNLING_LOG_LEVEL=debug` is set.
 Message and turn logs include the Chatto thread root ID as `threadId`; top-level
-messages use their own ID. Process-local turn numbers identify concurrent work. Stage logs include durations
+messages use their own ID. Process-local turn numbers identify concurrent work. Steps include durations
 and safe error hints. Logs omit message text, user identities, configured names,
 credentials, URLs, and raw external errors. Runling writes its own server
 diagnostics and run journals under the data directory. It records model usage
@@ -462,7 +460,8 @@ merge function in `src/context-messages.ts`. `src/context.ts` selects text from
 the shared client timeline in the same message format used by that merge.
 `src/settings.ts` validates TOML.
 `src/mcp.ts` lists the Chatto, Exa, and memory MCP servers, configures Pi's native
-MCP extension, and observes tool outcomes.
+MCP extension, and releases shared memory locks. Runling observes tool activity.
+`src/steps.ts` keeps external errors private at the Runling step boundary.
 `src/memory.ts` finds memory documents and owns the shared memory lock.
 Agent tests use a mocked Runling boundary. Botto's conversation tests use Runling's real
 persistent host to check routing, restart, failure, and shutdown. A usage test runs

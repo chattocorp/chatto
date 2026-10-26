@@ -14,7 +14,7 @@ vi.mock('runling', async (original) => ({
   createAgentSession: mock.create
 }));
 vi.mock('./memory.ts', () => ({ createMemory: vi.fn(() => vi.fn()) }));
-vi.mock('./mcp.ts', () => ({ mcpExtension: () => () => {}, mcpObserver: () => () => {} }));
+vi.mock('./mcp.ts', () => ({ mcpExtension: () => () => {}, memoryLockExtension: () => () => {} }));
 vi.mock('./thread-context.ts', () => ({ threadContextExtension: vi.fn(() => () => {}) }));
 
 const directories: string[] = [];

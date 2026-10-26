@@ -9,7 +9,7 @@ import {
   SessionManager,
   SettingsManager
 } from '@earendil-works/pi-coding-agent';
-import { EXA_MCP_URL, mcpExtension, mcpObserver, mcpServers } from './mcp.ts';
+import { EXA_MCP_URL, mcpExtension, memoryLockExtension, mcpServers } from './mcp.ts';
 import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
 import { createAgentSession as createRunlingSession } from 'runling';
@@ -126,7 +126,7 @@ test.each([false, true])(
         noContextFiles: true,
         extensionFactories: [
           mcpExtension(settings, enabled ? directory : undefined, createTransport),
-          mcpObserver(controller.signal, 'thread-test', acquire)
+          memoryLockExtension(controller.signal, acquire)
         ]
       });
       await loader.reload();
@@ -180,10 +180,8 @@ test.each([false, true])(
         expect((await execute('failure', true)).isError).toBe(true);
         expect(acquire).toHaveBeenCalledTimes(2);
         expect(release).toHaveBeenCalledTimes(2);
-        expect(info).toHaveBeenCalledTimes(1);
-        expect(error).toHaveBeenCalledTimes(1);
-        expect(JSON.stringify(info.mock.calls)).toContain('mcp__memory__read');
-        expect(JSON.stringify(info.mock.calls)).toContain('thread-test');
+        expect(info).not.toHaveBeenCalled();
+        expect(error).not.toHaveBeenCalled();
         expect(JSON.stringify([info.mock.calls, error.mock.calls])).not.toContain('private');
         expect(call).toHaveBeenCalledTimes(2);
 
@@ -255,7 +253,7 @@ test.each([false, true])(
       }
       for (const transport of transports) expect(transport.close).toHaveBeenCalled();
       expect(release).toHaveBeenCalledTimes(5);
-      expect(error).toHaveBeenCalledTimes(2);
+      expect(error).not.toHaveBeenCalled();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

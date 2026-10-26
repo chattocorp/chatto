@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { McpClient, StdioTransport } from '@earendil-works/pi-mcp';
 import { untilAborted } from './abort.ts';
 import type { Settings } from './settings.ts';
-import { logged } from './log.ts';
+import { safeStep } from './steps.ts';
 
 /** One owner per bot process. Discovery and native tool hooks share this lock. */
 export function createMemory(settings: Settings) {
@@ -85,7 +85,7 @@ async function findDocuments(
   threadId?: string
 ): Promise<string[]> {
   const call = async (name: string, args: Record<string, unknown>) =>
-    logged(
+    safeStep(
       'MCP tool',
       async () => {
         const result = await client.callTool(name, args, { signal });

@@ -6,7 +6,7 @@ import { createAgentSession, type TaskContext } from 'runling';
 import type { ExtensionFactory } from '@earendil-works/pi-coding-agent';
 import type { Settings } from './settings.ts';
 import { startupStep } from './diagnostics.ts';
-import { mcpExtension, mcpObserver } from './mcp.ts';
+import { mcpExtension, memoryLockExtension } from './mcp.ts';
 import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
 import { authorizationPrompt } from './authorization.ts';
@@ -68,7 +68,7 @@ export async function createAgent(settings: Settings) {
         extensions: [
           ...tools,
           mcpExtension(settings, memory?.directory),
-          mcpObserver(signal, identity.at(-1), memory?.acquire),
+          memoryLockExtension(signal, memory?.acquire),
           ...(context || memory
             ? [
                 threadContextExtension({

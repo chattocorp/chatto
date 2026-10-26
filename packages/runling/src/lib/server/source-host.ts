@@ -1,4 +1,8 @@
-import { SourceManager } from '../../runtime/source-manager.ts';
+// Load host services outside the adapter bundle; application logs share their async context.
+const hostModule = 'runling/server';
+const { SourceManager } = (await import(
+  /* @vite-ignore */ hostModule
+)) as typeof import('runling/server');
 import { getConfigReloader } from './web-config.ts';
 import { getRunStore } from './run-store.ts';
 

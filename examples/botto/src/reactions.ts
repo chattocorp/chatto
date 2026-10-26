@@ -2,7 +2,7 @@
 import type { Server } from '@chatto/client';
 import type { ExtensionFactory } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
-import { logged } from './log.ts';
+import { safeStep } from './steps.ts';
 
 /** Keep room selection host-owned and reject message IDs outside the turn's context. */
 export function reactionExtension(
@@ -30,7 +30,7 @@ export function reactionExtension(
         const requestSignal = AbortSignal.any([turnSignal, ...(signal ? [signal] : [])]);
         requestSignal.throwIfAborted();
         try {
-          await logged(
+          await safeStep(
             'Reaction tool',
             () => server.addReaction({ roomId, messageId }, emoji, { signal: requestSignal }),
             { threadId }

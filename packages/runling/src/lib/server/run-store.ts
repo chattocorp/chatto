@@ -434,13 +434,18 @@ export class RunStore {
     this.controllers.set(id, controller);
     this.inboxes.set(id, { task: workflow, channel: createChannel({ signal: controller.signal }) });
     this.publish(id, { type: 'started', run });
-    serverLog('info', 'run.started', {
-      runId: id,
-      runReference: run.reference,
-      webhook,
-      workflow: workflow.name,
-      source
-    });
+    serverLog(
+      'info',
+      'run.started',
+      {
+        runId: id,
+        runReference: run.reference,
+        webhook,
+        workflow: workflow.name,
+        source
+      },
+      { terminal: process.env.RUNLING_QUIET_LOG === '1' }
+    );
     const completion = this.execute(id, workflow, input, controller.signal, resumed);
     this.executions.add(completion);
     void completion.then(

@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, readFile, writeFile, access } from 'node:fs/promise
 import { resolve, join } from 'node:path';
 import { serve } from 'runling/server';
 import { defineWebConfig } from 'runling/web';
-import { step, task, Type } from 'runling';
+import { log, step, task, Type } from 'runling';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from 'node:http';
 
@@ -22,7 +22,9 @@ try {
     const item = task(
       { name: 'Work item', input: Type.Number(), result: Type.Null() },
       async () => {
-        await step('Application step', async () => {});
+        await step('Application step', async () => {
+          log.warn('Application warning', { items: 1 });
+        });
         return null;
       }
     );
@@ -48,6 +50,7 @@ try {
       sources: {
         example: async (source) => {
           try {
+            log.info('Source ready', { generation });
             let run = source
               .runs()
               .find((run) => run.workflow === 'worker' && run.input === 'project');
@@ -99,6 +102,33 @@ try {
         await delay(25);
       } while (Date.now() < deadline);
       assert.equal(run.status, 'running');
+      assert.equal(
+        run.events.filter(
+          (event) =>
+            event.type === 'log' &&
+            event.message === 'Application warning' &&
+            event.fields?.items === 1
+        ).length,
+        2
+      );
+      const diagnostics = (await readFile(join(directory, 'logs/server.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      assert.equal(
+        diagnostics.filter(
+          (record) =>
+            record.event === 'source.log' &&
+            record.source === 'example' &&
+            record.message === 'Source ready' &&
+            record.fields?.generation === generation
+        ).length,
+        1
+      );
+      assert.equal(
+        diagnostics.some((record) => record.message === 'Application warning'),
+        false
+      );
       assert.equal(
         run.events.filter((event) => event.type === 'step.started' && event.label === 'Work item')
           .length,

@@ -21,6 +21,17 @@ function setup() {
 }
 
 describe('server logging', () => {
+  it('hides debug diagnostics unless explicitly enabled', () => {
+    setup();
+    const output = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    vi.stubEnv('RUNLING_LOG_LEVEL', undefined);
+    serverLog('debug', 'http.response', { method: 'GET', status: 200, durationMs: 1 });
+    expect(output).not.toHaveBeenCalled();
+    vi.stubEnv('RUNLING_LOG_LEVEL', 'debug');
+    serverLog('debug', 'http.response', { method: 'GET', status: 200, durationMs: 1 });
+    expect(output).toHaveBeenCalledOnce();
+    expect(JSON.parse(readFileSync(serverLogPath(), 'utf8')).level).toBe('debug');
+  });
   it('keeps separate instance journals and logs outside a shared configuration directory', async () => {
     const directory = setup();
     vi.stubEnv('RUNLING_DATA_DIRECTORY', 'instance-one');

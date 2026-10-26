@@ -2,7 +2,8 @@
 import { replyDestination, type AddressedMessage, type Server } from '@chatto/client';
 import type { createAgent } from './agent.ts';
 import type { Settings } from './settings.ts';
-import { log, logged } from './log.ts';
+import { safeStep } from './steps.ts';
+import { log } from 'runling';
 import { readContext, type ContextSource } from './context.ts';
 import { reactionExtension } from './reactions.ts';
 import { hasTranscript } from './messages.ts';
@@ -31,7 +32,7 @@ export function createTurnHandler(
       turn: ++turnCounter,
       messages: messages.length
     };
-    log('info', 'Batch ready', metrics);
+    log.info('Batch ready', metrics);
     const signal = AbortSignal.any([
       shutdown,
       ctx.signal,
@@ -41,7 +42,7 @@ export function createTurnHandler(
       destination,
       async () => {
         // Read-only failures remain queued and can be retried after reconnect.
-        const context = await logged(
+        const context = await safeStep(
           'Thread context read',
           () => readContext(server, destination, settings.contextMessages, signal),
           metrics
@@ -68,7 +69,7 @@ export function createTurnHandler(
           signal.throwIfAborted();
           const first = messages[0]!;
           // A failed acknowledgement must not stop the answer or consume its whole deadline.
-          await logged(
+          await safeStep(
             'Acknowledgement',
             () =>
               server.addReaction(
@@ -83,7 +84,7 @@ export function createTurnHandler(
         // Persist only the accepted batch. The fresh snapshot travels through Pi's
         // request-only context hook, so old Chatto messages do not accumulate each turn.
         const prompt = JSON.stringify({ currentMessages });
-        const answer = await logged(
+        const answer = await safeStep(
           'Model turn',
           () =>
             agent.reply(ctx, {
@@ -108,7 +109,7 @@ export function createTurnHandler(
           metrics
         );
         signal.throwIfAborted();
-        await logged(
+        await safeStep(
           'Reply post',
           () => server.postMessage(destination, answer, { signal }),
           metrics
