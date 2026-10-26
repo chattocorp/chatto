@@ -1,7 +1,7 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -18,6 +18,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 - On each launch, the app loads chat data from the server after it verifies the session. On each page load, it also deletes the `chatto-saved-views` IndexedDB database that 0.5 beta versions created.
 - On upgrade, the app removes retired offline caches and unused root registrations. It keeps a root registration while a legacy push subscription still needs it. Server-specific push registrations stay intact.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
+- The manifest requests a fixed dark launch background (`#171717`) in both light and dark mode. This avoids requesting a bright launch screen when the browser does not adapt the background to the system theme. The manifest leaves `theme_color` unset; the page supplies its active theme colour. Browsers control when installed apps receive manifest updates and how they colour native system bars.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - The small Android notification icon uses a monochrome Chatto cat face with
