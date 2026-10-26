@@ -1,7 +1,8 @@
 # Botto
 
-Botto is an example Chatto bot built with TypeScript, the Pi SDK, and
-`@chatto/client`. It has no Runling dependency. Use it as a starting point for
+Botto is an example Chatto bot built with TypeScript, Runling, and
+`@chatto/client`. Runling hosts one workflow run per Chatto conversation and
+uses Pi for model interactions. Use it as a starting point for
 your own bot. This directory is part of the root pnpm workspace and uses Apache-2.0.
 
 ## Run
@@ -10,6 +11,7 @@ Create a separate bot account and API key in Chatto. From the repository root:
 
 ```sh
 mise x -- pnpm install
+mise build-runling
 cp examples/botto/botto.example.toml examples/botto/botto.toml
 ```
 
@@ -28,16 +30,35 @@ its normal authentication store. Both `.env` and `botto.toml` are ignored by Git
 mise x -- pnpm --filter @chatto/example-botto start
 ```
 
-From `examples/botto`, you can also run `pnpm start`. Mention the bot in a room,
+From `examples/botto`, you can also run `pnpm start` or
+`pnpm exec runling serve --host 127.0.0.1`. Runling loads `runling.config.ts`,
+which registers Botto's Chatto source and root task. Mention the bot in a room,
 send it a DM, or reply to one of its messages. Stop with Ctrl-C. Run only one
 process per data directory and bot account.
+
+Open `http://127.0.0.1:5173` to inspect conversations in Runling. Each Chatto
+thread has one run. Each accepted batch appears as a **Botto turn** child task.
+The run waits between turns and keeps its identity after a graceful restart.
+It stays open until an operator closes or cancels it in Runling. A later message
+can start a new run for that thread, using the same saved agent transcript.
+Use `pnpm start --port 5174` to select a different console port for another instance.
+The console binds to loopback and has no authentication. Keep it local or put
+an authenticated proxy in front of it.
+
+The console shows turn timing, failures, tool activity, and model usage.
+Botto omits message text, model replies, reasoning, and tool arguments from
+Runling logs. Full model context remains in the private Pi transcripts.
+The console's message composer cannot submit Chatto messages or grant authority.
 
 ## Configuration
 
 Botto reads `botto.toml` from the working directory. Select another file with
-`pnpm start --config /path/to/botto.toml`. Data paths are relative to the TOML
+`BOTTO_CONFIG=/path/to/botto.toml pnpm start`. Runling's `--config` flag selects
+the TypeScript project configuration, not the Botto TOML file. Data paths are relative to the TOML
 file. `.env` is still loaded from the working directory. Settings are read once;
-restart after changing them. `pnpm dev` restarts after source changes.
+restart after changing them. `pnpm dev` restarts the complete host after source
+or configuration changes. Use this full restart for development rather than
+`runling serve --watch`: Botto's task and source share process-local admission state.
 
 | Setting                         | Default                  | Purpose                                                                       |
 | ------------------------------- | ------------------------ | ----------------------------------------------------------------------------- |
@@ -55,7 +76,7 @@ restart after changing them. `pnpm dev` restarts after source changes.
 | `agent.model`                   | Required                 | Pi model in `provider/model` format                                           |
 | `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                  |
 | `agent.system_prompt`           | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings            |
-| `runtime.data_directory`        | `.botto`                 | Private Pi transcript storage                                                 |
+| `runtime.data_directory`        | `.botto`                 | Private transcripts, delivery ledger, and Runling history                     |
 | `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it             |
 | `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
 | `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds  |
@@ -105,9 +126,10 @@ Numeric settings still require TOML integers, not quoted variable references.
 Its reference can use any environment variable name. Provider API keys continue
 to use Pi's dedicated environment variables or authentication store.
 
-If the model is missing from Pi's local catalog, Botto refreshes the selected
-provider's catalog once. Pi's `PI_OFFLINE` environment switch disables this
-refresh. The initial Chatto connection has a 30-second deadline.
+When a turn opens its agent, Runling checks Pi's local model catalog. If the
+model is missing, it refreshes that provider's catalog with a five-second
+deadline. `PI_OFFLINE` disables this refresh. The initial Chatto connection
+has a 30-second deadline.
 
 ## Message flow
 
@@ -376,52 +398,79 @@ model tools can also have completed an external action before interruption.
 Botto does not retry uncertain posts or tool calls. Failed turns produce a local
 log entry, not a chat reply. These changes add no external service connections.
 
+Runling stores journals, snapshots, and server diagnostics in the `runling/`
+subdirectory of `runtime.data_directory`. Keep it on persistent storage with
+the existing transcripts and delivery ledger. The project configuration sets
+`RUNLING_DATA_DIRECTORY` to this directory unless you set it explicitly.
+Separate instances must use separate data directories.
+Existing transcript filenames and delivery files need no
+migration.
+
+Runling snapshots open conversations every 60 seconds and on graceful shutdown.
+After a crash, a newly created run can be absent from the snapshot; later input
+then starts a new run for the same Chatto thread. The delivery ledger remains
+the authority for queued, completed, and uncertain work. A recovered workflow
+waits for the source to admit queued work; it never repeats its original input.
+Runling keeps open runs and removes closed runs after its 30-day retention
+period. Botto's existing transcript files are separate and have no automatic
+retention limit. A failed turn does not close its conversation run.
+After restart, Runling's console shows the latest execution attempt's activity
+and total token usage and cost across all attempts. Earlier attempts remain in
+the run journal; the agent continues from its saved transcript.
+
 ## Logs and development
 
-Timestamped terminal logs show connection changes, accepted messages, debounce
-delays, batch sizes, context reads, model turns, reply posts, and shutdown.
-MCP tool calls log one completion or failure with `tool`, `threadId`, and
-`durationMs`. This includes Chatto tools, Exa tools, Means tools, and host-owned memory
-document discovery and creation. Arguments, results, and raw errors are omitted.
-Terminals that support color show colored severity labels and dimmed metadata.
-Set `NO_COLOR` to disable colors. Other terminals use plain text. Redirected
-output uses one JSON object per line, with `timestamp`, `level`, `message`, and
-metric fields. Botto checks each output stream separately: informational logs
-use stdout; warnings and errors use stderr.
+Runling owns all log output. Connection and intake messages use a `[source:chatto]`
+prefix. Work inside a conversation uses its run and task context and appears in
+the console and run journal. Context reads, model turns, reply posts, and memory
+operations are timed Runling steps. Runling reports model tool activity; Botto
+does not add a second MCP completion log. Arguments, results, and raw errors are
+omitted. `NO_COLOR` disables terminal colors. Terminal output remains readable
+text when redirected; use Runling's JSON log files for structured records.
+Set `RUNLING_LOG_LEVEL=debug` to include source and workflow debug logs and successful HTTP requests.
 Message and turn logs include the Chatto thread root ID as `threadId`; top-level
-messages use their own ID. Process-local turn numbers identify concurrent work. Stage logs include durations
+messages use their own ID. Runling task references identify concurrent work. Steps include durations
 and safe error hints. Logs omit message text, user identities, configured names,
-credentials, URLs, and raw external errors. Botto does not create log files.
-Each model turn logs `Pi session created` or `Pi session resumed`, with the
-persisted Pi `sessionId` and `historyMessages` count loaded before the new prompt.
-The session ID stays the same when Botto reopens a thread after restart.
-Each turn also logs `Pi token usage`: `inputTokens` (uncached input), `outputTokens`,
-`cacheReadTokens`, `cacheWriteTokens`, and `estimatedCostUsd`. These are changes in
-Pi's session totals during this turn, including recorded compaction and failed
-work; restored history is not counted again. Cost uses Pi's model pricing and is
-an estimate, not the provider invoice. Missing provider usage can appear as zero.
-Cache reads show actual reported reuse; a resumed session alone does not prove
-a cache hit.
+credentials, URLs, and raw external errors. Runling writes its own server
+diagnostics and run journals under the data directory. It records model usage
+for each interaction and accumulates it within the conversation run. Restored
+transcript history is not counted as new model usage. Cost uses model pricing
+and is an estimate, not the provider invoice. Missing provider usage can appear
+as zero. A resumed session alone does not prove a cache hit.
 
 ```sh
 mise x -- pnpm --filter @chatto/example-botto check
 mise x -- pnpm --filter @chatto/example-botto test
 ```
 
-`src/main.ts` owns connectivity and shutdown. `src/messages.ts` selects addressed
-messages and ordinary text in active threads. `src/inbox.ts` owns batching and
-ordering. `src/turn.ts` connects a batch to a model turn and reply. `src/agent.ts`
-owns Pi sessions; `src/thread-context.ts` connects Pi's request hook to the pure
+`runling.config.ts` reads settings once and registers the source and
+recoverable conversation task. The Runling CLI owns serving, signal handling, and shutdown.
+`src/source.ts` owns connectivity and the durable message ledger.
+`src/conversation.ts` defines an ordinary Runling root task for each Chatto
+thread. Its source routing finds or starts that root and waits for each child
+task and its cleanup. The inbox admits one turn per thread at a time, so the
+root awaits a single child and routing reads Runling's source-owned runs directly.
+Runling's batch queue owns ordering, capacity, and timers. `src/threads.ts`
+keeps Botto's routing keys and transcript identities consistent.
+`src/messages.ts` selects addressed
+messages and ordinary text in active threads. `src/inbox.ts` supplies typing and
+quiet-period policy. `src/turn.ts` connects a batch to a model turn and reply. `src/agent.ts`
+configures Runling agent sessions; `src/thread-context.ts` connects Pi's request hook to the pure
 merge function in `src/context-messages.ts`. `src/context.ts` selects text from
 the shared client timeline in the same message format used by that merge.
 `src/settings.ts` validates TOML.
 `src/mcp.ts` lists the Chatto, Exa, and memory MCP servers, configures Pi's native
-MCP extension, and observes tool outcomes.
+MCP extension, and releases shared memory locks. Runling observes tool activity.
+`src/steps.ts` keeps external errors private at the Runling step boundary.
 `src/memory.ts` finds memory documents and owns the shared memory lock.
-Most tests use a mocked Pi boundary. A restoration test opens a real Pi transcript
+Agent tests use a mocked Runling boundary. Botto's conversation tests use Runling's real
+persistent host to check routing, restart, failure, and shutdown. A usage test runs
+Botto through real Runling and Pi sessions with a synthetic provider stream. It
+checks journal costs and confirms that reopening a transcript does not count old
+tokens again or expose prompt and reply text. A restoration test opens a real Pi transcript
 in a fresh process and checks its session ID and model context. Tests do not
 contact a model provider. Native MCP tests use real Pi sessions and in-memory
 protocol transports. The `test-botto` GitHub Actions job runs the type check
-and tests when Botto, its client dependencies, or shared CI configuration change.
+and tests when Botto, Runling, its client dependencies, or shared CI configuration change.
 Its tests run without network connectivity, including child processes. No model
 credentials are required or supplied.

@@ -16,7 +16,7 @@ import (
 // projectRealtimeEvent explicitly maps one durable EVT event to the independent
 // public catalogue. EVT field numbers and public field numbers need not match.
 func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.RealtimeEvent {
-	if source == nil || source.GetEvent() == nil {
+	if source == nil || source.GetEvent() == nil || source.GetImportContext() != nil {
 		return nil
 	}
 	target := &realtimev1.RealtimeEvent{Id: source.GetId(), CreatedAt: source.GetCreatedAt()}

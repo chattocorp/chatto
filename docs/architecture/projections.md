@@ -246,9 +246,13 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v10`. Reactions uses `v2` to restore mapped historical reactors;
+uses `v11`. Reactions uses `v2` to restore mapped historical reactors;
 Notification Decisions uses `v3` to exclude historical reactions from Badge
 attention.
+
+Room Timeline `v11` excludes hidden import reconciliation facts from its visible
+timeline index. Room Directory retains the separate imported purpose through
+the `Room` protobuf in its snapshots; that field changes the schema fingerprint.
 
 Room Timeline `v9` retains a historical-import bit on each message reference.
 Unread and room-activity reads omit these messages, while timeline reads keep
@@ -553,7 +557,7 @@ same room. Body selection and attachment indexes use the original body
 reference. Echo bodies from historical EVT records remain indexed only for
 physical record ownership and secure deletion. Snapshot restore rebuilds
 attachment membership from these links. The Room Timeline snapshot semantics
-token is `v10`. Timeline pages batch original metadata reads and reuse metadata
+token is `v11`. Timeline pages batch original metadata reads and reuse metadata
 and canonical bodies within the response. Missing or invalid original metadata
 is omitted for the affected echo; storage errors still fail the read. Historical
 echo metadata is never used as a fallback. Projections do not retain decrypted

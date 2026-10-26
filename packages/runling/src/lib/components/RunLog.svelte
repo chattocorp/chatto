@@ -31,15 +31,25 @@
   let unread = $derived(Math.max(0, rows.length - seen));
 
   const marker = (level: LogRow['event']['level']) =>
-    level === 'success' ? '✓' : level === 'error' ? '✕' : level === 'debug' ? '·' : '•';
+    level === 'success'
+      ? '✓'
+      : level === 'error'
+        ? '✕'
+        : level === 'warn'
+          ? '!'
+          : level === 'debug'
+            ? '·'
+            : '•';
   const markerClass = (level: LogRow['event']['level']) =>
     level === 'success'
       ? 'text-success'
       : level === 'error'
         ? 'text-error'
-        : level === 'debug'
-          ? 'text-base-content/35'
-          : 'text-info';
+        : level === 'warn'
+          ? 'text-warning'
+          : level === 'debug'
+            ? 'text-base-content/35'
+            : 'text-info';
 
   function splitActivityMessage(row: LogRow) {
     const reference = row.activity!.reference;

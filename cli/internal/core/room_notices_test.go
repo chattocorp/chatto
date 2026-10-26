@@ -109,7 +109,9 @@ func TestRoomNoticeLifecycleAndAuthorization(t *testing.T) {
 func TestRoomNoticeProjectionSnapshotAndDelivery(t *testing.T) {
 	t.Parallel()
 	p := NewRoomDirectoryProjection()
-	require.NoError(t, p.Apply(roomCreatedEvent("R1", "Room", "", evtv1.RoomKind_ROOM_KIND_CHANNEL), 1))
+	created := roomCreatedEvent("R1", "Room", "", evtv1.RoomKind_ROOM_KIND_CHANNEL)
+	created.GetRoomCreated().Purpose = "Room purpose"
+	require.NoError(t, p.Apply(created, 1))
 	event := &evtv1.Event{Id: "version", Event: &evtv1.Event_RoomNoticeChanged{RoomNoticeChanged: &evtv1.RoomNoticeChangedEvent{RoomId: "R1", Body: "Notice", Announced: true}}}
 	event.CreatedAt = timestamppb.New(time.Date(2026, 10, 26, 14, 0, 0, 0, time.UTC))
 	require.NoError(t, p.Apply(event, 2))
@@ -124,6 +126,7 @@ func TestRoomNoticeProjectionSnapshotAndDelivery(t *testing.T) {
 	room, ok := restored.Catalog.Get("R1")
 	require.True(t, ok)
 	require.Equal(t, "Notice", room.Notice.Body)
+	require.Equal(t, "Room purpose", room.Purpose)
 	require.Equal(t, event.Id, room.Notice.PublicationId)
 	require.Equal(t, event.CreatedAt.AsTime(), room.Notice.PublishedAt.AsTime())
 	room.Notice.Body = "changed clone"

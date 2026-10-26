@@ -148,7 +148,7 @@ socket.
 and clear commands. `RoomCommandModel` evaluates membership and
 `room.manage-notice`, rejects archived writes, and commits through room aggregate
 OCC. Commands wait for the Room Directory projection before returning. See
-[FDR-053](../fdr/FDR-053-room-notices.md).
+[FDR-054](../fdr/FDR-054-room-notices.md).
 
 | Package               | Public services                                                                                                                                                                                                                                                                                                                                                  | Auth policy                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -363,6 +363,11 @@ records whether collection succeeded, so one failure does not suppress unrelated
 system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 
 ## Mounted operator services
+
+`OperatorImportService.ImportArchive` is mounted only on the operator socket.
+It accepts bounded archive bytes and naming options, then delegates validation
+and recovery to [the core importer](../../cli/internal/core/interchange_import.go).
+It is not a public HTTP service. See [FDR-053](../fdr/FDR-053-history-import-export.md).
 
 | Package              | Service                  | Access policy                                                                                      |
 | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |

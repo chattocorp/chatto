@@ -38,6 +38,7 @@ type roomCatalogEntry struct {
 	createdAt             *timestamppb.Timestamp
 	name                  string
 	description           string
+	purpose               string
 	kind                  evtv1.RoomKind
 	archived              bool
 	universal             bool
@@ -83,6 +84,7 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 			createdAt:     proto.Clone(event.GetCreatedAt()).(*timestamppb.Timestamp),
 			name:          c.GetName(),
 			description:   c.GetDescription(),
+			purpose:       c.GetPurpose(),
 			kind:          c.GetKind(),
 			universal:     c.GetUniversal(),
 			threadingMode: c.GetThreadingMode(),
@@ -92,6 +94,9 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if entry := p.rooms[u.GetRoomId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
+			if u.Purpose != nil {
+				entry.purpose = u.GetPurpose()
+			}
 		}
 	case *evtv1.Event_RoomNoticeChanged:
 		if entry := p.rooms[e.RoomNoticeChanged.GetRoomId()]; entry != nil {
@@ -225,6 +230,7 @@ func entryToRoom(id string, entry *roomCatalogEntry) *evtv1.Room {
 		Id:                    id,
 		Name:                  entry.name,
 		Description:           entry.description,
+		Purpose:               entry.purpose,
 		Archived:              entry.archived,
 		Kind:                  entry.kind,
 		Universal:             entry.universal,

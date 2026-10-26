@@ -1,5 +1,15 @@
 # Durable Effect Inventory
 
+Portable archive import writes original files to the configured attachment
+store (NATS Object Store or S3). File keys are stable within the archive, so a
+retry uses the same key and bytes. Asset facts and import progress commit in
+one EVT batch after storage succeeds. A file written before a failed commit
+remains available for resume; import does not automatically roll back or fetch
+source URLs. Historical facts carry `ImportContext`; the notification
+materializer and realtime mapper suppress their effects. See
+[the importer](../../cli/internal/core/interchange_import.go) and
+[FDR-053](../fdr/FDR-053-history-import-export.md).
+
 Key files: [`pkg/events/durable_worker.go`](../../pkg/events/durable_worker.go),
 [`cli/internal/evtstream/effects.go`](../../cli/internal/evtstream/effects.go),
 [`cli/internal/core/durable_delivery.go`](../../cli/internal/core/durable_delivery.go),

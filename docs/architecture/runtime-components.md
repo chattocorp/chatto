@@ -1,5 +1,11 @@
 # Runtime Component Inventory
 
+The core [archive importer](../../cli/internal/core/interchange_import.go) owns
+portable archive validation, name mapping, native event construction, and
+durable progress. It runs on operator requests, uses existing user, room,
+encryption, and attachment services, and reads its EVT receipts on resume.
+It adds no background worker or runtime unit.
+
 This file lists the server-side components of the Chatto process: the core
 facade, runtime units, models, publishers, and workers. It does not list
 client runtimes (the bundled frontend, the desktop and mobile shells, and

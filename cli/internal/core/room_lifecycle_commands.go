@@ -57,6 +57,7 @@ func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind 
 		Kind:          ProtoKindForRoomKind(kind),
 		Name:          name,
 		Description:   description,
+		Purpose:       options.importPurpose,
 		GroupId:       groupID,
 		Universal:     options.universal,
 		ThreadingMode: threadingMode,
@@ -76,6 +77,10 @@ func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind 
 	})
 
 	var defaultPermissionEntries []evtstream.BatchEntry
+	if options.importContext != nil {
+		createdEvent.ImportContext = options.importContext
+		createdEvent.GetRoomCreated().Purpose = options.importPurpose
+	}
 	if kind == KindChannel && options.applyAnnouncementsDefaults {
 		defaultPermissionEntries = rbacSeedEntries(nil, nil, defaultAnnouncementsRoomDecisions(room_id))
 	}
@@ -106,6 +111,12 @@ func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind 
 			})
 		}
 		entries = append(entries, defaultPermissionEntries...)
+		if options.importReceipt != nil {
+			for _, entry := range entries {
+				entry.Event.ImportContext = options.importContext
+			}
+			entries = append(entries, options.importReceipt(room_id))
+		}
 		return entries, nil
 	}
 	seqs, err := s.publishRoomEventWithNameOCCEntries(ctx, name, createdEvent, room_id, additionalEntries)

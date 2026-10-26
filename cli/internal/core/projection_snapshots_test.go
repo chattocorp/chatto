@@ -82,7 +82,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{reactionSnapshotContractID, "v2", &projectionv1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v2", &projectionv1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v10", &projectionv1.RoomTimelineProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v11", &projectionv1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v3", &projectionv1.ThreadProjectionSnapshot{}},
 		{userSnapshotContractID, "v4", &projectionv1.UserProfileProjectionSnapshot{}},
 	}
@@ -264,7 +264,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	}{
 		{"room_directory", func() snapshotProjection { return NewRoomDirectoryProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomDirectoryProjection)
-			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
+			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", purpose: "Imported purpose", kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
 			p.Catalog.seq = 41
 			p.Membership.addLocked("R1", "U1")
 			expires := now.Add(time.Hour)
@@ -407,7 +407,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v2-", "server_config": "v3-", "room_group_layout": "v1-",
 		"notification_decisions": "v3-", "notifications": "v2-",
-		"room_timeline": "v10-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v2-",
+		"room_timeline": "v11-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v2-",
 		"content_keys": "v1-", "rbac": "v2-", "mentionables": "v2-", "users": "v4-",
 	}
 	for _, tt := range tests {

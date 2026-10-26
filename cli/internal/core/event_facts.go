@@ -364,7 +364,7 @@ func isAssetLifecycleEvent(event *evtv1.Event) bool {
 // unarchived/deleted), Threading Mode changes, memberships (user_joined /
 // user_left), and voice call lifecycle (started / ended).
 func isVisibleRoomTimelineEntry(event *evtv1.Event) bool {
-	if event == nil {
+	if event == nil || event.GetImportContext().GetHiddenTimeline() {
 		return false
 	}
 	switch e := event.GetEvent().(type) {
@@ -406,6 +406,9 @@ func IsVisibleRoomTimelineEntry(event *evtv1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
+	if event.GetImportContext() != nil {
+		return false
+	}
 	if event.GetMessagePosted().GetHistoricalImport() || event.GetReactionAdded().GetHistoricalImport() || event.GetThreadCreated().GetHistoricalImport() {
 		return false
 	}
@@ -451,6 +454,9 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 }
 
 func isDeliverableLiveEVTAssetEvent(event *evtv1.Event) bool {
+	if event.GetImportContext() != nil {
+		return false
+	}
 	return isDeliverableLiveEVTAssetEventType(evtstream.EventTypeOf(event))
 }
 

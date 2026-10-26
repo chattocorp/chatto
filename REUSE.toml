@@ -20,6 +20,7 @@ path = [
   "docker/Dockerfile.frontend.prebuilt",
   "docker/Dockerfile.frontend.prebuilt.dockerignore",
   "examples/**",
+  "schema/interchange/**",
   "LICENSING.md",
   "packages/api-types/**",
   "packages/translatto/**",

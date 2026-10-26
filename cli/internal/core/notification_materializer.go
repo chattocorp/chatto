@@ -306,6 +306,9 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 }
 
 func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *evtv1.Event, streamSequence uint64) error {
+	if event.GetImportContext() != nil {
+		return nil
+	}
 	if event == nil {
 		return nil
 	}

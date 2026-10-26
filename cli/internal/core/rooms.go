@@ -90,6 +90,9 @@ type createRoomOptions struct {
 	universal                  bool
 	threadingMode              evtv1.RoomThreadingMode
 	applyAnnouncementsDefaults bool
+	importContext              *evtv1.ImportContext
+	importPurpose              string
+	importReceipt              func(string) evtstream.BatchEntry
 }
 
 // CreateRoomOption customizes room creation for trusted/internal callers.

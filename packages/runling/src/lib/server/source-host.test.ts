@@ -23,7 +23,7 @@ vi.mock('./web-config.ts', () => ({
 vi.mock('./run-store.ts', () => ({
   getRunStore: async () => ({ start: mocks.start, close: mocks.storeClose, restore: mocks.restore })
 }));
-vi.mock('../../runtime/source-manager.ts', () => ({
+vi.mock('runling/server', () => ({
   SourceManager: class {
     replace = mocks.replace;
     close = mocks.managerClose;

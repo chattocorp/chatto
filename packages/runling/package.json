@@ -28,6 +28,11 @@
       "types": "./dist/src/runtime/index.d.ts",
       "default": "./dist/src/runtime/index.js"
     },
+    "./server": {
+      "runling-source": "./src/runtime/web-server.ts",
+      "types": "./dist/src/runtime/web-server.d.ts",
+      "default": "./dist/src/runtime/web-server.js"
+    },
     "./git": {
       "runling-source": "./src/runtime/git.ts",
       "types": "./dist/src/runtime/git.d.ts",
@@ -77,6 +82,7 @@
     "test": "pnpm build:runtime && svelte-kit sync && vitest run",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test:package": "node scripts/test-package.mjs",
+    "test:server": "node scripts/test-server.mjs",
     "prepack": "node -e \"for (const file of ['dist/src/runtime/index.js', 'dist/src/runtime/index.d.ts', 'dist/web/handler.js']) { if (!require('node:fs').existsSync(file)) throw new Error('Run pnpm build before packing Runling'); }\""
   },
   "dependencies": {

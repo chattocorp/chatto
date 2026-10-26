@@ -2,10 +2,12 @@
  * only safe summaries; the terminal can also show each run's detailed log. */
 import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { stripVTControlCharacters, styleText } from 'node:util';
-import { terminalColors } from './ansi.ts';
+import { stripVTControlCharacters } from 'node:util';
+import { terminalLogLine, type TerminalLogLevel } from './terminal-log.ts';
+import { formatLogFields, type LogFields } from './log-fields.ts';
+import { log } from './log.ts';
 
-type Level = 'info' | 'warn' | 'error';
+type Level = TerminalLogLevel;
 
 /** Keep terminal diagnostics on one line; remote text cannot inject terminal controls. */
 function plain(value: unknown): string {
@@ -15,10 +17,6 @@ function plain(value: unknown): string {
 }
 
 function terminalLine(level: Level, event: string, fields: Record<string, unknown>): string {
-  const stream = level === 'info' ? process.stdout : process.stderr;
-  const color = terminalColors(stream);
-  const paint = (style: Parameters<typeof styleText>[0], text: string) =>
-    color ? styleText(style, text, { validateStream: false }) : text;
   let message: string;
   switch (event) {
     case 'server.starting':
@@ -54,25 +52,35 @@ function terminalLine(level: Level, event: string, fields: Record<string, unknow
     case 'source.failed':
       message = `Source ${plain(fields.source)} failed`;
       break;
+    case 'source.log':
+      return terminalLogLine(
+        level,
+        String(fields.message) + formatLogFields(fields.fields as LogFields | undefined),
+        {
+          context: `source:${plain(fields.source)}`,
+          timestamp: true,
+          stderr: level === 'warn' || level === 'error'
+        }
+      );
     default:
       message = event.replace(/[._]/g, ' ');
   }
-  const prefix = linePrefix(fields, paint);
   const detail = fields.error instanceof Error ? fields.error.message : fields.message;
   if (typeof detail === 'string') message += ` · ${plain(detail)}`;
   const success =
+    level === 'success' ||
     event === 'server.listening' ||
     (event === 'run.finished' && fields.status === 'completed') ||
     (event === 'run.activity' && fields.activityLevel === 'success');
-  const symbol = level === 'error' ? '✗' : level === 'warn' ? '!' : success ? '✓' : '●';
-  const tone = level === 'error' ? 'red' : level === 'warn' ? 'yellow' : success ? 'green' : 'cyan';
-  return `${paint('dim', new Date().toTimeString().slice(0, 8))} ${prefix}${paint(tone, symbol)} ${paint(success ? 'bold' : tone, plain(message))}`;
+  return terminalLogLine(success ? 'success' : level, plain(message), {
+    context: lineContext(fields),
+    timestamp: true,
+    stderr: level === 'warn' || level === 'error'
+  });
 }
 
-type Paint = (style: Parameters<typeof styleText>[0], text: string) => string;
-
 /** Time and `[run / task]` identifiers that start every run line. */
-function linePrefix(fields: Record<string, unknown>, paint: Paint): string {
+function lineContext(fields: Record<string, unknown>): string {
   const task = fields.agentLabel
     ? [fields.agentLabel, fields.taskReference].filter(Boolean).map(plain).join(':')
     : (fields.taskReference ?? fields.agentId);
@@ -82,41 +90,33 @@ function linePrefix(fields: Record<string, unknown>, paint: Paint): string {
   ]
     .filter(Boolean)
     .map(plain);
-  return identifiers.length ? `${paint('magenta', `[${identifiers.join(' / ')}]`)} ` : '';
+  return identifiers.join(' / ');
 }
 
 /** Print one line of a run's detailed log to the terminal, never to the log file. Workflow text
  * can come from users or models, so control sequences are removed; line breaks remain, indented
  * under the first line. */
 export function terminalRunLog(
-  level: 'debug' | 'info' | 'success' | 'error',
+  level: TerminalLogLevel,
   fields: Record<string, unknown>,
-  message: string
+  message: string,
+  metadata?: LogFields
 ): void {
-  const stream = level === 'error' ? process.stderr : process.stdout;
-  const color = terminalColors(stream);
-  const paint: Paint = (style, text) =>
-    color ? styleText(style, text, { validateStream: false }) : text;
-  const symbol =
-    level === 'error' ? '✗' : level === 'success' ? '✓' : level === 'debug' ? '·' : '●';
-  const tone =
-    level === 'error' ? 'red' : level === 'success' ? 'green' : level === 'debug' ? 'dim' : 'cyan';
-  const start = `${paint('dim', new Date().toTimeString().slice(0, 8))} ${linePrefix(fields, paint)}${paint(tone, symbol)} `;
-  const body = message
-    .split('\n')
-    .map((line) =>
-      stripVTControlCharacters(line)
-        .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]+/g, ' ')
-        .trimEnd()
-    )
-    .join(`\n${' '.repeat(stripVTControlCharacters(start).length)}`);
-  (level === 'error' ? console.error : console.log)(`${start}${body}`);
+  const stderr = level === 'error' || level === 'warn';
+  (stderr ? console.error : console.log)(
+    terminalLogLine(level, message + formatLogFields(metadata), {
+      context: lineContext(fields),
+      timestamp: true,
+      stderr
+    })
+  );
 }
 
 export function serverLogPath(): string {
   return resolve(
     dirname(resolve(process.env.RUNLING_WEB_CONFIG ?? 'runling.config.ts')),
-    '.runling/logs/server.jsonl'
+    process.env.RUNLING_DATA_DIRECTORY || '.runling',
+    'logs/server.jsonl'
   );
 }
 
@@ -127,6 +127,8 @@ export function serverLog(
   fields: Record<string, unknown> = {},
   { terminal = true }: { terminal?: boolean } = {}
 ): void {
+  // Retain routine HTTP diagnostics only when explicitly requested.
+  if (level === 'debug' && log.level !== 'debug') return;
   let line: string;
   try {
     line = JSON.stringify(
@@ -144,7 +146,7 @@ export function serverLog(
       message: 'Log details could not be serialized'
     });
   }
-  if (terminal) console[level](terminalLine(level, event, fields));
+  if (terminal) console[level === 'success' ? 'info' : level](terminalLine(level, event, fields));
   try {
     const path = serverLogPath();
     mkdirSync(dirname(path), { recursive: true, mode: 0o700 });

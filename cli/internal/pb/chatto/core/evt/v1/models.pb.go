@@ -211,8 +211,10 @@ type Room struct {
 	ThreadSlowModeSeconds *uint32 `protobuf:"varint,12,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
 	// Creation-event timestamp, retained by the room catalog and its snapshot.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Separate room purpose retained by history interchange.
+	Purpose string `protobuf:"bytes,14,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	// Member-only notice state. Never expose this through room discovery.
-	Notice        *RoomNotice `protobuf:"bytes,14,opt,name=notice,proto3" json:"notice,omitempty"`
+	Notice        *RoomNotice `protobuf:"bytes,15,opt,name=notice,proto3" json:"notice,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -322,6 +324,13 @@ func (x *Room) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *Room) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
 }
 
 func (x *Room) GetNotice() *RoomNotice {
@@ -2120,7 +2129,7 @@ var File_chatto_core_evt_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbc\x04\n" +
+	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd6\x04\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -2134,8 +2143,9 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\x0ethreading_mode\x18\v \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\x12<\n" +
 	"\x18thread_slow_mode_seconds\x18\f \x01(\rH\x00R\x15threadSlowModeSeconds\x88\x01\x01\x129\n" +
 	"\n" +
-	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x126\n" +
-	"\x06notice\x18\x0e \x01(\v2\x1e.chatto.core.evt.v1.RoomNoticeR\x06noticeB\x1b\n" +
+	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x18\n" +
+	"\apurpose\x18\x0e \x01(\tR\apurpose\x126\n" +
+	"\x06notice\x18\x0f \x01(\v2\x1e.chatto.core.evt.v1.RoomNoticeR\x06noticeB\x1b\n" +
 	"\x19_thread_slow_mode_secondsJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xa0\x01\n" +
 	"\n" +
 	"RoomNotice\x12\x18\n" +

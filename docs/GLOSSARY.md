@@ -99,7 +99,7 @@ another address does not change the selection. See
 
 **Room** — A channel or DM. Where messages live. Identified by `(serverId, roomId)`.
 
-**Room notice** — One current Markdown notice for a channel room's members. A correction preserves device-local dismissals; explicit republishing makes the notice appear again. See [FDR-053](fdr/FDR-053-room-notices.md).
+**Room notice** — One current Markdown notice for a channel room's members. A correction preserves device-local dismissals; explicit republishing makes the notice appear again. See [FDR-054](fdr/FDR-054-room-notices.md).
 
 **Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
 
@@ -225,6 +225,15 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 **Event** — `evtv1.Event` envelope and payload that describe one durable Chatto
 domain fact. EVT stores this value. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
+
+**Interchange archive** — Portable catalogs, an ordered event file, and local
+asset bytes for transferring supported channel history. Its draft contract is
+separate from EVT and server backups. See [the format specification](interchange/v1.md).
+
+**Interchange event** — A source historical fact or an explicit final-state
+snapshot in an interchange archive. Historical facts retain known occurrence
+times. Snapshots preserve state without inventing timeline activity. They are
+not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 

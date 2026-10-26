@@ -6,6 +6,7 @@ import { createTurnHandler } from './turn.ts';
 import { parseSettings } from './settings.ts';
 import { contextFixture, row } from './context.fixture.ts';
 import { hasTranscript } from './messages.ts';
+import { createTaskContext } from 'runling';
 
 vi.mock('./messages.ts', () => ({ hasTranscript: vi.fn() }));
 
@@ -41,7 +42,16 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
     reply: vi.fn<Parameters<typeof createTurnHandler>[3]['reply']>().mockResolvedValue('One answer')
   };
   const controller = new AbortController();
-  const turn = createTurnHandler(settings, 'bot', server, agent, controller.signal, beforeEffects);
+  const handle = createTurnHandler(
+    settings,
+    'bot',
+    server,
+    agent,
+    controller.signal,
+    beforeEffects
+  );
+  const ctx = createTaskContext();
+  const turn = (messages: readonly AddressedMessage[]) => handle(ctx, messages);
   const one: AddressedMessage = {
     id: 'one',
     roomId: 'room',
@@ -79,7 +89,7 @@ test.each(['root', 'outside'])('includes the reply target ID and author: %s', as
   const { turn, one, server, agent } = setup();
   server.getMessage.mockResolvedValue({ id: target, roomId: 'room', authorId: 'human' });
   await turn([{ ...one, inReplyTo: target }]);
-  expect(JSON.parse(agent.reply.mock.calls[0]![1]).currentMessages[0].inReplyTo).toEqual({
+  expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt).currentMessages[0].inReplyTo).toEqual({
     id: target,
     author: 'human'
   });
@@ -89,7 +99,7 @@ test.each(['root', 'outside'])('includes the reply target ID and author: %s', as
 test('an unavailable reply target has an unknown author', async () => {
   const { turn, one, agent } = setup();
   await turn([{ ...one, inReplyTo: 'missing' }]);
-  expect(JSON.parse(agent.reply.mock.calls[0]![1]).currentMessages[0].inReplyTo).toEqual({
+  expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt).currentMessages[0].inReplyTo).toEqual({
     id: 'missing',
     author: null
   });
@@ -111,7 +121,7 @@ test('later turns use the live timeline without another history request', async 
   store().ingestEvent(row('unaddressed', 'Live context', 'another'));
   await turn([two]);
   expect(history).toHaveBeenCalledOnce();
-  expect(agent.reply.mock.calls[1]?.[3]?.messages).toContainEqual({
+  expect(agent.reply.mock.calls[1]?.[1].context?.messages).toContainEqual({
     id: 'unaddressed',
     author: 'another',
     fromViewer: false,
@@ -132,25 +142,33 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
   await vi.advanceTimersByTimeAsync(5000);
   expect(failed).not.toHaveBeenCalled();
   expect(agent.reply).toHaveBeenCalledExactlyOnceWith(
-    ['https://chat.example.com', 'bot', 'room', 'root'],
-    JSON.stringify({
-      currentMessages: [
-        { id: 'one', author: 'human', text: 'First' },
-        { id: 'two', author: 'another', text: 'Clarification' }
-      ]
-    }),
-    expect.any(AbortSignal),
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
     {
-      messages: [
-        { id: 'root', author: 'human', text: 'Root', fromViewer: false },
-        { id: 'ordinary', author: 'human', text: 'Useful unaddressed context', fromViewer: false },
-        { id: 'one', author: 'human', text: 'First', fromViewer: false },
-        { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
-      ],
-      olderContextOmitted: false
-    },
-    ['human', 'another'],
-    [expect.any(Function)]
+      identity: ['https://chat.example.com', 'bot', 'room', 'root'],
+      prompt: JSON.stringify({
+        currentMessages: [
+          { id: 'one', author: 'human', text: 'First' },
+          { id: 'two', author: 'another', text: 'Clarification' }
+        ]
+      }),
+      signal: expect.any(AbortSignal),
+      context: {
+        messages: [
+          { id: 'root', author: 'human', text: 'Root', fromViewer: false },
+          {
+            id: 'ordinary',
+            author: 'human',
+            text: 'Useful unaddressed context',
+            fromViewer: false
+          },
+          { id: 'one', author: 'human', text: 'First', fromViewer: false },
+          { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
+        ],
+        olderContextOmitted: false
+      },
+      userIds: ['human', 'another'],
+      tools: [expect.any(Function)]
+    }
   );
   expect(history).toHaveBeenCalledOnce();
   expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(

@@ -28,11 +28,21 @@ Chatto uses `evtv1.Event` as the wrapper for durable EVT facts. It uses
 `pubsubv1.PubSubEvent` as the wrapper for NATS Core pubsub events. The EVT
 storage boundary accepts only `Event`.
 
-- **Wrapper fields**: `id`, `created_at`, `actor_id`
+- **Wrapper fields**: `id`, `created_at`, `actor_id`, optional `import_context`
 - **Concrete event**: `event` oneof on the selected envelope; contextual fields (`room_id`, etc.) live on the concrete payloads.
 
 Durable variants keep their existing field numbers. `PubSubEvent` field
 numbers are local to its NATS wire shape.
+
+`evt.import.server.import_progressed` stores `ImportProgressedEvent` receipts.
+Each receipt commits with one import operation and binds its immutable archive
+fingerprint, ordinal, optional allocated resource ID, and completion status.
+The importer reads this lane directly for recovery; it adds no projector or KV
+family. Receipts follow EVT retention and backup policy.
+
+`ImportContext` marks native historical facts, including hidden final-state
+reconciliation and unknown source times. Room creation and update facts also
+retain a separate room purpose. See [ADR-119](../adr/ADR-119-portable-history-interchange.md).
 
 Existing `Event` oneof field numbers are part of the persisted JetStream wire format; do not renumber or reuse them.
 

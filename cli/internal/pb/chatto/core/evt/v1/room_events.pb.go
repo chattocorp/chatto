@@ -160,6 +160,8 @@ type RoomCreatedEvent struct {
 	// Threading policy for this channel. Historical events omit the field and
 	// are interpreted as ENABLED. DM rooms leave it UNSPECIFIED.
 	ThreadingMode RoomThreadingMode `protobuf:"varint,7,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.core.evt.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
+	// Separate source room purpose, retained for interchange exports.
+	Purpose       string `protobuf:"bytes,8,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -236,11 +238,20 @@ func (x *RoomCreatedEvent) GetThreadingMode() RoomThreadingMode {
 	return RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
 }
 
+func (x *RoomCreatedEvent) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
 type RoomUpdatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	RoomId      string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	// Absence preserves the existing purpose for ordinary room edits.
+	Purpose       *string `protobuf:"bytes,5,opt,name=purpose,proto3,oneof" json:"purpose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -292,6 +303,13 @@ func (x *RoomUpdatedEvent) GetName() string {
 func (x *RoomUpdatedEvent) GetDescription() string {
 	if x != nil {
 		return x.Description
+	}
+	return ""
+}
+
+func (x *RoomUpdatedEvent) GetPurpose() string {
+	if x != nil && x.Purpose != nil {
+		return *x.Purpose
 	}
 	return ""
 }
@@ -1221,18 +1239,22 @@ const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	"\x16RoomNoticeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12\x1c\n" +
-	"\tannounced\x18\x03 \x01(\bR\tannounced\"\x8f\x02\n" +
+	"\tannounced\x18\x03 \x01(\bR\tannounced\"\xa9\x02\n" +
 	"\x10RoomCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x120\n" +
 	"\x04kind\x18\x05 \x01(\x0e2\x1c.chatto.core.evt.v1.RoomKindR\x04kind\x12\x1c\n" +
 	"\tuniversal\x18\x06 \x01(\bR\tuniversal\x12L\n" +
-	"\x0ethreading_mode\x18\a \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingModeJ\x04\b\x01\x10\x02R\bspace_id\"q\n" +
+	"\x0ethreading_mode\x18\a \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\x12\x18\n" +
+	"\apurpose\x18\b \x01(\tR\apurposeJ\x04\b\x01\x10\x02R\bspace_id\"\x9c\x01\n" +
 	"\x10RoomUpdatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescriptionJ\x04\b\x01\x10\x02R\bspace_id\";\n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
+	"\apurpose\x18\x05 \x01(\tH\x00R\apurpose\x88\x01\x01B\n" +
+	"\n" +
+	"\b_purposeJ\x04\b\x01\x10\x02R\bspace_id\";\n" +
 	"\x10RoomDeletedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"<\n" +
 	"\x11RoomArchivedEvent\x12\x17\n" +
@@ -1358,6 +1380,7 @@ func file_chatto_core_evt_v1_room_events_proto_init() {
 		return
 	}
 	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_room_events_proto_msgTypes[2].OneofWrappers = []any{}
 	file_chatto_core_evt_v1_room_events_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -74,7 +74,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
         async fork() {
           throw new Error('unused');
         },
-        dispose() {},
+        async dispose() {},
         async [Symbol.asyncDispose]() {}
       } satisfies RunlingAgent;
     }

@@ -39,6 +39,14 @@ resources, migrate its state, and reconcile actions whose outcome is uncertain.
 
 ## Saving and shutdown
 
+Set `RUNLING_DATA_DIRECTORY` before starting the host to select a separate
+storage directory for an instance. Run journals and snapshots go in its `runs/`
+subdirectory; server diagnostics go in `logs/`. An absolute path is recommended.
+Relative paths resolve from the server configuration directory, or from the
+working directory for `runling run`. Without this setting, existing `.runling/`
+and legacy journal-directory behavior is unchanged. Keep one owning process
+per storage directory. Restart the host after changing this setting.
+
 The server writes `.runling/runs/state.json` every 60 seconds and after task
 cleanup at graceful shutdown. Projects that use the legacy journal directory
 keep their snapshot there. Each write captures the complete object, writes a
