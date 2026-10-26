@@ -3,7 +3,8 @@
 Historical message, thread-creation, and reaction-add facts are excluded from
 live room delivery and reconnect replay. Their durable historical markers also
 make the public event mapper reject them. Clients obtain imported state through
-resource reads; importing history does not produce new activity frames.
+resource reads. Tombstone imports use ordinary retractions, which are eligible
+for live delivery and reconnect replay.
 
 Key files:
 

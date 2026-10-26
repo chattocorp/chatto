@@ -230,6 +230,9 @@
   });
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
+  const canUsePasswordProof = $derived(
+    hasPassword && serverScope.store.serverInfo.directLoginEnabled
+  );
   const unconfiguredLinkedIdentities = $derived(
     linkedIdentities.filter(
       (identity) =>
@@ -283,7 +286,7 @@
       if (
         err instanceof ConnectError &&
         err.code === Code.FailedPrecondition &&
-        hasPassword &&
+        canUsePasswordProof &&
         currentPassword === undefined
       ) {
         linkFreshAuthProvider = provider;
@@ -294,7 +297,9 @@
         err.code === Code.FailedPrecondition &&
         currentPassword === undefined
       ) {
-        actionError = m('settings.account.sso.fresh_auth_required');
+        actionError = serverScope.store.serverInfo.directLoginEnabled
+          ? m('settings.account.sso.fresh_auth_required')
+          : m('settings.account.sso.sso_fresh_auth_required');
       } else if (currentPassword !== undefined) {
         linkFreshAuthError = errorMessage(err, m('settings.account.sso.link_failed'));
       } else {
@@ -399,12 +404,14 @@
         currentPassword === undefined
       ) {
         disconnectTarget = null;
-        if (hasPassword) {
+        if (canUsePasswordProof) {
           disconnectFreshAuthTarget = { subjectHash, providerLabel };
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else {
-          actionError = m('settings.account.sso.disconnect_fresh_auth_required');
+          actionError = serverScope.store.serverInfo.directLoginEnabled
+            ? m('settings.account.sso.disconnect_fresh_auth_required')
+            : m('settings.account.sso.sso_fresh_auth_required');
         }
       } else if (currentPassword !== undefined) {
         disconnectFreshAuthError = errorMessage(err, m('settings.account.sso.disconnect_failed'));

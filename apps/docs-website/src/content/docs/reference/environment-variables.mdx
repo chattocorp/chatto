@@ -372,7 +372,7 @@ environment variables from your configuration. These settings no longer have an 
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_DIRECT_LOGIN" toml="auth.direct_login" default="true">
-  Enable direct sign-in with a username or email address and password. When `false`, the password form and recovery link are hidden and the password login endpoint returns `403`. Existing sessions, registration, and authenticated password management are unaffected.
+  Enable direct sign-in with a username or email address and password. When `false`, the password login form and recovery link are hidden. Password sign-in, user password changes, and password recovery are disabled on the server. Account settings shows disabled password controls with an SSO notice. Sensitive account actions require fresh SSO authentication instead of local password proof. Existing sessions, stored passwords, registration, and operator recovery are unaffected.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">

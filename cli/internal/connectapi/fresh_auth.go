@@ -38,7 +38,9 @@ func (a *API) verifyFreshCredential(ctx context.Context, caller Caller, currentP
 		return credential, false, err
 	}
 
-	if currentPassword == "" {
+	// SSO-only servers require fresh sign-in through a provider. Retained
+	// local passwords must not serve as an alternative reauthentication path.
+	if currentPassword == "" || !a.config.Auth.DirectLoginOrDefault() {
 		return credential, false, core.ErrFreshAuthRequired
 	}
 	if err := a.core.VerifyUserPassword(ctx, caller.UserID, currentPassword); err != nil {

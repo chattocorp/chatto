@@ -160,6 +160,16 @@ application's user-data directory. HTTP and HTTPS retain Chromium's normal
 network behavior. The custom shell origin is frontend-only and is never probed
 as a Chatto HTTP backend; discovery, viewer, and realtime requests target only
 registered HTTP or HTTPS server origins.
+
+YouTube player frames loaded directly by the local frontend receive the fixed
+app identity `https://run.chatto.desktop/` as their HTTP referrer. YouTube
+requires this identity because the custom origin does not supply an HTTP
+referrer. The value contains no server address, room path, or user identifier.
+The player still connects directly to YouTube, which receives the user's IP
+address and requested video ID. This exception applies only to the existing
+`youtube-nocookie.com` embed endpoint; other requests keep normal browser
+referrer handling. See [YouTube's client identity requirements](https://developers.google.com/youtube/terms/required-minimum-functionality#api-client-identity-and-credentials).
+
 **Why:** A stable secure origin keeps local storage, IndexedDB, service workers,
 OAuth callbacks, and registered servers reachable on every launch. The
 dedicated scheme cannot collide with a local service and avoids intercepting

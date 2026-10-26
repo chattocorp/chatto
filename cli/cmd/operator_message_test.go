@@ -94,3 +94,18 @@ func TestOperatorMessageImportRejectsConflictingBodyFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestOperatorMessageImportDeleted(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "cli-deleted-author", "Author", "password")
+	require.NoError(t, err)
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "cli-deleted-room", "")
+	require.NoError(t, err)
+	args := []string{"operator", "message", "import", "--room-id", room.Id, "--author-id", author.Id,
+		"--created-at", "2025-12-28T18:21:38.872519Z", "--deleted", "--create-thread"}
+	rootID := strings.TrimSpace(env.run(t, args...))
+	require.NotEmpty(t, rootID)
+	require.True(t, env.core.GetThreadMetadata(rootID).Exists)
+	_, err = env.execute(t, append(args, "--body", "must not be stored")...)
+	require.Error(t, err)
+}

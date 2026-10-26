@@ -3,7 +3,53 @@ package core
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 )
+
+func TestPermissionExplainer_PrivilegedModeAgreesWithResolver(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := c.CreateUser(ctx, SystemActorID, "explain-privileged", "Explain Privileged", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, credentialUser string
+		deadline             time.Time
+		want                 DecisionKind
+	}{
+		{"inactive", user.Id, time.Time{}, DecisionDeny},
+		{"active", user.Id, time.Now().Add(time.Hour), DecisionAllow},
+		{"expired", user.Id, time.Now().Add(-time.Hour), DecisionDeny},
+		{"another user", "inspector", time.Now().Add(time.Hour), DecisionDeny},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requestCtx := authctx.WithCredential(ctx, authctx.RuntimeCredential{Kind: authctx.RuntimeCredentialKindBearerToken, UserID: tc.credentialUser, Handle: "explanation-session", PrivilegedModeExpiresAt: tc.deadline})
+			for _, perm := range []Permission{PermServerManage, PermServerManageNeighbors} {
+				exp, err := c.PermResolver().ExplainServerPermission(requestCtx, user.Id, perm)
+				if err != nil {
+					t.Fatal(err)
+				}
+				actual, err := c.PermResolver().Resolve(requestCtx, user.Id, KindChannel, "", perm)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if exp.State != actual || exp.State != tc.want {
+					t.Fatalf("%s: explanation=%s resolver=%s want=%s", perm, exp.State, actual, tc.want)
+				}
+				if tc.want == DecisionDeny && (exp.DecidedByRole != "@privileged-mode" || len(exp.Trace) < 2) {
+					t.Fatalf("missing gate and underlying grant: %+v", exp)
+				}
+			}
+		})
+	}
+}
 
 // TestPermissionExplainer_AgreesWithHas asserts that for every fixture and every
 // applicable permission, Has*Permission and Explain*Permission produce the same

@@ -23,6 +23,7 @@ const { mocks } = vi.hoisted(() => ({
     serverId: 'origin',
     accountId: 'user-alice' as string | null,
     scopeCurrent: true,
+    directLoginEnabled: true,
     beginExplicitSignOutRedirect: vi.fn(),
     cancelExplicitSignOutRedirect: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
@@ -70,6 +71,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: mocks.serverId,
     connection,
     store: {
+      serverInfo: {
+        get directLoginEnabled() {
+          return mocks.directLoginEnabled;
+        }
+      },
       get accountId() {
         return mocks.accountId;
       }
@@ -327,6 +333,7 @@ function unlinkedIdentityList() {
 
 describe('identity link popup and continuation', () => {
   beforeEach(() => {
+    mocks.directLoginEnabled = true;
     queryClient.clear();
     vi.clearAllMocks();
     mocks.url = new URL('http://localhost/chat/-/settings/account');
@@ -589,6 +596,18 @@ describe('identity link popup and continuation', () => {
     expect(close).not.toHaveBeenCalled();
     expect(mocks.startLink).not.toHaveBeenCalled();
     expect(mocks.url.search).toBe('');
+  });
+
+  it('requires SSO reauthentication instead of a stored password on SSO-only servers', async () => {
+    mocks.directLoginEnabled = false;
+    continuation();
+    renderSettings();
+    await expect
+      .element(browserPage.getByText(/Open account settings on the server that owns this account/))
+      .toBeVisible();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
+      .not.toBeInTheDocument();
   });
 
   it('opens the password dialog ready for input', async () => {

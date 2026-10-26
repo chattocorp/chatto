@@ -91,6 +91,38 @@ describe('Account settings page', () => {
     await expect.element(getByText('U123abcetc.')).toBeVisible();
   });
 
+  it('keeps password controls visible but disabled on SSO-only servers', async () => {
+    server.scope.store.serverInfo.directLoginEnabled = false;
+    const { getByRole, getByLabelText, getByText } = render(AccountPage);
+    await settle();
+
+    await expect.element(getByText(/You cannot add or change a password/)).toBeVisible();
+    await expect.element(getByLabelText('Current Password', { exact: true })).toBeDisabled();
+    await expect.element(getByLabelText('New Password', { exact: true })).toBeDisabled();
+    await expect
+      .element(getByRole('button', { name: 'Change password', exact: true }))
+      .toBeDisabled();
+  });
+
+  it('allows password input when direct login is enabled', async () => {
+    const { getByLabelText, getByText } = render(AccountPage);
+    await settle();
+
+    await expect.element(getByLabelText('Current Password', { exact: true })).toBeEnabled();
+    await expect.element(getByText(/You cannot add or change a password/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the add-password controls disabled for passwordless SSO accounts', async () => {
+    server.scope.store.serverInfo.directLoginEnabled = false;
+    server.currentUser.user = { ...server.currentUser.user!, hasPassword: false };
+    const { getByRole, getByLabelText, getByText } = render(AccountPage);
+    await settle();
+
+    await expect.element(getByText(/You cannot add or change a password/)).toBeVisible();
+    await expect.element(getByLabelText('New Password', { exact: true })).toBeDisabled();
+    await expect.element(getByRole('button', { name: 'Add password', exact: true })).toBeDisabled();
+  });
+
   it('shows verified email addresses and their primary actions', async () => {
     mocks.listVerifiedEmails.mockResolvedValue([
       { email: 'alice@example.com', primary: true },

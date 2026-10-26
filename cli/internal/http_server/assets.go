@@ -820,6 +820,8 @@ func isImageContentType(contentType string) bool {
 	return contentType == "image/jpeg" ||
 		contentType == "image/png" ||
 		contentType == "image/gif" ||
+		contentType == "image/heic" ||
+		contentType == "image/heif" ||
 		contentType == "image/webp"
 }
 

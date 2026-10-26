@@ -16,6 +16,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -362,6 +363,55 @@ func (env *assetTestEnv) deleteAssetMessage(t *testing.T, roomID, eventID string
 // ============================================================================
 // Asset Caching Tests
 // ============================================================================
+
+func TestAsset_HEICPreviewAndOriginal(t *testing.T) {
+	env := setupAssetTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "heicuser", "HEIC User", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "heicroom", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatal(err)
+	}
+	env.login(t, "heicuser", "password123")
+	data, err := os.ReadFile("../assets/testdata/photo.heic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, attachment := env.postAssetMessageWithAttachmentContentType(t, room.Id, "HEIC image", data, "photo.heic", "image/heic")
+	for _, preview := range []bool{false, true} {
+		url := attachment.GetAssetUrl().GetUrl()
+		if preview {
+			url = attachment.GetThumbnailAssetUrl().GetUrl()
+		}
+		if url == "" {
+			t.Fatal("missing asset URL")
+		}
+		response, err := env.client.Get(env.url(url))
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil || response.StatusCode != http.StatusOK {
+			t.Fatalf("asset response: %d, %v", response.StatusCode, err)
+		}
+		if preview {
+			if response.Header.Get("Content-Type") != "image/jpeg" {
+				t.Fatalf("preview type: %s", response.Header.Get("Content-Type"))
+			}
+			if _, _, err := image.Decode(bytes.NewReader(body)); err != nil {
+				t.Fatal(err)
+			}
+		} else if !bytes.Equal(body, data) || response.Header.Get("Content-Type") != "image/heic" {
+			t.Fatal("original HEIC changed")
+		}
+	}
+}
 
 func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 	env := setupAssetTestServer(t)

@@ -12,27 +12,37 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-// imageTransforms bounds the memory that on-demand image transforms use in
-// one process. A decoder holds all pixels of an image in memory, so a 40
+// maxConcurrentImageSources bounds source reads and buffered originals through
+// the end of a transform. Two slots allow small transforms to run concurrently
+// or one source to load while a large transform holds the pixel budget.
+const maxConcurrentImageSources = 2
+
+// imageTransforms limits concurrent on-demand image work in one process.
+// A decoder holds all pixels of an image in memory, so a 40
 // megapixel image needs approximately 160 MB. The limits are per process
 // because memory is per process.
 //
 //   - Concurrent requests for the same derivative share one transform. Only
 //     one of them reads the source.
-//   - Transforms in progress hold at most assets.MaxDecodedImagePixels pixels
-//     together. Small images run concurrently. A large image waits until the
+//   - At most maxConcurrentImageSources operations read or hold source bytes.
+//     Other operations wait before opening their source. A source slot stays
+//     held while waiting for pixels and through the end of the transform.
+//   - Transforms acquire a shared assets.MaxDecodedImagePixels budget before
+//     decoding. Small images run concurrently. A large image waits until the
 //     transforms in progress release their pixels, and transforms that start
 //     to wait later wait behind it.
 //
-// A transform reads its source before it waits for pixels, so a waiting
-// transform holds its source bytes. An animated GIF counts as at most
+// These limits do not bound total bytes: encoded sources, decoded pixel
+// formats, transform output, and buffers retained by callers vary in size.
+// An animated GIF counts as at most
 // assets.MaxDecodedImagePixels pixels, although its frames together can have
 // more.
 //
 // The zero value is ready for use.
 type imageTransforms struct {
 	flight     singleflight.Group
-	pixelsOnce sync.Once
+	limitsOnce sync.Once
+	sources    *semaphore.Weighted
 	pixels     *semaphore.Weighted
 }
 
@@ -55,8 +65,9 @@ var (
 
 // do returns the transform result for key. If another request already
 // transforms key, do waits for that result and does not call read. Otherwise,
-// it calls read to get the source bytes, waits until enough pixels are free,
-// and calls transform.
+// it waits for a source slot, calls read to get the source bytes, waits until
+// enough pixels are free, and calls transform. Same-key followers do not hold
+// source slots.
 //
 // The request that does the work uses its own context. If that context ends,
 // one of the waiting requests whose context is still active does the work
@@ -91,11 +102,19 @@ func (t *imageTransforms) run(
 	read func() ([]byte, error),
 	transform func([]byte) (*transformedImage, error),
 ) (*transformedImage, error) {
+	t.limitsOnce.Do(func() {
+		t.sources = semaphore.NewWeighted(maxConcurrentImageSources)
+		t.pixels = semaphore.NewWeighted(assets.MaxDecodedImagePixels)
+	})
+	if err := t.sources.Acquire(ctx, 1); err != nil {
+		return nil, err
+	}
+	defer t.sources.Release(1)
+
 	data, err := read()
 	if err != nil {
 		return nil, err
 	}
-	t.pixelsOnce.Do(func() { t.pixels = semaphore.NewWeighted(assets.MaxDecodedImagePixels) })
 	weight := transformPixelWeight(data)
 	if err := t.pixels.Acquire(ctx, weight); err != nil {
 		return nil, err

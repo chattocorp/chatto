@@ -36,13 +36,13 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-024](FDR-024-permission-inspection-tool.md)            | Permission Inspection Tool            | Active       | 2026-08-27    |
 | [FDR-025](FDR-025-user-search-and-member-directory.md)      | User Search & Member Directory        | Active       | 2026-09-27    |
 | [FDR-026](FDR-026-last-room-memory.md)                      | Last-Room Memory                      | Active       | 2026-06-16    |
-| [FDR-027](FDR-027-pwa-and-service-worker.md)                | PWA & Service Worker                  | Active       | 2026-10-09    |
+| [FDR-027](FDR-027-pwa-and-service-worker.md)                | PWA & Service Worker                  | Active       | 2026-10-26    |
 | [FDR-028](FDR-028-operator-api-and-cli.md)                  | Operator API & CLI                    | Active       | 2026-10-25    |
 | [FDR-029](FDR-029-chatto-shields.md)                        | Chatto Shields                        | Active       | 2026-08-23    |
 | [FDR-030](FDR-030-inline-message-timestamps.md)             | Inline Message Timestamps             | Active       | 2026-10-15    |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-10-16    |
 | [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-10-25    |
-| [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-15    |
+| [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-26    |
 | [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-10-26    |
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
 | [FDR-036](FDR-036-invite-links.md)                          | Invite Links                          | Active       | 2026-08-11    |

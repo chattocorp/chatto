@@ -19,6 +19,7 @@ import {
   shell
 } from 'electron';
 import { APP_ORIGIN, createFrontendProtocolHandler } from './frontend_protocol.mjs';
+import { configureYouTubeEmbeds } from './youtube.mjs';
 import {
   gameCaptureCancelListSourcesChannel,
   gameCaptureListSourcesChannel,
@@ -733,6 +734,7 @@ function protectNavigation(window) {
 }
 
 function configureSession(appSession) {
+  configureYouTubeEmbeds(appSession);
   appSession.setPermissionCheckHandler((_contents, permission, origin) =>
     isDesktopPermissionAllowed(permission, origin)
   );

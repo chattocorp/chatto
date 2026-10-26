@@ -16,10 +16,21 @@ versions add release work without a current need for a separate release cadence.
 
 ## Decision
 
-Chatto Desktop, the server, and the frontend share one version, release commit,
+Chatto Desktop, the server, the frontend, and `@chatto/client` share one version, release commit,
 release PR, and `vX.Y.Z` tag. Every new Chatto release builds desktop artifacts.
 Desktop-only changes contribute to the shared changelog and release version.
 This supersedes the independent desktop release decision in ADR-067.
+
+The client package joins this release group on 2026-10-26. Client-only changes
+also contribute to the shared changelog and version. Release-please updates its
+package version through the root component. The former independent client
+tags and changelog remain historical records.
+
+Each shared tag starts the client npm publication workflow. Prereleases use
+the npm `next` tag; stable releases use `latest`. The workflow verifies the
+package version against the shared tag and publishes the tested tarball.
+It runs independently of server and desktop publication. A failed npm job can
+be retried against the same tag if that package version is still unpublished.
 
 Tagged desktop builds display the shared release version. Manual verification
 builds identify the frontend with the development version and commit SHA; their
@@ -37,6 +48,7 @@ branch. Old desktop alpha tags and changelogs remain historical records.
 ## Consequences
 
 Users can identify a Chatto release consistently across desktop and web clients.
+Package consumers can also identify the corresponding `@chatto/client` version.
 Client-server compatibility rules remain unchanged; matching versions are not
 required to connect.
 
