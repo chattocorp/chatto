@@ -12,19 +12,6 @@
   "include-component-in-tag": false,
   "include-v-in-tag": true,
   "packages": {
-    "packages/chatto-client": {
-      "release-type": "simple",
-      "package-name": "chatto-client",
-      "component": "chatto-client",
-      "versioning": "default",
-      "prerelease": false,
-      "draft": true,
-      "include-component-in-tag": true,
-      "tag-separator": "/",
-      "changelog-path": "CHANGELOG.md",
-      "initial-version": "0.1.0",
-      "extra-files": [{ "type": "json", "path": "package.json", "jsonpath": "$.version" }]
-    },
     ".": {
       "package-name": "chatto",
       "prerelease-type": "beta.1",
@@ -41,10 +28,14 @@
         "pkg/jetstreamutil",
         "pkg/natsruntime",
         ".agents/skills",
-        "packages/translatto",
-        "packages/chatto-client"
+        "packages/translatto"
       ],
       "extra-files": [
+        {
+          "type": "json",
+          "path": "packages/chatto-client/package.json",
+          "jsonpath": "$.version"
+        },
         {
           "type": "generic",
           "path": "cli/version.go"

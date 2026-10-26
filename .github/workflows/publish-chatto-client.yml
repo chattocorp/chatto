@@ -3,7 +3,7 @@ name: publish-chatto-client
 on:
   push:
     tags:
-      - 'chatto-client/v*'
+      - 'v*'
   # Manual runs verify and save a package without publishing it.
   workflow_dispatch:
 
@@ -64,8 +64,14 @@ jobs:
           name: chatto-client-package
           path: release
       - name: Publish the tested tarball with trusted publishing
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           shopt -s nullglob
           packages=(./release/*.tgz)
           test "${#packages[@]}" -eq 1
-          npm publish "${packages[0]}" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org
+          dist_tag=latest
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            dist_tag=next
+          fi
+          npm publish "${packages[0]}" --tag "$dist_tag" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org

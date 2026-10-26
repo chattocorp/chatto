@@ -1,16 +1,17 @@
 /** Validate release identity and reject versions present in npm history. */
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import semver from 'semver';
 
 /** Check package identity and, when supplied, the release tag.
  * @param {{name: string, version: string}} manifest
  * @param {string} tag
  */
 export function assertRelease(manifest, tag = '') {
-  if (manifest.name !== '@chatto/client' || !/^\d+\.\d+\.\d+$/.test(manifest.version)) {
-    throw new Error('Expected a stable @chatto/client release version');
+  if (manifest.name !== '@chatto/client' || semver.valid(manifest.version) !== manifest.version) {
+    throw new Error('Expected a valid @chatto/client release version');
   }
-  if (tag && tag !== `chatto-client/v${manifest.version}`) {
+  if (tag && tag !== `v${manifest.version}`) {
     throw new Error('Tag must match package version');
   }
 }
