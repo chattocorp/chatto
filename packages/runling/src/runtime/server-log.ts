@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { terminalLogLine, type TerminalLogLevel } from './terminal-log.ts';
 import { formatLogFields, type LogFields } from './log-fields.ts';
+import { log } from './log.ts';
 
 type Level = TerminalLogLevel;
 
@@ -127,7 +128,7 @@ export function serverLog(
   { terminal = true }: { terminal?: boolean } = {}
 ): void {
   // Retain routine HTTP diagnostics only when explicitly requested.
-  if (level === 'debug' && process.env.RUNLING_LOG_LEVEL !== 'debug') return;
+  if (level === 'debug' && log.level !== 'debug') return;
   let line: string;
   try {
     line = JSON.stringify(

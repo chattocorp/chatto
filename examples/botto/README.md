@@ -427,9 +427,9 @@ operations are timed Runling steps. Runling reports model tool activity; Botto
 does not add a second MCP completion log. Arguments, results, and raw errors are
 omitted. `NO_COLOR` disables terminal colors. Terminal output remains readable
 text when redirected; use Runling's JSON log files for structured records.
-Successful HTTP request logs are hidden unless `RUNLING_LOG_LEVEL=debug` is set.
+Set `RUNLING_LOG_LEVEL=debug` to include source and workflow debug logs and successful HTTP requests.
 Message and turn logs include the Chatto thread root ID as `threadId`; top-level
-messages use their own ID. Process-local turn numbers identify concurrent work. Steps include durations
+messages use their own ID. Runling task references identify concurrent work. Steps include durations
 and safe error hints. Logs omit message text, user identities, configured names,
 credentials, URLs, and raw external errors. Runling writes its own server
 diagnostics and run journals under the data directory. It records model usage

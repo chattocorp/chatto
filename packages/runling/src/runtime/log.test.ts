@@ -5,6 +5,7 @@ import { observeRunlingEvents, type RunlingEvent } from './events.ts';
 import { visibleWidth } from '@earendil-works/pi-tui';
 import { stripVTControlCharacters } from 'node:util';
 import { step } from './step.ts';
+import { withExecutionServices } from './execution.ts';
 
 function terminal(destination: 'stdout' | 'stderr', isTTY: boolean, columns = 80) {
   const stream = process[destination];
@@ -20,6 +21,32 @@ function terminal(destination: 'stdout' | 'stderr', isTTY: boolean, columns = 80
 }
 
 describe('log', () => {
+  test('global debug includes source and non-verbose workflow logs', () => {
+    vi.stubEnv('RUNLING_LOG_LEVEL', 'debug');
+    const events: RunlingEvent[] = [];
+    log.withDestination('silent', () =>
+      observeRunlingEvents(
+        (event) => events.push(event),
+        () => {
+          log.debug('Source detail');
+          withExecutionServices({ verbose: false }, () => log.debug('Workflow detail'));
+        }
+      )
+    );
+    expect(events.map((event) => event.type === 'log' && event.message)).toEqual([
+      'Source detail',
+      'Workflow detail'
+    ]);
+  });
+
+  test('verbose runs enable debug without changing other runs', () => {
+    vi.stubEnv('RUNLING_LOG_LEVEL', undefined);
+    expect(withExecutionServices({ verbose: true }, () => log.level)).toBe('debug');
+    expect(withExecutionServices({ verbose: false }, () => log.level)).toBe('info');
+    expect(log.level).toBe('info');
+    log.level = 'debug';
+    expect(withExecutionServices({ verbose: false }, () => log.level)).toBe('debug');
+  });
   test('keeps concurrent structured fields separate and emits warnings once', async () => {
     const events: RunlingEvent[] = [];
     const output = vi.spyOn(console, 'error').mockImplementation(() => {});

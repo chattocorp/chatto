@@ -61,7 +61,6 @@ export const conversation = task(
             }
           }
           // Acknowledge only after child cleanup has finished.
-          ctx.state.completedTurns = Number(ctx.state.completedTurns ?? 0) + 1;
           work.done.resolve();
         } catch (error) {
           work.done.reject(work.failure ? work.failure.error : error);

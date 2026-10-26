@@ -124,9 +124,11 @@ export type LoggedWork<T> = () => T;
 let defaultLevel: LogLevel = 'info';
 
 export const log = {
+  /** Debug is enabled globally by the environment or level setter, or for a verbose run. */
   get level(): LogLevel {
-    const services = executionServices();
-    return services ? (services.verbose ? 'debug' : 'info') : defaultLevel;
+    return process.env.RUNLING_LOG_LEVEL === 'debug' || executionServices()?.verbose
+      ? 'debug'
+      : defaultLevel;
   },
   set level(value: LogLevel) {
     defaultLevel = value;

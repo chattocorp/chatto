@@ -20,7 +20,6 @@ export function createTurnHandler(
   shutdown: AbortSignal,
   beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
 ) {
-  let turnCounter = 0;
   return async (ctx: TaskContext, messages: readonly AddressedMessage[]): Promise<void> => {
     shutdown.throwIfAborted();
     const message = messages.at(-1);
@@ -29,7 +28,6 @@ export function createTurnHandler(
     const identity = conversationIdentity(settings.serverUrl, botId, destination);
     const metrics = {
       threadId: destination.threadRootId,
-      turn: ++turnCounter,
       messages: messages.length
     };
     log.info('Batch ready', metrics);

@@ -81,7 +81,10 @@ minutes apart. These reminders report silence, not progress. Run records include
 `runId` so you can find the full event history in `.runling/runs/<runId>.jsonl`.
 
 HTTP logs use route templates and omit request bodies, headers, and query
-strings. Set `RUNLING_LOG_LEVEL=debug` to include successful HTTP responses.
+strings. Set `RUNLING_LOG_LEVEL=debug` to enable debug logs for server diagnostics,
+sources, and workflows, including successful HTTP responses. `log.level = 'debug'`
+also enables debug logging in that runtime. A workflow's `--verbose` option enables
+debug for that execution without changing other executions.
 Error messages can contain workflow or service details. Log files are
 private to the server user and ignored by Git.
 

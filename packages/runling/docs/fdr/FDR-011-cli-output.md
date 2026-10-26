@@ -17,7 +17,8 @@ from the answer and use the journal to inspect intermediate replies.
   context and remain in the run journal. Separate destinations do not require
   application formatters. Applications must exclude private data from log fields.
 - The server prints the root task's start once. Successful HTTP responses are
-  debug diagnostics, enabled with `RUNLING_LOG_LEVEL=debug`.
+  debug diagnostics. `RUNLING_LOG_LEVEL=debug` enables debug logs for the server,
+  sources, and workflows. Verbose executions can also enable debug for their own work.
 - Normal output shows the run reference at startup, task and step progress,
   and agent activity, including tool use. Agent reasoning summaries can appear
   as part of this activity. `--verbose` also shows debug logs.
