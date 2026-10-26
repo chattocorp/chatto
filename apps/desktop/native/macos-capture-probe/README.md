@@ -254,6 +254,11 @@ one aspect-ratio-preserving tuned H.264 layer with resolution priority.
 Automatic mode uses VBR on macOS 26 or later and retries unsupported VBR setup
 with tuned average-rate control. Older systems select average-rate control
 directly. The frontend requests video dimensions in physical pixels for HiDPI.
+The tuned encoder also fits frames within H.264 level 4.2's 8704-macroblock
+limit at 60 FPS. The 1920×1122 test size stays unchanged. A 1920×1200 source
+scales to 1872×1170, and a 1920×1920 source scales to 1488×1488. This preserves
+the full image instead of rejecting taller sources or raising the decoder
+requirement. VideoToolbox scales the input; reports show the coded dimensions.
 
 The stock H.264 and HEVC Diagnostics options publish three resolution classes: 1920-edge at
 60 fps and up to 8 Mbps, 1280-edge at 60 fps and up to 4 Mbps, and 640-edge at

@@ -145,6 +145,24 @@ final class TunedH264Encoder: VideoEncoder, @unchecked Sendable {
     }
   }
 
+  /// Keep the tested size when it fits level 4.2 at 60 FPS. Other aspect ratios
+  /// can exceed its 8704-macroblock frame limit despite a 1920-pixel edge.
+  /// Reduce both edges together, rounding down to even pixels for 4:2:0 video.
+  static func encodeDimensions(width: Int, height: Int) -> Dimensions? {
+    guard width >= 2, height >= 2, width <= Int(Int32.max), height <= Int(Int32.max) else { return nil }
+    func fits(_ w: Int, _ h: Int) -> Bool {
+      w <= 1920 && h <= 1920 && ((w + 15) / 16) * ((h + 15) / 16) <= 8704
+    }
+    if fits(width, height) { return Dimensions(width: Int32(width), height: Int32(height)) }
+    let sourceEdge = max(width, height)
+    for edge in stride(from: min(sourceEdge, 1920) / 2 * 2, through: 2, by: -2) {
+      let w = max(2, width * edge / sourceEdge / 2 * 2)
+      let h = max(2, height * edge / sourceEdge / 2 * 2)
+      if fits(w, h) { return Dimensions(width: Int32(w), height: Int32(h)) }
+    }
+    return nil
+  }
+
   func setCallback(_ callback: VideoEncoderCallback?) {
     lock.lock()
     self.callback = callback
@@ -188,11 +206,13 @@ final class TunedH264Encoder: VideoEncoder, @unchecked Sendable {
   /// A failed VBR setup gets one fresh average-rate session in automatic mode.
   /// The fallback stays active for this encoder, including dimension changes.
   private func createConfiguredSession() -> Bool {
-    guard let profile = Self.profile(for: level), width <= 1920, height <= 1920,
-      ((width + 15) / 16) * ((height + 15) / 16) <= 8704 else { return false }
+    guard let profile = Self.profile(for: level),
+      let dimensions = Self.encodeDimensions(width: width, height: height) else { return false }
     var created: VTCompressionSession?
+    // VideoToolbox scales source buffers to this coded size. Keep width/height
+    // as the input size so each frame does not recreate the scaled session.
     let status = VTCompressionSessionCreate(
-      allocator: nil, width: Int32(width), height: Int32(height), codecType: kCMVideoCodecType_H264,
+      allocator: nil, width: dimensions.width, height: dimensions.height, codecType: kCMVideoCodecType_H264,
       encoderSpecification: [kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder: true] as CFDictionary,
       imageBufferAttributes: nil, compressedDataAllocator: nil,
       outputCallback: { context, source, status, flags, sample in

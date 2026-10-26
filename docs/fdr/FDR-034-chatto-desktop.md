@@ -76,7 +76,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
   bitrate, and network statistics without source names, account identifiers,
   addresses, or credentials. Reports are not sent automatically.
 - Development and release builds default to tuned H.264 with one layer and
-  resolution priority. Automatic mode uses hardware VBR on macOS 26 or later.
+  resolution priority. Tall and square sources scale to fit the negotiated
+  decoder's frame-size limit while retaining the full image. Automatic mode
+  uses hardware VBR on macOS 26 or later.
   Older systems, or hardware that rejects VBR setup, use the tuned average-rate
   mode. This preserves the H.264 receiver contract, including tested Firefox
   viewing, without increasing the 8 Mbps video maximum. Diagnostics retain
