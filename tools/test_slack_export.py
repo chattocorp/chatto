@@ -1,6 +1,7 @@
 """Synthetic Slack-to-interchange contracts; no private source or network access."""
 
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import importlib.util
 import io
@@ -200,6 +201,25 @@ class SlackArchiveTests(unittest.TestCase):
                                                   "user": "U1", "ts": "1577836900.000000"})
         with self.assertRaisesRegex(ApplyError, "repeated transition"):
             exporter.build_archive(self.plan())
+
+    def test_competing_output_writers_do_not_overwrite(self):
+        records, copies = exporter.build_archive(self.plan())
+        output = self.root / "output"
+        def write():
+            try:
+                exporter.write_archive(output, records, copies)
+                return True
+            except ApplyError:
+                return False
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: write(), range(2)))
+        self.assertEqual(sorted(results), [False, True])
+        self.assertEqual(json.loads((output / "manifest.json").read_text()), records["manifest"])
+
+    def test_legacy_reader_keeps_its_journal_binding_shape(self):
+        self.plan()
+        legacy = exporter.source.read_export(self.source, include_slack_identity=True)
+        self.assertNotIn("private", legacy["rooms"][0])
 
 
 if __name__ == "__main__":
