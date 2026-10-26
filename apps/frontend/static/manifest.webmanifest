@@ -9,7 +9,7 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "browser"],
-  "background_color": "#f3f4f6",
+  "background_color": "#171717",
   "categories": ["communication", "social", "productivity"],
   "prefer_related_applications": false,
   "icons": [
