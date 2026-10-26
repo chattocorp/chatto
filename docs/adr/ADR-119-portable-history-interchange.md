@@ -58,7 +58,8 @@ chunked upload lifecycle, including retryable completion. No server-side
 archive cursor, parser, or whole-EVT import guard is needed.
 
 The old `ImportProgressedEvent` contract remains readable for stored data.
-The archive RPC is removed. Operator integrations must use individual resource
+The archive RPC handler is removed; deprecated wire declarations remain for
+protocol compatibility checks. Operator integrations must use individual resource
 APIs; users of the import command must use the updated CLI and server together.
 Old server-side archive progress cannot resume through a new local journal.
 

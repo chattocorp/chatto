@@ -16,6 +16,8 @@ func TestOperatorImportSharedFiles(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(dir, "events.jsonl"))
 	require.NoError(t, err)
 	var out strings.Builder
+	// An archive event can precede later partial message snapshots.
+	out.WriteString("{\"id\":\"archive-first\",\"type\":\"room.archived\",\"room_id\":\"room-1\",\"actor_id\":null,\"occurred_at\":\"2020-03-14T11:00:00Z\",\"data\":{}}\n")
 	for line := range strings.SplitSeq(strings.TrimSpace(string(raw)), "\n") {
 		var e map[string]any
 		require.NoError(t, json.Unmarshal([]byte(line), &e))

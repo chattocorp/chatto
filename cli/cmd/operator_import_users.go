@@ -72,6 +72,9 @@ func (m *cliArchiveImport) matchUsers(ctx context.Context) error {
 			}
 		}
 		if id := m.progress.values["user/"+importRef(u.ID)]; id != "" {
+			if owner := owners[i]; owner != "" && owner != id {
+				return fmt.Errorf("users.jsonl record %d: email ownership changed since import", i+1)
+			}
 			owners[i] = id
 		}
 	}
@@ -97,7 +100,6 @@ func (m *cliArchiveImport) matchUsers(ctx context.Context) error {
 		if root(i) == i {
 			m.userMatches[i].leader = i
 			m.userMatches[i].emails = sortedImportKeys(emails[i])
-
 		}
 	}
 	for i := range m.userMatches {

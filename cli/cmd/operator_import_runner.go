@@ -212,8 +212,12 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 			return fmt.Errorf("assets.jsonl record %d: unavailable files are not supported", i+1)
 		}
 	}
-	return m.archive.VisitEvents(func(e interchange.Event) error {
+	usedAssets := map[string]bool{}
+	err := m.archive.VisitEvents(func(e interchange.Event) error {
 		d := e.Data
+		for _, id := range d.Content.AssetIDs {
+			usedAssets[id] = true
+		}
 		if strings.HasPrefix(e.Type, "reaction.") {
 			if _, err := core.HistoricalEmojiName(d.Emoji); err != nil {
 				return err
@@ -238,4 +242,13 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	for _, a := range m.archive.Assets {
+		if !usedAssets[a.ID] {
+			return errors.New("import: asset has no message reference")
+		}
+	}
+	return nil
 }

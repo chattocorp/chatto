@@ -19,6 +19,8 @@ message CreateUploadRequest {
   int64 size = 5 [(buf.validate.field).int64.gte = 0];
   // SHA-256 of the complete file, in lowercase hexadecimal.
   string sha256 = 6 [(buf.validate.field).string.pattern = "^[a-f0-9]{64}$"];
+  // Permit upload into an archived channel when importing historical content.
+  bool historical = 7;
 }
 
 // State of the new operator upload.

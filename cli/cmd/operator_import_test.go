@@ -18,6 +18,9 @@ import (
 
 func TestOperatorImportThroughSocket(t *testing.T) {
 	env := newOperatorCLITestEnv(t)
+	removed := httptest.NewRecorder()
+	env.server.Handler.ServeHTTP(removed, httptest.NewRequest(http.MethodPost, "/api/connect/chatto.operator.v1.OperatorImportService/ImportArchive", strings.NewReader(`{}`)))
+	require.Equal(t, http.StatusNotFound, removed.Code, "the server must not expose an archive endpoint")
 	var uploads, posts atomic.Int32
 	baseHandler := env.server.Handler
 	env.server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

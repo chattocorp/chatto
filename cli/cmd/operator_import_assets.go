@@ -24,7 +24,7 @@ func (m *cliArchiveImport) messageAssets(ctx context.Context, message, room stri
 				if err != nil {
 					return nil, err
 				}
-				res, err := m.assetAPI.CreateUpload(ctx, operatorRequest(&op.CreateUploadRequest{RoomId: room, AuthorId: m.users[m.authors[message]], Filename: a.Filename, ContentType: a.MediaType, Size: a.Storage.Size, Sha256: a.Storage.SHA256}))
+				res, err := m.assetAPI.CreateUpload(ctx, operatorRequest(&op.CreateUploadRequest{RoomId: room, AuthorId: m.users[m.authors[message]], Filename: a.Filename, ContentType: a.MediaType, Size: a.Storage.Size, Sha256: a.Storage.SHA256, Historical: true}))
 				if err != nil {
 					f.Close()
 					return nil, err
