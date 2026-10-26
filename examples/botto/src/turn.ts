@@ -7,6 +7,8 @@ import { readContext, type ContextSource } from './context.ts';
 import { reactionExtension } from './reactions.ts';
 import { hasTranscript } from './messages.ts';
 import { Code, ConnectError } from '@connectrpc/connect';
+import type { TaskContext } from 'runling';
+import { conversationIdentity } from './threads.ts';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
@@ -18,24 +20,23 @@ export function createTurnHandler(
   beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
 ) {
   let turnCounter = 0;
-  return async (messages: readonly AddressedMessage[]): Promise<void> => {
+  return async (ctx: TaskContext, messages: readonly AddressedMessage[]): Promise<void> => {
     shutdown.throwIfAborted();
     const message = messages.at(-1);
     if (!message) return;
     const destination = replyDestination(message);
-    const identity = [
-      new URL(settings.serverUrl).origin,
-      botId,
-      destination.roomId,
-      destination.threadRootId
-    ];
+    const identity = conversationIdentity(settings.serverUrl, botId, destination);
     const metrics = {
       threadId: destination.threadRootId,
       turn: ++turnCounter,
       messages: messages.length
     };
     log('info', 'Batch ready', metrics);
-    const signal = AbortSignal.any([shutdown, AbortSignal.timeout(settings.turnTimeoutMs)]);
+    const signal = AbortSignal.any([
+      shutdown,
+      ctx.signal,
+      AbortSignal.timeout(settings.turnTimeoutMs)
+    ]);
     await server.withTyping(
       destination,
       async () => {
@@ -85,13 +86,13 @@ export function createTurnHandler(
         const answer = await logged(
           'Model turn',
           () =>
-            agent.reply(
+            agent.reply(ctx, {
               identity,
               prompt,
               signal,
               context,
-              [...new Set(messages.map((item) => item.authorId))],
-              [
+              userIds: [...new Set(messages.map((item) => item.authorId))],
+              tools: [
                 reactionExtension(
                   server,
                   destination.roomId,
@@ -103,7 +104,7 @@ export function createTurnHandler(
                   signal
                 )
               ]
-            ),
+            }),
           metrics
         );
         signal.throwIfAborted();

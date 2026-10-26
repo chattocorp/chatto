@@ -4,8 +4,6 @@ import { errorHint } from './diagnostics.ts';
 interface Metrics {
   /** Chatto thread root ID; a root message uses its own ID. */
   threadId?: string;
-  /** Pi's persisted session identifier, stable when the transcript is reopened. */
-  sessionId?: string;
   historyMessages?: number;
   /** Process-local counter, unrelated to any Chatto or user identity. */
   turn?: number;
@@ -14,13 +12,6 @@ interface Metrics {
   waitMs?: number;
   /** MCP tool identifier, never its arguments or returned content. */
   tool?: string;
-  /** Pi reports uncached input separately from cache reads and writes. */
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  /** USD estimate from Pi's model pricing, not an authoritative provider bill. */
-  estimatedCostUsd?: number;
 }
 
 /** Never pass external messages, credentials, URLs, or identities as the message. */

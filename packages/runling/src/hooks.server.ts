@@ -12,8 +12,14 @@ export const init: ServerInit = async () => {
 // The CLI awaits this hook before it closes its HTTP server.
 if (!building) {
   (
-    globalThis as typeof globalThis & { __runlingStopSources?: () => Promise<void> }
+    globalThis as typeof globalThis & {
+      __runlingStopSources?: () => Promise<void>;
+      __runlingStartSources?: typeof startSourceHost;
+    }
   ).__runlingStopSources = stopSourceHost;
+  (
+    globalThis as typeof globalThis & { __runlingStartSources?: typeof startSourceHost }
+  ).__runlingStartSources = startSourceHost;
 }
 
 export const handle: Handle = async ({ event, resolve }) => {

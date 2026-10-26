@@ -6,6 +6,12 @@ import type {
 // Journal records are defined with the journal writer that `runling run` and `runling serve` share.
 export type { RunRecord, RunSource, RunStatus } from '../runtime/run-journal.ts';
 import type { RunRecord } from '../runtime/run-journal.ts';
+import { accumulateTokenUsage, emptyTokenUsage, type TokenUsage } from '../runtime/usage.ts';
+
+/** Combine prior attempts with a replacement total for the current attempt. */
+export function runUsage(run: RunSummary, usage: TokenUsage): TokenUsage {
+  return accumulateTokenUsage({ ...(run.previousUsage ?? emptyTokenUsage()) }, usage);
+}
 
 export interface RunActivity {
   label: string;
@@ -31,11 +37,11 @@ export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
     return {
       ...run,
       events: [...run.events, record.event],
-      usage: record.event.type === 'usage.updated' ? record.event.usage : run.usage
+      usage: record.event.type === 'usage.updated' ? runUsage(run, record.event.usage) : run.usage
     };
   }
   const { type: _, ...result } = record;
-  return { ...run, ...result };
+  return { ...run, ...result, usage: runUsage(run, result.usage) };
 }
 
 export function duration(ms: number): string {

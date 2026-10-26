@@ -196,6 +196,25 @@ report outcomes, or session forks. Call `run()` or `runOutcome()` for each turn
 and dispose of the session when you finish. `runAgent(ctx, prompt, options)`
 remains a convenience for one interaction and returns its outcome.
 
+Use `await using` or `await session.dispose()` to finish a session. Disposal
+is asynchronous: it cancels active work, emits `session_shutdown`, waits for
+extension cleanup, and then releases Pi resources. Callers that previously
+used `session.dispose()` without awaiting it must now await it before releasing
+resources that extensions use. Repeated disposal waits for the same cleanup.
+Session creation binds extensions and emits `session_start` before returning.
+
+Set `tools: 'extensions'` to expose extension tools, including tools discovered
+by native MCP extensions, without Pi's built-in tools. Use `resources` to
+disable ambient extensions, skills, and context files separately. Set
+`toolExecution: 'sequential'` when extension hooks acquire a shared lock;
+parallel preparation of several calls must not wait on a lock held by another
+call in the same batch.
+
+Set `logContent: false` to omit model text, reasoning, and tool arguments from
+logs and progress events. Tool activity and usage remain visible. This does
+not remove content from private session transcripts or from explicit task
+inputs and outputs. Applications must choose safe task data and extension logs.
+
 For these session APIs, the default `output: "report"` is for coding and
 specialist tasks. The agent
 must call `report_outcome` with an outcome (`completed`, `blocked`, or

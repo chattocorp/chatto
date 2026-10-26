@@ -138,7 +138,7 @@ function harness({
       run: () => Promise.reject(new Error('unused')),
       steer: async () => false,
       fork: () => Promise.reject(new Error('unused')),
-      dispose: () => void (disposed = true),
+      dispose: async () => void (disposed = true),
       async [Symbol.asyncDispose]() {
         disposed = true;
       }

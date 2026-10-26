@@ -15,14 +15,15 @@ import {
   runOwnerAlive,
   type RunJournal
 } from '../../runtime/run-journal.ts';
-import {
-  createChannel,
-  runWorkflow,
-  type AnyTask,
-  type Channel,
-  type WorkflowExecution
-} from 'runling';
-import { type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
+import type { AnyTask, Channel, WorkflowExecution } from 'runling';
+
+// adapter-node bundles static self-imports. Resolve the installed runtime at execution
+// time so application callbacks and the console share its event and task contexts.
+const runtimeModule = 'runling';
+const { createChannel, runWorkflow } = (await import(
+  /* @vite-ignore */ runtimeModule
+)) as typeof import('runling');
+import { runUsage, type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
 
 import { summarizeRunActivity } from '../run-activity.ts';
 import { WorkflowStateStore } from '../../runtime/workflow-state.ts';
@@ -43,10 +44,10 @@ function summary(run: RunDetail): RunSummary {
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
   if (record.type === 'event') {
     if (includeDetails) run.events.push(record.event);
-    if (record.event.type === 'usage.updated') run.usage = record.event.usage;
+    if (record.event.type === 'usage.updated') run.usage = runUsage(run, record.event.usage);
   } else if (record.type === 'finished') {
     const { type: _, output, error, ...result } = record;
-    Object.assign(run, result);
+    Object.assign(run, result, { usage: runUsage(run, result.usage) });
     if (includeDetails) Object.assign(run, { output, error });
   }
 }
@@ -88,7 +89,7 @@ export class RunStore {
       if (!file.endsWith('.jsonl') || !validId.test(id)) continue;
       const path = resolve(this.directory, file);
       try {
-        const { run, end, lastTimestamp } = await this.read(id, false);
+        const { run, end, lastTimestamp, attemptUsage } = await this.read(id, false);
         if (!run) continue;
         if (run.reference) this.references.add(run.reference);
         // Another process, such as `runling run`, can still write this journal.
@@ -101,7 +102,7 @@ export class RunStore {
             finishedAt: Date.now(),
             durationMs: lastTimestamp,
             output: null,
-            usage: run.usage,
+            usage: attemptUsage,
             error: 'The server stopped before this run finished.'
           };
           await appendFile(path, `${JSON.stringify(record)}\n`);
@@ -238,7 +239,8 @@ export class RunStore {
         output: null,
         error: null,
         events: [],
-        usage: emptyTokenUsage()
+        previousUsage: previous.usage,
+        usage: previous.usage
       };
       this.journals.set(id, await createRunJournal(this.directory, run, true));
       this.launch(run, task, saved.input, true);
@@ -320,6 +322,7 @@ export class RunStore {
     let run: RunDetail | undefined;
     let end = 0;
     let lastTimestamp = 0;
+    let attemptUsage = emptyTokenUsage();
     for await (const line of readRunJournal(resolve(this.directory, `${id}.jsonl`))) {
       end += line.bytes;
       const record = line.record;
@@ -327,8 +330,12 @@ export class RunStore {
       if (!run || record.type === 'started') {
         if (record.type !== 'started' || record.run.id !== id) break;
         lastTimestamp = 0;
+        attemptUsage = emptyTokenUsage();
+        // Derive older journals' baseline too. A started record contains no work
+        // from its new attempt, even when it carries totals from prior attempts.
+        const previousUsage = run?.usage ?? record.run.previousUsage;
         run = includeDetails
-          ? record.run
+          ? { ...record.run }
           : {
               ...record.run,
               input: null,
@@ -336,12 +343,16 @@ export class RunStore {
               error: null,
               events: []
             };
+        run.previousUsage = previousUsage;
+        run.usage = { ...(previousUsage ?? record.run.usage) };
       } else {
+        if (record.type === 'finished') attemptUsage = record.usage;
+        else if (record.event.type === 'usage.updated') attemptUsage = record.event.usage;
         applyStoredRecord(run, record, includeDetails);
         if (record.type === 'event') lastTimestamp = record.event.timestamp;
       }
     }
-    return { run, end, lastTimestamp };
+    return { run, end, lastTimestamp, attemptUsage };
   }
 
   subscribe(listener: Listener): () => void {

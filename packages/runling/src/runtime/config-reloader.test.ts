@@ -4,6 +4,18 @@ import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { ConfigReloader } from './config-reloader.ts';
 
+test('programmatic configuration keeps its task objects and never reads a file on reload', async () => {
+  const config = { webhooks: {}, sources: {} };
+  const loader = new ConfigReloader('/unused/runling.config.ts', { config });
+  try {
+    expect(await loader.load()).toBe(config);
+    expect(await loader.reload()).toBe(config);
+    expect(loader.revision).toBe(0);
+  } finally {
+    await loader.close();
+  }
+});
+
 test('loads once by default and does not reload edited project files', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'runling-static-config-'));
   const path = join(directory, 'runling.config.ts');

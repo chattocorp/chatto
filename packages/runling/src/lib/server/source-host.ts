@@ -34,6 +34,7 @@ export function startSourceHost() {
       await config.close();
       await manager.close();
       await store.close();
+      delete (globalThis as typeof globalThis & { __runlingRunStore?: unknown }).__runlingRunStore;
       throw error;
     }
     const unsubscribe = config.subscribe(() => {
@@ -45,6 +46,8 @@ export function startSourceHost() {
         await config.close();
         await manager.close();
         await store.close();
+        delete (globalThis as typeof globalThis & { __runlingRunStore?: unknown })
+          .__runlingRunStore;
         delete state.__runlingSourceHost;
         delete (globalThis as typeof globalThis & { __runlingConfigReloader?: unknown })
           .__runlingConfigReloader;

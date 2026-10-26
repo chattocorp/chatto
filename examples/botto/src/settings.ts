@@ -269,7 +269,7 @@ export function readSettings(
     source = readFileSync(configPath, 'utf8');
   } catch {
     throw new Error(
-      'Cannot read Botto configuration. Copy botto.example.toml to botto.toml, or use --config PATH.'
+      'Cannot read Botto configuration. Copy botto.example.toml to botto.toml, or set BOTTO_CONFIG to its path.'
     );
   }
   return parseSettings(source, configPath, env);

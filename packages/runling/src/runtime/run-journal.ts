@@ -31,7 +31,10 @@ export interface RunSummary {
   startedAt: number;
   finishedAt?: number;
   durationMs?: number;
+  /** Total usage across all execution attempts. */
   usage: TokenUsage;
+  /** Usage before the current attempt; added once to attempt-scoped journal records. */
+  previousUsage?: TokenUsage;
 }
 
 export interface RunDetail extends RunSummary {
@@ -56,9 +59,11 @@ export type RunRecord =
       error: string | null;
     };
 
-/** Journal directory for a project. Projects that still have only the legacy `.factory/runs`
- * directory keep using it. */
+/** Journal directory for an explicit instance or a project. Without RUNLING_DATA_DIRECTORY,
+ * projects that still have only the legacy `.factory/runs` directory keep using it. */
 export async function runJournalDirectory(cwd: string): Promise<string> {
+  if (process.env.RUNLING_DATA_DIRECTORY)
+    return resolve(cwd, process.env.RUNLING_DATA_DIRECTORY, 'runs');
   const current = resolve(cwd, '.runling/runs');
   const legacy = resolve(cwd, '.factory/runs');
   for (const path of [current, legacy]) {

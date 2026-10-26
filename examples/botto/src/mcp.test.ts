@@ -12,8 +12,54 @@ import {
 import { EXA_MCP_URL, mcpExtension, mcpObserver, mcpServers } from './mcp.ts';
 import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
+import { createAgentSession as createRunlingSession } from 'runling';
 
 afterEach(() => vi.restoreAllMocks());
+
+test('Runling starts native MCP extensions and awaits their shutdown without a model request', async () => {
+  await mkdir(resolve('../../.context'), { recursive: true });
+  const directory = await mkdtemp(resolve('../../.context/botto-runling-mcp-'));
+  const settings = parseSettings(
+    '[chatto]\nurl="https://example.com"\napi_key="unused"\nmcp=true\n[agent]\nmodel="anthropic/claude-sonnet-4-6"',
+    'botto.toml'
+  );
+  const transport = mcpFixture([{ name: 'read', inputSchema: { type: 'object' } }], async () => ({
+    content: []
+  }));
+  const close = vi.spyOn(transport, 'close');
+  const create = vi.fn(() => transport);
+  try {
+    const session = await createRunlingSession({
+      cwd: directory,
+      model: 'anthropic/claude-sonnet-4-6',
+      output: 'text',
+      tools: 'extensions',
+      toolExecution: 'sequential',
+      logContent: false,
+      resources: {
+        agentDir: directory,
+        extensions: false,
+        skills: false,
+        contextFiles: false,
+        promptTemplates: false,
+        themes: false
+      },
+      extensions: [mcpExtension(settings, undefined, create)]
+    });
+    try {
+      await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());
+      expect(close).not.toHaveBeenCalled();
+    } finally {
+      await session.dispose();
+    }
+    expect(close).toHaveBeenCalled();
+    const calls = close.mock.calls.length;
+    await session.dispose();
+    expect(close).toHaveBeenCalledTimes(calls);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 test.each([false, true])(
   'native MCP opt-in (%s), structured results, logs, and shutdown',
   async (enabled) => {

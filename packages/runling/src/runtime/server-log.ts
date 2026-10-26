@@ -116,7 +116,8 @@ export function terminalRunLog(
 export function serverLogPath(): string {
   return resolve(
     dirname(resolve(process.env.RUNLING_WEB_CONFIG ?? 'runling.config.ts')),
-    '.runling/logs/server.jsonl'
+    process.env.RUNLING_DATA_DIRECTORY || '.runling',
+    'logs/server.jsonl'
   );
 }
 

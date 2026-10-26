@@ -75,6 +75,7 @@ export {
   type Shell
 } from './shell.ts';
 export { concat, type ConcatPart } from './utils.ts';
+export { BatchQueue, type BatchQueueOptions } from './batch-queue.ts';
 export { Type, type Static, type TSchema } from 'typebox';
 export {
   isWorkflowSchema,
