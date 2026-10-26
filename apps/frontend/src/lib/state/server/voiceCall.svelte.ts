@@ -689,7 +689,9 @@ export class VoiceCallState implements CallConnection {
           red: true,
           simulcast: true
         },
-        adaptiveStream: true,
+        // Request enough video pixels for HiDPI displays. LiveKit's default
+        // density is 1 on a 2x display, which can select a smaller stream.
+        adaptiveStream: { pixelDensity: 'screen' },
         dynacast: true,
         disconnectOnPageLeave: true
       });

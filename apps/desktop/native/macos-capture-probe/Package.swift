@@ -12,12 +12,15 @@ let package = Package(
     .executable(
       name: "chatto-macos-capture-probe",
       targets: ["ChattoMacOSCaptureProbe"]
-    )
+    ),
+    .executable(name: "chatto-video-benchmark", targets: ["ChattoVideoBenchmark"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/livekit/client-sdk-swift.git", exact: "2.16.0")
+    .package(url: "https://github.com/livekit/client-sdk-swift.git", exact: "2.18.0")
   ],
   targets: [
+    .executableTarget(name: "ChattoVideoBenchmark"),
+    .testTarget(name: "ChattoVideoBenchmarkTests", dependencies: ["ChattoVideoBenchmark"]),
     .executableTarget(
       name: "ChattoMacOSCaptureProbe",
       dependencies: [.product(name: "LiveKit", package: "client-sdk-swift")]

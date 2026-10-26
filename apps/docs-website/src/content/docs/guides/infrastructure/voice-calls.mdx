@@ -63,6 +63,28 @@ For a fullscreen view of the complete call, select **Fullscreen call** in the
 call pane's header. To exit fullscreen, select the close icon in the header.
 You return to the previous call layout and stay connected to the call.
 
+## Report desktop screen-share quality problems
+
+In Chatto Desktop on macOS, share a moving scene for at least 15 seconds.
+Select **Diagnostics → Copy Screen Sharing Diagnostics** from the app menu
+and paste the report into your support request. It contains recent native
+publisher performance measurements, without account names, source names,
+addresses, or credentials. The app does not send the report automatically.
+
+Native macOS sharing defaults to tuned H.264 with a video maximum of 8 Mbps,
+plus audio and transport overhead. It uses hardware variable-bitrate encoding
+where supported, with an average-rate fallback on older Macs. All viewers
+receive one encoded resolution. The encoder preserves resolution and can reduce
+frame rate under pressure. Receivers must support H.264 Constrained High profile.
+
+The **Diagnostics** menu also offers stock H.264, HEVC, and explicit tuning
+comparisons. Select a mode, then stop and start sharing. Select **Default:
+Tuned H.264 (Automatic VBR) for Next Share** to restore the default. If a viewer
+cannot receive the default stream, try **Use H.264 for Next Share**. HEVC
+requires support from the server and viewers; select H.264 if a viewer cannot
+receive HEVC. The stock H.264 and HEVC options send multiple resolution layers
+and can use more upload bandwidth.
+
 ## Adjust another participant's volume
 
 During a call, open the three-dot menu in a participant card's header, or

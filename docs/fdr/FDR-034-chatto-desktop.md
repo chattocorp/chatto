@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-25
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -66,6 +66,65 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Updates remain manual.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
+- Local macOS development bundles can use the separate **Chatto Desktop Dev**
+  identity, helper identity, and app-data directory. This keeps development
+  permissions and sessions separate from the official app. Ad-hoc signed
+  rebuilds can still require a new permission grant; a stable signing
+  certificate preserves the code identity across rebuilds.
+- The Diagnostics menu can copy a bounded, in-memory native screen-share
+  performance report. It includes codec, encoder, resolution, frame rate,
+  bitrate, and network statistics without source names, account identifiers,
+  addresses, or credentials. Reports are not sent automatically.
+- Development and release builds default to tuned H.264 with one layer and
+  resolution priority. Tall and square sources scale to fit the negotiated
+  decoder's frame-size limit while retaining the full image. Automatic mode
+  uses hardware VBR on macOS 26 or later.
+  Older systems, or hardware that rejects VBR setup, use the tuned average-rate
+  mode. This preserves the H.264 receiver contract, including tested Firefox
+  viewing, without increasing the 8 Mbps video maximum. Diagnostics retain
+  all explicit comparisons and a default-mode selection for the next share.
+  HEVC remains opt-in. The publisher does not send a parallel backup codec.
+  An explicit server rejection of HEVC retries stock H.264. If a viewer cannot
+  receive HEVC, the sender must select H.264 and restart.
+- The Diagnostics menu also offers a single-layer H.264 comparison at up to
+  8 Mbps of video. It removes lower-resolution layers without changing the
+  capture settings or frame-rate limit. This mode prioritizes resolution and
+  permits frame rate to decrease under pressure. All viewers receive the same
+  encoded resolution. Reports identify the selected layer mode and include an outgoing
+  bandwidth estimate when available. Samples identify the resolution preference.
+  Regular codec options restore simulcast and frame-rate priority.
+- A separate **Test Tuned H.264** option uses a custom hardware VideoToolbox
+  encoder with High profile, one layer, and resolution priority. Its average
+  target is 90% of WebRTC's current video allowance. Its five-second data limit
+  follows that allowance, capped at 8 Mbps; zero pauses encoding. Shorter bursts
+  can exceed this limit, as with the SDK encoder. Audio and transport overhead
+  are additional. This experiment tests the High-profile and rate-control
+  headroom gains from the local synthetic benchmark in a live call. It requires
+  a compatible High-profile receiver and does not fall back to Baseline or
+  software encoding. Reports include applied bitrate,
+  hardware status, actual SPS profile, frame counts, and VideoToolbox errors.
+- The default VBR mode and **Test Tuned H.264 VBR** option use macOS 26 variable-bitrate
+  controls. Its target is the smaller of 6 Mbps or 90% of WebRTC's allowance.
+  Its VBV maximum follows that allowance up to 8 Mbps. A 250 ms VBV buffer
+  with zero initial delay replaces the average-rate mode's five-second data
+  limit. The mode preserves single-layer publication and resolution priority.
+  Explicit VBR requires hardware support and does not silently fall back.
+  Automatic mode retries a failed VBR setup once with a fresh average-rate
+  session. The fallback remains active for that encoder. Local tests found
+  better synthetic motion quality with additional encoder delay. Manual
+  Firefox and production tests showed smooth playback. These tests do not
+  cover all receiver hardware or impaired networks. Diagnostics identify
+  requested and actual modes, fallback status, accepted target and maximum,
+  buffer duration, and input queue drops.
+- The native publisher uses LiveKit Swift 2.18.0. The SDK seeds screen-share
+  bandwidth estimation at 90% of the active layers' configured bitrate limits.
+  For the single-layer comparison, this is a 7.2 Mbps startup hint, not a
+  guaranteed send rate. Congestion control remains active. Reports include the
+  SDK version and sample every second for the first 20 seconds, then every
+  five seconds. When available, they include capture, encoded, and sent frame
+  rates, packet send delay, and the target-byte rate for encoded frames over
+  the same interval as the actual bitrate. This target-byte rate is not a
+  network bandwidth estimate. Missing counters remain absent.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
   callback. Desktop API and realtime access use bearer credentials and require
   no origin configuration.
@@ -206,12 +265,13 @@ participant model shared across platform providers.
 **Tradeoff:** Chatto needs an auxiliary publisher-token RPC, companion-aware
 webhook and reconciliation filtering, and frontend participant merging. The
 native helper also becomes responsible for matching the primary call's E2EE
-and publication policy. Its aspect-ratio-preserving H.264 publication includes
-1920-, 1280-, and 640-pixel maximum-edge quality classes at 60, 60, and 30 fps,
-and dynacast pauses layers that no subscriber requests. Simultaneously active
-qualities increase native encoding and upload cost. These are explicit
-control-plane costs in exchange for a materially shorter and more efficient
-media path that can adapt to each receiver.
+and publication policy. Its default H.264 publication preserves aspect ratio
+within a 1920-pixel maximum edge at up to 60 fps. One layer reduces encoding
+and upload cost but gives all viewers the same encoded resolution. The
+Diagnostics menu retains stock H.264 and HEVC simulcast comparisons with
+1920-, 1280-, and 640-pixel quality classes at 60, 60, and 30 fps. Simultaneously
+active layers increase encoding and upload cost. The native media path avoids
+the prototype's extra decode and re-encode.
 
 ### 9. Keep background notification transport host-owned
 

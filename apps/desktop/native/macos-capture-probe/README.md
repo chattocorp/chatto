@@ -124,6 +124,69 @@ network latency, protected-content behavior, or Windows viability. The direct
 publisher establishes the intended LiveKit path, but its actual 60 fps cadence,
 encoder choice, congestion behavior, and remote playback still need measurement.
 
+## Local encoder benchmark
+
+The separate `chatto-video-benchmark` executable compares VideoToolbox settings
+without screen capture, a server, or network traffic. It is a developer tool and
+is not copied into the desktop app. It requires hardware encoding but no screen
+recording permission.
+
+From the repository root, select a new output directory:
+
+```sh
+mise desktop-video-benchmark -- --output .context/video-benchmark
+```
+
+Each run uses the same generated 1920×1122 BGRA frames at 60 FPS. The six-second
+sequence contains two seconds each of a still scene, a slow pan, and a fast pan.
+Text, textured tiles, and moving objects exercise compression. This synthetic
+fixture is not a substitute for a game recording. The default two repetitions
+use forward and reverse configuration order to expose order-related variation.
+
+The matrix starts with the current SDK's Baseline AutoLevel settings at a 6 Mbps
+target. Each comparison changes one control: speed priority, room below the
+hard rate limit, High profile, low-latency rate control with High profile, QP
+ceiling, an 8 Mbps target, or HEVC. A follow-up combines High profile and rate-limit
+headroom, compared with High profile alone. The report names the comparison for each
+variant. It records property-setting errors and read-back values. An unsupported
+setting does not establish that a variant was tested successfully.
+If encoder creation, hardware verification, or decoding fails, the tool records
+the error and continues with the other variants. It exits with a nonzero status
+after the matrix if any run failed. Completed results remain available.
+
+All configured five-second bitrate ceilings are at or below 8 Mbps. Like the
+SDK, the benchmark permits shorter bursts above that rate. Reports show actual
+one-second and five-second peaks; these limits are not packet-level limits.
+Reports flag measured five-second output above the requested ceiling or 8 Mbps.
+Property acceptance alone does not prove that the encoder obeyed the limit.
+The `tuned-6`, `tuned-vbr-100ms-6`, and `tuned-vbr-250ms-6` variants compare
+the current Constrained High encoder with macOS 26 VBR at a 6 Mbps target
+and an 8 Mbps maximum. VBR replaces `AverageBitRate` and `DataRateLimits`
+with `VariableBitRate` and the VBV controls. Each VBR variant uses zero
+initial VBV delay and its named buffer duration. The five-second output
+measurements remain useful for comparison, but VBR's maximum describes a
+buffer model rather than the old five-second data limit.
+
+The benchmark holds each target constant. It does not reproduce WebRTC's
+changing bandwidth estimates, packet pacing, simulcast, or receiver behavior.
+
+Each run directory contains a playable `encoded.mov`, per-frame sizes and encode
+callback latencies in `frames.json`, and a `result.json`. The root `results.json`
+contains all runs. `summary.csv` provides one row per run, `environment.json`
+records the fixture and OS version, and `comparison.png` shows native-size crops.
+`reference.png` and `decoded.png` show matching frames from
+the fast pan. The quality score is PSNR from RGB-weighted luma error, sampled at
+four frames per second across all pixels. Color conversion also contributes
+error. Compare the videos and frame drops as well as the scores. High PSNR alone
+does not establish good motion quality.
+
+Use `--only baseline-6,quality-6`, `--repeats 1`, or smaller even `--width` and
+`--height` values for a quick check. Source frames are generated before their
+scheduled submission. `maximumSubmitLatenessMs` identifies runs where the host
+could not maintain the requested input cadence. Each variant uses a new encoder
+session; no encoded output is reused across variants. Existing output directories
+are rejected to protect prior measurements.
+
 ## Chatto Desktop integration
 
 The helper is an official part of every macOS Chatto Desktop build. Build the
@@ -186,17 +249,99 @@ and starts a direct LiveKit publication. The desktop host exposes only
 short-lived, single-use random source offers to the renderer, verifies the
 selected window still belongs to the enumerated application, and excludes
 Chatto Desktop's own windows from the application list.
-The initial profile captures up to a 1920-pixel maximum edge at 60 fps and
-publishes three aspect-ratio-preserving H.264 resolution classes: 1920-edge at
+The default captures up to a 1920-pixel maximum edge at 60 fps and publishes
+one aspect-ratio-preserving tuned H.264 layer with resolution priority.
+Automatic mode uses VBR on macOS 26 or later and retries unsupported VBR setup
+with tuned average-rate control. Older systems select average-rate control
+directly. The frontend requests video dimensions in physical pixels for HiDPI.
+The tuned encoder also fits frames within H.264 level 4.2's 8704-macroblock
+limit at 60 FPS. The 1920×1122 test size stays unchanged. A 1920×1200 source
+scales to 1872×1170, and a 1920×1920 source scales to 1488×1488. This preserves
+the full image instead of rejecting taller sources or raising the decoder
+requirement. VideoToolbox scales the input; reports show the coded dimensions.
+
+The stock H.264 and HEVC Diagnostics options publish three resolution classes: 1920-edge at
 60 fps and up to 8 Mbps, 1280-edge at 60 fps and up to 4 Mbps, and 640-edge at
 30 fps and up to 1 Mbps. Exact widths and heights retain the source window's
 aspect ratio. LiveKit selects a suitable layer for each receiver, while
-dynacast pauses layers that no receiver is consuming. Window publication also
-includes 128 kbps stereo owning-application audio. Display publication is
+dynacast pauses layers that no receiver is consuming. These are bitrate
+ceilings, not guaranteed transmission rates. If receivers need all three
+layers, the combined video ceiling is 13 Mbps. The desktop
+Diagnostics menu selects the preferred codec for the next share and copies
+the publisher's bounded diagnostic report. Both codecs use the same limits,
+and there is no parallel backup-codec publication. An explicit server rejection
+of HEVC retries H.264. Receivers must support the chosen codec; use the H.264
+menu option and restart sharing if a viewer cannot receive HEVC.
+The **Test H.264 Single Layer (8 Mbps, Resolution First) for Next Share** option
+disables simulcast and prioritizes resolution, allowing frame rate to decrease
+under pressure. It keeps the same capture settings and full-layer ceiling,
+with no lower layers or backup codec. Diagnostic samples include
+`maintainsResolution`, the layer mode and, when available, the outgoing bandwidth
+estimate from the selected publisher transport candidate pair. No candidate identifiers
+or addresses enter the report.
+
+The **Test Tuned H.264 (8 Mbps, Resolution First) for Next Share** option uses
+a custom hardware VideoToolbox encoder through the LiveKit encoder factory.
+It sends one H.264 High layer and preserves resolution. The average target is
+90% of WebRTC's current video allowance. The five-second data limit is the
+allowance itself, capped at 8 Mbps. This gives rate control headroom without
+raising the limit above the network allowance. For example, an 8 Mbps allowance
+sets a 7.2 Mbps average target; a 3 Mbps allowance sets 2.7 Mbps. Zero pauses
+encoding. As with the SDK encoder, shorter bursts can exceed the five-second
+limit; this is not an instantaneous wire-rate cap. Audio, retransmissions, and
+transport overhead are additional.
+
+This experiment requires hardware H.264 High encoding and a receiver that
+accepts High profile at level 4.2 or above. It does not fall back to Baseline or
+software encoding. If negotiation or encoding fails,
+select another Diagnostics mode and start a new share.
+
+The copied report identifies `ChattoVideoToolboxH264`. Its `tunedEncoder` object
+includes the requested allowance, average target, five-second ceiling, accepted
+average target, hardware status, actual SPS profile, encoded/dropped frame
+counts, rejected callbacks, and the last VideoToolbox error code and operation.
+An absent QP means unavailable. The custom encoder does not estimate QP.
+
+Run the hardware test on a Mac:
+
+```sh
+CHATTO_TEST_HARDWARE_ENCODER=1 mise test-desktop-macos-capture
+```
+
+The ordinary test task includes rate-policy and
+packet-conversion tests without requiring hardware. Set
+`CHATTO_TEST_ENCODED_OUTPUT` to a scratch `.h264` path to save the synthetic
+test stream for an independent decoder check.
+
+The default VBR mode and **Test Tuned H.264 VBR (6 Mbps Target, 8 Mbps Max) for Next Share**
+option use the newer VBR controls on macOS 26 or later. They target the smaller
+of 6 Mbps or 90% of WebRTC's current allowance. Its VBV maximum follows that
+allowance, capped at 8 Mbps. Zero still pauses encoding. The VBV buffer duration
+is 250 ms with zero initial delay. This buffer setting is not a measured
+end-to-end delay. Local repeated tests measured about 22 ms median and 34 ms
+95th-percentile compression callback delay, compared with about 6 and 7 ms
+for the average-rate control. Live capture, transport, and decoding add delay.
+
+VBR requires hardware support. The explicit test option does not silently fall
+back. Automatic mode retries failed VBR setup once with average-rate control;
+this fallback remains active for that encoder. The report's
+`tunedEncoder.requestedRateControl` identifies `auto`, `vbr`, or `average`.
+`rateControl` identifies the actual mode; `fallbackStatus` retains a failed VBR
+setup status separately from the working encoder's `lastStatus`.
+`averageBps` and `appliedAverageBps` carry the VBR target in this mode;
+`appliedCeilingBps` is the accepted VBV maximum and `vbvBufferMs` is the accepted
+buffer duration. `queueDrops` counts input frames rejected by our bounded queue;
+`peakPendingFrames` is the largest observed queue size.
+VBR permits six pending frames; the average-rate mode permits three. This keeps
+the helper from building an unbounded input queue when encoding is slow.
+
+Window publication also includes 128 kbps stereo owning-application audio. Display publication is
 video-only because system audio would include Chatto's remote call playback and
 echo it back into the room. Both paths use the active call's shared E2EE key.
-Only `started`, `error`, and `ended` lifecycle messages cross the desktop
-bridge. The active screen-share control stops the helper; camera and microphone
+The helper also emits allowlisted `diagnostic` JSON lines every second for the
+first 20 seconds, then every five seconds.
+The desktop host keeps these in memory; only `started`, `error`, and `ended`
+lifecycle messages cross the renderer bridge. The active screen-share control stops the helper; camera and microphone
 remain independent. Non-macOS builds omit this platform provider, so the same
 control continues through LiveKit and the browser's native source chooser.
 
