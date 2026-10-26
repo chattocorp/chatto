@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Nie można odłączyć dostawcy",
-          "body": "{provider} to jedyna metoda logowania. Najpierw dodaj hasło lub połącz innego dostawcę."
+          "body": "Przed odłączeniem dostawcy {provider} skonfiguruj inną metodę logowania obsługiwaną przez ten serwer."
         },
         "fresh_auth_modal": {
           "title": "Potwierdź hasło",

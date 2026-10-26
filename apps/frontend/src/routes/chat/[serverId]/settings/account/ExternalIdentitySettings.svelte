@@ -230,9 +230,8 @@
   });
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
-  const canUsePasswordProof = $derived(
-    hasPassword && serverScope.store.serverInfo.directLoginEnabled
-  );
+  const directLoginEnabled = $derived(serverScope.store.serverInfo.directLoginEnabled);
+  const canUsePasswordProof = $derived(hasPassword && directLoginEnabled);
   const unconfiguredLinkedIdentities = $derived(
     linkedIdentities.filter(
       (identity) =>
@@ -240,7 +239,14 @@
     )
   );
   const hasRows = $derived(providers.length > 0 || unconfiguredLinkedIdentities.length > 0);
-  const disconnectWouldRemoveLastMethod = $derived(!hasPassword && linkedIdentities.length <= 1);
+  // Older servers lack the per-identity hint; retain their count-based fallback,
+  // but never count a password while password login is disabled.
+  function canDisconnectIdentity(subjectHash: string) {
+    return (
+      linkedIdentities.find((identity) => identity.subjectHash === subjectHash)?.canDisconnect ??
+      (canUsePasswordProof || linkedIdentities.length > 1)
+    );
+  }
 
   function providerIcon(type: string): string {
     switch (type) {
@@ -297,7 +303,7 @@
         err.code === Code.FailedPrecondition &&
         currentPassword === undefined
       ) {
-        actionError = serverScope.store.serverInfo.directLoginEnabled
+        actionError = directLoginEnabled
           ? m('settings.account.sso.fresh_auth_required')
           : m('settings.account.sso.sso_fresh_auth_required');
       } else if (currentPassword !== undefined) {
@@ -339,7 +345,7 @@
 
   function openDisconnectDialog(subjectHash: string, providerLabel: string) {
     actionError = '';
-    if (disconnectWouldRemoveLastMethod) {
+    if (!canDisconnectIdentity(subjectHash)) {
       blockedDisconnectProviderLabel = providerLabel;
       showDisconnectBlockedModal = true;
       return;
@@ -404,12 +410,24 @@
         currentPassword === undefined
       ) {
         disconnectTarget = null;
+        // Another session can remove a method after the list was loaded. Read
+        // the authoritative hint again before treating this as a freshness error.
+        const refreshed = await identitiesQuery.refetch();
+        if (!session.isCurrent(variables)) return;
+        if (
+          refreshed.data?.linkedIdentities.find((identity) => identity.subjectHash === subjectHash)
+            ?.canDisconnect === false
+        ) {
+          blockedDisconnectProviderLabel = providerLabel;
+          showDisconnectBlockedModal = true;
+          return;
+        }
         if (canUsePasswordProof) {
           disconnectFreshAuthTarget = { subjectHash, providerLabel };
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else {
-          actionError = serverScope.store.serverInfo.directLoginEnabled
+          actionError = directLoginEnabled
             ? m('settings.account.sso.disconnect_fresh_auth_required')
             : m('settings.account.sso.sso_fresh_auth_required');
         }

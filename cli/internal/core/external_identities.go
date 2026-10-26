@@ -372,6 +372,21 @@ func (p ExternalIdentitySignInPolicy) AllowsIdentity(identity ExternalIdentity) 
 	return slices.Contains(p.Issuers, identity.Issuer)
 }
 
+// CanDisconnect reports whether removing subjectHash from this snapshot leaves
+// an enabled sign-in method. It does not verify that the target exists or that
+// the caller is authorized. Mutations must check again inside the user OCC loop.
+func (p ExternalIdentitySignInPolicy) CanDisconnect(subjectHash string, identities []ExternalIdentity, hasPassword bool) bool {
+	if hasPassword && p.PasswordLoginEnabled {
+		return true
+	}
+	for _, identity := range identities {
+		if identity.SubjectHash != subjectHash && p.AllowsIdentity(identity) {
+			return true
+		}
+	}
+	return false
+}
+
 // DisconnectExternalIdentityAs removes a link with explicit actor attribution.
 // It refuses removal when no method enabled by policy would remain. The check
 // runs inside user OCC, so concurrent removals cannot remove both last methods.
@@ -485,23 +500,22 @@ func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID
 	}
 	var unlinked ExternalIdentity
 	found := false
-	remainingIdentity := false
-	for _, identity := range c.userModel.externalIdentities(userID) {
+	identities := c.userModel.externalIdentities(userID)
+	for _, identity := range identities {
 		if identity.SubjectHash == subjectHash {
 			found = true
 			unlinked = identity
-			continue
-		}
-		if policy == nil || policy.AllowsIdentity(identity) {
-			remainingIdentity = true
 		}
 	}
 	if !found {
 		return ExternalIdentity{}, ErrExternalIdentityNotFound
 	}
 	_, hasPassword := c.userModel.passwordHash(userID)
-	passwordAvailable := hasPassword && (policy == nil || policy.PasswordLoginEnabled)
-	if !passwordAvailable && !remainingIdentity {
+	canDisconnect := hasPassword || len(identities) > 1
+	if policy != nil {
+		canDisconnect = policy.CanDisconnect(subjectHash, identities, hasPassword)
+	}
+	if !canDisconnect {
 		return ExternalIdentity{}, ErrExternalIdentityLastMethod
 	}
 	return unlinked, nil

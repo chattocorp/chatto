@@ -88,6 +88,17 @@ describe('createExternalIdentityFlowAPI', () => {
 });
 
 describe('createExternalIdentityAPI', () => {
+  it.each([true, false, undefined])(
+    'preserves the optional disconnect hint: %s',
+    async (canDisconnect) => {
+      account.listExternalIdentities.mockReturnValue({
+        linkedIdentities: [{ subjectHash: 'identity', canDisconnect }]
+      });
+      const result = await createExternalIdentityAPI(config()).list();
+      expect(result.linkedIdentities[0]?.canDisconnect).toBe(canDisconnect);
+    }
+  );
+
   it('lists providers and resolves provider links against the server origin', async () => {
     account.listExternalIdentities.mockReturnValue({
       providers: [

@@ -140,6 +140,7 @@ function linkedIdentityList() {
 
 describe('external identity settings query lifecycle', () => {
   beforeEach(() => {
+    mocks.directLoginEnabled = true;
     queryClient.clear();
     mocks.url = new URL('http://localhost/chat/-/settings/account');
     mocks.replaceState.mockImplementation((url: string | URL) => {
@@ -156,6 +157,68 @@ describe('external identity settings query lifecycle', () => {
   });
 
   afterEach(() => vi.restoreAllMocks());
+
+  it('blocks the last SSO provider despite a stored password on older servers', async () => {
+    mocks.directLoginEnabled = false;
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+      .toBeVisible();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('uses the server hint instead of counting unusable linked identities', async () => {
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], { canDisconnect: false });
+    list.linkedIdentities.push({
+      providerId: 'obsolete',
+      providerType: 'oidc',
+      providerLabel: 'Obsolete',
+      subjectHash: 'obsolete-subject'
+    });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).first().click();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+      .toBeVisible();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('allows disconnect when the server confirms another enabled method', async () => {
+    mocks.directLoginEnabled = false;
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], { canDisconnect: true });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Disconnect provider' }))
+      .toBeVisible();
+  });
+
+  it('refreshes a stale disconnect hint before asking for reauthentication', async () => {
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], { canDisconnect: true });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    const refreshed = linkedIdentityList();
+    Object.assign(refreshed.linkedIdentities[0], { canDisconnect: false });
+    mocks.list.mockResolvedValue(refreshed);
+    mocks.disconnect.mockRejectedValue(new ConnectError('last method', Code.FailedPrecondition));
+    await browserPage
+      .getByRole('dialog', { name: 'Disconnect provider' })
+      .getByRole('button', { name: 'Disconnect', exact: true })
+      .click();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+      .toBeVisible();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
+      .not.toBeInTheDocument();
+  });
 
   it('passes cancellation through and revalidates a cached callback snapshot', async () => {
     const first = renderSettings();

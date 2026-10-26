@@ -55,6 +55,12 @@ through SSO on the server that owns the account, then complete the action in
 that server's account settings. A stored local password cannot replace this
 SSO authentication.
 
+Users cannot disconnect their last enabled sign-in method. On SSO-only
+servers, a stored password does not count as an alternative. Link another
+provider that the server still supports before disconnecting the current one.
+A link to a removed provider or an old OIDC issuer does not prevent lockout
+and does not count as an alternative.
+
 <Aside type="caution">
   If no provider works, signed-out users cannot sign in. Keep an operator
   recovery path, such as the [Operator CLI](/guides/operations/operator-cli/).

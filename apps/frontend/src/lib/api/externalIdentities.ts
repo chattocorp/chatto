@@ -33,6 +33,8 @@ export type LinkedExternalIdentityInfo = {
   providerType: string;
   providerLabel: string;
   subjectHash: string;
+  /** Whether an enabled sign-in method remains; absent on older servers. */
+  canDisconnect?: boolean;
 };
 
 export type ExternalIdentityProviderInfo = {
@@ -186,7 +188,8 @@ function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIde
     providerId: identity.providerId,
     providerType: identity.providerType,
     providerLabel: identity.providerLabel,
-    subjectHash: identity.subjectHash
+    subjectHash: identity.subjectHash,
+    canDisconnect: identity.canDisconnect
   };
 }
 

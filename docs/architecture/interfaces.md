@@ -144,6 +144,12 @@ socket.
 
 ## Mounted public services
 
+`MyAccountService` and the operator identity service use the same configured
+sign-in policy for unlinking identities. The core user mutation checks that an
+enabled sign-in method remains inside its OCC loop. Account identity listings
+also expose a disconnect hint; it is not mutation authorization. See
+[FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
+
 | Package               | Public services                                                                                                                                                                                                                                                                                                                                                  | Auth policy                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |

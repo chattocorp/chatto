@@ -85,12 +85,17 @@ func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T)
 		t.Fatal(err)
 	}
 	policy := ExternalIdentitySignInPolicy{Issuers: []string{"https://example.com", "https://alternate.example.com"}}
+	// A stored password must not bypass the cross-replica guard when password
+	// login is disabled. Use self attribution, as in the account API.
+	if err := first.SetPasswordHash(ctx, owner.Id, "password123"); err != nil {
+		t.Fatal(err)
+	}
 	start = make(chan struct{})
 	for i, replica := range []*ChattoCore{first, second} {
 		hash := []string{externalIdentityHash("https://example.com", "shared"), alternate.SubjectHash}[i]
 		go func() {
 			<-start
-			results <- replica.DisconnectExternalIdentityAs(ctx, SystemActorID, owner.Id, hash, policy)
+			results <- replica.DisconnectExternalIdentityAs(ctx, owner.Id, owner.Id, hash, policy)
 		}()
 	}
 	close(start)

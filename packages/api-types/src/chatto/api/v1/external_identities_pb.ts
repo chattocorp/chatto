@@ -107,6 +107,15 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
    */
   subjectHash = "";
 
+  /**
+   * Whether another enabled sign-in method would remain after disconnecting
+   * this identity. Set by ListExternalIdentities; absent on older servers.
+   * This hint does not replace fresh authentication or the disconnect check.
+   *
+   * @generated from field: optional bool can_disconnect = 5;
+   */
+  canDisconnect?: boolean;
+
   constructor(data?: PartialMessage<LinkedExternalIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -119,6 +128,7 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
     { no: 2, name: "provider_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "provider_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "can_disconnect", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkedExternalIdentity {

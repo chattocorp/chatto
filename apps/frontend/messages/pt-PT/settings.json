@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "O fornecedor não pode ser desligado",
-          "body": "{provider} é o seu único método de login. Adicione uma palavra-passe ou ligue primeiro outro fornecedor."
+          "body": "Configure outro método de início de sessão suportado por este servidor antes de desligar {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmar palavra-passe",

@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Poskytovatele nelze odpojit",
-          "body": "{provider} je váš jediný způsob přihlášení. Nejprve přidejte heslo nebo propojte jiného poskytovatele."
+          "body": "Před odpojením poskytovatele {provider} nastavte jiný způsob přihlášení podporovaný tímto serverem."
         },
         "fresh_auth_modal": {
           "title": "Potvrďte heslo",

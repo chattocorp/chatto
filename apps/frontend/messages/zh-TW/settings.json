@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "無法中斷供應商連結",
-          "body": "{provider} 是您唯一的登入方式。請先新增密碼或連結其他供應商。"
+          "body": "中斷與 {provider} 的連結前，請先設定此伺服器支援的其他登入方式。"
         },
         "fresh_auth_modal": {
           "title": "確認密碼",

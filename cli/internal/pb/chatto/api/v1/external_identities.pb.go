@@ -106,7 +106,11 @@ type LinkedExternalIdentity struct {
 	// Current or fallback provider label.
 	ProviderLabel string `protobuf:"bytes,3,opt,name=provider_label,json=providerLabel,proto3" json:"provider_label,omitempty"`
 	// Stable one-way subject hash, useful only as a UI/list key.
-	SubjectHash   string `protobuf:"bytes,4,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
+	SubjectHash string `protobuf:"bytes,4,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
+	// Whether another enabled sign-in method would remain after disconnecting
+	// this identity. Set by ListExternalIdentities; absent on older servers.
+	// This hint does not replace fresh authentication or the disconnect check.
+	CanDisconnect *bool `protobuf:"varint,5,opt,name=can_disconnect,json=canDisconnect,proto3,oneof" json:"can_disconnect,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,6 +171,13 @@ func (x *LinkedExternalIdentity) GetSubjectHash() string {
 		return x.SubjectHash
 	}
 	return ""
+}
+
+func (x *LinkedExternalIdentity) GetCanDisconnect() bool {
+	if x != nil && x.CanDisconnect != nil {
+		return *x.CanDisconnect
+	}
+	return false
 }
 
 // Request to list configured and linked external identities for the current user.
@@ -474,13 +485,15 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\blink_url\x18\x05 \x01(\tR\alinkUrl\x12\x16\n" +
 	"\x06linked\x18\x06 \x01(\bR\x06linked\x12?\n" +
 	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\x12;\n" +
-	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xa8\x01\n" +
+	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xe7\x01\n" +
 	"\x16LinkedExternalIdentity\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +
 	"\rprovider_type\x18\x02 \x01(\tR\fproviderType\x12%\n" +
 	"\x0eprovider_label\x18\x03 \x01(\tR\rproviderLabel\x12!\n" +
-	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\"\x1f\n" +
+	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\x12*\n" +
+	"\x0ecan_disconnect\x18\x05 \x01(\bH\x00R\rcanDisconnect\x88\x01\x01B\x11\n" +
+	"\x0f_can_disconnect\"\x1f\n" +
 	"\x1dListExternalIdentitiesRequest\"\xbb\x01\n" +
 	"\x1eListExternalIdentitiesResponse\x12E\n" +
 	"\tproviders\x18\x01 \x03(\v2'.chatto.api.v1.ExternalIdentityProviderR\tproviders\x12R\n" +
@@ -539,6 +552,7 @@ func file_chatto_api_v1_external_identities_proto_init() {
 		return
 	}
 	file_chatto_api_v1_common_proto_init()
+	file_chatto_api_v1_external_identities_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

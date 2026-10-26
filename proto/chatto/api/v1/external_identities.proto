@@ -31,6 +31,10 @@ message LinkedExternalIdentity {
   string provider_label = 3;
   // Stable one-way subject hash, useful only as a UI/list key.
   string subject_hash = 4;
+  // Whether another enabled sign-in method would remain after disconnecting
+  // this identity. Set by ListExternalIdentities; absent on older servers.
+  // This hint does not replace fresh authentication or the disconnect check.
+  optional bool can_disconnect = 5;
 }
 
 // Request to list configured and linked external identities for the current user.

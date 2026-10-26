@@ -6019,6 +6019,7 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_type` | `string` | Provider type recorded when the identity was linked. |
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
+| `can_disconnect` | `optional bool` | Whether another enabled sign-in method would remain after disconnecting this identity. Set by ListExternalIdentities; absent on older servers. This hint does not replace fresh authentication or the disconnect check. |
 
 
 
