@@ -20,6 +20,10 @@ func (s *operatorMessageService) ImportMessage(ctx context.Context, req *connect
 		return nil, invalidArgument("created_at must be a valid timestamp")
 	}
 	var editedAt *time.Time
+	deletedAt, err := operatorHistoricalTime(req.Msg.GetDeletedAt())
+	if err != nil {
+		return nil, err
+	}
 	if value := req.Msg.GetEditedAt(); value != nil {
 		if value.CheckValid() != nil {
 			return nil, invalidArgument("edited_at must be a valid timestamp")
@@ -44,6 +48,8 @@ func (s *operatorMessageService) ImportMessage(ctx context.Context, req *connect
 		ThreadRootEventID: req.Msg.GetThreadRootEventId(), CreateThread: req.Msg.GetCreateThread(),
 		IdempotencyKey: req.Msg.GetIdempotencyKey(),
 		Deleted:        req.Msg.GetDeleted(),
+		OperationKey:   req.Msg.GetOperationKey(),
+		DeletedAt:      deletedAt, SourceActorID: req.Msg.GetSourceActorId(),
 	})
 	if err != nil {
 		return nil, err

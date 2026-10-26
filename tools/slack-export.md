@@ -113,9 +113,9 @@ chatto operator import /path/to/new-chatto-archive --accept-omissions
 
 The converter can represent more data than the initial native importer accepts.
 In particular, that importer currently rejects bots, deactivated accounts,
-private channels, unavailable files, and files shared by several messages.
-It also limits an archive to 64 MiB, 20,000 records, and 1 MiB per record.
-An export that exceeds these limits is not truncated. See the
+private channels, and unavailable files. The CLI streams events and files to
+individual Operator APIs. There is no total archive size or record-count limit;
+one JSON record is limited to 1 MiB. Shared files are supported. See the
 [current import limits](../schema/interchange/README.md) before loading it.
 Channel and username decorations belong to `chatto operator import`.
 

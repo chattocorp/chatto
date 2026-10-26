@@ -70,6 +70,7 @@ message Event {
     ServerSetupOfferedEvent server_setup_offered = 950;
     ServerInitializedEvent server_initialized = 951;
     ImportProgressedEvent import_progressed = 952;
+    OperatorOperationCompletedEvent operator_operation_completed = 953;
     // =================================================================
     // PERSISTED VARIANTS (< 1000) — stored in JetStream.
     // Changing field numbers or message structure below affects stored

@@ -91,7 +91,6 @@ type createRoomOptions struct {
 	threadingMode              evtv1.RoomThreadingMode
 	applyAnnouncementsDefaults bool
 	importContext              *evtv1.ImportContext
-	importPurpose              string
 	importReceipt              func(string) evtstream.BatchEntry
 }
 

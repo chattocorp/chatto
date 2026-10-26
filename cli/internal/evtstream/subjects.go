@@ -260,6 +260,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventServerInitialized
 	case *evtv1.Event_ImportProgressed:
 		return EventImportProgressed
+	case *evtv1.Event_OperatorOperationCompleted:
+		return "operator_operation_completed"
 	case *evtv1.Event_BotOutboundWebhookConfigured:
 		return "bot_outbound_webhook_configured"
 	case *evtv1.Event_BotOutboundWebhookRevoked:

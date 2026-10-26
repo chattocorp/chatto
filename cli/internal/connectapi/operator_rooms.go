@@ -39,7 +39,13 @@ func (s *operatorRoomService) CreateRoom(ctx context.Context, req *connect.Reque
 	if err := core.ValidateRoomDescription(req.Msg.GetDescription()); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	room, err := s.api.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	var room *evtv1.Room
+	var err error
+	if req.Msg.GetOperationKey() != "" {
+		room, err = s.api.core.CreateHistoricalOperatorRoom(ctx, req.Msg.GetOperationKey(), req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	} else {
+		room, err = s.api.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -20,10 +20,10 @@ uses only local schemas and files.
 
 The first importer accepts public channels and active human users. New accounts
 require usernames. Message creation times must be known. Unavailable content
-and files are not yet supported; tombstone snapshots are supported. Each file
-must belong to one message, although its edits can reference the same file.
-Original file bytes are retained; derivative media processing is not started.
-These restrictions fail destination validation before any writes.
+and files are not yet supported; tombstone snapshots are supported. Shared
+files are uploaded separately for each message. Original file bytes use the
+normal upload API and configured media processing. Record support is checked
+before writes; server media and account policies still apply to each API call.
 
 Use `--channel-prefix`, `--channel-suffix`, `--username-prefix`, and
 `--username-suffix` to decorate destination names. Defaults preserve source
@@ -40,17 +40,21 @@ connected by shared emails resolve to one account; the first record supplies
 the profile for a new account. Emails pointing to different existing accounts
 fail validation. Names alone never cause account matching.
 
-The initial destination can have existing accounts and empty channels, but
-no messages. Keep it unused until import completes.
-Unrelated durable writes stop an unfinished import. One archive is bound to the
-destination; a completed import can be repeated without creating duplicates.
-Progress has no expiry and is stored on the server. No local journal is created.
+The importer creates new channels and never merges existing channel history.
+Keep imported channels unused until completion. The CLI stores a private local
+journal in the user cache directory; `--progress PATH` selects another file.
+Keep that journal and the unchanged archive for resume. It binds source bytes,
+naming options, and the operator socket path. Server operation receipts prevent
+duplicates after lost responses. Completed imports can be repeated with the
+same journal without writes. Old server-side archive progress cannot be resumed
+by the new CLI. Do not point an existing journal at a replacement server.
 
 The Go reader checks the same schemas, references, final snapshots, deletion
-privacy, and attachment hashes. It rejects links and extra files. This first
-reader accepts at most 64 MiB across metadata and files, 20,000 JSON records
-(including the manifest), and 1 MiB per record. These are implementation
-limits, not format limits. Larger inputs fail; they are not truncated.
+privacy, and attachment hashes. It rejects links and extra files. Event bodies
+and file bytes are streamed; catalogs and reference indexes use CLI memory.
+There is no total byte or record-count limit. A JSON record is limited to 1 MiB.
+Normal server upload expiry and per-file limits remain in effect. The server
+receives typed resource calls, not archive bytes or source paths.
 
 From `cli/`, run `mise x -- go test ./internal/interchange` to check the reader.
 After a schema change, run `mise x -- go generate ./internal/interchange` to

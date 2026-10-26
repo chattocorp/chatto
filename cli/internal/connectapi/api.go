@@ -10,7 +10,6 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
-	"github.com/chattocorp/chatto/cli/internal/interchange"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1/adminv1connect"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
@@ -226,13 +225,11 @@ func (a *API) OperatorHandlers() []Handler {
 	roomPath, roomHandler := operatorv1connect.NewOperatorRoomServiceHandler(&operatorRoomService{api: a}, options...)
 	assetPath, assetHandler := operatorv1connect.NewOperatorAssetServiceHandler(&operatorAssetService{api: a}, assetOptions...)
 	messagePath, messageHandler := operatorv1connect.NewOperatorMessageServiceHandler(&operatorMessageService{api: a}, options...)
-	importPath, importHandler := operatorv1connect.NewOperatorImportServiceHandler(&operatorImportService{api: a}, handlerOptionsWithReadMax(2*interchange.MaxArchiveBytes, a.config.Webserver)...)
 	handlers := []Handler{
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: roomPath, Handler: roomHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyPublic},
-		{ServicePath: importPath, Handler: importHandler, AuthPolicy: AuthPolicyPublic},
 	}
 	return append(handlers, a.operatorSeedHandlers(options)...)
 }

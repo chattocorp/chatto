@@ -17,11 +17,11 @@ subset and implementation limits.
 
 ## Behavior
 
-- `chatto operator import PATH` validates and imports a directory into a
-  destination without conversation history through the configured operator socket. Repeating the same
-  immutable import will resume it; no separate plan or mapping file is required.
+- `chatto operator import PATH` reads a local directory and calls individual
+  resource APIs through the configured operator socket. It creates new channels.
+  Repeating the same immutable import with its local journal resumes it.
 - `--validate-only` checks the archive and destination over the local operator
-  socket without writes. Invalid references,
+  socket without server writes. Invalid references,
   invalid history, missing files, and file integrity failures stop validation.
 - `chatto operator export PATH` will produce a readable archive at a consistent
   source cut and refuse an existing output destination.
@@ -64,7 +64,7 @@ See [ADR-119](../adr/ADR-119-portable-history-interchange.md).
 **Why:** Sources often omit edit history, reaction times, or membership times.
 **Tradeoff:** Consumers must distinguish observations from historical transitions.
 
-### 3. Start with a blank destination
+### 3. Create new channels
 
 **Decision:** Initial import does not merge conversation histories. Existing
 accounts are reused only through email matching.
@@ -74,19 +74,26 @@ of room histories and access policies can expose private history.
 
 ## Gates
 
-The commands use the existing root-equivalent local operator access.
-They do not grant ordinary users server-wide export privileges. The first
-implementation validates destination compatibility before writing any records.
-The initial destination can contain existing accounts and empty channels,
-but no conversation history. Trusted imported emails can enable configured email
+The commands use root-equivalent local operator access. They do not grant
+ordinary users server-wide export privileges. Source structure, references,
+file hashes, supported record types, and email conflicts are checked before
+writes. Server policy and media validation still apply to each API call and can
+stop a partial import. Trusted imported emails can enable configured email
 sign-in; no passwords are created. Private rooms remain unsupported.
 
-Progress is saved with each operation. Recovery does not depend on the normal
-sending retry window or client memory. Unrelated server changes stop an
-unfinished import.
-Operators must keep the destination unused until completion. No automatic
-rollback is attempted. Files use stable destination keys so retries reuse the
-same bytes after a storage acknowledgement is lost.
+Progress is saved in a private local journal under the user cache directory.
+`--progress PATH` selects another file. Preserve it and the immutable archive
+for retries. Operation receipts on the server prevent duplicate mutations even
+when a successful response is lost. Recovery does not use the sending retry
+window. The CLI holds an exclusive journal lock. It does not copy source files
+into that journal. Keep imported channels unused until completion; the importer
+does not merge concurrent changes or automatically roll back partial work.
+
+Files use chunked uploads when first referenced. Shared source files are
+uploaded separately for each message, as required by native asset ownership.
+Upload completion is retryable. Incomplete uploads can be restarted; normal
+server upload expiry and per-file policies still apply. There is no total
+archive size or record-count limit. One JSON record is limited to 1 MiB.
 
 ## Related
 
@@ -99,7 +106,7 @@ same bytes after a storage acknowledgement is lost.
 
 - Extend the first import subset to private channels, other user
   states, unavailable content/files, and unknown message creation times.
-- Stream large archives and support shared file references and media derivatives.
+- Optimize reference-index memory use for very large archives.
 - Specify consistent export cuts across history, catalogs, content keys, and
   attachment storage, and how interrupted output is identified and removed.
 - Freeze the Markdown dialect and decide structured mention support before v1
