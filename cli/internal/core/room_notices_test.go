@@ -1,10 +1,11 @@
 package core
 
 import (
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"

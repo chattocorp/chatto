@@ -275,12 +275,16 @@ See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
 
 Grant `room.manage-notice` to the roles or accounts that should edit notices.
 New instances grant it to Admin. Upgrades keep existing permission grants.
-Open a channel's **Room information** panel and select **Edit notice**. Publish
-up to 4,000 characters of Markdown. Use **Save correction** for edits that should
-keep existing dismissals. Use **Republish** when members should see the notice
-again. **Clear notice** removes the current notice.
+Select **Edit** in the notice banner, or open **Room information** and select
+**Edit notice**. Write up to 4,000 characters of Markdown. Use **Update** for
+edits that should keep existing dismissals. Use **Announce** when members should
+see the changed notice again. Both actions require a text change. **Clear** asks
+for confirmation before it removes the current notice for everyone in the room.
 The banner shows the publication date and time. Corrections preserve that time;
-**Republish** updates it.
+**Announce** updates it.
+
+Notices belong to the room. Deleting an author's account does not remove notice
+text. Clearing a notice does not erase earlier versions from the event log.
 
 Members can dismiss the banner and select **Show notice** to reopen it. Dismissal
 applies only to the current device. Archived rooms keep their notices but reject
