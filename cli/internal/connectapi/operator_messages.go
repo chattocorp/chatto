@@ -43,6 +43,7 @@ func (s *operatorMessageService) ImportMessage(ctx context.Context, req *connect
 		AttachmentAssetIDs: req.Msg.GetAttachmentAssetIds(), Body: req.Msg.GetBody(), LinkPreview: preview,
 		ThreadRootEventID: req.Msg.GetThreadRootEventId(), CreateThread: req.Msg.GetCreateThread(),
 		IdempotencyKey: req.Msg.GetIdempotencyKey(),
+		Deleted:        req.Msg.GetDeleted(),
 	})
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/pkg/events"
 )
 
 // HistoricalMessageInput is one operator import. A UUID enables the same
@@ -32,6 +34,8 @@ type HistoricalMessageInput struct {
 	CreateThread bool
 	// IdempotencyKey reserves one import identity for MessageIdempotencyWindow.
 	IdempotencyKey string
+	// Deleted imports a native tombstone without storing any message body.
+	Deleted bool
 }
 
 const messageImportClaimPrefix = "message_import."
@@ -66,8 +70,9 @@ func (c *ChattoCore) claimHistoricalMessage(ctx context.Context, input Historica
 		AssetIDs                                        []string   `json:",omitempty"`
 		CreateThread                                    bool
 		Preview                                         []byte `json:",omitempty"`
+		Deleted                                         bool   `json:",omitempty"`
 	}{input.RoomID, input.AuthorID, input.InReplyTo, input.Body, input.ThreadRootEventID,
-		input.CreatedAt.UTC(), editedAt, input.AttachmentAssetIDs, input.CreateThread, preview}
+		input.CreatedAt.UTC(), editedAt, input.AttachmentAssetIDs, input.CreateThread, preview, input.Deleted}
 	data, err := json.Marshal(intent)
 	if err != nil {
 		return nil, fmt.Errorf("encode historical message intent: %w", err)
@@ -116,6 +121,9 @@ func (c *ChattoCore) readHistoricalClaim(ctx context.Context, input HistoricalMe
 // policy or live posting effects. EVT records the system actor, while the
 // message fact and encrypted body retain the mapped historical author.
 func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input HistoricalMessageInput) (result *evtv1.Event, resultErr error) {
+	if input.Deleted && (input.Body != "" || len(input.AttachmentAssetIDs) != 0 || input.LinkPreview != nil || input.EditedAt != nil) {
+		return nil, invalidArgument("deleted imports must not contain body, attachments, preview, or edited_at")
+	}
 	if input.IdempotencyKey != "" {
 		if _, err := messageClaimKey(messageImportClaimPrefix, SystemActorID, input.IdempotencyKey); err != nil {
 			return nil, err
@@ -141,7 +149,7 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 	if len(input.Body) > MaxMessageBodyLength {
 		return nil, ErrMessageTooLong
 	}
-	if !HasVisibleContent(input.Body) && len(input.AttachmentAssetIDs) == 0 {
+	if !input.Deleted && !HasVisibleContent(input.Body) && len(input.AttachmentAssetIDs) == 0 {
 		return nil, invalidArgument("message must have either body or attachments")
 	}
 	if err := validateLinkPreview(input.LinkPreview); err != nil {
@@ -173,7 +181,7 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 				return err
 			}
 			posted := root.GetMessagePosted()
-			if posted == nil || posted.GetInThread() != "" || posted.GetEchoOfEventId() != "" || c.roomModel.messageTombstoned(input.ThreadRootEventID) {
+			if posted == nil || posted.GetInThread() != "" || posted.GetEchoOfEventId() != "" {
 				return invalidArgument("thread_root_event_id must identify a root message in the same room")
 			}
 		}
@@ -225,6 +233,9 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 	}
 	if err := validateRoomAndReply(ctx); err != nil {
 		return nil, err
+	}
+	if input.Deleted {
+		return c.appendHistoricalTombstone(ctx, input, claim, authorize)
 	}
 	assetIDs := make([]string, 0, len(input.AttachmentAssetIDs))
 	seen := make(map[string]struct{}, len(input.AttachmentAssetIDs))
@@ -301,4 +312,79 @@ func (c *ChattoCore) ImportHistoricalMessage(ctx context.Context, input Historic
 		return claim.committed.Event, nil
 	}
 	return postedEvent, nil
+}
+
+// appendHistoricalTombstone commits identity, optional thread, and retraction in
+// one room-OCC batch. No body or encryption key is created. A retry sees either
+// the whole batch or no identity; import time is used for the unknown deletion
+// time. The ordinary interactive posting and deletion policies are unchanged.
+func (c *ChattoCore) appendHistoricalTombstone(ctx context.Context, input HistoricalMessageInput, claim *messagePostClaim, authorize func(context.Context) error) (*evtv1.Event, error) {
+	messageID := NewEventID()
+	if claim != nil {
+		messageID = claim.messageID
+	}
+	posted := newEvent(SystemActorID, &evtv1.Event{Id: messageID, CreatedAt: timestamppb.New(input.CreatedAt.UTC()),
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+			RoomId: input.RoomID, AuthorId: input.AuthorID, InReplyTo: input.InReplyTo,
+			InThread: input.ThreadRootEventID, HistoricalImport: true,
+		}},
+	})
+	retracted := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_MessageRetracted{
+		MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: input.RoomID, EventId: messageID},
+	}})
+	rootID := input.ThreadRootEventID
+	if input.CreateThread {
+		rootID = messageID
+	}
+	thread := newEvent(SystemActorID, &evtv1.Event{CreatedAt: posted.CreatedAt, Event: &evtv1.Event_ThreadCreated{
+		ThreadCreated: &evtv1.ThreadCreatedEvent{RoomId: input.RoomID, ThreadRootEventId: rootID, HistoricalImport: true},
+	}})
+	agg := evtstream.RoomAggregate(input.RoomID)
+	var lastErr error
+	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
+		if err != nil {
+			return nil, err
+		}
+		if claim != nil && claim.committed != nil {
+			return claim.committed.Event, nil
+		}
+		entries := []evtstream.BatchEntry{}
+		if rootID != "" && !input.CreateThread {
+			exists, err := c.threadCreatedExistsInStream(ctx, agg, rootID)
+			if err != nil {
+				return nil, err
+			}
+			if !exists {
+				entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(thread), Event: thread})
+			}
+		}
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(posted), Event: posted})
+		if input.CreateThread {
+			entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(thread), Event: thread})
+		}
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(retracted), Event: retracted})
+		entries[0].Expect = events.ExpectFilterSeq(guard.roomFilter, guard.roomSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			position := events.SubjectPosition(agg.SubjectFor(retracted), seqs[len(seqs)-1])
+			if err := c.roomModel.waitForTimeline(ctx, position); err != nil {
+				return nil, err
+			}
+			if err := c.roomModel.waitForThreads(ctx, position); err != nil {
+				return nil, err
+			}
+			return posted, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, err
+		}
+		lastErr = err
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return nil, fmt.Errorf("append historical tombstone: %w", lastErr)
 }

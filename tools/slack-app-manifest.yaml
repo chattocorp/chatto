@@ -1,0 +1,11 @@
+display_information:
+  name: Chatto Migration
+  description: Read account identities for a local Chatto import.
+features:
+  bot_user:
+    display_name: Chatto Migration
+oauth_config:
+  scopes:
+    bot:
+      - users:read
+      - users:read.email

@@ -22,3 +22,14 @@ func TestHistoricalThreadAndReactionRealtimeSuppression(t *testing.T) {
 		require.NotNil(t, projectRealtimeEvent("viewer", event))
 	}
 }
+
+func TestTombstoneRetractionUsesOrdinaryRealtimeDelivery(t *testing.T) {
+	t.Parallel()
+	event := &evtv1.Event{Event: &evtv1.Event_MessageRetracted{
+		MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "room", EventId: "root"},
+	}}
+	projected := projectRealtimeEvent("viewer", event)
+	require.NotNil(t, projected)
+	require.Equal(t, "room", projected.GetMessageRetracted().GetRoomId())
+	require.Equal(t, "root", projected.GetMessageRetracted().GetMessageEventId())
+}
