@@ -2,6 +2,56 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseStreamDiagnostic, StreamDiagnostics } from './stream_diagnostics.mjs';
 
+test('custom encoder reports preserve rate changes and errors without copying private text', () => {
+  const value = {
+    protocolVersion: 1,
+    kind: 'diagnostic',
+    phase: 'sample',
+    requestedCodec: 'h264',
+    simulcast: false,
+    tunedH264: true,
+    layers: [{ encoder: 'ChattoVideoToolboxH264' }],
+    tunedEncoder: {
+      rateControl: 'vbr',
+      appliedCeilingBps: 3_000_000,
+      vbvBufferMs: 250,
+      requestedBps: 3_000_000,
+      averageBps: 2_250_000,
+      ceilingBps: 3_000_000,
+      appliedAverageBps: 2_250_000,
+      hardware: true,
+      profile: '640034',
+      framesEncoded: 100,
+      framesDropped: 1,
+      callbackRejected: 0,
+      lastStatus: -12900,
+      operation: 'prepare',
+      token: 'private token'
+    }
+  };
+  const log = new StreamDiagnostics();
+  log.recordLifecycle('start', 'h264', false, true);
+  log.recordNative(value);
+  const [, start, sample] = log.report({ version: 'test' }).split('\n').map(JSON.parse);
+  assert.equal(start.tunedH264, true);
+  assert.equal(sample.tunedH264, true);
+  assert.equal(sample.layers[0].encoder, 'ChattoVideoToolboxH264');
+  assert.equal(sample.tunedEncoder.lastStatus, -12900);
+  assert.equal(sample.tunedEncoder.appliedAverageBps, 2_250_000);
+  assert.equal(sample.tunedEncoder.rateControl, 'vbr');
+  assert.equal(sample.tunedEncoder.appliedCeilingBps, 3_000_000);
+  assert.equal(sample.tunedEncoder.vbvBufferMs, 250);
+  assert.ok(!JSON.stringify(sample).includes('private'));
+  for (const invalid of ['private value', NaN, Infinity, -1, 2 ** 54]) {
+    const tunedEncoder = Object.fromEntries(
+      Object.keys(value.tunedEncoder).map((key) => [key, invalid])
+    );
+    // A negative integer is a valid OSStatus, but not a valid rate/counter.
+    const parsed = parseStreamDiagnostic({ ...value, tunedEncoder }).tunedEncoder;
+    assert.deepEqual(parsed, invalid === -1 ? { lastStatus: -1 } : {});
+  }
+});
+
 test('diagnostics strip identifiers, credentials, addresses, SDP, and arbitrary text', () => {
   const value = {
     protocolVersion: 1,
@@ -80,6 +130,27 @@ test('mixed share reports keep the layer mode and limits with each record', () =
   assert.throws(() => parseStreamDiagnostic({ ...value, simulcast: 'false' }));
 });
 
+test('automatic fallback diagnostics retain only allowlisted modes and numeric status', () => {
+  const sample = {
+    protocolVersion: 1,
+    kind: 'diagnostic',
+    phase: 'sample',
+    requestedCodec: 'h264',
+    layers: [],
+    tunedEncoder: {
+      requestedRateControl: 'auto',
+      rateControl: 'average',
+      fallbackStatus: -12900,
+      lastStatus: 0
+    }
+  };
+  assert.deepEqual(parseStreamDiagnostic(sample).tunedEncoder, sample.tunedEncoder);
+  sample.tunedEncoder.requestedRateControl = 'private value';
+  sample.tunedEncoder.fallbackStatus = 'private value';
+  assert.equal(parseStreamDiagnostic(sample).tunedEncoder.requestedRateControl, undefined);
+  assert.equal(parseStreamDiagnostic(sample).tunedEncoder.fallbackStatus, undefined);
+});
+
 test('reports retain only the most recent 60 records and omit invalid numbers', () => {
   const log = new StreamDiagnostics();
   log.recordLifecycle('start', 'h265');
@@ -97,4 +168,32 @@ test('reports retain only the most recent 60 records and omit invalid numbers', 
   assert.equal(lines.at(-1).layers[0].width, 64);
   assert.equal(lines[1].layers[0].fps, undefined);
   assert.equal(lines[1].layers[0].actualBps, undefined);
+});
+
+test('interval diagnostics retain numeric metrics and reject private or invalid values', () => {
+  const metrics = {
+    intervalMs: 2000,
+    encodedTargetBps: 8_000_000,
+    encodedFps: 55,
+    sentFps: 54,
+    captureFps: 60,
+    packetSendDelayMs: 2
+  };
+  const value = {
+    protocolVersion: 1,
+    kind: 'diagnostic',
+    phase: 'sample',
+    requestedCodec: 'h264',
+    sdkVersion: '2.18.0',
+    layers: [metrics]
+  };
+  const parsed = parseStreamDiagnostic(value);
+  assert.equal(parsed.sdkVersion, '2.18.0');
+  for (const [key, number] of Object.entries(metrics)) assert.equal(parsed.layers[0][key], number);
+  for (const invalid of [-1, NaN, Infinity, 'private value', undefined]) {
+    const layers = [Object.fromEntries(Object.keys(metrics).map((key) => [key, invalid]))];
+    const result = parseStreamDiagnostic({ ...value, sdkVersion: 'private value', layers });
+    assert.equal(result.sdkVersion, undefined);
+    for (const key of Object.keys(metrics)) assert.equal(result.layers[0][key], undefined);
+  }
 });

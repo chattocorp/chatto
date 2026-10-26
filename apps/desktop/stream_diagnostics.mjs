@@ -5,11 +5,12 @@ export class StreamDiagnostics {
   #entries = [];
   #started = performance.now();
 
-  recordLifecycle(phase, codec, simulcast = true) {
+  recordLifecycle(phase, codec, simulcast = true, tunedH264 = false) {
     if (!['start', 'started', 'stop', 'ended', 'failed'].includes(phase)) return;
     this.#append({
       phase,
       requestedCodec: codec === 'h264' ? 'h264' : 'h265',
+      tunedH264: tunedH264 === true,
       ...layerConfiguration(simulcast)
     });
   }
@@ -34,7 +35,7 @@ export class StreamDiagnostics {
         platform,
         arch,
         variant,
-        note: 'Publisher samples only. Rates are bits/s; delays are ms. limitsBps lists configured video layer ceilings per record. availableOutgoingBps is the shared publisher transport estimate, not a per-layer limit. Missing fields are unavailable. QP is codec-specific. Counters are cumulative.'
+        note: 'Publisher samples only: every second for the first 20 seconds, then every 5 seconds. Rates are bits/s; delays are ms. limitsBps lists configured video layer ceilings per record. availableOutgoingBps is the shared publisher transport estimate. targetBps is instantaneous; actualBps and encodedTargetBps use intervalMs. encodedTargetBps is the hypothetical bitrate of encoded frames at their target size, not a bandwidth estimate. encodedFps and sentFps use that interval; captureFps is the SDK source FPS. packetSendDelayMs is average packet send delay in that interval. Missing fields are unavailable. QP is codec-specific. Counters are cumulative.'
       }),
       ...this.#entries.map((entry) => JSON.stringify(entry))
     ].join('\n');
@@ -61,8 +62,14 @@ export function parseStreamDiagnostic(value) {
   return {
     phase: value.phase,
     requestedCodec: value.requestedCodec,
+    sdkVersion:
+      typeof value.sdkVersion === 'string' && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(value.sdkVersion)
+        ? value.sdkVersion
+        : undefined,
     ...layerConfiguration(value.simulcast ?? true),
     maintainsResolution: boolean(value.maintainsResolution),
+    tunedH264: boolean(value.tunedH264),
+    tunedEncoder: parseTunedEncoder(value.tunedEncoder),
     availableOutgoingBps: number(value.availableOutgoingBps),
     captureWidth: number(value.captureWidth),
     captureHeight: number(value.captureHeight),
@@ -80,7 +87,13 @@ export function parseStreamDiagnostic(value) {
           typeof layer.profile === 'string' && /^[0-9a-f]{1,8}$/i.test(layer.profile)
             ? layer.profile
             : undefined,
-        encoder: known(layer.encoder, ['VideoToolbox', 'libaom', 'libvpx', 'OpenH264']),
+        encoder: known(layer.encoder, [
+          'VideoToolbox',
+          'ChattoVideoToolboxH264',
+          'libaom',
+          'libvpx',
+          'OpenH264'
+        ]),
         limitation: known(layer.limitation, ['none', 'cpu', 'bandwidth', 'other']),
         active: boolean(layer.active),
         powerEfficient: boolean(layer.powerEfficient)
@@ -91,6 +104,12 @@ export function parseStreamDiagnostic(value) {
         'fps',
         'targetBps',
         'actualBps',
+        'intervalMs',
+        'encodedTargetBps',
+        'encodedFps',
+        'sentFps',
+        'captureFps',
+        'packetSendDelayMs',
         'meanQP',
         'encodeMsPerFrame',
         'packetsLost',
@@ -104,6 +123,65 @@ export function parseStreamDiagnostic(value) {
       return result;
     })
   };
+}
+
+/** VT status codes can be negative; other counters and rates cannot. */
+function parseTunedEncoder(value) {
+  if (!value || typeof value !== 'object') return undefined;
+  const result = {};
+  if (['average', 'vbr'].includes(value.rateControl)) result.rateControl = value.rateControl;
+  if (['auto', 'average', 'vbr'].includes(value.requestedRateControl))
+    result.requestedRateControl = value.requestedRateControl;
+  for (const key of [
+    'requestedBps',
+    'averageBps',
+    'ceilingBps',
+    'appliedAverageBps',
+    'appliedCeilingBps',
+    'vbvBufferMs',
+    'framesEncoded',
+    'framesDropped',
+    'queueDrops',
+    'peakPendingFrames',
+    'callbackRejected'
+  ]) {
+    if (Number.isSafeInteger(value[key]) && value[key] >= 0) result[key] = value[key];
+  }
+  if (typeof value.hardware === 'boolean') result.hardware = value.hardware;
+  if (typeof value.profile === 'string' && /^[0-9a-f]{6}$/i.test(value.profile))
+    result.profile = value.profile;
+  for (const key of ['lastStatus', 'fallbackStatus']) {
+    if (Number.isInteger(value[key]) && value[key] >= -2147483648 && value[key] <= 2147483647)
+      result[key] = value[key];
+  }
+  if (
+    [
+      'idle',
+      'create',
+      'prepare',
+      'hardware',
+      'encode',
+      'output',
+      'packetize',
+      'readAverageBitRate',
+      'RealTime',
+      'ProfileLevel',
+      'AllowFrameReordering',
+      'ExpectedFrameRate',
+      'MaxKeyFrameInterval',
+      'MaxKeyFrameIntervalDuration',
+      'PrioritizeEncodingSpeedOverQuality',
+      'MaxAllowedFrameQP',
+      'DataRateLimits',
+      'AverageBitRate',
+      'VariableBitRate',
+      'VBVMaxBitRate',
+      'VBVBufferDuration',
+      'VBVInitialDelayPercentage'
+    ].includes(value.operation)
+  )
+    result.operation = value.operation;
+  return result;
 }
 
 /** Include limits with each record because one report can contain several share modes. */

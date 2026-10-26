@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-10-25
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -22,11 +22,12 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 - Video quality selection uses the display's physical pixel density so that
   HiDPI call views can request enough detail. This can increase download use
-  and activate a larger publisher layer. Native screen sharing allows up to
-  8 Mbps for the full-resolution layer, 4 Mbps for the middle layer, and
-  1 Mbps for the smallest layer. Actual rates depend on network and encoder
-  limits. If viewers need all three layers, their combined video ceiling is
-  13 Mbps.
+  and activate a larger publisher layer. Native macOS screen sharing defaults
+  to one tuned H.264 layer with resolution priority and an 8 Mbps video maximum.
+  Actual rates depend on network and encoder limits. The Diagnostics menu
+  retains stock H.264 and HEVC simulcast modes with 8/4/1 Mbps layer limits;
+  their combined video ceiling is 13 Mbps when viewers need all three layers.
+  See [FDR-034](FDR-034-chatto-desktop.md) for rate control and fallback behavior.
 
 - Open a participant's user context menu with the three-dot button or a
   right-click anywhere on their card, including camera and screen-share video.

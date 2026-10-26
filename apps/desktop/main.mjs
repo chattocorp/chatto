@@ -34,6 +34,7 @@ import { hasAppOrigin, isAuthorizationLaunchUrl, isDesktopPermissionAllowed } fr
 import packageJson from './package.json' with { type: 'json' };
 import { desktopBuildProfile } from './build_profile.mjs';
 import { StreamDiagnostics } from './stream_diagnostics.mjs';
+import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 if (buildProfile.variant === 'development') {
@@ -41,8 +42,7 @@ if (buildProfile.variant === 'development') {
   app.setPath('userData', path.join(app.getPath('appData'), buildProfile.productName));
 }
 const streamDiagnostics = new StreamDiagnostics();
-let screenShareCodec = 'h265';
-let screenShareSimulcast = true;
+let screenShareMode = defaultScreenShareMode;
 
 const desktopRoot = path.dirname(fileURLToPath(import.meta.url));
 // Match the NSIS shortcut identity for Windows taskbar grouping and notifications.
@@ -523,10 +523,10 @@ function configureGameCaptureIPC() {
 
 function startGameCaptureSession(source, publisherRequest, port) {
   stopActiveGameCaptureSession();
-  const requestedCodec = screenShareCodec;
+  const requestedCodec = screenShareMode.codec;
   // Snapshot the next-share settings so menu changes cannot relabel an active share.
-  const simulcast = screenShareSimulcast;
-  streamDiagnostics.recordLifecycle('start', requestedCodec, simulcast);
+  const { simulcast, tunedH264, rateControl: tunedRateControl } = screenShareMode;
+  streamDiagnostics.recordLifecycle('start', requestedCodec, simulcast, tunedH264);
   const sourceArguments = [
     source.kind === 'window' ? '--window' : '--display',
     String(source.nativeId)
@@ -570,7 +570,7 @@ function startGameCaptureSession(source, publisherRequest, port) {
             console.info('[screen-share]', JSON.stringify(record));
           } else {
             const status = parseGameCapturePublisherStatus(line);
-            streamDiagnostics.recordLifecycle('started', requestedCodec, simulcast);
+            streamDiagnostics.recordLifecycle('started', requestedCodec, simulcast, tunedH264);
             port.postMessage(status);
           }
         }
@@ -589,7 +589,7 @@ function startGameCaptureSession(source, publisherRequest, port) {
     if (stderr.length > 64 * 1024) stderr = stderr.slice(-64 * 1024);
   });
   child.once('error', () => {
-    streamDiagnostics.recordLifecycle('failed', requestedCodec, simulcast);
+    streamDiagnostics.recordLifecycle('failed', requestedCodec, simulcast, tunedH264);
     port.postMessage({
       kind: 'error',
       message: 'The native screen-share helper could not start.'
@@ -599,7 +599,8 @@ function startGameCaptureSession(source, publisherRequest, port) {
     streamDiagnostics.recordLifecycle(
       code === 0 || stopping ? 'ended' : 'failed',
       requestedCodec,
-      simulcast
+      simulcast,
+      tunedH264
     );
     clearTimeout(forceStopTimer);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
@@ -625,14 +626,16 @@ function startGameCaptureSession(source, publisherRequest, port) {
       token: publisherRequest.token,
       e2eeKey: publisherRequest.e2eeKey,
       videoCodec: requestedCodec,
-      videoSimulcast: simulcast
+      videoSimulcast: simulcast,
+      videoTunedH264: tunedH264,
+      videoTunedRateControl: tunedH264 ? tunedRateControl : undefined
     })
   );
 
   function stop() {
     if (stopping) return;
     stopping = true;
-    streamDiagnostics.recordLifecycle('stop', requestedCodec, simulcast);
+    streamDiagnostics.recordLifecycle('stop', requestedCodec, simulcast, tunedH264);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
     if (child.exitCode === null && child.signalCode === null) {
       child.kill('SIGTERM');
@@ -666,33 +669,14 @@ function configureDiagnosticsMenu() {
           }
         },
         { type: 'separator' },
-        {
-          label: 'Prefer HEVC for Next Share',
+        ...screenShareModes.map((mode) => ({
+          label: `${mode.label} for Next Share`,
           type: 'radio',
-          checked: screenShareCodec === 'h265',
+          checked: screenShareMode === mode,
           click: () => {
-            screenShareCodec = 'h265';
-            screenShareSimulcast = true;
+            screenShareMode = mode;
           }
-        },
-        {
-          label: 'Use H.264 for Next Share',
-          type: 'radio',
-          checked: screenShareCodec === 'h264' && screenShareSimulcast,
-          click: () => {
-            screenShareCodec = 'h264';
-            screenShareSimulcast = true;
-          }
-        },
-        {
-          label: 'Test H.264 Single Layer (8 Mbps, Resolution First) for Next Share',
-          type: 'radio',
-          checked: screenShareCodec === 'h264' && !screenShareSimulcast,
-          click: () => {
-            screenShareCodec = 'h264';
-            screenShareSimulcast = false;
-          }
-        }
+        }))
       ]
     })
   );

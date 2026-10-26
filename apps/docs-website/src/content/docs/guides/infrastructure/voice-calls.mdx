@@ -71,17 +71,19 @@ and paste the report into your support request. It contains recent native
 publisher performance measurements, without account names, source names,
 addresses, or credentials. The app does not send the report automatically.
 
-Native macOS sharing uses HEVC by default. To compare codecs, select
-**Prefer HEVC for Next Share** or **Use H.264 for
-Next Share** in the same menu, then stop and start sharing. HEVC requires
-support from the server and viewers. Use H.264 if a viewer cannot receive HEVC.
+Native macOS sharing defaults to tuned H.264 with a video maximum of 8 Mbps,
+plus audio and transport overhead. It uses hardware variable-bitrate encoding
+where supported, with an average-rate fallback on older Macs. All viewers
+receive one encoded resolution. The encoder preserves resolution and can reduce
+frame rate under pressure. Receivers must support H.264 Constrained High profile.
 
-To test resolution priority, select **Test H.264 Single Layer (8 Mbps,
-Resolution First) for Next Share**, then restart sharing. This sends one video
-layer at up to 8 Mbps, plus audio and transport overhead. All viewers
-receive the same encoded resolution. This mode prefers to preserve resolution
-and permits frame rate to decrease under pressure. Select either regular codec
-option and restart sharing to restore multiple layers and frame-rate priority.
+The **Diagnostics** menu also offers stock H.264, HEVC, and explicit tuning
+comparisons. Select a mode, then stop and start sharing. Select **Default:
+Tuned H.264 (Automatic VBR) for Next Share** to restore the default. If a viewer
+cannot receive the default stream, try **Use H.264 for Next Share**. HEVC
+requires support from the server and viewers; select H.264 if a viewer cannot
+receive HEVC. The stock H.264 and HEVC options send multiple resolution layers
+and can use more upload bandwidth.
 
 ## Adjust another participant's volume
 

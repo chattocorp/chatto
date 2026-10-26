@@ -103,13 +103,21 @@ the build.
 
 ### Screen-share diagnostics and codec selection
 
-Native macOS screen sharing prefers HEVC in development and release builds.
-In the app's **Diagnostics** menu, select **Prefer HEVC for Next
-Share** or **Use H.264 for Next Share**, then stop and start sharing. Both use
-the same 8/4/1 Mbps layer limits. HEVC needs receiver and LiveKit server support.
-If the server explicitly rejects that codec, the helper retries H.264. It does
-not publish both codecs at once. If a viewer cannot receive HEVC, select H.264
-and restart the share.
+Native macOS screen sharing defaults to tuned H.264 in development and release
+builds. It sends one layer, prioritizes resolution, and uses hardware VBR on
+macOS 26 or later. The target is at most 6 Mbps and the video maximum is
+8 Mbps; both follow WebRTC's network allowance. Older macOS versions and Macs
+that reject VBR setup use tuned average-rate H.264 at 90% of that allowance.
+Audio and transport overhead are additional. Receivers must support H.264
+Constrained High profile at level 4.2 or above.
+
+The **Diagnostics** menu retains explicit average-rate and VBR comparisons,
+stock H.264, and HEVC. Select a mode, then stop and start sharing. Select
+**Default: Tuned H.264 (Automatic VBR) for Next Share** to restore the default.
+Explicit VBR reports an error if unsupported. The stock H.264 and HEVC options
+use 8/4/1 Mbps simulcast limits. HEVC needs receiver and LiveKit server support;
+an explicit server rejection retries H.264. No mode publishes two codecs at once.
+If a viewer cannot receive HEVC, return to H.264 and restart sharing.
 
 To test resolution priority, select **Test H.264 Single Layer (8 Mbps,
 Resolution First) for Next Share**, then restart sharing. This test publishes

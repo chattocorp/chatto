@@ -13,6 +13,8 @@ private struct PublisherCredential: Decodable {
   let e2eeKey: String
   let videoCodec: String?
   let videoSimulcast: Bool?
+  let videoTunedH264: Bool?
+  let videoTunedRateControl: String?
 }
 
 private struct PublisherStatus: Encodable {
@@ -36,11 +38,24 @@ enum LiveKitGamePublisher {
     maximumWidth: Int,
     maximumHeight: Int
   ) async throws {
+    let credential = try readCredential()
+    let tunedEncoder = credential.videoTunedH264 == true ? TunedEncoderDiagnostics() : nil
+    // Factory registration must precede all other SDK calls. This helper owns
+    // one share, so the exclusive codec list cannot affect another connection.
+    if let tunedEncoder {
+      let rateControl = TunedRateControl(rawValue: credential.videoTunedRateControl ?? "average") ?? .average
+      if rateControl == .vbr, #unavailable(macOS 26) { throw PublisherError.vbrUnavailable }
+      tunedEncoder.update {
+        $0.requestedRateControl = rateControl.rawValue
+        if #available(macOS 26, *) { $0.rateControl = rateControl.initialMode(vbrAvailable: true).rawValue }
+        else { $0.rateControl = rateControl.initialMode(vbrAvailable: false).rawValue }
+      }
+      try LiveKitSDK.set(videoEncoderFactory: TunedH264Factory(diagnostics: tunedEncoder, rateControl: rateControl), exclusive: true)
+    }
     // Keep SDK logging disabled. Our allowlisted diagnostics exclude signaling
     // URLs, credentials, source names, and participant identifiers.
     LiveKitSDK.disableLogging()
     let lifetime = PublisherLifetime()
-    let credential = try readCredential()
     let captureSource: MacOSScreenCaptureSource
     let capturesAudio: Bool
     let showsCursor: Bool
@@ -83,7 +98,7 @@ enum LiveKitGamePublisher {
     let requestedCodec = credential.videoCodec ?? "h265"
     let simulcast = credential.videoSimulcast ?? true
     var videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: requestedCodec == "h264" ? .h264 : .h265, simulcast: simulcast)
-    PublisherDiagnostic(phase: "connecting", requestedCodec: requestedCodec, simulcast: simulcast).write()
+    PublisherDiagnostic(phase: "connecting", requestedCodec: requestedCodec, simulcast: simulcast, tunedH264: tunedEncoder != nil, tunedEncoder: tunedEncoder?.snapshot()).write()
     let audioOptions = AudioPublishOptions(
       encoding: .presetMusicHighQualityStereo,
       dtx: false,
@@ -103,7 +118,7 @@ enum LiveKitGamePublisher {
     )
 
     if capturesAudio {
-      let audioTrack = LocalAudioTrack.createTrack(
+      let audioTrack = await LocalAudioTrack.createTrack(
         name: "game-audio",
         options: .noProcessing,
         reportStatistics: true
@@ -117,7 +132,7 @@ enum LiveKitGamePublisher {
       showCursor: showsCursor,
       appAudio: capturesAudio
     )
-    let videoTrack = LocalVideoTrack.createMacOSScreenShareTrack(
+    let videoTrack = await LocalVideoTrack.createMacOSScreenShareTrack(
       name: "game",
       source: captureSource,
       options: captureOptions,
@@ -146,7 +161,8 @@ enum LiveKitGamePublisher {
     let diagnostics = Task {
       await PublisherDiagnostics.monitor(
         track: videoTrack, requestedCodec: requestedCodec, simulcast: simulcast,
-        maintainsResolution: videoOptions.degradationPreference == .maintainResolution
+        maintainsResolution: videoOptions.degradationPreference == .maintainResolution,
+        tunedEncoder: tunedEncoder
       )
     }
     defer { diagnostics.cancel() }
@@ -239,6 +255,16 @@ enum LiveKitGamePublisher {
     guard credential.videoCodec == nil || ["h264", "h265"].contains(credential.videoCodec!) else {
       throw PublisherError.invalidCredential
     }
+    if credential.videoTunedH264 == true {
+      guard credential.videoCodec == "h264", credential.videoSimulcast == false else {
+        throw PublisherError.invalidCredential
+      }
+    }
+    if let mode = credential.videoTunedRateControl {
+      guard credential.videoTunedH264 == true, TunedRateControl(rawValue: mode) != nil else {
+        throw PublisherError.invalidCredential
+      }
+    }
     return credential
   }
 
@@ -291,6 +317,7 @@ private final class PublisherLifetime: NSObject, RoomDelegate, @unchecked Sendab
 }
 
 private enum PublisherError: LocalizedError {
+  case vbrUnavailable
   case invalidCredential
   case liveKitDisconnected
   case sourceNotFound
@@ -298,6 +325,8 @@ private enum PublisherError: LocalizedError {
 
   var errorDescription: String? {
     switch self {
+    case .vbrUnavailable:
+      "Tuned H.264 VBR requires macOS 26 or later. Select another Diagnostics mode."
     case .invalidCredential:
       "The native publisher received an invalid LiveKit credential."
     case .liveKitDisconnected:

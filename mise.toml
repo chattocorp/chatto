@@ -280,6 +280,10 @@ description = "Build and open Chatto Desktop Dev on macOS"
 depends = ["desktop-build-dev"]
 run = 'open "apps/desktop/dist/Chatto Desktop Dev.app"'
 
+[tasks.desktop-video-benchmark]
+description = "Compare macOS hardware encoder settings locally (pass --output <new-directory>)"
+run = "xcrun swift run --package-path apps/desktop/native/macos-capture-probe -c release chatto-video-benchmark"
+
 [tasks.mobile-ios-sync]
 description = "Bundle the shared frontend into the experimental iOS app"
 depends = ["build-frontend"]

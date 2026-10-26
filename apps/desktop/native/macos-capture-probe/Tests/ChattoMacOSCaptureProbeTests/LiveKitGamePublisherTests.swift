@@ -118,6 +118,41 @@ func nativePublisherRoomEnablesDynacast() {
 }
 
 @Test
+func intervalDiagnosticsAlignRatesAndPreserveMissingCounters() throws {
+  let start = VideoCounterSample(
+    timestamp: 1_000_000, bytes: 100, frames: 10, qp: nil, encodeSeconds: nil,
+    targetBytes: 200, sentFrames: 8, sentPackets: 100, packetSendSeconds: 1
+  )
+  let end = VideoCounterSample(
+    timestamp: 3_000_000, bytes: 1_000_100, frames: 110, qp: 3900, encodeSeconds: 1,
+    targetBytes: 2_000_200, sentFrames: 98, sentPackets: 300, packetSendSeconds: 1.4
+  )
+  let rates = end.rates(since: start)
+  #expect(rates.intervalMs == 2000)
+  #expect(rates.bps == 4_000_000)
+  #expect(rates.encodedTargetBps == 8_000_000)
+  #expect(rates.encodedFps == 50)
+  #expect(rates.sentFps == 45)
+  #expect(abs(try #require(rates.packetSendDelayMs) - 2) < 0.0001)
+  #expect(rates.qp == nil)
+  #expect(rates.encodeMs == nil)
+
+  let reset = VideoCounterSample(
+    timestamp: 4_000_000, bytes: 0, frames: 120, qp: 4290, encodeSeconds: 1.1,
+    targetBytes: nil, sentFrames: 0, sentPackets: 300, packetSendSeconds: 1.4
+  ).rates(since: end)
+  #expect(reset.bps == nil)
+  #expect(reset.encodedTargetBps == nil)
+  #expect(reset.sentFps == nil)
+  #expect(reset.packetSendDelayMs == nil)
+  #expect(reset.encodedFps == 10)
+  #expect(reset.qp == 39)
+
+  let invalid = VideoCounterSample(timestamp: .infinity, bytes: 1, frames: 1, qp: 1, encodeSeconds: 1)
+  #expect(invalid.rates(since: start).intervalMs == nil)
+}
+
+@Test
 func nativeSourceMediaPolicyAvoidsDisplayAudioFeedback() {
   #expect(
     LiveKitGamePublisher.capturesAudio(
