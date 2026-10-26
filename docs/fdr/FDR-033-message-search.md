@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -18,6 +18,13 @@ provider supplies results.
 - Search covers the current bodies of messages in rooms the viewer may
   currently read, including direct messages, threads, and accessible archived
   rooms.
+- When MCP and search are enabled, agent hosts can use `search_messages` with
+  the message-read OAuth scope or a bot API key. The tool applies the same
+  current access rules and query syntax as public search. It returns message
+  details, relevance scores, and a continuation cursor. It supports room and
+  author filters, relevance or newest order, and pages of up to 100 matches.
+  It does not search room or user directories. This gives agents a bounded
+  way to find messages without reading complete room histories.
 - The Search API and dedicated Search page apply to one server. Prefixing a
   quick-switcher query with `?` makes the client query every compatible,
   available registered server and merge their top results by provider score.

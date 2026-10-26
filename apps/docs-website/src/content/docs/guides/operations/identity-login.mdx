@@ -47,6 +47,14 @@ With `direct_login = false`, the login page shows only the configured
 providers, and the password login endpoint returns `403`. Existing sessions
 stay valid. `direct_registration` controls registration separately.
 
+Users cannot add, change, or reset local passwords while password login is
+disabled. Account settings keeps the password controls visible but disabled,
+with an SSO notice. Stored passwords and operator recovery remain available.
+For sensitive account actions that require fresh authentication, sign in again
+through SSO on the server that owns the account, then complete the action in
+that server's account settings. A stored local password cannot replace this
+SSO authentication.
+
 <Aside type="caution">
   If no provider works, signed-out users cannot sign in. Keep an operator
   recovery path, such as the [Operator CLI](/guides/operations/operator-cli/).

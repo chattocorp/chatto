@@ -4,16 +4,19 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '@chatto/client/api/account';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
-  import { Panel } from '$lib/ui';
+  import { Hint, Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { Button, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   let {
     currentUser,
+    directLoginEnabled,
     getAccountAPI
   }: {
     currentUser: CurrentUserState;
+    /** Server policy also controls password self-service. */
+    directLoginEnabled: boolean;
     getAccountAPI: () => AccountAPI;
   } = $props();
 
@@ -36,7 +39,8 @@
       : undefined
   );
   const canChangePassword = $derived(
-    password !== '' &&
+    directLoginEnabled &&
+      password !== '' &&
       confirmPassword !== '' &&
       (!hasPassword || currentPassword !== '') &&
       !passwordValidationError &&
@@ -47,6 +51,7 @@
 
   async function handleChangePassword(e: Event) {
     e.preventDefault();
+    if (!directLoginEnabled) return;
     if (!canChangePassword) {
       passwordError =
         passwordValidationError ||
@@ -91,18 +96,22 @@
 
 <Panel title={m('settings.account.password.title')} icon="iconify icon-[uil--key-skeleton]">
   <form class="flex max-w-md flex-col gap-4" onsubmit={handleChangePassword}>
-    <p class="text-sm text-muted">
-      {hasPassword
-        ? m('settings.account.password.change_description')
-        : m('settings.account.password.add_description')}
-    </p>
+    {#if !directLoginEnabled}
+      <Hint>{m('settings.account.password.sso_managed')}</Hint>
+    {:else}
+      <p class="text-sm text-muted">
+        {hasPassword
+          ? m('settings.account.password.change_description')
+          : m('settings.account.password.add_description')}
+      </p>
+    {/if}
     {#if hasPassword}
       <TextInput
         id="current-password"
         label={m('settings.account.password.current_label')}
         type="password"
         bind:value={currentPassword}
-        disabled={passwordSubmitting}
+        disabled={!directLoginEnabled || passwordSubmitting}
         autocomplete="current-password"
         error={currentPasswordError}
       />
@@ -113,7 +122,7 @@
       type="password"
       bind:value={password}
       placeholder={m('common.password_bytes_placeholder')}
-      disabled={passwordSubmitting}
+      disabled={!directLoginEnabled || passwordSubmitting}
       autocomplete="new-password"
       error={passwordValidationError}
     />
@@ -123,7 +132,7 @@
       type="password"
       bind:value={confirmPassword}
       placeholder={m('common.password_confirm_placeholder')}
-      disabled={passwordSubmitting}
+      disabled={!directLoginEnabled || passwordSubmitting}
       autocomplete="new-password"
       error={confirmPasswordError}
     />

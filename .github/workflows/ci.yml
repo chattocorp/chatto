@@ -577,15 +577,9 @@ jobs:
 
       - name: Setup Playwright
         if: matrix.playwright
-        run: |
-          expected="$(cat /opt/media-e2e-playwright-version)"
-          actual="$(pnpm --dir apps/frontend exec playwright --version)"
-          if test "$actual" != "Version $expected"; then
-            echo '::error::Rebuild the media E2E image and update the workflow digest in this branch.'
-            exit 1
-          fi
-          mkdir -p .context
-          pnpm --dir apps/frontend exec playwright screenshot --browser chromium about:blank "$GITHUB_WORKSPACE/.context/workspace-chromium.png"
+        uses: ./.github/actions/setup-playwright
+        with:
+          use-image: 'true'
 
       - name: Run workspace unit tests
         env:
@@ -779,10 +773,19 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Trust the mounted checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -798,6 +801,7 @@ jobs:
         timeout-minutes: 15
         with:
           working-directory: authling
+          use-image: 'true'
 
       - name: Run Authling E2E tests
         working-directory: authling
@@ -818,6 +822,12 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 20
     # Each shard spends about two minutes on setup and builds, so more shards
     # give less benefit. The test-e2e job reports the result of all shards.
@@ -830,6 +840,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Trust the mounted checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
@@ -841,6 +854,8 @@ jobs:
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
+        with:
+          use-image: 'true'
 
       - name: Build E2E dependencies
         run: |
@@ -920,15 +935,9 @@ jobs:
           go-build-cache-scope: test-e2e
 
       - name: Setup Playwright
-        run: |
-          expected="$(cat /opt/media-e2e-playwright-version)"
-          actual="$(pnpm --dir apps/frontend exec playwright --version)"
-          if test "$actual" != "Version $expected"; then
-            echo '::error::Rebuild the media E2E image and update the workflow digest in this branch.'
-            exit 1
-          fi
-          mkdir -p .context
-          pnpm --dir apps/frontend exec playwright screenshot --browser chromium about:blank "$GITHUB_WORKSPACE/.context/media-e2e-chromium.png"
+        uses: ./.github/actions/setup-playwright
+        with:
+          use-image: 'true'
 
       - name: Build E2E server
         run: mise build-e2e-server
@@ -948,10 +957,19 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Trust the mounted checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -961,6 +979,13 @@ jobs:
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
+        with:
+          use-image: 'true'
+
+      - name: Install performance summary dependency
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends -y jq
 
       - name: Build E2E server
         run: mise build-e2e-server
