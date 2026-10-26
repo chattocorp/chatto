@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provider cannot be disconnected",
-          "body": "{provider} is your only sign-in method. Add a password or link another provider first."
+          "body": "Set up another sign-in method supported by this server before disconnecting {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirm password",

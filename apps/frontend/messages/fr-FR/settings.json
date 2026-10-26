@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Le fournisseur ne peut pas être déconnecté",
-          "body": "{provider} est votre seule méthode de connexion. Ajoutez un mot de passe ou associez d'abord un autre fournisseur."
+          "body": "Configurez une autre méthode de connexion prise en charge par ce serveur avant de déconnecter {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmer le mot de passe",

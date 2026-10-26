@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Pakkuja ühendust ei saa katkestada",
-          "body": "{provider} on teie ainus sisselogimisviis. Esmalt lisage parool või linkige teine ​​pakkuja."
+          "body": "Enne pakkuja {provider} lahtiühendamist seadistage mõni muu selle serveri toetatud sisselogimisviis."
         },
         "fresh_auth_modal": {
           "title": "Kinnitage parool",

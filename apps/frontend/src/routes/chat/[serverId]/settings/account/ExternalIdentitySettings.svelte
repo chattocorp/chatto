@@ -1,6 +1,7 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
     openAuthorizationWindow,
@@ -230,9 +231,8 @@
   });
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
-  const canUsePasswordProof = $derived(
-    hasPassword && serverScope.store.serverInfo.directLoginEnabled
-  );
+  const directLoginEnabled = $derived(serverScope.store.serverInfo.directLoginEnabled);
+  const canUsePasswordProof = $derived(hasPassword && directLoginEnabled);
   const unconfiguredLinkedIdentities = $derived(
     linkedIdentities.filter(
       (identity) =>
@@ -240,7 +240,25 @@
     )
   );
   const hasRows = $derived(providers.length > 0 || unconfiguredLinkedIdentities.length > 0);
-  const disconnectWouldRemoveLastMethod = $derived(!hasPassword && linkedIdentities.length <= 1);
+  // Account state can reflect a newly set password before this list refreshes.
+  // Older servers lack the hint, so retain their count-based fallback.
+  function canDisconnectIdentity(subjectHash: string) {
+    const eligibility = linkedIdentities.find(
+      (identity) => identity.subjectHash === subjectHash
+    )?.disconnectEligibility;
+    switch (eligibility) {
+      case DisconnectEligibility.ALLOWED:
+        return true;
+      case DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD:
+        return canUsePasswordProof;
+      case DisconnectEligibility.UNSPECIFIED:
+      case undefined:
+        return canUsePasswordProof || linkedIdentities.length > 1;
+      default:
+        // A newer server can explain an unknown restriction when the user tries.
+        return true;
+    }
+  }
 
   function providerIcon(type: string): string {
     switch (type) {
@@ -297,7 +315,7 @@
         err.code === Code.FailedPrecondition &&
         currentPassword === undefined
       ) {
-        actionError = serverScope.store.serverInfo.directLoginEnabled
+        actionError = directLoginEnabled
           ? m('settings.account.sso.fresh_auth_required')
           : m('settings.account.sso.sso_fresh_auth_required');
       } else if (currentPassword !== undefined) {
@@ -339,7 +357,7 @@
 
   function openDisconnectDialog(subjectHash: string, providerLabel: string) {
     actionError = '';
-    if (disconnectWouldRemoveLastMethod) {
+    if (!canDisconnectIdentity(subjectHash)) {
       blockedDisconnectProviderLabel = providerLabel;
       showDisconnectBlockedModal = true;
       return;
@@ -404,12 +422,24 @@
         currentPassword === undefined
       ) {
         disconnectTarget = null;
+        // Another session can remove a method after the list was loaded. Read
+        // the authoritative hint again before treating this as a freshness error.
+        const refreshed = await identitiesQuery.refetch();
+        if (!session.isCurrent(variables)) return;
+        if (
+          refreshed.data?.linkedIdentities.find((identity) => identity.subjectHash === subjectHash)
+            ?.disconnectEligibility === DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
+        ) {
+          blockedDisconnectProviderLabel = providerLabel;
+          showDisconnectBlockedModal = true;
+          return;
+        }
         if (canUsePasswordProof) {
           disconnectFreshAuthTarget = { subjectHash, providerLabel };
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else {
-          actionError = serverScope.store.serverInfo.directLoginEnabled
+          actionError = directLoginEnabled
             ? m('settings.account.sso.disconnect_fresh_auth_required')
             : m('settings.account.sso.sso_fresh_auth_required');
         }

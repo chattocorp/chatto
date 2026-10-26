@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provizanto ne povas esti malkonektita",
-          "body": "{provider} estas via sola ensaluta metodo. Aldonu pasvorton aŭ ligu alian provizanton unue."
+          "body": "Agordu alian ensalutmetodon subtenatan de ĉi tiu servilo antaŭ ol malkonekti {provider}."
         },
         "fresh_auth_modal": {
           "title": "Konfirmu pasvorton",

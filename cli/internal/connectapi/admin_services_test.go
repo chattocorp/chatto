@@ -211,6 +211,90 @@ func TestExternalIdentityAccountCreationSyncsGroupRoles(t *testing.T) {
 	}
 }
 
+func TestAccountUnlinkRequiresEnabledSignInMethod(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		password    bool
+		directLogin bool
+		otherIssuer string
+		allowed     bool
+	}{
+		{name: "disabled stored password", password: true},
+		{name: "passwordless"},
+		{name: "enabled stored password", password: true, directLogin: true, allowed: true},
+		{name: "obsolete provider", password: true, otherIssuer: "https://obsolete.example"},
+		{name: "configured provider with renamed ID", password: true, otherIssuer: "https://alternate.example", allowed: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newConnectAPITestEnv(t)
+			env.api.config.Auth.DirectLogin = &tc.directLogin
+			env.api.config.Auth.Providers = []config.AuthProviderConfig{
+				{ID: "company", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: "https://company.example"},
+				{ID: "renamed-alternate", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: "https://alternate.example"},
+			}
+			password := ""
+			if tc.password {
+				password = "password123"
+			}
+			user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "unlink-user", "Unlink User", password)
+			if err != nil {
+				t.Fatal(err)
+			}
+			identity, err := env.core.LinkExternalIdentityAs(env.ctx, core.SystemActorID, "company", "oidc", "https://company.example", "subject", user.Id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.otherIssuer != "" {
+				if err := env.core.LinkExternalIdentity(env.ctx, "old-alternate", "oidc", tc.otherIssuer, "other", user.Id); err != nil {
+					t.Fatal(err)
+				}
+			}
+			token, err := env.core.CreateAuthTokenWithSource(env.ctx, user.Id, "oidc_login")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := withBearerCredential(env.ctx, user, token)
+			list, err := env.account.ListExternalIdentities(ctx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			found := false
+			for _, row := range list.Msg.LinkedIdentities {
+				if row.SubjectHash == identity.SubjectHash {
+					found = true
+					want := apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD
+					if tc.allowed {
+						want = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED
+					}
+					if row.GetDisconnectEligibility() != want {
+						t.Fatalf("disconnect_eligibility = %v, want %v", row.GetDisconnectEligibility(), want)
+					}
+				}
+			}
+			if !found {
+				t.Fatal("linked identity missing")
+			}
+			_, err = env.account.DisconnectExternalIdentity(ctx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{SubjectHash: identity.SubjectHash}))
+			if tc.allowed {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if !errors.Is(err, core.ErrExternalIdentityLastMethod) {
+				t.Fatalf("unlink error = %v, want last-method rejection", err)
+			}
+			remaining, err := env.core.ExternalIdentitiesForUser(env.ctx, user.Id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stillLinked := slices.ContainsFunc(remaining, func(row core.ExternalIdentity) bool { return row.SubjectHash == identity.SubjectHash })
+			if stillLinked == tc.allowed {
+				t.Fatalf("identity retained = %v, allowed = %v", stillLinked, tc.allowed)
+			}
+		})
+	}
+}
+
 func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	t.Parallel()
 

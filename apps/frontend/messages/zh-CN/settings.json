@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "无法解除提供商关联",
-          "body": "{provider} 是你唯一的登录方式。请先添加密码或关联其他提供商。"
+          "body": "解除与 {provider} 的关联前，请先设置此服务器支持的其他登录方式。"
         },
         "fresh_auth_modal": {
           "title": "确认密码",

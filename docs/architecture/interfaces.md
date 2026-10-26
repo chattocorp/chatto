@@ -144,6 +144,12 @@ socket.
 
 ## Mounted public services
 
+`MyAccountService` and the operator identity service use the same configured
+sign-in policy for unlinking identities. The core user mutation checks that an
+enabled sign-in method remains inside its OCC loop. Account identity listings
+also expose a disconnect hint; it is not mutation authorization. See
+[FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
+
 | Package               | Public services                                                                                                                                                                                                                                                                                                                                                  | Auth policy                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
@@ -483,6 +489,12 @@ provider ID, authentication method, status, and allow-listed OAuth error codes.
 The verifier's key-fetch transport removes unsupported JWK types and curves
 from mixed key sets, with a 1 MiB response limit. Supported keys still use the
 OIDC library's validation, signature verification, and rotating-key cache.
+
+After a verified OIDC sign-in matches an existing account, the callback
+completes any legacy hash-only identity metadata before group-role sync and
+session issuance. The core operation reuses `UserExternalIdentityLinked` with
+user OCC and projection catch-up. It does not recreate a concurrently removed
+link. Group-role mappings are not required for this upgrade step.
 
 `MessageSearchService.GetStatus` remains the authority for configured search
 availability and transient provider readiness. Viewer permissions remain the

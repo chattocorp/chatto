@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provedor não pode ser desconectado",
-          "body": "{provider} é seu único método de login. Adicione uma senha ou vincule outro provedor primeiro."
+          "body": "Configure outro método de login compatível com este servidor antes de desconectar {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmar senha",

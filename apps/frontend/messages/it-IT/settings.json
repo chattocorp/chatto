@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Il provider non può essere disconnesso",
-          "body": "{provider} è il tuo unico metodo di accesso. Aggiungi prima una password o collega prima un altro provider."
+          "body": "Configura un altro metodo di accesso supportato da questo server prima di scollegare {provider}."
         },
         "fresh_auth_modal": {
           "title": "Conferma la password",
