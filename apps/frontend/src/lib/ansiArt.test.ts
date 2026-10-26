@@ -14,7 +14,7 @@ describe('ANSI art', () => {
   it('preserves carriage returns through Markdown parsing and copy source', async () => {
     const source = 'old\rnew\r\nnext';
     const html = await renderMarkdown(fence(source));
-    expect(html).toContain(`data-copy-source="${source}\n"`);
+    expect(html).toContain(`data-copy-source="${source.replaceAll('\r', '&#13;')}\n"`);
     const code = html.match(/<code[^>]*>([\s\S]*?)<\/code>/)![1];
     expect(screenText(code)).toEqual(['new', 'next']);
   });

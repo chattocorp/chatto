@@ -238,7 +238,9 @@ function escapeHtml(value: string): string {
 }
 
 function escapeAttribute(value: string): string {
-  return escapeHtml(value).replaceAll("'", '&#39;');
+  // HTML normalizes literal CR/CRLF before parsing attributes. An entity keeps
+  // carriage-return commands intact when code is copied from data-copy-source.
+  return escapeHtml(value).replaceAll("'", '&#39;').replaceAll('\r', '&#13;');
 }
 
 function renderClassName(value: unknown): string | null {

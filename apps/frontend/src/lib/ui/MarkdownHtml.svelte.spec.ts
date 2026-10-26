@@ -159,7 +159,7 @@ describe('MarkdownHtml footnotes', () => {
 
 describe('MarkdownHtml code copy', () => {
   it('renders ANSI screen cells in the browser and copies the original escape codes', async () => {
-    const source = '\x1b[31mwrong\x1b[1GART\x1b[K\n';
+    const source = '\x1b[31mwrong\rART\x1b[K\r\n';
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown('```ansi\n' + source + '```')
     });
