@@ -1,7 +1,7 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import type { AdminMember, AdminRoleDetails } from '$lib/api/adminUsers';
-  import { CopyId, Panel, Pill } from '$lib/ui';
+  import { CopyButton, CopyId, Panel, Pill } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
@@ -139,8 +139,11 @@
       {#if !isBot}
         <div class="min-w-0">
           <div class="text-sm text-muted">{m('admin.members.verified_email')}</div>
-          <div class="mt-1 truncate" title={emailSummary()}>
-            {emailSummary()}
+          <div class="mt-1 flex min-w-0 items-center gap-1.5">
+            <span class="truncate" title={emailSummary()}>{emailSummary()}</span>
+            {#if canViewMemberEmails && member.verifiedEmails.length > 0}
+              <CopyButton value={member.verifiedEmails.join(', ')} />
+            {/if}
           </div>
         </div>
         <div>
