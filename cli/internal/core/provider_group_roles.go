@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"time"
 
@@ -84,8 +83,10 @@ func (c *ChattoCore) SyncProviderGroupRoles(ctx context.Context, userID string, 
 	if !groups.Known || len(mappings) == 0 || source.Issuer == "" {
 		return nil
 	}
-	if err := c.completeLegacyIdentityLink(ctx, userID, source); err != nil {
-		return err
+	if source.Subject != "" {
+		if err := c.CompleteLegacyOIDCIdentityLink(ctx, userID, source.ProviderID, source.Issuer, source.Subject); err != nil {
+			return err
+		}
 	}
 
 	// A role is wanted when the user is in at least one of its groups.
@@ -165,48 +166,4 @@ func (c *ChattoCore) revokeProviderGroupRolesWithoutIdentity(ctx context.Context
 		return nil
 	}
 	return c.RevokeProviderGroupRoles(ctx, userID, source)
-}
-
-// errIdentityIssuerKnown ends a legacy link completion that another write
-// already completed.
-var errIdentityIssuerKnown = errors.New("external identity issuer is known")
-
-// completeLegacyIdentityLink records the issuer and subject of a verified
-// identity whose link has only its subject hash. Accounts imported before
-// identity links stored the issuer have such links. Without the issuer, the
-// link does not keep provider roles (revokeProviderGroupRolesWithoutIdentity),
-// and an unlink cannot find the roles to revoke.
-func (c *ChattoCore) completeLegacyIdentityLink(ctx context.Context, userID string, source ProviderRoleSource) error {
-	if source.Subject == "" {
-		return nil
-	}
-	hash := externalIdentityHash(source.Issuer, source.Subject)
-	incomplete := func() bool {
-		return slices.ContainsFunc(c.userModel.externalIdentities(userID), func(identity ExternalIdentity) bool {
-			return identity.SubjectHash == hash && identity.Issuer == ""
-		})
-	}
-	if !incomplete() {
-		return nil
-	}
-	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
-		UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
-			UserId:       userID,
-			Issuer:       source.Issuer,
-			Subject:      source.Subject,
-			SubjectHash:  hash,
-			ProviderId:   source.ProviderID,
-			ProviderType: config.AuthProviderTypeOpenIDConnect,
-		},
-	}})
-	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
-		if !incomplete() {
-			return errIdentityIssuerKnown
-		}
-		return nil
-	})
-	if errors.Is(err, errIdentityIssuerKnown) {
-		return nil
-	}
-	return err
 }

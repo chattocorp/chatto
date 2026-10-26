@@ -485,6 +485,12 @@ The verifier's key-fetch transport removes unsupported JWK types and curves
 from mixed key sets, with a 1 MiB response limit. Supported keys still use the
 OIDC library's validation, signature verification, and rotating-key cache.
 
+After a verified OIDC sign-in matches an existing account, the callback
+completes any legacy hash-only identity metadata before group-role sync and
+session issuance. The core operation reuses `UserExternalIdentityLinked` with
+user OCC and projection catch-up. It does not recreate a concurrently removed
+link. Group-role mappings are not required for this upgrade step.
+
 `MessageSearchService.GetStatus` remains the authority for configured search
 availability and transient provider readiness. Viewer permissions remain the
 authority for authenticated feature access.
