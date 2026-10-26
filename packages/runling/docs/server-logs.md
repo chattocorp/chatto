@@ -93,8 +93,9 @@ terminal output. Agent labels must be static, host-owned text, never user data
 or model output. Loading historical runs does not replay their
 activity into the terminal. Explicit user cancellation is shown as cancelled,
 even if a workflow handles its abort signal and returns normally. Server shutdown
-is shown as interrupted. Those runs remain history only after restart; new inputs
-start new runs with separate references and timelines.
+is shown as interrupted. Runs with saved workflow state can resume under the same
+reference after restart. Their journals retain each execution attempt; their
+usage totals include all attempts. Runs without recoverable state remain history.
 
 At 10 MiB, the server moves the log to `server.jsonl.1`, replacing the previous
 backup. File write failures go to the console and do not stop workflows.
