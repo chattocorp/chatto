@@ -169,6 +169,7 @@ describe('external identity settings query lifecycle', () => {
   });
 
   it('uses the server hint instead of counting unusable linked identities', async () => {
+    mocks.directLoginEnabled = false;
     const list = linkedIdentityList();
     Object.assign(list.linkedIdentities[0], { canDisconnect: false });
     list.linkedIdentities.push({

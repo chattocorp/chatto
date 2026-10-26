@@ -239,12 +239,13 @@
     )
   );
   const hasRows = $derived(providers.length > 0 || unconfiguredLinkedIdentities.length > 0);
-  // Older servers lack the per-identity hint; retain their count-based fallback,
-  // but never count a password while password login is disabled.
+  // Account state can reflect a newly set password before this list refreshes.
+  // Older servers lack the hint, so retain their count-based fallback.
   function canDisconnectIdentity(subjectHash: string) {
     return (
-      linkedIdentities.find((identity) => identity.subjectHash === subjectHash)?.canDisconnect ??
-      (canUsePasswordProof || linkedIdentities.length > 1)
+      canUsePasswordProof ||
+      (linkedIdentities.find((identity) => identity.subjectHash === subjectHash)?.canDisconnect ??
+        linkedIdentities.length > 1)
     );
   }
 
