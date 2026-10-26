@@ -3,7 +3,8 @@ import { Terminal, type IBufferCell } from '@xterm/headless';
 /** Static ANSI screens. No terminal input, external I/O, or persistent terminal state. */
 const COLUMNS = 80;
 const ROWS = 100;
-const MAX_SOURCE_LENGTH = 10_000;
+/** Defensive parser limit, shared with the Markdown source fallback. */
+export const MAX_SOURCE_LENGTH = 10_000;
 const PALETTE = [
   '#000000',
   '#aa0000',
@@ -46,6 +47,8 @@ function cellStyle(cell: IBufferCell): string {
   let bg = cell.isBgDefault() ? '#000000' : color(cell.getBgColor(), cell.isBgRGB());
   if (cell.isInverse()) [fg, bg] = [bg, fg];
   if (cell.isInvisible()) fg = bg;
+  // SGR 2 dims only the text. Span opacity would also fade painted backgrounds.
+  if (cell.isDim()) fg = `color-mix(in srgb, ${fg} 50%, ${bg})`;
   const decorations = [
     cell.isUnderline() ? 'underline' : '',
     cell.isStrikethrough() ? 'line-through' : '',
@@ -57,7 +60,6 @@ function cellStyle(cell: IBufferCell): string {
     `color:${fg};background-color:${bg}` +
     (cell.isBold() ? ';font-weight:bold' : '') +
     (cell.isItalic() ? ';font-style:italic' : '') +
-    (cell.isDim() ? ';opacity:0.5' : '') +
     (decorations ? `;text-decoration:${decorations}` : '')
   );
 }

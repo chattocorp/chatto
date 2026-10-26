@@ -595,7 +595,7 @@ export async function renderMarkdown(
       (token) => token.type === 'fence' && normalizeCodeLanguage(token.info) === 'ansi'
     );
     if (fences.length) {
-      const { renderAnsiArt } = await import('$lib/ansiArt');
+      const { renderAnsiArt, MAX_SOURCE_LENGTH } = await import('$lib/ansiArt');
       const sourceEndings = body.match(/\r\n|\r|\n/g) ?? [];
       for (const token of fences) {
         // Markdown normalizes CR to LF. In a terminal, a bare CR moves to
@@ -605,7 +605,7 @@ export async function renderMarkdown(
         token.content = token.content.replace(/\n/g, () => sourceEndings[line++] ?? '\n');
       }
       for (const token of fences.slice(0, MAX_ANSI_BLOCKS)) {
-        if (token.content.length > 10_000) continue;
+        if (token.content.length > MAX_SOURCE_LENGTH) continue;
         env[ansiArtKey].set(token, await renderAnsiArt(token.content));
       }
     }

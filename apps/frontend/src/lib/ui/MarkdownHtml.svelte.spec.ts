@@ -158,6 +158,23 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it('dims the foreground without fading the background of ANSI cells', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```ansi\n\x1b[2;44mDIM\n```')
+    });
+    const span = container.querySelector('.markdown-ansi code span')!;
+    const style = getComputedStyle(span);
+    expect(style.opacity).toBe('1');
+    expect(style.backgroundColor).toBe('rgb(0, 0, 170)');
+    // Resolve the CSS color through the browser without depending on its
+    // choice of rgb() or color(srgb) serialization for the mixed color.
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = style.color;
+    context.fillRect(0, 0, 1, 1);
+    expect([...context.getImageData(0, 0, 1, 1).data]).toEqual([85, 85, 170, 255]);
+  });
+
   it('renders ANSI screen cells in the browser and copies the original escape codes', async () => {
     const source = '\x1b[31mwrong\rART\x1b[K\r\n';
     const { container } = render(MarkdownHtml, {
