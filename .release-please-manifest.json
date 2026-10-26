@@ -1,5 +1,4 @@
 {
-  "packages/chatto-client": "0.1.1",
   ".": "0.5.0-beta.21",
   "authling": "0.1.0-alpha.2",
   "packages/runling": "0.7.0",

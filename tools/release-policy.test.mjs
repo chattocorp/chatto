@@ -12,8 +12,8 @@ const workflow = readFileSync(
 ).replaceAll('\r\n', '\n');
 
 /** Extract a named shell step so tests exercise the actual publication commands. */
-function shellStep(name) {
-  const step = workflow.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
+function shellStep(name, source = workflow) {
+  const step = source.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
   assert.ok(step, `Missing workflow step: ${name}`);
   const lines = step.split('        run: |\n')[1].split('\n');
   const end = lines.findIndex((line) => line.trim() && !line.startsWith('          '));
@@ -68,15 +68,9 @@ test('all release-please components are drafts until publication explicitly sets
 
 test('component publication leaves Chatto draft and publishes all components without Latest', (t) => {
   const outputs = {
-    paths_released: JSON.stringify([
-      '.',
-      'packages/translatto',
-      'packages/chatto-client',
-      'pkg/events'
-    ]),
+    paths_released: JSON.stringify(['.', 'packages/translatto', 'pkg/events']),
     tag_name: 'v0.5.0',
     'packages/translatto--tag_name': 'translatto/v0.2.0',
-    'packages/chatto-client--tag_name': 'chatto-client/v0.2.0',
     'pkg/events--tag_name': 'pkg/events/v0.1.0'
   };
   assert.deepEqual(
@@ -85,11 +79,53 @@ test('component publication leaves Chatto draft and publishes all components wit
     }).calls,
     [
       'release edit translatto/v0.2.0 --draft=false --latest=false',
-      'release edit chatto-client/v0.2.0 --draft=false --latest=false',
       'release edit pkg/events/v0.1.0 --draft=false --latest=false'
     ]
   );
 });
+
+test('the root release owns the client version and includes client changes', () => {
+  const root = new URL('../', import.meta.url);
+  const config = JSON.parse(readFileSync(new URL('.release-please-config.json', root), 'utf8'));
+  const manifest = JSON.parse(readFileSync(new URL('.release-please-manifest.json', root), 'utf8'));
+  const packagePath = 'packages/chatto-client/package.json';
+  assert.equal(config.packages['packages/chatto-client'], undefined);
+  assert.equal(manifest['packages/chatto-client'], undefined);
+  assert.ok(!config.packages['.']['exclude-paths'].includes('packages/chatto-client'));
+  assert.ok(
+    config.packages['.']['extra-files'].some(
+      (file) => file.path === packagePath && file.jsonpath === '$.version'
+    )
+  );
+  assert.equal(JSON.parse(readFileSync(new URL(packagePath, root), 'utf8')).version, manifest['.']);
+  assert.ok(shellStep('Verify release-please tag').includes(`${packagePath})`));
+});
+
+for (const [tag, expected] of [
+  ['v0.5.0', 'latest'],
+  ['v0.5.0-beta.22', 'next']
+]) {
+  test(`client publication from ${tag} uses npm ${expected}`, (t) => {
+    const source = readFileSync(
+      new URL('../.github/workflows/publish-chatto-client.yml', import.meta.url),
+      'utf8'
+    ).replaceAll('\r\n', '\n');
+    assert.match(source, /tags:\n\s+- 'v\*'/);
+    const script = shellStep('Publish the tested tarball with trusted publishing', source);
+    const result = runShell(
+      t,
+      `
+mkdir release
+touch release/client.tgz
+npm() { gh "$@"; }
+${script}`,
+      { RELEASE_TAG: tag }
+    );
+    assert.deepEqual(result.calls, [
+      `publish ./release/client.tgz --tag ${expected} --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org`
+    ]);
+  });
+}
 
 test('a root-only release never publishes through the component step', (t) => {
   assert.deepEqual(

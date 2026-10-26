@@ -702,7 +702,8 @@ jobs:
               CHANGELOG.md|\
               cli/version.go|\
               apps/frontend/package.json|\
-              apps/desktop/package.json)
+              apps/desktop/package.json|\
+              packages/chatto-client/package.json)
                 ;;
               *)
                 disallowed+=("$path")

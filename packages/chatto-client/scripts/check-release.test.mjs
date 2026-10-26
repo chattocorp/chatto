@@ -9,15 +9,18 @@ test('rejects a mismatched tag or package identity before contacting npm', async
   const request = async () => assert.fail('Must not contact npm');
   for (const invalid of [
     { ...manifest, name: '@chatto/other' },
-    { ...manifest, version: '0.1.0-beta.1' }
+    { ...manifest, version: '0.1.0-beta.01' }
   ]) {
-    await assert.rejects(checkRelease(invalid, {}, request), /Expected a stable/);
+    await assert.rejects(checkRelease(invalid, {}, request), /Expected a valid/);
   }
+  await assert.rejects(checkRelease(manifest, { tag: 'v0.2.0' }, request), /Tag must match/);
   await assert.rejects(
-    checkRelease(manifest, { tag: 'chatto-client/v0.2.0' }, request),
+    checkRelease(manifest, { tag: 'chatto-client/v0.1.0' }, request),
     /Tag must match/
   );
-  await checkRelease(manifest, { verifyOnly: true, tag: 'chatto-client/v0.1.0' }, request);
+  for (const version of ['0.5.0', '0.5.0-beta.22', '0.6.0-alpha.1']) {
+    await checkRelease({ ...manifest, version }, { verifyOnly: true, tag: `v${version}` }, request);
+  }
 });
 
 test('accepts an unused version or a first publication', async () => {
@@ -25,7 +28,7 @@ test('accepts an unused version or a first publication', async () => {
     new Response(null, { status: 404 }),
     Response.json({ versions: {}, time: {} })
   ]) {
-    await checkRelease(manifest, { tag: 'chatto-client/v0.1.0' }, async (url) => {
+    await checkRelease(manifest, { tag: 'v0.1.0' }, async (url) => {
       assert.equal(url, 'https://registry.npmjs.org/@chatto%2Fclient');
       return response;
     });
