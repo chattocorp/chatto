@@ -146,6 +146,18 @@ describe('role management page identity', () => {
     );
   });
 
+  it('shows the roster without exposing editors to a role assigner', async () => {
+    mocks.getRole.mockResolvedValue({
+      ...details('role-a', 'Role A', ''),
+      viewerCanManageRoles: false
+    });
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.textContent).toContain('Role A User'));
+    expect(container.textContent).not.toContain('You need');
+    expect(container.querySelector('input')).toBeNull();
+    expect(container.querySelector('[data-testid="role-permissions"]')).toBeNull();
+  });
+
   it('loads member pages separately and fences a late page after a role switch', async () => {
     mocks.getRole.mockImplementation((name: string) => Promise.resolve(details(name, name, '')));
     const late = deferred<RoleMemberPage>();

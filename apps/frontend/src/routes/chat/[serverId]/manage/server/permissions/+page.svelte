@@ -5,13 +5,13 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
+  import RoleRosterCatalog from '$lib/components/rbac/RoleRosterCatalog.svelte';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 
-  // Role detail pages require admin.manage-roles. Gate the column-header
-  // click so non-admins see plain text.
+  // Assigners browse rosters without requesting the private permission matrix.
   const canManageRoles = $derived(serverScope.store.permissions.canAdminManageRoles);
   const error = $derived(null);
 
@@ -36,6 +36,8 @@
     <div class="flex min-h-0 flex-1 flex-col gap-6">
       {#if error}
         <Hint tone="danger">{error}</Hint>
+      {:else if !canManageRoles}
+        <RoleRosterCatalog />
       {:else}
         <PermissionMatrix
           onRoleClick={openRoleDetail}
