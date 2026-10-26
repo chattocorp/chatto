@@ -16,6 +16,33 @@ function fixture() {
 }
 
 describe('room notice state', () => {
+  it('keeps a completed live read fenced until a delayed write response arrives', async () => {
+    const { api, store } = fixture();
+    api.get.mockResolvedValueOnce(new RoomNotice({ body: 'Initial', version: 'v1' }));
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.notice?.version).toBe('v1'));
+    let finishWrite!: (notice: RoomNotice) => void;
+    api.publish.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishWrite = resolve;
+        })
+    );
+    const write = store.publish('My update', 'v1', false);
+    const newer = new RoomNotice({ body: 'Later update', version: 'v3' });
+    api.get.mockResolvedValue(newer);
+    store.invalidate('later-event-cursor');
+    await vi.waitFor(() => expect(store.notice).toBe(newer));
+    finishWrite(new RoomNotice({ body: 'My update', version: 'v2' }));
+    await write;
+    await vi.waitFor(() => expect(store.notice).toBe(newer));
+    expect(api.get).toHaveBeenLastCalledWith(
+      'R1',
+      expect.objectContaining({ minimumCursor: 'later-event-cursor' })
+    );
+    release();
+    store.dispose();
+  });
   it('preserves a pending live cursor when applying a write response', async () => {
     const { api, store } = fixture();
     api.get.mockResolvedValueOnce(new RoomNotice({ body: 'Initial', version: 'v1' }));

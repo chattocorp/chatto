@@ -17,6 +17,7 @@ export class RoomNoticeStore {
   #blocked = false;
   #request?: AbortController;
   #minimumCursor?: string;
+  #pendingWrites = 0;
 
   constructor(
     connection: ServerConnection,
@@ -74,7 +75,9 @@ export class RoomNoticeStore {
         minimumCursor: this.#minimumCursor
       });
       if (generation !== this.#generation || this.#blocked) return;
-      this.#minimumCursor = undefined;
+      // A delayed write response can replace this read. Retain its fence until
+      // all pending writes have returned, so a subsequent read includes it.
+      if (!this.#pendingWrites) this.#minimumCursor = undefined;
       batch(() => {
         this.#notice.set(notice);
         this.#error.set(null);
@@ -100,16 +103,26 @@ export class RoomNoticeStore {
   async publish(body: string, expectedVersion: string, republish: boolean): Promise<void> {
     if (this.#blocked) throw new ConnectError('Room access was revoked', Code.PermissionDenied);
     const epoch = this.accessEpoch;
-    const notice = await this.#api.publish(this.roomId, body, expectedVersion, republish);
-    this.#acceptWrite(notice, epoch);
+    this.#pendingWrites++;
+    try {
+      const notice = await this.#api.publish(this.roomId, body, expectedVersion, republish);
+      this.#acceptWrite(notice, epoch);
+    } finally {
+      this.#pendingWrites--;
+    }
   }
 
   /** Clears content with the editor's version and applies the canonical response. */
   async clear(expectedVersion: string): Promise<void> {
     if (this.#blocked) throw new ConnectError('Room access was revoked', Code.PermissionDenied);
     const epoch = this.accessEpoch;
-    const notice = await this.#api.clear(this.roomId, expectedVersion);
-    this.#acceptWrite(notice, epoch);
+    this.#pendingWrites++;
+    try {
+      const notice = await this.#api.clear(this.roomId, expectedVersion);
+      this.#acceptWrite(notice, epoch);
+    } finally {
+      this.#pendingWrites--;
+    }
   }
 
   /** A follow-up read could reach a stale replica. Fence pending reads instead. */
