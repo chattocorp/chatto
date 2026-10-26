@@ -50,7 +50,11 @@
         </dl>
       </Panel>
 
-      <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
+      <PasswordSettings
+        {currentUser}
+        directLoginEnabled={serverScope.store.serverInfo.directLoginEnabled}
+        getAccountAPI={accountAPI}
+      />
       {#key serverScope.store.accountId ?? ''}
         <VerifiedEmailSettings />
       {/key}

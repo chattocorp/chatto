@@ -1012,8 +1012,12 @@ func (s *HTTPServer) setupAuthRoutes() {
 	})
 
 	// Forgot password endpoint - request a password reset email
-	// Always returns 200 to prevent email enumeration
+	// When enabled, always returns 200 to prevent email enumeration.
 	auth.POST("forgot-password", func(c *gin.Context) {
+		if !s.config.Auth.DirectLoginOrDefault() {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Password changes are disabled because this server uses SSO"})
+			return
+		}
 		var req struct {
 			Email string `json:"email" binding:"required,email"`
 		}
@@ -1066,6 +1070,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 	// Reset password endpoint - set a new password using a reset token
 	auth.POST("reset-password", func(c *gin.Context) {
+		if !s.config.Auth.DirectLoginOrDefault() {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Password changes are disabled because this server uses SSO"})
+			return
+		}
 		var req struct {
 			Token    string `json:"token" binding:"required"`
 			Password string `json:"password" binding:"required"`
