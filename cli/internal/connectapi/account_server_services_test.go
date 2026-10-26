@@ -374,6 +374,74 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 }
 
+func TestMyAccountServiceRejectsPasswordChangesWhenDirectLoginDisabled(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	env.api.config.Auth.DirectLogin = new(false)
+	for _, tc := range []struct{ login, password string }{
+		{"sso-passwordless", ""},
+		{"sso-with-password", "oldpassword123"},
+	} {
+		user, err := env.core.CreateUser(env.ctx, core.SystemActorID, tc.login, "SSO User", tc.password)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// An invalid body must still hit the policy gate before validation.
+		_, err = env.account.ChangePassword(withCaller(env.ctx, user), connect.NewRequest(&apiv1.ChangePasswordRequest{}))
+		if errorCode(err) != connect.CodePermissionDenied {
+			t.Fatalf("ChangePassword code = %v, want permission_denied", errorCode(err))
+		}
+		hasPassword, err := env.core.HasPassword(env.ctx, user.Id)
+		if err != nil || hasPassword != (tc.password != "") {
+			t.Fatalf("stored password changed: hasPassword=%v, err=%v", hasPassword, err)
+		}
+	}
+}
+
+func TestSSOOnlyFreshAuthentication(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	env.api.config.Auth.DirectLogin = new(false)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "sso-fresh-user", "SSO User", "oldpassword123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshToken, err := env.core.CreateAuthTokenWithSource(env.ctx, user.Id, "oidc_login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshCtx := withBearerCredential(env.ctx, user, freshToken)
+	caller, err := requireCaller(freshCtx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.api.requireFreshCredential(freshCtx, caller, ""); err != nil {
+		t.Fatalf("fresh SSO credential rejected: %v", err)
+	}
+	sessionID, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "oidc_login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookieCtx := authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindCookieSession, UserID: user.Id, Handle: sessionID,
+	})
+	if err := env.api.requireFreshCredential(cookieCtx, caller, ""); err != nil {
+		t.Fatalf("fresh SSO cookie rejected: %v", err)
+	}
+	delegatedToken, err := env.core.CreateAuthTokenWithSource(env.ctx, user.Id, "oauth_code_exchange")
+	if err != nil {
+		t.Fatal(err)
+	}
+	delegatedCtx := withBearerCredential(env.ctx, user, delegatedToken)
+	if err := env.api.requireFreshCredentialOrPassword(delegatedCtx, caller, "oldpassword123"); !errors.Is(err, core.ErrFreshAuthRequired) {
+		t.Fatalf("password proof on SSO-only server = %v, want fresh auth required", err)
+	}
+	env.api.config.Auth.DirectLogin = new(true)
+	if err := env.api.requireFreshCredentialOrPassword(delegatedCtx, caller, "oldpassword123"); err != nil {
+		t.Fatalf("password proof with direct login enabled: %v", err)
+	}
+}
+
 func TestMyAccountServiceSetsPassword(t *testing.T) {
 	t.Parallel()
 
