@@ -53,4 +53,9 @@ ${goEntries.join('\n')}
 `;
 
 writeFileSync(outputPath, goSource);
+// Python platform converters use the same names without parsing Go source.
+writeFileSync(
+  resolve(__dirname, 'emoji-map.json'),
+  JSON.stringify(Object.fromEntries(entries), null, 2) + '\n'
+);
 console.log(`Generated ${outputPath} with ${entries.length} emoji entries`);

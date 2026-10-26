@@ -40,9 +40,10 @@ chatto operator import ./converted --validate-only
 chatto operator import ./converted --accept-omissions
 ```
 
-The existing Slack script does not produce this format yet. A converter needs
-no operator socket. Its output should also be useful to an archive reader
-or another platform's importer.
+The [Slack converter](../../tools/slack-export.md) produces this format with
+local file bytes. It needs no operator socket. Its output is also readable by
+an archive reader or another platform's importer. The legacy direct Slack
+importer remains available for existing runs.
 
 Run `mise test-interchange` to check the repository's schemas and synthetic
 fixtures. That is a development conformance suite, not a validator for a private

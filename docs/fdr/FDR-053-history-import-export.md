@@ -9,6 +9,9 @@ Operators will import and export channel history using one documented format.
 Converters for Slack and other platforms will produce that format. The first
 implementation provides a draft specification, schemas, examples, conformance
 tests, and a native importer with durable recovery. Export remains planned.
+The Slack converter produces this format, including local original file bytes.
+It preserves source account states and declares unavailable data. Conversion
+does not require a Chatto server; destination validation remains a separate step.
 The [schema guide](../../schema/interchange/README.md) lists the supported
 subset and implementation limits.
 

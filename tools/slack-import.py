@@ -122,7 +122,7 @@ def read_directory(path, max_bytes):
     return data, names, digest.hexdigest()
 
 
-def read_export(path, max_bytes=256 * 1024 * 1024, include_slack_identity=False):
+def read_export(path, max_bytes=256 * 1024 * 1024, include_slack_identity=False, include_interchange=False):
     """Parse and validate source records in memory before any destination writes."""
     if path.is_dir():
         data, filenames, digest = read_directory(path.resolve(), max_bytes)
@@ -171,6 +171,8 @@ def read_export(path, max_bytes=256 * 1024 * 1024, include_slack_identity=False)
             "archived": bool(channel.get("is_archived")),
             "general": bool(channel.get("is_general")),
         })
+        if include_interchange:
+            planned_rooms[-1]["private"] = bool(channel.get("is_private"))
         if channel.get("is_archived"):
             issues["operator_archive_room_missing"] += 1
         prefix = unicodedata.normalize("NFC", channel["name"]) + "/"
