@@ -95,7 +95,7 @@ enum LiveKitGamePublisher {
 
     try AudioManager.shared.setManualRenderingMode(true)
 
-    let requestedCodec = credential.videoCodec ?? "h265"
+    let requestedCodec = credential.videoCodec ?? "h264"
     let simulcast = credential.videoSimulcast ?? true
     var videoOptions = makeVideoPublishOptions(frameRate: frameRate, codec: requestedCodec == "h264" ? .h264 : .h265, simulcast: simulcast)
     PublisherDiagnostic(phase: "connecting", requestedCodec: requestedCodec, simulcast: simulcast, tunedH264: tunedEncoder != nil, tunedEncoder: tunedEncoder?.snapshot()).write()
@@ -181,10 +181,10 @@ enum LiveKitGamePublisher {
   /// Build the gaming-oriented screen-share encodings. The full-resolution
   /// layer preserves the original 1920-pixel, 60 fps ceiling, while explicit
   /// lower layers let LiveKit serve thumbnails and constrained subscribers
-  /// without sending them the full stream. The single-layer experiment removes
+  /// without sending them the full stream. The desktop default removes
   /// lower layers while preserving the full layer's bitrate and frame-rate limits.
   /// It prioritizes resolution so adaptation can reduce FPS instead of detail.
-  static func makeVideoPublishOptions(frameRate: Int, codec: VideoCodec = .h265, simulcast: Bool = true) -> VideoPublishOptions {
+  static func makeVideoPublishOptions(frameRate: Int, codec: VideoCodec = .h264, simulcast: Bool = true) -> VideoPublishOptions {
     let lowerLayers = [
       VideoParameters(
         dimensions: .h360_169,

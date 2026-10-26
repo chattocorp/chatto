@@ -333,7 +333,8 @@ the helper from building an unbounded input queue when encoding is slow.
 Window publication also includes 128 kbps stereo owning-application audio. Display publication is
 video-only because system audio would include Chatto's remote call playback and
 echo it back into the room. Both paths use the active call's shared E2EE key.
-The helper also emits allowlisted `diagnostic` JSON lines every five seconds.
+The helper also emits allowlisted `diagnostic` JSON lines every second for the
+first 20 seconds, then every five seconds.
 The desktop host keeps these in memory; only `started`, `error`, and `ended`
 lifecycle messages cross the renderer bridge. The active screen-share control stops the helper; camera and microphone
 remain independent. Non-macOS builds omit this platform provider, so the same

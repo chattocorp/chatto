@@ -132,8 +132,9 @@ adaptation preference.
 To report a problem, share a moving scene for at least 15 seconds, then select
 **Diagnostics → Copy Screen Sharing Diagnostics**. Paste the report into the
 issue or conversation. Reports contain the last 60 lifecycle and performance
-records from this app process. Native publisher samples arrive every five
-seconds and also appear on the terminal when the app is launched from one.
+records from this app process. Native publisher samples arrive every second
+for the first 20 seconds, then every five seconds. They also appear on the
+terminal when the app is launched from one.
 
 Each sample reports negotiated codec/profile, encoder category, capture and
 encoded dimensions, fps, target and measured bitrate, mean QP, encoding time,

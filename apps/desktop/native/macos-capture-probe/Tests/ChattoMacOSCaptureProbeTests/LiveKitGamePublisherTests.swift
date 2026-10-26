@@ -9,7 +9,7 @@ import Testing
 
 @Test
 func gameVideoOptionsPublishThreeGamingLayers() throws {
-  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60)
+  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h265)
 
   #expect(options.simulcast)
   #expect(options.preferredCodec == .h265)
@@ -45,8 +45,8 @@ func lowerLayersDoNotExceedRequestedFrameRate() {
 }
 
 @Test
-func h264OverrideKeepsTheSameLimitsWithoutABackupCodec() {
-  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h264)
+func omittedCodecDefaultsToH264WithoutABackupCodec() {
+  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60)
   #expect(options.preferredCodec == .h264)
   #expect(options.preferredBackupCodec == nil)
   #expect(options.screenShareEncoding?.maxBitrate == 8_000_000)
