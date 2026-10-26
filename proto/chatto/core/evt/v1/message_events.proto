@@ -147,6 +147,9 @@ message MessageRetractedEvent {
   // Optional human-readable reason (e.g. "spam", "user requested",
   // "moderator action"). May be empty.
   string reason = 3;
+  // Imported deletion: materialize the tombstone without live delivery.
+  // The event time records import time, not an unknown source deletion time.
+  bool historical_import = 4;
 }
 
 // MessagePinnedEvent adds a canonical message to its channel room's pinned

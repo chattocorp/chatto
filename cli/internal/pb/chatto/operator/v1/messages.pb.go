@@ -38,7 +38,7 @@ type ImportMessageRequest struct {
 	InReplyTo string `protobuf:"bytes,5,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
 	// Existing unattached asset IDs owned by the author in this room.
 	AttachmentAssetIds []string `protobuf:"bytes,6,rep,name=attachment_asset_ids,json=attachmentAssetIds,proto3" json:"attachment_asset_ids,omitempty"`
-	// Message text. Empty is valid only when attachments are present.
+	// Message text. Empty is valid with attachments or when deleted is true.
 	Body string `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
 	// Exported HTTP or HTTPS preview URL; no external URL is fetched.
 	PreviewUrl string `protobuf:"bytes,8,opt,name=preview_url,json=previewUrl,proto3" json:"preview_url,omitempty"`
@@ -48,7 +48,8 @@ type ImportMessageRequest struct {
 	PreviewDescription string `protobuf:"bytes,10,opt,name=preview_description,json=previewDescription,proto3" json:"preview_description,omitempty"`
 	// Exported preview type.
 	PreviewType string `protobuf:"bytes,11,opt,name=preview_type,json=previewType,proto3" json:"preview_type,omitempty"`
-	// Existing root message in this room. Creates the thread if necessary.
+	// Existing root message in this room, including a deleted root.
+	// Creates the thread if necessary.
 	// Cannot be combined with create_thread. Does not create a channel echo.
 	ThreadRootEventId string `protobuf:"bytes,12,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	// Establish this new root as an empty thread without following it.
@@ -56,8 +57,11 @@ type ImportMessageRequest struct {
 	// Optional non-zero UUID. Exact retries return the same ID for 30 minutes.
 	// Scoped to operator imports; changed arguments conflict. Expiry permits reuse.
 	IdempotencyKey string `protobuf:"bytes,14,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Import a native tombstone atomically. Body, attachments, preview, and
+	// edited_at must be absent. Historical replies may target deleted roots.
+	Deleted       bool `protobuf:"varint,15,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ImportMessageRequest) Reset() {
@@ -186,6 +190,13 @@ func (x *ImportMessageRequest) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *ImportMessageRequest) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
 }
 
 // Stable Chatto identity of the new historical message.
@@ -357,7 +368,7 @@ var File_chatto_operator_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/operator/v1/messages.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd9\x04\n" +
+	"!chatto/operator/v1/messages.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf3\x04\n" +
 	"\x14ImportMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12$\n" +
 	"\tauthor_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bauthorId\x12A\n" +
@@ -375,7 +386,8 @@ const file_chatto_operator_v1_messages_proto_rawDesc = "" +
 	"\fpreview_type\x18\v \x01(\tR\vpreviewType\x12/\n" +
 	"\x14thread_root_event_id\x18\f \x01(\tR\x11threadRootEventId\x12#\n" +
 	"\rcreate_thread\x18\r \x01(\bR\fcreateThread\x12'\n" +
-	"\x0fidempotency_key\x18\x0e \x01(\tR\x0eidempotencyKey\"6\n" +
+	"\x0fidempotency_key\x18\x0e \x01(\tR\x0eidempotencyKey\x12\x18\n" +
+	"\adeleted\x18\x0f \x01(\bR\adeleted\"6\n" +
 	"\x15ImportMessageResponse\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\"\xad\x01\n" +

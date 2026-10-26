@@ -59,6 +59,43 @@ func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) 
 	}
 }
 
+func TestOperatorImportTombstonePublicRead(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("operator-tombstone")
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "tombstone-author", "Author", "password")
+	require.NoError(t, err)
+	service := &operatorMessageService{api: env.api}
+	root, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: author.Id, CreatedAt: timestamppb.New(time.Unix(1500000000, 0)), Deleted: true, CreateThread: true,
+	}))
+	require.NoError(t, err)
+	for _, wantAdded := range []bool{true, false} {
+		result, err := service.ImportReaction(env.ctx, connect.NewRequest(&operatorv1.ImportReactionRequest{
+			RoomId: room.Id, MessageEventId: root.Msg.GetMessageId(), UserId: author.Id, Emoji: "heart",
+		}))
+		require.NoError(t, err)
+		require.Equal(t, wantAdded, result.Msg.GetAdded())
+	}
+	timeline, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id, Limit: 10}))
+	require.NoError(t, err)
+	deleted := timelinePageEvent(timeline.Msg.GetPage(), root.Msg.GetMessageId()).GetMessagePosted().GetMessage()
+	require.NotNil(t, deleted.GetDeletedAt())
+	require.Empty(t, deleted.GetBody())
+	require.Len(t, deleted.GetReactions(), 1)
+	require.Equal(t, "heart", deleted.GetReactions()[0].GetEmoji())
+	require.EqualValues(t, 1, deleted.GetReactions()[0].GetCount())
+	reply, err := service.ImportMessage(env.ctx, connect.NewRequest(&operatorv1.ImportMessageRequest{
+		RoomId: room.Id, AuthorId: author.Id, CreatedAt: timestamppb.Now(), Body: "reply", ThreadRootEventId: root.Msg.GetMessageId(),
+	}))
+	require.NoError(t, err)
+	public, err := env.messages.GetMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetMessageRequest{
+		RoomId: room.Id, EventId: reply.Msg.GetMessageId(),
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "reply", public.Msg.GetMessage().GetBody())
+}
+
 func TestOperatorImportThreadAndReactionPublicRead(t *testing.T) {
 	t.Parallel()
 	env := newConnectAPITestEnv(t)

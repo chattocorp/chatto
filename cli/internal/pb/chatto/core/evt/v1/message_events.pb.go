@@ -566,9 +566,12 @@ type MessageRetractedEvent struct {
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Optional human-readable reason (e.g. "spam", "user requested",
 	// "moderator action"). May be empty.
-	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	// Imported deletion: materialize the tombstone without live delivery.
+	// The event time records import time, not an unknown source deletion time.
+	HistoricalImport bool `protobuf:"varint,4,opt,name=historical_import,json=historicalImport,proto3" json:"historical_import,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MessageRetractedEvent) Reset() {
@@ -620,6 +623,13 @@ func (x *MessageRetractedEvent) GetReason() string {
 		return x.Reason
 	}
 	return ""
+}
+
+func (x *MessageRetractedEvent) GetHistoricalImport() bool {
+	if x != nil {
+		return x.HistoricalImport
+	}
+	return false
 }
 
 // MessagePinnedEvent adds a canonical message to its channel room's pinned
@@ -928,11 +938,12 @@ const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\x04body\x18\x03 \x01(\v2\x1f.chatto.core.evt.v1.MessageBodyR\x04body\"T\n" +
 	"\x12MessageEditedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventIdJ\x04\b\x03\x10\x04R\x04body\"c\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventIdJ\x04\b\x03\x10\x04R\x04body\"\x90\x01\n" +
 	"\x15MessageRetractedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"W\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12+\n" +
+	"\x11historical_import\x18\x04 \x01(\bR\x10historicalImport\"W\n" +
 	"\x12MessagePinnedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"Y\n" +

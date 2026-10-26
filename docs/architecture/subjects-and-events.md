@@ -274,6 +274,13 @@ posting effects. No source ID or deduplication record is stored in EVT.
 Optional import UUIDs reserve message IDs in `RUNTIME_STATE` using the shared
 bounded message-claim protocol; see [runtime state](runtime-state.md).
 
+Deleted imports commit `MessagePostedEvent`, optional `ThreadCreatedEvent`, and
+`MessageRetractedEvent` in one room-OCC batch without a body event or body key.
+The retraction's `historical_import` marker suppresses live delivery and
+reconnect replay. The post retains source creation time; the retraction records
+import time because the source deletion time is unknown. Historical replies can
+target deleted roots. The interactive posting rules do not change.
+
 Historical thread creation uses `ThreadCreatedEvent.historical_import` on the
 existing thread-created subject. It commits with the root or first reply and
 does not create a follow. Historical reactions use `ReactionAddedEvent.user_id`
@@ -281,6 +288,8 @@ for the mapped reactor and the system envelope actor for the operation. Empty
 `user_id` retains ordinary actor-based attribution. Their `historical_import`
 marker suppresses attention and live delivery during replay. Reaction writes
 use room aggregate OCC to make repeated user/message/emoji imports idempotent.
+Historical reaction imports accept native tombstones and retain the existing
+reaction projection and read behavior.
 | `evt.room.{roomId}.reaction_added` | `ReactionAddedEvent` |
 | `evt.room.{roomId}.reaction_removed` | `ReactionRemovedEvent` |
 | `evt.asset.{assetId}.asset_created` | `AssetCreatedEvent` |

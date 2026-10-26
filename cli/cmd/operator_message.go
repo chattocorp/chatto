@@ -30,6 +30,7 @@ func operatorMessageImportCmd() *cobra.Command {
 	var threadRootID string
 	var idempotencyKey string
 	var createThread bool
+	var deleted bool
 	var assetIDs []string
 	cmd := &cobra.Command{
 		Use: "import", Short: "Import one historical channel message", Args: cobra.NoArgs,
@@ -87,6 +88,7 @@ func operatorMessageImportCmd() *cobra.Command {
 				InReplyTo: inReplyTo, AttachmentAssetIds: assetIDs, Body: body,
 				ThreadRootEventId: threadRootID, CreateThread: createThread,
 				IdempotencyKey: idempotencyKey,
+				Deleted:        deleted,
 				PreviewUrl:     previewURL, PreviewTitle: previewTitle, PreviewDescription: previewDescription, PreviewType: previewType,
 			}
 			if editedAt != "" {
@@ -116,6 +118,7 @@ func operatorMessageImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&threadRootID, "thread-id", "", "thread ID (the root message ID) to place the message in")
 	cmd.Flags().StringVar(&idempotencyKey, "idempotency-key", "", "UUID for exact retries within 30 minutes of the first attempt")
 	cmd.Flags().BoolVar(&createThread, "create-thread", false, "establish an empty thread on the imported root")
+	cmd.Flags().BoolVar(&deleted, "deleted", false, "import a native tombstone without body, attachments, preview, or edit time")
 	cmd.MarkFlagsMutuallyExclusive("thread-id", "create-thread")
 	cmd.Flags().StringSliceVar(&assetIDs, "attachment-asset-id", nil, "attachment asset ID (repeatable)")
 	cmd.Flags().StringVar(&body, "body", "", "message body text")
