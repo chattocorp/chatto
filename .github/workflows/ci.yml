@@ -541,7 +541,9 @@ jobs:
     name: test-workspace (${{ matrix.name }})
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Browser dependencies can consume their full setup budget on a slow mirror.
+    # Leave a separate test budget plus time for environment setup and cleanup.
+    timeout-minutes: ${{ matrix.timeout-minutes }}
     strategy:
       fail-fast: false
       matrix:
@@ -549,9 +551,11 @@ jobs:
           - name: frontend
             filter: chatto-frontend
             playwright: true
+            timeout-minutes: 35
           - name: packages
             filter: '!chatto-frontend'
             playwright: false
+            timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -569,6 +573,7 @@ jobs:
           save-cache: 'true'
 
       - name: Run workspace unit tests
+        timeout-minutes: 15
         env:
           TURBO_FILTER: ${{ matrix.filter }}
         run: pnpm turbo run test --concurrency=1 "--filter=$TURBO_FILTER"
