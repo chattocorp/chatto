@@ -348,14 +348,6 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 	return c.userModel.externalIdentities(userID), nil
 }
 
-// DisconnectExternalIdentity removes a linked provider identity from a user.
-// It refuses to remove the last available sign-in method for passwordless
-// accounts so users created through SSO cannot lock themselves out.
-// Existing sessions remain valid; unlinking removes a future sign-in method.
-func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, subjectHash string) error {
-	return c.disconnectExternalIdentity(ctx, userID, userID, subjectHash, nil)
-}
-
 // ExternalIdentitySignInPolicy describes the sign-in methods enabled on the
 // serving replica. Issuers contains exact OIDC issuer URLs and configured
 // provider IDs for OAuth-only providers. Stored event-time provider IDs do not
@@ -392,10 +384,6 @@ func (p ExternalIdentitySignInPolicy) CanDisconnect(subjectHash string, identiti
 // runs inside user OCC, so concurrent removals cannot remove both last methods.
 // Existing sessions remain valid. A missing link returns ErrExternalIdentityNotFound.
 func (c *ChattoCore) DisconnectExternalIdentityAs(ctx context.Context, actorID, userID, subjectHash string, policy ExternalIdentitySignInPolicy) error {
-	return c.disconnectExternalIdentity(ctx, actorID, userID, subjectHash, &policy)
-}
-
-func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, userID, subjectHash string, policy *ExternalIdentitySignInPolicy) error {
 	if actorID == "" {
 		return ErrNotAuthenticated
 	}
@@ -494,7 +482,7 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 
 // checkExternalIdentityDisconnect returns the identity to unlink. It refuses
 // removal when no sign-in method that policy enables would remain.
-func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string, policy *ExternalIdentitySignInPolicy) (ExternalIdentity, error) {
+func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string, policy ExternalIdentitySignInPolicy) (ExternalIdentity, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return ExternalIdentity{}, err
 	}
@@ -511,11 +499,7 @@ func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID
 		return ExternalIdentity{}, ErrExternalIdentityNotFound
 	}
 	_, hasPassword := c.userModel.passwordHash(userID)
-	canDisconnect := hasPassword || len(identities) > 1
-	if policy != nil {
-		canDisconnect = policy.CanDisconnect(subjectHash, identities, hasPassword)
-	}
-	if !canDisconnect {
+	if !policy.CanDisconnect(subjectHash, identities, hasPassword) {
 		return ExternalIdentity{}, ErrExternalIdentityLastMethod
 	}
 	return unlinked, nil
