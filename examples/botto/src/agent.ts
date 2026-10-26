@@ -1,91 +1,74 @@
-/** Open a Pi transcript for one turn, then release all live session resources. */
+/** Open the conversation transcript through Runling for one turn, then release its resources. */
 import { createHash } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import {
-  createAgentSession,
-  DefaultResourceLoader,
-  ModelRuntime,
-  SessionManager,
-  SettingsManager
-} from '@earendil-works/pi-coding-agent';
+import { createAgentSession, type TaskContext } from 'runling';
 import type { ExtensionFactory } from '@earendil-works/pi-coding-agent';
 import type { Settings } from './settings.ts';
-import { StartupError, startupStep } from './diagnostics.ts';
-import { log } from './log.ts';
-import { mcpExtension, mcpObserver } from './mcp.ts';
+import { startupStep } from './diagnostics.ts';
+import { mcpExtension, memoryLockExtension } from './mcp.ts';
 import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
 import { authorizationPrompt } from './authorization.ts';
 
-/** Runtime facts supplement the configurable behavior instructions. */
 const CAPABILITIES = `You cannot see attachments.
 Each current message can include inReplyTo with the replied-to message's ID and author ID.
 A null reply author means the author could not be resolved; do not infer it from message text.
 Your final answer is posted to this thread automatically.`;
 
-/** Use opaque file names and bind transcripts to the server, bot, room, and thread. */
+/** Private input for one model turn. The task context always comes from its conversation. */
+export interface ReplyOptions {
+  identity: readonly string[];
+  prompt: string;
+  signal: AbortSignal;
+  context?: ThreadContext;
+  userIds?: readonly string[];
+  tools?: ExtensionFactory[];
+}
+
+/** Preserve existing transcript names, bound to the server, bot, room, and thread. */
 export function transcriptName(identity: readonly string[]): string {
   return `${createHash('sha256').update(JSON.stringify(identity)).digest('hex')}.jsonl`;
 }
 
-/** Prepare model access once. Credentials use Pi's normal auth store and provider environment. */
+/** Prepare host-owned memory and storage. Runling owns model discovery and live sessions. */
 export async function createAgent(settings: Settings) {
   const openMemory = createMemory(settings);
   await startupStep('Cannot create the Botto data directory. Check runtime.data_directory.', () =>
     mkdir(settings.directory, { recursive: true, mode: 0o700 })
   );
-  const runtime = await startupStep('Cannot load Pi model settings and authentication.', () =>
-    ModelRuntime.create()
-  );
-  let model = runtime.getModel(settings.provider, settings.modelId);
-  if (!model && process.env.PI_OFFLINE === undefined) {
-    await startupStep(
-      'Cannot refresh the Pi model catalog. Check provider connectivity and credentials.',
-      () =>
-        runtime.refresh({
-          providers: [settings.provider],
-          allowNetwork: true,
-          force: true,
-          signal: AbortSignal.timeout(10_000)
-        })
-    );
-    model = runtime.getModel(settings.provider, settings.modelId);
-  }
-  if (!model)
-    throw new StartupError(
-      'agent.model was not found in the Pi model catalog. Check the provider/model ID and PI_OFFLINE.'
-    );
-
   return {
-    /** The caller must serialize calls for the same identity. Abort stops model generation. */
+    /** The caller serializes turns for one identity; idle conversations hold no live agent. */
     async reply(
-      identity: readonly string[],
-      prompt: string,
-      signal: AbortSignal,
-      context?: ThreadContext,
-      userIds: readonly string[] = [],
-      tools: ExtensionFactory[] = []
+      ctx: TaskContext,
+      { identity, prompt, signal, context, userIds = [], tools = [] }: ReplyOptions
     ): Promise<string> {
       signal.throwIfAborted();
       const memory = settings.memory
         ? await openMemory(identity.at(-1), userIds, signal)
         : undefined;
-      const settingsManager = SettingsManager.inMemory();
-      const resourceLoader = new DefaultResourceLoader({
+      await using session = await createAgentSession({
         cwd: settings.directory,
-        agentDir: settings.directory,
-        settingsManager,
-        noExtensions: true,
-        noSkills: true,
-        noPromptTemplates: true,
-        noThemes: true,
-        noContextFiles: true,
-        // Only host-selected extensions are loaded; local extensions remain disabled.
-        extensionFactories: [
+        model: `${settings.provider}/${settings.modelId}`,
+        output: 'text',
+        logContent: false,
+        tools: 'extensions',
+        // Pi prepares all parallel calls before executing them. Memory locks
+        // acquired by preparation hooks require sequential execution.
+        toolExecution: memory ? 'sequential' : 'parallel',
+        sessionFile: join(settings.directory, transcriptName(identity)),
+        resources: {
+          agentDir: settings.directory,
+          extensions: false,
+          skills: false,
+          promptTemplates: false,
+          themes: false,
+          contextFiles: false
+        },
+        extensions: [
           ...tools,
           mcpExtension(settings, memory?.directory),
-          mcpObserver(signal, identity.at(-1), memory?.acquire),
+          memoryLockExtension(signal, memory?.acquire),
           ...(context || memory
             ? [
                 threadContextExtension({
@@ -96,95 +79,31 @@ export async function createAgent(settings: Settings) {
               ]
             : [])
         ],
-        systemPromptOverride: () =>
-          `Your name is ${settings.name}. Your Chatto user ID is ${identity[1]}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
-            settings.mcp
-              ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
-              : 'Chatto MCP tools are disabled.'
-          }\n${
-            settings.web
-              ? 'Exa web tools use the mcp__exa__ prefix. Cite the source URLs you use.'
-              : 'Web access is disabled.'
-          }\n${memory ? 'Local memory tools use the mcp__memory__ prefix. Current memory document IDs are in memoryDocuments in the input context. Call mcp__memory__info for the collection schema and workflow.' : 'Local memory is disabled.'}\n\n${authorizationPrompt(settings.adminUserIds)}`,
-        appendSystemPromptOverride: () => []
+        systemPrompt: `Your name is ${settings.name}. Your Chatto user ID is ${identity[1]}.\n\n${settings.systemPrompt}\n\n${CAPABILITIES}\n${
+          settings.mcp
+            ? `You have Chatto MCP tools. Current room ID: ${identity.at(-2)}. Current thread root ID: ${identity.at(-1)}.`
+            : 'Chatto MCP tools are disabled.'
+        }\n${settings.web ? 'Exa web tools use the mcp__exa__ prefix. Cite the source URLs you use.' : 'Web access is disabled.'}\n${
+          memory
+            ? 'Local memory tools use the mcp__memory__ prefix. Current memory document IDs are in memoryDocuments in the input context. Call mcp__memory__info for the collection schema and workflow.'
+            : 'Local memory is disabled.'
+        }\n\n${authorizationPrompt(settings.adminUserIds)}`
       });
-      await resourceLoader.reload();
       signal.throwIfAborted();
-      const { session } = await createAgentSession({
-        cwd: settings.directory,
-        agentDir: settings.directory,
-        modelRuntime: runtime,
-        model,
-        settingsManager,
-        resourceLoader,
-        noTools: 'builtin',
-        sessionManager: SessionManager.open(
-          join(settings.directory, transcriptName(identity)),
-          settings.directory,
-          settings.directory
-        )
-      });
-      // Pi prepares every parallel call before executing any of them. A memory
-      // lock held by a tool_call hook would deadlock the next call in that batch.
-      if (memory) session.agent.toolExecution = 'sequential';
-      // Pi totals include persisted history and compaction. Subtract the restored
-      // baseline so this log reports only the current turn, including failed work.
-      const usageBefore = session.getSessionStats();
-      let shutdown: Promise<void> | undefined;
-      const shutdownExtensions = () =>
-        (shutdown ??= session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' }));
+      // A native MCP call can wait on its transport. Close extensions on
+      // cancellation as well as cancelling the model, then await disposal.
       const abort = () => {
-        void session.abort().catch(() => {});
-        void shutdownExtensions().catch(() => {});
+        void session.dispose().catch(() => {});
       };
+      signal.addEventListener('abort', abort, { once: true });
       try {
         signal.throwIfAborted();
-        await session.bindExtensions({});
-        // Binding starts native MCP. Do not send shutdown before session_start.
-        signal.addEventListener('abort', abort, { once: true });
+        const { summary } = await session.run(ctx, prompt, { signal });
         signal.throwIfAborted();
-        const historyMessages = session.messages.length;
-        log('info', historyMessages ? 'Pi session resumed' : 'Pi session created', {
-          threadId: identity.at(-1),
-          sessionId: session.sessionId,
-          historyMessages
-        });
-        await session.prompt(prompt);
-        signal.throwIfAborted();
-        const last = session.messages.at(-1);
-        if (
-          last?.role !== 'assistant' ||
-          last.stopReason === 'error' ||
-          last.stopReason === 'aborted'
-        )
-          throw new Error('Pi did not complete the turn');
-        const text = session.getLastAssistantText()?.trim();
-        if (!text) throw new Error('Pi returned no answer');
-        return text;
+        if (!summary.trim()) throw new Error('The agent returned no answer');
+        return summary.trim();
       } finally {
         signal.removeEventListener('abort', abort);
-        try {
-          await session.abort();
-        } finally {
-          try {
-            await shutdownExtensions();
-          } finally {
-            try {
-              const usage = session.getSessionStats();
-              log('info', 'Pi token usage', {
-                threadId: identity.at(-1),
-                sessionId: session.sessionId,
-                inputTokens: usage.tokens.input - usageBefore.tokens.input,
-                outputTokens: usage.tokens.output - usageBefore.tokens.output,
-                cacheReadTokens: usage.tokens.cacheRead - usageBefore.tokens.cacheRead,
-                cacheWriteTokens: usage.tokens.cacheWrite - usageBefore.tokens.cacheWrite,
-                estimatedCostUsd: Number((usage.cost - usageBefore.cost).toFixed(8))
-              });
-            } finally {
-              session.dispose();
-            }
-          }
-        }
       }
     }
   };

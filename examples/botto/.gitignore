@@ -1,3 +1,4 @@
 .botto/
+.runling/
 .env
 botto.toml

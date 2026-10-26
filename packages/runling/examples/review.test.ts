@@ -42,12 +42,12 @@ describe('review workflow', () => {
       async fork() {
         throw new Error('not used');
       },
-      dispose() {
+      async dispose() {
         if (activeReviews > 0) disposedWhileRunning++;
         disposed++;
       },
       async [Symbol.asyncDispose]() {
-        this.dispose();
+        await this.dispose();
       }
     });
 
@@ -78,11 +78,11 @@ describe('review workflow', () => {
         forks++;
         return branch();
       },
-      dispose() {
+      async dispose() {
         disposed++;
       },
       async [Symbol.asyncDispose]() {
-        this.dispose();
+        await this.dispose();
       }
     };
 
@@ -136,7 +136,7 @@ describe('review workflow', () => {
     let finishedReviews = 0;
     let disposed = 0;
 
-    const orchestrator = {
+    const orchestrator: RunlingAgent = {
       steer: async () => false,
       id: 'orchestrator',
       run: async () => ({
@@ -168,19 +168,19 @@ describe('review workflow', () => {
           fork: async () => {
             throw new Error('not used');
           },
-          dispose: () => {
+          dispose: async () => {
             disposed++;
           },
           async [Symbol.asyncDispose]() {
-            this.dispose();
+            await this.dispose();
           }
         } satisfies RunlingAgent;
       },
-      dispose: () => {
+      dispose: async () => {
         disposed++;
       },
       async [Symbol.asyncDispose]() {
-        this.dispose();
+        await this.dispose();
       }
     } satisfies RunlingAgent;
 

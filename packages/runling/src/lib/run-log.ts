@@ -1,5 +1,6 @@
 /** Project run journal entries into the console's ordered Log view. */
 import type { RunlingEvent } from 'runling';
+import { formatLogFields } from '../runtime/log-fields.ts';
 
 /** Journal event shape used by a visible log row. */
 export type LogEvent = Extract<RunlingEvent, { type: 'log' }>;
@@ -74,7 +75,7 @@ export function runLogRows(events: RunlingEvent[]): LogRow[] {
         if (startedId) pending?.delete(event.message);
         rows.push({
           id,
-          event,
+          event: { ...event, message: event.message + formatLogFields(event.fields) },
           activity: startedId
             ? { id: startedId, reference: event.message, embedded: true }
             : event.source === 'agent' && event.sourceId && agents.has(event.sourceId)

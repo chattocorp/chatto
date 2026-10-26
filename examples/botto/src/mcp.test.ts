@@ -9,11 +9,57 @@ import {
   SessionManager,
   SettingsManager
 } from '@earendil-works/pi-coding-agent';
-import { EXA_MCP_URL, mcpExtension, mcpObserver, mcpServers } from './mcp.ts';
+import { EXA_MCP_URL, mcpExtension, memoryLockExtension, mcpServers } from './mcp.ts';
 import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
+import { createAgentSession as createRunlingSession } from 'runling';
 
 afterEach(() => vi.restoreAllMocks());
+
+test('Runling starts native MCP extensions and awaits their shutdown without a model request', async () => {
+  await mkdir(resolve('../../.context'), { recursive: true });
+  const directory = await mkdtemp(resolve('../../.context/botto-runling-mcp-'));
+  const settings = parseSettings(
+    '[chatto]\nurl="https://example.com"\napi_key="unused"\nmcp=true\n[agent]\nmodel="anthropic/claude-sonnet-4-6"',
+    'botto.toml'
+  );
+  const transport = mcpFixture([{ name: 'read', inputSchema: { type: 'object' } }], async () => ({
+    content: []
+  }));
+  const close = vi.spyOn(transport, 'close');
+  const create = vi.fn(() => transport);
+  try {
+    const session = await createRunlingSession({
+      cwd: directory,
+      model: 'anthropic/claude-sonnet-4-6',
+      output: 'text',
+      tools: 'extensions',
+      toolExecution: 'sequential',
+      logContent: false,
+      resources: {
+        agentDir: directory,
+        extensions: false,
+        skills: false,
+        contextFiles: false,
+        promptTemplates: false,
+        themes: false
+      },
+      extensions: [mcpExtension(settings, undefined, create)]
+    });
+    try {
+      await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());
+      expect(close).not.toHaveBeenCalled();
+    } finally {
+      await session.dispose();
+    }
+    expect(close).toHaveBeenCalled();
+    const calls = close.mock.calls.length;
+    await session.dispose();
+    expect(close).toHaveBeenCalledTimes(calls);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 test.each([false, true])(
   'native MCP opt-in (%s), structured results, logs, and shutdown',
   async (enabled) => {
@@ -80,7 +126,7 @@ test.each([false, true])(
         noContextFiles: true,
         extensionFactories: [
           mcpExtension(settings, enabled ? directory : undefined, createTransport),
-          mcpObserver(controller.signal, 'thread-test', acquire)
+          memoryLockExtension(controller.signal, acquire)
         ]
       });
       await loader.reload();
@@ -134,10 +180,8 @@ test.each([false, true])(
         expect((await execute('failure', true)).isError).toBe(true);
         expect(acquire).toHaveBeenCalledTimes(2);
         expect(release).toHaveBeenCalledTimes(2);
-        expect(info).toHaveBeenCalledTimes(1);
-        expect(error).toHaveBeenCalledTimes(1);
-        expect(JSON.stringify(info.mock.calls)).toContain('mcp__memory__read');
-        expect(JSON.stringify(info.mock.calls)).toContain('thread-test');
+        expect(info).not.toHaveBeenCalled();
+        expect(error).not.toHaveBeenCalled();
         expect(JSON.stringify([info.mock.calls, error.mock.calls])).not.toContain('private');
         expect(call).toHaveBeenCalledTimes(2);
 
@@ -209,7 +253,7 @@ test.each([false, true])(
       }
       for (const transport of transports) expect(transport.close).toHaveBeenCalled();
       expect(release).toHaveBeenCalledTimes(5);
-      expect(error).toHaveBeenCalledTimes(2);
+      expect(error).not.toHaveBeenCalled();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

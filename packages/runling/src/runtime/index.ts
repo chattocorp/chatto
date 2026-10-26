@@ -61,6 +61,7 @@ export {
 export { WorkingDirectory, workingTreeHash } from './git.ts';
 export type { RunlingEvent, RunlingEventListener, RunlingEventPayload } from './events.ts';
 export { log, type LogLevel } from './log.ts';
+export type { LogFields } from './log-fields.ts';
 export { step, type StepWork } from './step.ts';
 export {
   shell,
@@ -75,6 +76,7 @@ export {
   type Shell
 } from './shell.ts';
 export { concat, type ConcatPart } from './utils.ts';
+export { BatchQueue, type BatchQueueOptions } from './batch-queue.ts';
 export { Type, type Static, type TSchema } from 'typebox';
 export {
   isWorkflowSchema,

@@ -49,7 +49,7 @@ test('the default task accepts CLI text and uses App settings without a Chatto i
     fork: async () => {
       throw new Error('unused');
     },
-    dispose: () => {},
+    dispose: async () => {},
     [Symbol.asyncDispose]: disposed
   });
   expect(isTask(workflow)).toBe(true);

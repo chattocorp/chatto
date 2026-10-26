@@ -51,6 +51,14 @@ one session, gives parent messages to it, and emits its completed replies.
 - Delivery of a steering message cancels an earlier outcome report of the same
   turn. The agent must report again.
 - An agent cannot run two turns at the same time.
+- Session creation binds native extensions before returning. Asynchronous
+  disposal waits for extension shutdown and then releases Pi resources. This
+  lets hosts close native MCP transports before they release shared resources.
+- Hosts can select extension tools without built-in tools, and can require
+  sequential tool execution when preparation hooks use a shared lock.
+- Hosts can omit model content and tool arguments from logs and progress
+  events while retaining usage and tool activity. Private transcripts and
+  explicit task data remain the host's responsibility.
 - A session file keeps the conversation of an agent. A new agent with the same
   file continues the conversation. A fork copies the conversation into a new
   agent in memory.

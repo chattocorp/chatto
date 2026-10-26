@@ -24,7 +24,7 @@ it('logs response metadata without reading bodies or exposing URLs and headers',
   const response = new Response(stream, { headers: { 'content-type': 'text/event-stream' } });
   expect(await handle({ event, resolve: async () => response })).toBe(response);
   expect(event.request.bodyUsed).toBe(false);
-  expect(serverLog).toHaveBeenCalledExactlyOnceWith('info', 'http.response', {
+  expect(serverLog).toHaveBeenCalledExactlyOnceWith('debug', 'http.response', {
     method: 'POST',
     route: '/api/webhooks/[name]',
     status: 200,

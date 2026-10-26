@@ -1,12 +1,15 @@
-/** Botto CLI: own the Chatto connection, inbox, and shutdown signal. */
-import './env.ts';
-import { createClient } from '@chatto/client';
+/** Runling source: own the Chatto connection, durable delivery, and bounded inbox. */
+import type { EventSourceContext } from 'runling/web';
+import { runTurn } from './conversation.ts';
+import { createClient, replyDestination } from '@chatto/client';
+import { conversationIdentity, threadKey } from './threads.ts';
 import { RECENT_THREAD_LIMIT } from '@chatto/client/server/roomStores';
 import { createAgent } from './agent.ts';
 import { Inbox } from './inbox.ts';
-import { readSettings, type Settings } from './settings.ts';
-import { StartupError, startupStep } from './diagnostics.ts';
-import { log, logged } from './log.ts';
+import { type Settings } from './settings.ts';
+import { startupStep } from './diagnostics.ts';
+import { log } from 'runling';
+import { safeStep } from './steps.ts';
 import { createTurnHandler } from './turn.ts';
 import { hasTranscript, incomingMessage, isHumanAuthor } from './messages.ts';
 import { Delivery } from './delivery.ts';
@@ -14,11 +17,11 @@ import { recover } from './recovery.ts';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Code, ConnectError } from '@connectrpc/connect';
 
-async function run(settings: Settings) {
+export async function runSource(settings: Settings, source: EventSourceContext) {
   const controller = new AbortController();
   const stop = () => controller.abort();
-  process.once('SIGINT', stop);
-  process.once('SIGTERM', stop);
+  source.signal.addEventListener('abort', stop, { once: true });
+  if (source.signal.aborted) stop();
   // Keep at least one thread timeline for each thread that can have a turn.
   const client = createClient({
     keepRecent: { threads: Math.max(RECENT_THREAD_LIMIT, settings.maxThreads) }
@@ -26,22 +29,22 @@ async function run(settings: Settings) {
   let inbox: Inbox | undefined;
   let recovery: Promise<void> | undefined;
   try {
-    const agent = await logged('Pi setup', () => createAgent(settings));
+    const agent = await safeStep('Agent setup', () => createAgent(settings));
     controller.signal.throwIfAborted();
-    log('info', 'Connecting to Chatto');
+    log.info('Connecting to Chatto');
     const server = client.connect({ serverUrl: settings.serverUrl, apiKey: settings.apiKey });
     if (settings.reportPresence) server.reportPresence();
     const { viewerId } = await startupStep(
       'Cannot connect to Chatto. Check chatto.url, chatto.api_key, and server compatibility.',
       () => server.ready({ signal: controller.signal })
     );
-    log('info', 'Chatto authenticated');
+    log.info('Chatto authenticated');
     const delivery = new Delivery(settings.directory, [
       new URL(settings.serverUrl).origin,
       viewerId
     ]);
     if (delivery.uncertain)
-      log('warn', 'Interrupted work needs operator review in the delivery state file', {
+      log.warn('Interrupted work needs operator review in the delivery state file', {
         messages: delivery.uncertain
       });
     const turn = createTurnHandler(
@@ -54,13 +57,16 @@ async function run(settings: Settings) {
     );
     inbox = new Inbox(
       async (messages) => {
-        await turn(messages);
+        const first = messages[0]!;
+        const key = JSON.stringify(
+          conversationIdentity(settings.serverUrl, viewerId, replyDestination(first))
+        );
+        await runTurn(source, key, (ctx) => turn(ctx, messages));
         delivery.complete(messages);
       },
       () => {
         if (!controller.signal.aborted)
-          log(
-            'error',
+          log.error(
             'Botto could not complete a turn; queued work will retry, running work needs operator review'
           );
       },
@@ -69,17 +75,11 @@ async function run(settings: Settings) {
     const activeInbox = inbox;
     const isActive = async (location: { roomId: string; threadRootId: string }) =>
       activeInbox.isActive(location) ||
-      delivery.queued.some(
-        (item) =>
-          item.roomId === location.roomId &&
-          (item.threadRootId ?? item.id) === location.threadRootId
-      ) ||
-      hasTranscript(settings.directory, [
-        new URL(settings.serverUrl).origin,
-        viewerId,
-        location.roomId,
-        location.threadRootId
-      ]);
+      delivery.queued.some((item) => threadKey(replyDestination(item)) === threadKey(location)) ||
+      hasTranscript(
+        settings.directory,
+        conversationIdentity(settings.serverUrl, viewerId, location)
+      );
     const pump = () => {
       for (const message of delivery.queued) {
         if (settings.allowedUserId && message.authorId !== settings.allowedUserId) continue;
@@ -106,7 +106,7 @@ async function run(settings: Settings) {
             );
           }
         } catch {
-          if (!controller.signal.aborted) log('warn', 'Message recovery failed; Botto will retry');
+          if (!controller.signal.aborted) log.warn('Message recovery failed; Botto will retry');
         }
         if (controller.signal.aborted) break;
         pump();
@@ -118,13 +118,12 @@ async function run(settings: Settings) {
       onStatus(status) {
         if (status.state === 'ready') {
           nextRecovery = 0;
-          log(
-            status.gap ? 'warn' : 'info',
+          log[status.gap ? 'warn' : 'info'](
             status.gap
               ? 'Botto connected; checking retained notifications for missed messages.'
               : 'Botto connected.'
           );
-        } else log('info', 'Realtime connection is not ready');
+        } else log.info('Realtime connection is not ready');
       },
       async onEvent(event, { signal }) {
         if (settings.allowedUserId && event.actorId !== settings.allowedUserId) return;
@@ -148,13 +147,13 @@ async function run(settings: Settings) {
             const result = activeInbox.accept(message);
             const thread = { threadId: message.threadRootId ?? message.id };
             if (result === 'accepted')
-              log('info', 'Message accepted', {
+              log.info('Message accepted', {
                 ...thread,
                 waitMs: activeInbox.debounceMs(message)
               });
             else if (result === 'full')
-              log('warn', 'Botto inbox is full; message saved for later', thread);
-            else if (result === 'duplicate') log('info', 'Duplicate message skipped', thread);
+              log.warn('Botto inbox is full; message saved for later', thread);
+            else if (result === 'duplicate') log.debug('Duplicate message skipped', thread);
             return;
           } catch (error) {
             // Removed content and revoked access cannot be repaired by retrying
@@ -169,11 +168,11 @@ async function run(settings: Settings) {
                 Code.FailedPrecondition
               ].includes(error.code)
             ) {
-              log('warn', 'Incoming message is no longer available or permitted');
+              log.warn('Incoming message is no longer available or permitted');
               return;
             }
             if (!signal.aborted)
-              log('error', 'Botto could not verify or save an incoming message; retrying');
+              log.error('Botto could not verify or save an incoming message; retrying');
             await delay(5000, undefined, { signal }).catch(() => {});
           }
         }
@@ -182,43 +181,12 @@ async function run(settings: Settings) {
   } catch (error) {
     if (!controller.signal.aborted) throw error;
   } finally {
-    log('info', 'Botto stopping');
+    log.info('Botto stopping');
     controller.abort();
     await recovery;
     await inbox?.close();
     client.close();
-    process.removeListener('SIGINT', stop);
-    process.removeListener('SIGTERM', stop);
-    log('info', 'Botto stopped');
+    source.signal.removeEventListener('abort', stop);
+    log.info('Botto stopped');
   }
-}
-
-if (process.argv.includes('--help')) {
-  console.info(
-    'Botto: start [--config PATH]. Defaults to botto.toml. Configure chatto.api_key with an environment reference and keep secrets in .env. See README.md.'
-  );
-} else {
-  // Newly created transcripts are private, even when the operator has a permissive umask.
-  process.umask(0o077);
-  let settings: Settings | undefined;
-  try {
-    const args = process.argv.slice(2);
-    if (args.length !== 0 && (args.length !== 2 || args[0] !== '--config' || !args[1]?.trim()))
-      throw new Error('Usage: start [--config PATH]');
-    settings = readSettings(args[1]);
-  } catch (error) {
-    log('error', error instanceof Error ? error.message : 'Invalid Botto configuration.');
-    process.exitCode = 1;
-  }
-  if (settings)
-    await run(settings).catch((error: unknown) => {
-      // Provider and transport errors can include credentials or conversation text.
-      log(
-        'error',
-        error instanceof StartupError
-          ? error.message
-          : 'Botto stopped after an unexpected runtime failure.'
-      );
-      process.exitCode = 1;
-    });
 }
