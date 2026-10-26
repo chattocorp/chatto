@@ -1174,6 +1174,7 @@
 }
 
 @utility btn {
+  @apply select-none;
   @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-1.5 font-medium;
   @apply transition-[background-color,border-color,color,box-shadow,opacity] duration-150 ease-out motion-reduce:transition-none;
   @apply control-raised;
@@ -2409,6 +2410,7 @@
 }
 
 @utility menu-item {
+  @apply select-none;
   @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-start transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96];
 }
 
@@ -2418,6 +2420,7 @@
 
 /* Semantic command rows for ContextMenu and related action surfaces. */
 @utility menu-entry {
+  @apply select-none;
   @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
   @apply touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
@@ -2530,8 +2533,7 @@
     background-color: var(--color-surface);
     color: var(--color-text);
 
-    /* Disable text selection globally for native feel */
-    @apply select-none;
+    /* Keep content selectable. Controls and drag surfaces disable selection locally. */
   }
 }
 
