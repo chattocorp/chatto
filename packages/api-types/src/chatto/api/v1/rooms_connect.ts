@@ -3,9 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetRoomReadStatesRequest, BatchGetRoomReadStatesResponse, GetRoomReadStateRequest, GetRoomReadStateResponse, MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, ClearNoticeRequest, ClearNoticeResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, GetNoticeRequest, GetNoticeResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, LiftSuspensionRequest, LiftSuspensionResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, ListSuspensionsRequest, ListSuspensionsResponse, PublishNoticeRequest, PublishNoticeResponse, RefreshTypingIndicatorRequest, RefreshTypingIndicatorResponse, RemoveMemberRequest, RemoveMemberResponse, RemoveUserRequest, RemoveUserResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, LiftSuspensionRequest, LiftSuspensionResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, ListSuspensionsRequest, ListSuspensionsResponse, RefreshTypingIndicatorRequest, RefreshTypingIndicatorResponse, RemoveMemberRequest, RemoveMemberResponse, RemoveUserRequest, RemoveUserResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
+import { BatchGetRoomReadStatesRequest, BatchGetRoomReadStatesResponse, GetRoomReadStateRequest, GetRoomReadStateResponse, MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 import { BatchGetMembersRequest, BatchGetMembersResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
 
@@ -23,6 +23,42 @@ import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsR
 export const RoomService = {
   typeName: "chatto.api.v1.RoomService",
   methods: {
+    /**
+     * Reads a channel notice. Requires current room membership, including in
+     * archived rooms. A room without a notice returns an empty body.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.GetNotice
+     */
+    getNotice: {
+      name: "GetNotice",
+      I: GetNoticeRequest,
+      O: GetNoticeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Publishes, corrects, or explicitly republishes a notice. Requires current
+     * membership and room.manage-notice. Archived rooms reject writes. A stale
+     * expected_version returns ABORTED; preserve the draft and reload before retry.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.PublishNotice
+     */
+    publishNotice: {
+      name: "PublishNotice",
+      I: PublishNoticeRequest,
+      O: PublishNoticeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Clears a notice under the same access and version rules as PublishNotice.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.ClearNotice
+     */
+    clearNotice: {
+      name: "ClearNotice",
+      I: ClearNoticeRequest,
+      O: ClearNoticeResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Reads the current viewer's stored marker without changing it. Requires the
      * same membership and read access as MarkRoomAsRead. Missing resources

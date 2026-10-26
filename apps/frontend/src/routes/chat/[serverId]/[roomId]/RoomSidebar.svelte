@@ -60,6 +60,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import RoomFilesPanel from './RoomFilesPanel.svelte';
   import RoomSearchPanel from './RoomSearchPanel.svelte';
   import RoomInformationPanel from './RoomInformationPanel.svelte';
+  import type { RoomNoticeStore } from '@chatto/client/room/notice';
 
   let {
     loading = false,
@@ -81,6 +82,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onSearchFocused,
     filesStore,
     pinsStore,
+    noticeStore,
+    canManageNotice = false,
     livekitUrl,
     fileGroupingNow,
     onOpenFileMessage,
@@ -111,6 +114,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onSearchFocused?: () => void;
     filesStore?: RoomFilesStore;
     pinsStore?: RoomPinsStore;
+    noticeStore?: RoomNoticeStore;
+    canManageNotice?: boolean;
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onOpenFileMessage?: (messageEventId: string, threadRootEventId: string | null) => void;
@@ -546,6 +551,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
       memberCount={membersStore.hasFirstPage ? memberCount : null}
       {isUniversal}
       {pinsStore}
+      {noticeStore}
+      {canManageNotice}
       {onOpenPin}
     />
   {:else if activePanel === 'call'}

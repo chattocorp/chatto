@@ -144,6 +144,12 @@ socket.
 
 ## Mounted public services
 
+`RoomService` owns member-only channel notice reads and version-checked publish
+and clear commands. `RoomCommandModel` evaluates membership and
+`room.manage-notice`, rejects archived writes, and commits through room aggregate
+OCC. Commands wait for the Room Directory projection before returning. See
+[FDR-053](../fdr/FDR-053-room-notices.md).
+
 | Package               | Public services                                                                                                                                                                                                                                                                                                                                                  | Auth policy                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |

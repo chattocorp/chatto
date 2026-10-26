@@ -24,6 +24,7 @@ their frames.
     title?: string;
     /** Optional rich title content, with title kept as a plain-text fallback. */
     titleContent?: Snippet;
+    /** Follows the title and wraps below it when the available width is too small. */
     subtitle?: string | Snippet;
     icon?: string;
     count?: number;
@@ -51,7 +52,7 @@ their frames.
         titleHiddenOnNarrow && !subtitle && !actions && 'max-md:py-0'
       ]}
     >
-      <div class="min-w-0">
+      <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2
           class={[
             'flex items-center gap-2 text-base font-semibold text-text-top',
@@ -67,7 +68,7 @@ their frames.
           {/if}
         </h2>
         {#if subtitle}
-          <p class="text-sm text-muted">
+          <p class="max-w-full min-w-0 text-sm text-muted">
             {#if typeof subtitle === 'string'}
               {subtitle}
             {:else}

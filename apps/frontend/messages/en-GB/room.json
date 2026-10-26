@@ -1,5 +1,23 @@
 {
   "room": {
+    "notice": {
+      "title": "Room notice",
+      "dismiss": "Dismiss",
+      "reopen": "Show notice",
+      "body": "Notice (Markdown)",
+      "too_long": "Notices can contain at most {max} characters, including whitespace.",
+      "help": "Save corrections without showing the notice again. Announce to show it again to members who dismissed it on their devices.",
+      "conflict": "This notice changed while you were editing. Your draft is still here. Copy it if needed, then load the current notice before saving again.",
+      "reload": "Load current notice",
+      "save": "Update",
+      "republish": "Announce",
+      "clear": "Clear",
+      "clear_confirm_title": "Clear room notice?",
+      "clear_confirm_description": "This immediately removes the active notice for everyone in the room. Your unsaved edits will not be published.",
+      "empty": "No notice has been published.",
+      "edit": "Edit notice",
+      "retry": "Retry"
+    },
     "information": {
       "description": "Description",
       "created": "Created",

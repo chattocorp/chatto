@@ -44,6 +44,7 @@ type roomCatalogEntry struct {
 	slowModeSeconds       uint32
 	threadSlowModeSeconds *uint32
 	threadingMode         evtv1.RoomThreadingMode
+	notice                *evtv1.RoomNotice
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -91,6 +92,10 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if entry := p.rooms[u.GetRoomId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
+		}
+	case *evtv1.Event_RoomNoticeChanged:
+		if entry := p.rooms[e.RoomNoticeChanged.GetRoomId()]; entry != nil {
+			entry.notice = noticeAfterChange(entry.notice, event)
 		}
 	case *evtv1.Event_RoomArchived:
 		if entry := p.rooms[e.RoomArchived.GetRoomId()]; entry != nil {
@@ -216,6 +221,7 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) Ro
 func entryToRoom(id string, entry *roomCatalogEntry) *evtv1.Room {
 	r := &evtv1.Room{
 		CreatedAt:             entry.createdAt,
+		Notice:                entry.notice,
 		Id:                    id,
 		Name:                  entry.name,
 		Description:           entry.description,

@@ -62,3 +62,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-050](FDR-050-provider-group-roles.md)                  | Provider Group Roles                  | Active       | 2026-10-14    |
 | [FDR-051](FDR-051-room-invitations.md)                      | Room Invitations                      | Experimental | 2026-10-22    |
 | [FDR-052](FDR-052-message-send-retries.md)                  | Message Send Retries                  | Experimental | 2026-10-08    |
+| [FDR-053](FDR-053-room-notices.md)                          | Room Notices                          | Experimental | 2026-10-25    |

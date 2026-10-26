@@ -241,6 +241,7 @@ a snapshot or a ConnectRPC resource.
 | `event.room_invitation_created` | [`RoomInvitationCreatedEvent`](#chatto-realtime-v1-RoomInvitationCreatedEvent) | No field description provided. |
 | `event.room_invitation_accepted` | [`RoomInvitationAcceptedEvent`](#chatto-realtime-v1-RoomInvitationAcceptedEvent) | No field description provided. |
 | `event.room_invitation_declined` | [`RoomInvitationDeclinedEvent`](#chatto-realtime-v1-RoomInvitationDeclinedEvent) | No field description provided. |
+| `event.room_notice_changed` | [`RoomNoticeChangedEvent`](#chatto-realtime-v1-RoomNoticeChangedEvent) | No field description provided. |
 
 <a id="chatto-realtime-v1-AllMessageMention"></a>
 
@@ -615,6 +616,17 @@ An invitation declined. Delivered only to its sender and recipient.
 RoomLayoutChangedEvent reports a change to room groups, their entries, or order.
 Refresh RoomDirectoryService.ListRoomGroups with this event's cursor as the
 minimum boundary. The event contains no room IDs or other hidden layout data.
+
+<a id="chatto-realtime-v1-RoomNoticeChangedEvent"></a>
+
+### RoomNoticeChangedEvent
+
+RoomNoticeChangedEvent asks current room members to read the latest notice.
+It covers corrections, publication, republishing, and clear operations.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
 
 <a id="chatto-realtime-v1-RoomReadStateChangedEvent"></a>
 

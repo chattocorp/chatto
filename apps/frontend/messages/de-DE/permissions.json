@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Raumhinweise veröffentlichen, korrigieren, erneut veröffentlichen und entfernen",
       "server_manage": "Servereinstellungen aktualisieren (Name, Beschreibung, Logo)",
       "server_manage_neighbors": "Öffentliches Nachbarverzeichnis verwalten",
       "room_create": "Neue Räume erstellen",
