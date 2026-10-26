@@ -85,12 +85,17 @@ func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T)
 		t.Fatal(err)
 	}
 	policy := ExternalIdentitySignInPolicy{Issuers: []string{"https://example.com", "https://alternate.example.com"}}
+	// A stored password must not bypass the cross-replica guard when password
+	// login is disabled. Use self attribution, as in the account API.
+	if err := first.SetPasswordHash(ctx, owner.Id, "password123"); err != nil {
+		t.Fatal(err)
+	}
 	start = make(chan struct{})
 	for i, replica := range []*ChattoCore{first, second} {
 		hash := []string{externalIdentityHash("https://example.com", "shared"), alternate.SubjectHash}[i]
 		go func() {
 			<-start
-			results <- replica.DisconnectExternalIdentityAs(ctx, SystemActorID, owner.Id, hash, policy)
+			results <- replica.DisconnectExternalIdentityAs(ctx, owner.Id, owner.Id, hash, policy)
 		}()
 	}
 	close(start)
@@ -117,6 +122,84 @@ func TestOperatorIdentityConcurrentClaimsAndRemovalsAcrossReplicas(t *testing.T)
 	identities, err := replayed.ExternalIdentitiesForUser(ctx, owner.Id)
 	if err != nil || len(identities) != 1 {
 		t.Fatalf("replayed identities = %v, %v", identities, err)
+	}
+}
+
+func TestLegacyOIDCCompletionAcrossReplicas(t *testing.T) {
+	t.Parallel()
+	for _, unlink := range []bool{false, true} {
+		t.Run(map[bool]string{false: "concurrent completion", true: "concurrent unlink"}[unlink], func(t *testing.T) {
+			t.Parallel()
+			ns, _ := testutil.StartNATS(t)
+			ctx := testContext(t)
+			first := startReplica(t, ns, testCoreConfig())
+			second := startReplica(t, ns, testCoreConfig())
+			user, err := first.CreateUser(ctx, SystemActorID, "legacy-race", "Legacy Race", "password123")
+			if err != nil {
+				t.Fatal(err)
+			}
+			issuer, subject := "https://legacy.example", "legacy-subject"
+			hash := externalIdentityHash(issuer, subject)
+			legacy := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserOidcSubjectLinked{
+				UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{UserId: user.Id, SubjectHash: hash},
+			}})
+			if _, err := first.appendUserEvent(ctx, user.Id, legacy, "", nil); err != nil {
+				t.Fatal(err)
+			}
+			if err := second.userModel.waitForUsersCurrent(ctx, "legacy fixture", evtstream.UserSubjectFilter()); err != nil {
+				t.Fatal(err)
+			}
+			if err := second.userModel.waitForUserAuthCurrent(ctx, "legacy fixture"); err != nil {
+				t.Fatal(err)
+			}
+			start := make(chan struct{})
+			results := make(chan error, 2)
+			go func() {
+				<-start
+				results <- first.CompleteLegacyOIDCIdentityLink(ctx, user.Id, "company", issuer, subject)
+			}()
+			go func() {
+				<-start
+				if unlink {
+					results <- second.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
+				} else {
+					results <- second.CompleteLegacyOIDCIdentityLink(ctx, user.Id, "company", issuer, subject)
+				}
+			}()
+			close(start)
+			for range 2 {
+				select {
+				case err := <-results:
+					if err != nil {
+						t.Fatal(err)
+					}
+				case <-ctx.Done():
+					t.Fatal(ctx.Err())
+				}
+			}
+			replayed := startReplica(t, ns, testCoreConfig())
+			// Completion after restart must also leave missing links missing.
+			if err := replayed.CompleteLegacyOIDCIdentityLink(ctx, user.Id, "company", issuer, subject); err != nil {
+				t.Fatal(err)
+			}
+			identities, err := replayed.ExternalIdentitiesForUser(ctx, user.Id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if unlink {
+				if len(identities) != 0 {
+					t.Fatal("completion recreated the unlinked identity")
+				}
+			} else {
+				if len(identities) != 1 || identities[0].Issuer != issuer {
+					t.Fatalf("replayed identities = %v", identities)
+				}
+				facts, _, err := first.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserExternalIdentityLinked))
+				if err != nil || len(facts) != 1 {
+					t.Fatalf("completion facts = %d, error = %v", len(facts), err)
+				}
+			}
+		})
 	}
 }
 

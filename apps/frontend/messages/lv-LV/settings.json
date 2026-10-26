@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Pakalpojumu sniedzēju nevar atvienot",
-          "body": "{provider} ir jūsu vienīgā pierakstīšanās metode. Vispirms pievienojiet paroli vai piesaistiet citu pakalpojumu sniedzēju."
+          "body": "Pirms atvienojat {provider}, iestatiet citu šī servera atbalstītu pierakstīšanās metodi."
         },
         "fresh_auth_modal": {
           "title": "Apstipriniet paroli",

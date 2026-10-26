@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Anbieter kann nicht getrennt werden",
-          "body": "{provider} ist deine einzige Anmeldemethode. Füge zuerst ein Passwort hinzu oder verknüpfe einen weiteren Anbieter."
+          "body": "Richte eine weitere von diesem Server unterstützte Anmeldemethode ein, bevor du {provider} trennst."
         },
         "fresh_auth_modal": {
           "title": "Passwort bestätigen",

@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provider kan de verbinding niet verbreken",
-          "body": "{provider} is uw enige aanmeldingsmethode. Voeg een wachtwoord toe of koppel eerst een andere provider."
+          "body": "Stel een andere aanmeldmethode in die door deze server wordt ondersteund voordat u {provider} loskoppelt."
         },
         "fresh_auth_modal": {
           "title": "Bevestig wachtwoord",

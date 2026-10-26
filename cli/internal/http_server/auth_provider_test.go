@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +20,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -26,6 +29,8 @@ import (
 	josejwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/markbates/goth"
 	gothgithub "github.com/markbates/goth/providers/github"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
@@ -588,6 +593,56 @@ func TestProviderGroupRestrictionAppliesToEverySignInAndLink(t *testing.T) {
 	if identities, err := chattoCore.ExternalIdentitiesForUser(t.Context(), target.Id); err != nil || len(identities) != 0 {
 		t.Fatalf("ExternalIdentitiesForUser = %v, %v; want no link", identities, err)
 	}
+}
+
+// Hash-only links become usable alternatives after a verified sign-in, without
+// requiring a groups claim or group-role mappings.
+func TestOIDCLoginCompletesLegacyLinkWithoutGroupRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Auth.DirectLogin = new(false)
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "company", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret",
+		}}
+		s.setupOIDCRoutes()
+	})
+	ctx := t.Context()
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "legacy-login", "Legacy Login", "")
+	require.NoError(t, err)
+	issuer.SetSubject("legacy-subject")
+	digest := sha256.Sum256([]byte(issuer.URL() + ":legacy-subject"))
+	hash := hex.EncodeToString(digest[:])
+	legacy := &evtv1.Event{
+		Id: core.NewEventID(), ActorId: core.SystemActorID, CreatedAt: timestamppb.Now(),
+		Event: &evtv1.Event_UserOidcSubjectLinked{UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{
+			UserId: user.Id, SubjectHash: hash,
+		}},
+	}
+	_, err = chattoCore.EventPublisher.AppendEventually(ctx, evtstream.UserAggregate(user.Id).SubjectFor(legacy), legacy)
+	require.NoError(t, err)
+	// The next guarded user mutation catches up the legacy event before returning.
+	github, err := chattoCore.LinkExternalIdentityAs(ctx, core.SystemActorID, "github", "github", "github", "github-subject", user.Id)
+	require.NoError(t, err)
+	policy := core.ExternalIdentitySignInPolicy{Issuers: []string{issuer.URL(), "github"}}
+	require.ErrorIs(t, chattoCore.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, github.SubjectHash, policy), core.ErrExternalIdentityLastMethod)
+	for range 2 {
+		require.Equal(t, "/chat", completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"))
+	}
+	identities, err := chattoCore.ExternalIdentitiesForUser(ctx, user.Id)
+	require.NoError(t, err)
+	index := slices.IndexFunc(identities, func(identity core.ExternalIdentity) bool { return identity.SubjectHash == hash })
+	require.NotEqual(t, -1, index)
+	require.Equal(t, issuer.URL(), identities[index].Issuer)
+	require.Equal(t, "company", identities[index].ProviderID)
+	require.True(t, policy.CanDisconnect(github.SubjectHash, identities, false))
+	require.NoError(t, chattoCore.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, github.SubjectHash, policy))
+	linkedEvents, _, err := chattoCore.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserExternalIdentityLinked))
+	require.NoError(t, err)
+	require.Len(t, linkedEvents, 2, "one GitHub link and one idempotent OIDC completion")
 }
 
 // group_roles applies at sign-in, at identity links, and carries the groups
