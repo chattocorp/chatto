@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Ruumi teadete avaldamine, parandamine, uuesti väljakuulutamine ja eemaldamine",
       "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
       "server_manage_neighbors": "Avaliku naabrite kataloogi haldamine",
       "room_create": "Looge uusi ruume",

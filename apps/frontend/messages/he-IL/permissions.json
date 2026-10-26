@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "פרסום, תיקון, הכרזה מחדש וניקוי של הודעות החדר",
       "server_manage": "עדכון הגדרות שרת (שם, תיאור, לוגו)",
       "server_manage_neighbors": "ניהול מדריך השכנים הציבורי",
       "room_create": "צור חדרים חדשים",

@@ -147,6 +147,7 @@
       "call": "Rozmowy"
     },
     "permission_help": {
+      "room_manage_notice": "Pozwala członkowi zarządzać ogłoszeniem w aktywnym pokoju kanału, ale nie samym pokojem. Nowe instancje przyznają to uprawnienie tylko roli Admin; aktualizacje zachowują istniejące uprawnienia.",
       "server_manage": "Pozwala kontu zmieniać nazwę, opis, logo i inne ustawienia serwera. Pozwala też zmieniać publiczny katalog sąsiadów. Nadawaj je tylko osobom, które mogą wypowiadać się w imieniu całego serwera.",
       "server_manage_neighbors": "Pozwala kontu dodawać, zmieniać i usuwać wpisy w publicznym katalogu sąsiadów. Nie pozwala zmieniać innych ustawień serwera.",
       "room_create": "Pozwala kontu tworzyć pokoje kanałów. Na poziomie grupy pokoi pozwala tworzyć nowe pokoje tylko w tej grupie.",
