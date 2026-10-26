@@ -60,6 +60,99 @@ mise test-desktop
 mise desktop-build
 ```
 
+To build and open a local macOS app with its own screen-recording permission, use:
+
+```sh
+mise desktop-run-dev
+```
+
+`mise desktop-build-dev` builds the app without opening it. To open an existing
+build, run `open "apps/desktop/dist/Chatto Desktop Dev.app"` from the repository
+root. Quit a running dev app before rebuilding it to test the new binary.
+
+This creates **Chatto Desktop Dev** (`run.chatto.desktop.dev`) with a separate
+capture-helper identity and app-data directory. Sign in and grant permission
+to the dev app once. The official app keeps `run.chatto.desktop`; switching
+between these installs does not replace its permission identity.
+
+An ad-hoc signature changes when the binary changes, so macOS can still ask
+again after a dev rebuild. Use the same installed code-signing certificate
+for each build to keep its permission identity stable. List valid identities
+with `security find-identity -v -p codesigning`. An Apple Development certificate
+is sufficient for local builds; notarisation is not required.
+
+Create `mise.local.toml` at the repository root with the exact certificate name:
+
+```toml
+[tasks.desktop-build-dev.env]
+CHATTO_MACOS_SIGN_IDENTITY = "Apple Development: Your Name (IDENTIFIER)"
+```
+
+This file is gitignored. Both `mise desktop-build-dev` and
+`mise desktop-run-dev` now use that identity. The setting applies only to the
+development build task. After you switch from ad-hoc signing, macOS can require
+one more permission grant and app restart. Later builds should retain that
+grant while the signing identity stays the same. Quit the dev app before
+rebuilding it. Do not reset the official app's permissions to repair a dev build.
+
+Local development builds skip online signature timestamps to reduce build time.
+Certificate signing stays enabled. Release builds and builds configured for
+notarisation retain online timestamps. The build prints when signing starts
+and reports the time when signing and packaging finish. A signing failure stops
+the build.
+
+### Screen-share diagnostics and codec selection
+
+Native macOS screen sharing defaults to tuned H.264 in development and release
+builds. It sends one layer, prioritizes resolution, and uses hardware VBR on
+macOS 26 or later. The target is at most 6 Mbps and the video maximum is
+8 Mbps; both follow WebRTC's network allowance. Older macOS versions and Macs
+that reject VBR setup use tuned average-rate H.264 at 90% of that allowance.
+Audio and transport overhead are additional. Receivers must support H.264
+Constrained High profile at level 4.2 or above.
+
+The **Diagnostics** menu retains explicit average-rate and VBR comparisons,
+stock H.264, and HEVC. Select a mode, then stop and start sharing. Select
+**Default: Tuned H.264 (Automatic VBR) for Next Share** to restore the default.
+Explicit VBR reports an error if unsupported. The stock H.264 and HEVC options
+use 8/4/1 Mbps simulcast limits. HEVC needs receiver and LiveKit server support;
+an explicit server rejection retries H.264. No mode publishes two codecs at once.
+If a viewer cannot receive HEVC, return to H.264 and restart sharing.
+
+To test resolution priority, select **Test H.264 Single Layer (8 Mbps,
+Resolution First) for Next Share**, then restart sharing. This test publishes
+one video layer with the same capture settings and frame-rate limit. It prefers
+to preserve resolution and lets frame rate decrease under pressure. Its video
+ceiling is 8 Mbps; audio and transport overhead are additional. It does not force a
+constant bitrate. All viewers receive the same encoded resolution. Select
+either regular codec option to restore simulcast and frame-rate priority on the
+next share. Diagnostic samples include `maintainsResolution` to identify the
+adaptation preference.
+
+To report a problem, share a moving scene for at least 15 seconds, then select
+**Diagnostics → Copy Screen Sharing Diagnostics**. Paste the report into the
+issue or conversation. Reports contain the last 60 lifecycle and performance
+records from this app process. Native publisher samples arrive every second
+for the first 20 seconds, then every five seconds. They also appear on the
+terminal when the app is launched from one.
+
+Each sample reports negotiated codec/profile, encoder category, capture and
+encoded dimensions, fps, target and measured bitrate, mean QP, encoding time,
+quality-limit reason, packet-loss counters, retransmissions, and round-trip
+delay when the SDK supplies them. Missing values mean unavailable; QP values
+must be compared within the same codec. The first sample has no measured rate
+because it establishes the counter baseline. Reports cover the native
+publisher, not the viewer's decoder or the browser screen-share path.
+
+Each record identifies whether simulcast is enabled and lists its configured
+video layer ceilings in `limitsBps`. `availableOutgoingBps`, when available,
+is WebRTC's bandwidth estimate for the shared publisher transport, including
+audio. It is not a separate budget for each layer or a speed-test result.
+
+Reports stay in memory and contain no account or source names, participant or
+track IDs, server addresses, IP addresses, tokens, or encryption keys. Copying
+puts the report on the clipboard; the app does not send it to a service.
+
 The build task first produces the frontend, then packages the host-platform
 bundle beneath `apps/desktop/dist/`. macOS builds include the native
 ScreenCaptureKit game-capture helper and its pinned LiveKit frameworks. CI

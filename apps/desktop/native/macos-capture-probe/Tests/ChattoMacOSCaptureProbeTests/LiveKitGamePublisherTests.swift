@@ -9,10 +9,11 @@ import Testing
 
 @Test
 func gameVideoOptionsPublishThreeGamingLayers() throws {
-  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60)
+  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h265)
 
   #expect(options.simulcast)
-  #expect(options.preferredCodec == .h264)
+  #expect(options.preferredCodec == .h265)
+  #expect(options.preferredBackupCodec == nil)
   #expect(options.degradationPreference == .maintainFramerate)
   #expect(options.streamName == "game-capture")
 
@@ -44,6 +45,64 @@ func lowerLayersDoNotExceedRequestedFrameRate() {
 }
 
 @Test
+func omittedCodecDefaultsToH264WithoutABackupCodec() {
+  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60)
+  #expect(options.preferredCodec == .h264)
+  #expect(options.preferredBackupCodec == nil)
+  #expect(options.screenShareEncoding?.maxBitrate == 8_000_000)
+}
+
+@Test
+func singleLayerH264TestPreservesTheFullResolutionBudget() throws {
+  let options = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h264, simulcast: false)
+  let regular = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60, codec: .h264)
+  #expect(!options.simulcast)
+  #expect(options.screenShareSimulcastLayers.isEmpty)
+  #expect(options.preferredCodec == .h264)
+  #expect(options.preferredBackupCodec == nil)
+  #expect(options.screenShareEncoding == regular.screenShareEncoding)
+  #expect(options.degradationPreference == .maintainResolution)
+  #expect(regular.degradationPreference == .maintainFramerate)
+  #expect(options.streamName == regular.streamName)
+
+  let diagnostic = PublisherDiagnostic(phase: "sample", requestedCodec: "h264", simulcast: false, maintainsResolution: true, availableOutgoingBps: 6_000_000)
+  let json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(diagnostic)) as? [String: Any])
+  #expect(json["simulcast"] as? Bool == false)
+  #expect(json["maintainsResolution"] as? Bool == true)
+  #expect(json["availableOutgoingBps"] as? Double == 6_000_000)
+}
+
+@Test
+func developmentAndReleaseWindowsAreExcludedFromCapture() {
+  #expect(isChattoDesktopApplication("run.chatto.desktop"))
+  #expect(isChattoDesktopApplication("run.chatto.desktop.dev"))
+  #expect(!isChattoDesktopApplication("com.example.game"))
+  #expect(!LiveKitGamePublisher.capturesAudio(for: .window(42), windowBundleIdentifier: "run.chatto.desktop.dev"))
+}
+
+@Test
+func diagnosticRatesUseCounterDeltasAndHandleResetOrInactiveStreams() throws {
+  let start = VideoCounterSample(timestamp: 1_000_000, bytes: 100, frames: 10, qp: 200, encodeSeconds: 0.2)
+  let next = VideoCounterSample(timestamp: 2_000_000, bytes: 1_000_100, frames: 70, qp: 1400, encodeSeconds: 0.5)
+  let rates = next.rates(since: start)
+  #expect(rates.bps == 8_000_000)
+  #expect(rates.qp == 20)
+  #expect(abs(try #require(rates.encodeMs) - 5) < 0.0001)
+  #expect(start.rates(since: next).bps == nil)
+  #expect(start.rates(since: start).bps == nil)
+  #expect(next.rates(since: nil).bps == nil)
+  let idle = VideoCounterSample(timestamp: 3_000_000, bytes: next.bytes, frames: next.frames, qp: next.qp, encodeSeconds: next.encodeSeconds)
+  #expect(idle.rates(since: next).bps == 0)
+  #expect(idle.rates(since: next).qp == nil)
+  let reset = VideoCounterSample(timestamp: 4_000_000, bytes: 0, frames: 0, qp: 0, encodeSeconds: 0)
+  #expect(reset.rates(since: idle).bps == nil)
+  #expect(PublisherDiagnostics.encoderCategory("VideoToolbox" ) == "VideoToolbox")
+  #expect(PublisherDiagnostics.encoderCategory("arbitrary private text") == "unknown")
+  #expect(PublisherDiagnostics.codecProfile("level-asymmetry-allowed=1;profile-level-id=640c34") == "640c34")
+  #expect(PublisherDiagnostics.codecProfile("profile-id=private text") == nil)
+}
+
+@Test
 func nativePublisherRoomEnablesDynacast() {
   let videoOptions = LiveKitGamePublisher.makeVideoPublishOptions(frameRate: 60)
   let audioOptions = AudioPublishOptions()
@@ -56,6 +115,41 @@ func nativePublisherRoomEnablesDynacast() {
   #expect(roomOptions.dynacast)
   #expect(roomOptions.defaultVideoPublishOptions == videoOptions)
   #expect(roomOptions.defaultAudioPublishOptions == audioOptions)
+}
+
+@Test
+func intervalDiagnosticsAlignRatesAndPreserveMissingCounters() throws {
+  let start = VideoCounterSample(
+    timestamp: 1_000_000, bytes: 100, frames: 10, qp: nil, encodeSeconds: nil,
+    targetBytes: 200, sentFrames: 8, sentPackets: 100, packetSendSeconds: 1
+  )
+  let end = VideoCounterSample(
+    timestamp: 3_000_000, bytes: 1_000_100, frames: 110, qp: 3900, encodeSeconds: 1,
+    targetBytes: 2_000_200, sentFrames: 98, sentPackets: 300, packetSendSeconds: 1.4
+  )
+  let rates = end.rates(since: start)
+  #expect(rates.intervalMs == 2000)
+  #expect(rates.bps == 4_000_000)
+  #expect(rates.encodedTargetBps == 8_000_000)
+  #expect(rates.encodedFps == 50)
+  #expect(rates.sentFps == 45)
+  #expect(abs(try #require(rates.packetSendDelayMs) - 2) < 0.0001)
+  #expect(rates.qp == nil)
+  #expect(rates.encodeMs == nil)
+
+  let reset = VideoCounterSample(
+    timestamp: 4_000_000, bytes: 0, frames: 120, qp: 4290, encodeSeconds: 1.1,
+    targetBytes: nil, sentFrames: 0, sentPackets: 300, packetSendSeconds: 1.4
+  ).rates(since: end)
+  #expect(reset.bps == nil)
+  #expect(reset.encodedTargetBps == nil)
+  #expect(reset.sentFps == nil)
+  #expect(reset.packetSendDelayMs == nil)
+  #expect(reset.encodedFps == 10)
+  #expect(reset.qp == 39)
+
+  let invalid = VideoCounterSample(timestamp: .infinity, bytes: 1, frames: 1, qp: 1, encodeSeconds: 1)
+  #expect(invalid.rates(since: start).intervalMs == nil)
 }
 
 @Test

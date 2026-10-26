@@ -1,4 +1,4 @@
-import { mkdir, readdir, rename, rm } from 'node:fs/promises';
+import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packager } from '@electron/packager';
@@ -7,17 +7,20 @@ import { pruneElectronLocales } from './locales.mjs';
 import { embedMacOSCaptureHelper } from './macos-capture-helper.mjs';
 import { macOSDistributionOptions } from './macos-signing.mjs';
 import { macOSVersions, releaseBuildVersion } from './version.mjs';
+import { desktopBuildProfile } from '../build_profile.mjs';
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = path.resolve(desktopRoot, '../..');
 const distRoot = path.join(desktopRoot, 'dist');
 const packagerOut = path.join(distRoot, '.packager');
 const platform = process.platform;
+const profile = desktopBuildProfile(process.env.CHATTO_DESKTOP_BUILD);
 const electronChecksum = process.env.CHATTO_ELECTRON_CHECKSUM;
 const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${process.arch}.zip`;
 const embedCaptureHelper = platform === 'darwin';
 const macVersions = platform === 'darwin' ? macOSVersions(packageJson.version) : undefined;
 const macOSDistribution = macOSDistributionOptions(platform, process.env);
+let signingStartedAt;
 const supportedLocales = (
   await readdir(path.resolve(desktopRoot, '../frontend/messages'), {
     withFileTypes: true
@@ -34,11 +37,30 @@ const [bundleRoot] = await packager({
   out: packagerOut,
   overwrite: true,
   asar: true,
-  name: packageJson.productName,
+  name: profile.productName,
   executableName: platform === 'darwin' ? undefined : 'chatto-desktop',
   appVersion: macVersions?.shortVersion ?? packageJson.version,
   buildVersion: macVersions?.bundleVersion ?? releaseBuildVersion(packageJson.version),
-  appBundleId: 'run.chatto.desktop',
+  appBundleId: profile.bundleIdentifier,
+  afterCopy: [
+    async ({ buildPath }) => {
+      // Electron reads this metadata before main starts. Separate names also
+      // separate its default session and single-instance lock.
+      await writeFile(
+        path.join(buildPath, 'package.json'),
+        JSON.stringify(
+          {
+            ...packageJson,
+            name: profile.packageName,
+            productName: profile.productName,
+            chattoBuildVariant: profile.variant
+          },
+          null,
+          2
+        )
+      );
+    }
+  ],
   icon:
     platform === 'win32'
       ? path.join(desktopRoot, 'icons/icon.ico')
@@ -66,12 +88,27 @@ const [bundleRoot] = await packager({
           const appBundle = path.resolve(buildPath, '../../..');
           const prunedLocales = await pruneElectronLocales(appBundle, platform, supportedLocales);
           logPrunedLocales(prunedLocales);
-          await embedMacOSCaptureHelper(appBundle, macVersions);
+          await embedMacOSCaptureHelper(appBundle, {
+            ...macVersions,
+            bundleIdentifier: `${profile.bundleIdentifier}.capture-helper`
+          });
         }
       ]
     : undefined,
   osxSign: macOSDistribution.osxSign,
   osxNotarize: macOSDistribution.osxNotarize,
+  afterCopyExtraResources: macOSDistribution.osxSign
+    ? [
+        async () => {
+          signingStartedAt = performance.now();
+          console.log(
+            macOSDistribution.osxNotarize
+              ? 'Signing and notarising macOS app and nested code...'
+              : 'Signing macOS app and nested code...'
+          );
+        }
+      ]
+    : undefined,
   ignore: [
     /^\/dist(?:\/|$)/,
     /^\/native(?:\/|$)/,
@@ -81,14 +118,20 @@ const [bundleRoot] = await packager({
   ]
 });
 
+if (signingStartedAt !== undefined) {
+  console.log(
+    `macOS signing and packaging finished in ${((performance.now() - signingStartedAt) / 1000).toFixed(1)}s`
+  );
+}
+
 const appBundle =
-  platform === 'darwin' ? path.join(bundleRoot, `${packageJson.productName}.app`) : bundleRoot;
+  platform === 'darwin' ? path.join(bundleRoot, `${profile.productName}.app`) : bundleRoot;
 if (platform !== 'darwin') {
   logPrunedLocales(await pruneElectronLocales(appBundle, platform, supportedLocales));
 }
 
 if (platform === 'darwin') {
-  await rename(appBundle, path.join(distRoot, `${packageJson.productName}.app`));
+  await rename(appBundle, path.join(distRoot, `${profile.productName}.app`));
 } else if (platform === 'win32') {
   await rename(bundleRoot, path.join(distRoot, 'windows'));
 } else {
@@ -96,6 +139,14 @@ if (platform === 'darwin') {
 }
 
 await rm(packagerOut, { recursive: true, force: true });
+
+console.log(`Desktop build complete: ${distRoot}`);
+if (platform === 'darwin' && profile.variant === 'development') {
+  console.log(
+    'To open it from the repository root: open "apps/desktop/dist/Chatto Desktop Dev.app"'
+  );
+  console.log('To build and open it next time: mise desktop-run-dev');
+}
 
 function logPrunedLocales(prunedLocales) {
   console.log(

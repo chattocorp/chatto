@@ -10,6 +10,7 @@ Thumbs.db
 
 # Env
 .env
+/mise.local.toml
 .env.*
 !.env.example
 !.env.test

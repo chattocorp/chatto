@@ -20,6 +20,12 @@ private let previewMaximumWidth = 480
 private let previewMaximumHeight = 270
 let chattoDesktopApplicationBundleIdentifier = "run.chatto.desktop"
 
+/// Both installs can play remote call audio. Never offer either as a source.
+func isChattoDesktopApplication(_ bundleIdentifier: String?) -> Bool {
+  bundleIdentifier == chattoDesktopApplicationBundleIdentifier
+    || bundleIdentifier == "run.chatto.desktop.dev"
+}
+
 private enum ProbeError: LocalizedError {
   case invalidArguments(String)
   case sourceNotFound(String)
@@ -94,7 +100,7 @@ private enum Command {
       case .window:
         guard
           let bundleIdentifier = options.expectedWindowBundleIdentifier,
-          bundleIdentifier != chattoDesktopApplicationBundleIdentifier
+          !isChattoDesktopApplication(bundleIdentifier)
         else {
           throw ProbeError.invalidArguments(
             "Window publishing requires --expected-window-bundle for a non-Chatto application."
@@ -803,8 +809,7 @@ private struct CaptureProbe {
       .filter { window in
         window.isOnScreen && window.windowLayer == 0 && window.owningApplication != nil
           && window.frame.width >= 320 && window.frame.height >= 180
-          && window.owningApplication?.bundleIdentifier
-            != chattoDesktopApplicationBundleIdentifier
+          && !isChattoDesktopApplication(window.owningApplication?.bundleIdentifier)
       }
       .sorted { lhs, rhs in
         let applicationOrder = (lhs.owningApplication?.applicationName ?? "")
