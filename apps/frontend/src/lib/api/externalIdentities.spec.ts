@@ -1,6 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import { createExternalIdentityAPI, createExternalIdentityFlowAPI } from './externalIdentities';
 import { ExternalIdentityFlowKind } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
@@ -88,16 +89,18 @@ describe('createExternalIdentityFlowAPI', () => {
 });
 
 describe('createExternalIdentityAPI', () => {
-  it.each([true, false, undefined])(
-    'preserves the optional disconnect hint: %s',
-    async (canDisconnect) => {
-      account.listExternalIdentities.mockReturnValue({
-        linkedIdentities: [{ subjectHash: 'identity', canDisconnect }]
-      });
-      const result = await createExternalIdentityAPI(config()).list();
-      expect(result.linkedIdentities[0]?.canDisconnect).toBe(canDisconnect);
-    }
-  );
+  it.each([
+    DisconnectEligibility.ALLOWED,
+    DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+    DisconnectEligibility.UNSPECIFIED,
+    99
+  ])('preserves disconnect eligibility: %s', async (disconnectEligibility) => {
+    account.listExternalIdentities.mockReturnValue({
+      linkedIdentities: [{ subjectHash: 'identity', disconnectEligibility }]
+    });
+    const result = await createExternalIdentityAPI(config()).list();
+    expect(result.linkedIdentities[0]?.disconnectEligibility).toBe(disconnectEligibility);
+  });
 
   it('lists providers and resolves provider links against the server origin', async () => {
     account.listExternalIdentities.mockReturnValue({
@@ -143,7 +146,8 @@ describe('createExternalIdentityAPI', () => {
           providerId: 'github-main',
           providerType: 'github',
           providerLabel: 'GitHub',
-          subjectHash: 'abc123'
+          subjectHash: 'abc123',
+          disconnectEligibility: DisconnectEligibility.UNSPECIFIED
         }
       ]
     });

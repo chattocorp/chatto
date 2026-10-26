@@ -187,7 +187,10 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	policy := s.api.externalIdentitySignInPolicy()
 	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
 	for _, identity := range linked {
-		identity.CanDisconnect = new(policy.CanDisconnect(identity.SubjectHash, identities, hasPassword))
+		identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD
+		if policy.CanDisconnect(identity.SubjectHash, identities, hasPassword) {
+			identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED
+		}
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),

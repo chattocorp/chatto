@@ -263,8 +263,12 @@ func TestAccountUnlinkRequiresEnabledSignInMethod(t *testing.T) {
 			for _, row := range list.Msg.LinkedIdentities {
 				if row.SubjectHash == identity.SubjectHash {
 					found = true
-					if row.CanDisconnect == nil || row.GetCanDisconnect() != tc.allowed {
-						t.Fatalf("can_disconnect = %v, want %v", row.CanDisconnect, tc.allowed)
+					want := apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD
+					if tc.allowed {
+						want = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED
+					}
+					if row.GetDisconnectEligibility() != want {
+						t.Fatalf("disconnect_eligibility = %v, want %v", row.GetDisconnectEligibility(), want)
 					}
 				}
 			}

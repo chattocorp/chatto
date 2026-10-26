@@ -1,6 +1,7 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
     openAuthorizationWindow,
@@ -242,11 +243,21 @@
   // Account state can reflect a newly set password before this list refreshes.
   // Older servers lack the hint, so retain their count-based fallback.
   function canDisconnectIdentity(subjectHash: string) {
-    return (
-      canUsePasswordProof ||
-      (linkedIdentities.find((identity) => identity.subjectHash === subjectHash)?.canDisconnect ??
-        linkedIdentities.length > 1)
-    );
+    const eligibility = linkedIdentities.find(
+      (identity) => identity.subjectHash === subjectHash
+    )?.disconnectEligibility;
+    switch (eligibility) {
+      case DisconnectEligibility.ALLOWED:
+        return true;
+      case DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD:
+        return canUsePasswordProof;
+      case DisconnectEligibility.UNSPECIFIED:
+      case undefined:
+        return canUsePasswordProof || linkedIdentities.length > 1;
+      default:
+        // A newer server can explain an unknown restriction when the user tries.
+        return true;
+    }
   }
 
   function providerIcon(type: string): string {
@@ -417,7 +428,7 @@
         if (!session.isCurrent(variables)) return;
         if (
           refreshed.data?.linkedIdentities.find((identity) => identity.subjectHash === subjectHash)
-            ?.canDisconnect === false
+            ?.disconnectEligibility === DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
         ) {
           blockedDisconnectProviderLabel = providerLabel;
           showDisconnectBlockedModal = true;

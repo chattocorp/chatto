@@ -1,4 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
+import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { page as browserPage } from 'vitest/browser';
 import { flushSync } from 'svelte';
@@ -132,7 +133,8 @@ function linkedIdentityList() {
         providerId: 'github-main',
         providerType: 'github',
         providerLabel: 'GitHub',
-        subjectHash: 'subject-1'
+        subjectHash: 'subject-1',
+        disconnectEligibility: DisconnectEligibility.UNSPECIFIED
       }
     ]
   };
@@ -171,12 +173,15 @@ describe('external identity settings query lifecycle', () => {
   it('uses the server hint instead of counting unusable linked identities', async () => {
     mocks.directLoginEnabled = false;
     const list = linkedIdentityList();
-    Object.assign(list.linkedIdentities[0], { canDisconnect: false });
+    Object.assign(list.linkedIdentities[0], {
+      disconnectEligibility: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
+    });
     list.linkedIdentities.push({
       providerId: 'obsolete',
       providerType: 'oidc',
       providerLabel: 'Obsolete',
-      subjectHash: 'obsolete-subject'
+      subjectHash: 'obsolete-subject',
+      disconnectEligibility: DisconnectEligibility.UNSPECIFIED
     });
     mocks.list.mockResolvedValue(list);
     renderSettings();
@@ -187,26 +192,33 @@ describe('external identity settings query lifecycle', () => {
     expect(mocks.disconnect).not.toHaveBeenCalled();
   });
 
-  it('allows disconnect when the server confirms another enabled method', async () => {
-    mocks.directLoginEnabled = false;
-    const list = linkedIdentityList();
-    Object.assign(list.linkedIdentities[0], { canDisconnect: true });
-    mocks.list.mockResolvedValue(list);
-    renderSettings();
-    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
-    await expect
-      .element(browserPage.getByRole('dialog', { name: 'Disconnect provider' }))
-      .toBeVisible();
-  });
+  it.each([DisconnectEligibility.ALLOWED, 99])(
+    'allows the server to check eligibility %s',
+    async (disconnectEligibility) => {
+      mocks.directLoginEnabled = false;
+      const list = linkedIdentityList();
+      Object.assign(list.linkedIdentities[0], { disconnectEligibility });
+      mocks.list.mockResolvedValue(list);
+      renderSettings();
+      await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+      await expect
+        .element(browserPage.getByRole('dialog', { name: 'Disconnect provider' }))
+        .toBeVisible();
+    }
+  );
 
   it('refreshes a stale disconnect hint before asking for reauthentication', async () => {
     const list = linkedIdentityList();
-    Object.assign(list.linkedIdentities[0], { canDisconnect: true });
+    Object.assign(list.linkedIdentities[0], {
+      disconnectEligibility: DisconnectEligibility.ALLOWED
+    });
     mocks.list.mockResolvedValue(list);
     renderSettings();
     await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
     const refreshed = linkedIdentityList();
-    Object.assign(refreshed.linkedIdentities[0], { canDisconnect: false });
+    Object.assign(refreshed.linkedIdentities[0], {
+      disconnectEligibility: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
+    });
     mocks.list.mockResolvedValue(refreshed);
     mocks.disconnect.mockRejectedValue(new ConnectError('last method', Code.FailedPrecondition));
     await browserPage

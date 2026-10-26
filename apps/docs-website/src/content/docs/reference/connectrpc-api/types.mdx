@@ -895,7 +895,7 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_type` | `string` | Provider type recorded when the identity was linked. |
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
-| `can_disconnect` | `optional bool` | Whether another enabled sign-in method would remain after disconnecting this identity. Set by ListExternalIdentities; absent on older servers. This hint does not replace fresh authentication or the disconnect check. |
+| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
 
 <a id="chatto-api-v1-PrivilegedModeState"></a>
 
@@ -2101,6 +2101,19 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
+
+<a id="chatto-api-v1-DisconnectEligibility"></a>
+
+### DisconnectEligibility
+
+Eligibility to disconnect an identity at the time it is listed.
+This does not replace fresh authentication or the mutation's eligibility check.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
+| `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
+| `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
 
 <a id="chatto-api-v1-TimeFormat"></a>
 
