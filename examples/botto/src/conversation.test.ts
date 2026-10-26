@@ -113,6 +113,9 @@ test('restart retains the ID without replaying completed work', async () => {
   await runTurn(original.source, 'one', work);
   const id = original.store.sourceRuns('source')[0]!.id;
   await original.store.close();
+  // The replacement owns this directory now. Do not close the old store again
+  // alongside it in afterEach: that would start two snapshot writers.
+  stores.splice(stores.indexOf(original.store), 1);
   const resumed = await setup(original.directory);
   expect(resumed.store.sourceRuns('source').map((run) => run.id)).toEqual([id]);
   expect(work).toHaveBeenCalledOnce();
