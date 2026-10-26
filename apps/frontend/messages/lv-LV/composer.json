@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Teksta efekti",
+      "color-red": "Sarkans",
+      "color-orange": "Oranžs",
+      "color-yellow": "Dzeltens",
+      "color-green": "Zaļš",
+      "color-blue": "Zils",
+      "color-purple": "Violets",
+      "text-glow": "Mirdzums",
+      "text-rainbow": "Varavīksne",
+      "text-wave": "Vilnis",
+      "text-shake": "Drebēšana"
+    },
     "attach_file": "Pievienojiet failu",
     "formatting_options": "Formatēšanas opcijas",
     "send": "Nosūtīt ziņu",

@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Efeitos de texto",
+      "color-red": "Vermelho",
+      "color-orange": "Laranja",
+      "color-yellow": "Amarelo",
+      "color-green": "Verde",
+      "color-blue": "Azul",
+      "color-purple": "Roxo",
+      "text-glow": "Brilho",
+      "text-rainbow": "Arco-íris",
+      "text-wave": "Onda",
+      "text-shake": "Tremor"
+    },
     "attach_file": "Anexar arquivo",
     "formatting_options": "Opções de formatação",
     "send": "Enviar mensagem",

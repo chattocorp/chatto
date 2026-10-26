@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Текстові ефекти",
+      "color-red": "Червоний",
+      "color-orange": "Помаранчевий",
+      "color-yellow": "Жовтий",
+      "color-green": "Зелений",
+      "color-blue": "Синій",
+      "color-purple": "Фіолетовий",
+      "text-glow": "Сяйво",
+      "text-rainbow": "Веселка",
+      "text-wave": "Хвиля",
+      "text-shake": "Тремтіння"
+    },
     "attach_file": "Прикріпити файл",
     "formatting_options": "Параметри форматування",
     "send": "Надіслати повідомлення",

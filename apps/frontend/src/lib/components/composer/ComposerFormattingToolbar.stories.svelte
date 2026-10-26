@@ -10,6 +10,7 @@
 </script>
 
 <script lang="ts">
+  import { isTextDecoration } from '@chatto/client/messaging/textDecorations';
   import type { ComposerEditorApi, ComposerFormattingState } from './editorTypes';
 
   let visible = $state(false);
@@ -35,7 +36,8 @@
     replaceTextBeforeCursor: () => {},
     insertText: () => {},
     toggleFormatting: (command) => {
-      if (command !== 'footnote') formattingState[command] = !formattingState[command];
+      if (command !== 'footnote' && !isTextDecoration(command))
+        formattingState[command] = !formattingState[command];
     },
     adjustIndent: () => true,
     insertQuote: () => {}

@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Teksteffekter",
+      "color-red": "Rød",
+      "color-orange": "Oransje",
+      "color-yellow": "Gul",
+      "color-green": "Grønn",
+      "color-blue": "Blå",
+      "color-purple": "Lilla",
+      "text-glow": "Glød",
+      "text-rainbow": "Regnbue",
+      "text-wave": "Bølge",
+      "text-shake": "Risting"
+    },
     "attach_file": "Legg ved fil",
     "formatting_options": "Formateringsalternativer",
     "send": "Send melding",

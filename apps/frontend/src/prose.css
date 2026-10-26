@@ -346,6 +346,101 @@
   --composer-code-attribute: #ffa657;
 }
 
+:is(.prose, .tiptap-editor) {
+  --decoration-red: #b4232c;
+  --decoration-orange: #984500;
+  --decoration-yellow: #796000;
+  --decoration-green: #16703b;
+  --decoration-blue: #175cbb;
+  --decoration-purple: #7934ba;
+}
+:root[data-theme='dark'] :is(.prose, .tiptap-editor) {
+  --decoration-red: #ff9696;
+  --decoration-orange: #ffb36b;
+  --decoration-yellow: #e8d36d;
+  --decoration-green: #78d69b;
+  --decoration-blue: #8cbbff;
+  --decoration-purple: #d2a2ff;
+}
+/* Fixed inline effects preserve wrapping, selection, and connected scripts.
+ * Animate the whole phrase without splitting glyphs or changing line layout. */
+:is(.prose, .tiptap-editor) .color-red {
+  color: var(--decoration-red);
+}
+:is(.prose, .tiptap-editor) .color-orange {
+  color: var(--decoration-orange);
+}
+:is(.prose, .tiptap-editor) .color-yellow {
+  color: var(--decoration-yellow);
+}
+:is(.prose, .tiptap-editor) .color-green {
+  color: var(--decoration-green);
+}
+:is(.prose, .tiptap-editor) .color-blue {
+  color: var(--decoration-blue);
+}
+:is(.prose, .tiptap-editor) .color-purple {
+  color: var(--decoration-purple);
+}
+:is(.prose, .tiptap-editor) .text-glow {
+  text-shadow: 0 0 0.4em color-mix(in srgb, currentColor 30%, transparent);
+}
+:is(.prose, .tiptap-editor) .text-rainbow {
+  color: var(--decoration-purple);
+  background: linear-gradient(
+    100deg,
+    var(--decoration-red),
+    var(--decoration-orange),
+    var(--decoration-green),
+    var(--decoration-blue),
+    var(--decoration-purple)
+  );
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :is(.prose, .tiptap-editor) .text-wave {
+    position: relative;
+    animation: chatto-text-wave 1s ease-in-out 3;
+  }
+  :is(.prose, .tiptap-editor) .text-shake {
+    position: relative;
+    animation: chatto-text-shake 0.3s ease-in-out 6;
+  }
+}
+@keyframes chatto-text-wave {
+  0%,
+  100% {
+    top: 0;
+  }
+  25% {
+    top: -0.12em;
+  }
+  75% {
+    top: 0.12em;
+  }
+}
+@keyframes chatto-text-shake {
+  0%,
+  100% {
+    left: 0;
+  }
+  25% {
+    left: -0.06em;
+  }
+  75% {
+    left: 0.06em;
+  }
+}
+@media (forced-colors: active) {
+  :is(.prose, .tiptap-editor) .text-decoration {
+    color: CanvasText;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    text-shadow: none;
+  }
+}
+
 /* Compact prose - for inline contexts like MOTD */
 .prose-compact {
   & p {

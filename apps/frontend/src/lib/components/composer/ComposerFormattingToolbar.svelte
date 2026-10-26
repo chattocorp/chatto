@@ -9,8 +9,14 @@ block in the DOM until it finishes.
 -->
 <script lang="ts">
   import { FadeScale, PillButtonGroup } from '$lib/ui';
+  import { Select } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { usesAppleShortcutModifier } from '$lib/utils/platformShortcuts';
+  import {
+    TEXT_DECORATIONS,
+    isTextDecoration,
+    type TextDecoration
+  } from '@chatto/client/messaging/textDecorations';
   import type {
     ComposerEditorApi,
     ComposerFormattingCommand,
@@ -36,7 +42,7 @@ block in the DOM until it finishes.
   } = $props();
 
   const formattingGroups: {
-    command: ComposerFormattingCommand;
+    command: Exclude<ComposerFormattingCommand, TextDecoration>;
     icon: string;
   }[][] = [
     [
@@ -57,7 +63,7 @@ block in the DOM until it finishes.
     ]
   ];
 
-  function formattingLabel(command: ComposerFormattingCommand): string {
+  function formattingLabel(command: Exclude<ComposerFormattingCommand, TextDecoration>): string {
     switch (command) {
       case 'bold':
         return m('composer.format.bold');
@@ -150,6 +156,25 @@ block in the DOM until it finishes.
         {/each}
       </PillButtonGroup>
     {/each}
+    <div class="w-36 shrink-0">
+      <Select
+        id={`${id}-effects`}
+        label={m('composer.effects.title')}
+        labelHidden
+        placeholder={m('composer.effects.title')}
+        options={TEXT_DECORATIONS.map((tag) => ({
+          value: tag,
+          label: m(`composer.effects.${tag}`)
+        }))}
+        disabled={inputDisabled ||
+          !editorApi ||
+          formattingState.codeBlock ||
+          formattingState.inlineCode}
+        onValueChange={(tag) => {
+          if (isTextDecoration(tag)) editorApi?.toggleFormatting(tag);
+        }}
+      />
+    </div>
   </div>
 {/snippet}
 

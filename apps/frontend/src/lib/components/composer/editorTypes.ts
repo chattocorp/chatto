@@ -1,4 +1,5 @@
 import type { QuoteInsertionContent } from '$lib/state/room';
+import type { TextDecoration } from '@chatto/client/messaging/textDecorations';
 
 export type ComposerFormattingCommand =
   | 'bold'
@@ -10,10 +11,11 @@ export type ComposerFormattingCommand =
   | 'orderedList'
   | 'blockquote'
   | 'codeBlock'
-  | 'footnote';
+  | 'footnote'
+  | TextDecoration;
 
 export type ComposerFormattingState = Record<
-  Exclude<ComposerFormattingCommand, 'footnote'>,
+  Exclude<ComposerFormattingCommand, 'footnote' | TextDecoration>,
   boolean
 >;
 

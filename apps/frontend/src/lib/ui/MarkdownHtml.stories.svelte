@@ -12,6 +12,15 @@
 <script lang="ts">
   import { renderMarkdown } from '$lib/markdown';
 
+  const effectsHtml = renderMarkdown(
+    '**Incoming transmission**\n\n' +
+      '<text-wave>Welcome aboard, captain.</text-wave>\n\n' +
+      'Reactor <color-green>ONLINE</color-green> · Shields <color-blue>CHARGED</color-blue>\n\n' +
+      'Cargo: <color-purple><text-glow>one extremely suspicious egg</text-glow></color-purple>\n\n' +
+      '<text-shake>It is moving.</text-shake>\n\n' +
+      'Achievement unlocked: <text-rainbow>QUESTIONABLE DECISIONS</text-rainbow>'
+  );
+
   const tableHtml = renderMarkdown(`| Release | Status | Owner | Compatibility | Notes |
 | :--- | :---: | ---: | :--- | :--- |
 | 0.4.8 | **Stable** | Core team | Server and bundled client | Current production release |
@@ -115,6 +124,16 @@
   <div class="w-xl max-w-full rounded-md border border-border bg-surface p-3">
     <div class="prose max-w-none min-w-0">
       {#await ansiHtml then html}
+        <MarkdownHtml {html} />
+      {/await}
+    </div>
+  </div>
+</Story>
+
+<Story name="Inline text effects" asChild>
+  <div class="w-xl max-w-full rounded-md border border-border bg-surface p-4">
+    <div class="prose max-w-none min-w-0">
+      {#await effectsHtml then html}
         <MarkdownHtml {html} />
       {/await}
     </div>

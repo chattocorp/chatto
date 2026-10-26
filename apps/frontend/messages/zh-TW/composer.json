@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "文字效果",
+      "color-red": "紅色",
+      "color-orange": "橘色",
+      "color-yellow": "黃色",
+      "color-green": "綠色",
+      "color-blue": "藍色",
+      "color-purple": "紫色",
+      "text-glow": "發光",
+      "text-rainbow": "彩虹",
+      "text-wave": "波浪",
+      "text-shake": "抖動"
+    },
     "attach_file": "附加檔案",
     "formatting_options": "格式選項",
     "send": "傳送訊息",

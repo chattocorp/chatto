@@ -8,6 +8,7 @@ import { configureMarkdownLinks } from './markdownLinks';
 import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
+import { textDecorationsPlugin } from './textDecorations';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
 
@@ -460,6 +461,7 @@ function initialize(): void {
 
   // Disable unwanted syntax - only keep what we explicitly want
   md.disable([...DISABLED_RULES]);
+  md.use(textDecorationsPlugin);
 
   // Named footnotes share the normal block and inline formatting rules.
   // Keep Pandoc's inline-note extension disabled so renderInlineMarkdown

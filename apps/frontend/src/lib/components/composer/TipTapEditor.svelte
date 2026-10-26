@@ -16,6 +16,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
+  import { isTextDecoration, TEXT_DECORATIONS } from '@chatto/client/messaging/textDecorations';
   import { openRenderedLink } from '$lib/navigation/renderedLink';
   import { isAllowedMarkdownLink } from '$lib/markdownLinks';
   import { tick, untrack } from 'svelte';
@@ -407,6 +408,20 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
       toggleFormatting: (command: ComposerFormattingCommand) => {
         if (e.isDestroyed) return;
+
+        if (isTextDecoration(command)) {
+          if (e.isActive('code') || e.isActive('codeBlock')) return;
+          const active = e.isActive(command);
+          const chain = e.chain().focus();
+          // One color and one effect per selection keep toolbar output predictable.
+          for (const tag of TEXT_DECORATIONS) {
+            if (tag.split('-')[0] === command.split('-')[0]) chain.unsetMark(tag);
+          }
+          if (!active) chain.setMark(command);
+          chain.run();
+          tick().then(syncControls);
+          return;
+        }
 
         const chain = e.chain().focus();
         switch (command) {

@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "تأثيرات النص",
+      "color-red": "أحمر",
+      "color-orange": "برتقالي",
+      "color-yellow": "أصفر",
+      "color-green": "أخضر",
+      "color-blue": "أزرق",
+      "color-purple": "بنفسجي",
+      "text-glow": "توهج",
+      "text-rainbow": "قوس قزح",
+      "text-wave": "موجة",
+      "text-shake": "اهتزاز"
+    },
     "attach_file": "قم بإرفاق الملف",
     "formatting_options": "خيارات التنسيق",
     "send": "أرسل الرسالة",

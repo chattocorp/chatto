@@ -2,6 +2,21 @@
   "$comment": "Mention extraction cases shared by the server (cli/internal/core/mentions_test.go) and the frontend (apps/frontend/src/lib/markdownMentions.test.ts). Each body must yield exactly the listed handles, in order.",
   "cases": [
     {
+      "name": "inline text decorations",
+      "body": "<color-blue>@alice</color-blue> and <text-wave>@bob</text-wave>",
+      "mentions": [
+        "alice",
+        "bob"
+      ]
+    },
+    {
+      "name": "decorated link labels and code stay excluded",
+      "body": "[<color-blue>@alice</color-blue>](https://example.com) `<text-wave>@bob</text-wave>` <text-glow>@carol</text-glow>",
+      "mentions": [
+        "carol"
+      ]
+    },
+    {
       "name": "single mention",
       "body": "Hey @alice, how are you?",
       "mentions": [

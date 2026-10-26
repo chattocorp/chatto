@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Efekty tekstu",
+      "color-red": "Czerwony",
+      "color-orange": "Pomarańczowy",
+      "color-yellow": "Żółty",
+      "color-green": "Zielony",
+      "color-blue": "Niebieski",
+      "color-purple": "Fioletowy",
+      "text-glow": "Poświata",
+      "text-rainbow": "Tęcza",
+      "text-wave": "Fala",
+      "text-shake": "Drżenie"
+    },
     "attach_file": "Załącz plik",
     "formatting_options": "Opcje formatowania",
     "send": "Wyślij wiadomość",

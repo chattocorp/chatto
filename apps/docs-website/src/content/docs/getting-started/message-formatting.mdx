@@ -77,7 +77,7 @@ In either editor, select **Underline** in the formatting toolbar or press
 | Desktop   | Waiting |
 ```
 
-Chatto displays source HTML, horizontal rules, reference-style links, and setext headings as literal text. Markdown image syntax does not embed remote images; upload an attachment instead. Label a fenced code block with a supported language, such as `js`, `go`, or `ruby`, to highlight its programming syntax while composing and after sending.
+Except for the text color and effect tags below, Chatto displays source HTML as literal text. Horizontal rules, reference-style links, and setext headings also stay literal. Markdown image syntax does not embed remote images; upload an attachment instead. Label a fenced code block with a supported language, such as `js`, `go`, or `ruby`, to highlight its programming syntax while composing and after sending.
 
 In the visual editor, paste into a code block without a language, or leave the block after typing, to detect its language. The editor saves its guess so the posted message uses the same syntax colors. You can change the language in the block's selector. Choose **TEXT** to keep the block as plain text. Existing blocks do not change merely because you open a message for editing.
 
@@ -93,6 +93,34 @@ When you select one of these links in a message, known servers open in your
 current client. Unknown servers open externally.
 
 Right-click an image attachment in a message and select **Copy Image** to paste the image into another app. Use **Download** in the attachment viewer to save the original file.
+
+### Text colors and effects
+
+Use these tags inside normal message text:
+
+```text
+Build <color-green>passed</color-green>.
+<text-wave>Welcome aboard</text-wave>, captain.
+You found <color-purple><text-glow>rare loot</text-glow></color-purple>!
+<text-shake>It is moving.</text-shake>
+Achievement: <text-rainbow>QUESTIONABLE DECISIONS</text-rainbow>
+```
+
+Colors are `color-red`, `color-orange`, `color-yellow`, `color-green`,
+`color-blue`, and `color-purple`. They adapt to the reader's light or dark theme.
+Effects are `text-glow`, `text-rainbow`, `text-wave`, and `text-shake`.
+Glow and rainbow are static. Wave and shake move the whole phrase, then stop
+within three seconds. They stay still when your device requests reduced motion.
+
+Keep each opening and closing tag on the same source line. You can nest up to
+four tags and use Markdown inside them. Tag names are lowercase and accept no
+attributes. Other HTML remains literal text. Put examples in backticks or a
+code block to show the tags without applying them.
+
+In either editor, select text, open **Formatting options**, and choose a color
+or effect from **Text effects**. The visual editor previews the result. The
+Markdown editor shows the tags. Bots send the same tags in the message body;
+no special API field is needed. Older clients can show the tags as text.
 
 ### ANSI art
 

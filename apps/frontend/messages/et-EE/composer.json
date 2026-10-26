@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Tekstiefektid",
+      "color-red": "Punane",
+      "color-orange": "Oranž",
+      "color-yellow": "Kollane",
+      "color-green": "Roheline",
+      "color-blue": "Sinine",
+      "color-purple": "Lilla",
+      "text-glow": "Kuma",
+      "text-rainbow": "Vikerkaar",
+      "text-wave": "Laine",
+      "text-shake": "Värin"
+    },
     "attach_file": "Manusta fail",
     "formatting_options": "Vormindusvalikud",
     "send": "Saada sõnum",

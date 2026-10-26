@@ -1,6 +1,7 @@
 import { syntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import type { ComposerFormattingCommand, ComposerFormattingState } from './editorTypes';
+import { isTextDecoration } from '@chatto/client/messaging/textDecorations';
 
 export type SourceSelection = { anchor: number; head: number };
 export type SourceFormattingResult = SourceSelection & { text: string };
@@ -20,6 +21,27 @@ export function applySourceFormatting(
   selection: SourceSelection,
   command: ComposerFormattingCommand
 ): SourceFormattingResult {
+  if (isTextDecoration(command)) {
+    const from = Math.min(selection.anchor, selection.head);
+    const to = Math.max(selection.anchor, selection.head);
+    const selected = text.slice(from, to);
+    if (selected.includes('\n')) {
+      const decorated = selected
+        .split('\n')
+        .map((line) => {
+          if (!line) return line;
+          return `<${command}>${line}</${command}>`;
+        })
+        .join('\n');
+      const end = from + decorated.length;
+      return {
+        text: text.slice(0, from) + decorated + text.slice(to),
+        anchor: selection.anchor <= selection.head ? from : end,
+        head: selection.anchor <= selection.head ? end : from
+      };
+    }
+    return toggleInline(text, selection, `<${command}>`, `</${command}>`);
+  }
   if (command === 'footnote') return insertFootnote(text, selection);
   const delimiter = inlineDelimiters[command];
   if (delimiter) return toggleInline(text, selection, ...delimiter);

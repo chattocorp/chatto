@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "テキスト効果",
+      "color-red": "赤",
+      "color-orange": "オレンジ",
+      "color-yellow": "黄",
+      "color-green": "緑",
+      "color-blue": "青",
+      "color-purple": "紫",
+      "text-glow": "発光",
+      "text-rainbow": "虹色",
+      "text-wave": "波",
+      "text-shake": "振動"
+    },
     "attach_file": "ファイルを添付",
     "formatting_options": "書式設定オプション",
     "send": "メッセージを送信",

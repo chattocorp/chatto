@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Texteffekte",
+      "color-red": "Rot",
+      "color-orange": "Orange",
+      "color-yellow": "Gelb",
+      "color-green": "Grün",
+      "color-blue": "Blau",
+      "color-purple": "Violett",
+      "text-glow": "Leuchten",
+      "text-rainbow": "Regenbogen",
+      "text-wave": "Welle",
+      "text-shake": "Zittern"
+    },
     "attach_file": "Datei anhängen",
     "formatting_options": "Formatierungsoptionen",
     "send": "Nachricht senden",
