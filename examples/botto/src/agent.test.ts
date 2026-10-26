@@ -19,6 +19,7 @@ vi.mock('./thread-context.ts', () => ({ threadContextExtension: vi.fn(() => () =
 
 const directories: string[] = [];
 afterEach(async () => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true }))
@@ -74,6 +75,22 @@ test('uses Runling with explicit extensions, no ambient resources, and the origi
   expect(session.run).toHaveBeenCalledWith(ctx, 'hello', { signal });
   expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce();
   expect(transcriptName(identity)).not.toBe(transcriptName(['server', 'other', 'room', 'thread']));
+});
+
+test('refreshes the current UTC date when a later turn opens its session', async () => {
+  const { agent } = await setup();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  for (const date of ['2026-10-26', '2026-10-27']) {
+    vi.setSystemTime(new Date(`${date}T00:00:01Z`));
+    await agent.reply(createTaskContext(), {
+      identity: ['server', 'bot', 'room', 'thread'],
+      prompt: 'What is in this image?',
+      signal: new AbortController().signal
+    });
+    expect(mock.create.mock.calls.at(-1)![0].systemPrompt).toContain(
+      `Current date (UTC): ${date}.`
+    );
+  }
 });
 
 test('refreshes private memory context per batch without changing system instructions', async () => {

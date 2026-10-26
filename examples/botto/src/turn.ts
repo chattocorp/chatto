@@ -10,12 +10,17 @@ import { hasTranscript } from './messages.ts';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { TaskContext } from 'runling';
 import { conversationIdentity } from './threads.ts';
+import { readImages } from './images.ts';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
   settings: Settings,
   botId: string,
-  server: Pick<Server, 'postMessage' | 'withTyping' | 'addReaction' | 'getMessage'> & ContextSource,
+  server: Pick<
+    Server,
+    'postMessage' | 'withTyping' | 'addReaction' | 'getMessage' | 'readAttachment'
+  > &
+    ContextSource,
   agent: Awaited<ReturnType<typeof createAgent>>,
   shutdown: AbortSignal,
   beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
@@ -40,9 +45,21 @@ export function createTurnHandler(
       destination,
       async () => {
         // Read-only failures remain queued and can be retried after reconnect.
-        const context = await safeStep(
+        const snapshot = await safeStep(
           'Thread context read',
           () => readContext(server, destination, settings.contextMessages, signal),
+          metrics
+        );
+        const context = await safeStep(
+          'Read images',
+          () =>
+            readImages(
+              server,
+              destination.roomId,
+              snapshot,
+              messages.map((item) => item.id),
+              signal
+            ),
           metrics
         );
         // Resolve reply authors before starting effects. Targets can be outside

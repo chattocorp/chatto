@@ -40,12 +40,12 @@ export async function hasTranscript(
   }
 }
 
-/** Accept verified addressing for one of the `respondTo` reasons, or ordinary text
+/** Accept verified addressing for one of the `respondTo` reasons, or text and images
  * in a thread Botto already participates in. Passive messages use an empty reasons
  * list. The caller still checks the author and enforces its allowlist before
  * enqueueing; self messages never qualify. */
 export async function incomingMessage(
-  server: Pick<Server, 'accountId' | 'addressedMessage'>,
+  server: Pick<Server, 'accountId' | 'addressedMessage' | 'getMessage'>,
   event: RealtimeEvent,
   isActive: (location: ThreadLocation) => Promise<boolean>,
   signal: AbortSignal,
@@ -60,7 +60,16 @@ export async function incomingMessage(
   )
     return;
   const posted = event.event.value;
-  if (!posted.roomId || !posted.bodyPlaintext?.trim()) return;
+  if (!posted.roomId || posted.bodyPlaintext === undefined) return;
+  // Realtime events contain no attachment metadata. Read only when text is absent.
+  if (!posted.bodyPlaintext.trim()) {
+    const message = await server.getMessage(
+      { roomId: posted.roomId, messageId: event.id },
+      { signal }
+    );
+    if (!message?.attachments?.some((attachment) => attachment.contentType.startsWith('image/')))
+      return;
+  }
   // An explicit reply selects its recipient, even when it also mentions the bot.
   if (posted.threadRootEventId && posted.inReplyTo)
     return respondTo.includes('reply')

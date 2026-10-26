@@ -32,6 +32,33 @@ test('selects recent text, keeps the root, and sees realtime edits and deletions
   rooms.dispose();
 });
 
+test('keeps image-only messages without copying signed asset addresses', async () => {
+  const image = row('one', '');
+  if (image.event.kind !== 'messagePosted') throw new Error('Expected a message');
+  image.event.attachments = [
+    {
+      id: 'image',
+      filename: 'image.png',
+      contentType: 'image/png',
+      width: 50,
+      height: 50,
+      assetUrl: { url: '/assets/private?ticket=secret', expiresAt: '2026-10-26T00:00:00Z' }
+    }
+  ];
+  const { server, rooms } = contextFixture(Promise.resolve(page([row('root', 'Root'), image])));
+  try {
+    const result = await read(server);
+    expect(result.messages.at(-1)).toMatchObject({
+      id: 'one',
+      text: '',
+      attachments: [{ id: 'image', contentType: 'image/png' }]
+    });
+    expect(JSON.stringify(result)).not.toContain('ticket');
+  } finally {
+    rooms.dispose();
+  }
+});
+
 test('reports omitted older replies when the first page has older events', async () => {
   const { server, rooms } = contextFixture(Promise.resolve(page([row('root', 'Root')], true)));
   expect((await read(server)).olderContextOmitted).toBe(true);

@@ -1,4 +1,4 @@
-/** Select Pi's text context from the client's shared, realtime thread timeline. */
+/** Select Pi's message context from the client's shared, realtime thread timeline. */
 import type { Server, ThreadLocation } from '@chatto/client';
 import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
 import { computed, subscribe } from '@chatto/client/reactivity';
@@ -15,7 +15,7 @@ export type ContextSource = Pick<Server, 'accountId' | 'status'> & {
  * Botto waits while Chatto reconnects. It makes one more attempt: it reads again
  * when a load fails, or gets the timeline again when the client disposed it
  * during the wait. The returned context contains the root and up to limit recent
- * text replies; limit must fit in one thread page (50 replies). */
+ * replies with text or attachments; limit must fit in one thread page (50 replies). */
 export async function readContext(
   server: ContextSource,
   location: ThreadLocation,
@@ -74,13 +74,26 @@ function selectContext(
 ): ThreadContext {
   const messages = store.threadEvents.flatMap((event) => {
     const payload = event.event;
-    if (payload.kind !== TimelineEventKind.MessagePosted || payload.deletedAt || !payload.body)
+    if (
+      payload.kind !== TimelineEventKind.MessagePosted ||
+      payload.deletedAt ||
+      (!payload.body && !payload.attachments.length)
+    )
       return [];
     return [
       {
         id: event.id,
         author: event.actorId ?? undefined,
-        text: payload.body,
+        text: payload.body ?? '',
+        ...(payload.attachments.length
+          ? {
+              attachments: payload.attachments.map(({ id, filename, contentType }) => ({
+                id,
+                filename,
+                contentType
+              }))
+            }
+          : {}),
         fromViewer: viewerId !== null && event.actorId === viewerId
       }
     ];

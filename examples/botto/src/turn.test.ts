@@ -4,7 +4,7 @@ import type { AddressedMessage, Destination, Server } from '@chatto/client';
 import { Inbox } from './inbox.ts';
 import { createTurnHandler } from './turn.ts';
 import { parseSettings } from './settings.ts';
-import { contextFixture, row } from './context.fixture.ts';
+import { contextFixture, page, row } from './context.fixture.ts';
 import { hasTranscript } from './messages.ts';
 import { createTaskContext } from 'runling';
 
@@ -34,6 +34,7 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
   const server = {
     ...fixture.server,
     getMessage: vi.fn<Server['getMessage']>().mockResolvedValue(undefined),
+    readAttachment: vi.fn<Server['readAttachment']>(),
     addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
     postMessage: vi.fn<Server['postMessage']>().mockResolvedValue({ ids: ['reply'] }),
     withTyping: async <T>(_destination: Destination, work: () => Promise<T>) => work()
@@ -63,6 +64,28 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
   const two: AddressedMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
   return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
+
+test('passes image-only message pixels as request context, not persisted prompt text', async () => {
+  const { turn, one, history, server, agent } = setup();
+  const image = row('one', '');
+  if (image.event.kind !== 'messagePosted') throw new Error('Expected message');
+  image.event.attachments = [
+    { id: 'image', filename: 'image.png', contentType: 'image/png', width: 10, height: 10 }
+  ];
+  history.mockResolvedValue(page([row('root', 'Root'), image]));
+  server.readAttachment.mockResolvedValue({
+    filename: 'image.png',
+    contentType: 'image/png',
+    data: new Uint8Array([1, 2, 3])
+  });
+  await turn([{ ...one, body: '' }]);
+  const input = agent.reply.mock.calls[0]![1];
+  expect(input.context?.images).toEqual([
+    { messageId: 'one', attachmentId: 'image', mimeType: 'image/png', data: 'AQID' }
+  ]);
+  expect(input.prompt).not.toContain('AQID');
+  expect(server.postMessage).toHaveBeenCalledOnce();
+});
 
 test('a failed durable start prevents reactions, model calls, and reply posts', async () => {
   const beforeEffects = vi.fn(() => {
