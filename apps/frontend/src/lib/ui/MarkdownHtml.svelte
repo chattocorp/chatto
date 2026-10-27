@@ -81,17 +81,9 @@ targets are unique to each component, including when callers reuse rendered HTML
   // delegated listener on this component's DOM root.
   function attachMarkdownActions(element: HTMLDivElement) {
     element.addEventListener('click', handleClick);
-    // Message rows start their touch/long-press gesture before click. Header
-    // controls own the whole gesture, not just its final activation event.
-    const gestures = [
-      'pointerdown',
-      'pointerup',
-      'mousedown',
-      'mouseup',
-      'touchstart',
-      'touchend',
-      'dblclick'
-    ] as const;
+    // Block the message row's long-press/selection gestures, while letting
+    // pointer events reach document-level outside-press dismissal handlers.
+    const gestures = ['mousedown', 'mouseup', 'touchstart', 'touchend'] as const;
     const consumeControlGesture = (event: Event) => {
       if (event.target instanceof Element && event.target.closest('.markdown-code-header button')) {
         event.stopPropagation();

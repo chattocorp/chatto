@@ -22,6 +22,8 @@ vi.mock('$lib/client', async () => ({
 vi.mock('$lib/ui/toast', () => ({ toast: toastMocks }));
 
 import MarkdownHtml from './MarkdownHtml.svelte';
+import FloatingPopover from './FloatingPopover.svelte';
+import { testSnippet } from '$lib/test-utils';
 
 let originalClipboard: PropertyDescriptor | undefined;
 
@@ -342,6 +344,27 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it.each(['source', 'render', 'copy'])(
+    'dismisses an open popover when pressing %s',
+    async (control) => {
+      const { container } = render(MarkdownHtml, {
+        html: await renderMarkdown('```ansi\nART\n```')
+      });
+      const onclose = vi.fn();
+      const popover = render(FloatingPopover, {
+        position: { x: 400, y: 300 },
+        onclose,
+        children: testSnippet('<div>Open menu</div>')
+      });
+      // Outside-press dismissal is attached on the frame after opening.
+      await new Promise(requestAnimationFrame);
+      const selector = control === 'copy' ? '[data-markdown-copy]' : `[data-code-tab="${control}"]`;
+      await userEvent.click(container.querySelector(selector)!);
+      expect(onclose).toHaveBeenCalledOnce();
+      await popover.unmount();
+    }
+  );
+
   it('numbers source lines without changing copied text and keeps the gutter fixed', async () => {
     const source = 'first\n\n' + 'long '.repeat(80) + '\nlast\n';
     const { container } = render(MarkdownHtml, {
@@ -408,16 +431,9 @@ describe('MarkdownHtml code copy', () => {
       html: await renderMarkdown('```ansi\nART\n```')
     });
     const parentGesture = vi.fn();
-    const events = [
-      'click',
-      'pointerdown',
-      'pointerup',
-      'mousedown',
-      'mouseup',
-      'touchstart',
-      'touchend',
-      'dblclick'
-    ];
+    const events = ['click', 'mousedown', 'mouseup', 'touchstart', 'touchend'];
+    const outsidePress = vi.fn();
+    document.addEventListener('pointerdown', outsidePress);
     for (const type of events) container.addEventListener(type, parentGesture);
     const header = container.querySelector('.markdown-code-header')!;
     expect(header.firstElementChild?.textContent).toBe('ansi');
@@ -434,13 +450,15 @@ describe('MarkdownHtml code copy', () => {
     }
     for (const button of buttons) {
       await userEvent.click(button);
-      for (const type of ['touchstart', 'touchend', 'dblclick']) {
+      for (const type of ['touchstart', 'touchend']) {
         button.dispatchEvent(new Event(type, { bubbles: true }));
       }
       button.focus();
       await userEvent.keyboard('{Enter}');
     }
     expect(parentGesture).not.toHaveBeenCalled();
+    expect(outsidePress).toHaveBeenCalledTimes(3);
+    document.removeEventListener('pointerdown', outsidePress);
     expect(writeText).toHaveBeenCalledWith('ART\n');
     // Ordinary message content must still reach the message's handlers.
     container.querySelector('code')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));

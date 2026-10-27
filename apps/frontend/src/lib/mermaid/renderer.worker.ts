@@ -9,3 +9,7 @@ self.onmessage = (event: MessageEvent<string>) => {
     self.postMessage(null);
   }
 };
+
+// Static imports have completed before this handshake. The host starts the
+// per-diagram execution timer only after the renderer can accept work.
+self.postMessage({ type: 'ready' });
