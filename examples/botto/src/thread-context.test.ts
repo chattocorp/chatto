@@ -136,8 +136,19 @@ test('fresh snapshots reach requests but never enter saved history across turns 
     });
     const secondEntry = reopened.appendMessage({
       role: 'user',
-      content: 'second addressed batch',
+      content: JSON.stringify({
+        currentMessages: [{ id: 'second', text: 'second addressed batch' }]
+      }),
       timestamp: Date.now()
+    });
+    loadImages.mockResolvedValue({
+      images: ['second', 'first'].map((id) => ({
+        messageId: id,
+        attachmentId: `${id}-image`,
+        data: `${id}-pixels`,
+        mimeType: 'image/png'
+      })),
+      imageNotes: []
     });
     const second = await open({
       memoryDocuments: { global: ['new-global-memory'], users: { human: [] } },
@@ -153,6 +164,12 @@ test('fresh snapshots reach requests but never enter saved history across turns 
     try {
       const request = await second.session.extensionRunner.emitContext(second.session.messages);
       const text = JSON.stringify(request);
+      const userMessages = request.filter((message) => message.role === 'user');
+      expect(JSON.stringify(userMessages[0])).toContain('first-pixels');
+      expect(JSON.stringify(userMessages[0])).not.toContain('second-pixels');
+      expect(JSON.stringify(userMessages.at(-1))).toContain('second-pixels');
+      expect(JSON.stringify(userMessages.at(-1))).not.toContain('first-pixels');
+      expect(await readFile(file, 'utf8')).not.toContain('-pixels');
       expect(text).toContain('new-global-memory');
       expect(text).not.toContain('old-global-memory');
       expect(text).not.toContain('old-user-memory');
