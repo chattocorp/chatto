@@ -368,8 +368,16 @@ model metadata. It downloads images only when that metadata includes image input
 no separate Botto capability setting is needed. Downloads are reused within a turn.
 The model receives a note when an image is unavailable, unsupported, or omitted.
 
-When an overview is too small to read, the model can call `view_image` with a
-message ID and attachment ID from the current context. An optional `crop` has
+When an overview is too small to read, Botto can call `inspect_image` with a
+message ID, attachment ID, and focused question. Each call starts an ordinary
+Runling child task with a fresh image-inspector session. The inspector uses the
+configured Botto model and gets only the selected attachment and question. It has
+no parent conversation history, memory, web, chat-posting, or delegation tools.
+Botto permits two inspections per turn. Each has a 60-second deadline within the
+parent turn deadline; cancellation of the tool call also cancels the child.
+
+The inspector receives an overview and can call `view_image` for relevant details.
+An optional `crop` has
 `x`, `y`, `width`, and `height` values from 0 to 1. Coordinates refer to the full
 original image after orientation correction, with the origin at the top left.
 For example, `{ "x": 0.5, "y": 0, "width": 0.5, "height": 1 }` selects the right
@@ -377,17 +385,28 @@ half. Omitting `crop` selects the full image. Crops always use the original,
 not the resized overview or a previous crop. Animated images use the first frame.
 
 The tool rechecks attachment membership and room access. It permits four attempts
-per turn, in addition to the automatic overviews. Each original is limited to
+per inspection, in addition to its automatic overview. Each original is limited to
 16 MiB and 40 million decoded pixels. Processing has a ten-second timeout; the
 download and processing also share the turn deadline. Output is PNG, at most
 2048 pixels on each side and 4 MiB, without enlarging small images. The tool
 rejects calls for models whose Pi metadata does not include image input.
 
-Crop bytes stay in memory for the turn and are added only to model requests.
-The transcript stores tool arguments and text receipts, including crop dimensions,
-but no crop bytes. Later turns can request the image again if it is still in
-context and accessible. This tool contacts only the configured Chatto server;
-the configured model provider receives the selected pixels.
+Crop bytes and the inspector's conversation stay in memory for the inspection.
+The parent receives a report of observations, readable text, and uncertainties,
+limited to 6000 characters plus a fixed notice. That report and the inspection
+arguments enter the parent's private transcript; crop bytes do not. Runling shows
+the child task, agent activity, and combined usage, without logging report content.
+Botto treats the report as untrusted evidence. Its instructions prohibit saving
+incidental screenshot findings to memory unless the user asks. This is a prompt
+policy for the parent; the inspector has no memory tools at all.
+Later turns can request the image again if it is still in context and accessible.
+This tool contacts only the configured Chatto server; the configured model provider
+receives the selected pixels. Delegation adds model calls and can increase latency
+and cost.
+
+This is the first named delegation tool. It uses Runling's existing `taskTool`
+adapter and an ordinary task with an explicit agent session. General delegation,
+other specialist profiles, and background child agents are not implemented yet.
 
 Image bytes are added to the current model request. They are not stored in Pi
 transcripts, delivery files, or Runling journals. Later turns read images again

@@ -6,7 +6,7 @@ import { task, Type } from 'runling';
 import { RunStore } from '../../../packages/runling/src/lib/server/run-store.ts';
 import { parseSettings } from './settings.ts';
 import sharp from 'sharp';
-import { viewImageExtension } from './view-image.ts';
+import { inspectImageExtension } from './inspect-image.ts';
 
 const cropFixture = vi.hoisted(() => ({ data: '', calls: 0 }));
 
@@ -29,6 +29,8 @@ vi.mock(sdkPath, async () => {
       const agent = result.session.agent;
       agent.getApiKey = () => 'offline-test';
       agent.streamFunction = (_model, context) => {
+        const inspector = result.session.getActiveToolNames().includes('view_image');
+        if (inspector) expect(result.session.getActiveToolNames()).toEqual(['view_image']);
         const needsCrop = context.messages.at(-1)?.role === 'user';
         if (!needsCrop) {
           const result = context.messages.at(-1);
@@ -37,7 +39,11 @@ vi.mock(sdkPath, async () => {
             result &&
               'content' in result &&
               Array.isArray(result.content) &&
-              result.content.some((part) => part.type === 'image' && part.data === cropFixture.data)
+              result.content.some((part) =>
+                inspector
+                  ? part.type === 'image' && part.data === cropFixture.data
+                  : part.type === 'text' && part.text.includes('private-inspection')
+              )
           ).toBe(true);
         } else {
           // Reopened history keeps only the receipt, never a previous turn's crop.
@@ -52,7 +58,9 @@ vi.mock(sdkPath, async () => {
             (message) =>
               message.role === 'user' &&
               Array.isArray(message.content) &&
-              message.content.some((part) => part.type === 'image' && part.data === 'AQID')
+              message.content.some(
+                (part) => part.type === 'image' && (inspector || part.data === 'AQID')
+              )
           )
         ).toBe(true);
         type Stream = Awaited<ReturnType<typeof agent.streamFunction>>;
@@ -68,15 +76,17 @@ vi.mock(sdkPath, async () => {
                 {
                   type: 'toolCall',
                   id: `crop-${++cropFixture.calls}`,
-                  name: 'view_image',
-                  arguments: {
-                    messageId: 'message',
-                    attachmentId: 'image',
-                    crop: { x: 0, y: 0, width: 0.5, height: 1 }
-                  }
+                  name: inspector ? 'view_image' : 'inspect_image',
+                  arguments: inspector
+                    ? {
+                        messageId: 'message',
+                        attachmentId: 'image',
+                        crop: { x: 0, y: 0, width: 0.5, height: 1 }
+                      }
+                    : { messageId: 'message', attachmentId: 'image', question: 'private-question' }
                 }
               ]
-            : [{ type: 'text', text: 'private-answer' }],
+            : [{ type: 'text', text: inspector ? 'private-inspection' : 'private-answer' }],
           usage: {
             input: 11,
             output: 7,
@@ -123,7 +133,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
   };
   try {
     await store.init();
-    const agent = await createAgent({
+    const settings = {
       ...parseSettings(
         '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="anthropic/claude-sonnet-4-6"',
         'botto.toml'
@@ -132,7 +142,8 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
       memory: false,
       mcp: false,
       web: false
-    });
+    };
+    const agent = await createAgent(settings);
     const root = task(
       { name: 'Usage fixture', input: Type.Null(), result: Type.Null() },
       async (ctx) => {
@@ -142,7 +153,9 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
               identity: ['server', 'bot', 'room', 'thread'],
               prompt: 'private-prompt',
               signal: ctx.signal,
-              tools: [viewImageExtension(server, 'room', imageContext, ctx.signal)],
+              tools: [
+                inspectImageExtension(ctx, settings, server, 'room', imageContext, ctx.signal)
+              ],
               context: {
                 messages: [],
                 olderContextOmitted: false
@@ -168,27 +181,35 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     expect((await handle.completion).ok).toBe(true);
     const detail = (await store.get(handle.id))!;
     expect(detail.usage).toEqual({
-      input: 44,
-      output: 28,
-      cacheRead: 20,
-      cacheWrite: 12,
-      cost: 0.4
+      input: 88,
+      output: 56,
+      cacheRead: 40,
+      cacheWrite: 24,
+      cost: expect.closeTo(0.8)
     });
-    expect(detail.events.filter((event) => event.type === 'agent.usage')).toHaveLength(4);
+    expect(detail.events.filter((event) => event.type === 'agent.usage')).toHaveLength(8);
     const journal = await readFile(join(store.directory, `${handle.id}.jsonl`), 'utf8');
     expect(journal).toContain('usage.updated');
     expect(journal).not.toContain('private-prompt');
     expect(journal).not.toContain('private-answer');
     expect(journal).not.toContain('AQID');
     expect(journal).not.toContain(cropFixture.data);
+    expect(journal).not.toContain('private-question');
+    expect(journal).not.toContain('private-inspection');
+    expect(
+      detail.events.filter(
+        (event) => event.type === 'step.started' && event.label === 'Inspect image'
+      )
+    ).toHaveLength(2);
     const transcript = await readFile(
       join(directory, transcriptName(['server', 'bot', 'room', 'thread'])),
       'utf8'
     );
     expect(transcript).not.toContain('AQID');
     expect(transcript).not.toContain(cropFixture.data);
-    expect(transcript).toContain('Image view prepared');
-    expect(server.readAttachment).toHaveBeenCalledTimes(2);
+    expect(transcript).toContain('private-inspection');
+    expect(transcript).not.toContain('Image view prepared');
+    expect(server.readAttachment).toHaveBeenCalledTimes(4);
   } finally {
     await store.close();
     await rm(directory, { recursive: true, force: true });
