@@ -69,7 +69,7 @@ test('uses defaults and preserves slashes in the model ID', () => {
     passiveDebounceMs: 5000,
     maxThreads: 8,
     maxPendingMessages: 100,
-    turnTimeoutMs: 120000,
+    turnTimeoutMs: 900000,
     contextMessages: 30,
     directory: '/config/.botto',
     memoryPath: '/config/memory',

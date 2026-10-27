@@ -81,7 +81,7 @@ or configuration changes. Use this full restart for development rather than
 | `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it              |
 | `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds  |
 | `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds   |
-| `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                       |
+| `runtime.turn_timeout_ms`       | `900000`                 | Turn deadline (15-minute default), 1000–3600000 milliseconds                   |
 | `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                         |
 | `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                    |
 | `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                        |
