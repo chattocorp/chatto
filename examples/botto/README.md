@@ -60,6 +60,24 @@ restart after changing them. `pnpm dev` restarts the complete host after source
 or configuration changes. Use this full restart for development rather than
 `runling serve --watch`: Botto's task and source share process-local admission state.
 
+### System prompts
+
+Botto builds each agent's system prompt from two parts. Botto supplies the role,
+Chatto behavior, and instructions for the tools available in that session.
+`agent.system_prompt` adds the instance's identity, personality, and workflow
+instructions. It does not replace Botto's instructions or enable tools.
+
+Main agents and subagents both receive the instance instructions. Subagents keep
+their assignment role and return results to the main agent. They receive web
+instructions when web access is enabled, but no Chatto, memory, image, or
+delegation tool instructions. Main agents receive the modules for their enabled
+tools, plus conversation, formatting, and authorization rules.
+
+Existing TOML files still work. You can remove copied Chatto, memory, and tool
+rules from `agent.system_prompt`; Botto now supplies these rules. Keep instructions
+specific to your bot. Restart Botto after changes. The separate title-description
+task does not use the instance prompt.
+
 | Setting                         | Default                  | Purpose                                                                        |
 | ------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
 | `chatto.url`                    | Required                 | Chatto server URL                                                              |

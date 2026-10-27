@@ -141,6 +141,7 @@ export function createTurnHandler(
                     metrics
                   ),
                 userIds: [...new Set(messages.map((item) => item.authorId))],
+                capabilities: ['delegation', 'images', 'reactions'],
                 tools: [
                   delegateExtension(ctx, settings, signal),
                   viewImageExtension(server, destination.roomId, context, signal),

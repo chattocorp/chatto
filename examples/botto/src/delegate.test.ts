@@ -33,6 +33,7 @@ async function setup(web = false) {
       'botto.toml'
     ),
     web,
+    systemPrompt: 'You are a patient gardening expert.',
     reasoningLevel: 'low' as const
   };
   await delegateExtension(
@@ -68,6 +69,12 @@ test('opens an isolated session with explicit context and a bounded result', asy
     resources: { extensions: false, skills: false, contextFiles: false }
   });
   expect(mock.create.mock.calls[0]![0].sessionFile).toBeUndefined();
+  expect(mock.create.mock.calls[0]![0].systemPrompt).toContain(
+    '# Instance instructions\n\nYou are a patient gardening expert.'
+  );
+  expect(mock.create.mock.calls[0]![0].systemPrompt).not.toContain(
+    'posted to this thread automatically'
+  );
   expect(JSON.parse(session.run.mock.calls[0]![1])).toEqual({
     task: 'Compare these approaches',
     context: 'Explicit private context'
