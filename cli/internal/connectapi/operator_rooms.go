@@ -40,7 +40,7 @@ func (s *operatorRoomService) CreateRoom(ctx context.Context, req *connect.Reque
 	if err := core.ValidateRoomDescription(req.Msg.GetDescription()); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	var room *evtv1.Room
+	var room *readmodel.Room
 	var err error
 	if req.Msg.GetOperationKey() != "" {
 		room, err = s.api.core.CreateHistoricalOperatorRoom(ctx, req.Msg.GetOperationKey(), req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())

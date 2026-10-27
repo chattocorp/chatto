@@ -121,6 +121,27 @@ def complete_bot_catalog(plan, users):
     return bot_authors
 
 
+def prepare_message(original):
+    """Share content normalization between diagnostics and archive conversion.
+
+    File references become archive asset references; structured mentions remain
+    literal text. Work on a copy so repeated scans never change source records.
+    """
+    message = copy.deepcopy(original)
+    references = list(dict.fromkeys(f["id"] for f in file_references(message)))
+    message["files"] = []
+    attachments = []
+    for attachment in message.get("attachments", []):
+        had_files = bool(attachment.get("files"))
+        attachment["files"] = []
+        if not (had_files and set(attachment) <= {"files", "id"}):
+            attachments.append(attachment)
+    if "attachments" in message:
+        message["attachments"] = attachments
+    mentions = literal_mentions(message.get("blocks", []))
+    return message, references, mentions, bool(attachments)
+
+
 def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=False,
                       allow_missing_files=False):
     """Scan independent source records without downloads or destination writes.
@@ -205,17 +226,7 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
         if root and root != row["source_key"] and root not in introduced:
             add("blockers", "thread_root_not_before_reply", position=position)
         introduced.add(row["source_key"])
-        message = copy.deepcopy(original)
-        references = file_references(message)
-        message["files"] = []
-        attachments = []
-        for attachment in message.get("attachments", []):
-            had_files = bool(attachment.get("files"))
-            attachment["files"] = []
-            if not (had_files and set(attachment) <= {"files", "id"}):
-                attachments.append(attachment)
-        message["attachments"] = attachments
-        mentions = literal_mentions(message.get("blocks", []))
+        message, references, mentions, attachments = prepare_message(original)
         if mentions:
             add("transformations", "literal_user_mentions", mentions, position)
         if attachments:
@@ -356,23 +367,12 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
         if root and root not in introduced:
             raise ApplyError("Thread root must be a message before its replies.")
         # No ten-file destination limit here: this is a portable converter.
-        message = copy.deepcopy(original)
-        references = list(dict.fromkeys(f["id"] for f in file_references(message)))
+        message, references, mention_count, has_attachments = prepare_message(original)
         if subtype == "tombstone" and references:
             raise ApplyError("Tombstone contains unsupported content.")
-        message["files"] = []
-        attachments = []
-        for attachment in message.get("attachments", []):
-            had_files = bool(attachment.get("files"))
-            attachment["files"] = []
-            if had_files and set(attachment) <= {"files", "id"}:
-                continue
-            attachments.append(attachment)
-        if "attachments" in message:
-            message["attachments"] = attachments
-        mentions += literal_mentions(message.get("blocks", []))
+        mentions += mention_count
         body = convert(message, logins, False, allow_attachment_summaries, channels, bool(references))
-        summaries += bool(attachments)
+        summaries += has_attachments
         broadcasts += subtype == "thread_broadcast"
         content = {"status": "deleted"} if subtype == "tombstone" else {
             "status": "available", "body": {"format": "chatto-markdown", "text": body}, "asset_ids": references}

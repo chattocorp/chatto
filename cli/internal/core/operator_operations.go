@@ -7,6 +7,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/google/uuid"
 )
@@ -57,7 +58,7 @@ func (o *operatorOperation) receipt(id string) evtstream.BatchEntry {
 
 // CreateHistoricalOperatorUser creates one active human account with permanent
 // retry protection. Email ownership remains enforced by ordinary account creation.
-func (c *ChattoCore) CreateHistoricalOperatorUser(ctx context.Context, key, login, display, email string) (*evtv1.User, error) {
+func (c *ChattoCore) CreateHistoricalOperatorUser(ctx context.Context, key, login, display, email string) (*readmodel.User, error) {
 	o, err := c.operatorOperation(ctx, key, "CreateUser", []string{login, display, email})
 	if err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func (c *ChattoCore) CreateHistoricalOperatorUser(ctx context.Context, key, logi
 }
 
 // CreateHistoricalOperatorRoom creates one channel, independently of archives.
-func (c *ChattoCore) CreateHistoricalOperatorRoom(ctx context.Context, key, group, name, description string) (*evtv1.Room, error) {
+func (c *ChattoCore) CreateHistoricalOperatorRoom(ctx context.Context, key, group, name, description string) (*readmodel.Room, error) {
 	o, err := c.operatorOperation(ctx, key, "CreateRoom", []string{group, name, description})
 	if err != nil {
 		return nil, err
