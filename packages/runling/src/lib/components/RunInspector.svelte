@@ -93,11 +93,12 @@
     <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div class="min-w-0 flex-1">
         <h1 class="m-0 wrap-anywhere text-xl font-semibold tracking-tight sm:text-2xl">
-          {run.workflow}
+          {run.title ?? run.workflow}
         </h1>
         <div
           class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/55 tabular-nums"
         >
+          {#if run.title}<span>{run.workflow}</span>{/if}
           <span
             >{run.source === 'web'
               ? 'Started from web'

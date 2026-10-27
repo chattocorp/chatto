@@ -43,6 +43,7 @@ function summary(run: RunDetail): RunSummary {
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
   if (record.type === 'event') {
+    if (record.event.type === 'run.title') run.title = record.event.title;
     if (includeDetails) run.events.push(record.event);
     if (record.event.type === 'usage.updated') run.usage = runUsage(run, record.event.usage);
   } else if (record.type === 'finished') {
@@ -587,6 +588,7 @@ export class RunStore {
       run: {
         id,
         reference: this.runs.get(id)?.reference,
+        title: this.runs.get(id)?.title,
         resumed,
         filesDirectory: resolve(this.directory, id)
       },

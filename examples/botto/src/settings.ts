@@ -45,6 +45,9 @@ export interface Settings extends InboxSettings {
   modelId: string;
   /** Explicit reasoning effort; omitted preserves Pi defaults and saved session settings. */
   reasoningLevel?: ThinkingLevel;
+  /** Independent description model; defaults to the main model with reasoning off. */
+  titleModel: string;
+  titleReasoningLevel: ThinkingLevel;
   name: string;
   systemPrompt: string;
   directory: string;
@@ -117,7 +120,7 @@ export function parseSettings(
         `Unsupported setting in ${label}. Check botto.example.toml; keep secrets in the environment.`
       );
   };
-  knownKeys(root, ['chatto', 'agent', 'runtime', 'memory', 'web'], 'the root table');
+  knownKeys(root, ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles'], 'the root table');
   const section = (name: string, keys: string[]): Record<string, unknown> => {
     const value = root[name] ?? {};
     if (
@@ -160,6 +163,7 @@ export function parseSettings(
       `chatto.respond_to must be a non-empty array of: ${ADDRESSING_REASONS.join(', ')}`
     );
   const agent = section('agent', ['name', 'model', 'system_prompt', 'reasoning_level']);
+  const titles = section('titles', ['model', 'reasoning_level']);
   const memory = section('memory', ['enabled', 'command', 'path']);
   if (memory.enabled !== undefined && typeof memory.enabled !== 'boolean')
     throw new Error('memory.enabled must be a boolean');
@@ -220,6 +224,14 @@ export function parseSettings(
   const separator = model.indexOf('/');
   if (separator < 1 || separator === model.length - 1)
     throw new Error('agent.model must use provider/model format');
+  const titleModel = string(titles, 'model', 'titles.model', model);
+  if (titleModel.indexOf('/') < 1 || titleModel.endsWith('/'))
+    throw new Error('titles.model must use provider/model format');
+  const titleReasoningLevel = string(titles, 'reasoning_level', 'titles.reasoning_level', 'off');
+  if (!reasoningLevels.includes(titleReasoningLevel as ThinkingLevel))
+    throw new Error(
+      'titles.reasoning_level must be off, minimal, low, medium, high, xhigh, or max'
+    );
   const apiKey = string(chatto, 'api_key', 'chatto.api_key');
   return {
     serverUrl,
@@ -248,6 +260,8 @@ export function parseSettings(
     provider: model.slice(0, separator),
     modelId: model.slice(separator + 1),
     reasoningLevel: reasoningLevel as ThinkingLevel | undefined,
+    titleModel,
+    titleReasoningLevel: titleReasoningLevel as ThinkingLevel,
     name: string(agent, 'name', 'agent.name', 'Botto'),
     systemPrompt: string(agent, 'system_prompt', 'agent.system_prompt', DEFAULT_PROMPT),
     directory: resolve(
@@ -267,7 +281,7 @@ export function parseSettings(
     ),
     maxPendingMessages: number('max_pending_messages', DEFAULT_INBOX.maxPendingMessages, 1, 10_000),
     maxThreads: number('max_threads', DEFAULT_INBOX.maxThreads, 1, 100),
-    turnTimeoutMs: number('turn_timeout_ms', 120_000, 1000, 3_600_000),
+    turnTimeoutMs: number('turn_timeout_ms', 900_000, 1000, 3_600_000),
     contextMessages: number('context_messages', 30, 1, 50),
     acknowledgementEmoji: string(
       runtime,

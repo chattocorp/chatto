@@ -93,6 +93,13 @@ one session, gives parent messages to it, and emits its completed replies.
   usage and cost under the task's run context, without input text or credentials.
   Classification policy, thresholds, and any authorization based on it belong to
   the application.
+- `createDescription` defines a tool-free task that describes caller-supplied
+  text. The caller selects the model, instructions, and reasoning level (off by
+  default). Each call has a fresh session, no local instructions or saved history,
+  no content logs, and a 30-second deadline. Normal task observation records usage
+  and cost. It returns trimmed text, which can be empty when the instructions
+  permit omission. Failures and cancellation propagate without retries. The
+  caller owns any title updates, persistence, and fallback policy.
 - Shared agent sessions can be resumed across workflows with an explicit ID.
   Only one lease in the process can use a file at a time. Scopes have separate
   files. Opening a shared session renews its activity and removes other inactive
