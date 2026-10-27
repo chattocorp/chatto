@@ -401,8 +401,7 @@ show the remaining crop allowance; excess calls already queued in the same batch
 return a no-crops-remaining notice instead of starting more downloads.
 
 Crop bytes stay in memory for the turn. Tool arguments and text receipts enter
-the private transcript; crop bytes do not. The prompt tells Botto not to save
-incidental screenshot findings to memory unless the user asks.
+the private transcript; crop bytes do not.
 Later turns can request the image again if it is still in context and accessible.
 This tool contacts only the configured Chatto server; the configured model provider
 receives the selected pixels.
