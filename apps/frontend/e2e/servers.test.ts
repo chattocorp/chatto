@@ -103,7 +103,7 @@ test.describe('Server Directory (sidebar entry point)', () => {
     await page.getByTitle('Add Server').click();
     await expect(page).toHaveURL(/\/chat\/servers$/);
     await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible();
-    await expect(page.getByLabel('Server URL')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Connect by address' })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
     await page.goBack();
@@ -117,7 +117,7 @@ test.describe('Server Directory (sidebar entry point)', () => {
     await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible({
       timeout: TIMEOUTS.UI_FAST
     });
-    await expect(page.getByLabel('Server URL')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Connect by address' })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });

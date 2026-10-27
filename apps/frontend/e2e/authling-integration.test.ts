@@ -73,6 +73,7 @@ test('Desktop registration through SSO stays in one window and returns to the cl
       };
     });
     await page.goto(`${clientServer.baseURL}/chat/servers`);
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(server.baseURL);
     await page.getByRole('button', { name: 'Find server' }).click();
     await page.getByRole('button', { name: 'Join', exact: true }).click();
@@ -188,6 +189,7 @@ test('links a remote identity in one popup and refreshes the original client', a
 
     // Establish a real delegated OAuth session for the remote account.
     await clientPage.getByTitle('Add Server').click();
+    await clientPage.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await clientPage.getByLabel('Server URL').fill(server.baseURL);
     await clientPage.getByRole('button', { name: 'Find server' }).click();
     const authPopup = await joinServerAndStartSignIn(clientPage);

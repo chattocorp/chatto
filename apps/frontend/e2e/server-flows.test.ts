@@ -236,7 +236,8 @@ test.describe('Server Directory', () => {
     await chatPage.goto();
     await page.getByTitle('Add Server').click();
 
-    // URL input should be visible
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+    // The address form lives in the lookup modal.
     await expect(page.getByLabel('Server URL')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Find server' })).toBeVisible();
   });
@@ -246,6 +247,7 @@ test.describe('Server Directory', () => {
     await chatPage.goto();
     await page.getByTitle('Add Server').click();
 
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     // Enter an unreachable URL
     await page.getByLabel('Server URL').fill('https://nonexistent.invalid');
     await page.getByRole('button', { name: 'Find server' }).click();
@@ -281,6 +283,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
    */
   async function driveAddServerToOAuth(page: Page, hostname: string): Promise<Page> {
     await page.getByRole('link', { name: 'Add Server', exact: true }).click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostname);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({

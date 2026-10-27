@@ -555,6 +555,7 @@ export async function connectRemoteInstance(
     await page.goto('/chat/-');
   }
   await page.getByTitle('Add Server').click();
+  await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Find server' }).click();
   const joinButton = page.getByRole('button', { name: /^(Join|Open)$/ });

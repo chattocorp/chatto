@@ -51,6 +51,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(remoteHostPort(remoteServer));
     await page.getByRole('button', { name: 'Find server' }).click();
     await page.getByRole('button', { name: 'Join', exact: true }).click();
@@ -114,6 +115,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     // and opens the remote's /oauth/authorize in a popup.
     const hostPort = remoteHostPort(remoteServer);
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
@@ -196,6 +198,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     });
     await page.goto('/chat/-');
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
@@ -261,6 +264,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const hostPort = remoteHostPort(remoteServer);
 
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
@@ -354,6 +358,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     });
     await page.goto('/chat/-');
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({

@@ -111,7 +111,7 @@ recommendation, not a trust or reciprocal relationship.
   data. The user starts this request with the join action. If the current
   version is not compatible or sign-in is not available, the client stops the
   join and shows the current action for that server.
-- A registered server appears under **Your servers**. Its action opens the
+- A registered server appears first in the shared grid. Its action opens the
   server, also when the client has no session for it. A direct address lookup
   for a registered server also offers the open action instead of joining again.
 - An unregistered server has a join action only when its discovered version is
