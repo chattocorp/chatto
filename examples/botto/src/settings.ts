@@ -48,6 +48,8 @@ export interface Settings extends InboxSettings {
   /** Independent description model; defaults to the main model with reasoning off. */
   titleModel: string;
   titleReasoningLevel: ThinkingLevel;
+  /** Chat-model ID for the isolated OpenRouter participation classifier. */
+  participationModel: string;
   name: string;
   /** Operator instructions appended to Botto's role and capability instructions for all agents. */
   systemPrompt: string;
@@ -101,7 +103,11 @@ export function parseSettings(
         `Unsupported setting in ${label}. Check botto.example.toml; keep secrets in the environment.`
       );
   };
-  knownKeys(root, ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles'], 'the root table');
+  knownKeys(
+    root,
+    ['chatto', 'agent', 'runtime', 'memory', 'web', 'titles', 'participation'],
+    'the root table'
+  );
   const section = (name: string, keys: string[]): Record<string, unknown> => {
     const value = root[name] ?? {};
     if (
@@ -145,6 +151,7 @@ export function parseSettings(
     );
   const agent = section('agent', ['name', 'model', 'system_prompt', 'reasoning_level']);
   const titles = section('titles', ['model', 'reasoning_level']);
+  const participation = section('participation', ['model']);
   const memory = section('memory', ['enabled', 'command', 'path']);
   if (memory.enabled !== undefined && typeof memory.enabled !== 'boolean')
     throw new Error('memory.enabled must be a boolean');
@@ -214,6 +221,16 @@ export function parseSettings(
       'titles.reasoning_level must be off, minimal, low, medium, high, xhigh, or max'
     );
   const apiKey = string(chatto, 'api_key', 'chatto.api_key');
+  const participationModel = string(
+    participation,
+    'model',
+    'participation.model',
+    'z-ai/glm-5.3-flash'
+  );
+  if (!/^[^/\s]+\/[^\s]+$/.test(participationModel) || participationModel.startsWith('openrouter/'))
+    throw new Error(
+      'participation.model must be an OpenRouter model ID, without an openrouter/ prefix'
+    );
   return {
     serverUrl,
     apiKey,
@@ -242,6 +259,7 @@ export function parseSettings(
     modelId: model.slice(separator + 1),
     reasoningLevel: reasoningLevel as ThinkingLevel | undefined,
     titleModel,
+    participationModel,
     titleReasoningLevel: titleReasoningLevel as ThinkingLevel,
     name: string(agent, 'name', 'agent.name', 'Botto'),
     skillsDirectory: resolve(dirname(resolve(configPath)), '.agents/skills'),

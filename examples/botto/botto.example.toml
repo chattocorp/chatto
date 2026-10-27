@@ -16,6 +16,10 @@ respond_to = ["direct_message", "mention", "reply"]
 # Empty by default. allowed_user_id does not grant admin authority.
 admin_user_ids = []
 
+[participation]
+# OpenRouter chat model; uses low reasoning and requires OPENROUTER_API_KEY.
+model = "z-ai/glm-5.3-flash"
+
 [agent]
 name = "Botto"
 model = "anthropic/claude-sonnet-4-6"

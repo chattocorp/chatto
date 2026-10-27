@@ -38,7 +38,7 @@ test('an agent is a lazy reusable task with string input, output, and messages',
   const instances: RunlingAgent[] = [];
   const factory = vi.fn(async (_options: AgentOptions) => {
     const instance = session(async (_ctx, prompt, options) => {
-      options?.onText?.(`Answer: ${prompt}`);
+      options?.onText?.(`Answer: ${prompt}`, { hasToolCalls: false });
       return answer(`Answer: ${prompt}`);
     });
     instances.push(instance);
@@ -92,8 +92,8 @@ test('typed input is parsed before setup and prompt, including Standard Schema t
 
 test('agent tasks work as tools and forward completed replies as partial results', async () => {
   const instance = session(async (_ctx, prompt, options) => {
-    options?.onText?.('Checking');
-    options?.onText?.('Done');
+    options?.onText?.('Checking', { hasToolCalls: true });
+    options?.onText?.('Done', { hasToolCalls: false });
     return answer(prompt);
   });
   const worker = agent(
@@ -296,7 +296,7 @@ test('cancellation reaches a running turn and waits for cleanup', async () => {
 
 test('update delivery failure fails the task instead of silently losing replies', async () => {
   const instance = session(async (_ctx, _prompt, options) => {
-    for (let i = 0; i < 65; i++) options?.onText?.(`Reply ${i}`);
+    for (let i = 0; i < 65; i++) options?.onText?.(`Reply ${i}`, { hasToolCalls: false });
     return answer('Done');
   });
   const worker = agent({ name: 'Overflow', ...settings }, async () => instance);

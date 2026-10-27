@@ -175,6 +175,11 @@ and `ctx.reply` return the `ids` of the new messages. Other helpers are
 `conversationKey`, `replyDestination`, `withTyping` and `startTyping` for
 custom typing updates, and `createDeliveryTracker` for replay filters.
 
+For a final reply, await `withTyping(destination, work)` before posting the
+message. The helper stops its timer and waits for any pending refresh, with
+a two-second request timeout. This prevents a successful refresh from arriving
+after the message and restoring the typing indicator.
+
 For a send that needs retry safety, retain the prepared operation:
 
 ```ts

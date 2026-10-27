@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AddressedMessage } from '@chatto/client';
+import type { IncomingMessage as AddressedMessage } from './messages.ts';
 
 interface Work {
   message: AddressedMessage;

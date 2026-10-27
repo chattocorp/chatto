@@ -32,13 +32,14 @@ function session(reply: string) {
 
 test('runs exactly one isolated turn and validates the decision', async () => {
   const h = session('{"accept":true}');
-  const classify = createClassifier(options, h.create);
+  const classify = createClassifier({ ...options, logContent: false }, h.create);
   expect(await classify(createTaskContext(), 'question')).toEqual({ accept: true });
   expect(h.create).toHaveBeenCalledWith(
     expect.objectContaining({
       model: options.model,
       output: 'text',
       thinkingLevel: 'low',
+      logContent: false,
       tools: [],
       cwd: '/private',
       resources: {

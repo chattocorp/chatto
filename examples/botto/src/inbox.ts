@@ -1,11 +1,7 @@
 /** Chatto batching policy. Runling owns scheduling, capacity, and shutdown. */
 import { BatchQueue } from 'runling';
-import {
-  replyDestination,
-  type AddressedMessage,
-  type RealtimeEvent,
-  type ThreadLocation
-} from '@chatto/client';
+import { replyDestination, type RealtimeEvent, type ThreadLocation } from '@chatto/client';
+import type { IncomingMessage as AddressedMessage } from './messages.ts';
 import { DEFAULT_INBOX, type InboxSettings } from './settings.ts';
 import { threadKey } from './threads.ts';
 
