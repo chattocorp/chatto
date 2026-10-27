@@ -17,12 +17,8 @@ import {
 } from '../../runtime/run-journal.ts';
 import type { AnyTask, Channel, WorkflowExecution } from 'runling';
 
-// adapter-node bundles static self-imports. Resolve the installed runtime at execution
-// time so application callbacks and the console share its event and task contexts.
-const runtimeModule = 'runling';
-const { createChannel, runWorkflow } = (await import(
-  /* @vite-ignore */ runtimeModule
-)) as typeof import('runling');
+import { runtime } from './runtime.ts';
+const { createChannel, runWorkflow } = runtime;
 import { runUsage, type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
 
 import { summarizeRunActivity } from '../run-activity.ts';

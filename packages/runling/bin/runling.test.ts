@@ -12,10 +12,9 @@ afterAll(() => rmSync(workdir, { recursive: true, force: true }));
 const runCli = (argv: string[], options: { stdout?: string; stderr?: string } = {}) =>
   spawnProcess(argv, { cwd: workdir, ...options });
 
-describe.each([
-  { mode: 'compiled', flags: [] },
-  { mode: 'source', flags: ['--conditions=runling-source'] }
-])('runling executable ($mode)', ({ flags }) => {
+// Published executable coverage lives in scripts/test-package.mjs.
+describe('runling executable (workspace source)', () => {
+  const flags: string[] = [];
   test.each([
     { args: [], expected: 'Usage: runling' },
     { args: ['--help'], expected: 'serve' },

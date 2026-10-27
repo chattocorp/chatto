@@ -11,7 +11,6 @@ Create a separate bot account and API key in Chatto. From the repository root:
 
 ```sh
 mise x -- pnpm install
-mise build-runling
 cp examples/botto/botto.example.toml examples/botto/botto.toml
 ```
 
@@ -35,6 +34,9 @@ From `examples/botto`, you can also run `pnpm start` or
 which registers Botto's Chatto source and root task. Mention the bot in a room,
 send it a DM, or reply to one of its messages. Stop with Ctrl-C. Run only one
 process per data directory and bot account.
+
+Workspace startup loads Runling's TypeScript source and serves its console through
+Vite. You do not need to compile Runling before `pnpm start`.
 
 Open `http://127.0.0.1:5173` to inspect conversations in Runling. Each Chatto
 thread has one run. Each accepted batch appears as a **Botto turn** child task.

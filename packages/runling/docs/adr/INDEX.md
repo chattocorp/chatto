@@ -17,3 +17,4 @@ These records belong to Runling and use independent numbering. See the
 | ADR-010 | [Periodic workflow state snapshots](ADR-010-workflow-state-snapshots.md)                       | Amended by ADR-012             | 2026-10-18 |
 | ADR-011 | [In-process hosting and keyed batching](ADR-011-hosting-and-batching.md)                       | Accepted                       | 2026-10-26 |
 | ADR-012 | [Router-controlled workflow reactivation](ADR-012-router-controlled-reactivation.md)           | Accepted                       | 2026-10-27 |
+| ADR-013 | [Source exports in the workspace](ADR-013-source-workspace-exports.md)                         | Accepted                       | 2026-10-27 |

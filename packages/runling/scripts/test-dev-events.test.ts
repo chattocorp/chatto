@@ -3,9 +3,7 @@ import { promisify } from 'node:util';
 import { test } from 'vitest';
 
 test('Vite dev workflows record task and message events in the web host', async () => {
-  await promisify(execFile)(
-    process.execPath,
-    ['--import', 'tsx', '--conditions=runling-source', 'scripts/test-dev-events.mjs'],
-    { timeout: 20_000 }
-  );
+  await promisify(execFile)(process.execPath, ['--import', 'tsx', 'scripts/test-dev-events.mjs'], {
+    timeout: 20_000
+  });
 }, 25_000);

@@ -1,7 +1,8 @@
-/** Host the packaged console and workflows in the application's process. */
+/** Host the console and workflows in the application's process. */
 import { serverLog, serverLogPath } from './server-log.ts';
 import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createServer, type RequestListener } from 'node:http';
 import { installShutdown } from './shutdown.ts';
 import { ConfigReloader } from './config-reloader.ts';
@@ -14,7 +15,7 @@ export { SourceManager } from './source-manager.ts';
 /** One web host can run in a process. Configuration objects are loaded once. */
 export interface ServerOptions {
   config: WebConfig | string;
-  /** Base for file configuration and default storage. Does not change process.cwd(). */
+  /** Base for file configuration and default storage. Sources keep the caller's cwd. */
   directory?: string;
   dataDirectory?: string;
   host?: string;
@@ -38,8 +39,9 @@ const state = globalThis as typeof globalThis & {
   __runlingStopSources?: () => Promise<void>;
 };
 
-/** Start the packaged web console with an object or configuration file. No child process.
- * All sources, task events, journals, and HTTP routes share the installed Runling runtime. */
+/** Start the web console with an object or configuration file. No child process.
+ * All sources, task events, journals, and HTTP routes share the installed Runling runtime.
+ * Workspace source uses Vite, which temporarily changes cwd during initialization. */
 export async function serve(options: ServerOptions): Promise<RunlingServer> {
   if (state.__runlingWebServer) throw new Error('A Runling server already owns this process');
   const port = options.port ?? 5173;
@@ -67,6 +69,7 @@ export async function serve(options: ServerOptions): Promise<RunlingServer> {
   Object.assign(process.env, env);
   let detach: (() => void) | undefined;
   let server: ReturnType<typeof createServer> | undefined;
+  let development: { close(): Promise<void> } | undefined;
   let closing: Promise<void> | undefined;
   const close = () =>
     (closing ??= (async () => {
@@ -81,7 +84,11 @@ export async function serve(options: ServerOptions): Promise<RunlingServer> {
           try {
             await state.__runlingConfigReloader?.close();
           } finally {
-            await closed;
+            try {
+              await development?.close();
+            } finally {
+              await closed;
+            }
           }
         }
         serverLog('info', 'server.stopped');
@@ -104,12 +111,40 @@ export async function serve(options: ServerOptions): Promise<RunlingServer> {
     // Project setup must finish before logs, persistence, or sources open their resources.
     await state.__runlingConfigReloader.load();
     serverLog('info', 'server.starting', { config: configPath, logFile: serverLogPath(), port });
-    const serverUrl = new URL('../../web/handler.js', import.meta.url);
-    if (!existsSync(serverUrl))
-      throw new Error('Runling web assets are missing. Build the package before running it.');
-    const { handler } = (await import(/* @vite-ignore */ serverUrl.href)) as {
-      handler: RequestListener;
-    };
+    let handler: RequestListener;
+    if (fileURLToPath(import.meta.url).endsWith('.ts')) {
+      // Source consumers use the console directly. Published installs never import Vite.
+      const { createServer: createViteServer } = await import('vite');
+      const appRoot = fileURLToPath(new URL('../../', import.meta.url));
+      const previousDirectory = process.cwd();
+      let vite;
+      try {
+        // SvelteKit resolves its app files from cwd during Vite setup.
+        process.chdir(appRoot);
+        vite = await createViteServer({
+          configFile: join(appRoot, 'vite.config.ts'),
+          clearScreen: false,
+          server: { middlewareMode: true, hmr: false }
+        });
+      } finally {
+        process.chdir(previousDirectory);
+      }
+      development = vite;
+      const sourceHost = (await vite.ssrLoadModule('/src/lib/server/source-host.ts')) as {
+        startSourceHost(): Promise<unknown>;
+        stopSourceHost(): Promise<void>;
+      };
+      state.__runlingStartSources = sourceHost.startSourceHost;
+      state.__runlingStopSources = sourceHost.stopSourceHost;
+      handler = vite.middlewares;
+    } else {
+      const serverUrl = new URL('../../web/handler.js', import.meta.url);
+      if (!existsSync(serverUrl))
+        throw new Error('Runling web assets are missing. Build the package before running it.');
+      ({ handler } = (await import(/* @vite-ignore */ serverUrl.href)) as {
+        handler: RequestListener;
+      });
+    }
     // Adapter init runs once per imported module; explicit startup also supports a later host.
     await state.__runlingStartSources?.();
     server = createServer(handler);

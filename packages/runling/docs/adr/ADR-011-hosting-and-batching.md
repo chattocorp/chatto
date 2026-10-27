@@ -13,6 +13,8 @@ Neither requirement needs a new execution model above ordinary tasks.
 
 Applications can start the packaged web host with a configuration object in their
 own process. The host owns HTTP, source startup, signal handling, and cleanup.
+Workspace hosting also serves the console from source under
+[ADR-013](ADR-013-source-workspace-exports.md).
 It uses the installed runtime so application task events reach the same console
 and journal. One web host owns a process at a time. File-based CLI serving uses
 the same host API; object configurations are fixed for that host's lifetime.

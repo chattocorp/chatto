@@ -41,7 +41,9 @@ differences in consumer settings, such as Node types, can still fail a
 consumer check; `mise check-workspace` finds them. Source consumers use the
 same TypeScript major version as the packages.
 
-Runling is not in scope. It is published to npm and keeps its build.
+Runling was originally outside this decision. Its own
+[ADR-013](../../packages/runling/docs/adr/ADR-013-source-workspace-exports.md)
+now uses source exports in the workspace and retains compiled npm packages.
 
 Translatto uses
 `build` to emit JavaScript and type declarations. pnpm `pack` applies

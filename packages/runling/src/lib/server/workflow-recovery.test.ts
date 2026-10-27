@@ -266,15 +266,7 @@ test('a killed process recovers the last snapshot, not later unsaved mutations',
   await expect(
     promisify(execFile)(
       process.execPath,
-      [
-        '--conditions=runling-source',
-        '--import',
-        'tsx',
-        '--input-type=module',
-        '--eval',
-        program,
-        original.directory
-      ],
+      ['--import', 'tsx', '--input-type=module', '--eval', program, original.directory],
       { timeout: 15_000 }
     )
   ).rejects.toMatchObject({ signal: 'SIGKILL' });
