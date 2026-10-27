@@ -1,8 +1,8 @@
 # Dependency patches
 
-## virtua 0.53.4
+## virtua 0.54.0
 
-`virtua@0.53.4.patch` keeps retained Svelte rows mounted when older rows are
+`virtua@0.54.0.patch` keeps retained Svelte rows mounted when older rows are
 inserted at the start of a list. With Svelte's async mode, the layout can still
 have its previous length when `keepMounted` contains indexes for the new data.
 The upstream check against that previous length removes retained rows. This

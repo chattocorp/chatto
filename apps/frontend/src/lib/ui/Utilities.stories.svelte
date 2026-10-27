@@ -324,7 +324,9 @@
         <span class="iconify icon-[uil--apps] text-lg"></span>
       </button>
       <span class="flex-1"></span>
-      <button type="button" class="app-header-text-action" aria-label="About Chatto">v0.5.0</button>
+      <button type="button" class="app-header-text-action" aria-label="v0.5.0: About Chatto"
+        >v0.5.0</button
+      >
       <button type="button" class="app-header-icon" aria-label="Sign out">
         <span class="iconify icon-[uil--signout] text-lg" aria-hidden="true"></span>
       </button>

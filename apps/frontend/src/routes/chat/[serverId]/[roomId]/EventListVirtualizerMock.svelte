@@ -32,7 +32,9 @@
   let scrollCalls = $state(0);
   let lastAlignment = $state('');
   let lastOffset = $state(0);
-  let renderedItem = $derived(renderedIndex === null ? undefined : data[renderedIndex]);
+  // The timeline can reach the bottom through its native scroll container,
+  // without issuing a virtualizer scrollToIndex command.
+  let renderedItem = $derived(data[renderedIndex ?? data.length - 1]);
   let renderedKey = $derived(
     (renderedItem as { key?: string } | undefined)?.key ?? renderedIndex ?? 'empty'
   );

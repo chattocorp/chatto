@@ -52,6 +52,8 @@ export interface Settings extends InboxSettings {
   /** Operator instructions appended to Botto's role and capability instructions for all agents. */
   systemPrompt: string;
   directory: string;
+  /** Operator-owned skills beside the configuration file, independent of runtime storage. */
+  skillsDirectory: string;
   allowedUserId?: string;
   /** Operator-selected Chatto user IDs. Chat and memory cannot grant this role. */
   adminUserIds: readonly string[];
@@ -242,6 +244,7 @@ export function parseSettings(
     titleModel,
     titleReasoningLevel: titleReasoningLevel as ThinkingLevel,
     name: string(agent, 'name', 'agent.name', 'Botto'),
+    skillsDirectory: resolve(dirname(resolve(configPath)), '.agents/skills'),
     systemPrompt: string(agent, 'system_prompt', 'agent.system_prompt', DEFAULT_PROMPT),
     directory: resolve(
       dirname(resolve(configPath)),
