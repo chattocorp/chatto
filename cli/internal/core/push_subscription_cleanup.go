@@ -118,8 +118,6 @@ func (m *pushSubscriptionCleanupModel) runReconciler(ctx context.Context) {
 		for {
 			if err := m.reconcileDeletedAccountPushState(leaderCtx); err != nil && leaderCtx.Err() == nil {
 				m.logger.Warn("Failed to reconcile push subscriptions for deleted accounts", "error", err)
-			} else if err == nil {
-				m.logger.Debug("Reconciled push subscriptions and endpoint owners")
 			}
 			timer := time.NewTimer(pushSubscriptionReconcileEvery)
 			select {
@@ -140,7 +138,22 @@ func (m *pushSubscriptionCleanupModel) runReconciler(ctx context.Context) {
 	}
 }
 
-func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx context.Context) error {
+func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx context.Context) (resultErr error) {
+	startedAt := time.Now()
+	var subscriptionsScanned, ownersScanned, subscriptionsDeleted, ownersDeleted, ownerConflicts int
+	defer func() {
+		m.logger.Debug("Push subscription reconciliation completed",
+			"success", resultErr == nil,
+			"subscriptions_scanned", subscriptionsScanned,
+			"owners_scanned", ownersScanned,
+			"subscriptions_deleted", subscriptionsDeleted,
+			// Subscription deletion also releases ownership. This counter covers
+			// only the separate scan for invalid owner records.
+			"owner_scan_deletions", ownersDeleted,
+			"owner_conflicts", ownerConflicts,
+			"duration", time.Since(startedAt),
+		)
+	}()
 	deletedAccounts := make(map[string]bool)
 	cleanedAccounts := make(map[string]bool)
 	ownerReconciledAccounts := make(map[string]bool)
@@ -151,6 +164,7 @@ func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx cont
 		return fmt.Errorf("list push subscriptions during account reconciliation: %w", err)
 	}
 	for _, key := range subscriptionKeys {
+		subscriptionsScanned++
 		userID := extractUserIDFromPushKey(key)
 		if userID == "" {
 			cleanupErrors = append(cleanupErrors, fmt.Errorf("invalid push subscription key during account reconciliation"))
@@ -164,7 +178,9 @@ func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx cont
 		if !deleted || cleanedAccounts[userID] {
 			continue
 		}
-		if _, err := m.deleteAllFn(ctx, userID); err != nil {
+		deletedCount, err := m.deleteAllFn(ctx, userID)
+		subscriptionsDeleted += deletedCount
+		if err != nil {
 			cleanupErrors = append(cleanupErrors, fmt.Errorf("reconcile deleted account push subscriptions: %w", err))
 			continue
 		}
@@ -177,6 +193,7 @@ func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx cont
 		return errors.Join(cleanupErrors...)
 	}
 	for _, key := range ownerKeys {
+		ownersScanned++
 		userID, ownerRevision, remove, err := m.inspectPushEndpointOwner(ctx, key, deletedAccounts)
 		if err != nil {
 			cleanupErrors = append(cleanupErrors, err)
@@ -187,10 +204,13 @@ func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx cont
 		}
 		if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(ownerRevision)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 			if jetstreamutil.IsSequenceConflict(err) {
+				ownerConflicts++
 				continue
 			}
 			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete push endpoint owner during account reconciliation: %w", err))
 			continue
+		} else if err == nil {
+			ownersDeleted++
 		}
 		if userID == "" || ownerReconciledAccounts[userID] {
 			continue
@@ -204,7 +224,9 @@ func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx cont
 			continue
 		}
 		ownerReconciledAccounts[userID] = true
-		if _, err := m.deleteAllFn(ctx, userID); err != nil {
+		deletedCount, err := m.deleteAllFn(ctx, userID)
+		subscriptionsDeleted += deletedCount
+		if err != nil {
 			cleanupErrors = append(cleanupErrors, fmt.Errorf("reconcile deleted account after owner removal: %w", err))
 			continue
 		}

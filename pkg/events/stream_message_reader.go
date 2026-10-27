@@ -20,6 +20,8 @@ const (
 	defaultStreamMessageReadConcurrency = 16
 	minimumCacheCleanupInterval         = 10 * time.Millisecond
 	maximumCacheCleanupInterval         = time.Minute
+	// Bound diagnostic lists so large timeline reads cannot flood the logs.
+	streamMessageLogSequenceLimit = 16
 	// streamMessageCacheEntryOverhead estimates the ttlcache item, LRU node,
 	// map entry, sequence key, and retained record headers. It makes every item
 	// carry a non-zero cost, so the configured byte budget also bounds the item
@@ -235,12 +237,16 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if r.cache != nil {
+	if r.cache != nil && r.logger.Enabled(ctx, slog.LevelDebug) {
 		missCount := 0
+		missSequences := make([]uint64, 0, min(len(unique), streamMessageLogSequenceLimit))
 		var costEvictionCount uint64
-		for _, cacheMiss := range cacheMisses {
+		for i, cacheMiss := range cacheMisses {
 			if cacheMiss {
 				missCount++
+				if len(missSequences) < streamMessageLogSequenceLimit {
+					missSequences = append(missSequences, unique[i])
+				}
 			}
 		}
 		for _, evictions := range costEvictions {
@@ -250,6 +256,10 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 			"Stream message cache batch read",
 			"requested", len(sequences),
 			"unique", len(unique),
+			"stream_sequences", unique[:min(len(unique), streamMessageLogSequenceLimit)],
+			"sequences_omitted", max(0, len(unique)-streamMessageLogSequenceLimit),
+			"miss_sequences", missSequences,
+			"miss_sequences_omitted", missCount-len(missSequences),
 			"hits", len(unique)-missCount,
 			"misses", missCount,
 			"entries", r.cache.Len(),
