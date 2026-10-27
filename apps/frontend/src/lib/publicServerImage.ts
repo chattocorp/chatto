@@ -78,6 +78,10 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
     void (async () => {
       try {
         const response = await fetch(source, {
+          // A plain <img> (for example in the sidebar) can cache a response
+          // without CORS headers on older servers. Revalidate it for this
+          // CORS request instead of reusing that response unchanged.
+          cache: 'no-cache',
           credentials: 'omit',
           redirect: 'error',
           referrerPolicy: 'no-referrer',

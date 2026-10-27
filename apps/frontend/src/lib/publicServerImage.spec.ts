@@ -53,6 +53,7 @@ describe('loadPublicServerImage', () => {
     await vi.waitFor(() => expect(image.src).toBe('blob:public-image'));
     expect(removeAttribute).toHaveBeenCalledWith('src');
     expect(browserFetch).toHaveBeenCalledWith('https://chat.example/logo.webp', {
+      cache: 'no-cache',
       credentials: 'omit',
       redirect: 'error',
       referrerPolicy: 'no-referrer',
