@@ -4,7 +4,7 @@
   import type { RunDetail } from '$lib/runs.ts';
   import { isRunWaiting, summarizeRunActivity } from '$lib/run-activity.ts';
   import { duration } from '$lib/runs.ts';
-  import { runLogRows } from '$lib/run-log.ts';
+  import { activityLogRows, runLogRows } from '$lib/run-log.ts';
   import { buildTimeline, findActivity } from '$lib/timeline.ts';
   import StatusBadge from './StatusBadge.svelte';
   import Timeline from './Timeline.svelte';
@@ -32,6 +32,7 @@
   let elapsed = $derived(run.durationMs ?? Math.max(0, now - run.startedAt));
   let quietFor = $derived(Math.max(0, elapsed - (run.events.at(-1)?.timestamp ?? 0)));
   let logs = $derived(runLogRows(run.events));
+  let activities = $derived(activityLogRows(run.events, run.status, nodes));
   const wide = new MediaQuery('(min-width: 96rem)', false);
   const paneTitleId = $props.id();
 
@@ -227,7 +228,8 @@
           aria-label="Log"
         >
           <RunLog
-            rows={logs}
+            detailedRows={logs}
+            compactRows={activities}
             running={run.status === 'running'}
             selectedActivity={selected}
             onselectActivity={(id) => (selected = id)}

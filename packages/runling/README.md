@@ -5,6 +5,10 @@ Run and orchestrate TypeScript workflows of any size and kind.
 See the [documentation index](docs/README.md) for API guides, architecture
 decisions (ADRs), and feature records (FDRs).
 
+The console's Log view shows one updating row per activity. Expand a row for
+recorded details, or enable **Detailed log** for the chronological diagnostic
+lines. Logs and timeline activity remain visible across workflow reactivation.
+
 ## Tasks, runs, and messages
 
 A **task** is a function with schemas. It has a name, an input schema, and an

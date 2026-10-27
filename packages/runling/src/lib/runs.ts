@@ -31,6 +31,33 @@ export interface RunSummary extends JournalRunSummary {
 }
 export type RunDetail = JournalRunDetail & { activity?: RunActivity | null };
 
+/** Extend a server-owned history in place; journal records contain only the new execution. */
+export function continueRun(previous: RunDetail, next: RunDetail): RunDetail {
+  const events = previous.events;
+  events.push(
+    {
+      type: 'execution.finished',
+      timestamp: previous.durationMs ?? events.at(-1)?.timestamp ?? 0
+    },
+    ...next.events
+  );
+  return {
+    ...next,
+    startedAt: previous.startedAt,
+    executionStartedAt: next.startedAt,
+    events
+  };
+}
+
+/** Journal times are execution-relative; console times share the first execution's origin. */
+export function projectRecord(run: RunDetail, record: RunRecord): RunRecord {
+  const offset = (run.executionStartedAt ?? run.startedAt) - run.startedAt;
+  if (record.type === 'event')
+    return { ...record, event: { ...record.event, timestamp: record.event.timestamp + offset } };
+  if (record.type === 'finished') return { ...record, durationMs: record.durationMs + offset };
+  return record;
+}
+
 export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
   if (record.type === 'started') return record.run;
   if (record.type === 'event') {

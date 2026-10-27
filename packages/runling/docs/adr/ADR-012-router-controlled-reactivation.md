@@ -22,8 +22,9 @@ router owns queuing and retry policy.
 Reactivation retains the ID, reference, state, files, and journal. It uses fresh
 input and calls the root from the beginning. It does not restore a JavaScript
 stack, replay messages, or repeat external effects automatically. Earlier
-executions remain in the journal; the console shows the latest execution and
-combined usage. Each execution handle controls only its own execution.
+executions remain in the journal; the console retains their logs and timeline
+on one time axis, with combined usage. Input, result, and status describe the
+latest execution. Each execution handle controls only its own execution.
 
 Sources can request retained finished runs from `ctx.runs({ includeFinished:
 true })`. Completed, failed, and cancelled executions remain inactive until a

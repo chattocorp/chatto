@@ -46,11 +46,14 @@ snapshots. Recovery re-enters the root task; it does not resume JavaScript execu
 - Roots decide which children and connections to create again. Child state can be
   passed as an ordinary sub-object in input. Input validators that transform data
   can replace that reference; task authors must account for this.
-- The console shows the latest attempt's activity and total token usage and cost
+- The console retains logs and timeline activity from all attempts and total token usage and cost
   across all attempts. Usage updates and final records replace the current
   attempt's total; they do not add the same tokens again. The reader also totals
   older journals without a migration. Missing prices remain marked incomplete.
-  Earlier attempts remain in the journal file. Logs and agent transcripts are
+  The timeline uses the first execution's start as its time origin, including idle
+  gaps. Earlier unfinished activities stay interrupted when another execution
+  starts. Journal timestamps remain relative to each execution; the reader projects
+  existing journals without migration or copied history. Logs and agent transcripts are
   not copied into the snapshot.
 - A source can inspect `ctx.runs()` and use original inputs to rebuild routing.
   Inboxes, adapter state maps, and agent sessions are not automatically restored.
