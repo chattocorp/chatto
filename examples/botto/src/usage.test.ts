@@ -32,11 +32,10 @@ vi.mock(sdkPath, async () => {
       agent.streamFunction = (_model, context) => {
         const child = result.session.systemPrompt.includes('You are a subagent');
         if (child) expect(result.session.getActiveToolNames()).toEqual([]);
-        const needsCrop = !child && context.messages.at(-1)?.role === 'user';
+        const lastMessage = context.messages.at(-1);
+        const needsCrop = !child && lastMessage?.role === 'user';
         const needsDelegate =
-          !child &&
-          context.messages.at(-1)?.role === 'toolResult' &&
-          context.messages.at(-1)?.toolName === 'view_image';
+          !child && lastMessage?.role === 'toolResult' && lastMessage.toolName === 'view_image';
         if (!needsCrop && !child) {
           const result = context.messages.at(-1);
           expect(result?.role).toBe('toolResult');
