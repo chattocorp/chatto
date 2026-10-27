@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Ogłoszenie pokoju",
+      "dismiss": "Zamknij",
+      "body": "Ogłoszenie (Markdown)",
+      "too_long": "Ogłoszenia mogą zawierać najwyżej {max} znaków, w tym białe znaki.",
+      "help": "Zapisz poprawki bez ponownego wyświetlania ogłoszenia. Ogłoś je, aby pokazać je ponownie osobom, które zamknęły je na swoich urządzeniach.",
+      "conflict": "To ogłoszenie zmieniło się podczas edycji. Twój szkic jest zachowany. W razie potrzeby skopiuj go, a następnie wczytaj aktualne ogłoszenie przed ponownym zapisem.",
+      "reload": "Wczytaj aktualne ogłoszenie",
+      "save": "Aktualizuj",
+      "republish": "Ogłoś",
+      "clear": "Usuń",
+      "clear_confirm_title": "Usunąć ogłoszenie pokoju?",
+      "clear_confirm_description": "To natychmiast usuwa aktywne ogłoszenie dla wszystkich osób w pokoju. Twoje niezapisane zmiany nie zostaną opublikowane.",
+      "empty": "Nie opublikowano żadnego ogłoszenia.",
+      "edit": "Edytuj ogłoszenie"
+    },
     "information": {
       "description": "Opis",
       "created": "Utworzono",
@@ -278,6 +294,7 @@
     "unread_separator": "Nowe wiadomości",
     "close_extras": "Zamknij dodatki do pokoju",
     "dm": {
+      "deactivated_user_notice": "To konto jest dezaktywowane. Użytkownik nie może czytać wiadomości ani na nie odpowiadać.",
       "deleted_user_notice": "Drugi użytkownik został usunięty."
     },
     "management": {

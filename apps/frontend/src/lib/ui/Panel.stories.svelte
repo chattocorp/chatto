@@ -31,6 +31,22 @@
   });
 </script>
 
+<Story name="Inline timestamp" asChild>
+  <div class="max-w-3xl">
+    <Panel title="Room notice" subtitle="Published 26 October 2026 at 14:05">
+      Welcome to the room.
+    </Panel>
+  </div>
+</Story>
+
+<Story name="Inline timestamp in a narrow panel" asChild>
+  <div class="w-72">
+    <Panel title="Room notice" subtitle="Published 26 October 2026 at 14:05">
+      Welcome to the room.
+    </Panel>
+  </div>
+</Story>
+
 <Story name="Account title" asChild>
   <Panel title="Assistant (BOT)">
     {#snippet titleContent()}<AccountName name="Assistant" identity={{ isBot: true }} />{/snippet}

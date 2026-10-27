@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Oda duyurularını yayımlama, düzeltme, yeniden duyurma ve temizleme",
       "server_manage": "Sunucu ayarlarını güncelleyin (ad, açıklama, logo)",
       "server_manage_neighbors": "Herkese açık komşu dizinini yönet",
       "room_create": "Yeni odalar oluştur",

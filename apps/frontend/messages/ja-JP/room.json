@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "ルームのお知らせ",
+      "dismiss": "閉じる",
+      "body": "お知らせ（Markdown）",
+      "too_long": "お知らせは空白を含めて最大 {max} 文字です。",
+      "help": "修正を保存しても、お知らせは再表示されません。告知すると、端末で閉じたメンバーにも再表示されます。",
+      "conflict": "編集中にこのお知らせが変更されました。下書きは保持されています。必要に応じてコピーし、現在のお知らせを読み込んでから再度保存してください。",
+      "reload": "現在のお知らせを読み込む",
+      "save": "更新",
+      "republish": "告知",
+      "clear": "削除",
+      "clear_confirm_title": "ルームのお知らせを削除しますか？",
+      "clear_confirm_description": "ルームの全員に対して、公開中のお知らせが直ちに削除されます。未保存の変更は公開されません。",
+      "empty": "お知らせはまだ公開されていません。",
+      "edit": "お知らせを編集"
+    },
     "information": {
       "description": "説明",
       "created": "作成日時",
@@ -271,6 +287,7 @@
     "unread_separator": "新しいメッセージ",
     "close_extras": "密室エクストラ",
     "dm": {
+      "deactivated_user_notice": "このアカウントは無効化されています。ユーザーはメッセージを読んだり返信したりできません。",
       "deleted_user_notice": "相手のユーザーは削除されました。"
     },
     "management": {

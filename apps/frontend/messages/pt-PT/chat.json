@@ -6,6 +6,8 @@
       "confirmation": "Durante 15 minutos, isto ativa as permissões adicionais que te foram atribuídas neste servidor."
     },
     "notifications": {
+      "next_unread_source": "Ir para a próxima origem não lida",
+      "no_unread": "Sem notificações por ler",
       "title": "Notificações",
       "subtitle": "Aqui estão as novidades",
       "clear_read": "Limpar lidas",

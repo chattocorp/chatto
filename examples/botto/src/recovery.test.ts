@@ -79,6 +79,21 @@ function setup() {
   return { path, delivery, list, getMessage, users, run };
 }
 
+test('recovery admits image-only messages and skips empty messages', async () => {
+  const { run, delivery, getMessage } = setup();
+  getMessage.mockImplementation(async ({ messageId }) => ({
+    id: messageId,
+    roomId: 'room',
+    authorId: 'human',
+    body: '',
+    ...(messageId === 'one'
+      ? { attachments: [{ id: 'image', filename: 'image.png', contentType: 'image/png' }] }
+      : {})
+  }));
+  await run();
+  expect(delivery.queued.map((message) => message.id)).toEqual(['one']);
+});
+
 test('restart recovers paginated offline mentions in order and deduplicates live delivery', async () => {
   const { path, delivery, list, run } = setup();
   list

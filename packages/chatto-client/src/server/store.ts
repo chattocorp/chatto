@@ -767,6 +767,7 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false, invitationId?: string): void {
+    this.#rooms.loaded(roomId)?.notice?.reset(true);
     this.#rooms.loaded(roomId)?.members?.resetProjectionState();
     this.projection.removeRoomCalls(roomId);
     if (this.notifications.clearRoom(roomId, invitationId)) {
@@ -795,6 +796,7 @@ export class ServerStateStore {
 
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
   private restoreRoomAccess(roomId: string): void {
+    this.#rooms.loaded(roomId)?.notice?.restoreAccess();
     this.notifications.restoreRoom(roomId);
     this.#rooms.restoreAccess(roomId);
     this.#events.roomAccessRestored.emit(roomId);
@@ -1336,6 +1338,9 @@ export class ServerStateStore {
         this.scrubRemovedUser(userId);
         return;
       }
+      case 'userAccountDeactivationChanged':
+        this.projection.users.setDeactivated(payload.value.userId, payload.value.deactivated);
+        return;
       case 'roomDeleted':
         this.projection.removeRoom(payload.value.roomId);
         this.scrubRemovedRoom(payload.value.roomId);
@@ -1348,6 +1353,9 @@ export class ServerStateStore {
         this.#timelines.refreshWindows(roomId, event.id || null);
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'roomNoticeChanged':
+        this.#rooms.loaded(payload.value.roomId)?.notice?.invalidate(event.cursor);
         return;
       case 'messagePosted':
       case 'messageEdited':

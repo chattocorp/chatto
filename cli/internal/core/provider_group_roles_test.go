@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/config"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
@@ -29,7 +31,7 @@ func setupGroupRolesCore(t *testing.T) *ChattoCore {
 }
 
 // newGroupMember creates a user with an identity of each test provider.
-func newGroupMember(t *testing.T, core *ChattoCore, login string) *evtv1.User {
+func newGroupMember(t *testing.T, core *ChattoCore, login string) *readmodel.User {
 	t.Helper()
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, login, login, "password123")

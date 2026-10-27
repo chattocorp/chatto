@@ -1,6 +1,6 @@
 # ADR-009: Typed task invocations are the execution model
 
-**Status:** Amended by ADR-010
+**Status:** Amended by ADR-010 and ADR-012
 **Date:** 2026-10-14
 
 Supersedes [ADR-003](ADR-003-task-context.md). Amends
@@ -34,7 +34,9 @@ Runling has five primitives.
    from its parent and an `output` schema for messages to its parent. If a
    message schema is not given, the task accepts any message. A task always
    returns a promise.
-2. **A workflow run is one top-level task invocation.** A run has one identity
+2. **A workflow execution is one top-level task invocation.** Under
+   [ADR-012](ADR-012-router-controlled-reactivation.md), routers can reactivate
+   retained runs for another execution. A run has one identity
    and one journal. The result of a run is the output of its task. Runling does
    not change the shape of the output.
 3. **A task can invoke other tasks.** `ctx.start(task, input)` returns an

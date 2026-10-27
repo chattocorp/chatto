@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Oznámení místnosti",
+      "dismiss": "Zavřít",
+      "body": "Oznámení (Markdown)",
+      "too_long": "Oznámení mohou obsahovat nejvýše {max} znaků včetně bílých znaků.",
+      "help": "Uložte opravy bez opětovného zobrazení oznámení. Oznamte je znovu, aby se zobrazilo členům, kteří je na svých zařízeních zavřeli.",
+      "conflict": "Toto oznámení se během úprav změnilo. Váš koncept zůstává zachován. Podle potřeby jej zkopírujte a před dalším uložením načtěte aktuální oznámení.",
+      "reload": "Načíst aktuální oznámení",
+      "save": "Aktualizovat",
+      "republish": "Oznámit",
+      "clear": "Smazat",
+      "clear_confirm_title": "Smazat oznámení místnosti?",
+      "clear_confirm_description": "Tím okamžitě odstraníte aktivní oznámení pro všechny v místnosti. Vaše neuložené změny nebudou zveřejněny.",
+      "empty": "Nebylo zveřejněno žádné oznámení.",
+      "edit": "Upravit oznámení"
+    },
     "information": {
       "description": "Popis",
       "created": "Vytvořeno",
@@ -271,6 +287,7 @@
     "unread_separator": "Nové zprávy",
     "close_extras": "Zavřít doplňky pokoje",
     "dm": {
+      "deactivated_user_notice": "Tento účet je deaktivován. Uživatel nemůže číst zprávy ani na ně odpovídat.",
       "deleted_user_notice": "Druhý uživatel byl smazán."
     },
     "management": {

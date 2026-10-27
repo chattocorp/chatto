@@ -1581,6 +1581,59 @@ func (x *UserAccountDeletedEvent) GetUserId() string {
 	return ""
 }
 
+// Changes account access without deleting account data or credentials.
+type UserAccountDeactivationChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Deactivated   bool                   `protobuf:"varint,2,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserAccountDeactivationChangedEvent) Reset() {
+	*x = UserAccountDeactivationChangedEvent{}
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserAccountDeactivationChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserAccountDeactivationChangedEvent) ProtoMessage() {}
+
+func (x *UserAccountDeactivationChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserAccountDeactivationChangedEvent.ProtoReflect.Descriptor instead.
+func (*UserAccountDeactivationChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UserAccountDeactivationChangedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserAccountDeactivationChangedEvent) GetDeactivated() bool {
+	if x != nil {
+		return x.Deactivated
+	}
+	return false
+}
+
 type UserCustomStatusSetEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1591,7 +1644,7 @@ type UserCustomStatusSetEvent struct {
 
 func (x *UserCustomStatusSetEvent) Reset() {
 	*x = UserCustomStatusSetEvent{}
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[25]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1603,7 +1656,7 @@ func (x *UserCustomStatusSetEvent) String() string {
 func (*UserCustomStatusSetEvent) ProtoMessage() {}
 
 func (x *UserCustomStatusSetEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[25]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1616,7 +1669,7 @@ func (x *UserCustomStatusSetEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserCustomStatusSetEvent.ProtoReflect.Descriptor instead.
 func (*UserCustomStatusSetEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{25}
+	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UserCustomStatusSetEvent) GetUserId() string {
@@ -1642,7 +1695,7 @@ type UserCustomStatusClearedEvent struct {
 
 func (x *UserCustomStatusClearedEvent) Reset() {
 	*x = UserCustomStatusClearedEvent{}
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[26]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1654,7 +1707,7 @@ func (x *UserCustomStatusClearedEvent) String() string {
 func (*UserCustomStatusClearedEvent) ProtoMessage() {}
 
 func (x *UserCustomStatusClearedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[26]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1667,7 +1720,7 @@ func (x *UserCustomStatusClearedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserCustomStatusClearedEvent.ProtoReflect.Descriptor instead.
 func (*UserCustomStatusClearedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{26}
+	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UserCustomStatusClearedEvent) GetUserId() string {
@@ -1690,7 +1743,7 @@ type UserKeyShreddedEvent struct {
 
 func (x *UserKeyShreddedEvent) Reset() {
 	*x = UserKeyShreddedEvent{}
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[27]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1702,7 +1755,7 @@ func (x *UserKeyShreddedEvent) String() string {
 func (*UserKeyShreddedEvent) ProtoMessage() {}
 
 func (x *UserKeyShreddedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[27]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1715,7 +1768,7 @@ func (x *UserKeyShreddedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserKeyShreddedEvent.ProtoReflect.Descriptor instead.
 func (*UserKeyShreddedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{27}
+	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *UserKeyShreddedEvent) GetUserId() string {
@@ -1738,7 +1791,7 @@ type UserKeyShreddingRequestedEvent struct {
 
 func (x *UserKeyShreddingRequestedEvent) Reset() {
 	*x = UserKeyShreddingRequestedEvent{}
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[28]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1750,7 +1803,7 @@ func (x *UserKeyShreddingRequestedEvent) String() string {
 func (*UserKeyShreddingRequestedEvent) ProtoMessage() {}
 
 func (x *UserKeyShreddingRequestedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[28]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1763,7 +1816,7 @@ func (x *UserKeyShreddingRequestedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserKeyShreddingRequestedEvent.ProtoReflect.Descriptor instead.
 func (*UserKeyShreddingRequestedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{28}
+	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *UserKeyShreddingRequestedEvent) GetUserId() string {
@@ -1792,7 +1845,7 @@ type UserDEKGeneratedEvent struct {
 
 func (x *UserDEKGeneratedEvent) Reset() {
 	*x = UserDEKGeneratedEvent{}
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[29]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1804,7 +1857,7 @@ func (x *UserDEKGeneratedEvent) String() string {
 func (*UserDEKGeneratedEvent) ProtoMessage() {}
 
 func (x *UserDEKGeneratedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[29]
+	mi := &file_chatto_core_evt_v1_user_events_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1817,7 +1870,7 @@ func (x *UserDEKGeneratedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserDEKGeneratedEvent.ProtoReflect.Descriptor instead.
 func (*UserDEKGeneratedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{29}
+	return file_chatto_core_evt_v1_user_events_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *UserDEKGeneratedEvent) GetUserId() string {
@@ -1873,7 +1926,7 @@ var File_chatto_core_evt_v1_user_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/user_events.proto\x12\x12chatto.core.evt.v1\x1a)chatto/core/evt/v1/user_preferences.proto\x1a\x1fchatto/core/evt/v1/models.proto\"\x80\x01\n" +
+	"$chatto/core/evt/v1/user_events.proto\x12\x12chatto.core.evt.v1\x1a)chatto/core/evt/v1/user_preferences.proto\x1a%chatto/core/evt/v1/event_values.proto\"\x80\x01\n" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
@@ -1976,7 +2029,10 @@ const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\x1dUserLoginCooldownClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"2\n" +
 	"\x17UserAccountDeletedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"q\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"`\n" +
+	"#UserAccountDeactivationChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12 \n" +
+	"\vdeactivated\x18\x02 \x01(\bR\vdeactivated\"q\n" +
 	"\x18UserCustomStatusSetEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12<\n" +
 	"\x06status\x18\x02 \x01(\v2$.chatto.core.evt.v1.CustomUserStatusR\x06status\"7\n" +
@@ -2013,42 +2069,43 @@ func file_chatto_core_evt_v1_user_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_evt_v1_user_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_evt_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_chatto_core_evt_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_chatto_core_evt_v1_user_events_proto_goTypes = []any{
-	(UserDEKPurpose)(0),                       // 0: chatto.core.evt.v1.UserDEKPurpose
-	(*EncryptedUserString)(nil),               // 1: chatto.core.evt.v1.EncryptedUserString
-	(*UserAccountCreatedEvent)(nil),           // 2: chatto.core.evt.v1.UserAccountCreatedEvent
-	(*BotApiKeyCreatedEvent)(nil),             // 3: chatto.core.evt.v1.BotApiKeyCreatedEvent
-	(*BotApiKeyRotatedEvent)(nil),             // 4: chatto.core.evt.v1.BotApiKeyRotatedEvent
-	(*BotApiKeyAddedEvent)(nil),               // 5: chatto.core.evt.v1.BotApiKeyAddedEvent
-	(*BotApiKeyRevokedEvent)(nil),             // 6: chatto.core.evt.v1.BotApiKeyRevokedEvent
-	(*BotOwnerReassignedEvent)(nil),           // 7: chatto.core.evt.v1.BotOwnerReassignedEvent
-	(*BotIncomingWebhookCreatedEvent)(nil),    // 8: chatto.core.evt.v1.BotIncomingWebhookCreatedEvent
-	(*BotIncomingWebhookRotatedEvent)(nil),    // 9: chatto.core.evt.v1.BotIncomingWebhookRotatedEvent
-	(*BotIncomingWebhookRevokedEvent)(nil),    // 10: chatto.core.evt.v1.BotIncomingWebhookRevokedEvent
-	(*UserLoginChangedEvent)(nil),             // 11: chatto.core.evt.v1.UserLoginChangedEvent
-	(*UserDisplayNameChangedEvent)(nil),       // 12: chatto.core.evt.v1.UserDisplayNameChangedEvent
-	(*UserBioChangedEvent)(nil),               // 13: chatto.core.evt.v1.UserBioChangedEvent
-	(*UserAvatarSetEvent)(nil),                // 14: chatto.core.evt.v1.UserAvatarSetEvent
-	(*UserAvatarClearedEvent)(nil),            // 15: chatto.core.evt.v1.UserAvatarClearedEvent
-	(*UserVerifiedEmailAddedEvent)(nil),       // 16: chatto.core.evt.v1.UserVerifiedEmailAddedEvent
-	(*UserPrimaryEmailChangedEvent)(nil),      // 17: chatto.core.evt.v1.UserPrimaryEmailChangedEvent
-	(*UserPasswordHashChangedEvent)(nil),      // 18: chatto.core.evt.v1.UserPasswordHashChangedEvent
-	(*UserOIDCSubjectLinkedEvent)(nil),        // 19: chatto.core.evt.v1.UserOIDCSubjectLinkedEvent
-	(*UserExternalIdentityLinkedEvent)(nil),   // 20: chatto.core.evt.v1.UserExternalIdentityLinkedEvent
-	(*UserExternalIdentityUnlinkedEvent)(nil), // 21: chatto.core.evt.v1.UserExternalIdentityUnlinkedEvent
-	(*UserServerPreferencesChangedEvent)(nil), // 22: chatto.core.evt.v1.UserServerPreferencesChangedEvent
-	(*UserLoginCooldownStartedEvent)(nil),     // 23: chatto.core.evt.v1.UserLoginCooldownStartedEvent
-	(*UserLoginCooldownClearedEvent)(nil),     // 24: chatto.core.evt.v1.UserLoginCooldownClearedEvent
-	(*UserAccountDeletedEvent)(nil),           // 25: chatto.core.evt.v1.UserAccountDeletedEvent
-	(*UserCustomStatusSetEvent)(nil),          // 26: chatto.core.evt.v1.UserCustomStatusSetEvent
-	(*UserCustomStatusClearedEvent)(nil),      // 27: chatto.core.evt.v1.UserCustomStatusClearedEvent
-	(*UserKeyShreddedEvent)(nil),              // 28: chatto.core.evt.v1.UserKeyShreddedEvent
-	(*UserKeyShreddingRequestedEvent)(nil),    // 29: chatto.core.evt.v1.UserKeyShreddingRequestedEvent
-	(*UserDEKGeneratedEvent)(nil),             // 30: chatto.core.evt.v1.UserDEKGeneratedEvent
-	(*DeprecatedAsset)(nil),                   // 31: chatto.core.evt.v1.DeprecatedAsset
-	(*ServerUserPreferences)(nil),             // 32: chatto.core.evt.v1.ServerUserPreferences
-	(*CustomUserStatus)(nil),                  // 33: chatto.core.evt.v1.CustomUserStatus
+	(UserDEKPurpose)(0),                         // 0: chatto.core.evt.v1.UserDEKPurpose
+	(*EncryptedUserString)(nil),                 // 1: chatto.core.evt.v1.EncryptedUserString
+	(*UserAccountCreatedEvent)(nil),             // 2: chatto.core.evt.v1.UserAccountCreatedEvent
+	(*BotApiKeyCreatedEvent)(nil),               // 3: chatto.core.evt.v1.BotApiKeyCreatedEvent
+	(*BotApiKeyRotatedEvent)(nil),               // 4: chatto.core.evt.v1.BotApiKeyRotatedEvent
+	(*BotApiKeyAddedEvent)(nil),                 // 5: chatto.core.evt.v1.BotApiKeyAddedEvent
+	(*BotApiKeyRevokedEvent)(nil),               // 6: chatto.core.evt.v1.BotApiKeyRevokedEvent
+	(*BotOwnerReassignedEvent)(nil),             // 7: chatto.core.evt.v1.BotOwnerReassignedEvent
+	(*BotIncomingWebhookCreatedEvent)(nil),      // 8: chatto.core.evt.v1.BotIncomingWebhookCreatedEvent
+	(*BotIncomingWebhookRotatedEvent)(nil),      // 9: chatto.core.evt.v1.BotIncomingWebhookRotatedEvent
+	(*BotIncomingWebhookRevokedEvent)(nil),      // 10: chatto.core.evt.v1.BotIncomingWebhookRevokedEvent
+	(*UserLoginChangedEvent)(nil),               // 11: chatto.core.evt.v1.UserLoginChangedEvent
+	(*UserDisplayNameChangedEvent)(nil),         // 12: chatto.core.evt.v1.UserDisplayNameChangedEvent
+	(*UserBioChangedEvent)(nil),                 // 13: chatto.core.evt.v1.UserBioChangedEvent
+	(*UserAvatarSetEvent)(nil),                  // 14: chatto.core.evt.v1.UserAvatarSetEvent
+	(*UserAvatarClearedEvent)(nil),              // 15: chatto.core.evt.v1.UserAvatarClearedEvent
+	(*UserVerifiedEmailAddedEvent)(nil),         // 16: chatto.core.evt.v1.UserVerifiedEmailAddedEvent
+	(*UserPrimaryEmailChangedEvent)(nil),        // 17: chatto.core.evt.v1.UserPrimaryEmailChangedEvent
+	(*UserPasswordHashChangedEvent)(nil),        // 18: chatto.core.evt.v1.UserPasswordHashChangedEvent
+	(*UserOIDCSubjectLinkedEvent)(nil),          // 19: chatto.core.evt.v1.UserOIDCSubjectLinkedEvent
+	(*UserExternalIdentityLinkedEvent)(nil),     // 20: chatto.core.evt.v1.UserExternalIdentityLinkedEvent
+	(*UserExternalIdentityUnlinkedEvent)(nil),   // 21: chatto.core.evt.v1.UserExternalIdentityUnlinkedEvent
+	(*UserServerPreferencesChangedEvent)(nil),   // 22: chatto.core.evt.v1.UserServerPreferencesChangedEvent
+	(*UserLoginCooldownStartedEvent)(nil),       // 23: chatto.core.evt.v1.UserLoginCooldownStartedEvent
+	(*UserLoginCooldownClearedEvent)(nil),       // 24: chatto.core.evt.v1.UserLoginCooldownClearedEvent
+	(*UserAccountDeletedEvent)(nil),             // 25: chatto.core.evt.v1.UserAccountDeletedEvent
+	(*UserAccountDeactivationChangedEvent)(nil), // 26: chatto.core.evt.v1.UserAccountDeactivationChangedEvent
+	(*UserCustomStatusSetEvent)(nil),            // 27: chatto.core.evt.v1.UserCustomStatusSetEvent
+	(*UserCustomStatusClearedEvent)(nil),        // 28: chatto.core.evt.v1.UserCustomStatusClearedEvent
+	(*UserKeyShreddedEvent)(nil),                // 29: chatto.core.evt.v1.UserKeyShreddedEvent
+	(*UserKeyShreddingRequestedEvent)(nil),      // 30: chatto.core.evt.v1.UserKeyShreddingRequestedEvent
+	(*UserDEKGeneratedEvent)(nil),               // 31: chatto.core.evt.v1.UserDEKGeneratedEvent
+	(*DeprecatedAsset)(nil),                     // 32: chatto.core.evt.v1.DeprecatedAsset
+	(*ServerUserPreferences)(nil),               // 33: chatto.core.evt.v1.ServerUserPreferences
+	(*CustomUserStatus)(nil),                    // 34: chatto.core.evt.v1.CustomUserStatus
 }
 var file_chatto_core_evt_v1_user_events_proto_depIdxs = []int32{
 	1,  // 0: chatto.core.evt.v1.UserAccountCreatedEvent.encrypted_login:type_name -> chatto.core.evt.v1.EncryptedUserString
@@ -2056,10 +2113,10 @@ var file_chatto_core_evt_v1_user_events_proto_depIdxs = []int32{
 	1,  // 2: chatto.core.evt.v1.UserLoginChangedEvent.encrypted_login:type_name -> chatto.core.evt.v1.EncryptedUserString
 	1,  // 3: chatto.core.evt.v1.UserDisplayNameChangedEvent.encrypted_display_name:type_name -> chatto.core.evt.v1.EncryptedUserString
 	1,  // 4: chatto.core.evt.v1.UserBioChangedEvent.encrypted_bio:type_name -> chatto.core.evt.v1.EncryptedUserString
-	31, // 5: chatto.core.evt.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.evt.v1.DeprecatedAsset
+	32, // 5: chatto.core.evt.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.evt.v1.DeprecatedAsset
 	1,  // 6: chatto.core.evt.v1.UserVerifiedEmailAddedEvent.encrypted_email:type_name -> chatto.core.evt.v1.EncryptedUserString
-	32, // 7: chatto.core.evt.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.evt.v1.ServerUserPreferences
-	33, // 8: chatto.core.evt.v1.UserCustomStatusSetEvent.status:type_name -> chatto.core.evt.v1.CustomUserStatus
+	33, // 7: chatto.core.evt.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.evt.v1.ServerUserPreferences
+	34, // 8: chatto.core.evt.v1.UserCustomStatusSetEvent.status:type_name -> chatto.core.evt.v1.CustomUserStatus
 	0,  // 9: chatto.core.evt.v1.UserDEKGeneratedEvent.purpose:type_name -> chatto.core.evt.v1.UserDEKPurpose
 	10, // [10:10] is the sub-list for method output_type
 	10, // [10:10] is the sub-list for method input_type
@@ -2074,14 +2131,14 @@ func file_chatto_core_evt_v1_user_events_proto_init() {
 		return
 	}
 	file_chatto_core_evt_v1_user_preferences_proto_init()
-	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_event_values_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_user_events_proto_rawDesc), len(file_chatto_core_evt_v1_user_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   30,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -20,6 +20,7 @@
     "@connectrpc/connect": "^1.7.0",
     "@earendil-works/pi-coding-agent": "1.3.0",
     "@earendil-works/pi-mcp": "1.3.0",
+    "sharp": "^0.35.4",
     "smol-toml": "^1.6.1",
     "runling": "workspace:*",
     "tsx": "^4.20.0",

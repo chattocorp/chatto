@@ -63,6 +63,8 @@ must reset incompatible credentials, identity, or routing state itself.
 
 ## Related
 
+- [ADR-012: Router-controlled workflow reactivation](../adr/ADR-012-router-controlled-reactivation.md)
+
 - [ADR-011: In-process hosting and keyed batching](../adr/ADR-011-hosting-and-batching.md)
 - [ADR-001: Process-local workflows](../adr/ADR-001-process-local-workflows.md)
 - [ADR-004: Event sources](../adr/ADR-004-event-sources.md)

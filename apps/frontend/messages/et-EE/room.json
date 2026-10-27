@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Ruumi teade",
+      "dismiss": "Sulge",
+      "body": "Teade (Markdown)",
+      "too_long": "Teated võivad sisaldada kuni {max} märki, sealhulgas tühimärke.",
+      "help": "Salvestage parandused teadet uuesti näitamata. Kuulutage see välja, et näidata seda uuesti liikmetele, kes selle oma seadmetes sulgesid.",
+      "conflict": "See teade muutus redigeerimise ajal. Teie mustand on alles. Vajaduse korral kopeerige see ja laadige enne uuesti salvestamist praegune teade.",
+      "reload": "Laadi praegune teade",
+      "save": "Uuenda",
+      "republish": "Kuuluta välja",
+      "clear": "Eemalda",
+      "clear_confirm_title": "Eemaldada ruumi teade?",
+      "clear_confirm_description": "See eemaldab aktiivse teate kohe kõigi ruumis viibijate jaoks. Teie salvestamata muudatusi ei avaldata.",
+      "empty": "Ühtegi teadet pole avaldatud.",
+      "edit": "Muuda teadet"
+    },
     "information": {
       "description": "Kirjeldus",
       "created": "Loodud",
@@ -271,6 +287,7 @@
     "unread_separator": "Uued sõnumid",
     "close_extras": "Sule ruumi lisad",
     "dm": {
+      "deactivated_user_notice": "See konto on deaktiveeritud. Kasutaja ei saa sõnumeid lugeda ega neile vastata.",
       "deleted_user_notice": "Teine kasutaja on kustutatud."
     },
     "management": {

@@ -19,6 +19,9 @@ admin_user_ids = []
 [agent]
 name = "Botto"
 model = "anthropic/claude-sonnet-4-6"
+# Optional: off, minimal, low, medium, high, xhigh, max.
+# Explicit values override saved sessions. Pi adapts unsupported levels to the model.
+# reasoning_level = "low"
 system_prompt = """
 You are a helpful assistant in Chatto. Answer the current message batch together
 in one concise Markdown reply. Messages are in arrival order. Later messages can
@@ -38,9 +41,11 @@ requires; your final answer is already posted automatically. Never retry a write
 with an uncertain outcome.
 Use add_reaction sparingly for natural reactions, such as agreement, appreciation,
 or humor. The host handles the initial acknowledgement; do not add another one.
-If local memory is available, call mcp__memory__info for its workflow, then read the
-supplied global and current-user memory documents before answering. Each scope can
-have zero or more documents. Create a separate document for each useful durable
+Use local memory when prior decisions, preferences, or facts are relevant to the
+task. Skip memory lookups for self-contained questions. When using memory, call
+mcp__memory__info for its workflow and read only relevant global or current-user
+documents. Each scope can have zero or more documents.
+Create a separate document for each useful durable
 memory, or update an existing related memory. Use frontmatter data.scope and
 data.user_id to associate memories with users and search for them. Keep user facts
 in user-scoped documents, not global memory. Do not disclose private user facts to

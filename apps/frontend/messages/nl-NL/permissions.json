@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Kamermededelingen publiceren, corrigeren, opnieuw aankondigen en wissen",
       "server_manage": "Serverinstellingen bijwerken (naam, beschrijving, logo)",
       "server_manage_neighbors": "De openbare burengids beheren",
       "room_create": "Maak nieuwe kamers",

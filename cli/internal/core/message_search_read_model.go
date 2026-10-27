@@ -5,6 +5,8 @@ import (
 	"errors"
 	"slices"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -58,7 +60,7 @@ type MessageSearchScope struct {
 	RoomIDs   []string
 	AuthorIDs []string
 	NoMatches bool
-	rooms     map[string]*evtv1.Room
+	rooms     map[string]*readmodel.Room
 }
 
 // MessageSearchHit is one untrusted provider candidate.
@@ -83,7 +85,7 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
-	rooms := make(map[string]*evtv1.Room)
+	rooms := make(map[string]*readmodel.Room)
 	for _, kind := range []RoomKind{KindChannel, KindDM} {
 		memberRooms, err := s.memberships.ListMemberRooms(ctx, kind, input.ActorID, MemberRoomListOptions{})
 		if err != nil {
@@ -210,22 +212,22 @@ func (s *MessageSearchReadModel) resolveAuthorSelectors(ctx context.Context, sel
 	return uniqueSortedStrings(ids), nil
 }
 
-func filterSearchRoomByID(rooms map[string]*evtv1.Room, requested string) map[string]*evtv1.Room {
+func filterSearchRoomByID(rooms map[string]*readmodel.Room, requested string) map[string]*readmodel.Room {
 	if requested == "" {
 		return rooms
 	}
-	result := make(map[string]*evtv1.Room)
+	result := make(map[string]*readmodel.Room)
 	if room := rooms[requested]; room != nil {
 		result[requested] = room
 	}
 	return result
 }
 
-func filterSearchRoomsBySelectors(rooms map[string]*evtv1.Room, selectors []string) map[string]*evtv1.Room {
+func filterSearchRoomsBySelectors(rooms map[string]*readmodel.Room, selectors []string) map[string]*readmodel.Room {
 	if len(selectors) == 0 {
 		return rooms
 	}
-	result := make(map[string]*evtv1.Room)
+	result := make(map[string]*readmodel.Room)
 	for _, selector := range selectors {
 		for roomID, room := range rooms {
 			if roomID == selector || (room.GetName() != "" && canonicalRoomName(room.GetName()) == canonicalRoomName(selector)) {

@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Annonce du salon",
+      "dismiss": "Fermer",
+      "body": "Annonce (Markdown)",
+      "too_long": "Les annonces peuvent contenir au maximum {max} caractères, espaces compris.",
+      "help": "Enregistrez les corrections sans afficher à nouveau l’annonce. Annoncez-la pour la montrer à nouveau aux membres qui l’ont fermée sur leurs appareils.",
+      "conflict": "Cette annonce a changé pendant votre modification. Votre brouillon est conservé. Copiez-le si nécessaire, puis chargez l’annonce actuelle avant d’enregistrer à nouveau.",
+      "reload": "Charger l’annonce actuelle",
+      "save": "Mettre à jour",
+      "republish": "Annoncer",
+      "clear": "Effacer",
+      "clear_confirm_title": "Effacer l’annonce du salon ?",
+      "clear_confirm_description": "Cela supprime immédiatement l’annonce active pour tous les membres du salon. Vos modifications non enregistrées ne seront pas publiées.",
+      "empty": "Aucune annonce n’a été publiée.",
+      "edit": "Modifier l’annonce"
+    },
     "information": {
       "description": "Descriptif",
       "created": "Créé",
@@ -271,6 +287,7 @@
     "unread_separator": "Nouveaux messages",
     "close_extras": "Fermer les extras de la salle",
     "dm": {
+      "deactivated_user_notice": "Ce compte est désactivé. Ce membre ne peut ni lire les messages ni y répondre.",
       "deleted_user_notice": "L’autre utilisateur a été supprimé."
     },
     "management": {

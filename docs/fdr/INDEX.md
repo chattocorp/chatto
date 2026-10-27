@@ -27,7 +27,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-09-21    |
 | [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-10-26    |
 | [FDR-017](FDR-017-room-groups-and-sidebar-layout.md)        | Room Groups & Sidebar Layout          | Active       | 2026-10-22    |
-| [FDR-018](FDR-018-account-lifecycle.md)                     | Account Lifecycle                     | Active       | 2026-10-12    |
+| [FDR-018](FDR-018-account-lifecycle.md)                     | Account Lifecycle                     | Active       | 2026-10-27    |
 | [FDR-019](FDR-019-room-lifecycle.md)                        | Room Lifecycle                        | Active       | 2026-09-24    |
 | [FDR-020](FDR-020-server-branding-and-configuration.md)     | Server Branding & Configuration       | Active       | 2026-09-18    |
 | [FDR-021](FDR-021-admin-dashboard.md)                       | Admin Dashboard & System Monitoring   | Active       | 2026-10-16    |
@@ -63,3 +63,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-051](FDR-051-room-invitations.md)                      | Room Invitations                      | Experimental | 2026-10-22    |
 | [FDR-052](FDR-052-message-send-retries.md)                  | Message Send Retries                  | Experimental | 2026-10-08    |
 | [FDR-053](FDR-053-history-import-export.md)                 | History Import and Export             | Experimental | 2026-10-26    |
+| [FDR-054](FDR-054-room-notices.md)                          | Room Notices                          | Experimental | 2026-10-25    |

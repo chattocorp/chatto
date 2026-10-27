@@ -111,6 +111,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `room.join` | S, G, R | | Join channel rooms. |
 | `room.create` | S, G | Yes | Create channel rooms. |
 | `room.manage` | S, G, R | Yes | Configure, rename, archive, and delete rooms and room groups at that scope, and add or remove room members. At Server scope, also create and order room groups. |
+| `room.manage-notice` | S, G, R | No | Publish, correct, republish, and clear a channel notice. Requires current room membership. New instances grant it to Admin only. |
 | `room.remove-member` | S, G, R | Yes | Remove a member from a channel room, with a reason and an optional suspension. Replaces `room.ban-member`. |
 | `message.read` | All | | Read messages, threads, attachments, search results, and typing indicators. Includes `message.read-interactions`. |
 | `message.read-interactions` | All | | Read only threads that the account started, where another account mentioned it directly, or where it received a DM. It can read the full thread. |
@@ -269,6 +270,25 @@ Make these changes on an upgraded server:
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
+
+## Room notices
+
+Grant `room.manage-notice` to the roles or accounts that should edit notices.
+New instances grant it to Admin. Upgrades keep existing permission grants.
+Select **Edit** in the notice banner, or open **Room information** and select
+**Edit notice**. Write up to 4,000 characters of Markdown. Use **Update** for
+edits that should keep existing dismissals. Use **Announce** when members should
+see the changed notice again. Both actions require a text change. **Clear** asks
+for confirmation before it removes the current notice for everyone in the room.
+The banner shows the publication date and time. Corrections preserve that time;
+**Announce** updates it.
+
+Notices belong to the room. Deleting an author's account does not remove notice
+text. Clearing a notice does not erase earlier versions from the event log.
+
+Members can dismiss the banner and read the notice in **Room information**. Dismissal
+applies only to the current device. Archived rooms keep their notices but reject
+edits. Non-members and room join previews cannot read notice content.
 
 ## Room invitations
 

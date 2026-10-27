@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Ĉambra avizo",
+      "dismiss": "Fermi",
+      "body": "Avizo (Markdown)",
+      "too_long": "Avizoj povas enhavi maksimume {max} signojn, inkluzive de blankspacoj.",
+      "help": "Konservu korektojn sen remontri la avizon. Anoncu ĝin por remontri ĝin al membroj, kiuj fermis ĝin sur siaj aparatoj.",
+      "conflict": "Ĉi tiu avizo ŝanĝiĝis dum via redaktado. Via malneto restas ĉi tie. Kopiu ĝin se necese, poste ŝargu la nunan avizon antaŭ ol denove konservi.",
+      "reload": "Ŝargi nunan avizon",
+      "save": "Ĝisdatigi",
+      "republish": "Anonci",
+      "clear": "Forigi",
+      "clear_confirm_title": "Forigi la ĉambran avizon?",
+      "clear_confirm_description": "Ĉi tio tuj forigas la aktivan avizon por ĉiuj en la ĉambro. Viaj nekonservitaj ŝanĝoj ne estos publikigitaj.",
+      "empty": "Neniu avizo estas publikigita.",
+      "edit": "Redakti avizon"
+    },
     "information": {
       "description": "Priskribo",
       "created": "Kreita",
@@ -271,6 +287,7 @@
     "unread_separator": "Novaj mesaĝoj",
     "close_extras": "Fermu ĉambrajn kromaĵojn",
     "dm": {
+      "deactivated_user_notice": "Ĉi tiu konto estas malaktivigita. La uzanto ne povas legi aŭ respondi mesaĝojn.",
       "deleted_user_notice": "La alia uzanto estis forigita."
     },
     "management": {

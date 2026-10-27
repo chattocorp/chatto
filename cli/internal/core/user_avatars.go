@@ -8,6 +8,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -19,7 +21,7 @@ import (
 
 // UpdateUserAvatar uploads and sets an avatar for targetUserID after applying
 // the target-aware user and bot management authorization policy.
-func (c *ChattoCore) UpdateUserAvatar(ctx context.Context, actorID, targetUserID string, reader io.Reader) (*evtv1.User, error) {
+func (c *ChattoCore) UpdateUserAvatar(ctx context.Context, actorID, targetUserID string, reader io.Reader) (*readmodel.User, error) {
 	if _, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
@@ -54,7 +56,7 @@ func (c *ChattoCore) UpdateUserAvatar(ctx context.Context, actorID, targetUserID
 
 // ClearUserAvatar removes the target user's avatar after applying the same
 // authorization policy as UpdateUserAvatar. The operation is idempotent.
-func (c *ChattoCore) ClearUserAvatar(ctx context.Context, actorID, targetUserID string) (*evtv1.User, error) {
+func (c *ChattoCore) ClearUserAvatar(ctx context.Context, actorID, targetUserID string) (*readmodel.User, error) {
 	if _, err := c.requireCanManageUserIdentity(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
@@ -76,7 +78,7 @@ func (c *ChattoCore) ClearUserAvatar(ctx context.Context, actorID, targetUserID 
 	return c.GetUser(ctx, targetUserID)
 }
 
-func (c *ChattoCore) requireCanManageUserIdentity(ctx context.Context, actorID, targetUserID string) (*evtv1.User, error) {
+func (c *ChattoCore) requireCanManageUserIdentity(ctx context.Context, actorID, targetUserID string) (*readmodel.User, error) {
 	if actorID == "" {
 		return nil, ErrNotAuthenticated
 	}

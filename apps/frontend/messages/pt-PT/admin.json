@@ -52,6 +52,11 @@
       "subtitle": "Identidade, marca e mensagens do servidor"
     },
     "members": {
+      "deactivate": "Desativar conta",
+      "reactivate": "Reativar conta",
+      "deactivate_description": "O utilizador deixará de poder usar este servidor. Todas as sessões terminarão imediatamente. Os dados serão preservados. Pode reativar a conta mais tarde.",
+      "deactivated_description": "Esta conta está desativada. A reativação permite que o utilizador inicie sessão novamente. As sessões antigas continuam inválidas.",
+      "deactivation_failed": "Não foi possível alterar o acesso à conta.",
       "title": "Membros",
       "subtitle": "Visualizar e gerir os membros do servidor e as suas funções",
       "search": "Pesquisar membros",

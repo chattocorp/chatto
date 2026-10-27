@@ -596,6 +596,9 @@ describe('RoomList', () => {
     { ages: [12, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 3 },
     { ages: [12, 1, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3, 4], hiddenCount: 3 }
   ])('fills the minimum for DM ages $ages', ({ ages, visibleIds, hiddenCount }) => {
+    // Equal ages must produce equal timestamps even when fixture creation crosses a millisecond.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-27T12:00:00Z'));
     const template = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (room) => room.type === RoomKind.DM
     )!;

@@ -80,6 +80,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **MCP scope** — OAuth grant ceiling for one class of MCP tools, such as `chatto:rooms:read` or `chatto:messages:write`. It limits delegated agent authority in addition to normal Chatto permissions and resource visibility. It is not an RBAC permission.
 
+**Deactivated account** — An account that retains its data and assigned roles but cannot use the server. Reactivation permits new sign-ins; old human sessions stay invalid. See [FDR-018](fdr/FDR-018-account-lifecycle.md).
+
 **Bot account** — Passwordless user identity for an integration, explicitly owned by a human and marked as a bot. It receives only directly configured permissions, capped by the owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
 **Bot API key** — One of a bot account's named, non-expiring bearer credentials. Chatto shows the raw key only when it creates the key and stores only its durable verifier. Each key can be revoked independently. See [FDR-038](fdr/FDR-038-bot-accounts.md).
@@ -98,6 +100,8 @@ another address does not change the selection. See
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Room** — A channel or DM. Where messages live. Identified by `(serverId, roomId)`.
+
+**Room notice** — One current Markdown notice for a channel room's members. A correction preserves device-local dismissals; explicit republishing makes the notice appear again. See [FDR-054](fdr/FDR-054-room-notices.md).
 
 **Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
 
@@ -162,6 +166,8 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 **Permission** — Capability gate with an opaque, stable identifier, for example `message.post` or `role.assign`. Punctuation does not define authority. The catalog in `cli/internal/core/permission.go` defines scope and explicit inclusion.
 
 **Privileged Mode** — Explicit, fixed 15-minute activation of the elevation-required permissions that a human is currently entitled to use on one server session. For an effective owner, it also activates the owner override. It does not grant a role or permission. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
+
+**Shield Mode** — User-facing name for Privileged Mode, controlled by the shield button for the current server. It temporarily activates eligible permissions and the effective-owner override for that session. See [FDR-046](fdr/FDR-046-privileged-mode.md).
 
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 

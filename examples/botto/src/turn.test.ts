@@ -4,7 +4,7 @@ import type { AddressedMessage, Destination, Server } from '@chatto/client';
 import { Inbox } from './inbox.ts';
 import { createTurnHandler } from './turn.ts';
 import { parseSettings } from './settings.ts';
-import { contextFixture, row } from './context.fixture.ts';
+import { contextFixture, page, row } from './context.fixture.ts';
 import { hasTranscript } from './messages.ts';
 import { createTaskContext } from 'runling';
 
@@ -34,6 +34,7 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
   const server = {
     ...fixture.server,
     getMessage: vi.fn<Server['getMessage']>().mockResolvedValue(undefined),
+    readAttachment: vi.fn<Server['readAttachment']>(),
     addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
     postMessage: vi.fn<Server['postMessage']>().mockResolvedValue({ ids: ['reply'] }),
     withTyping: async <T>(_destination: Destination, work: () => Promise<T>) => work()
@@ -63,6 +64,29 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
   const two: AddressedMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
   return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
+
+test('passes image-only message pixels as request context, not persisted prompt text', async () => {
+  const { turn, one, history, server, agent } = setup();
+  const image = row('one', '');
+  if (image.event.kind !== 'messagePosted') throw new Error('Expected message');
+  image.event.attachments = [
+    { id: 'image', filename: 'image.png', contentType: 'image/png', width: 10, height: 10 }
+  ];
+  history.mockResolvedValue(page([row('root', 'Root'), image]));
+  server.readAttachment.mockResolvedValue({
+    filename: 'image.png',
+    contentType: 'image/png',
+    data: new Uint8Array([1, 2, 3])
+  });
+  await turn([{ ...one, body: '' }]);
+  const input = agent.reply.mock.calls[0]![1];
+  expect(server.readAttachment).not.toHaveBeenCalled();
+  expect((await input.loadImages!()).images).toEqual([
+    { messageId: 'one', attachmentId: 'image', mimeType: 'image/png', data: 'AQID' }
+  ]);
+  expect(input.prompt).not.toContain('AQID');
+  expect(server.postMessage).toHaveBeenCalledOnce();
+});
 
 test('a failed durable start prevents reactions, model calls, and reply posts', async () => {
   const beforeEffects = vi.fn(() => {
@@ -152,6 +176,8 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
         ]
       }),
       signal: expect.any(AbortSignal),
+      onText: expect.any(Function),
+      loadImages: expect.any(Function),
       context: {
         messages: [
           { id: 'root', author: 'human', text: 'Root', fromViewer: false },
@@ -164,10 +190,11 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
           { id: 'one', author: 'human', text: 'First', fromViewer: false },
           { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
         ],
-        olderContextOmitted: false
+        olderContextOmitted: false,
+        imageNotes: []
       },
       userIds: ['human', 'another'],
-      tools: [expect.any(Function)]
+      tools: [expect.any(Function), expect.any(Function), expect.any(Function)]
     }
   );
   expect(history).toHaveBeenCalledOnce();
@@ -248,4 +275,63 @@ test('failed or cancelled model work never posts a reply', async () => {
   });
   await expect(turn([one])).rejects.toThrow();
   expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('posts interim text before model completion, preserves order, and sends the final answer once', async () => {
+  const { server, agent, turn, one } = setup();
+  const firstPost = Promise.withResolvers<void>();
+  const releasePost = Promise.withResolvers<void>();
+  const finishModel = Promise.withResolvers<void>();
+  server.postMessage.mockImplementationOnce(async () => {
+    firstPost.resolve();
+    await releasePost.promise;
+    return { ids: ['interim'] };
+  });
+  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
+    onText!('Let me take a closer look.');
+    onText!('Here is the answer.');
+    await finishModel.promise;
+    return 'Here is the answer.';
+  });
+  const pending = turn([one]);
+  await firstPost.promise;
+  expect(server.postMessage).toHaveBeenCalledTimes(1);
+  releasePost.resolve();
+  finishModel.resolve();
+  await pending;
+  expect(server.postMessage.mock.calls.map((call) => call[1])).toEqual([
+    'Let me take a closer look.',
+    'Here is the answer.'
+  ]);
+});
+
+test('a failed interim post cancels model work and is never retried', async () => {
+  const { server, agent, turn, one } = setup();
+  server.postMessage.mockRejectedValueOnce(new Error('Uncertain write'));
+  agent.reply.mockImplementationOnce(async (_ctx, { onText, signal }) => {
+    const stopped = new Promise<never>((_resolve, reject) =>
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    );
+    onText!('Looking now.');
+    onText!('Queued update.');
+    return stopped;
+  });
+  await expect(turn([one])).rejects.toThrow();
+  expect(server.postMessage).toHaveBeenCalledTimes(1);
+});
+
+test('an already delivered interim message survives a later model failure without another post', async () => {
+  const { server, agent, turn, one } = setup();
+  const posted = Promise.withResolvers<void>();
+  server.postMessage.mockImplementationOnce(async () => {
+    posted.resolve();
+    return { ids: ['interim'] };
+  });
+  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
+    onText!('Looking now.');
+    await posted.promise;
+    throw new Error('Model failed');
+  });
+  await expect(turn([one])).rejects.toThrow('Model failed');
+  expect(server.postMessage).toHaveBeenCalledTimes(1);
 });

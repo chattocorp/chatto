@@ -6,6 +6,8 @@
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {
+      "next_unread_source": "Zur nächsten ungelesenen Quelle",
+      "no_unread": "Keine ungelesenen Benachrichtigungen",
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
       "clear_read": "Gelesene löschen",

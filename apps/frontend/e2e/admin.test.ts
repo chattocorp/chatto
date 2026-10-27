@@ -829,6 +829,35 @@ test.describe('Instance Role Permission Denials', () => {
 });
 
 test.describe('Identity Editing', () => {
+  test('admin account deletion returns to the members list', async ({
+    page,
+    adminPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginAdminUser(page);
+
+    await withServerUser(browser, serverURL, async ({ user }) => {
+      await adminPage.gotoUserManagement(user.id!);
+      await adminPage.openMemberSection('Account');
+      await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+
+      await page.locator('#member-delete-confirm').fill(user.login);
+      const [response] = await Promise.all([
+        page.waitForResponse((response) =>
+          response.url().endsWith('/chatto.admin.v1.AdminUserService/DeleteUser')
+        ),
+        page.getByRole('button', { name: 'Permanently delete account', exact: true }).click()
+      ]);
+      expect(response.ok()).toBe(true);
+
+      await expect(page).toHaveURL(routes.serverAdminMembers);
+      await adminPage.expectUsersPageVisible();
+      await expect(page.getByRole('heading', { name: 'Access Denied' })).not.toBeVisible();
+    });
+  });
+
   test('admin can rename a user and reset their cooldown', async ({
     page,
     adminPage,

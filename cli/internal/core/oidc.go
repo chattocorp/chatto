@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -27,7 +29,7 @@ func externalIdentityHash(issuer, subject string) string {
 }
 
 // GetUserByExternalIdentity looks up a user by provider issuer namespace and subject.
-func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*evtv1.User, error) {
+func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*readmodel.User, error) {
 	user, ok, err := c.userModel.userByExternalIdentity(ctx, issuer, subject)
 	if err != nil {
 		return nil, err
@@ -41,7 +43,7 @@ func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subj
 // GetUserByExternalIdentityForAuthentication returns the mapped user and the
 // authentication generation that was current in the same projection snapshot
 // as the identity mapping. Credential issuance must use that generation.
-func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*evtv1.User, uint64, error) {
+func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*readmodel.User, uint64, error) {
 	user, authGeneration, ok, err := c.userModel.userByExternalIdentityForAuthentication(ctx, issuer, subject)
 	if err != nil {
 		return nil, 0, err

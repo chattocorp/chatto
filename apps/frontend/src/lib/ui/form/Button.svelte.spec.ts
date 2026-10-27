@@ -5,6 +5,20 @@ import { testSnippet } from '$lib/test-utils';
 import Button from './Button.svelte';
 
 describe('Button', () => {
+  it('renders small primary buttons at 32px instead of the default 40px height', async () => {
+    const view = render(Button, {
+      props: { size: 'sm', children: testSnippet('<span>Dismiss</span>') }
+    });
+    const button = view.container.querySelector('button')!;
+    expect(button.getBoundingClientRect().height).toBe(32);
+    await view.rerender({ size: 'xs' });
+    expect(button.getBoundingClientRect().height).toBe(32);
+    await view.rerender({ size: 'compact' });
+    expect(button.getBoundingClientRect().height).toBe(24);
+    await view.rerender({ size: 'md' });
+    expect(button.getBoundingClientRect().height).toBe(40);
+  });
+
   it('keeps translated content in one centered flex row', async () => {
     const { container } = render(Button, {
       props: {

@@ -147,6 +147,7 @@
       "call": "Aramalar"
     },
     "permission_help": {
+      "room_manage_notice": "Bir üyenin etkin bir kanal odasındaki duyuruyu yönetmesine izin verir, ancak odanın kendisini yönetmesine izin vermez. Yeni kurulumlar bu izni yalnızca Admin rolüne verir; yükseltmeler mevcut izinleri korur.",
       "server_manage": "Bir hesabın sunucu adını, açıklamasını, logosunu ve diğer sunucu ayarlarını değiştirmesine izin verir. Herkese açık Komşu dizininde değişiklik yapmaya da izin verir. Bu izni yalnızca tüm sunucu adına konuşabilecek kişilere verin.",
       "server_manage_neighbors": "Bir hesabın herkese açık Komşu dizinine kayıt eklemesine, kayıtları değiştirmesine ve kaldırmasına izin verir. Diğer sunucu ayarlarını değiştirmeye izin vermez.",
       "room_create": "Bir hesabın kanal odaları oluşturmasına izin verir. Oda grubu kapsamında yalnızca o grupta yeni oda oluşturmaya izin verir.",

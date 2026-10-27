@@ -898,7 +898,7 @@ var File_chatto_core_evt_v1_asset_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_asset_events_proto_rawDesc = "" +
 	"\n" +
-	"%chatto/core/evt/v1/asset_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x03\n" +
+	"%chatto/core/evt/v1/asset_events.proto\x12\x12chatto.core.evt.v1\x1a%chatto/core/evt/v1/event_values.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x03\n" +
 	"\x11AssetCreatedEvent\x125\n" +
 	"\x05asset\x18\x01 \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordR\x05asset\x12:\n" +
 	"\x19original_binary_available\x18\x02 \x01(\bR\x17originalBinaryAvailable\x12\x17\n" +
@@ -1016,7 +1016,7 @@ func file_chatto_core_evt_v1_asset_events_proto_init() {
 	if File_chatto_core_evt_v1_asset_events_proto != nil {
 		return
 	}
-	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_event_values_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

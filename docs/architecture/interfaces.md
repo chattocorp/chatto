@@ -144,6 +144,12 @@ socket.
 
 ## Mounted public services
 
+`RoomService` owns member-only channel notice reads and version-checked publish
+and clear commands. `RoomCommandModel` evaluates membership and
+`room.manage-notice`, rejects archived writes, and commits through room aggregate
+OCC. Commands wait for the Room Directory projection before returning. See
+[FDR-054](../fdr/FDR-054-room-notices.md).
+
 `MyAccountService` and the operator identity service use the same configured
 sign-in policy for unlinking identities. The core user mutation checks that an
 enabled sign-in method remains inside its OCC loop. Account identity listings
@@ -256,6 +262,12 @@ mutation responses retain their KV-backed presence reads. The frontend caches
 rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
+
+`AdminUserService.SetUserDeactivated` delegates access changes to the
+[account lifecycle operation](../../cli/internal/core/user_deactivation.go).
+`AdminMember` exposes the flag and the caller's authority to change it.
+The public user profile exposes the deactivation flag. Administrative details
+remain private.
 
 `AdminRoleService` separates role details from explicit membership pages.
 Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs

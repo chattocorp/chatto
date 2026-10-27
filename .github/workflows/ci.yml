@@ -250,7 +250,7 @@ jobs:
               cd cli
               # Chatto does not expose Gin's MessagePack binding; omit its large codec.
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
-                -tags=nomsgpack \
+                -tags=nomsgpack,nodynamic \
                 -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )
@@ -460,6 +460,7 @@ jobs:
       - name: Check storage, internal, and Operator protobuf breaking changes
         if: github.event_name == 'pull_request'
         run: |
+          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           base_ref="${GITHUB_BASE_REF}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"

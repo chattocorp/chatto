@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"sort"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -65,7 +67,7 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 			b.Fatal(err)
 		}
 		p.users[userID] = &projectedUser{
-			user:        &evtv1.User{Id: userID, CreatedAt: timestamppb.New(time.Unix(int64(i), 0))},
+			user:        &readmodel.User{Id: userID, CreatedAt: timestamppb.New(time.Unix(int64(i), 0))},
 			login:       newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", encryptedLogin),
 			displayName: newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", encryptedDisplayName),
 		}
@@ -103,7 +105,7 @@ func TestUserProjectionActiveIDsDoesNotHydrateProfiles(t *testing.T) {
 	p := NewUserProjection(nil, nil)
 	for _, id := range []string{"active", "deleted", "shredded"} {
 		p.users[id] = &projectedUser{
-			user:     &evtv1.User{Id: id},
+			user:     &readmodel.User{Id: id},
 			login:    newProjectedUserPII("event", evtstream.EventUserAccountCreated, "login", &evtv1.EncryptedUserString{}),
 			deleted:  id == "deleted",
 			shredded: id == "shredded",
@@ -213,7 +215,7 @@ func addHydratableTestUser(t *testing.T, p *UserProjection, key []byte, userID s
 	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "display_name", "Name "+userID)
 	require.NoError(t, err)
 	p.users[userID] = &projectedUser{
-		user:        &evtv1.User{Id: userID},
+		user:        &readmodel.User{Id: userID},
 		login:       newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", encryptedLogin),
 		displayName: newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", encryptedDisplayName),
 	}

@@ -53,6 +53,51 @@ message Room {
   google.protobuf.Timestamp created_at = 11;
 }
 
+// Current member-only notice in a channel room.
+message RoomNotice {
+  // Markdown source. Empty means the notice has been cleared.
+  string body = 1;
+  // Opaque write version. Send it with every mutation. Empty before first publish.
+  string version = 2;
+  // Opaque dismissal revision. Corrections preserve it; publish and republish
+  // replace it. Empty when there is no published notice.
+  string publication_id = 3;
+  // Time of publication or explicit republishing. Corrections preserve it.
+  // Absent when cleared or unavailable on an older server.
+  google.protobuf.Timestamp published_at = 4;
+}
+
+// Reads the current channel notice, including its version when cleared.
+message GetNoticeRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+message GetNoticeResponse {
+  RoomNotice notice = 1;
+}
+
+// Publishes or replaces a notice. Replacements preserve dismissals unless
+// republish is true. A new publication always has a fresh dismissal revision.
+message PublishNoticeRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string body = 2 [(buf.validate.field).string = {min_len: 1, max_len: 4000}];
+  string expected_version = 3;
+  // True announces the replacement to members who dismissed the previous notice.
+  // False preserves dismissals. A first publication always announces the notice.
+  bool republish = 4;
+}
+message PublishNoticeResponse {
+  RoomNotice notice = 1;
+}
+
+// Clears the current notice without removing its concurrency version.
+message ClearNoticeRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string expected_version = 2;
+}
+message ClearNoticeResponse {
+  RoomNotice notice = 1;
+}
+
 // Lightweight room reference for cross-resource rows.
 message RoomSummary {
   // Stable room ID.
@@ -425,6 +470,15 @@ message RefreshTypingIndicatorResponse {
 // should still be preferred when an operation is not naturally room-scoped or
 // when the resource needs an independent CRUD/batch surface.
 service RoomService {
+  // Reads a channel notice. Requires current room membership, including in
+  // archived rooms. A room without a notice returns an empty body.
+  rpc GetNotice(GetNoticeRequest) returns (GetNoticeResponse);
+  // Publishes, corrects, or explicitly republishes a notice. Requires current
+  // membership and room.manage-notice. Archived rooms reject writes. A stale
+  // expected_version returns ABORTED; preserve the draft and reload before retry.
+  rpc PublishNotice(PublishNoticeRequest) returns (PublishNoticeResponse);
+  // Clears a notice under the same access and version rules as PublishNotice.
+  rpc ClearNotice(ClearNoticeRequest) returns (ClearNoticeResponse);
   // Reads the current viewer's stored marker without changing it. Requires the
   // same membership and read access as MarkRoomAsRead. Missing resources
   // return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.

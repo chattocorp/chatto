@@ -10,6 +10,8 @@ export type UserAvatarUserView = {
   login: string;
   displayName: string;
   deleted?: boolean;
+  /** Reversible account access state. Historical identity remains visible. */
+  deactivated?: boolean;
   isBot?: boolean;
   /** Public human owner of an active bot; absent for other accounts. */
   bot?: { ownerUserId: string };

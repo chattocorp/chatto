@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
@@ -373,7 +375,7 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 	return out, nil
 }
 
-func apiRoom(room *evtv1.Room) *apiv1.Room {
+func apiRoom(room *readmodel.Room) *apiv1.Room {
 	if room == nil {
 		return nil
 	}
@@ -410,7 +412,7 @@ func coreRoomThreadingMode(mode apiv1.RoomThreadingMode, allowUnspecified bool) 
 	return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, fmt.Errorf("%w: invalid room threading mode", core.ErrInvalidArgument)
 }
 
-func apiRoomThreadingMode(room *evtv1.Room) apiv1.RoomThreadingMode {
+func apiRoomThreadingMode(room *readmodel.Room) apiv1.RoomThreadingMode {
 	return apiRoomThreadingModeValue(core.EffectiveRoomThreadingMode(room))
 }
 
@@ -436,7 +438,7 @@ func apiRoomThreadingModeChangeValue(mode evtv1.RoomThreadingMode) apiv1.RoomThr
 	return apiRoomThreadingModeValue(mode)
 }
 
-func apiRoomSummary(room *evtv1.Room) *apiv1.RoomSummary {
+func apiRoomSummary(room *readmodel.Room) *apiv1.RoomSummary {
 	if room == nil {
 		return nil
 	}

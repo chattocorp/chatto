@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publicēt, labot, atkārtoti izziņot un notīrīt telpas paziņojumus",
       "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
       "server_manage_neighbors": "Pārvaldīt publisko kaimiņu katalogu",
       "room_create": "Izveidojiet jaunas telpas",

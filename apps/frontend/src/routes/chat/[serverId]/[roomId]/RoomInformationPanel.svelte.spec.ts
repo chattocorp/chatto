@@ -6,6 +6,9 @@ import { resetRoomGroupCollapseForTests } from '$lib/components/chat/roomGroupCo
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import RoomInformationPanel from './RoomInformationPanel.svelte';
+import { RoomNotice } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomNoticeStore } from '@chatto/client/room/notice';
+import type { ServerConnection } from '@chatto/client/server/serverConnection';
 
 describe('RoomInformationPanel', () => {
   beforeEach(async () => {
@@ -13,6 +16,37 @@ describe('RoomInformationPanel', () => {
     resetRoomGroupCollapseForTests();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
+  });
+
+  it('hides an empty notice section from readers but keeps it available to editors', async () => {
+    let notice = new RoomNotice();
+    const store = new RoomNoticeStore(
+      { getAPI: () => ({ get: async () => notice }) } as unknown as ServerConnection,
+      'R1'
+    );
+    await store.refresh();
+    const view = render(RoomInformationPanel, {
+      serverId: 'test-server',
+      roomName: 'general',
+      roomDescription: '',
+      noticeStore: store
+    });
+    const section = page.getByRole('button', { name: 'Room notice', exact: true });
+    await expect.element(section).not.toBeInTheDocument();
+    await view.rerender({ canManageNotice: true });
+    await expect.element(section).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: 'Edit notice', exact: true }))
+      .toBeVisible();
+    await view.rerender({ canManageNotice: false });
+    notice = new RoomNotice({ body: 'Published notice', version: 'v1', publicationId: 'p1' });
+    await store.refresh();
+    await expect.element(section).toBeVisible();
+    await expect.element(page.getByText('Published notice', { exact: true })).toBeVisible();
+    notice = new RoomNotice();
+    await store.refresh();
+    await expect.element(section).not.toBeInTheDocument();
+    store.dispose();
   });
 
   it('renders description Markdown through the message renderer', async () => {
@@ -59,6 +93,7 @@ describe('RoomInformationPanel', () => {
     const basic = page.getByRole('button', { name: 'General', exact: true });
     const pins = page.getByRole('button', { name: 'Pinned messages', exact: true });
     const description = page.getByRole('button', { name: 'Description', exact: true });
+    await expect.element(description).not.toBeInTheDocument();
     await expect.element(page.getByText('A place for everyone.', { exact: true })).toBeVisible();
     await expect.element(basic).toHaveAttribute('aria-expanded', 'true');
     await expect.element(pins).toHaveAttribute('aria-expanded', 'true');
@@ -67,12 +102,7 @@ describe('RoomInformationPanel', () => {
     await basic.click();
     await expect.element(basic).toHaveAttribute('aria-expanded', 'false');
     await expect.element(pins).toHaveAttribute('aria-expanded', 'true');
-    await expect.element(description).toHaveAttribute('aria-expanded', 'true');
-    await expect.element(page.getByText('A place for everyone.', { exact: true })).toBeVisible();
-    await description.click();
-    await expect.element(description).toHaveAttribute('aria-expanded', 'false');
-    await expect.element(pins).toHaveAttribute('aria-expanded', 'true');
-    await description.click();
+    expect(view.container.querySelector('.prose')?.closest('[inert]')).not.toBeNull();
     await pins.click();
     await basic.click();
     await expect.element(basic).toHaveAttribute('aria-expanded', 'true');

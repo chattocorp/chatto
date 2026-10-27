@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 )
 
@@ -917,7 +918,7 @@ func TestEmoji(t *testing.T) {
 	})
 }
 
-func setupReactionTest(t *testing.T, core *ChattoCore, ctx context.Context) (*evtv1.User, *evtv1.Room, string) {
+func setupReactionTest(t *testing.T, core *ChattoCore, ctx context.Context) (*readmodel.User, *readmodel.Room, string) {
 	t.Helper()
 	user, err := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	if err != nil {

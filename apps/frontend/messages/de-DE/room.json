@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Raumhinweis",
+      "dismiss": "Ausblenden",
+      "body": "Hinweis (Markdown)",
+      "too_long": "Hinweise dürfen höchstens {max} Zeichen einschließlich Leerzeichen enthalten.",
+      "help": "Speichere Korrekturen, ohne den Hinweis erneut anzuzeigen. Veröffentliche ihn erneut, damit Mitglieder ihn auf Geräten wieder sehen, auf denen sie ihn ausgeblendet haben.",
+      "conflict": "Dieser Hinweis wurde während deiner Bearbeitung geändert. Dein Entwurf ist noch vorhanden. Kopiere ihn bei Bedarf und lade den aktuellen Hinweis, bevor du erneut speicherst.",
+      "reload": "Aktuellen Hinweis laden",
+      "save": "Aktualisieren",
+      "republish": "Ankündigen",
+      "clear": "Entfernen",
+      "clear_confirm_title": "Raumhinweis entfernen?",
+      "clear_confirm_description": "Der aktive Hinweis wird sofort für alle im Raum entfernt. Deine ungespeicherten Änderungen werden nicht veröffentlicht.",
+      "empty": "Es wurde kein Hinweis veröffentlicht.",
+      "edit": "Hinweis bearbeiten"
+    },
     "information": {
       "description": "Beschreibung",
       "created": "Erstellt",
@@ -271,6 +287,7 @@
     "unread_separator": "Neue Nachrichten",
     "close_extras": "Raumdetails schließen",
     "dm": {
+      "deactivated_user_notice": "Dieses Konto ist deaktiviert. Das Mitglied kann Nachrichten weder lesen noch beantworten.",
       "deleted_user_notice": "Der andere Benutzer wurde gelöscht."
     },
     "management": {

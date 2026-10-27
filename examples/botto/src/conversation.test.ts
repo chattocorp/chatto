@@ -30,13 +30,13 @@ async function setup(directory?: string) {
   const source: EventSourceContext = {
     signal: controller.signal,
     state: new Map(),
-    runs: () => store.sourceRuns('source'),
+    runs: (options) => store.sourceRuns('source', options),
     dispatch: async (router, input) => {
       const started: { id: string }[] = [];
       await router(
         {
           start: async (task, options) => {
-            const run = await store.start('source', task, options.input, 'source');
+            const run = await store.start('source', task, options.input, 'source', options.runId);
             started.push({ id: run.id });
             return run;
           }
@@ -49,7 +49,7 @@ async function setup(directory?: string) {
   return { store, source, controller, directory };
 }
 
-test('reuses keys, isolates keys, keeps failed turns open, and rejects console work injection', async () => {
+test('reactivates retained keys after success and failure, and leaves no idle executions', async () => {
   const { store, source } = await setup();
   const ids: string[] = [];
   const work = vi.fn(async (ctx) => {
@@ -66,12 +66,15 @@ test('reuses keys, isolates keys, keeps failed turns open, and rejects console w
   await runTurn(source, 'other', work);
   expect(ids.slice(0, 3)).toEqual([ids[0], ids[0], ids[0]]);
   expect(ids[3]).not.toBe(ids[0]);
-  expect(store.sourceRuns('source')).toHaveLength(2);
-  await store.sourceRuns('source')[0]!.steer('Execute this text as a turn');
+  expect(store.sourceRuns('source')).toHaveLength(0);
+  expect(store.sourceRuns('source', { includeFinished: true })).toHaveLength(2);
+  await expect(
+    store.sourceRuns('source', { includeFinished: true })[0]!.steer('Execute this text as a turn')
+  ).rejects.toThrow('not running');
   expect(work).toHaveBeenCalledTimes(4);
 });
 
-test('closing the root waits for its active turn; a later batch starts a new root', async () => {
+test('closing steering waits for active work; a later batch reactivates the root', async () => {
   const { store, source } = await setup();
   const release = Promise.withResolvers<void>();
   const started = Promise.withResolvers<void>();
@@ -93,35 +96,54 @@ test('closing the root waits for its active turn; a later batch starts a new roo
   await turn;
   await run.finished;
   await runTurn(source, 'one', async () => {});
-  expect(store.sourceRuns('source')[0]!.id).not.toBe(run.id);
+  expect(store.sourceRuns('source', { includeFinished: true })[0]!.id).toBe(run.id);
 });
 
 test('a replacement source can deliver to the existing thread root', async () => {
   const { store, source } = await setup();
   await runTurn(source, 'one', async () => {});
-  const id = store.sourceRuns('source')[0]!.id;
+  const id = store.sourceRuns('source', { includeFinished: true })[0]!.id;
   await store.restore({ bottoConversation: conversation });
   await runTurn({ ...source, state: new Map() }, 'one', async (ctx) => {
     expect(ctx.run?.id).toBe(id);
   });
-  expect(store.sourceRuns('source')).toHaveLength(1);
+  expect(store.sourceRuns('source')).toHaveLength(0);
 });
 
 test('restart retains the ID without replaying completed work', async () => {
   const original = await setup();
   const work = vi.fn(async () => {});
   await runTurn(original.source, 'one', work);
-  const id = original.store.sourceRuns('source')[0]!.id;
+  const id = original.store.sourceRuns('source', { includeFinished: true })[0]!.id;
   await original.store.close();
   // The replacement owns this directory now. Do not close the old store again
   // alongside it in afterEach: that would start two snapshot writers.
   stores.splice(stores.indexOf(original.store), 1);
   const resumed = await setup(original.directory);
-  expect(resumed.store.sourceRuns('source').map((run) => run.id)).toEqual([id]);
+  expect(resumed.store.sourceRuns('source')).toEqual([]);
+  expect(
+    resumed.store.sourceRuns('source', { includeFinished: true }).map((run) => run.id)
+  ).toEqual([id]);
   expect(work).toHaveBeenCalledOnce();
   await runTurn(resumed.source, 'one', async (ctx) => {
     expect(ctx.run?.id).toBe(id);
   });
+});
+
+test('an old waiting root closes on recovery and is reused without replaying its work', async () => {
+  const original = await setup();
+  // Simulate a prior version's still-open root, before a private ticket arrives.
+  const legacy = await original.store.start('source', conversation, 'legacy', 'source');
+  await original.store.close();
+  stores.splice(stores.indexOf(original.store), 1);
+  const restarted = await setup(original.directory);
+  const callback = vi.fn(async (ctx) => expect(ctx.run?.id).toBe(legacy.id));
+  // Deliver immediately: recovery has launched the old root but need not have
+  // finished its journal and snapshot writes yet.
+  await runTurn(restarted.source, 'legacy', callback);
+  expect(callback).toHaveBeenCalledOnce();
+  expect(restarted.store.sourceRuns('source')).toEqual([]);
+  expect((await restarted.store.get(legacy.id))?.status).toBe('completed');
 });
 
 test('source cancellation reaches the task and waits for its cleanup', async () => {

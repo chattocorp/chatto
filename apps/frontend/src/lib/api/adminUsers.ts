@@ -21,6 +21,10 @@ export type AdminMember = AdminManagedUser & {
   roles: string[];
   createdAt?: string | null;
   deleted: boolean;
+  /** Account access state; absent when supplied by a legacy host. */
+  deactivated?: boolean;
+  /** Server-authorized access control, absent on older servers. */
+  viewerCanChangeDeactivation?: boolean;
   hasVerifiedEmail: boolean;
   verifiedEmails: string[];
   primaryVerifiedEmail: string | null;
@@ -190,6 +194,13 @@ export function createAdminUserManagementAPI(config: ConnectAPIConfig) {
     async deleteUser(input: AdminDeleteUserInput): Promise<boolean> {
       await client.deleteUser(input);
       return true;
+    },
+
+    /** Change account access while retaining all account data. */
+    async setUserDeactivated(userId: string, deactivated: boolean): Promise<AdminMember> {
+      const response = await client.setUserDeactivated({ userId, deactivated });
+      if (!response.member) throw new Error('account access response did not include a member');
+      return adminMember(response.member);
     }
   };
 }
@@ -223,6 +234,8 @@ function adminMember(member: APIAdminMember): AdminMember {
     roles: [...member.roles],
     createdAt: member.createdAt?.toDate().toISOString() ?? null,
     deleted: summary.deleted,
+    deactivated: member.deactivated,
+    viewerCanChangeDeactivation: member.viewerCanChangeDeactivation,
     hasVerifiedEmail: member.hasVerifiedEmail,
     verifiedEmails: [...member.verifiedEmails],
     primaryVerifiedEmail: member.primaryVerifiedEmail ?? null,

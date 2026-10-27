@@ -6,6 +6,8 @@
       "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
     },
     "notifications": {
+      "next_unread_source": "Iri al la sekva nelegita fonto",
+      "no_unread": "Neniuj nelegitaj sciigoj",
       "title": "Sciigoj",
       "subtitle": "Jen kio estas nova",
       "clear_read": "Forigi legitajn",

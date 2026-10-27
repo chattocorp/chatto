@@ -147,6 +147,7 @@
       "call": "Zvani"
     },
     "permission_help": {
+      "room_manage_notice": "Ļauj dalībniekam pārvaldīt paziņojumu aktīvā kanāla telpā, bet ne pašu telpu. Jaunās instalācijās šo atļauju saņem tikai Admin; atjauninājumi saglabā esošās atļaujas.",
       "server_manage": "Ļauj kontam mainīt servera nosaukumu, aprakstu, logotipu un citus servera iestatījumus. Tā ļauj arī mainīt publisko kaimiņu katalogu. Piešķiriet to tikai cilvēkiem, kas var runāt visa servera vārdā.",
       "server_manage_neighbors": "Ļauj kontam pievienot, mainīt un noņemt ierakstus publiskajā kaimiņu katalogā. Tā neļauj mainīt citus servera iestatījumus.",
       "room_create": "Ļauj kontam izveidot kanālu telpas. Telpu grupas līmenī tā ļauj izveidot jaunas telpas tikai šajā grupā.",

@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Aviso da sala",
+      "dismiss": "Fechar",
+      "body": "Aviso (Markdown)",
+      "too_long": "Os avisos podem conter no máximo {max} caracteres, incluindo espaços em branco.",
+      "help": "Guarde as correções sem voltar a mostrar o aviso. Anuncie-o para o mostrar novamente aos membros que o fecharam nos seus dispositivos.",
+      "conflict": "Este aviso foi alterado durante a edição. O rascunho continua disponível. Copie-o se necessário e carregue o aviso atual antes de guardar novamente.",
+      "reload": "Carregar aviso atual",
+      "save": "Atualizar",
+      "republish": "Anunciar",
+      "clear": "Limpar",
+      "clear_confirm_title": "Limpar o aviso da sala?",
+      "clear_confirm_description": "Esta ação remove imediatamente o aviso ativo para todos na sala. As alterações não guardadas não serão publicadas.",
+      "empty": "Não foi publicado nenhum aviso.",
+      "edit": "Editar aviso"
+    },
     "information": {
       "description": "Descrição",
       "created": "Criada",
@@ -271,6 +287,7 @@
     "unread_separator": "Novas mensagens",
     "close_extras": "Fechar extras do quarto",
     "dm": {
+      "deactivated_user_notice": "Esta conta está desativada. Esta pessoa não pode ler nem responder às mensagens.",
       "deleted_user_notice": "O outro utilizador foi eliminado."
     },
     "management": {

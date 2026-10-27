@@ -822,6 +822,43 @@ Request to delete a user account as a server-admin action.
 Result of deleting a user account.
 
 
+<a id="chatto-admin-v1-AdminUserService-SetUserDeactivated"></a>
+
+### SetUserDeactivated
+
+Deactivates or reactivates a human account. Requires user.manage-accounts.
+The caller cannot target their own account or an owner account.
+Deactivation immediately invalidates existing sessions and prevents sign-in.
+Reactivation permits new sign-ins; old sessions remain invalid.
+Repeating the current state succeeds without changing it.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/SetUserDeactivated
+```
+
+<a id="chatto-admin-v1-SetUserDeactivatedRequest"></a>
+
+#### Input: SetUserDeactivatedRequest
+
+Set account access without deleting user data.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `deactivated` | `bool` | No field description provided. |
+
+
+<a id="chatto-admin-v1-SetUserDeactivatedResponse"></a>
+
+#### Result: SetUserDeactivatedResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated administrative member record. |
+
+
 <a id="chatto-admin-v1-AdminOAuthClientService"></a>
 
 ## AdminOAuthClientService
@@ -2485,6 +2522,8 @@ admin/member metadata with visibility controlled by the service.
 | `last_login_change` | `google.protobuf.Timestamp` | Start of the current username-change cooldown, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 | `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
+| `deactivated` | `bool` | Deactivated accounts retain their data but cannot use the server. |
+| `viewer_can_change_deactivation` | `optional bool` | Whether the caller may deactivate or reactivate this account. Absent on servers that do not support account deactivation. |
 
 
 

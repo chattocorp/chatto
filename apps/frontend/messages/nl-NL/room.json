@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Kamermededeling",
+      "dismiss": "Sluiten",
+      "body": "Mededeling (Markdown)",
+      "too_long": "Mededelingen mogen maximaal {max} tekens bevatten, inclusief witruimte.",
+      "help": "Werk correcties bij zonder de mededeling opnieuw te tonen. Kondig deze aan om haar opnieuw te tonen aan leden die haar op hun apparaat hebben gesloten.",
+      "conflict": "Deze mededeling is gewijzigd terwijl je bezig was. Je concept blijft bewaard. Kopieer het indien nodig en laad de huidige mededeling voordat je opnieuw opslaat.",
+      "reload": "Huidige mededeling laden",
+      "save": "Bijwerken",
+      "republish": "Aankondigen",
+      "clear": "Wissen",
+      "clear_confirm_title": "Kamermededeling wissen?",
+      "clear_confirm_description": "Dit verwijdert de actieve mededeling onmiddellijk voor iedereen in de kamer. Je niet-opgeslagen wijzigingen worden niet gepubliceerd.",
+      "empty": "Er is geen mededeling gepubliceerd.",
+      "edit": "Mededeling bewerken"
+    },
     "information": {
       "description": "Beschrijving",
       "created": "Aangemaakt",
@@ -271,6 +287,7 @@
     "unread_separator": "Nieuwe berichten",
     "close_extras": "Kamerextra's sluiten",
     "dm": {
+      "deactivated_user_notice": "Dit account is gedeactiveerd. Deze gebruiker kan berichten niet lezen of beantwoorden.",
       "deleted_user_notice": "De andere gebruiker is verwijderd."
     },
     "management": {

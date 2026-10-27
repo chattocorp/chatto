@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -20,7 +22,6 @@ import (
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
@@ -407,7 +408,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 		t.Fatalf("fallback display name = %q, want login", fallbackUser.GetDisplayName())
 	}
 
-	createdUserRef := &evtv1.User{Id: created.Msg.GetUserId()}
+	createdUserRef := &readmodel.User{Id: created.Msg.GetUserId()}
 	createdCtx := withBearerCredential(env.ctx, createdUserRef, createdAuthToken)
 	list, err := env.account.ListExternalIdentities(createdCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
 	if err != nil {

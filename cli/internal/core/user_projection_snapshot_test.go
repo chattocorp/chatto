@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
 	"github.com/stretchr/testify/require"
@@ -270,15 +272,26 @@ func TestUserProjectionRestoreIsTransactionalAndDoesNotTouchAuthState(t *testing
 	require.Equal(t, []byte("hash"), hash)
 }
 
-func TestUserProjectionRestoreRejectsPlaintextUserFields(t *testing.T) {
+func TestUserProjectionSnapshotSchemaExcludesPlaintextUserFields(t *testing.T) {
 	t.Parallel()
 
-	payload, err := proto.Marshal(&projectionv1.UserProfileProjectionSnapshot{Users: []*projectionv1.ProjectedUserProfileSnapshot{{
-		UserId: "U1", User: &evtv1.User{Id: "U1", Login: "plaintext"},
-	}}})
-	require.NoError(t, err)
+	fields := (&projectionv1.UserSnapshot{}).ProtoReflect().Descriptor().Fields()
+	require.Nil(t, fields.ByName("login"))
+	require.Nil(t, fields.ByName("display_name"))
+	require.Nil(t, fields.ByName("bio"))
+
+	// Even an accidentally hydrated retained model cannot add plaintext fields
+	// to the dedicated snapshot record.
 	p := NewUserProjection(nil, nil)
-	require.ErrorContains(t, p.Restore(payload), "plaintext user")
+	p.users["U1"] = &projectedUser{deleted: true, user: &readmodel.User{
+		Id: "U1", Login: "private-login", DisplayName: "private-display", Bio: "private-bio",
+	}}
+	payload, err := p.Snapshot()
+	require.NoError(t, err)
+	for _, plaintext := range []string{"private-login", "private-display", "private-bio"} {
+		require.NotContains(t, string(payload), plaintext)
+	}
+	require.NoError(t, NewUserProjection(nil, nil).Restore(payload))
 }
 
 func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
@@ -293,7 +306,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 	valid := &projectionv1.UserProfileProjectionSnapshot{
 		Keys: []*evtv1.UserDEKGeneratedEvent{{UserId: "U1", Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, Epoch: 1, ContentKeyRef: "dek.test"}},
 		Users: []*projectionv1.ProjectedUserProfileSnapshot{{
-			UserId: "U1", User: &evtv1.User{Id: "U1"}, Login: pii("login"), LoginHash: "digest", DisplayName: pii("display_name"),
+			UserId: "U1", User: &projectionv1.UserSnapshot{Id: "U1"}, Login: pii("login"), LoginHash: "digest", DisplayName: pii("display_name"),
 		}},
 		LoginIndex: []*projectionv1.StringStringSnapshot{{Key: "digest", Value: "U1"}},
 	}
@@ -327,7 +340,7 @@ func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 18)
+	require.Len(t, p.Subjects(), 19)
 }
 
 func TestUserAuthProjectionReplaysBotIncomingWebhookLifecycle(t *testing.T) {

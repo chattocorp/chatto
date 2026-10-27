@@ -18,7 +18,7 @@ export class SourceManager {
 
   constructor(
     private start: (name: string) => WebhookContext['start'],
-    private runs: (name: string) => SourceRun[] = () => []
+    private runs: (name: string, options?: { includeFinished?: boolean }) => SourceRun[] = () => []
   ) {}
 
   replace(config: WebConfig): Promise<void> {
@@ -55,7 +55,7 @@ export class SourceManager {
               source({
                 signal: controller.signal,
                 state,
-                runs: () => this.runs(name),
+                runs: (options) => this.runs(name, options),
                 dispatch: (route, input) => {
                   if (!accepting || controller.signal.aborted)
                     return Promise.reject(new Error('Event source has stopped'));

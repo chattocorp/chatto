@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -162,15 +164,15 @@ func TestRoomMemberReferenceReadsOmitDeletedUsers(t *testing.T) {
 
 	reads := []struct {
 		name string
-		read func() ([]*evtv1.User, error)
+		read func() ([]*readmodel.User, error)
 	}{
-		{"member", func() ([]*evtv1.User, error) {
+		{"member", func() ([]*readmodel.User, error) {
 			return core.roomMemberships.ListRoomMemberReferences(ctx, viewer.Id, room.Id)
 		}},
-		{"list", func() ([]*evtv1.User, error) {
+		{"list", func() ([]*readmodel.User, error) {
 			return core.roomMemberships.ListRoomMemberReferencesForList(ctx, viewer.Id, room.Id)
 		}},
-		{"lookup", func() ([]*evtv1.User, error) {
+		{"lookup", func() ([]*readmodel.User, error) {
 			return core.roomMemberships.ListRoomMemberReferencesForLookup(ctx, viewer.Id, room.Id)
 		}},
 	}
@@ -185,7 +187,7 @@ func TestRoomMemberReferenceReadsOmitDeletedUsers(t *testing.T) {
 	}
 }
 
-func userRefsContain(users []*evtv1.User, userID string) bool {
+func userRefsContain(users []*readmodel.User, userID string) bool {
 	for _, user := range users {
 		if user.GetId() == userID {
 			return true

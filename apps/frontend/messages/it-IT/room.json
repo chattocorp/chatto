@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Avviso della stanza",
+      "dismiss": "Chiudi",
+      "body": "Avviso (Markdown)",
+      "too_long": "Gli avvisi possono contenere al massimo {max} caratteri, inclusi gli spazi.",
+      "help": "Salva le correzioni senza mostrare di nuovo l’avviso. Annuncialo per mostrarlo di nuovo ai membri che lo hanno chiuso sui propri dispositivi.",
+      "conflict": "Questo avviso è cambiato durante la modifica. La tua bozza è ancora qui. Copiala se necessario, poi carica l’avviso attuale prima di salvare di nuovo.",
+      "reload": "Carica avviso attuale",
+      "save": "Aggiorna",
+      "republish": "Annuncia",
+      "clear": "Cancella",
+      "clear_confirm_title": "Cancellare l’avviso della stanza?",
+      "clear_confirm_description": "Questo rimuove subito l’avviso attivo per tutti nella stanza. Le tue modifiche non salvate non verranno pubblicate.",
+      "empty": "Non è stato pubblicato alcun avviso.",
+      "edit": "Modifica avviso"
+    },
     "information": {
       "description": "Descrizione",
       "created": "Creata",
@@ -271,6 +287,7 @@
     "unread_separator": "Nuovi messaggi",
     "close_extras": "Chiudi gli extra della camera",
     "dm": {
+      "deactivated_user_notice": "Questo account è disattivato. L’utente non può leggere i messaggi né rispondere.",
       "deleted_user_notice": "L’altro utente è stato eliminato."
     },
     "management": {
