@@ -111,7 +111,8 @@ export interface AgentResourceOptions {
   /** Directory containing global pi configuration and resources. */
   agentDir?: string;
   extensions?: boolean;
-  skills?: boolean;
+  /** Default discovery unless false. An array loads only these paths, relative to cwd. */
+  skills?: boolean | string[];
   promptTemplates?: boolean;
   themes?: boolean;
   contextFiles?: boolean;
@@ -493,7 +494,8 @@ async function createRunlingAgent(
       ...(options.extensions ?? [])
     ],
     noExtensions: !extensionsEnabled,
-    noSkills: resources?.skills === false,
+    noSkills: resources?.skills === false || Array.isArray(resources?.skills),
+    ...(Array.isArray(resources?.skills) ? { additionalSkillPaths: resources.skills } : {}),
     noPromptTemplates: resources?.promptTemplates === false,
     noThemes: resources?.themes === false,
     noContextFiles: resources?.contextFiles === false,

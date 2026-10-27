@@ -10,6 +10,7 @@ import { mcpExtension, memoryLockExtension } from './mcp.ts';
 import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
 import { systemPrompt, type PromptCapability } from './prompts.ts';
+import { skillReadExtension } from './skills.ts';
 
 /** Private input for one model turn. The task context always comes from its conversation. */
 export interface ReplyOptions {
@@ -72,12 +73,13 @@ export async function createAgent(settings: Settings) {
         resources: {
           agentDir: settings.directory,
           extensions: false,
-          skills: false,
+          skills: [settings.skillsDirectory],
           promptTemplates: false,
           themes: false,
           contextFiles: false
         },
         extensions: [
+          skillReadExtension(settings.skillsDirectory),
           ...tools,
           mcpExtension(settings, memory?.directory),
           memoryLockExtension(signal, memory?.acquire),

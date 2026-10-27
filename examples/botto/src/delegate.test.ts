@@ -65,8 +65,12 @@ test('opens an isolated session with explicit context and a bounded result', asy
     output: 'text',
     logContent: false,
     tools: 'extensions',
-    extensions: [],
-    resources: { extensions: false, skills: false, contextFiles: false }
+    extensions: [expect.any(Function)],
+    resources: {
+      extensions: false,
+      skills: [expect.stringContaining('.agents/skills')],
+      contextFiles: false
+    }
   });
   expect(mock.create.mock.calls[0]![0].sessionFile).toBeUndefined();
   expect(mock.create.mock.calls[0]![0].systemPrompt).toContain(
@@ -91,7 +95,7 @@ test('enables only web MCP, with no memory directory or Chatto tools', async () 
   await call();
   expect(mock.mcp).toHaveBeenCalledWith(expect.objectContaining({ mcp: false, web: true }));
   expect(mock.mcp.mock.calls[0]).toHaveLength(1);
-  expect(mock.create.mock.calls[0]![0].extensions).toHaveLength(1);
+  expect(mock.create.mock.calls[0]![0].extensions).toHaveLength(2);
 });
 
 test('parallel assignments create independent sessions and return to their callers', async () => {

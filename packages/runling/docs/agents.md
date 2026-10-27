@@ -238,6 +238,14 @@ disable ambient extensions, skills, and context files separately. Set
 parallel preparation of several calls must not wait on a lock held by another
 call in the same batch.
 
+Set `resources.skills` to an array of paths to load only those skill files or
+directories, relative to the session's `cwd`. An empty array disables discovery;
+`false` also disables skills. Omit the option or use `true` for Pi's default
+discovery. Pi adds the skill catalog when an active `read` or `bash` tool is
+available, including an extension tool with that name. Loading skills does not
+add tools or restrict file access. Applications that expose a reader must enforce
+their own file-access policy.
+
 Set `logContent: false` to omit model text, reasoning, and tool arguments from
 logs and progress events. Tool activity and usage remain visible. This does
 not remove content from private session transcripts or from explicit task
