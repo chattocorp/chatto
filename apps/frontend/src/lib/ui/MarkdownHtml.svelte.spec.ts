@@ -118,11 +118,9 @@ describe('Mermaid previews', () => {
       await expect.poll(() => stage.clientHeight).toBeGreaterThan(0);
       expect(stage.clientHeight).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6) + 1);
       expect(block.querySelector('button[aria-label="Zoom in"]')).not.toBeNull();
-      if (direction === 'TB') {
-        await expect
-          .poll(() => image.getBoundingClientRect().height)
-          .toBeGreaterThan(stage.clientHeight);
-      }
+      expect(block.querySelector('output')?.textContent).toBe('100%');
+      expect(image.getBoundingClientRect().height).toBeLessThanOrEqual(stage.clientHeight + 1);
+      expect(stage.clientWidth).toBe(block.clientWidth);
       expect(block.hasAttribute('tabindex')).toBe(false);
     }
   );

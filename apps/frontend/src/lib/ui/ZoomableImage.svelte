@@ -1,6 +1,6 @@
 <!-- @component
 Shared image stage for the attachment viewer and inline SVG/Mermaid previews.
-Inline stages cap their height, start at readable width and pan on normal wheel
+Inline stages fill their frame, start fitted and pan on normal wheel
 input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds.
 -->
 <script module lang="ts">
@@ -36,7 +36,6 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
   let naturalHeight = $state(0);
   let stageWidth = $state(0);
   let stageHeight = $state(0);
-  let initialized = false;
   // Pointer positions stay relative to the stage while it owns pointer capture.
   const pointers = new SvelteMap<number, { x: number; y: number }>();
   const percent = $derived(Math.round(zoom * 100));
@@ -80,20 +79,11 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     offsetY = 0;
   }
 
-  /** Initialize inline images at width-fit, then preserve the user's view on resize. */
+  /** Preserve the user's zoom and keep pan within the resized stage. */
   function measureStage() {
     stageWidth = stage.clientWidth;
     stageHeight = stage.clientHeight;
     if (!stageWidth || !stageHeight || !naturalWidth || !naturalHeight) return;
-    if (!initialized) {
-      initialized = true;
-      if (inline) {
-        const fitted = Math.min(stageWidth / naturalWidth, stageHeight / naturalHeight);
-        zoom = Math.max(1, Math.min(MAX_ZOOM, Math.min(1, stageWidth / naturalWidth) / fitted));
-        clampPan(0, bounds().y);
-        return;
-      }
-    }
     clampPan(offsetX, offsetY);
   }
 
@@ -108,7 +98,7 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     const update = () => {
       naturalWidth = image.naturalWidth;
       naturalHeight = image.naturalHeight;
-      // Inline aspect ratio changes must reach layout before initial width-fit.
+      // Inline aspect ratio changes must reach layout before measuring bounds.
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(measureStage);
     };
@@ -260,7 +250,6 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     'image-canvas flex min-h-0 w-full flex-col',
     inline ? 'mx-auto text-text' : 'h-full bg-black text-white'
   ]}
-  style:max-width={inline && naturalWidth ? `${naturalWidth}px` : undefined}
   data-sidebar-swipe-ignore
   {@attach containMessageGestures}
 >

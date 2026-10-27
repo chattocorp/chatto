@@ -43,14 +43,17 @@ describe('ZoomableImage', () => {
     image.src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1200"/>')}`;
     image.alt = 'Tall diagram';
     const view = render(ZoomableImage, { image, inline: true, onerror: vi.fn() });
-    view.container.style.width = '400px';
+    view.container.style.width = '900px';
     const stage = view.container.querySelector<HTMLElement>('[role="group"]')!;
     const layer = view.container.querySelector<HTMLElement>('.image-canvas-layer')!;
     await expect.poll(() => image.naturalHeight).toBe(1200);
-    await expect.poll(() => view.container.querySelector('output')?.textContent).not.toBe('100%');
+    await expect.poll(() => stage.clientWidth).toBe(900);
+    expect(view.container.querySelector('output')?.textContent).toBe('100%');
+    expect(layer.style.transform).toBe('translate(0px, 0px) scale(1)');
     expect(stage.clientHeight).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6));
     expect(view.container.querySelector('img')).toBe(image);
-    expect(stage.getBoundingClientRect().width).toBeCloseTo(400, 0);
+    expect(stage.getBoundingClientRect().width).toBeCloseTo(900, 0);
+    await view.getByRole('button', { name: 'Zoom in' }).click();
     const initialZoom = view.container.querySelector('output')!.textContent;
     const firstTransform = layer.style.transform;
     const wheel = (deltaY: number, ctrlKey = false) => {
@@ -58,6 +61,7 @@ describe('ZoomableImage', () => {
       stage.dispatchEvent(event);
       return event;
     };
+    expect(wheel(-10000).defaultPrevented).toBe(true);
     expect(wheel(-100).defaultPrevented).toBe(false);
     expect(wheel(100).defaultPrevented).toBe(true);
     await tick();
