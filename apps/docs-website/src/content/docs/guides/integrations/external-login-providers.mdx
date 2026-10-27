@@ -205,8 +205,22 @@ username_claim = "preferred_username"
 `manage_usernames` defaults to `false`. When enabled, Chatto assigns the username
 at account creation. Users still confirm account creation and can edit their
 display name. Chatto trims spaces, converts the username to lowercase, and
-checks its format. It does not use an email address or display name as a fallback.
-OIDC uses `username_claim`; other providers use their username field.
+checks its format. The source depends on the provider:
+
+| Provider | Username source |
+| --- | --- |
+| OIDC | `username_claim`, which defaults to `preferred_username` |
+| GitHub | Account login |
+| GitLab | Account username |
+| Discord | Account username, not the global display name |
+| Google | Local part of the verified email address: `alice@example.com` becomes `alice` |
+
+Google has no separate username. Set `request_email = true` for managed Google
+usernames. If you configure custom `scopes`, include `email`. This lets Chatto
+receive the email address from Google and makes its local part the public Chatto
+username. Unverified or missing email addresses cannot supply a Google username.
+Other providers do not fall back to email. No provider uses the display name.
+
 If the name is taken, Chatto tries `name-2`, `name-3`, and further numbers, up to
 1,000 candidates. It shortens the base when needed to fit the suffix. Missing,
 invalid, or reserved names prevent account creation; correct the provider claim.

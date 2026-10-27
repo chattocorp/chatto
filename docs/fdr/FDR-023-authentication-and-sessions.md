@@ -20,9 +20,12 @@ providers, and a bootstrap path for first-boot operator setup.
 
 - Providers can opt into `manage_usernames`. New accounts receive the verified
   provider username after trimming spaces and conversion to lowercase. OIDC
-  uses `username_claim` (default `preferred_username`); OAuth uses the provider
-  username. Missing, invalid, or reserved names stop creation without an email
-  or display-name fallback. Collisions use numeric suffixes starting at `-2`,
+  uses `username_claim` (default `preferred_username`); GitHub, GitLab, and
+  Discord use their account username. Google has no separate username, so it
+  uses the local part of the verified email address and requires email access.
+  This Google-specific source is not a fallback for other providers. Display
+  names are never used. Missing, invalid, or reserved names stop creation.
+  Collisions use numeric suffixes starting at `-2`,
   with at most 1,000 candidates and base truncation to fit the username limit.
   The server assigns the name; the confirmation preview is not a reservation.
 - Existing names remain stable unless the provider enables `sync_usernames`.

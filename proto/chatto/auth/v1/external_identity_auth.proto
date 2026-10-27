@@ -59,12 +59,10 @@ message CreateExternalIdentityAccountRequest {
   string token = 1 [(buf.validate.field).string.min_len = 1];
   // Desired username. Ignored when the pending flow has username_managed set;
   // the server assigns a name from the verified provider claim in that case.
-  string login = 2 [(buf.validate.field).string = {
-    min_len: 2
-    max_len: 32
-  }];
+  // Otherwise, it must contain 2 to 32 characters and use a valid username format.
+  string login = 2;
   // Desired display name. When omitted, the server uses a valid provider hint
-  // and otherwise falls back to the requested username.
+  // and otherwise falls back to the assigned username.
   string display_name = 3 [(buf.validate.field).string.max_len = 32];
 }
 

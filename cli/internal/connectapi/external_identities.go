@@ -79,7 +79,13 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		// now, and never redeem an invitation while the server is open.
 		flow.InvitationID = ""
 	}
-	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), req.Msg.GetDisplayName(), flow.DisplayNameHint)
+	// Leave the fallback empty for managed names. Core uses the actual assigned
+	// username, including any collision suffix, when it creates the account.
+	fallbackLogin := req.Msg.GetLogin()
+	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
+		fallbackLogin = ""
+	}
+	displayName := externalIdentityCreateDisplayName(fallbackLogin, req.Msg.GetDisplayName(), flow.DisplayNameHint)
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {
 		return nil, err

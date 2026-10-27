@@ -832,19 +832,40 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 	if gothUser.UserID == "" {
 		return resolvedProviderIdentity{}, fmt.Errorf("provider returned empty user id")
 	}
-	providerUsername := ""
-	if r.config.ManageUsernames {
-		providerUsername = gothUser.NickName
-	}
+	verifiedEmail := r.verifiedEmailFromGothUser(c.Request.Context(), gothUser)
 	return resolvedProviderIdentity{
 		issuer:           r.config.ID,
 		subject:          gothUser.UserID,
-		verifiedEmail:    r.verifiedEmailFromGothUser(c.Request.Context(), gothUser),
+		verifiedEmail:    verifiedEmail,
 		avatarURL:        gothUser.AvatarURL,
 		loginHint:        loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
-		providerUsername: providerUsername,
+		providerUsername: r.managedUsernameFromGothUser(gothUser, verifiedEmail),
 		displayNameHint:  displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
 	}, nil
+}
+
+// managedUsernameFromGothUser selects the provider's account identifier, never
+// its display name. The verified email is supplied by the provider-specific check.
+func (r *authProviderRuntime) managedUsernameFromGothUser(user goth.User, verifiedEmail string) string {
+	if !r.config.ManageUsernames {
+		return ""
+	}
+	switch r.config.Type {
+	case config.AuthProviderTypeGitHub, config.AuthProviderTypeGitLab:
+		return user.NickName
+	case config.AuthProviderTypeDiscord:
+		// Goth maps Discord's username to Name, not NickName. Discord's
+		// global display name must not be used for the account identifier.
+		return user.Name
+	case config.AuthProviderTypeGoogle:
+		// Google has no username. Its explicit source is the verified email's
+		// local part; Goth's NickName contains the display name instead.
+		local, domain, ok := strings.Cut(verifiedEmail, "@")
+		if ok && local != "" && domain != "" && !strings.Contains(domain, "@") {
+			return local
+		}
+	}
+	return ""
 }
 
 // authorizeGothSession exchanges the provider code with the bounded client.

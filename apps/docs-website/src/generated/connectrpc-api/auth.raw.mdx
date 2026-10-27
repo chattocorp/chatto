@@ -75,8 +75,8 @@ Request to create a new passwordless account from a pending provider identity.
 | Field | Type | Description |
 | --- | --- | --- |
 | `token` | `string` | Raw pending create token from the provider callback redirect. |
-| `login` | `string` | Desired username. Ignored when the pending flow has username_managed set; the server assigns a name from the verified provider claim in that case. |
-| `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the requested username. |
+| `login` | `string` | Desired username. Ignored when the pending flow has username_managed set; the server assigns a name from the verified provider claim in that case. Otherwise, it must contain 2 to 32 characters and use a valid username format. |
+| `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the assigned username. |
 
 
 <a id="chatto-auth-v1-CreateExternalIdentityAccountResponse"></a>

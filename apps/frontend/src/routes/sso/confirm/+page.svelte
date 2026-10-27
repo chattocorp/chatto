@@ -146,7 +146,7 @@
         error={loginError}
       />
       {#if pending.usernameManaged}
-        <p class="text-sm text-muted">{m('settings.account.sso.username_managed')}</p>
+        <Hint>{m('settings.account.sso.username_managed')}</Hint>
       {/if}
 
       <TextInput

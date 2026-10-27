@@ -1,9 +1,12 @@
 package connectapi
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -29,7 +32,9 @@ func TestManagedProviderAccountAPI(t *testing.T) {
 	// Another user takes the preview before confirmation.
 	_, err = env.core.CreateUser(env.ctx, core.SystemActorID, "person-2", "Second", "password123")
 	require.NoError(t, err)
-	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token, Login: "forged", DisplayName: "Person"}))
+	request := &authv1.CreateExternalIdentityAccountRequest{Token: token}
+	require.NoError(t, protovalidate.Validate(request))
+	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(request))
 	require.NoError(t, err)
 	require.Equal(t, "person-3", created.Msg.Login)
 	invalidToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
@@ -40,6 +45,7 @@ func TestManagedProviderAccountAPI(t *testing.T) {
 	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
 	user, err := env.core.GetUser(env.ctx, created.Msg.UserId)
 	require.NoError(t, err)
+	require.Equal(t, "person-3", user.DisplayName)
 	ctx := withBearerCredential(env.ctx, user, created.Msg.Token)
 	viewer, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
 	require.NoError(t, err)
@@ -51,5 +57,34 @@ func TestManagedProviderAccountAPI(t *testing.T) {
 		require.Equal(t, apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR, link.DisconnectEligibility)
 		_, err = env.account.DisconnectExternalIdentity(ctx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{SubjectHash: link.SubjectHash}))
 		require.ErrorIs(t, err, core.ErrExternalIdentityUnlinkDisabled)
+	}
+}
+
+func TestExternalIdentityAccountLoginValidation(t *testing.T) {
+	for _, managed := range []bool{false, true} {
+		for _, login := range []string{"", "x", strings.Repeat("x", 33), "invalid@name"} {
+			t.Run(fmt.Sprintf("managed=%t/login=%q", managed, login), func(t *testing.T) {
+				env := newConnectAPITestEnvWithAuth(t, 30*time.Second, config.AuthConfig{Providers: []config.AuthProviderConfig{{
+					ID: "company", Type: "github", AutoProvision: new(true), ManageUsernames: managed,
+				}}})
+				token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+					ProviderID: "company", ProviderType: "github", Issuer: "company", Subject: "new",
+					ProviderUsername: "person", DisplayNameHint: strings.Repeat("A", 33),
+				})
+				require.NoError(t, err)
+				request := &authv1.CreateExternalIdentityAccountRequest{Token: token, Login: login}
+				require.NoError(t, protovalidate.Validate(request))
+				created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(request))
+				if !managed {
+					require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, "person", created.Msg.Login)
+				user, err := env.core.GetUser(env.ctx, created.Msg.UserId)
+				require.NoError(t, err)
+				require.Equal(t, "person", user.DisplayName)
+			})
+		}
 	}
 }
