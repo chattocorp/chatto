@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -108,14 +110,16 @@ func TestManagedOAuthCallbackCreatesAccount(t *testing.T) {
 }
 
 func TestManagedOIDCCallbackUsernameSync(t *testing.T) {
+	// Serial: the failed-sync case captures the process-wide default logger.
 	for _, tc := range []struct {
 		name, claim, want string
 		sync, collision   bool
+		wantSyncError     error
 	}{
-		{"stable by default", "provider-new", "existing-name", false, false},
-		{"sync enabled", "provider-new", "provider-new", true, false},
-		{"sync collision", "provider-new", "provider-new-2", true, true},
-		{"invalid name still signs in", "invalid@name", "existing-name", true, false},
+		{"stable by default", "provider-new", "existing-name", false, false, nil},
+		{"sync enabled", "provider-new", "provider-new", true, false, nil},
+		{"sync collision", "provider-new", "provider-new-2", true, true, nil},
+		{"invalid name still signs in", "invalid@name", "existing-name", true, false, core.ErrLoginInvalidCharacter},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			issuer := newNoEmailOIDCIssuer(t, "client-id")
@@ -136,7 +140,18 @@ func TestManagedOIDCCallbackUsernameSync(t *testing.T) {
 				_, err = s.core.CreateUser(t.Context(), core.SystemActorID, tc.claim, "Other Person", "password123")
 				require.NoError(t, err)
 			}
+			var output bytes.Buffer
+			if tc.wantSyncError != nil {
+				previous := log.Default()
+				log.SetDefault(log.New(&output))
+				t.Cleanup(func() { log.SetDefault(previous) })
+			}
 			require.Equal(t, "/chat", completeNoEmailOIDCLogin(t, client, ts.URL, provider.ID, "/chat"))
+			if tc.wantSyncError != nil {
+				require.Contains(t, output.String(), "Provider username sync failed")
+				require.Contains(t, output.String(), tc.wantSyncError.Error())
+				require.NotContains(t, output.String(), tc.claim)
+			}
 			stored, err := s.core.GetUser(t.Context(), user.Id)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, stored.Login)

@@ -37,7 +37,8 @@
     .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
     .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
 
-  const loginError = $derived(login ? validate(loginSchema, login) : undefined);
+  // Managed names are assigned and validated by the server; this field is a preview.
+  const loginError = $derived(!usernameManaged && login ? validate(loginSchema, login) : undefined);
   const displayNameError = $derived.by(() => {
     if (!displayName) return undefined;
     return validateDisplayName(displayName).valid
@@ -50,7 +51,7 @@
     pending &&
       !submitting &&
       ((isCreate &&
-        login.trim() &&
+        (usernameManaged || login.trim()) &&
         (usernameManaged || displayName.trim()) &&
         !loginError &&
         !displayNameError) ||

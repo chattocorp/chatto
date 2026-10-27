@@ -470,7 +470,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 
 	if err := s.core.SyncProviderUsername(ctx, user.Id, providerRuntime.config.ID, identity.providerUsername); err != nil {
-		log.Warn("Provider username sync failed", "provider_id", providerRuntime.config.ID, "user_id", user.Id)
+		log.Warn("Provider username sync failed", "provider_id", providerRuntime.config.ID, "user_id", user.Id, "error", err)
 	}
 
 	// Sync before the session exists, so a failed revocation cannot leave a

@@ -88,6 +88,27 @@ test.describe('Managed provider accounts', () => {
     await expect(page.getByTestId('settings-username')).toHaveValue('e2eadmin-3');
     await expect(page.getByPlaceholder('Enter your display name')).toHaveValue('e2eadmin-3');
   });
+
+  test('accepts a server-assigned username with consecutive periods', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `periods-${Date.now()}`,
+      providerUsername: 'john..doe'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('john..doe');
+    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('john..doe');
+  });
 });
 
 test.describe('External identity confirmation flows', () => {
@@ -107,6 +128,22 @@ test.describe('External identity confirmation flows', () => {
         CHATTO_AUTH_PROVIDERS_1_CLIENT_SECRET: 'discord-secret'
       }
     }
+  });
+
+  test('still validates usernames when the user can edit them', async ({ page, authPage }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'github-main',
+      providerType: 'github',
+      subject: `editable-periods-${Date.now()}`,
+      loginHint: 'john..doe',
+      displayNameHint: 'John'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeDisabled();
+    await page.getByLabel('Username').fill('john.doe');
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
   });
 
   test('shows immediate feedback while starting provider sign-in', async ({ page, context }) => {
