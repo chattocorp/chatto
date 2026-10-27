@@ -129,7 +129,9 @@ async function runServerOAuthFlow(
   responseWait.promise.catch(() => {});
 
   try {
-    const info = await serverInfo;
+    // A deliberate close must end the attempt even while discovery is pending.
+    // Both promises stay observed, including a late discovery failure.
+    const info = await Promise.race([serverInfo, responseWait.promise.then(() => serverInfo)]);
     if (!info.authorizeUrl) {
       throw new Error('This server does not support OAuth sign-in.');
     }

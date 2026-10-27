@@ -477,10 +477,10 @@ describe('remote server OAuth popup', () => {
     const { startRemoteReauthentication } = await import('./reauth');
     const completion = startRemoteReauthentication(remote);
 
+    const cancelled = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
     (popup as unknown as { closed: boolean }).closed = true;
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await cancelled;
     rejectServerInfo?.(new Error('discovery failed'));
-    await expect(completion).rejects.toThrow('discovery failed');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     process.off('unhandledRejection', unhandled);
