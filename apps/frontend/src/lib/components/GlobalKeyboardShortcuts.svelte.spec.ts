@@ -132,10 +132,11 @@ describe('global keyboard shortcuts', () => {
       expect(dialog.textContent).toContain('Go to next unread source');
       expect(draft.value).toBe('Keep my draft');
       const close = [...dialog.querySelectorAll('button')].find(
-        (button) => button.getAttribute('aria-label') === 'Close (Esc)'
+        (button) => button.textContent?.trim() === 'Esc'
       )!;
       close.click();
       await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+      await expect.poll(() => dialog.querySelector('.command-palette')).toBeNull();
       expect(document.activeElement).toBe(draft);
     }
   );
@@ -158,9 +159,11 @@ describe('global keyboard shortcuts', () => {
     };
     const close = async (dialog: Element) => {
       [...dialog.querySelectorAll('button')]
-        .find((button) => button.getAttribute('aria-label') === 'Close (Esc)')!
+        .find((button) => button.textContent?.trim() === 'Esc')!
         .click();
       await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+      // Native close fires asynchronously after the open attribute is removed.
+      await expect.poll(() => dialog.querySelector('.command-palette')).toBeNull();
     };
     try {
       let dialog = await help();

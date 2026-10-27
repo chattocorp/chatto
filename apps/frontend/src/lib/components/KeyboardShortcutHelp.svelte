@@ -46,9 +46,7 @@ The shared dialog owns Escape dismissal and focus restoration.
             type="text"
             class="min-w-0 flex-1 bg-transparent text-[16px] text-text outline-none placeholder:text-muted"
           />
-          <button type="button" class="keycap" aria-label={`${m('ui.close')} (Esc)`} onclick={close}
-            >Esc</button
-          >
+          <button type="button" class="keycap" title={m('ui.close')} onclick={close}>Esc</button>
         </div>
       </div>
       <div class="menu-section">

@@ -22,7 +22,9 @@ test('shortcut help preserves editor text, selection, and focus', async ({
   await page.keyboard.press('ControlOrMeta+Shift+K');
   const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Close (Esc)', exact: true })).toHaveText('Esc');
+  await expect(
+    dialog.getByRole('button', { name: 'Esc', exact: true })
+  ).toHaveAccessibleDescription('Close');
   await expect(dialog.getByText('Open quick switcher', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Send message', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Bold', { exact: true })).toBeVisible();
