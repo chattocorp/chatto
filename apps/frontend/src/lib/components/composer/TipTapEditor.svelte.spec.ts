@@ -34,6 +34,23 @@ it('opens a registered Chatto link from the composer through local routing', asy
 });
 
 describe('Composer artifact controls', () => {
+  it('keeps code frames visible on the chat composer surface', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => (api = ready)
+    });
+    container.classList.add('chat-input-surface');
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent('```mermaid\nflowchart LR\nA-->B\n```');
+    const pre = container.querySelector('pre')!;
+    expect(getComputedStyle(pre).borderTopColor).not.toBe(
+      getComputedStyle(container).backgroundColor
+    );
+    expect(getComputedStyle(pre).borderTopColor).toBe(
+      getComputedStyle(pre, '::before').backgroundColor
+    );
+  });
+
   it('uses a top header and decorative line numbers while editing code', async () => {
     let api: ComposerEditorApi | undefined;
     const updates: string[] = [];

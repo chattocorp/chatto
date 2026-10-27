@@ -2251,6 +2251,7 @@
  */
 @utility chat-input-surface {
   @apply min-h-12 shell-surface;
+  --message-code-surface: var(--color-surface-emphasized);
 }
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
