@@ -35,8 +35,8 @@ await build({
       background: path.join(desktopRoot, 'icons/background.png'),
       window: { width: 540, height: 380 },
       contents: [
-        { x: 150, y: 180, type: 'file', path: bundle },
-        { x: 390, y: 180, type: 'link', path: '/Applications' }
+        { x: 150, y: 115, type: 'file', path: bundle },
+        { x: 390, y: 115, type: 'link', path: '/Applications' }
       ]
     }
   }
