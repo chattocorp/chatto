@@ -9,6 +9,16 @@ const source =
 const env = { BOTTO_CHATTO_API_KEY: 'secret' };
 const parse = (text = source) => parseSettings(text, '/config/botto.toml', env);
 
+test('reasoning is optional, supports Pi levels, and rejects unknown values without exposing them', () => {
+  expect(parse().reasoningLevel).toBeUndefined();
+  for (const level of ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+    expect(parse(`${source}\nreasoning_level="${level}"`).reasoningLevel).toBe(level);
+  for (const value of ['"secret-invalid"', 'false', '4', '""']) {
+    expect(() => parse(`${source}\nreasoning_level=${value}`)).toThrow('agent.reasoning_level');
+    expect(() => parse(`${source}\nreasoning_level=${value}`)).not.toThrow('secret-invalid');
+  }
+});
+
 test('admin IDs default to none and must be explicit nonempty strings', () => {
   expect(parse().adminUserIds).toEqual([]);
   const withAdmins = (value: string) =>

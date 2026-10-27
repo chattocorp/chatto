@@ -18,6 +18,7 @@ test('a fresh process restores the same Pi session and its model context', async
     const file = join(directory, transcriptName(identity));
     expect(await hasTranscript(directory, identity)).toBe(false);
     const original = SessionManager.open(file, directory, directory);
+    original.appendThinkingLevelChange('high');
     original.appendMessage({
       role: 'user',
       content: 'Remember the synthetic test word: marmalade.',
@@ -37,8 +38,8 @@ test('a fresh process restores the same Pi session and its model context', async
       const model = modelRuntime.getModel('anthropic', 'claude-sonnet-4-6');
       if (!model) throw new Error('Synthetic restoration test needs a built-in model');
       const { session } = await createAgentSession({ cwd: directory, agentDir: directory, settingsManager,
-        resourceLoader, modelRuntime, model, tools: [], sessionManager: SessionManager.open(file, directory, directory) });
-      try { console.log(JSON.stringify({ sessionId: session.sessionId, messages: session.messages })); }
+        resourceLoader, modelRuntime, model, thinkingLevel: 'low', tools: [], sessionManager: SessionManager.open(file, directory, directory) });
+      try { console.log(JSON.stringify({ sessionId: session.sessionId, messages: session.messages, thinkingLevel: session.thinkingLevel })); }
       finally { session.dispose(); }
     `;
     const { stdout } = await promisify(execFile)(
@@ -52,6 +53,7 @@ test('a fresh process restores the same Pi session and its model context', async
     );
     const restored = JSON.parse(stdout);
     expect(restored.sessionId).toBe(original.getSessionId());
+    expect(restored.thinkingLevel).toBe('low');
     expect(restored.messages).toEqual(original.buildSessionContext().messages);
     expect(restored.messages).toHaveLength(1);
   } finally {

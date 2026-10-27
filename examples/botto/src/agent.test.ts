@@ -45,6 +45,7 @@ async function setup(memory = false) {
     ),
     directory,
     memory,
+    reasoningLevel: 'low',
     adminUserIds: ['admin']
   });
   return { agent, session, directory };
@@ -59,6 +60,7 @@ test('uses Runling with explicit extensions, no ambient resources, and the origi
   expect(mock.create).toHaveBeenCalledWith(
     expect.objectContaining({
       model: 'test/model',
+      thinkingLevel: 'low',
       output: 'text',
       tools: 'extensions',
       sessionFile: join(directory, transcriptName(identity)),

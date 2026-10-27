@@ -26,6 +26,7 @@ vi.mock(sdkPath, async () => {
     ...sdk,
     createAgentSession: async (...args: Parameters<typeof sdk.createAgentSession>) => {
       const result = await sdk.createAgentSession(...args);
+      expect(result.session.thinkingLevel).toBe('low');
       await result.session.modelRuntime.setRuntimeApiKey('anthropic', 'offline-test');
       const agent = result.session.agent;
       agent.getApiKey = () => 'offline-test';
@@ -147,6 +148,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
         'botto.toml'
       ),
       directory,
+      reasoningLevel: 'low' as const,
       memory: false,
       mcp: false,
       web: false

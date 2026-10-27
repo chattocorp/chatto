@@ -60,30 +60,36 @@ restart after changing them. `pnpm dev` restarts the complete host after source
 or configuration changes. Use this full restart for development rather than
 `runling serve --watch`: Botto's task and source share process-local admission state.
 
-| Setting                         | Default                  | Purpose                                                                       |
-| ------------------------------- | ------------------------ | ----------------------------------------------------------------------------- |
-| `chatto.url`                    | Required                 | Chatto server URL                                                             |
-| `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`       |
-| `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                       |
-| `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                               |
-| `chatto.respond_to`             | See below                | Which messages address Botto                                                  |
-| `memory.enabled`                | `false`                  | Enable local Means memory                                                     |
-| `memory.command`                | `means`                  | Means executable name or absolute path                                        |
-| `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                               |
-| `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server             |
-| `web.exa_api_key`               | Unset                    | Optional Exa API key; use an environment reference such as `${EXA_API_KEY}`   |
-| `chatto.allowed_user_id`        | Unset                    | Restrict requests to one Chatto user ID                                       |
-| `agent.model`                   | Required                 | Pi model in `provider/model` format                                           |
-| `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                  |
-| `agent.system_prompt`           | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings            |
-| `runtime.data_directory`        | `.botto`                 | Private transcripts, delivery ledger, and Runling history                     |
-| `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it             |
-| `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
-| `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds  |
-| `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                      |
-| `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                        |
-| `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                   |
-| `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                       |
+| Setting                         | Default                  | Purpose                                                                        |
+| ------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| `chatto.url`                    | Required                 | Chatto server URL                                                              |
+| `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`        |
+| `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                        |
+| `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                                |
+| `chatto.respond_to`             | See below                | Which messages address Botto                                                   |
+| `memory.enabled`                | `false`                  | Enable local Means memory                                                      |
+| `memory.command`                | `means`                  | Means executable name or absolute path                                         |
+| `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                                |
+| `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server              |
+| `web.exa_api_key`               | Unset                    | Optional Exa API key; use an environment reference such as `${EXA_API_KEY}`    |
+| `chatto.allowed_user_id`        | Unset                    | Restrict requests to one Chatto user ID                                        |
+| `agent.model`                   | Required                 | Pi model in `provider/model` format                                            |
+| `agent.reasoning_level`         | Pi/session default       | Reasoning effort: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max` |
+| `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                   |
+| `agent.system_prompt`           | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings             |
+| `runtime.data_directory`        | `.botto`                 | Private transcripts, delivery ledger, and Runling history                      |
+| `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it              |
+| `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds  |
+| `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds   |
+| `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                       |
+| `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                         |
+| `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                    |
+| `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                        |
+
+`agent.reasoning_level` applies to the root agent and delegated agents. Set it to
+`low` to request less reasoning effort. An explicit value overrides the level in
+saved sessions. If omitted, Pi uses its defaults or the saved session level.
+Pi adjusts unsupported levels to the model's supported levels.
 
 `chatto.respond_to` lists the reasons that address a message to Botto:
 `direct_message`, `mention` (by name), `role_mention`, `here_mention`,
@@ -334,8 +340,10 @@ Pi receives matching document IDs per scope and user in the request-only input
 context, plus the full Means tool catalog with a `mcp__memory__` prefix. Means
 serves the collection schema and workflow through its `info` tool; Botto does not
 copy that workflow into its system prompt. The default
-system prompt tells it to read global and participant memory before answering,
-create separate documents for new memories, and update existing related facts.
+system prompt tells it to read relevant global and participant memory when a task
+needs prior decisions, preferences, or facts, and to skip memory lookups for
+self-contained questions. It also tells it to create separate documents for new
+memories and update existing related facts. Read-before-update checks still apply.
 Memory updates are model-driven. If you supply a custom `agent.system_prompt`, include
 your desired memory behavior there. Edit the collection's `MEANS.md` to change
 its workflow; Botto can read the current version through MCP `info`.

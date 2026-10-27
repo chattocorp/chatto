@@ -32,7 +32,8 @@ async function setup(web = false) {
       '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="test/model"',
       'botto.toml'
     ),
-    web
+    web,
+    reasoningLevel: 'low' as const
   };
   await delegateExtension(
     createTaskContext(),
@@ -59,6 +60,7 @@ test('opens an isolated session with explicit context and a bounded result', asy
   expect(JSON.stringify((await call()).content)).toContain('A useful answer.');
   expect(mock.create.mock.calls[0]![0]).toMatchObject({
     model: 'test/model',
+    thinkingLevel: 'low',
     output: 'text',
     logContent: false,
     tools: 'extensions',
