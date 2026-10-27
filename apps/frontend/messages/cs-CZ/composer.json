@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Zobrazit náhled ve výchozím nastavení",
     "attach_file": "Připojit soubor",
     "formatting_options": "Možnosti formátování",
     "send": "Odeslat zprávu",

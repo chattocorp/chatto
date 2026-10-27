@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "原始碼",
+    "code_render": "呈現",
+    "code_render_failed": "無法預覽。原始碼仍可使用。",
     "action_unavailable": "此操作目前無法使用。",
     "edit": "編輯",
     "copy_failed": "無法複製到剪貼簿。請選取文字並手動複製。",

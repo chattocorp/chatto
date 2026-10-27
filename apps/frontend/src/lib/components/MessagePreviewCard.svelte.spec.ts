@@ -477,7 +477,7 @@ describe('MessagePreviewCard', () => {
     const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
     expect(fades).toHaveLength(2);
     expect(fades[0].className).toContain('from-surface');
-    expect(fades[0].className).toContain('z-30');
+    expect(getComputedStyle(fades[0]).zIndex).toBe('30');
     expect(fades[1].className).toContain('bg-gradient-to-t');
     await vi.waitFor(() => {
       expect(scrollViewport!.scrollHeight).toBeLessThanOrEqual(scrollViewport!.clientHeight + 1);

@@ -382,7 +382,7 @@ describe('PermissionMatrix', () => {
     expect(getComputedStyle(stickyBody).backgroundColor).toBe(backgroundColor);
     expect(stickyBody.className).toContain('z-10');
     const fades = panel.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
-    expect(fades[fades.length - 1].className).toContain('z-30');
+    expect(getComputedStyle(fades[fades.length - 1]).zIndex).toBe('30');
   });
 
   it('flows vertically with the page when contained scrolling is disabled', async () => {

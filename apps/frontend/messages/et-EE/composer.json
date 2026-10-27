@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Kuva eelvaade vaikimisi",
     "attach_file": "Manusta fail",
     "formatting_options": "Vormindusvalikud",
     "send": "Saada sõnum",

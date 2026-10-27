@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "Fonto",
+    "code_render": "Prezento",
+    "code_render_failed": "Antaŭvido ne disponeblas. La fonto plu disponeblas.",
     "action_unavailable": "Ĉi tiu ago nuntempe ne disponeblas.",
     "edit": "Redakti",
     "copy_failed": "Ne eblis kopii al la tondujo. Elektu la tekston kaj kopiu ĝin permane.",

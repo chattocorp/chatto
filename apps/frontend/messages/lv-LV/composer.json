@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Pēc noklusējuma rādīt priekšskatījumu",
     "attach_file": "Pievienojiet failu",
     "formatting_options": "Formatēšanas opcijas",
     "send": "Nosūtīt ziņu",

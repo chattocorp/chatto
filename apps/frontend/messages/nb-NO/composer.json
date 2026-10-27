@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Vis forhåndsvisning som standard",
     "attach_file": "Legg ved fil",
     "formatting_options": "Formateringsalternativer",
     "send": "Send melding",

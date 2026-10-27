@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "Sorgente",
+    "code_render": "Vista",
+    "code_render_failed": "Anteprima non disponibile. Il sorgente resta disponibile.",
     "action_unavailable": "Questa azione non è attualmente disponibile.",
     "edit": "Modifica",
     "copy_failed": "Impossibile copiare negli appunti. Seleziona il testo e copialo manualmente.",

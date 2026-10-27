@@ -360,6 +360,13 @@ Bodies can also contain timestamp tokens such as `<t:UNIX_SECONDS:F>`. Show a
 valid token as that UTC instant in the viewer's locale and time zone. If your
 client does not support timestamps, show the token unchanged.
 
+The bundled frontend offers Source and Render tabs for `mermaid`, `svg`, and
+`ansi` fences. Add `rendered` after the language to select Render by default.
+Mermaid uses Pele, and SVG uses isolated images. Keep the
+source unchanged when sending, editing, quoting, or copying messages. Clients
+without these renderers can show the code. See [Format Messages](/getting-started/message-formatting/)
+for syntax and rendering limits. Rendering does not require an external service.
+
 ## Programmatic Safety
 
 1. Use generated protobuf clients, not hand-built JSON or paths.

@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "العرض افتراضيًا",
     "attach_file": "قم بإرفاق الملف",
     "formatting_options": "خيارات التنسيق",
     "send": "أرسل الرسالة",

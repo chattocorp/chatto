@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Afficher le rendu par défaut",
     "attach_file": "Joindre un fichier",
     "formatting_options": "Options de mise en forme",
     "send": "Envoyer un message",

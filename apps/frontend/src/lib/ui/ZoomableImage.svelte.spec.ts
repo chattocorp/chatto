@@ -17,7 +17,12 @@ async function mount() {
   await expect.poll(() => stage.clientWidth).toBe(400);
   await expect.poll(() => view.container.querySelector('img')?.naturalWidth).toBe(400);
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  return { query: view, stage, image: view.container.querySelector<HTMLImageElement>('img')! };
+  return {
+    query: view,
+    stage,
+    image: view.container.querySelector<HTMLImageElement>('img')!,
+    layer: view.container.querySelector<HTMLElement>('.image-canvas-layer')!
+  };
 }
 
 function pointer(stage: HTMLElement, type: string, id: number, x: number, y: number) {
@@ -33,6 +38,89 @@ function pointer(stage: HTMLElement, type: string, id: number, x: number, y: num
 }
 
 describe('ZoomableImage', () => {
+  it('pans a bounded inline image, releases wheel scrolling at edges and shares zoom and Fit', async () => {
+    const image = new Image();
+    image.src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1200"/>')}`;
+    image.alt = 'Tall diagram';
+    const view = render(ZoomableImage, { image, inline: true, onerror: vi.fn() });
+    view.container.style.width = '900px';
+    const stage = view.container.querySelector<HTMLElement>('[role="group"]')!;
+    const layer = view.container.querySelector<HTMLElement>('.image-canvas-layer')!;
+    await expect.poll(() => image.naturalHeight).toBe(1200);
+    await expect.poll(() => stage.clientWidth).toBe(900);
+    expect(view.container.querySelector('output')?.textContent).toBe('100%');
+    expect(layer.style.transform).toBe('translate(0px, 0px) scale(1)');
+    expect(stage.clientHeight).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6));
+    expect(view.container.querySelector('img')).toBe(image);
+    expect(stage.getBoundingClientRect().width).toBeCloseTo(900, 0);
+    const canvas = view.container.querySelector<HTMLElement>('.image-canvas')!;
+    expect(canvas.clientHeight).toBe(stage.clientHeight);
+    const controls = canvas.querySelector('output')!.parentElement!;
+    expect(controls.getBoundingClientRect().bottom).toBeLessThan(
+      stage.getBoundingClientRect().bottom
+    );
+    await view.getByRole('button', { name: 'Zoom in' }).click();
+    const initialZoom = view.container.querySelector('output')!.textContent;
+    const firstTransform = layer.style.transform;
+    const wheel = (deltaY: number, ctrlKey = false) => {
+      const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY, ctrlKey });
+      stage.dispatchEvent(event);
+      return event;
+    };
+    expect(wheel(-10000).defaultPrevented).toBe(true);
+    expect(wheel(-100).defaultPrevented).toBe(false);
+    expect(wheel(100).defaultPrevented).toBe(true);
+    await tick();
+    expect(layer.style.transform).not.toBe(firstTransform);
+    expect(view.container.querySelector('output')!.textContent).toBe(initialZoom);
+    expect(wheel(10000).defaultPrevented).toBe(true);
+    expect(wheel(100).defaultPrevented).toBe(false);
+    expect(wheel(-100, true).defaultPrevented).toBe(true);
+    await tick();
+    expect(view.container.querySelector('output')!.textContent).not.toBe(initialZoom);
+    await view.getByRole('button', { name: 'Fit' }).click();
+    expect(layer.style.transform).toBe('translate(0px, 0px) scale(1)');
+    expect(wheel(100).defaultPrevented).toBe(false);
+    await expect
+      .poll(() =>
+        [...view.container.querySelectorAll('.image-canvas-fade')].every((fade) =>
+          fade.classList.contains('opacity-0')
+        )
+      )
+      .toBe(true);
+  });
+
+  it('keeps inline gestures away from message activation and scopes keyboard controls to focus', async () => {
+    const view = render(ZoomableImage, {
+      src,
+      alt: 'Inline image',
+      inline: true,
+      onerror: vi.fn()
+    });
+    view.container.style.width = '400px';
+    const parentGesture = vi.fn();
+    for (const type of ['click', 'mousedown', 'mouseup', 'touchstart', 'touchend'])
+      view.container.addEventListener(type, parentGesture);
+    const outsidePress = vi.fn();
+    document.addEventListener('pointerdown', outsidePress);
+    await expect.poll(() => view.container.querySelector('img')?.naturalWidth).toBe(400);
+    const increase = view.getByRole('button', { name: 'Zoom in' });
+    await increase.click();
+    await expect.element(view.getByText('125%')).toBeVisible();
+    expect(parentGesture).not.toHaveBeenCalled();
+    expect(outsidePress).toHaveBeenCalled();
+    document.removeEventListener('pointerdown', outsidePress);
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '+', bubbles: true, cancelable: true })
+    );
+    await expect.element(view.getByText('150%')).toBeVisible();
+    (document.activeElement as HTMLElement).blur();
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '+', bubbles: true, cancelable: true })
+    );
+    await expect.element(view.getByText('150%')).toBeVisible();
+  });
+
   it('steps beyond 400% to 1600%, disables the limit, and returns to Fit', async () => {
     const view = await mount();
     const increase = view.query.getByRole('button', { name: 'Zoom in' });
@@ -48,7 +136,7 @@ describe('ZoomableImage', () => {
     await expect.element(view.query.getByText('1575%')).toBeVisible();
     await view.query.getByRole('button', { name: 'Fit' }).click();
     await expect.element(view.query.getByText('100%')).toBeVisible();
-    expect(view.image.style.transform).toBe('translate(0px, 0px) scale(1)');
+    expect(view.layer.style.transform).toBe('translate(0px, 0px) scale(1)');
   });
 
   it('keeps the wheel focal point steady and clamps dragging to the image', async () => {
@@ -66,7 +154,7 @@ describe('ZoomableImage', () => {
     view.stage.dispatchEvent(wheel);
     expect(wheel.defaultPrevented).toBe(true);
     await expect.element(view.query.getByText('800%')).toBeVisible();
-    expect(view.image.style.transform).toMatch(/translate\(-700(?:\.\d+)?px, 0px\) scale\(8/);
+    expect(view.layer.style.transform).toMatch(/translate\(-700(?:\.\d+)?px, 0px\) scale\(8/);
 
     // Events that start on the image bubble to the stage's pan handlers.
     pointer(view.image, 'pointerdown', 1, rect.left + 200, rect.top + 150);
@@ -74,14 +162,14 @@ describe('ZoomableImage', () => {
     await tick();
     const fit = Math.min(view.stage.clientWidth / 400, view.stage.clientHeight / 300);
     const maxX = Math.max(0, (400 * fit * 8 - view.stage.clientWidth) / 2);
-    expect(view.image.style.transform).toContain(`translate(${maxX}px, 0px)`);
+    expect(view.layer.style.transform).toContain(`translate(${maxX}px, 0px)`);
     pointer(view.image, 'pointerup', 1, rect.left + 2000, rect.top + 150);
     view.stage.dispatchEvent(new WheelEvent('wheel', { deltaY: -10000, cancelable: true }));
     await expect.element(view.query.getByText('1600%')).toBeVisible();
     await expect.element(view.query.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
     view.stage.dispatchEvent(new WheelEvent('wheel', { deltaY: 10000, cancelable: true }));
     await expect.element(view.query.getByText('100%')).toBeVisible();
-    expect(view.image.style.transform).toBe('translate(0px, 0px) scale(1)');
+    expect(view.layer.style.transform).toBe('translate(0px, 0px) scale(1)');
   });
 
   it('keeps the image as the hit target so the native image context menu works', async () => {

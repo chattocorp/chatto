@@ -339,6 +339,27 @@ describe('MarkdownEditor', () => {
     expect(container.querySelector('.cm-code-fence-close')).toBeNull();
   });
 
+  it('highlights Mermaid fences while preserving editable source', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const { container } = await renderEditor({
+      onReady: (api: ComposerEditorApi) => readyApis.push(api)
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const source = '```mermaid rendered\nflowchart TD\n  A[Scan cargo] --> B{Ready?}\n```';
+    readyApis[0].setContent(source);
+    await expect
+      .poll(() => container.querySelector('.hljs-keyword')?.textContent)
+      .toBe('flowchart');
+    expect(container.querySelector('.hljs-built_in')?.textContent).toBe('TD');
+    expect(container.querySelector('.hljs-string')?.textContent).toBe('[Scan cargo]');
+    expect(container.querySelector('.hljs-operator')?.textContent).toBe('-->');
+    expect(readyApis[0].getText()).toBe(source);
+    readyApis[0].setContent('```mermaid\nsequenceDiagram\nAlice->>Bob: Hello\n```');
+    await expect
+      .poll(() => container.querySelector('.hljs-keyword')?.textContent)
+      .toBe('sequenceDiagram');
+  });
+
   it('fences stale APIs after destruction', async () => {
     const onDestroy = vi.fn();
     const readyApis: ComposerEditorApi[] = [];

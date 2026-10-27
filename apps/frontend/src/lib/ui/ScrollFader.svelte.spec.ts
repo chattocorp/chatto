@@ -1,6 +1,7 @@
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
+import '../../app.css';
 import ScrollFaderTestHarness from './ScrollFaderTestHarness.svelte';
 
 async function nextFrame() {
@@ -19,9 +20,9 @@ describe('ScrollFader', () => {
 
     expect(fades).toHaveLength(2);
     expect(fades[0].className).toContain('inset-x-0');
-    expect(fades[0].className).toContain('z-30');
+    expect(getComputedStyle(fades[0]).zIndex).toBe('30');
     expect(fades[1].className).toContain('inset-x-0');
-    expect(fades[1].className).toContain('z-30');
+    expect(getComputedStyle(fades[1]).zIndex).toBe('30');
   });
 
   it('recomputes bottom fade visibility when refreshed without a scroll event', async () => {

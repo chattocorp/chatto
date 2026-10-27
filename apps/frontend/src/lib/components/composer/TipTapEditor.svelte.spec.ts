@@ -33,6 +33,99 @@ it('opens a registered Chatto link from the composer through local routing', asy
   expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
 });
 
+describe('Composer artifact controls', () => {
+  it('keeps code frames visible on the chat composer surface', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => (api = ready)
+    });
+    container.classList.add('chat-input-surface');
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent('```mermaid\nflowchart LR\nA-->B\n```');
+    const pre = container.querySelector('pre')!;
+    expect(getComputedStyle(pre).borderTopColor).not.toBe(
+      getComputedStyle(container).backgroundColor
+    );
+    expect(getComputedStyle(pre).borderTopColor).toBe(
+      getComputedStyle(pre, '::before').backgroundColor
+    );
+  });
+
+  it('uses a top header while keeping code editable', async () => {
+    let api: ComposerEditorApi | undefined;
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => (api = ready),
+      onUpdate: (markdown) => updates.push(markdown)
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent('```mermaid\nflowchart LR\n\nA-->B\n```');
+    const pre = container.querySelector('pre')!;
+    const code = pre.querySelector('code')!;
+    await userEvent.click(code);
+    expect(code.textContent).toBe('flowchart LR\n\nA-->B');
+    expect(getComputedStyle(pre, '::before').height).toBe('24px');
+    expect(getComputedStyle(pre).borderTopColor).toBe(
+      getComputedStyle(pre, '::before').backgroundColor
+    );
+    const controls = container
+      .querySelector('[name="composer-code-language"]')!
+      .closest('.code-frame-header')!;
+    expect(
+      Math.abs(controls.getBoundingClientRect().top - pre.getBoundingClientRect().top)
+    ).toBeLessThan(2);
+    await userEvent.keyboard('{Home}');
+    api!.insertText('new\n');
+    await expect.poll(() => code.textContent).toContain('new\n');
+    expect(updates.at(-1)).toContain('new\n');
+  });
+
+  it.each(['svg', 'mermaid', 'ansi'])(
+    'sets the rendered hint from the visual %s controls',
+    async (language) => {
+      let api: ComposerEditorApi | undefined;
+      const updates: string[] = [];
+      const { container } = render(TipTapEditor, {
+        onReady: (ready) => (api = ready),
+        onUpdate: (markdown) => updates.push(markdown)
+      });
+      await vi.waitFor(() => expect(api).toBeDefined());
+      const source = language === 'mermaid' ? 'flowchart LR\nA-->B' : 'source';
+      api!.setContent('```' + language + '\n' + source + '\n```');
+      await userEvent.click(container.querySelector('pre code')!);
+      const toggle = page.getByRole('button', { name: 'Render by default' });
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
+      await userEvent.click(toggle);
+      expect(updates.at(-1)?.trimEnd()).toBe('```' + language + ' rendered\n' + source + '\n```');
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+      expect(
+        container.querySelector<HTMLSelectElement>('select[name="composer-code-language"]')?.value
+      ).toBe(language);
+      if (language === 'mermaid') {
+        await expect
+          .poll(() => container.querySelector('.hljs-keyword')?.textContent)
+          .toBe('flowchart');
+      }
+      await userEvent.click(toggle);
+      expect(updates.at(-1)?.trimEnd()).toBe('```' + language + '\n' + source + '\n```');
+      api!.setContent('```' + language + ' rendered\n' + source + '\n```');
+      await userEvent.click(container.querySelector('pre code')!);
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+      const select = container.querySelector<HTMLSelectElement>(
+        'select[name="composer-code-language"]'
+      )!;
+      const otherArtifact = language === 'mermaid' ? 'svg' : 'mermaid';
+      await userEvent.selectOptions(select, otherArtifact);
+      expect(updates.at(-1)?.trimEnd()).toBe(
+        '```' + otherArtifact + ' rendered\n' + source + '\n```'
+      );
+      await userEvent.selectOptions(select, 'js');
+      expect(updates.at(-1)?.trimEnd()).toBe('```js\n' + source + '\n```');
+      expect(container.querySelector('button[aria-label="Render by default"]')).toBeNull();
+    }
+  );
+});
+
 describe('Composer underline editing', () => {
   it('converts typed underline syntax and toggles it with the platform shortcut', async () => {
     const updates: string[] = [];

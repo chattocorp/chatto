@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Standaard weergeven",
     "attach_file": "Bestand bijvoegen",
     "formatting_options": "Opmaakopties",
     "send": "Bericht verzenden",

@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Mostrar prévia por padrão",
     "attach_file": "Anexar arquivo",
     "formatting_options": "Opções de formatação",
     "send": "Enviar mensagem",

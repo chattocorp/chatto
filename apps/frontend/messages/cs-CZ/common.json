@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "Zdroj",
+    "code_render": "Náhled",
+    "code_render_failed": "Náhled není dostupný. Zdroj je stále k dispozici.",
     "action_unavailable": "Tato akce je momentálně nedostupná.",
     "edit": "Upravit",
     "copy_failed": "Do schránky se nepodařilo zkopírovat. Vyberte text a zkopírujte jej ručně.",

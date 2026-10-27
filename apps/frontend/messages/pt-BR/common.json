@@ -1,5 +1,8 @@
 {
   "common": {
+    "code_source": "Código",
+    "code_render": "Visualização",
+    "code_render_failed": "Prévia indisponível. O código continua disponível.",
     "action_unavailable": "Esta ação está indisponível no momento.",
     "edit": "Editar",
     "copy_failed": "Não foi possível copiar para a área de transferência. Selecione o texto e copie-o manualmente.",

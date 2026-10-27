@@ -1852,10 +1852,55 @@
   @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
 }
 
+/* Non-interactive overlays shared by native scroll viewports. */
+@utility scroll-edge-fade {
+  @apply pointer-events-none absolute z-30 to-transparent transition-opacity;
+}
+
+@utility image-canvas-asset {
+  @apply m-0 block h-full w-full max-w-none touch-none object-contain outline-none;
+}
+
+@utility image-canvas-fade {
+  @apply scroll-edge-fade;
+  --tw-gradient-from: var(--message-code-background, var(--color-background));
+}
+
+/* Shared code chrome for messages and both composer implementations. */
+@utility code-frame {
+  @apply min-w-0 overflow-hidden rounded-md border shadow-xs;
+  border-color: var(--message-code-surface, var(--color-surface));
+}
+
+@utility code-frame-header {
+  @apply flex h-6 items-center justify-end gap-1 px-2 py-0.5 font-sans text-xs leading-4 text-muted;
+  background-color: var(--message-code-surface, var(--color-surface));
+}
+
+@utility code-line-number {
+  @apply inline-block pe-3 text-end text-muted/50 select-none;
+  width: calc(var(--code-line-digits, 2) * 1ch + 0.75rem);
+  margin-inline-end: 0.75rem;
+  &::before {
+    content: attr(data-line);
+  }
+}
+
 /* Chat message row primitives. These keep the hover-highlight shell and its
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {
   @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface desktop-presentation:mx-2 desktop-presentation:rounded-md desktop-presentation:pe-8;
+  /* Code chrome stays one surface above its message, including held menus. */
+  --message-code-surface: var(--color-surface);
+  --message-code-background: var(--color-background);
+  @variant hover {
+    --message-code-surface: var(--color-surface-emphasized);
+    --message-code-background: var(--color-surface);
+  }
+  &.bg-surface {
+    --message-code-surface: var(--color-surface-emphasized);
+    --message-code-background: var(--color-surface);
+  }
 }
 
 @utility inline-end-overlay-shadow {
@@ -2222,6 +2267,7 @@
  */
 @utility chat-input-surface {
   @apply min-h-12 shell-surface;
+  --message-code-surface: var(--color-surface-emphasized);
 }
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
