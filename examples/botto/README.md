@@ -196,10 +196,20 @@ an acknowledgement, not a completion indicator.
 The model can also use `add_reaction` for agreement, appreciation, or humor. This
 native Pi tool uses the Chatto client and works without Chatto MCP. It can react
 only to messages in the current batch or supplied thread context. The default
-prompt tells the model not to duplicate the automatic acknowledgement.
+prompt tells the model not to duplicate the automatic acknowledgement reaction.
 
-Botto shows a typing indicator and posts the
-final answer in the thread, referencing the last message in the batch.
+Botto shows a typing indicator and posts completed parent assistant messages in
+the thread, referencing the last message in the batch. These include interim
+updates and the final answer. The prompt asks the model to send a brief update
+before its first tool call, including memory lookups. Tools stay available
+throughout the turn. The model decides when to send text; the prompt does not
+guarantee an early update.
+Updates are agent-written; there is no timed or fixed host message. They arrive
+when the model completes a text message, not token by token. Child-agent text,
+reasoning, and tool results are not forwarded directly.
+Posts are serialized, and the final answer is not posted a second time when its
+callback already supplied it. A failed post stops model work without retrying an
+uncertain write. An update already delivered remains visible if later work fails.
 The live Pi session closes after each turn; its transcript stays on disk.
 On the next message in that thread, including after a restart, Botto reopens the
 same transcript. It does not preload all transcripts at process startup.
@@ -225,8 +235,8 @@ Each turn closes its connections when it ends, including on cancellation.
 Pi waits up to 10 seconds for tools before the first model request. If a server
 fails or is still connecting, Pi can continue with the available tools; its
 request context includes server status. Botto does not retry tool calls.
-Normal thread context and final replies still use `@chatto/client`.
-The model is told that its final reply is posted automatically, so it should use
+Normal thread context and assistant messages still use `@chatto/client`.
+The model is told that its text messages are posted automatically, so it should use
 the posting tool only for additional messages required by the task.
 
 ## Optional web access
@@ -358,7 +368,10 @@ selected image attachments. Image-only DMs and replies in active threads can
 trigger a turn under the same participation rules as text.
 
 Botto reads up to four images per turn, prioritizing the current batch, then
-recent thread images. Chatto resizes each image to fit within 2048 pixels on each
+recent thread images. In model requests, each image stays with its original
+message batch when that batch is retained. Images from additional thread context
+have a separate context label and their source message and attachment IDs.
+Chatto resizes each image to fit within 2048 pixels on each
 side. Each download is limited to 4 MiB and 30 seconds, within the turn deadline.
 The client fetches images only from the configured Chatto origin, with current
 room authorization and without following redirects. No image URL or access ticket
@@ -368,8 +381,9 @@ model metadata. It downloads images only when that metadata includes image input
 no separate Botto capability setting is needed. Downloads are reused within a turn.
 The model receives a note when an image is unavailable, unsupported, or omitted.
 
-When an overview is too small to read, the model can call `view_image` with a
-message ID and attachment ID from the current context. An optional `crop` has
+When an overview is too small to read, the root agent can call `view_image`
+directly with an attachment ID from the tool's allowed choices. Botto resolves
+the owning message from the thread context. An optional `crop` has
 `x`, `y`, `width`, and `height` values from 0 to 1. Coordinates refer to the full
 original image after orientation correction, with the origin at the top left.
 For example, `{ "x": 0.5, "y": 0, "width": 0.5, "height": 1 }` selects the right
@@ -377,22 +391,52 @@ half. Omitting `crop` selects the full image. Crops always use the original,
 not the resized overview or a previous crop. Animated images use the first frame.
 
 The tool rechecks attachment membership and room access. It permits four attempts
-per turn, in addition to the automatic overviews. Each original is limited to
+per turn, in addition to its automatic overviews. Each original is limited to
 16 MiB and 40 million decoded pixels. Processing has a ten-second timeout; the
 download and processing also share the turn deadline. Output is PNG, at most
 2048 pixels on each side and 4 MiB, without enlarging small images. The tool
 rejects calls for models whose Pi metadata does not include image input.
+After the fourth crop attempt, the crop tool is removed. Receipts
+show the remaining crop allowance; excess calls already queued in the same batch
+return a no-crops-remaining notice instead of starting more downloads.
 
-Crop bytes stay in memory for the turn and are added only to model requests.
-The transcript stores tool arguments and text receipts, including crop dimensions,
-but no crop bytes. Later turns can request the image again if it is still in
-context and accessible. This tool contacts only the configured Chatto server;
-the configured model provider receives the selected pixels.
+Crop bytes stay in memory for the turn. Tool arguments and text receipts enter
+the private transcript; crop bytes do not.
+Later turns can request the image again if it is still in context and accessible.
+This tool contacts only the configured Chatto server; the configured model provider
+receives the selected pixels.
 
 Image bytes are added to the current model request. They are not stored in Pi
 transcripts, delivery files, or Runling journals. Later turns read images again
 from current thread context; images outside that window are not retained. Model
 responses can describe images, and those responses remain in the transcript.
+
+### Subagents
+
+The root agent can call `delegate` with a self-contained `task` and optional text
+`context`. Each call starts an ordinary Runling child task and a fresh agent session
+using Botto's configured model. The root waits for the result and decides how to
+use it in its answer. Delegation is optional; image inspection stays with the root.
+
+Children receive only the supplied task and context. They do not inherit chat
+history, images, memory, or the root's tools. When web access is enabled, children
+can use the same Exa search and fetch tools. They cannot post messages, change
+memory, use file or shell tools, or delegate further. Ambient Pi resources are
+disabled. The task and context go to the configured model provider; web queries
+and fetch requests go to Exa when those tools are used.
+
+Each child shares the turn deadline and cancellation. Cancelling its tool call
+also cancels the child and closes its session. There is no separate child timeout,
+background execution, automatic retry, or saved child transcript. Concurrent calls
+use separate sessions. Results are limited to 16,000 characters, with a notice
+when truncated, and are treated as untrusted evidence. Task arguments and results
+remain in the root's private transcript. Child text is not posted directly to Chatto.
+
+Runling's existing `taskTool` and agent-session APIs provide child execution,
+activity, and combined usage and cost. Journal entries omit task/context and reply
+content. Delegation adds model calls and can increase latency and cost.
+
+### External services and storage
 
 With MCP enabled, the provider also receives tool definitions and tool results,
 which can include messages from other rooms the bot can access. Tool calls and

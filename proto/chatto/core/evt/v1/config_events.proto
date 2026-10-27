@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/event_values.proto";
 import "chatto/core/evt/v1/notification_policy.proto";
 import "chatto/core/evt/v1/user_preferences.proto";
 

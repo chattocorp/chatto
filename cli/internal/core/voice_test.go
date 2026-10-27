@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	"github.com/chattocorp/chatto/cli/internal/kms"
@@ -1506,7 +1508,7 @@ func TestCallState_RemoveMemberRemovesOnlyTargetFromCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	for _, user := range []*evtv1.User{target, other} {
+	for _, user := range []*readmodel.User{target, other} {
 		if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
 			t.Fatalf("JoinRoom %s: %v", user.Id, err)
 		}

@@ -1873,7 +1873,7 @@ var File_chatto_core_evt_v1_user_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/user_events.proto\x12\x12chatto.core.evt.v1\x1a)chatto/core/evt/v1/user_preferences.proto\x1a\x1fchatto/core/evt/v1/models.proto\"\x80\x01\n" +
+	"$chatto/core/evt/v1/user_events.proto\x12\x12chatto.core.evt.v1\x1a)chatto/core/evt/v1/user_preferences.proto\x1a%chatto/core/evt/v1/event_values.proto\"\x80\x01\n" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
@@ -2074,7 +2074,7 @@ func file_chatto_core_evt_v1_user_events_proto_init() {
 		return
 	}
 	file_chatto_core_evt_v1_user_preferences_proto_init()
-	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_event_values_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

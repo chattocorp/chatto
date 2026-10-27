@@ -550,7 +550,11 @@
       closeThread();
     }
   }}
-  onpointerdown={(e) => {
+  onpointerdowncapture={(e) => {
+    // Check before the menu's outside-pointer handler removes it. One press
+    // dismisses only the menu, not the room overlay underneath it.
+    if (document.querySelector('[role="menu"]:popover-open')) return;
+
     if (hasMobileRoomSidebar && e.button === 0) {
       const target = e.target as HTMLElement;
       if (
@@ -567,11 +571,9 @@
     if (!threadId || splitThreadLayout || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
-    // A thread is an overlay over the room view, so only the dimmed room
-    // surface behind it should behave as a click-outside dismissal target.
-    // Controls elsewhere in the app (such as the room extras sidebar) manage
-    // their own state and must not close the thread as a side effect.
-    if (!target.closest('[data-thread-dismiss-surface]')) return;
+    // The dimmed room, left sidebar, and server gutter dismiss the overlay.
+    // The room extras sidebar keeps its independent controls.
+    if (!target.closest('[data-thread-dismiss-surface], [data-app-sidebar]')) return;
     closeThread();
   }}
 />

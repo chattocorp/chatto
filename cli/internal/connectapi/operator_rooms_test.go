@@ -3,13 +3,13 @@ package connectapi
 import (
 	"testing"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 )
 
 func TestOperatorRoomPageKeepsDistinctMatchingIDs(t *testing.T) {
 	t.Parallel()
 
-	rooms := []*evtv1.Room{
+	rooms := []*readmodel.Room{
 		{Id: "R2", Name: "same", Archived: true},
 		{Id: "R1", Name: "same"},
 		{Id: "R3", Name: "other"},

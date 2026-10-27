@@ -6,6 +6,7 @@ import { task, Type } from 'runling';
 import { RunStore } from '../../../packages/runling/src/lib/server/run-store.ts';
 import { parseSettings } from './settings.ts';
 import sharp from 'sharp';
+import { delegateExtension } from './delegate.ts';
 import { viewImageExtension } from './view-image.ts';
 
 const cropFixture = vi.hoisted(() => ({ data: '', calls: 0 }));
@@ -29,15 +30,24 @@ vi.mock(sdkPath, async () => {
       const agent = result.session.agent;
       agent.getApiKey = () => 'offline-test';
       agent.streamFunction = (_model, context) => {
-        const needsCrop = context.messages.at(-1)?.role === 'user';
-        if (!needsCrop) {
+        const child = result.session.systemPrompt.includes('You are a subagent');
+        if (child) expect(result.session.getActiveToolNames()).toEqual([]);
+        const lastMessage = context.messages.at(-1);
+        const needsCrop = !child && lastMessage?.role === 'user';
+        const needsDelegate =
+          !child && lastMessage?.role === 'toolResult' && lastMessage.toolName === 'view_image';
+        if (!needsCrop && !child) {
           const result = context.messages.at(-1);
           expect(result?.role).toBe('toolResult');
           expect(
             result &&
               'content' in result &&
               Array.isArray(result.content) &&
-              result.content.some((part) => part.type === 'image' && part.data === cropFixture.data)
+              result.content.some((part) =>
+                needsDelegate
+                  ? part.type === 'image' && part.data === cropFixture.data
+                  : part.type === 'text' && part.text.includes('private-result')
+              )
           ).toBe(true);
         } else {
           // Reopened history keeps only the receipt, never a previous turn's crop.
@@ -54,7 +64,7 @@ vi.mock(sdkPath, async () => {
               Array.isArray(message.content) &&
               message.content.some((part) => part.type === 'image' && part.data === 'AQID')
           )
-        ).toBe(true);
+        ).toBe(!child);
         type Stream = Awaited<ReturnType<typeof agent.streamFunction>>;
         const message: Awaited<ReturnType<Stream['result']>> = {
           role: 'assistant',
@@ -62,21 +72,29 @@ vi.mock(sdkPath, async () => {
           provider: 'anthropic',
           model: 'claude-sonnet-4-6',
           timestamp: Date.now(),
-          stopReason: needsCrop ? 'toolUse' : 'stop',
-          content: needsCrop
-            ? [
-                {
-                  type: 'toolCall',
-                  id: `crop-${++cropFixture.calls}`,
-                  name: 'view_image',
-                  arguments: {
-                    messageId: 'message',
-                    attachmentId: 'image',
-                    crop: { x: 0, y: 0, width: 0.5, height: 1 }
+          stopReason: needsCrop || needsDelegate ? 'toolUse' : 'stop',
+          content:
+            needsCrop || needsDelegate
+              ? [
+                  ...(needsCrop
+                    ? [{ type: 'text' as const, text: 'I will take a closer look.' }]
+                    : []),
+                  {
+                    type: 'toolCall',
+                    id: `crop-${++cropFixture.calls}`,
+                    name: needsCrop ? 'view_image' : 'delegate',
+                    arguments: needsCrop
+                      ? {
+                          attachmentId: 'image',
+                          crop: { x: 0, y: 0, width: 0.5, height: 1 }
+                        }
+                      : {
+                          task: 'private-task',
+                          context: 'private-context'
+                        }
                   }
-                }
-              ]
-            : [{ type: 'text', text: 'private-answer' }],
+                ]
+              : [{ type: 'text', text: child ? 'private-result' : 'private-answer' }],
           usage: {
             input: 11,
             output: 7,
@@ -123,7 +141,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
   };
   try {
     await store.init();
-    const agent = await createAgent({
+    const settings = {
       ...parseSettings(
         '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="anthropic/claude-sonnet-4-6"',
         'botto.toml'
@@ -132,17 +150,25 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
       memory: false,
       mcp: false,
       web: false
-    });
+    };
+    const agent = await createAgent(settings);
     const root = task(
       { name: 'Usage fixture', input: Type.Null(), result: Type.Null() },
       async (ctx) => {
         for (let turn = 0; turn < 2; turn++) {
+          const texts: string[] = [];
           expect(
             await agent.reply(ctx, {
               identity: ['server', 'bot', 'room', 'thread'],
               prompt: 'private-prompt',
               signal: ctx.signal,
-              tools: [viewImageExtension(server, 'room', imageContext, ctx.signal)],
+              onText: (text) => {
+                texts.push(text);
+              },
+              tools: [
+                viewImageExtension(server, 'room', imageContext, ctx.signal),
+                delegateExtension(ctx, settings, ctx.signal)
+              ],
               context: {
                 messages: [],
                 olderContextOmitted: false
@@ -160,6 +186,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
               })
             })
           ).toBe('private-answer');
+          expect(texts).toEqual(['I will take a closer look.', 'private-answer']);
         }
         return null;
       }
@@ -168,25 +195,34 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     expect((await handle.completion).ok).toBe(true);
     const detail = (await store.get(handle.id))!;
     expect(detail.usage).toEqual({
-      input: 44,
-      output: 28,
-      cacheRead: 20,
-      cacheWrite: 12,
-      cost: 0.4
+      input: 88,
+      output: 56,
+      cacheRead: 40,
+      cacheWrite: 24,
+      cost: expect.closeTo(0.8)
     });
-    expect(detail.events.filter((event) => event.type === 'agent.usage')).toHaveLength(4);
+    expect(detail.events.filter((event) => event.type === 'agent.usage')).toHaveLength(8);
     const journal = await readFile(join(store.directory, `${handle.id}.jsonl`), 'utf8');
     expect(journal).toContain('usage.updated');
     expect(journal).not.toContain('private-prompt');
     expect(journal).not.toContain('private-answer');
     expect(journal).not.toContain('AQID');
     expect(journal).not.toContain(cropFixture.data);
+    expect(journal).not.toContain('private-task');
+    expect(journal).not.toContain('private-context');
+    expect(journal).not.toContain('private-result');
+    expect(
+      detail.events.filter(
+        (event) => event.type === 'step.started' && event.label === 'Delegate task'
+      )
+    ).toHaveLength(2);
     const transcript = await readFile(
       join(directory, transcriptName(['server', 'bot', 'room', 'thread'])),
       'utf8'
     );
     expect(transcript).not.toContain('AQID');
     expect(transcript).not.toContain(cropFixture.data);
+    expect(transcript).toContain('private-result');
     expect(transcript).toContain('Image view prepared');
     expect(server.readAttachment).toHaveBeenCalledTimes(2);
   } finally {

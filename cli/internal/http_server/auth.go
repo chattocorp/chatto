@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -828,7 +829,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		var user *evtv1.User
+		var user *readmodel.User
 		if s.config.Auth.InvitationRequired() {
 			if tokenData.InvitationID == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})

@@ -2,8 +2,9 @@ package core
 
 import (
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"sort"
+
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -36,12 +37,7 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			PrimaryVerifiedEmailEventId: u.primaryVerifiedEmailEventID,
 		}
 		if u.user != nil {
-			entry.User = proto.Clone(u.user).(*evtv1.User)
-			// These fields must never be populated in retained projection state.
-			// Clear defensively so a regression cannot leak plaintext to storage.
-			entry.User.Login = ""
-			entry.User.DisplayName = ""
-			entry.User.Bio = ""
+			entry.User = snapshotUser(u.user)
 		}
 		if u.avatar != nil {
 			entry.Avatar = proto.Clone(u.avatar).(*evtv1.AssetRecord)
@@ -143,8 +139,8 @@ func (p *UserProjection) Restore(data []byte) error {
 		if _, duplicate := restored.users[userID]; duplicate {
 			return fmt.Errorf("user profile snapshot repeats user %q", userID)
 		}
-		if entry.GetUser() != nil && (entry.GetUser().GetId() != userID || entry.GetUser().GetLogin() != "" || entry.GetUser().GetDisplayName() != "" || entry.GetUser().GetBio() != "") {
-			return fmt.Errorf("user profile snapshot has invalid or plaintext user %q", userID)
+		if entry.GetUser() != nil && entry.GetUser().GetId() != userID {
+			return fmt.Errorf("user profile snapshot has invalid user %q", userID)
 		}
 		login, err := restoreProjectedUserPII(entry.GetLogin())
 		if err != nil {
@@ -179,7 +175,7 @@ func (p *UserProjection) Restore(data []byte) error {
 			primaryVerifiedEmailEventID: entry.GetPrimaryVerifiedEmailEventId(),
 		}
 		if entry.GetUser() != nil {
-			u.user = proto.Clone(entry.GetUser()).(*evtv1.User)
+			u.user = restoreUser(entry.GetUser())
 		}
 		if entry.GetPreferences() != nil {
 			u.preferences = proto.Clone(entry.GetPreferences()).(*evtv1.ServerUserPreferences)

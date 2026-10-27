@@ -7,6 +7,8 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -708,7 +710,7 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 	}, nil
 }
 
-func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID string, user *evtv1.User, includeDM bool, query PermissionScopeQuery) (*UserPermissionMatrix, error) {
+func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID string, user *readmodel.User, includeDM bool, query PermissionScopeQuery) (*UserPermissionMatrix, error) {
 	userID := user.GetId()
 	applicable := matrixApplicablePermissions()
 	bot := user.GetIsBot()

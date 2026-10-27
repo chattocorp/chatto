@@ -5,11 +5,12 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -268,7 +269,7 @@ func (s *adminUserManagementService) adminMemberAfterMutation(ctx context.Contex
 	return s.adminMemberAfterMutationForUser(ctx, actorID, user)
 }
 
-func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context.Context, actorID string, user *evtv1.User) (*adminv1.AdminMember, error) {
+func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context.Context, actorID string, user *readmodel.User) (*adminv1.AdminMember, error) {
 	if user == nil {
 		return nil, core.ErrNotFound
 	}

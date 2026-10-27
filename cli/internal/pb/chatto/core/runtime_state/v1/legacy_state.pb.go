@@ -205,7 +205,7 @@ func (x *ThreadMetadata) GetParticipantIds() []string {
 type RoomLayout struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Deprecated: Marked as deprecated in chatto/core/runtime_state/v1/legacy_state.proto.
-	LegacySections []*v1.RoomGroup `protobuf:"bytes,1,rep,name=legacy_sections,json=legacySections,proto3" json:"legacy_sections,omitempty"`
+	LegacySections []*RoomGroup `protobuf:"bytes,1,rep,name=legacy_sections,json=legacySections,proto3" json:"legacy_sections,omitempty"`
 	// Deprecated: Marked as deprecated in chatto/core/runtime_state/v1/legacy_state.proto.
 	LegacyUnsortedRoomIds []string `protobuf:"bytes,2,rep,name=legacy_unsorted_room_ids,json=legacyUnsortedRoomIds,proto3" json:"legacy_unsorted_room_ids,omitempty"`
 	GroupIds              []string `protobuf:"bytes,3,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
@@ -244,7 +244,7 @@ func (*RoomLayout) Descriptor() ([]byte, []int) {
 }
 
 // Deprecated: Marked as deprecated in chatto/core/runtime_state/v1/legacy_state.proto.
-func (x *RoomLayout) GetLegacySections() []*v1.RoomGroup {
+func (x *RoomLayout) GetLegacySections() []*RoomGroup {
 	if x != nil {
 		return x.LegacySections
 	}
@@ -452,11 +452,162 @@ func (x *VideoVariant) GetAttachment() *v1.Attachment {
 	return nil
 }
 
+// SidebarLink is retained for historical RoomLayout decoding.
+type SidebarLink struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`       // NanoID for stable identity across renames/moves
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"` // Display label shown in the server sidebar
+	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`     // Absolute http(s) URL or server-local path starting with /
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SidebarLink) Reset() {
+	*x = SidebarLink{}
+	mi := &file_chatto_core_runtime_state_v1_legacy_state_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SidebarLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SidebarLink) ProtoMessage() {}
+
+func (x *SidebarLink) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_runtime_state_v1_legacy_state_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SidebarLink.ProtoReflect.Descriptor instead.
+func (*SidebarLink) Descriptor() ([]byte, []int) {
+	return file_chatto_core_runtime_state_v1_legacy_state_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SidebarLink) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SidebarLink) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *SidebarLink) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+// RoomGroup is retained for historical RoomLayout decoding. Current layout
+// reads and projection snapshots have separate representations.
+type RoomGroup struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                          // NanoID for stable identity across renames
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                      // Display name (e.g., "General", "Projects")
+	RoomIds     []string               `protobuf:"bytes,3,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"` // Ordered list of room IDs in this group
+	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`        // Optional public group description
+	// Ordered mixed sidebar entries. ROOM entries reference Room records by ID;
+	// SIDEBAR_LINK entries reference payloads in sidebar_links by ID.
+	Entries []*v1.SidebarGroupEntry `protobuf:"bytes,5,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Link payloads owned by this group. Kept separate from entries so reorders
+	// can move stable IDs without duplicating mutable label/URL data.
+	SidebarLinks  []*SidebarLink `protobuf:"bytes,6,rep,name=sidebar_links,json=sidebarLinks,proto3" json:"sidebar_links,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomGroup) Reset() {
+	*x = RoomGroup{}
+	mi := &file_chatto_core_runtime_state_v1_legacy_state_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomGroup) ProtoMessage() {}
+
+func (x *RoomGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_runtime_state_v1_legacy_state_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomGroup.ProtoReflect.Descriptor instead.
+func (*RoomGroup) Descriptor() ([]byte, []int) {
+	return file_chatto_core_runtime_state_v1_legacy_state_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RoomGroup) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RoomGroup) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RoomGroup) GetRoomIds() []string {
+	if x != nil {
+		return x.RoomIds
+	}
+	return nil
+}
+
+func (x *RoomGroup) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *RoomGroup) GetEntries() []*v1.SidebarGroupEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *RoomGroup) GetSidebarLinks() []*SidebarLink {
+	if x != nil {
+		return x.SidebarLinks
+	}
+	return nil
+}
+
 var File_chatto_core_runtime_state_v1_legacy_state_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_legacy_state_proto_rawDesc = "" +
 	"\n" +
-	"/chatto/core/runtime_state/v1/legacy_state.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"b\n" +
+	"/chatto/core/runtime_state/v1/legacy_state.proto\x12\x1cchatto.core.runtime_state.v1\x1a%chatto/core/evt/v1/event_values.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"b\n" +
 	"\rVerifiedEmail\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12;\n" +
 	"\vverified_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -466,10 +617,10 @@ const file_chatto_core_runtime_state_v1_legacy_state_proto_rawDesc = "" +
 	"\vreply_count\x18\x02 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12'\n" +
-	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xb2\x01\n" +
+	"\x0fparticipant_ids\x18\x04 \x03(\tR\x0eparticipantIds\"\xbc\x01\n" +
 	"\n" +
-	"RoomLayout\x12J\n" +
-	"\x0flegacy_sections\x18\x01 \x03(\v2\x1d.chatto.core.evt.v1.RoomGroupB\x02\x18\x01R\x0elegacySections\x12;\n" +
+	"RoomLayout\x12T\n" +
+	"\x0flegacy_sections\x18\x01 \x03(\v2'.chatto.core.runtime_state.v1.RoomGroupB\x02\x18\x01R\x0elegacySections\x12;\n" +
 	"\x18legacy_unsorted_room_ids\x18\x02 \x03(\tB\x02\x18\x01R\x15legacyUnsortedRoomIds\x12\x1b\n" +
 	"\tgroup_ids\x18\x03 \x03(\tR\bgroupIds\"\xa0\x03\n" +
 	"\x14VideoProcessingState\x12A\n" +
@@ -490,7 +641,18 @@ const file_chatto_core_runtime_state_v1_legacy_state_proto_rawDesc = "" +
 	"\x04size\x18\x05 \x01(\x03R\x04size\x12>\n" +
 	"\n" +
 	"attachment\x18\x06 \x01(\v2\x1e.chatto.core.evt.v1.AttachmentR\n" +
-	"attachment*y\n" +
+	"attachment\"E\n" +
+	"\vSidebarLink\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\"\xfd\x01\n" +
+	"\tRoomGroup\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
+	"\broom_ids\x18\x03 \x03(\tR\aroomIds\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12?\n" +
+	"\aentries\x18\x05 \x03(\v2%.chatto.core.evt.v1.SidebarGroupEntryR\aentries\x12N\n" +
+	"\rsidebar_links\x18\x06 \x03(\v2).chatto.core.runtime_state.v1.SidebarLinkR\fsidebarLinks*y\n" +
 	"\vVideoStatus\x12\x18\n" +
 	"\x14VIDEO_STATUS_PENDING\x10\x00\x12\x1b\n" +
 	"\x17VIDEO_STATUS_PROCESSING\x10\x01\x12\x1a\n" +
@@ -511,7 +673,7 @@ func file_chatto_core_runtime_state_v1_legacy_state_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_runtime_state_v1_legacy_state_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_runtime_state_v1_legacy_state_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_chatto_core_runtime_state_v1_legacy_state_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_core_runtime_state_v1_legacy_state_proto_goTypes = []any{
 	(VideoStatus)(0),              // 0: chatto.core.runtime_state.v1.VideoStatus
 	(*VerifiedEmail)(nil),         // 1: chatto.core.runtime_state.v1.VerifiedEmail
@@ -519,23 +681,27 @@ var file_chatto_core_runtime_state_v1_legacy_state_proto_goTypes = []any{
 	(*RoomLayout)(nil),            // 3: chatto.core.runtime_state.v1.RoomLayout
 	(*VideoProcessingState)(nil),  // 4: chatto.core.runtime_state.v1.VideoProcessingState
 	(*VideoVariant)(nil),          // 5: chatto.core.runtime_state.v1.VideoVariant
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
-	(*v1.RoomGroup)(nil),          // 7: chatto.core.evt.v1.RoomGroup
-	(*v1.Attachment)(nil),         // 8: chatto.core.evt.v1.Attachment
+	(*SidebarLink)(nil),           // 6: chatto.core.runtime_state.v1.SidebarLink
+	(*RoomGroup)(nil),             // 7: chatto.core.runtime_state.v1.RoomGroup
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(*v1.Attachment)(nil),         // 9: chatto.core.evt.v1.Attachment
+	(*v1.SidebarGroupEntry)(nil),  // 10: chatto.core.evt.v1.SidebarGroupEntry
 }
 var file_chatto_core_runtime_state_v1_legacy_state_proto_depIdxs = []int32{
-	6, // 0: chatto.core.runtime_state.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
-	6, // 1: chatto.core.runtime_state.v1.ThreadMetadata.last_reply_at:type_name -> google.protobuf.Timestamp
-	7, // 2: chatto.core.runtime_state.v1.RoomLayout.legacy_sections:type_name -> chatto.core.evt.v1.RoomGroup
-	0, // 3: chatto.core.runtime_state.v1.VideoProcessingState.status:type_name -> chatto.core.runtime_state.v1.VideoStatus
-	5, // 4: chatto.core.runtime_state.v1.VideoProcessingState.variants:type_name -> chatto.core.runtime_state.v1.VideoVariant
-	8, // 5: chatto.core.runtime_state.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.evt.v1.Attachment
-	8, // 6: chatto.core.runtime_state.v1.VideoVariant.attachment:type_name -> chatto.core.evt.v1.Attachment
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	8,  // 0: chatto.core.runtime_state.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
+	8,  // 1: chatto.core.runtime_state.v1.ThreadMetadata.last_reply_at:type_name -> google.protobuf.Timestamp
+	7,  // 2: chatto.core.runtime_state.v1.RoomLayout.legacy_sections:type_name -> chatto.core.runtime_state.v1.RoomGroup
+	0,  // 3: chatto.core.runtime_state.v1.VideoProcessingState.status:type_name -> chatto.core.runtime_state.v1.VideoStatus
+	5,  // 4: chatto.core.runtime_state.v1.VideoProcessingState.variants:type_name -> chatto.core.runtime_state.v1.VideoVariant
+	9,  // 5: chatto.core.runtime_state.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.evt.v1.Attachment
+	9,  // 6: chatto.core.runtime_state.v1.VideoVariant.attachment:type_name -> chatto.core.evt.v1.Attachment
+	10, // 7: chatto.core.runtime_state.v1.RoomGroup.entries:type_name -> chatto.core.evt.v1.SidebarGroupEntry
+	6,  // 8: chatto.core.runtime_state.v1.RoomGroup.sidebar_links:type_name -> chatto.core.runtime_state.v1.SidebarLink
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_runtime_state_v1_legacy_state_proto_init() }
@@ -549,7 +715,7 @@ func file_chatto_core_runtime_state_v1_legacy_state_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_legacy_state_proto_rawDesc), len(file_chatto_core_runtime_state_v1_legacy_state_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

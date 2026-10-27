@@ -8,7 +8,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 )
 
 // ErrUsernameManaged reports that a linked provider controls username editing.
@@ -185,7 +185,7 @@ func (c *ChattoCore) SyncProviderUsername(ctx context.Context, userID, providerI
 	return ErrLoginAlreadyTaken
 }
 
-func (c *ChattoCore) createProviderUser(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*evtv1.User, error) {
+func (c *ChattoCore) createProviderUser(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*readmodel.User, error) {
 	managed := c.ProviderUsernameManaged(flow.ProviderID)
 	base := NormalizeProviderUsername(flow.ProviderUsername)
 	if managed {

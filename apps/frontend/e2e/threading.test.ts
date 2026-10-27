@@ -1086,6 +1086,11 @@ test.describe('Message Threading', () => {
       .toBe(true);
 
     await serverResizeTarget.dblclick();
+    // The resize handle belongs to the left sidebar, so pressing it also
+    // dismisses an overlay. Reopen the thread to check the restored layout.
+    await expect(roomPage.threadPane).not.toBeVisible();
+    await message.openThread();
+    await roomPage.expectThreadPaneVisible();
     await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
 
     await roomPage.openMembersPanel();

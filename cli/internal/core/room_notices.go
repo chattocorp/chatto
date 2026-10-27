@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -23,7 +25,7 @@ type RoomNoticeInput struct {
 
 // GetNotice returns member-only channel content, including cleared state.
 // Notice visibility does not depend on message-read or management permissions.
-func (s *RoomCommandModel) GetNotice(ctx context.Context, input RoomIDInput) (*evtv1.RoomNotice, error) {
+func (s *RoomCommandModel) GetNotice(ctx context.Context, input RoomIDInput) (*readmodel.RoomNotice, error) {
 	room, kind, err := s.authorization.requireRoomMember(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -32,14 +34,14 @@ func (s *RoomCommandModel) GetNotice(ctx context.Context, input RoomIDInput) (*e
 		return nil, invalidArgument("DM rooms do not support notices")
 	}
 	if room.GetNotice() == nil {
-		return &evtv1.RoomNotice{}, nil
+		return &readmodel.RoomNotice{}, nil
 	}
 	return room.GetNotice(), nil
 }
 
 // PublishNotice replaces content and optionally resurfaces it. Corrections keep
 // the publication ID; first publication and republish receive a fresh one.
-func (s *RoomCommandModel) PublishNotice(ctx context.Context, input RoomNoticeInput) (*evtv1.RoomNotice, error) {
+func (s *RoomCommandModel) PublishNotice(ctx context.Context, input RoomNoticeInput) (*readmodel.RoomNotice, error) {
 	if !utf8.ValidString(input.Body) || strings.TrimSpace(input.Body) == "" || utf8.RuneCountInString(input.Body) > MaxRoomNoticeLength {
 		return nil, invalidArgument("notice must contain 1 to 4000 Unicode code points and must not be blank")
 	}
@@ -47,12 +49,12 @@ func (s *RoomCommandModel) PublishNotice(ctx context.Context, input RoomNoticeIn
 }
 
 // ClearNotice removes current content while retaining the concurrency version.
-func (s *RoomCommandModel) ClearNotice(ctx context.Context, input RoomNoticeInput) (*evtv1.RoomNotice, error) {
+func (s *RoomCommandModel) ClearNotice(ctx context.Context, input RoomNoticeInput) (*readmodel.RoomNotice, error) {
 	input.Body, input.Republish = "", false
 	return s.mutateNotice(ctx, input)
 }
 
-func (s *RoomCommandModel) mutateNotice(ctx context.Context, input RoomNoticeInput) (*evtv1.RoomNotice, error) {
+func (s *RoomCommandModel) mutateNotice(ctx context.Context, input RoomNoticeInput) (*readmodel.RoomNotice, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
@@ -69,7 +71,7 @@ func (s *RoomCommandModel) mutateNotice(ctx context.Context, input RoomNoticeInp
 		if err := s.rooms.waitForDirectory(ctx, position); err != nil {
 			return nil, err
 		}
-		var current *evtv1.RoomNotice
+		var current *readmodel.RoomNotice
 		if err := s.authorization.authorizeAtStableInputs(ctx, func() error {
 			room, kind, err := s.authorization.requireRoomMember(ctx, input.ActorID, input.RoomID)
 			if err != nil {
@@ -98,7 +100,7 @@ func (s *RoomCommandModel) mutateNotice(ctx context.Context, input RoomNoticeInp
 		}
 		if current.GetBody() == input.Body && !input.Republish {
 			if current == nil {
-				return &evtv1.RoomNotice{}, nil
+				return &readmodel.RoomNotice{}, nil
 			}
 			return current, nil
 		}
@@ -126,7 +128,7 @@ func (s *RoomCommandModel) mutateNotice(ctx context.Context, input RoomNoticeInp
 
 // noticeAfterChange derives publication identity and time from the announcement
 // envelope. Corrections keep both; clear removes both but retains the write version.
-func noticeAfterChange(current *evtv1.RoomNotice, event *evtv1.Event) *evtv1.RoomNotice {
+func noticeAfterChange(current *readmodel.RoomNotice, event *evtv1.Event) *readmodel.RoomNotice {
 	change := event.GetRoomNoticeChanged()
 	publicationTime := current.GetPublishedAt()
 	publicationID := current.GetPublicationId()
@@ -137,5 +139,5 @@ func noticeAfterChange(current *evtv1.RoomNotice, event *evtv1.Event) *evtv1.Roo
 		publicationID = event.GetId()
 		publicationTime = event.GetCreatedAt()
 	}
-	return &evtv1.RoomNotice{Version: event.GetId(), PublicationId: publicationID, Body: change.GetBody(), PublishedAt: publicationTime}
+	return &readmodel.RoomNotice{Version: event.GetId(), PublicationId: publicationID, Body: change.GetBody(), PublishedAt: publicationTime}
 }
