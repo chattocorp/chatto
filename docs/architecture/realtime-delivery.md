@@ -703,8 +703,19 @@ The frontend keeps its resource view during access-token rotation, cookie-sessio
 renewal, server switches, network reconnects, and tab wake. It replaces the
 socket and sends the same cursor. Human bearer credentials close at
 access-token expiry. Cookie connections close at the renewal boundary. The
-server revalidates the accepted credential before subscription and once per
-minute.
+server revalidates human credentials before subscription and once per minute.
+Each authenticated connection also watches account access through the durable
+user-auth projection. A deactivation transition closes human connections and
+connections of their owned bots with `AUTHENTICATION_REQUIRED`, without a
+reconnect instruction. Registration and the active-state check share the
+projection lock. This path does not depend on a transient session signal.
+Human credentials are validated again after watch registration, so a completed
+deactivation and reactivation before registration cannot revive an old session.
+
+Other viewers receive `UserAccountDeactivationChangedEvent` through the same
+durable live and replay path. Its payload contains the user ID and access flag;
+the public envelope omits the administrator ID. Profile reads and snapshots
+include `User.deactivated`, so reconnect also restores the current status.
 
 The browser resets its liveness timer on every server frame. A heartbeat can
 carry a fresh cursor for the last durable sequence that this socket has

@@ -5263,6 +5263,7 @@ Public user fields.
 | `bio` | `optional string` | Short Markdown biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
+| `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
 
 
 

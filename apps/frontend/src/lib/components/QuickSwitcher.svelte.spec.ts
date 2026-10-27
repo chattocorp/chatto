@@ -442,6 +442,25 @@ describe('QuickSwitcher', () => {
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/overview');
   });
 
+  it('hides new-DM candidates while deactivated and restores them without reopening', async () => {
+    const profiles = mocks.store.projection.users;
+    profiles.set(
+      'inactive-target',
+      new DirectoryMember({
+        user: { id: 'inactive-target', login: 'statusperson', displayName: 'Status Person' }
+      })
+    );
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'statusperson');
+    expect(resultButtons(container)).toHaveLength(1);
+    profiles.setDeactivated('inactive-target', true);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    profiles.setDeactivated('inactive-target', false);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(1);
+  });
+
   it('finds existing conversations locally and opens the room without starting a DM', async () => {
     mocks.store.permissions.canStartDMs = false;
     const { container } = await renderOpenSwitcher();

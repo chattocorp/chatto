@@ -159,6 +159,8 @@ func (p *UserProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyCustomStatusCleared(e.UserCustomStatusCleared)
 	case *evtv1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted)
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		p.applyAccountDeactivationChanged(e.UserAccountDeactivationChanged)
 	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId())
 	case *evtv1.Event_UserKeyShredded:
@@ -270,6 +272,8 @@ func (p *UserProjection) applyPreparedContentEvent(event *evtv1.Event, seq uint6
 		p.applyCustomStatusCleared(value.UserCustomStatusCleared)
 	case *evtv1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(value.UserAccountDeleted)
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		p.applyAccountDeactivationChanged(value.UserAccountDeactivationChanged)
 	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyKeyShredded(value.UserKeyShreddingRequested.GetUserId())
 	case *evtv1.Event_UserKeyShredded:
@@ -551,6 +555,23 @@ func (p *UserProjection) applyCustomStatusCleared(e *evtv1.UserCustomStatusClear
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user != nil {
 		u.user.CustomStatus = nil
+	}
+}
+
+// Deactivated reads the account access flag without decrypting profile data.
+func (p *UserProjection) Deactivated(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	return u != nil && u.user.GetDeactivated()
+}
+
+func (p *UserProjection) applyAccountDeactivationChanged(e *evtv1.UserAccountDeactivationChangedEvent) {
+	if e == nil {
+		return
+	}
+	if u := p.users[e.GetUserId()]; u != nil && u.user != nil && !u.deleted {
+		u.user.Deactivated = e.GetDeactivated()
 	}
 }
 

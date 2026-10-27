@@ -287,6 +287,7 @@
     "unread_separator": "Nouveaux messages",
     "close_extras": "Fermer les extras de la salle",
     "dm": {
+      "deactivated_user_notice": "Ce compte est désactivé. Ce membre ne peut ni lire les messages ni y répondre.",
       "deleted_user_notice": "L’autre utilisateur a été supprimé."
     },
     "management": {

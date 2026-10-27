@@ -169,6 +169,7 @@
     },
     context: composerContext,
     getMembers: () => membersStore().members,
+    isUserDeactivated: (userId) => stores.projection.users.isDeactivated(userId),
     getMentionPriorityUserIds: () => mentionPriorityUserIds,
     get membersStore() {
       return membersStore();

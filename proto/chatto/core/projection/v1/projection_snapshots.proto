@@ -583,6 +583,8 @@ message UserSnapshot {
   bool is_bot = 7;
   // Human owner of this bot. Empty for human accounts.
   string bot_owner_user_id = 8;
+  // Reversible account access state, retained across snapshot restore.
+  bool deactivated = 10;
 }
 
 // RoleSnapshot stores role state for projection restore.

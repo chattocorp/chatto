@@ -34,6 +34,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *readmodel.User
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
 		Deleted:        user.GetDeleted(),
+		Deactivated:    user.GetDeactivated(),
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 	}

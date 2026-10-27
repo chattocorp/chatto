@@ -127,6 +127,8 @@ func userIDOfUserEvent(event *evtv1.Event) string {
 		return payload.UserAvatarCleared.GetUserId()
 	case *evtv1.Event_UserAccountDeleted:
 		return payload.UserAccountDeleted.GetUserId()
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		return payload.UserAccountDeactivationChanged.GetUserId()
 	case *evtv1.Event_UserKeyShreddingRequested:
 		return payload.UserKeyShreddingRequested.GetUserId()
 	case *evtv1.Event_UserKeyShredded:
@@ -511,6 +513,7 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 		evtstream.EventUserAvatarCleared,
 		evtstream.EventAssetCreated,
 		evtstream.EventUserAccountDeleted,
+		evtstream.EventUserAccountDeactivationChanged,
 		evtstream.EventUserKeyShreddingRequested,
 		evtstream.EventUserKeyShredded,
 		evtstream.EventUserCustomStatusSet,

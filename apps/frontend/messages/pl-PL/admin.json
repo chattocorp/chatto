@@ -52,6 +52,11 @@
       "subtitle": "Tożsamość serwera, marka i wiadomości"
     },
     "members": {
+      "deactivate": "Dezaktywuj konto",
+      "reactivate": "Aktywuj ponownie konto",
+      "deactivate_description": "Użytkownik nie będzie już mógł korzystać z tego serwera. Wszystkie sesje zakończą się natychmiast. Dane pozostaną zachowane. Możesz później ponownie aktywować konto.",
+      "deactivated_description": "To konto jest nieaktywne. Ponowna aktywacja pozwoli użytkownikowi znów się zalogować. Stare sesje pozostaną nieważne.",
+      "deactivation_failed": "Nie udało się zmienić dostępu do konta.",
       "title": "Członkowie",
       "subtitle": "Przeglądaj i zarządzaj członkami serwera i ich rolami",
       "search": "Wyszukaj członków",

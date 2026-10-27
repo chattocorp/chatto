@@ -338,6 +338,10 @@ func (m *UserModel) userCount() int {
 	return m.users.Projection().Count()
 }
 
+func (m *UserModel) deactivated(userID string) bool {
+	return m.users.Projection().Deactivated(userID)
+}
+
 func (m *UserModel) botIDsOwnedBy(ownerUserID string) []string {
 	return m.users.Projection().BotIDsOwnedBy(ownerUserID)
 }

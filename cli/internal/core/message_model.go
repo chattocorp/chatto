@@ -391,6 +391,16 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	if !isMember {
 		return nil, ErrNotRoomMember
 	}
+	if kind == KindDM {
+		participants := s.core.roomModel.explicitRoomMemberIDs(room.Id)
+		if len(participants) == 2 {
+			for _, participantID := range participants {
+				if participantID != input.ActorID && s.core.userModel.deactivated(participantID) {
+					return nil, ErrPermissionDenied
+				}
+			}
+		}
+	}
 	// Match the commit path's inference for replies to a thread reply or echo.
 	// Attribution to a room root remains a room post unless a thread is explicit.
 	if input.ThreadRootEventID == "" && input.InReplyTo != "" {

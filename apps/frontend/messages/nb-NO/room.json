@@ -287,6 +287,7 @@
     "unread_separator": "Nye meldinger",
     "close_extras": "Lukk romtillegg",
     "dm": {
+      "deactivated_user_notice": "Denne kontoen er deaktivert. Brukeren kan ikke lese eller svare på meldinger.",
       "deleted_user_notice": "Den andre brukeren er slettet."
     },
     "management": {

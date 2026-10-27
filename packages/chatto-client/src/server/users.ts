@@ -1,4 +1,4 @@
-import { ReactiveMap, ReactiveSet } from '../reactivity/index.js';
+import { batch, ReactiveMap, ReactiveSet } from '../reactivity/index.js';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { StaleResponseError } from '../api/connect.js';
 import {
@@ -18,6 +18,7 @@ const views = new WeakMap<DirectoryMember, UserProfileView>();
 export class UserStore {
   readonly #members = new ReactiveMap<string, DirectoryMember>();
   readonly #deleted = new ReactiveSet<string>();
+  readonly #deactivated = new ReactiveMap<string, boolean>();
   readonly #pending = new ReactiveMap<string, { completion: Promise<void>; cursor?: string }>();
   #generation = 0;
   #disposed = false;
@@ -52,6 +53,25 @@ export class UserStore {
   isDeleted(id: string): boolean {
     return this.#deleted.has(id);
   }
+  /** Current access state, including events received before profile hydration. */
+  isDeactivated(id: string): boolean {
+    return this.#deactivated.get(id) ?? this.#members.get(id)?.user?.deactivated ?? false;
+  }
+
+  /** Apply both transitions without removing identity or room membership.
+   * Retain the latest event value so an older in-flight profile cannot undo it. */
+  setDeactivated(id: string, deactivated: boolean): void {
+    if (this.#disposed || !id || this.#deleted.has(id)) return;
+    batch(() => {
+      this.#deactivated.set(id, deactivated);
+      this.#revisions.set(id, ++this.#revision);
+      const member = this.#members.get(id)?.clone();
+      if (member?.user) {
+        member.user.deactivated = deactivated;
+        this.set(id, member);
+      }
+    });
+  }
   keys() {
     return this.#members.keys();
   }
@@ -75,7 +95,10 @@ export class UserStore {
     this.#pending.delete(id);
     this.#deleted.delete(id);
     this.#revisions.set(id, ++this.#revision);
-    this.#members.set(id, new DirectoryMember(member));
+    const current = member.clone();
+    const deactivated = this.#deactivated.get(id);
+    if (current.user && deactivated !== undefined) current.user.deactivated = deactivated;
+    this.#members.set(id, current);
     this.#statusExpiry.get(id)?.();
     const expiresAt = member.user.customStatus?.expiresAt?.toDate().toISOString();
     if (expiresAt) {
@@ -134,6 +157,7 @@ export class UserStore {
     this.#pending.clear();
     this.#members.clear();
     this.#deleted.clear();
+    this.#deactivated.clear();
     this.#revisions.clear();
   }
 

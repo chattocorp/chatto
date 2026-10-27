@@ -240,7 +240,7 @@ export class QuickSwitcherModel {
       const user = item.targetUserId
         ? store.projection.users.get(item.targetUserId)?.user
         : undefined;
-      if (!user || user.deleted) return;
+      if (!user || user.deleted || user.deactivated) return;
       quickSwitcher.close();
       try {
         await startDMWith(item.serverId, user.id);
@@ -417,7 +417,8 @@ export class QuickSwitcherModel {
       ) {
         for (const id of store.projection.users.keys()) {
           const user = store.projection.users.view(id);
-          if (!user?.id || user.deleted || directMessageUserIds.has(user.id)) continue;
+          if (!user?.id || user.deleted || user.deactivated || directMessageUserIds.has(user.id))
+            continue;
           items.push({
             kind: 'user',
             id: user.id,

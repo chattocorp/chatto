@@ -166,32 +166,33 @@ const (
 	EventServerNeighborDeleted                  = "server_neighbor_deleted"
 
 	// User aggregate
-	EventUserAccountCreated           = "account_created"
-	EventUserLoginChanged             = "login_changed"
-	EventUserDisplayNameChanged       = "display_name_changed"
-	EventUserBioChanged               = "bio_changed"
-	EventUserAvatarSet                = "avatar_set"
-	EventUserAvatarCleared            = "avatar_cleared"
-	EventUserVerifiedEmailAdded       = "verified_email_added"
-	EventUserPrimaryEmailChanged      = "primary_email_changed"
-	EventUserPasswordHashChanged      = "password_hash_changed"
-	EventUserOIDCSubjectLinked        = "oidc_subject_linked"
-	EventUserExternalIdentityLinked   = "external_identity_linked"
-	EventUserExternalIdentityUnlinked = "external_identity_unlinked"
-	EventUserServerPreferencesChanged = "server_preferences_changed"
-	EventUserLoginCooldownStarted     = "login_cooldown_started"
-	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
-	EventUserAccountDeleted           = "account_deleted"
-	EventUserKeyShreddingRequested    = "user_key_shredding_requested"
-	EventUserKeyShredded              = "user_key_shredded"
-	EventUserDEKGenerated             = "dek_generated"
-	EventUserCustomStatusSet          = "custom_status_set"
-	EventUserCustomStatusCleared      = "custom_status_cleared"
-	EventBotAPIKeyCreated             = "bot_api_key_created"
-	EventBotAPIKeyRotated             = "bot_api_key_rotated"
-	EventBotAPIKeyAdded               = "bot_api_key_added"
-	EventBotAPIKeyRevoked             = "bot_api_key_revoked"
-	EventBotOwnerReassigned           = "bot_owner_reassigned"
+	EventUserAccountCreated             = "account_created"
+	EventUserLoginChanged               = "login_changed"
+	EventUserDisplayNameChanged         = "display_name_changed"
+	EventUserBioChanged                 = "bio_changed"
+	EventUserAvatarSet                  = "avatar_set"
+	EventUserAvatarCleared              = "avatar_cleared"
+	EventUserVerifiedEmailAdded         = "verified_email_added"
+	EventUserPrimaryEmailChanged        = "primary_email_changed"
+	EventUserPasswordHashChanged        = "password_hash_changed"
+	EventUserOIDCSubjectLinked          = "oidc_subject_linked"
+	EventUserExternalIdentityLinked     = "external_identity_linked"
+	EventUserExternalIdentityUnlinked   = "external_identity_unlinked"
+	EventUserServerPreferencesChanged   = "server_preferences_changed"
+	EventUserLoginCooldownStarted       = "login_cooldown_started"
+	EventUserLoginCooldownCleared       = "login_cooldown_cleared"
+	EventUserAccountDeleted             = "account_deleted"
+	EventUserAccountDeactivationChanged = "account_deactivation_changed"
+	EventUserKeyShreddingRequested      = "user_key_shredding_requested"
+	EventUserKeyShredded                = "user_key_shredded"
+	EventUserDEKGenerated               = "dek_generated"
+	EventUserCustomStatusSet            = "custom_status_set"
+	EventUserCustomStatusCleared        = "custom_status_cleared"
+	EventBotAPIKeyCreated               = "bot_api_key_created"
+	EventBotAPIKeyRotated               = "bot_api_key_rotated"
+	EventBotAPIKeyAdded                 = "bot_api_key_added"
+	EventBotAPIKeyRevoked               = "bot_api_key_revoked"
+	EventBotOwnerReassigned             = "bot_owner_reassigned"
 	// The enabled/disabled subject tokens predate the multiple-credential
 	// lifecycle. Keep them stable while the protobuf facts use create/revoke
 	// terminology.
@@ -468,6 +469,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventUserLoginCooldownCleared
 	case *evtv1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		return EventUserAccountDeactivationChanged
 	case *evtv1.Event_UserKeyShreddingRequested:
 		return EventUserKeyShreddingRequested
 	case *evtv1.Event_UserKeyShredded:

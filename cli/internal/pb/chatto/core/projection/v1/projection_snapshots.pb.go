@@ -4811,8 +4811,10 @@ type UserSnapshot struct {
 	IsBot bool `protobuf:"varint,7,opt,name=is_bot,json=isBot,proto3" json:"is_bot,omitempty"`
 	// Human owner of this bot. Empty for human accounts.
 	BotOwnerUserId string `protobuf:"bytes,8,opt,name=bot_owner_user_id,json=botOwnerUserId,proto3" json:"bot_owner_user_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Reversible account access state, retained across snapshot restore.
+	Deactivated   bool `protobuf:"varint,10,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserSnapshot) Reset() {
@@ -4885,6 +4887,13 @@ func (x *UserSnapshot) GetBotOwnerUserId() string {
 		return x.BotOwnerUserId
 	}
 	return ""
+}
+
+func (x *UserSnapshot) GetDeactivated() bool {
+	if x != nil {
+		return x.Deactivated
+	}
+	return false
 }
 
 // RoleSnapshot stores role state for projection restore.
@@ -5521,7 +5530,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12%\n" +
 	"\x0epublication_id\x18\x02 \x01(\tR\rpublicationId\x12\x12\n" +
 	"\x04body\x18\x03 \x01(\tR\x04body\x12=\n" +
-	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\"\x80\x02\n" +
+	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\"\xa2\x02\n" +
 	"\fUserSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -5529,7 +5538,9 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\adeleted\x18\x05 \x01(\bR\adeleted\x12I\n" +
 	"\rcustom_status\x18\x06 \x01(\v2$.chatto.core.evt.v1.CustomUserStatusR\fcustomStatus\x12\x15\n" +
 	"\x06is_bot\x18\a \x01(\bR\x05isBot\x12)\n" +
-	"\x11bot_owner_user_id\x18\b \x01(\tR\x0ebotOwnerUserId\"\x9f\x01\n" +
+	"\x11bot_owner_user_id\x18\b \x01(\tR\x0ebotOwnerUserId\x12 \n" +
+	"\vdeactivated\x18\n" +
+	" \x01(\bR\vdeactivated\"\x9f\x01\n" +
 	"\fRoleSnapshot\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
