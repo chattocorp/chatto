@@ -147,7 +147,9 @@ Mobile Components:
 Desktop Components:
 
 - electron-builder (https://www.electron.build/) - MIT License
-  (Windows installer packaging)
+  (Windows installer and macOS disk-image packaging)
+- macOS disk-image background artwork (`apps/desktop/icons/background*.png`) -
+  Apache License 2.0, as specified in REUSE.toml
 - NSIS (https://nsis.sourceforge.io/) - zlib/libpng License; installer components
   include bzip2 and LZMA code under their respective licences
 

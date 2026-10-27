@@ -392,6 +392,21 @@ jobs:
           "$helper" help | grep -F 'publish --window'
           otool -l "$helper" | grep -F '@executable_path/../Frameworks'
 
+      - name: Build and test unsigned macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          mise x -- pnpm --filter chatto-desktop build:macos-dmg
+          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+
+      - name: Upload unsigned macOS DMG
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-macos-dmg-unsigned
+          path: apps/desktop/dist/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload desktop bundle
         uses: actions/upload-artifact@v7
         with:
