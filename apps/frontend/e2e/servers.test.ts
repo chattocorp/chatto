@@ -405,7 +405,7 @@ test.describe('Leave Server', () => {
     const popup = await popupPromise;
     expect(openedPopups).toBe(1);
     await popup.close();
-    await expect(page.getByTitle('Sign out')).toBeVisible();
+    await expect(page.locator('a[href$="/settings"]')).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
 
@@ -478,7 +478,7 @@ test.describe('Leave Server', () => {
     await expect(
       page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
     ).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await expect(page.getByTitle('Sign out')).toBeVisible();
+    await expect(page.locator('a[href$="/settings"]')).toBeVisible();
   });
 });
 
