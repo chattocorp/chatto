@@ -1,5 +1,10 @@
 # Runtime State Inventory
 
+Operator upload sessions retain a `historical` flag when explicitly requested.
+Only private operator sessions can use it to upload into archived channels.
+Public callers cannot select or consume those sessions. Completion rechecks
+the stored flag and operator authority; ordinary upload authorization is unchanged.
+
 Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 [`cli/internal/core/read_state_index.go`](../../cli/internal/core/read_state_index.go),
 [`cli/internal/core/notification_boundary_index.go`](../../cli/internal/core/notification_boundary_index.go),

@@ -42,13 +42,26 @@ protobuf storage contract. Reuse domain concepts and suitable value types,
 not the internal event union. Backup/restore remains the storage-and-key recovery
 mechanism; interchange transfers supported readable content and history.
 
-The first importer records `ImportProgressedEvent` in
-`evt.import.server.import_progressed`, in the same atomic batch as each operation.
-Receipts bind archive bytes and naming options, retain allocated identities, and
-have no TTL. A whole-EVT guard prevents concurrent writers from applying stale
-import steps. This first version requires exclusive destination use until
-completion and binds one archive to the destination. Original file writes use
-stable keys; a retry after a storage failure writes the same bytes to that key.
+The CLI reads and validates the archive, resolves source references, and calls
+individual Operator APIs. The server does not accept or parse archives.
+Event records and file bytes are streamed. There is no total archive size or
+record-count limit; catalogs and reference indexes still use CLI memory.
+
+A private local journal binds archive bytes, naming options, and socket path.
+It stores allocated IDs and pending upload completion requests. An exclusive
+file lock prevents concurrent use of one journal. Keep this journal for resume.
+Keyed user creation, room creation, and historical event operations commit an
+`OperatorOperationCompletedEvent` with their native facts. Each UUID identifies
+one exact operation, with no TTL. Domain concurrency guards and a receipt
+subject guard prevent duplicate writes across replicas. Files use the existing
+chunked upload lifecycle, including retryable completion. No server-side
+archive cursor, parser, or whole-EVT import guard is needed.
+
+The old `ImportProgressedEvent` contract remains readable for stored data.
+The archive RPC handler is removed; deprecated wire declarations remain for
+protocol compatibility checks. Operator integrations must use individual resource
+APIs; users of the import command must use the updated CLI and server together.
+Old server-side archive progress cannot resume through a new local journal.
 
 Native facts carry `ImportContext` to suppress historical live delivery and
 notification effects through replay. Its hidden-timeline marker distinguishes
@@ -68,10 +81,11 @@ consistent source cuts. Runtime implementation must add those checks, durable
 crash recovery, and historical side-effect policy. Export must preserve deletion
 privacy rather than reveal old encrypted-body revisions as plaintext.
 
-V1 initially covers channels and requires a destination without messages.
-Existing accounts are matched by normalized email under the same whole-EVT
-guard as import progress. Account creation, encrypted email claims, and the
-mapping receipt commit atomically. Source identities sharing emails resolve to
+V1 initially imports new channels; it does not merge existing channel history.
+Existing accounts are matched by normalized email. The account service enforces
+email ownership on every write. Account creation and its operation receipt
+commit atomically. Additional emails use the existing idempotent email API.
+Source identities sharing emails resolve to
 one account; claims spanning distinct existing accounts are rejected. Existing
 account profiles and credentials are preserved. The operator importer treats
 source email claims as trusted verified addresses. General history merging,

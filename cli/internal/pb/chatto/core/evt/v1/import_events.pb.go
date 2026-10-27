@@ -94,8 +94,8 @@ func (x *ImportContext) GetSourceActorId() string {
 	return ""
 }
 
-// ImportProgressedEvent commits with each imported operation. Its immutable
-// fingerprint includes archive bytes and naming options. Progress has no TTL.
+// Legacy server-side archive progress, retained for persisted compatibility.
+// New imports use individual operator operations and a CLI-owned journal.
 // Tag 952 belongs to this fact; evt.import.server.import_progressed is its lane.
 type ImportProgressedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -166,6 +166,62 @@ func (x *ImportProgressedEvent) GetComplete() bool {
 	return false
 }
 
+// A permanent result for one keyed operator operation, committed atomically
+// with its domain facts. This contains no archive state or source references.
+type OperatorOperationCompletedEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// HMAC of the method and exact operation arguments; contains no plaintext PII.
+	Fingerprint string `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	// Allocated or affected destination resource ID.
+	ResourceId    string `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OperatorOperationCompletedEvent) Reset() {
+	*x = OperatorOperationCompletedEvent{}
+	mi := &file_chatto_core_evt_v1_import_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperatorOperationCompletedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperatorOperationCompletedEvent) ProtoMessage() {}
+
+func (x *OperatorOperationCompletedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_import_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperatorOperationCompletedEvent.ProtoReflect.Descriptor instead.
+func (*OperatorOperationCompletedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_import_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *OperatorOperationCompletedEvent) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *OperatorOperationCompletedEvent) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
 var File_chatto_core_evt_v1_import_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_import_events_proto_rawDesc = "" +
@@ -182,7 +238,11 @@ const file_chatto_core_evt_v1_import_events_proto_rawDesc = "" +
 	"\x0foperation_index\x18\x02 \x01(\x04R\x0eoperationIndex\x12\x1f\n" +
 	"\vresource_id\x18\x03 \x01(\tR\n" +
 	"resourceId\x12\x1a\n" +
-	"\bcomplete\x18\x04 \x01(\bR\bcompleteB\xdd\x01\n" +
+	"\bcomplete\x18\x04 \x01(\bR\bcomplete\"d\n" +
+	"\x1fOperatorOperationCompletedEvent\x12 \n" +
+	"\vfingerprint\x18\x01 \x01(\tR\vfingerprint\x12\x1f\n" +
+	"\vresource_id\x18\x02 \x01(\tR\n" +
+	"resourceIdB\xdd\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x11ImportEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
@@ -197,10 +257,11 @@ func file_chatto_core_evt_v1_import_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_evt_v1_import_events_proto_rawDescData
 }
 
-var file_chatto_core_evt_v1_import_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_core_evt_v1_import_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_core_evt_v1_import_events_proto_goTypes = []any{
-	(*ImportContext)(nil),         // 0: chatto.core.evt.v1.ImportContext
-	(*ImportProgressedEvent)(nil), // 1: chatto.core.evt.v1.ImportProgressedEvent
+	(*ImportContext)(nil),                   // 0: chatto.core.evt.v1.ImportContext
+	(*ImportProgressedEvent)(nil),           // 1: chatto.core.evt.v1.ImportProgressedEvent
+	(*OperatorOperationCompletedEvent)(nil), // 2: chatto.core.evt.v1.OperatorOperationCompletedEvent
 }
 var file_chatto_core_evt_v1_import_events_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -222,7 +283,7 @@ func file_chatto_core_evt_v1_import_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_import_events_proto_rawDesc), len(file_chatto_core_evt_v1_import_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
