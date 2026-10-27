@@ -294,7 +294,8 @@ local to the footer.
         onblur={hideReactionTooltip}
         disabled={!action?.canReact}
         aria-describedby={tooltipReactionEmoji === reaction.emoji ? reactionTooltipId : undefined}
-        aria-label={reaction.hasReacted
+        aria-label={`${getEmojiByName(reaction.emoji) ?? reaction.emoji} ${reaction.count}`}
+        title={reaction.hasReacted
           ? m('room.message.meta.remove_reaction_label', {
               emoji: getEmojiByName(reaction.emoji) ?? reaction.emoji,
               count: reaction.count

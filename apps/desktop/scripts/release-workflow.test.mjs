@@ -26,6 +26,44 @@ function extractVersionScript(source) {
 const versionScript = extractVersionScript(workflow);
 const sha = '1234567890abcdef1234567890abcdef12345678';
 
+for (const [name, buildStatus, copyTestStatus] of [
+  ['success', 0, 0],
+  ['signing failure', 1, 0],
+  ['mount or copy failure', 0, 1]
+]) {
+  test(`DMG publication: ${name}`, () => {
+    const script = workflow
+      .replaceAll('\r\n', '\n')
+      .split('      - name: Build and test signed macOS DMG\n')[1]
+      .split('\n      - name:')[0]
+      .split('        run: |\n')[1]
+      .split('\n')
+      .map((line) => line.slice(10))
+      .join('\n');
+    const result = spawnSync(
+      'bash',
+      [
+        '-e',
+        '-o',
+        'pipefail',
+        '-c',
+        `
+mise() {
+  [[ "$*" == 'x -- pnpm --filter chatto-desktop build:macos-dmg --release' ]] || return 99
+  return ${buildStatus}
+}
+tee() { cat; }
+bash() { return ${copyTestStatus}; }
+cp() { echo published; }
+${script}`
+      ],
+      { encoding: 'utf8' }
+    );
+    assert.equal(result.status, buildStatus || copyTestStatus, result.stderr);
+    assert.equal(result.stdout.includes('published'), buildStatus === 0 && copyTestStatus === 0);
+  });
+}
+
 // Run the complete packaging step with external commands replaced, so failed
 // validation must prevent both Gatekeeper assessment and archive creation.
 for (const [name, statuses, expectedStatus, attempts] of [

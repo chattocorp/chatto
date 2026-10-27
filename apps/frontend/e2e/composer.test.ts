@@ -571,7 +571,7 @@ for (const editor of ['visual', 'markdown'] as const) {
             await expect(input).toBeFocused();
             await input.fill('An intentional reply');
             await roomPage.threadPane
-              .getByRole('button', { name: 'Send message', exact: true })
+              .getByRole('button', { name: 'Send: Send message', exact: true })
               .click();
             await roomPage.expectTextInThreadPane('An intentional reply');
             await expect(input).not.toContainText('An intentional reply');

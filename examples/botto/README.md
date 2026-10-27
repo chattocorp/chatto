@@ -11,7 +11,6 @@ Create a separate bot account and API key in Chatto. From the repository root:
 
 ```sh
 mise x -- pnpm install
-mise build-runling
 cp examples/botto/botto.example.toml examples/botto/botto.toml
 ```
 
@@ -35,6 +34,9 @@ From `examples/botto`, you can also run `pnpm start` or
 which registers Botto's Chatto source and root task. Mention the bot in a room,
 send it a DM, or reply to one of its messages. Stop with Ctrl-C. Run only one
 process per data directory and bot account.
+
+Workspace startup loads Runling's TypeScript source and serves its console through
+Vite. You do not need to compile Runling before `pnpm start`.
 
 Open `http://127.0.0.1:5173` to inspect conversations in Runling. Each Chatto
 thread has one run. Each accepted batch appears as a **Botto turn** child task.
@@ -77,6 +79,34 @@ Existing TOML files still work. You can remove copied Chatto, memory, and tool
 rules from `agent.system_prompt`; Botto now supplies these rules. Keep instructions
 specific to your bot. Restart Botto after changes. The separate title-description
 task does not use the instance prompt.
+
+### Agent skills
+
+Put operator-maintained skills in `.agents/skills/` beside `botto.toml` (or the
+file selected by `BOTTO_CONFIG`). Each skill uses a directory with a `SKILL.md`
+file containing YAML `name` and `description` fields and Markdown instructions.
+Chatto formatting guidance is part of Botto's internal prompt and needs no skill.
+
+Main agents and subagents use Pi's skill catalog. They see names and descriptions
+and can load instructions when needed. Only this directory is discovered;
+repository and global skills are not added. Discovery runs when each session
+opens. A missing directory means no skills. Invalid skills follow Pi's validation
+rules and may be omitted from the catalog.
+
+The `read` tool reads skills and supporting UTF-8 documents inside that directory.
+Relative paths start at the skills directory; references inside a skill should
+use the absolute path resolved from that skill's directory, as Pi instructs.
+Reads reject paths and symlinks that resolve outside the skills directory,
+non-regular files, binary content, and files over 256 KiB. Output is paginated
+and limited to 20,000 characters of file text per call and per line, plus a
+continuation marker when more lines remain.
+Botto supplies no shell, execution, or file-writing tool. Skills that require
+scripts cannot run them. Skill instructions do not grant additional tools.
+
+Keep this directory under operator control and store only material that the bot
+may read. Skill descriptions and loaded text are sent to the configured model
+provider; loaded text can remain in private conversation transcripts. Update
+skills between turns. Means-managed editable skills are not supported.
 
 | Setting                         | Default                  | Purpose                                                                        |
 | ------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
@@ -240,8 +270,8 @@ same transcript. It does not preload all transcripts at process startup.
 
 Messages that exceed the in-memory queue or thread limit wait in the delivery file.
 Ordinary room posts and reactions do not start turns. Botto always provides the reaction tool.
-It loads only host-selected extensions, not local
-Pi extensions, skills, prompt templates, or project instructions.
+It loads only host-selected extensions and the configured instance's skill
+directory, not ambient Pi extensions, prompt templates, or project instructions.
 
 ## Optional Chatto MCP tools
 
@@ -447,8 +477,9 @@ use it in its answer. Delegation is optional; image inspection stays with the ro
 Children receive only the supplied task and context. They do not inherit chat
 history, images, memory, or the root's tools. When web access is enabled, children
 can use the same Exa search and fetch tools. They cannot post messages, change
-memory, use file or shell tools, or delegate further. Ambient Pi resources are
-disabled. The task and context go to the configured model provider; web queries
+memory, execute commands, or delegate further. Their only local file tool is the
+restricted skill reader described above. Ambient Pi resources are disabled.
+The task and context go to the configured model provider; web queries
 and fetch requests go to Exa when those tools are used.
 
 Each child shares the turn deadline and cancellation. Cancelling its tool call

@@ -337,7 +337,6 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
           <button
             type="button"
             title={m('settings.profile.presence.button', { status: presenceLabel })}
-            aria-label={m('settings.profile.presence.button', { status: presenceLabel })}
             class="flex h-10 shrink-0 cursor-pointer items-center rounded-full"
             data-testid="current-user-presence-menu"
             onclick={openStatusMenu}

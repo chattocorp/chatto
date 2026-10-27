@@ -4,6 +4,7 @@ import { createAgentSession, task, taskTool, Type, type TaskContext } from 'runl
 import type { Settings } from './settings.ts';
 import { mcpExtension } from './mcp.ts';
 import { systemPrompt } from './prompts.ts';
+import { skillReadExtension } from './skills.ts';
 
 /** Children receive explicit text context and optional web tools, never Chatto or memory tools. */
 export function delegateExtension(
@@ -36,12 +37,15 @@ export function delegateExtension(
             resources: {
               agentDir: settings.directory,
               extensions: false,
-              skills: false,
+              skills: [settings.skillsDirectory],
               promptTemplates: false,
               themes: false,
               contextFiles: false
             },
-            extensions: settings.web ? [mcpExtension({ ...settings, mcp: false })] : [],
+            extensions: [
+              skillReadExtension(settings.skillsDirectory),
+              ...(settings.web ? [mcpExtension({ ...settings, mcp: false })] : [])
+            ],
             systemPrompt: systemPrompt(settings, { role: 'subagent' })
           });
           signal.throwIfAborted();

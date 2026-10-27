@@ -39,7 +39,7 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
   await expect(message.locator).toBeVisible();
   const frame = page.getByTestId('app-frame');
   const composer = page.getByTestId('composer-input-surface');
-  const send = composer.getByRole('button', { name: 'Send message', exact: true });
+  const send = composer.getByRole('button', { name: 'Send: Send message', exact: true });
   for (const width of [320, 500, 767, 768, 1024, 500]) {
     await page.setViewportSize({ width, height: 800 });
     await expect(frame).toHaveCSS('border-radius', width < 768 ? '0px' : '16px');

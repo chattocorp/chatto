@@ -14,7 +14,7 @@ allowBuilds:
   electron-winstaller: false
 
 minimumReleaseAgeExclude:
-  - virtua@0.53.4
+  - virtua@0.54.0
   - '@earendil-works/chord@1.0.0'
   - '@earendil-works/pi-agent-core@1.0.0'
   - '@earendil-works/pi-ai@1.0.0'
@@ -25,4 +25,4 @@ minimumReleaseAgeExclude:
   - '@earendil-works/pi-tui@1.0.0'
 
 patchedDependencies:
-  virtua@0.53.4: patches/virtua@0.53.4.patch
+  virtua@0.54.0: patches/virtua@0.54.0.patch

@@ -74,7 +74,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
     {#if showCreateThread}
       <CompactActionButton
         wrapperClass="mobile-presentation:pill-button-group-touch"
-        label={m('composer.post_as_thread')}
+        label={`${m('composer.thread_label')}: ${m('composer.post_as_thread')}`}
         type="button"
         onpointerdown={(event) => event.preventDefault()}
         onclick={onToggleCreateThread}
@@ -95,11 +95,11 @@ Formatting commands live in `ComposerFormattingToolbar`.
     {#if showAlsoSendToChannel}
       <CompactActionButton
         wrapperClass="mobile-presentation:pill-button-group-touch"
-        label={m(
+        label={`${m('composer.echo_label')}: ${m(
           echoToConversation
             ? 'composer.also_send_to_conversation'
             : 'composer.also_send_to_channel'
-        )}
+        )}`}
         type="button"
         onpointerdown={(event) => event.preventDefault()}
         onclick={onToggleAlsoSendToChannel}
@@ -121,7 +121,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
     {/if}
     <CompactActionButton
       wrapperClass="mobile-presentation:pill-button-group-touch"
-      label={m('composer.send')}
+      label={`${m('composer.send_label')}: ${m('composer.send')}`}
       type="button"
       onpointerdown={(event) => event.preventDefault()}
       onclick={onsubmit}

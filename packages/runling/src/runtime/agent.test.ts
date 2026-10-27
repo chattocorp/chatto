@@ -1191,7 +1191,7 @@ describe('runAgent', () => {
       resources: {
         agentDir: '/tmp/agent',
         extensions: false,
-        skills: false,
+        skills: ['./skills'],
         promptTemplates: false,
         themes: false,
         contextFiles: false
@@ -1205,6 +1205,7 @@ describe('runAgent', () => {
       agentDir: '/tmp/agent',
       noExtensions: true,
       noSkills: true,
+      additionalSkillPaths: ['./skills'],
       noPromptTemplates: true,
       noThemes: true,
       noContextFiles: true,

@@ -14,13 +14,20 @@ once at the root layout level.
 <script lang="ts">
   import { dev } from '$app/environment';
   import QuickSwitcher from './QuickSwitcher.svelte';
+  import KeyboardShortcut from './KeyboardShortcut.svelte';
+  import KeyboardShortcutHelp from './KeyboardShortcutHelp.svelte';
+  import { getKeyboardShortcuts, type ShortcutDescription } from '$lib/keyboardShortcuts';
+  import { m } from '$lib/i18n/messages';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { createNextUnreadNavigation } from '$lib/notifications/nextUnreadSource';
 
   const nextUnread = createNextUnreadNavigation(getAppUiState());
+  const shortcuts = getKeyboardShortcuts();
+  let helpVisible = $state(false);
+  let helpEntries = $state<ShortcutDescription[]>([]);
 
-  // Capture reloads and notification navigation before editors or dialogs consume them.
+  // Capture reloads before editors, dialogs, or other shortcuts consume them.
   function handleCapturedShortcut(e: KeyboardEvent) {
     if (
       !dev &&
@@ -31,35 +38,48 @@ once at the root layout level.
       e.stopPropagation();
       return;
     }
-    if (e.altKey && e.shiftKey && !e.metaKey && !e.ctrlKey && e.key === 'ArrowDown') {
-      if (
-        e.defaultPrevented ||
-        e.isComposing ||
-        document.querySelector('dialog[open], [aria-modal="true"]')
-      )
-        return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (!e.repeat) void nextUnread();
-    }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      quickSwitcher.open();
-      return;
-    }
+  function openHelp() {
+    if (helpVisible) return;
+    helpEntries = shortcuts?.snapshot() ?? [];
+    helpVisible = true;
+  }
 
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      const form = document.activeElement?.closest('form');
-      if (form) {
-        e.preventDefault();
-        form.requestSubmit();
-      }
-    }
+  function focusedForm() {
+    return document.activeElement?.closest('form');
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} onkeydowncapture={handleCapturedShortcut} />
-<QuickSwitcher onNextUnread={nextUnread} />
+<svelte:window onkeydowncapture={handleCapturedShortcut} />
+<KeyboardShortcut
+  key="k"
+  command
+  description={m('ui.open_quick_switcher')}
+  ontrigger={() => quickSwitcher.open()}
+/>
+<KeyboardShortcut
+  key="k"
+  command
+  shift
+  description={m('common.keyboard_shortcuts.title')}
+  ontrigger={openHelp}
+/>
+<KeyboardShortcut
+  key="ArrowDown"
+  alt
+  shift
+  allowInModal={false}
+  description={m('chat.notifications.next_unread_source')}
+  ontrigger={() => void nextUnread()}
+/>
+<KeyboardShortcut
+  key="Enter"
+  command
+  capture={false}
+  description={m('common.submit')}
+  when={() => !!focusedForm()}
+  ontrigger={() => focusedForm()?.requestSubmit()}
+/>
+<QuickSwitcher onNextUnread={nextUnread} onShortcutHelp={openHelp} />
+<KeyboardShortcutHelp bind:visible={helpVisible} shortcuts={helpEntries} />

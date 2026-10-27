@@ -4,11 +4,11 @@
   import type { RunDetail } from '$lib/runs.ts';
   import { isRunWaiting, summarizeRunActivity } from '$lib/run-activity.ts';
   import { duration } from '$lib/runs.ts';
-  import { runLogRows } from '$lib/run-log.ts';
+  import { activityLogRows, runLogRows } from '$lib/run-log.ts';
   import { buildTimeline, findActivity } from '$lib/timeline.ts';
   import StatusBadge from './StatusBadge.svelte';
   import Timeline from './Timeline.svelte';
-  import Usage from './Usage.svelte';
+  import RunUsage from './RunUsage.svelte';
   import RunValue from './RunValue.svelte';
   import RunOutput from './RunOutput.svelte';
   import RunLog from './RunLog.svelte';
@@ -32,6 +32,7 @@
   let elapsed = $derived(run.durationMs ?? Math.max(0, now - run.startedAt));
   let quietFor = $derived(Math.max(0, elapsed - (run.events.at(-1)?.timestamp ?? 0)));
   let logs = $derived(runLogRows(run.events));
+  let activities = $derived(activityLogRows(run.events, run.status, nodes));
   const wide = new MediaQuery('(min-width: 96rem)', false);
   const paneTitleId = $props.id();
 
@@ -99,20 +100,7 @@
           class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/55 tabular-nums"
         >
           {#if run.title}<span>{run.workflow}</span>{/if}
-          <span
-            >{run.source === 'web'
-              ? 'Started from web'
-              : run.source === 'cli'
-                ? 'Started with runling run'
-                : run.source === 'source'
-                  ? `Source ${run.sourceName ?? run.webhook}`
-                  : `Webhook /${run.webhook}`}</span
-          >
-          <time datetime={new Date(run.startedAt).toISOString()}
-            >{new Date(run.startedAt).toLocaleString()}</time
-          >
           <span>{duration(elapsed)}</span>
-          <span title={connection}>{connection}</span>
         </div>
       </div>
       <div class="flex shrink-0 items-center gap-2">
@@ -154,35 +142,50 @@
     {:else if run.error}
       <p class="mt-2 text-sm text-error" role="alert">{run.error}</p>
     {/if}
-    <div class="mt-2 flex min-w-0 items-center gap-1 text-xs text-base-content/60">
-      <span class="select-text truncate" title={reference}>{reference}</span>
-      <button
-        class="btn btn-ghost btn-square btn-xs shrink-0"
-        onclick={copyReference}
-        aria-label="Copy run reference"
-        title="Copy run reference"
-      >
-        <span
-          class={copiedReference === reference
-            ? 'icon-[lucide--check] size-3.5'
-            : 'icon-[lucide--copy] size-3.5'}
-          aria-hidden="true"
-        ></span>
-      </button>
-    </div>
-    <p class="sr-only" role="status">
-      {copiedReference === reference ? 'Run reference copied.' : ''}
-    </p>
-    {#if failedReference === reference}<p class="text-xs text-error" role="alert">
-        Could not copy. Select the reference and copy it manually.
-      </p>{/if}
-    <details class="mt-2 text-sm 2xl:hidden">
+    <RunUsage usage={run.usage} />
+    <details class="text-sm">
       <summary
         class="w-fit cursor-pointer text-xs text-base-content/65 hover:text-base-content focus-visible:outline-2 focus-visible:outline-primary"
         >Run details</summary
       >
       <div class="mt-3 max-h-[40vh] space-y-4 overflow-auto pb-2">
-        <Usage usage={run.usage} detail />
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-content/70">
+          <span
+            >{run.source === 'web'
+              ? 'Started from web'
+              : run.source === 'cli'
+                ? 'Started with runling run'
+                : run.source === 'source'
+                  ? `Source ${run.sourceName ?? run.webhook}`
+                  : `Webhook /${run.webhook}`}</span
+          >
+          <time datetime={new Date(run.startedAt).toISOString()}
+            >{new Date(run.startedAt).toLocaleString()}</time
+          >
+          <span>{connection}</span>
+        </div>
+        <div class="flex min-w-0 items-center gap-1 text-xs text-base-content/70">
+          <span class="select-text truncate" title={reference}>{reference}</span>
+          <button
+            class="btn btn-ghost btn-square btn-xs shrink-0"
+            onclick={copyReference}
+            aria-label="Copy run reference"
+            title="Copy run reference"
+          >
+            <span
+              class={copiedReference === reference
+                ? 'icon-[lucide--check] size-3.5'
+                : 'icon-[lucide--copy] size-3.5'}
+              aria-hidden="true"
+            ></span>
+          </button>
+        </div>
+        <p class="sr-only" role="status">
+          {copiedReference === reference ? 'Run reference copied.' : ''}
+        </p>
+        {#if failedReference === reference}<p class="text-xs text-error" role="alert">
+            Could not copy. Select the reference and copy it manually.
+          </p>{/if}
         <div class="grid gap-4 xl:grid-cols-2">
           <RunValue value={run.input} kind="input" />
           <RunOutput {run} />
@@ -227,7 +230,8 @@
           aria-label="Log"
         >
           <RunLog
-            rows={logs}
+            detailedRows={logs}
+            compactRows={activities}
             running={run.status === 'running'}
             selectedActivity={selected}
             onselectActivity={(id) => (selected = id)}
@@ -269,28 +273,17 @@
         {#key run.id}<RunMessageComposer runId={run.id} />{/key}
       {/if}
     </div>
-    <aside
-      class="hidden min-h-0 min-w-[25rem] w-[40%] max-w-[48rem] flex-col border-l border-base-300 2xl:flex"
-      aria-label="Details pane"
-    >
-      {#if activity}
+    {#if activity}<aside
+        class="hidden min-h-0 min-w-[25rem] w-[40%] max-w-[48rem] flex-col border-l border-base-300 2xl:flex"
+        aria-label="Details pane"
+      >
         <ActivityDetails
           {activity}
           {elapsed}
           titleId={paneTitleId}
           onclose={() => (selected = '')}
         />
-      {:else}
-        <div class="shrink-0 border-b border-base-300 px-5 py-4">
-          <h2 class="text-lg font-medium">Run details</h2>
-        </div>
-        <div class="min-h-0 space-y-5 overflow-auto px-5 py-5">
-          <Usage usage={run.usage} detail />
-          <RunValue value={run.input} kind="input" />
-          <RunOutput {run} />
-        </div>
-      {/if}
-    </aside>
+      </aside>{/if}
   </div>
   {#if activity && !wide.current}<ActivityInspector
       {activity}

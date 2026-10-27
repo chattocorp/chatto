@@ -72,6 +72,7 @@ test('uses defaults and preserves slashes in the model ID', () => {
     turnTimeoutMs: 900000,
     contextMessages: 30,
     directory: '/config/.botto',
+    skillsDirectory: '/config/.agents/skills',
     memoryPath: '/config/memory',
     acknowledgementEmoji: 'eyes'
   });

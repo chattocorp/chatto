@@ -68,7 +68,7 @@ test('uses Runling with explicit extensions, no ambient resources, and the origi
       resources: {
         agentDir: directory,
         extensions: false,
-        skills: false,
+        skills: [resolve('.agents/skills')],
         promptTemplates: false,
         themes: false,
         contextFiles: false

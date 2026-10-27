@@ -595,7 +595,7 @@ describe('MessageComposer', () => {
       expect(surface?.contains(editorRow)).toBe(true);
       expect(actions?.contains(q(container, 'button[title="Attach file"]'))).toBe(true);
       expect(actions?.contains(q(container, 'button[aria-label="Insert timestamp"]'))).toBe(true);
-      expect(actions?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
+      expect(actions?.contains(q(container, 'button[aria-label="Send: Send message"]'))).toBe(true);
       expect(surface).toHaveClass('chat-input-surface');
       expect(q(container, '[data-testid="composer-formatting-shelf"]')).toBeNull();
     });
@@ -839,10 +839,13 @@ describe('MessageComposer', () => {
               actions,
               'button[aria-label="Insert timestamp"]'
             )!.getBoundingClientRect();
-            const send = q(actions, 'button[aria-label="Send message"]')!.getBoundingClientRect();
+            const send = q(
+              actions,
+              'button[aria-label="Send: Send message"]'
+            )!.getBoundingClientRect();
             const trailingGroup = q(
               actions,
-              'button[aria-label="Send message"]'
+              'button[aria-label="Send: Send message"]'
             )!.parentElement!.parentElement!.getBoundingClientRect();
             expect(timestamp.left).toBeGreaterThanOrEqual(attachment.right);
             expect(send.right).toBeCloseTo(actions.getBoundingClientRect().right, 0);
@@ -911,7 +914,7 @@ describe('MessageComposer', () => {
         expect(getComputedStyle(inputRow).display).toBe('flex');
         await typeInEditor(editor, 'W'.repeat(32));
         await expect.poll(() => getComputedStyle(inputRow).display).toBe('grid');
-        await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+        await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
         await expect.poll(() => getComputedStyle(inputRow).display).toBe('flex');
         expect(editor.textContent).not.toContain('W'.repeat(32));
       }
@@ -929,7 +932,7 @@ describe('MessageComposer', () => {
           await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
           for (const width of [767, 768, 1280, 390]) {
             await page.viewport(width, 900);
-            const button = q(container, 'button[aria-label="Send message"]')!;
+            const button = q(container, 'button[aria-label="Send: Send message"]')!;
             await expect
               .poll(() => button.getBoundingClientRect().height)
               .toBe(touch && width < 768 ? 44 : 28);
@@ -1255,7 +1258,7 @@ describe('MessageComposer', () => {
       );
       editor = await findEditor(container);
       await expect.element(editor).toHaveTextContent('[^note]: Edited A short note.');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       const body = mutationMock.mock.calls[0][1].input.body;
       expect(body).toContain('Message[^note].');
@@ -1318,7 +1321,7 @@ describe('MessageComposer', () => {
 
       composerApi!.insertQuote([{ quoteDepth: 1, text: 'nested' }]);
       await expect.element(editor).toHaveTextContent('> > nested');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -1359,7 +1362,7 @@ describe('MessageComposer', () => {
         .not.toBeInTheDocument();
       await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalled());
       await vi.waitFor(() => expect(container.textContent).toContain('Example'));
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         body: 'https://example.com',
@@ -1378,7 +1381,7 @@ describe('MessageComposer', () => {
       await new Promise((resolve) => setTimeout(resolve, 600));
 
       expect(fetchLinkPreviewConnectMock).not.toHaveBeenCalled();
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
@@ -1397,7 +1400,7 @@ describe('MessageComposer', () => {
       await new Promise((resolve) => setTimeout(resolve, 600));
 
       expect(fetchLinkPreviewConnectMock).not.toHaveBeenCalled();
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
@@ -1447,7 +1450,7 @@ describe('MessageComposer', () => {
         const editor = await findEditor(container);
         await typeInEditor(editor, 'preserve this draft');
 
-        await expect.element(q(container, 'button[aria-label="Send message"]')).toBeEnabled();
+        await expect.element(q(container, 'button[aria-label="Send: Send message"]')).toBeEnabled();
         const draftHtml = editor.innerHTML;
         await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
@@ -1457,7 +1460,7 @@ describe('MessageComposer', () => {
         expect(animation).toBeDefined();
         const frames = (animation.effect as KeyframeEffect).getKeyframes();
         expect(frames.some((frame) => frame.transform === 'translateX(-3px)')).toBe(!reducedMotion);
-        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
         expect(badge.getAnimations()).toEqual([animation]);
         animation.pause();
         animation.finish();
@@ -1466,8 +1469,8 @@ describe('MessageComposer', () => {
           new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, repeat: true, bubbles: true })
         );
         expect(badge.getAnimations()).toHaveLength(0);
-        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).focus();
-        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).focus();
+        (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
         expect(badge.getAnimations()).toHaveLength(1);
         await expect.element(editor).toHaveFocus();
 
@@ -1488,7 +1491,7 @@ describe('MessageComposer', () => {
       });
       const editor = await findEditor(container);
       await typeInEditor(editor, 'first message');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() =>
         expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain('0:30')
@@ -1512,7 +1515,7 @@ describe('MessageComposer', () => {
       createMessageConnectMock.mockResolvedValueOnce({
         event: { ...postedMessageEvent('slow-message'), createdAt }
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
       await tick();
@@ -1529,7 +1532,7 @@ describe('MessageComposer', () => {
       });
       const editor = await findEditor(container);
       await typeInEditor(editor, 'cross-tab draft');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() =>
         expect(getToasts().some((entry) => entry.message.includes('Slow Mode is active'))).toBe(
@@ -1549,7 +1552,9 @@ describe('MessageComposer', () => {
       });
       await findEditor(container);
 
-      await expect.element(q(container, 'button[aria-label="Send message"]')).not.toBeDisabled();
+      await expect
+        .element(q(container, 'button[aria-label="Send: Send message"]'))
+        .not.toBeDisabled();
     });
   });
 
@@ -1717,7 +1722,7 @@ describe('MessageComposer', () => {
           if (method === 'keyboard') {
             await userEvent.keyboard('{Enter}');
           } else {
-            await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+            await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
           }
           // Removing contenteditable would close the on-screen keyboard.
           await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
@@ -1757,7 +1762,7 @@ describe('MessageComposer', () => {
           const editor = await findEditor(rendered.container, 'thread-reply-input');
           await userEvent.click(editor);
           await userEvent.keyboard('Delayed reply');
-          await userEvent.click(q(rendered.container, 'button[aria-label="Send message"]')!);
+          await userEvent.click(q(rendered.container, 'button[aria-label="Send: Send message"]')!);
           await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
           const outside = document.createElement('button');
           outside.textContent = 'Outside composer';
@@ -1787,19 +1792,21 @@ describe('MessageComposer', () => {
     it('renders the send button', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
-      await expect.element(q(container, 'button[aria-label="Send message"]')).toBeInTheDocument();
+      await expect
+        .element(q(container, 'button[aria-label="Send: Send message"]'))
+        .toBeInTheDocument();
     });
 
     it('send button is disabled when input is empty', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
-      await expect.element(q(container, 'button[aria-label="Send message"]')).toBeDisabled();
+      await expect.element(q(container, 'button[aria-label="Send: Send message"]')).toBeDisabled();
     });
 
     it('send button has paper plane icon', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
-      const sendButton = q(container, 'button[aria-label="Send message"]');
+      const sendButton = q(container, 'button[aria-label="Send: Send message"]');
       const icon = sendButton?.querySelector('[class~="icon-[uil--telegram-alt]"]');
       expect(icon).not.toBeNull();
     });
@@ -1820,7 +1827,7 @@ describe('MessageComposer', () => {
       await expect.element(progressSlot).toHaveClass('invisible');
       expect(progressSlot?.getAttribute('role')).toBeNull();
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
       await expect.element(q(container, `button[aria-label="Remove ${file.name}"]`)).toBeDisabled();
@@ -1860,7 +1867,9 @@ describe('MessageComposer', () => {
         imageFile('room-a.png')
       );
       await typeInEditor(editor, 'room A message');
-      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (
+        q(rendered.container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      ).click();
       await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
 
       sessionStorage.setItem('chatto:draft:room-next', 'room B draft');
@@ -1888,7 +1897,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await typeInEditor(editor, 'sending');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
 
       await readyApis.at(-1)!.addFiles([imageFile('late.png')]);
@@ -1921,7 +1930,9 @@ describe('MessageComposer', () => {
       await typeEditorLiteralText(editor, '- ');
       await vi.waitFor(() => expect(editor.querySelector('ul li')).toBeTruthy());
 
-      await expect.element(q(container, 'button[aria-label="Send message"]')).not.toBeDisabled();
+      await expect
+        .element(q(container, 'button[aria-label="Send: Send message"]'))
+        .not.toBeDisabled();
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
@@ -1971,7 +1982,10 @@ describe('MessageComposer', () => {
 
       pasteFile(editor, file);
       await typeInEditor(editor, 'message with image');
-      const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
+      const sendButton = q(
+        container,
+        'button[aria-label="Send: Send message"]'
+      )! as HTMLButtonElement;
       await expect.element(sendButton).toBeDisabled();
 
       editor.dispatchEvent(
@@ -1998,7 +2012,10 @@ describe('MessageComposer', () => {
       prepareFilesMock.mockReturnValueOnce(pendingPreparation.promise);
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
-      const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
+      const sendButton = q(
+        container,
+        'button[aria-label="Send: Send message"]'
+      )! as HTMLButtonElement;
 
       pasteFile(editor, file);
       await expect.element(sendButton).toBeDisabled();
@@ -2024,7 +2041,10 @@ describe('MessageComposer', () => {
       prepareFilesMock.mockReturnValueOnce(pendingPreparation.promise);
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
-      const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
+      const sendButton = q(
+        container,
+        'button[aria-label="Send: Send message"]'
+      )! as HTMLButtonElement;
 
       pasteFile(editor, imageFile());
       await expect.element(sendButton).toBeDisabled();
@@ -2353,7 +2373,7 @@ describe('MessageComposer', () => {
         expect(sessionStorage.getItem(`chatto:draft:${roomId}`)).toBe('send and clear draft')
       );
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       await vi.waitFor(() => expect(sessionStorage.getItem(`chatto:draft:${roomId}`)).toBeNull());
@@ -2391,7 +2411,7 @@ describe('MessageComposer', () => {
           if (method === 'keyboard') {
             await userEvent.keyboard('{Enter}');
           } else {
-            await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+            await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
           }
           await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
           await expect.element(editor).toHaveFocus();
@@ -2423,7 +2443,7 @@ describe('MessageComposer', () => {
           );
           const editor = await findEditor(rendered.container, 'thread-reply-input');
           await expect.element(editor).toHaveTextContent('Original message');
-          await userEvent.click(q(rendered.container, 'button[aria-label="Send message"]')!);
+          await userEvent.click(q(rendered.container, 'button[aria-label="Send: Send message"]')!);
           await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
           const outside = document.createElement('button');
           outside.textContent = 'Outside composer';
@@ -2459,12 +2479,12 @@ describe('MessageComposer', () => {
       roomStateMock.editState.canAddChannelEcho = true;
       const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
       const editor = await findEditor(container, 'thread-reply-input');
-      const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
+      const toggle = q(container, 'button[aria-label="Echo: Also send to channel"]')!;
 
       await expect.element(editor).toHaveTextContent('');
       await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
       await userEvent.click(toggle);
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2480,12 +2500,12 @@ describe('MessageComposer', () => {
       roomStateMock.editState.channelEchoEventId = 'evt_echo';
       roomStateMock.editState.canRemoveChannelEcho = true;
       const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
-      const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
+      const toggle = q(container, 'button[aria-label="Echo: Also send to channel"]')!;
 
       await findEditor(container, 'thread-reply-input');
       await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
       await userEvent.click(toggle);
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2508,7 +2528,7 @@ describe('MessageComposer', () => {
         const editor = await findEditor(container, 'thread-reply-input');
 
         await typeInEditor(editor, 'edited reply');
-        await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+        await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
 
         await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
         expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2527,7 +2547,7 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
       await findEditor(container, 'thread-reply-input');
 
-      expect(q(container, 'button[aria-label="Also send to channel"]')).toBeNull();
+      expect(q(container, 'button[aria-label="Echo: Also send to channel"]')).toBeNull();
     });
 
     it('omits echo state after a moderator clears and restores the checkbox', async () => {
@@ -2538,12 +2558,12 @@ describe('MessageComposer', () => {
       roomStateMock.editState.canRemoveChannelEcho = true;
       const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
       const editor = await findEditor(container, 'thread-reply-input');
-      const toggle = q(container, 'button[aria-label="Also send to channel"]')!;
+      const toggle = q(container, 'button[aria-label="Echo: Also send to channel"]')!;
 
       await userEvent.click(toggle);
       await userEvent.click(toggle);
       await typeInEditor(editor, 'edited reply');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2560,7 +2580,7 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456', inThread: 'evt_root' });
 
       await findEditor(container, 'thread-reply-input');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
 
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
       expect(getToasts().map(({ message }) => message)).toContain('Message cannot be empty');
@@ -2576,8 +2596,8 @@ describe('MessageComposer', () => {
 
       await expect.element(editor).toHaveTextContent('original body');
       await typeInEditor(editor, '');
-      await userEvent.click(q(container, 'button[aria-label="Also send to channel"]')!);
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Echo: Also send to channel"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
 
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
       expect(getToasts().map(({ message }) => message)).toContain('Message cannot be empty');
@@ -2617,7 +2637,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveAttribute('contenteditable', 'true');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2638,7 +2658,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await expect.poll(() => q(container, 'img')).toBeTruthy();
-      await userEvent.click(q(container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(container, 'button[aria-label="Send: Send message"]')!);
       await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
 
       await pressEditorKey(editor, 'ArrowUp');
@@ -2774,7 +2794,7 @@ describe('MessageComposer', () => {
       );
       const editor = await findEditor(rendered.container);
       await expect.element(editor).toHaveTextContent('original body');
-      await userEvent.click(q(rendered.container, 'button[aria-label="Send message"]')!);
+      await userEvent.click(q(rendered.container, 'button[aria-label="Send: Send message"]')!);
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
 
       sessionStorage.setItem('chatto:draft:edit-scope-slow-b', 'room B draft');
@@ -2820,7 +2840,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
       );
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2844,7 +2864,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, '!');
       await expect.element(editor).toHaveTextContent('before \\o/!');
       await tick();
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2907,7 +2927,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, '!');
       await vi.waitFor(() => expect(editor.textContent).toBe(editedBody));
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2940,7 +2960,9 @@ describe('MessageComposer', () => {
           expect(editor.textContent).toBe(`#announcements${'!'.repeat(cycle)}`)
         );
 
-        (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        (
+          q(rendered.container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+        ).click();
 
         await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
         expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -2967,7 +2989,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, '!');
       await vi.waitFor(() => expect(editor.textContent).toContain('| Ada | Admin |!'));
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       const submittedBody = updateMessageConnectMock.mock.calls[0][0].body as string;
@@ -3026,7 +3048,7 @@ describe('MessageComposer', () => {
           'console.log("second");'
         )
       );
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -3116,7 +3138,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '\\o/ C:\\Users\\foo');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3152,7 +3174,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
 
       await insertEditorLiteralText(editor, 'second line');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3195,7 +3217,7 @@ describe('MessageComposer', () => {
       composerApi!.insertQuote('quoted text');
       await vi.waitFor(() => expect(editor.querySelector('blockquote')).toBeTruthy());
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3263,7 +3285,7 @@ describe('MessageComposer', () => {
       composerApi!.insertQuote([{ quoteDepth: 1, text: 'quoted text' }]);
       await vi.waitFor(() => expect(editor.querySelector('blockquote blockquote')).toBeTruthy());
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3340,7 +3362,7 @@ describe('MessageComposer', () => {
 
       await typeEditorKeys(editor, '**bold**');
       await vi.waitFor(() => expect(editor.querySelector('strong')?.textContent).toBe('bold'));
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3364,7 +3386,7 @@ describe('MessageComposer', () => {
         await expect.element(boldButton).toHaveAttribute('aria-pressed', 'true');
         await insertEditorLiteralText(editor, text);
         await vi.waitFor(() => expect(editor.querySelector(tag)?.textContent).toBe(text));
-        (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+        (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
         await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
         expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3381,7 +3403,8 @@ describe('MessageComposer', () => {
       await typeEditorKeys(editor, '`code`');
       await vi.waitFor(() => expect(editor.querySelector('p code')?.textContent).toBe('code'));
 
-      document.execCommand('selectAll');
+      // Let the editor process the selection before the browser deletes it.
+      await selectEditorContents(editor);
       document.execCommand('delete');
       await tick();
       await vi.waitFor(() => expect(editor.textContent).toBe(''));
@@ -3392,7 +3415,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelector('p code')).toBeNull();
       });
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3411,7 +3434,7 @@ describe('MessageComposer', () => {
         expect(link?.textContent).toBe('example');
         expect(link?.getAttribute('href')).toBe('https://example.com');
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3433,7 +3456,7 @@ describe('MessageComposer', () => {
         expect(link?.textContent).toBe('#announcements');
         expect(link?.getAttribute('href')).toBe('https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F');
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
@@ -3454,7 +3477,7 @@ describe('MessageComposer', () => {
         expect(link?.textContent).toBe('#announcements');
         expect(link?.getAttribute('href')).toBe(url);
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
@@ -3474,7 +3497,7 @@ describe('MessageComposer', () => {
         expect(link?.textContent).toBe('#announcements');
         expect(link?.getAttribute('href')).toBe(url);
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
@@ -3492,7 +3515,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelectorAll('br')).toHaveLength(1);
       });
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3510,7 +3533,7 @@ describe('MessageComposer', () => {
       pasteText(editor, body);
 
       await vi.waitFor(() => expect(editor.querySelectorAll('br')).toHaveLength(2));
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       const submittedBody = mutationMock.mock.calls[0][1].input.body as string;
@@ -3529,7 +3552,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => {
         expect(editor.querySelector('blockquote')?.textContent).toBe('moo');
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
@@ -3550,7 +3573,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => {
         expect(editor.querySelector('strong')?.textContent).toBe('pasted text');
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3601,7 +3624,7 @@ describe('MessageComposer', () => {
       pasteText(editor, body);
 
       await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
@@ -3628,7 +3651,7 @@ describe('MessageComposer', () => {
           'type Conn struct {\n\trwc     io.ReadWriteCloser\n\terr     error\n\tr, w, x sync.Mutex\n}'
         );
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
@@ -3645,7 +3668,7 @@ describe('MessageComposer', () => {
         expect(editor.textContent).toBe('plain line oneplain line two');
         expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3665,7 +3688,7 @@ describe('MessageComposer', () => {
       pasteText(editor, 'edited line one\nedited line two');
 
       await vi.waitFor(() => expect(editor.querySelectorAll('br')).toHaveLength(1));
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -3686,7 +3709,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => {
         expect(editor.querySelector('pre code')?.textContent).toBe('line one\nline two');
       });
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3724,7 +3747,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3739,7 +3762,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3754,7 +3777,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3768,7 +3791,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, '> not a quote');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3791,7 +3814,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://chatto.test/docs')
       );
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3809,7 +3832,7 @@ describe('MessageComposer', () => {
 
       (q(container, 'button[title="Remove link"]') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(editor.querySelector('a')).toBeNull());
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3829,7 +3852,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(editor.querySelector('pre code')?.textContent).toContain('const answer = 42;')
       );
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3852,7 +3875,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelector('pre code')?.textContent).toContain('IO.puts("moo")')
       );
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3878,7 +3901,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() =>
         expect(editor.querySelectorAll('pre code')[1]?.textContent).toContain('IO.puts("moo")')
       );
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -3909,7 +3932,7 @@ describe('MessageComposer', () => {
       );
       expect(editor.querySelectorAll('pre code')).toHaveLength(1);
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3928,7 +3951,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, 'second');
       await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -3972,7 +3995,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelectorAll('ul li')[1]?.textContent).toBe('second')
       );
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4054,7 +4077,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, 'lists');
       await vi.waitFor(() => expect(editor.querySelector('ul li')?.textContent).toBe('lists'));
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4075,7 +4098,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, 'lists');
       await vi.waitFor(() => expect(editor.querySelector('ol li')?.textContent).toBe('lists'));
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4117,7 +4140,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.querySelector('h1')?.textContent).toBe('test #'));
       expect(Array.from(editor.children).map((child) => child.tagName)).toEqual(['H1']);
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4134,7 +4157,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.querySelector('h1')?.textContent).toBe('test ##'));
       expect(Array.from(editor.children).map((child) => child.tagName)).toEqual(['H1']);
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4168,7 +4191,7 @@ describe('MessageComposer', () => {
         expect(editor.querySelector('pre')).toHaveAttribute('data-language', 'js')
       );
       expect(editor.querySelector('pre code span')).toBeTruthy();
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4191,7 +4214,7 @@ describe('MessageComposer', () => {
       await typeInEditor(editor, 'hello world');
       const echoToggle = q(
         container,
-        'button[aria-label="Also send to channel"]'
+        'button[aria-label="Echo: Also send to channel"]'
       ) as HTMLButtonElement;
       expect(echoToggle.closest('[data-testid="composer-action-toolbar"]')).toBeTruthy();
       expect(echoToggle).toHaveTextContent('Echo');
@@ -4203,7 +4226,10 @@ describe('MessageComposer', () => {
       expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
       echoToggle.click();
       await expectAccentColour(echoToggle);
-      const sendButton = q(container, 'button[aria-label="Send message"]') as HTMLButtonElement;
+      const sendButton = q(
+        container,
+        'button[aria-label="Send: Send message"]'
+      ) as HTMLButtonElement;
       expect(sendButton).toHaveTextContent('Send');
       expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass(
         'hidden',
@@ -4239,7 +4265,10 @@ describe('MessageComposer', () => {
         onMessageSent
       });
       const editor = await findEditor(container);
-      const threadToggle = q(container, 'button[aria-label="Post as thread"]') as HTMLButtonElement;
+      const threadToggle = q(
+        container,
+        'button[aria-label="Thread: Post as thread"]'
+      ) as HTMLButtonElement;
 
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
       expect(threadToggle.closest('[data-testid="composer-action-toolbar"]')).toBeTruthy();
@@ -4252,7 +4281,7 @@ describe('MessageComposer', () => {
       await typeInEditor(editor, 'discuss this');
       await userEvent.click(threadToggle);
       await expectAccentColour(threadToggle);
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4274,7 +4303,7 @@ describe('MessageComposer', () => {
       });
       const threadToggle = q(
         rendered.container,
-        'button[aria-label="Post as thread"]'
+        'button[aria-label="Thread: Post as thread"]'
       ) as HTMLButtonElement;
 
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
@@ -4287,7 +4316,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(rendered.container);
       await typeInEditor(editor, 'flat by choice');
       await userEvent.click(
-        q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement
+        q(rendered.container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
       );
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ createThread: false });
@@ -4310,7 +4339,9 @@ describe('MessageComposer', () => {
       });
       const editor = await findEditor(container);
       await typeInEditor(editor, 'continue this thought');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await userEvent.click(
+        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      );
 
       await expect
         .element(getByRole('dialog', { name: 'Continue your previous thread?' }))
@@ -4342,7 +4373,9 @@ describe('MessageComposer', () => {
       });
       const editor = await findEditor(container);
       await typeInEditor(editor, 'a distinct topic');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await userEvent.click(
+        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      );
       await userEvent.click(getByRole('button', { name: 'Post as new message' }));
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
@@ -4364,7 +4397,9 @@ describe('MessageComposer', () => {
 
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       await typeInEditor(editor, 'keep this destination undecided');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await userEvent.click(
+        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      );
 
       const dialog = getByRole('dialog', { name: 'Continue your previous thread?' });
       await expect.element(dialog).toBeInTheDocument();
@@ -4390,7 +4425,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(rendered.container);
       const threadToggle = q(
         rendered.container,
-        'button[aria-label="Post as thread"]'
+        'button[aria-label="Thread: Post as thread"]'
       ) as HTMLButtonElement;
 
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
@@ -4401,7 +4436,9 @@ describe('MessageComposer', () => {
       expect(threadToggle.disabled).toBe(true);
 
       await typeInEditor(editor, 'required thread root');
-      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (
+        q(rendered.container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      ).click();
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId: rendered.roomId,
@@ -4423,15 +4460,17 @@ describe('MessageComposer', () => {
       const editor = await findEditor(rendered.container);
       const threadToggle = q(
         rendered.container,
-        'button[aria-label="Post as thread"]'
+        'button[aria-label="Thread: Post as thread"]'
       ) as HTMLButtonElement;
 
       threadToggle.click();
       await rendered.rerender({ roomId: 'dm-room', showCreateThread: false });
-      expect(q(rendered.container, 'button[aria-label="Post as thread"]')).toBeNull();
+      expect(q(rendered.container, 'button[aria-label="Thread: Post as thread"]')).toBeNull();
 
       await typeInEditor(editor, 'hello from the DM');
-      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (
+        q(rendered.container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      ).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -4448,7 +4487,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, '@all hello');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
       await expect
@@ -4477,7 +4516,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(listRolesConnectMock).toHaveBeenCalledOnce());
       await tick();
       await typeInEditor(editor, '@mods hello');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
       expect(mutationMock).not.toHaveBeenCalled();
@@ -4493,7 +4532,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeInEditor(editor, '@mods hello');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       expect(mutationMock).not.toHaveBeenCalled();
       expect(q(document.body, '[role="dialog"]')).toBeNull();
@@ -4514,7 +4553,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(listRolesConnectMock).toHaveBeenCalledOnce());
       await typeInEditor(editor, '@mods hello');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
       expect(mutationMock).not.toHaveBeenCalled();
@@ -4531,7 +4570,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(listRolesConnectMock).toHaveBeenCalledOnce());
       await tick();
       await typeInEditor(editor, '@everyone hello');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input.body).toBe('@everyone hello');
@@ -4544,7 +4583,7 @@ describe('MessageComposer', () => {
 
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       await typeInEditor(editor, '@all with attachment');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
       expect(mutationMock).not.toHaveBeenCalled();
@@ -4566,7 +4605,7 @@ describe('MessageComposer', () => {
 
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       await typeInEditor(editor, '@all will retry');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
       await userEvent.click(getByRole('button', { name: 'Send Anyway' }));
@@ -4586,7 +4625,7 @@ describe('MessageComposer', () => {
 
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       await typeInEditor(editor, 'will retry');
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       await expect.element(editor).toHaveTextContent('will retry');
@@ -4624,7 +4663,7 @@ describe('MessageComposer', () => {
         const editor = await findEditor(container);
         await typeInEditor(editor, `Look ${url}`);
         await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalledOnce());
-        const send = q(container, 'button[aria-label="Send message"]') as HTMLButtonElement;
+        const send = q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement;
         send.click();
         await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
         await expect
@@ -4672,7 +4711,7 @@ describe('MessageComposer', () => {
         .element(q(container, '[data-testid="composer-link-preview"]'))
         .toBeInTheDocument();
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input.linkPreviewToken).toBe('cht_LPpreviewtoken');
@@ -4690,7 +4729,7 @@ describe('MessageComposer', () => {
       });
       (q(container, 'button[aria-label="Dismiss preview"]') as HTMLButtonElement).click();
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input.linkPreviewToken).toBeNull();
@@ -4718,7 +4757,9 @@ describe('MessageComposer', () => {
       await expect
         .element(container.querySelector('img')!)
         .toHaveAttribute('alt', 'A small chart.\nThe bar is blue.');
-      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await userEvent.click(
+        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      );
       await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
       expect(createMessageConnectMock.mock.calls[0][0].attachmentDescriptions).toEqual([
         { file, description: 'A small chart.\nThe bar is blue.' }
@@ -4742,7 +4783,7 @@ describe('MessageComposer', () => {
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await typeInEditor(editor, 'with file');
 
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test'));
@@ -4763,7 +4804,7 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       await findEditor(container);
 
-      expect(q(container, 'button[aria-label="Send message"]')?.getAttribute('title')).toBe(
+      expect(q(container, 'button[aria-label="Send: Send message"]')?.getAttribute('title')).toBe(
         'Send message'
       );
     });

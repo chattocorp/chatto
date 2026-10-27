@@ -56,6 +56,37 @@ the default session beneath the platform's application-data directory for
 
 ## Verify and build
 
+### macOS installation
+
+Download `chatto-desktop_<version>_macOS_ARM64.dmg` from the Chatto release.
+Open the disk image and drag **Chatto Desktop** to **Applications**. Eject the
+disk image, then open the app from Applications. Release disk images and apps
+are Developer ID signed and notarised. The ZIP download remains available.
+
+To update, quit Chatto Desktop and replace the app in Applications with the
+new version. Registrations, sessions, and preferences remain in the existing
+profile. Updates are manual. Moving the app to the Trash does not erase that
+profile or sign out registered servers.
+
+After `mise desktop-build` on macOS, create a local disk image with:
+
+```sh
+mise x -- pnpm --filter chatto-desktop build:macos-dmg
+bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+```
+
+The output is in `apps/desktop/dist/dmg/`. Local and PR disk images are unsigned.
+The release workflow adds `--release` to sign, notarise, staple, and validate
+the disk image with the existing macOS release credentials. It preserves the
+app's existing signature and notarisation ticket. CI mounts the image, copies
+the app to a temporary folder, and checks the copied signature and native helper.
+
+Before release, test a signed DMG downloaded through a browser on a clean Mac
+with Gatekeeper enabled. Check installation, launch, login, microphone, camera,
+and screen sharing. Also replace an existing installation and confirm that
+registrations and sessions remain available. The automated copy check does not
+replace these interactive checks.
+
 ### Windows installation
 
 Download `chatto-desktop_<version>_Windows_X64_Setup.exe` from the Chatto release
@@ -369,7 +400,7 @@ is sandboxed.
 
 ## Prototype boundaries
 
-This scaffold does not yet provide auto-update, OS deep links, macOS or Linux installers, or
+This scaffold does not yet provide auto-update, OS deep links, Linux installers, or
 end-to-end desktop tests. Some identity providers
 reject authentication inside embedded user agents, so a system-browser OAuth
 handoff may still be required before treating this as a general release.

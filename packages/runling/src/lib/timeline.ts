@@ -49,6 +49,13 @@ export function buildTimeline(events: RunlingEvent[], runStatus: RunStatus): Act
     (parent?.children ?? roots).push(node);
   };
   for (const [index, event] of events.entries()) {
+    if (event.type === 'execution.finished') {
+      for (const node of nodes.values()) {
+        if (node.status !== 'running') continue;
+        node.status = 'interrupted';
+        node.durationMs = Math.max(0, event.timestamp - node.startedAt);
+      }
+    }
     const base = {
       parent: event.activityId,
       status: 'running',

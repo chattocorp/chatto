@@ -11,6 +11,10 @@ from the answer and use the journal to inspect intermediate replies.
 
 ## Behavior
 
+- Workspace CLI commands load TypeScript source without a prior Runling build.
+  Workspace serving uses Vite; npm installs use the compiled console. Both paths
+  share the host lifecycle. See [ADR-013](../adr/ADR-013-source-workspace-exports.md).
+
 - Runling owns application logging through `log`, including structured fields and
   warning levels. Workflows, sources, and server diagnostics share one terminal
   renderer. Source logs carry the source name; workflow logs carry run and task

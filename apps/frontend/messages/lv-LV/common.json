@@ -1,5 +1,14 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Tastatūras īsinājumtaustiņi",
+      "app": "Lietotne",
+      "undo": "Atsaukt",
+      "redo": "Atcelt atsaukšanu",
+      "new_line": "Jauna rinda",
+      "edit_last": "Rediģēt pēdējo ziņojumu (tukšs melnraksts)",
+      "complete": "Pabeigt pieminējumu vai emocijzīmi"
+    },
     "action_unavailable": "Šī darbība pašlaik nav pieejama.",
     "edit": "Rediģēt",
     "copy_failed": "Neizdevās kopēt starpliktuvē. Atlasiet tekstu un kopējiet to manuāli.",

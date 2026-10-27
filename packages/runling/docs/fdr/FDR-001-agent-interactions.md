@@ -119,6 +119,10 @@ one session, gives parent messages to it, and emits its completed replies.
 
 ## Design Decisions
 
+Agent resource options can select explicit skill paths instead of Pi's default
+discovery. Pi owns skill parsing and catalog instructions. The host selects tools
+and enforces any file-access restrictions; skill discovery grants no access.
+
 ### 1. Choose output behavior explicitly
 
 **Decision:** Use text mode for natural replies and report mode for structured tasks.

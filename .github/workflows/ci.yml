@@ -392,6 +392,21 @@ jobs:
           "$helper" help | grep -F 'publish --window'
           otool -l "$helper" | grep -F '@executable_path/../Frameworks'
 
+      - name: Build and test unsigned macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          mise x -- pnpm --filter chatto-desktop build:macos-dmg
+          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+
+      - name: Upload unsigned macOS DMG
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-macos-dmg-unsigned
+          path: apps/desktop/dist/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload desktop bundle
         uses: actions/upload-artifact@v7
         with:
@@ -559,7 +574,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only browser tests need the image; other workspace tests use the host.
     container:
-      image: ${{ matrix.playwright && 'ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb' || '' }}
+      image: ${{ matrix.playwright && 'ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287' || '' }}
       options: --init --ipc=host
     defaults:
       run:
@@ -787,7 +802,7 @@ jobs:
     if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -836,7 +851,7 @@ jobs:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -918,7 +933,7 @@ jobs:
     runs-on: ubuntu-latest
     # Update this digest in a PR to verify a new image before changing main.
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -971,7 +986,7 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:

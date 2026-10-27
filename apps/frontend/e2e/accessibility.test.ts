@@ -298,6 +298,11 @@ test.describe('Route accessibility', () => {
     await expectNoAccessibilityViolations(page, 'quick switcher', 'dialog[open]');
     await page.keyboard.press('Escape');
 
+    await page.keyboard.press('ControlOrMeta+Shift+K');
+    await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'keyboard shortcut help', 'dialog[open]');
+    await page.keyboard.press('Escape');
+
     await message.locator.hover({ position: { x: 4, y: 4 } });
     await message.locator.locator('.message-content-stack').click({ button: 'right' });
     const actionMenu = page.locator('[popover][role="menu"]');

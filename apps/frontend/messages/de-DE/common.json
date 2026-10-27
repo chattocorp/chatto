@@ -1,5 +1,14 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Tastenkürzel",
+      "app": "App",
+      "undo": "Rückgängig",
+      "redo": "Wiederholen",
+      "new_line": "Neue Zeile",
+      "edit_last": "Letzte Nachricht bearbeiten (leerer Entwurf)",
+      "complete": "Erwähnung oder Emoji vervollständigen"
+    },
     "action_unavailable": "Diese Aktion ist derzeit nicht verfügbar.",
     "edit": "Bearbeiten",
     "copy_failed": "Kopieren in die Zwischenablage fehlgeschlagen. Markiere den Text und kopiere ihn manuell.",
