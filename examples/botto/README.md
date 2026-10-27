@@ -498,14 +498,21 @@ Separate instances must use separate data directories.
 Existing transcript filenames and delivery files need no
 migration.
 
-Runling snapshots open conversations every 60 seconds and on graceful shutdown.
+Each message batch runs as one finite root execution. After the answer and task
+cleanup, the root returns. A later batch reactivates the retained workflow ID;
+there is no idle conversation task to interrupt on shutdown. The inbox serializes
+batches for each thread.
+
+Runling saves workflow state after execution, every 60 seconds, and on graceful shutdown.
 After a crash, a newly created run can be absent from the snapshot; later input
 then starts a new run for the same Chatto thread. The delivery ledger remains
 the authority for queued, completed, and uncertain work. A recovered workflow
-waits for the source to admit queued work; it never repeats its original input.
+returns without repeating its original input. This also closes old waiting roots
+on the first restart after upgrade. The source admits later work through reactivation.
 Runling keeps open runs and removes closed runs after its 30-day retention
 period. Botto's existing transcript files are separate and have no automatic
-retention limit. A failed turn does not close its conversation run.
+retention limit. A failed turn ends its execution; a later batch can reactivate
+the same retained run. After retention removes a run, a new batch starts a new ID.
 After restart, Runling's console shows the latest execution attempt's activity
 and total token usage and cost across all attempts. Earlier attempts remain in
 the run journal; the agent continues from its saved transcript.
@@ -539,9 +546,10 @@ mise x -- pnpm --filter @chatto/example-botto test
 recoverable conversation task. The Runling CLI owns serving, signal handling, and shutdown.
 `src/source.ts` owns connectivity and the durable message ledger.
 `src/conversation.ts` defines an ordinary Runling root task for each Chatto
-thread. Its source routing finds or starts that root and waits for each child
-task and its cleanup. The inbox admits one turn per thread at a time, so the
-root awaits a single child and routing reads Runling's source-owned runs directly.
+thread. Its source routing starts or reactivates that root for one batch and waits
+for its execution and cleanup. Routing reads Runling's retained source-owned runs
+directly. Only a private, process-local ticket admits work; console messages and
+recovery cannot replay callbacks.
 Runling's batch queue owns ordering, capacity, and timers. `src/threads.ts`
 keeps Botto's routing keys and transcript identities consistent.
 `src/messages.ts` selects addressed

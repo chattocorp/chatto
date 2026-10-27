@@ -63,6 +63,9 @@ export class RunStore {
   private inboxes = new Map<string, { task: AnyTask; channel: Channel<unknown> }>();
   private executions = new Set<Promise<WorkflowExecution>>();
   private handles = new Map<string, RunHandle>();
+  /** Reservations cover asynchronous registration as well as task execution. */
+  private registrations = new Set<Promise<unknown>>();
+  private reactivating = new Set<string>();
   private listeners = new Set<Listener>();
   private references = new Set<string>();
   private readonly shutdownReason = new Error('Runling server stopped.');
@@ -157,6 +160,7 @@ export class RunStore {
         !file.endsWith('.jsonl') ||
         !validId.test(id) ||
         this.controllers.has(id) ||
+        this.reactivating.has(id) ||
         this.journals.has(id)
       )
         continue;
@@ -257,16 +261,26 @@ export class RunStore {
       });
   }
 
-  /** Live handles for one source, so it can reconnect thread or session routing after restart. */
-  sourceRuns(name: string): SourceRun[] {
-    return [...this.handles].flatMap(([id, handle]) => {
-      const run = this.details.get(id);
+  /** Source routing can include retained executions without starting them again. */
+  sourceRuns(name: string, options: { includeFinished?: boolean } = {}): SourceRun[] {
+    return [...this.runs].flatMap(([id, run]) => {
+      const handle = this.handles.get(id);
       const saved = this.state.data.workflows[id];
-      return run?.source === 'source' && run.sourceName === name
+      return run.source === 'source' &&
+        run.sourceName === name &&
+        (handle || (options.includeFinished && saved && run.status !== 'running'))
         ? [
             {
-              ...handle,
-              input: saved ? saved.input : run.input,
+              ...(handle ?? {
+                id,
+                steer: async () => {
+                  throw new RunNotActiveError();
+                },
+                closeSteering: () => {},
+                cancel: () => {},
+                finished: Promise.resolve()
+              }),
+              input: saved?.input,
               workflow: saved?.task ?? run.workflow
             }
           ]
@@ -309,6 +323,7 @@ export class RunStore {
     const keepAlive = setInterval(() => {}, 1000);
     try {
       await this.recovery;
+      await Promise.allSettled(this.registrations);
       await this.cleaning;
       for (const controller of this.controllers.values()) controller.abort(this.shutdownReason);
       await Promise.allSettled(this.executions);
@@ -381,12 +396,83 @@ export class RunStore {
   }
 
   /** Register and start a run. Resolves after registration, with a handle for its messages. */
-  async start(
+  start(
+    webhook: string,
+    workflow: AnyTask,
+    input: unknown,
+    source: 'webhook' | 'web' | 'source',
+    runId?: string
+  ): Promise<RunHandle & { completion: Promise<WorkflowExecution> }> {
+    const registration =
+      runId === undefined
+        ? this.startNew(webhook, workflow, input, source)
+        : this.reactivate(runId, webhook, workflow, input, source);
+    this.registrations.add(registration);
+    void registration.finally(() => this.registrations.delete(registration)).catch(() => {});
+    return registration;
+  }
+
+  /** Re-enter a finished root with fresh input, retaining its identity and state. */
+  private async reactivate(
+    id: string,
     webhook: string,
     workflow: AnyTask,
     input: unknown,
     source: 'webhook' | 'web' | 'source'
-  ): Promise<RunHandle & { completion: Promise<WorkflowExecution> }> {
+  ) {
+    if (this.closing) throw new Error('Run store is stopping');
+    if (this.reactivating.has(id) || this.handles.has(id) || this.journals.has(id))
+      throw new Error('This run is still active');
+    this.reactivating.add(id);
+    try {
+      await this.cleaning;
+      const saved = this.state.data.workflows[id];
+      const prior = this.runs.get(id);
+      if (
+        !prior ||
+        !saved ||
+        prior.source !== source ||
+        prior.webhook !== webhook ||
+        saved.task === null ||
+        this.workflows[saved.task] !== workflow
+      )
+        throw new Error('Run is not available for this route and task');
+      if (prior.status === 'running' || runOwnerAlive(prior))
+        throw new Error('This run is still active');
+      await parseBoundary(workflow.name, 'input', workflow.input, input);
+      const { run: previous, end } = await this.read(id, true);
+      if (!previous) throw new Error('Run history is unavailable');
+      const run: RunDetail = {
+        ...previous,
+        workflow: workflow.name,
+        input: input === undefined ? null : JSON.parse(JSON.stringify(input)),
+        pid: process.pid,
+        status: 'running',
+        startedAt: Date.now(),
+        finishedAt: undefined,
+        durationMs: undefined,
+        output: null,
+        error: null,
+        events: [],
+        previousUsage: previous.usage,
+        usage: previous.usage
+      };
+      await truncate(resolve(this.directory, `${id}.jsonl`), end);
+      this.journals.set(id, await createRunJournal(this.directory, run, true));
+      saved.input = input === undefined ? undefined : run.input;
+      saved.open = true;
+      return this.launch(run, workflow, input);
+    } finally {
+      this.reactivating.delete(id);
+    }
+  }
+
+  private async startNew(
+    webhook: string,
+    workflow: AnyTask,
+    input: unknown,
+    source: 'webhook' | 'web' | 'source'
+  ) {
     if (this.closing) throw new Error('Run store is stopping');
     // Reserve before the first await so concurrent starts cannot share a reference.
     let reference: string | undefined;
@@ -465,9 +551,16 @@ export class RunStore {
     const handle = {
       id,
       completion,
-      steer: (message: unknown) => this.send(id, message),
-      closeSteering: () => this.closeSteering(id),
-      cancel: () => void this.cancel(id),
+      steer: (message: unknown) =>
+        this.controllers.get(id) === controller
+          ? this.send(id, message)
+          : Promise.reject(new RunNotActiveError()),
+      closeSteering: () => {
+        if (this.controllers.get(id) === controller) this.closeSteering(id);
+      },
+      cancel: () => {
+        if (this.controllers.get(id) === controller) this.cancel(id);
+      },
       finished: completion.then(
         () => {},
         () => {}
@@ -543,6 +636,9 @@ export class RunStore {
     } finally {
       this.journals.delete(id);
     }
+    // Persist the final state before the execution handle settles. A failed snapshot
+    // rejects completion; the journal still describes the actual task outcome.
+    await this.state.save();
     serverLog(
       status === 'failed'
         ? 'error'
