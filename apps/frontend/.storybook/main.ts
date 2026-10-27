@@ -40,12 +40,13 @@ const config: StorybookConfig = {
         }
       };
     }
-    // Lazy video imports must be optimized before browser tests start. A
+    // Lazy media and diagram imports must be optimized before browser tests start. A
     // dependency reload during a test can leave the Storybook runner stalled.
     config.optimizeDeps = {
       ...config.optimizeDeps,
       include: [
         ...(config.optimizeDeps?.include ?? []),
+        'pele',
         'hls.js',
         'vidstack/player',
         'vidstack/player/layouts',
