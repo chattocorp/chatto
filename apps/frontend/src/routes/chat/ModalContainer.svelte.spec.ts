@@ -288,19 +288,10 @@ beforeEach(() => {
     if (origin) {
       mocks.clearServerAuthentication(serverId);
       mocks.notifyLogout();
-      const next = mocks.servers.find(
-        (candidate) => candidate.id !== serverId && mocks.authenticated[candidate.id]
-      );
-      return { kind: 'hard' as const, serverId: next?.id };
+      return { kind: 'hard' as const, serverId };
     }
     mocks.clearServerAuthentication(serverId);
-    const next =
-      mocks.originServer && mocks.authenticated[mocks.originServer.id]
-        ? mocks.originServer
-        : mocks.servers.find(
-            (candidate) => candidate.id !== serverId && mocks.authenticated[candidate.id]
-          );
-    return { kind: 'soft' as const, serverId: next?.id };
+    return { kind: 'soft' as const, serverId };
   });
   mocks.signOutAllAccount.mockImplementation(async () => {
     mocks.beginExplicitSignOutRedirect();
@@ -373,7 +364,7 @@ describe('ModalContainer sign out modal', () => {
       expect(mocks.removeServer).not.toHaveBeenCalled();
       expect(mocks.removeAll).not.toHaveBeenCalled();
       expect(mocks.notifyLogout).not.toHaveBeenCalled();
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.test');
     });
   });
 
@@ -398,7 +389,7 @@ describe('ModalContainer sign out modal', () => {
       expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
       expect(mocks.removeServer).not.toHaveBeenCalled();
       expect(mocks.notifyLogout).toHaveBeenCalledOnce();
-      expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/chat/remote.example.test');
+      expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/chat/-');
     });
   });
 

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Updated:** 2026-09-25
+**Updated:** 2026-10-27
 
 **Status:** Accepted
 
@@ -35,10 +35,21 @@ frontend must access each capability through a focused adapter module that:
   application origin;
 - validates every host response before exposing it to application state;
 - uses temporary opaque identifiers instead of platform-native coordinates;
-- keeps credentials, filesystem paths, processes, and general Electron APIs
+- keeps operating-system credentials, filesystem paths, processes, and general Electron APIs
   outside the renderer contract; and
 - leaves the ordinary browser implementation as the complete default path when
   the capability is absent.
+
+Desktop password sign-in is a narrow authentication capability. The app form
+passes the entered password and selected server origin to the host. The host
+submits only to that server's direct-login endpoint and returns its session
+response. It does not expose a general HTTP proxy. It rejects redirects and
+requires HTTPS except for loopback development servers. The frontend validates
+the renewable session before it installs it. Passwords are not persisted.
+This explicitly trusts the installed app with the server password. Browser
+deployments keep server-owned OAuth login. The capability is not proof of the
+caller's identity to the server; it uses the existing programmatic password
+session policy, not an OAuth client grant.
 
 Visible components continue to express one product action. They may select a
 capability implementation at the point of use, but must not fork the rest of

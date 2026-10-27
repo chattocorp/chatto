@@ -43,7 +43,7 @@ dialog shows it directly on its work plane. See FDR-042.
      * The directory is the content of the history-backed Add Server dialog.
      * Sections then sit on the dialog's work plane with one lower heading
      * level. Opening a server replaces the dialog's history entry, so Back
-     * does not reopen it. Joining a server keeps the dialog open.
+     * does not reopen it. Joining a server also opens it.
      */
     inDialog?: boolean;
   } = $props();
@@ -181,13 +181,11 @@ dialog shows it directly on its work plane. See FDR-042.
   }
 
   /**
-   * Open a registered server, or add a new one to the gutter. Adding a server
-   * neither opens it nor starts sign-in, so the user can add more servers
-   * before they close the directory. The entry then shows the joined state
-   * with an open action. The server's signed-out view offers **Log in to this
-   * server**. A Server Directory result has only the cached profile, so adding
-   * it first loads the server's current profile. The user starts this request
-   * explicitly.
+   * Open a registered server, or add a new one to the gutter and open it.
+   * Joining does not submit credentials or open an authorization window.
+   * The server's signed-out view offers sign-in. A Server Directory result
+   * has only the cached profile, so adding it first loads the server's current
+   * profile. The user starts this request explicitly.
    */
   async function openOrJoin(origin: string, profile: ServerVersionProfile) {
     const joined = findServerByUrl(origin);
@@ -213,9 +211,12 @@ dialog shows it directly on its work plane. See FDR-042.
         );
         return;
       }
-      addSignedOutServer(origin, {
+      const serverId = addSignedOutServer(origin, {
         name: current.name,
         iconUrl: current.iconUrl ?? null
+      });
+      await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
+        replaceState: inDialog
       });
     } catch {
       toast.error(m('common.error.generic'));

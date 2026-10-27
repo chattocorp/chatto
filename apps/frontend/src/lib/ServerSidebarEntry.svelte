@@ -215,25 +215,18 @@
 
   async function handleSignOut(): Promise<void> {
     if (signingOut || !stores.isAuthenticated) return;
-    const wasActive = isActiveServer;
     closeContextMenu();
     signingOut = true;
     try {
       const navigation = await clientAccount.signOutCurrentServer(serverId);
       if (!navigation) return;
+      const href = navigation.serverId
+        ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
+        : resolve('/');
       if (navigation.kind === 'hard') {
-        const href = wasActive
-          ? navigation.serverId
-            ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
-            : resolve('/')
-          : window.location.pathname + window.location.search + window.location.hash;
         hardRedirectAfterSignOut(href);
-      } else if (wasActive) {
-        await goto(
-          navigation.serverId
-            ? resolve('/chat/[serverId]', { serverId: serverIdToSegment(navigation.serverId) })
-            : resolve('/')
-        );
+      } else {
+        await goto(href);
       }
     } catch {
       toast.error(m('common.error.network'));

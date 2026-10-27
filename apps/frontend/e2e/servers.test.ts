@@ -380,7 +380,8 @@ test.describe('Leave Server', () => {
     await remoteSidebarIcon.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Sign out of server' }).click();
 
-    await expect(page).toHaveURL(/\/chat\/-/);
+    await expect(page).toHaveURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}(/|$)`));
+    await expect(page.getByTestId('server-signed-out')).toBeVisible();
     await expect(remoteSidebarIcon).toHaveAttribute('title', /needs sign-in/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -437,6 +438,9 @@ test.describe('Leave Server', () => {
     await page.getByRole('menuitem', { name: 'Sign out of server' }).click();
 
     const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
+    await page.waitForURL(routes.login);
+    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`).first().click();
     await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });

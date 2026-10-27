@@ -32,7 +32,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-020](FDR-020-server-branding-and-configuration.md)     | Server Branding & Configuration       | Active       | 2026-09-18    |
 | [FDR-021](FDR-021-admin-dashboard.md)                       | Admin Dashboard & System Monitoring   | Active       | 2026-10-16    |
 | [FDR-022](FDR-022-user-profile.md)                          | User Profile                          | Active       | 2026-10-24    |
-| [FDR-023](FDR-023-authentication-and-sessions.md)           | Authentication & Sessions             | Active       | 2026-09-24    |
+| [FDR-023](FDR-023-authentication-and-sessions.md)           | Authentication & Sessions             | Active       | 2026-10-27    |
 | [FDR-024](FDR-024-permission-inspection-tool.md)            | Permission Inspection Tool            | Active       | 2026-08-27    |
 | [FDR-025](FDR-025-user-search-and-member-directory.md)      | User Search & Member Directory        | Active       | 2026-09-27    |
 | [FDR-026](FDR-026-last-room-memory.md)                      | Last-Room Memory                      | Active       | 2026-06-16    |
@@ -43,7 +43,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-10-16    |
 | [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-10-26    |
 | [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-26    |
-| [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-10-26    |
+| [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-10-27    |
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
 | [FDR-036](FDR-036-invite-links.md)                          | Invite Links                          | Active       | 2026-08-11    |
 | [FDR-037](FDR-037-pinned-messages.md)                       | Pinned Messages                       | Active       | 2026-10-12    |
@@ -51,7 +51,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-039](FDR-039-message-access-and-interactions.md)       | Message Access & Interactions         | Experimental | 2026-09-20    |
 | [FDR-040](FDR-040-backup-and-restore.md)                    | Backup and Restore                    | Active       | 2026-10-26    |
 | [FDR-041](FDR-041-transactional-email-delivery.md)          | Transactional Email Delivery          | Active       | 2026-08-28    |
-| [FDR-042](FDR-042-chatto-neighbors.md)                      | Chatto Neighbors                      | Experimental | 2026-09-26    |
+| [FDR-042](FDR-042-chatto-neighbors.md)                      | Chatto Neighbors                      | Experimental | 2026-10-27    |
 | [FDR-043](FDR-043-model-context-protocol-integration.md)    | Model Context Protocol Integration    | Experimental | 2026-10-08    |
 | [FDR-044](FDR-044-my-threads.md)                            | Threads                               | Active       | 2026-10-15    |
 | [FDR-045](FDR-045-realtime-event-stream.md)                 | Realtime Event Stream                 | Experimental | 2026-09-25    |

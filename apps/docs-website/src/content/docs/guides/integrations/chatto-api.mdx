@@ -159,6 +159,11 @@ scopes only for MCP, and this flow does not return an ID token. Chatto handles
 sign-in and consent. Then it redirects to your callback with `code`, `state`,
 and `iss`, or with an OAuth error.
 
+To start account creation, add `screen_hint=signup` to the authorization
+request. The server opens registration and resumes authorization after signup.
+This hint does not bypass registration or invitation rules. Older servers can
+ignore the hint and show their sign-in page instead.
+
 ### Validate the Callback and Exchange the Code
 
 Add this function to the module. Call `finishAuthorization()` once on the

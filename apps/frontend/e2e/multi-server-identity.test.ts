@@ -158,7 +158,8 @@ test.describe('Multi-Instance Identity', () => {
     await page.getByTitle('Sign out').click();
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await page.getByRole('button', { name: 'Current Server' }).click();
-    await expect(page).toHaveURL(/\/chat\/-/);
+    await expect(page.getByTestId('server-signed-out')).toBeVisible();
+    await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1\//);
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
     // Stay inside the running SPA so a document reload cannot mask a missing

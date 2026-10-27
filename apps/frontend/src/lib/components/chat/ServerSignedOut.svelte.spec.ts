@@ -6,7 +6,14 @@ import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
   startRemoteReauthentication: vi.fn(),
-  pushState: vi.fn()
+  pushState: vi.fn(),
+  desktop: false,
+  passwordLogin: vi.fn()
+}));
+
+vi.mock('$lib/desktop/passwordLogin', () => ({
+  hasPasswordLogin: () => mocks.desktop,
+  signInWithPassword: mocks.passwordLogin
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
@@ -36,11 +43,95 @@ const registration = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.desktop = false;
   // Failed or pending discovery keeps the default name.
   createTestServerScope({ serverInfo: { name: 'Chatto', version: '', iconUrl: null } });
 });
 
 describe('ServerSignedOut', () => {
+  it.each([true, false])(
+    'offers Desktop signup only when registration is enabled=%s',
+    async (enabled) => {
+      mocks.desktop = true;
+      mocks.startRemoteReauthentication.mockResolvedValue(undefined);
+      createTestServerScope({
+        serverInfo: { name: 'Saved Server', loading: false, directRegistrationEnabled: enabled },
+        store: { realtimeSync: { hasDisplayableView: false } }
+      });
+      render(ServerSignedOut, { props: { registration } });
+      const signup = page.getByRole('button', { name: 'Create Account', exact: true });
+      if (!enabled) {
+        await expect.element(signup).not.toBeInTheDocument();
+        return;
+      }
+      await signup.click();
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
+        registration,
+        undefined,
+        'signup'
+      );
+      expect(mocks.passwordLogin).not.toHaveBeenCalled();
+    }
+  );
+  it.each([true, false])(
+    'shows provider buttons with password login enabled=%s',
+    async (directLoginEnabled) => {
+      mocks.desktop = true;
+      mocks.startRemoteReauthentication.mockResolvedValue(undefined);
+      createTestServerScope({
+        serverInfo: {
+          name: 'Saved Server',
+          loading: false,
+          directLoginEnabled,
+          authProviders: [{ id: 'chatto-id', type: 'oidc', label: 'Chatto ID' }]
+        },
+        store: { realtimeSync: { hasDisplayableView: false } }
+      });
+      render(ServerSignedOut, { props: { registration } });
+      if (directLoginEnabled)
+        await expect.element(page.getByLabelText('Password', { exact: true })).toBeVisible();
+      else
+        await expect
+          .element(page.getByLabelText('Password', { exact: true }))
+          .not.toBeInTheDocument();
+      await page.getByRole('button', { name: 'Continue with Chatto ID' }).click();
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(registration, 'chatto-id');
+      expect(mocks.passwordLogin).not.toHaveBeenCalled();
+    }
+  );
+
+  it('shows the Desktop password form and submits without opening OAuth', async () => {
+    mocks.desktop = true;
+    createTestServerScope({
+      serverInfo: { name: 'Saved Server', loading: false, directLoginEnabled: true },
+      store: { realtimeSync: { hasDisplayableView: false } }
+    });
+    render(ServerSignedOut, { props: { registration } });
+    await page.getByLabelText('Username or Email').fill('alice');
+    await page.getByLabelText('Password', { exact: true }).fill('example-password');
+    await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+    expect(mocks.passwordLogin).toHaveBeenCalledWith(
+      registration,
+      'alice',
+      'example-password',
+      expect.any(AbortSignal)
+    );
+    expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
+    await expect.element(page.getByLabelText('Password', { exact: true })).toHaveValue('');
+  });
+
+  it('uses OAuth when the Desktop user chooses the server page', async () => {
+    mocks.desktop = true;
+    createTestServerScope({
+      serverInfo: { name: 'Saved Server', loading: false, directLoginEnabled: false },
+      store: { realtimeSync: { hasDisplayableView: false } }
+    });
+    render(ServerSignedOut, { props: { registration } });
+    await expect.element(page.getByLabelText('Password', { exact: true })).not.toBeInTheDocument();
+    await page.getByRole('button', { name: 'Continue on the server' }).click();
+    expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(registration);
+    expect(mocks.passwordLogin).not.toHaveBeenCalled();
+  });
   it('names the server from its registration and explains the signed-out state', async () => {
     render(ServerSignedOut, { props: { registration } });
 

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
   import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
@@ -9,12 +8,14 @@
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import { Divider, Hint, PageTitle } from '$lib/ui';
   import { Button, FormError, TextInput, VerificationCodeInput, validate, z } from '$lib/ui/form';
 
   const { data } = $props();
+  const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
 
   type Step = 'email' | 'code' | 'details';
 
@@ -93,18 +94,24 @@
   }
 
   function providerLoginHref(provider: PublicAuthProvider): string {
-    return `${provider.loginUrl}?redirect=${encodeURIComponent('/')}`;
+    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
   async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
     event.preventDefault();
     providerError = '';
     selectedProviderId = provider.id;
+    // Keep the server's OAuth session in this window throughout provider signup.
+    if (compact) {
+      window.location.href = providerLoginHref(provider);
+      return;
+    }
     try {
       providerPopup = openProviderSignIn(provider.loginUrl);
       await verifyProviderSignIn(providerPopup);
       if (!active) return;
-      if (!(await completeOriginAuthentication())) await goto(resolve('/'));
+      if (!(await completeOriginAuthentication()))
+        await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
       if (active) providerError = errorMessage(err, m('auth.register.failed'));
     } finally {
@@ -221,7 +228,7 @@
 
       const resumedReturnNavigation = await completeOriginAuthentication();
       if (!resumedReturnNavigation) {
-        goto(resolve('/'), { replaceState: true });
+        await navigateAfterAuthentication(data.redirectUrl);
       }
     } catch (err) {
       error = errorMessage(err, m('auth.register.failed'));
@@ -234,6 +241,7 @@
 <PageTitle title={m('auth.register.title')} />
 
 <AuthLayout
+  {compact}
   title={step === 'code'
     ? m('auth.register.code.title')
     : step === 'details'
@@ -397,7 +405,13 @@
 
   <Divider label={m('common.or')} />
 
-  <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
+  <Button
+    href={resolve('/login') +
+      (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
+    variant="secondary"
+    size="lg"
+    fullWidth
+  >
     {m('common.sign_in')}
   </Button>
 </AuthLayout>

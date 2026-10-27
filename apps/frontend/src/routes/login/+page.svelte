@@ -276,7 +276,10 @@
       <Divider label={m('common.or')} />
 
       <Button
-        href={resolve('/register')}
+        href={resolve('/register') +
+          (data.redirectUrl === '/'
+            ? ''
+            : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
         variant="secondary"
         size={compact ? 'md' : 'lg'}
         fullWidth

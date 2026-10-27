@@ -1,7 +1,7 @@
 # FDR-042: Chatto Neighbors
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-26
+**Last reviewed:** 2026-10-27
 
 ## Overview
 
@@ -74,11 +74,11 @@ recommendation, not a trust or reciprocal relationship.
   most six active requests and a ten-second timeout for each request. A
   registered server that does not provide a Neighborhood contributes no
   results and does not count as a failure.
-- Joining a server adds it to the gutter without a session. The join does not
-  open the server or start sign-in, and the directory stays open, so the user
-  can add more servers. The entry then shows the joined state and an open
-  action. The server view tells the user that they are signed out and offers
-  **Log in to this server**, which opens the sign-in window (FDR-023). Before
+- Joining a server adds it to the gutter without a session and opens its
+  signed-out view. In the Add Server dialog, navigation replaces the dialog's
+  history entry, so the dialog closes and Back does not reopen it. The server
+  view offers sign-in (FDR-023), including the inline Desktop password form
+  (FDR-034). Joining does not submit credentials or open a sign-in window. Before
   it adds a recommended server, the client loads the server's current public
   data. The user starts this request with the join action. If the current
   version is not compatible or sign-in is not available, the client stops the

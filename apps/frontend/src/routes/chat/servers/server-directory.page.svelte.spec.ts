@@ -313,7 +313,7 @@ describe('Server Directory page', () => {
   });
 
   it.each(['0.5.0', '0.5.0-beta.9', '0.5.0-beta.15-custom', 'dev'])(
-    'adds a recommended %s server and stays in the directory',
+    'adds a recommended %s server and opens it',
     async (version) => {
       const remoteProfile = { ...profile('Remote'), version };
       mocks.getPublicServerInfo.mockResolvedValue(remoteProfile);
@@ -340,7 +340,7 @@ describe('Server Directory page', () => {
       await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
       expect(button(container, 'Join')).toBeUndefined();
       expect(container.textContent).toContain('Joined');
-      expect(mocks.goto).not.toHaveBeenCalled();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example', { replaceState: false });
       expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
         'https://remote.example',
         expect.objectContaining({ signal: expect.any(AbortSignal) })
@@ -525,7 +525,7 @@ describe('Server Directory page', () => {
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
-  it('keeps the dialog open after a join and replaces its history entry on open', async () => {
+  it('opens a joined server immediately and replaces the dialog history entry', async () => {
     mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'))],
@@ -537,12 +537,10 @@ describe('Server Directory page', () => {
     await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
     button(container, 'Join')?.click();
     await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    expect(mocks.goto).not.toHaveBeenCalled();
-
-    button(container, 'Open')?.click();
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example', { replaceState: true });
     });
+    expect(mocks.goto).toHaveBeenCalledTimes(1);
   });
 
   it('adds a server found by address without another profile request', async () => {
@@ -557,7 +555,7 @@ describe('Server Directory page', () => {
     button(container, 'Join')?.click();
 
     await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/custom.example', { replaceState: true });
     expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://custom.example', {
       name: 'Custom',
       iconUrl: customProfile.iconUrl

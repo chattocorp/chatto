@@ -4,7 +4,6 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string; url: string; token: string | null }>,
     originId: 'origin',
-    authenticated: new Set<string>(),
     beginExplicitSignOutRedirect: vi.fn(),
     cancelExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
@@ -32,12 +31,6 @@ vi.mock('$lib/client', async () => ({
   }
 }));
 
-vi.mock('$lib/serverCatalogue', () => ({
-  firstAuthenticatedServerId: (excludedId?: string) =>
-    mocks.servers.find((server) => server.id !== excludedId && mocks.authenticated.has(server.id))
-      ?.id
-}));
-
 vi.mock('@chatto/client/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
@@ -60,7 +53,6 @@ beforeEach(() => {
     { id: 'remote', url: 'https://remote.example', token: 'remote-token' }
   ];
   mocks.originId = 'origin';
-  mocks.authenticated = new Set(['origin', 'remote']);
   mocks.signOutServer.mockResolvedValue(new Response('{}'));
   mocks.signOutServers.mockResolvedValue(undefined);
   mocks.unsubscribePushBeforeLeaving.mockResolvedValue(undefined);
@@ -75,7 +67,7 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.clearLastRoom).toHaveBeenCalledWith('remote');
     expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote');
     expect(mocks.removeServer).not.toHaveBeenCalled();
-    expect(result).toEqual({ kind: 'soft', serverId: 'origin' });
+    expect(result).toEqual({ kind: 'soft', serverId: 'remote' });
   });
 
   it('keeps the origin registration while clearing its local session', async () => {
@@ -86,7 +78,7 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
     expect(mocks.removeServer).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
-    expect(result).toEqual({ kind: 'hard', serverId: 'remote' });
+    expect(result).toEqual({ kind: 'hard', serverId: 'origin' });
   });
 
   it('clears local state after signing out every server', async () => {

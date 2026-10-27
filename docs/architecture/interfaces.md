@@ -53,6 +53,11 @@ fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries
 
+`GET /oauth/authorize` accepts the optional `screen_hint=signup` display hint.
+After normal client and PKCE validation, it opens `/register` with a safe
+authorization continuation. This does not change registration permissions or
+the persisted authorization state.
+
 `webserver.bind_address` selects the address for the main HTTP or HTTPS
 listener and the optional ACME HTTP listener. An empty value listens on all
 interfaces. The configured address does not change the public URL or proxy

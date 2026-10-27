@@ -59,7 +59,9 @@ class ServerNotRegisteredError extends Error {
  */
 async function runServerOAuthFlow(
   serverUrl: string,
-  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>
+  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>,
+  providerId?: string,
+  screenHint?: 'signup'
 ): Promise<void> {
   const verifier = generateCodeVerifier();
   const state = generateState();
@@ -73,6 +75,8 @@ async function runServerOAuthFlow(
       redirect_uri: MOBILE_CALLBACK,
       code_challenge: challenge,
       code_challenge_method: 'S256',
+      ...(providerId ? { provider_id: providerId } : {}),
+      ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
     const response = await authorizeNatively(`${serverUrl}${info.authorizeUrl}?${params}`, state);
@@ -146,6 +150,8 @@ async function runServerOAuthFlow(
       redirect_uri: redirectUri,
       code_challenge: challenge,
       code_challenge_method: 'S256',
+      ...(providerId ? { provider_id: providerId } : {}),
+      ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
 
@@ -375,9 +381,15 @@ export function oauthClientIdForLocation(
 /**
  * Sign in to a registered remote server in a separate window and open the
  * server when sign-in completes. Call this synchronously from the user's
- * action, so the browser allows the window.
+ * action, so the browser allows the window. An optional provider ID hints at
+ * one of the server's configured providers; the server validates the hint.
+ * The signup screen hint opens registration on servers that support it.
  */
-export function startRemoteReauthentication(server: RegisteredServer): Promise<void> {
+export function startRemoteReauthentication(
+  server: RegisteredServer,
+  providerId?: string,
+  screenHint?: 'signup'
+): Promise<void> {
   const serverInfo = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
     (info) => ({
       name: info.name || server.name,
@@ -385,7 +397,7 @@ export function startRemoteReauthentication(server: RegisteredServer): Promise<v
       iconUrl: info.iconUrl ?? server.iconUrl
     })
   );
-  return runServerOAuthFlow(server.url, serverInfo);
+  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint);
 }
 
 export function beginOriginReauthentication(returnPath?: string): void {
