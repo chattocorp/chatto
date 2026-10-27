@@ -120,6 +120,33 @@ describe('messages', () => {
     });
   });
 
+  test('message reads expose attachment metadata without signed addresses', async () => {
+    const { requests: api } = requests((router) =>
+      router.service(MessageService, {
+        getMessage: () => ({
+          message: {
+            id: 'image-message',
+            roomId: 'room',
+            actorId: 'human',
+            attachments: [
+              {
+                id: 'image',
+                filename: 'photo.png',
+                contentType: 'image/png',
+                assetUrl: { url: '/assets/private?ticket=secret' }
+              }
+            ]
+          }
+        })
+      })
+    );
+    const message = await api.getMessage({ roomId: 'room', messageId: 'image-message' });
+    expect(message?.attachments).toEqual([
+      { id: 'image', filename: 'photo.png', contentType: 'image/png' }
+    ]);
+    expect(JSON.stringify(message)).not.toContain('ticket');
+  });
+
   test('adds a reaction to the given message', async () => {
     const reactions: unknown[] = [];
     const { requests: api } = requests((router) =>

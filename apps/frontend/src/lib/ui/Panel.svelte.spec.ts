@@ -17,6 +17,34 @@ function renderPanel(noPadding = false) {
 }
 
 describe('Panel inset structure', () => {
+  it('places inline metadata beside the title and wraps it in narrow panels', async () => {
+    const host = document.createElement('div');
+    host.style.width = '800px';
+    document.body.append(host);
+    const view = render(Panel, {
+      target: host,
+      props: {
+        title: 'Room notice',
+        subtitle: 'Published 26 October 2026 at 14:05',
+        children: testSnippet('<div>Notice</div>')
+      }
+    });
+    const title = host.querySelector('h2')!;
+    const subtitle = host.querySelector('.panel-header p')!;
+    try {
+      expect(subtitle.getBoundingClientRect().left).toBeGreaterThan(
+        title.getBoundingClientRect().right
+      );
+      host.style.width = '280px';
+      await expect
+        .poll(() => subtitle.getBoundingClientRect().top)
+        .toBeGreaterThanOrEqual(title.getBoundingClientRect().bottom);
+      expect(host.scrollWidth).toBeLessThanOrEqual(280);
+    } finally {
+      await view.unmount();
+      host.remove();
+    }
+  });
   it('flattens page panels on narrow touch and mouse screens while standalone panels keep their frames', async () => {
     const flat = render(Panel, {
       props: {

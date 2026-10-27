@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Pubblicare, correggere, annunciare di nuovo e cancellare gli avvisi della stanza",
       "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
       "server_manage_neighbors": "Gestisci la directory pubblica dei vicini",
       "room_create": "Crea nuove stanze",

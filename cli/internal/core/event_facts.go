@@ -39,6 +39,8 @@ func roomIDOfEvent(event *evtv1.Event) string {
 		return e.RoomCreated.GetRoomId()
 	case *evtv1.Event_RoomUpdated:
 		return e.RoomUpdated.GetRoomId()
+	case *evtv1.Event_RoomNoticeChanged:
+		return e.RoomNoticeChanged.GetRoomId()
 	case *evtv1.Event_RoomDeleted:
 		return e.RoomDeleted.GetRoomId()
 	case *evtv1.Event_RoomArchived:
@@ -418,6 +420,7 @@ func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
 func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 	switch eventType {
 	case evtstream.EventRoomInvitationCreated, evtstream.EventRoomInvitationAccepted, evtstream.EventRoomInvitationDeclined, evtstream.EventRoomCreated,
+		evtstream.EventRoomNoticeChanged,
 		evtstream.EventRoomUpdated,
 		evtstream.EventRoomDeleted,
 		evtstream.EventRoomArchived,
@@ -606,7 +609,8 @@ func eventNeedsThreadProjection(event *evtv1.Event) bool {
 
 func eventNeedsRoomDirectoryProjection(event *evtv1.Event) bool {
 	switch event.GetEvent().(type) {
-	case *evtv1.Event_UserJoinedRoom,
+	case *evtv1.Event_RoomNoticeChanged,
+		*evtv1.Event_UserJoinedRoom,
 		*evtv1.Event_UserLeftRoom,
 		*evtv1.Event_RoomMemberBanned,
 		*evtv1.Event_RoomMemberUnbanned,

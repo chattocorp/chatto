@@ -1,5 +1,13 @@
 # Projection Inventory
 
+The Room Directory catalog also retains the current member-only notice and its
+write version, including after clear. `RoomNoticeChangedEvent` updates this state.
+The publication timestamp comes from the event envelope when the publication
+ID changes. Corrections preserve it; clearing the notice removes it.
+The room snapshot includes it, so the schema fingerprint selects a new snapshot
+contract. Public room metadata assembly does not include the notice. Authorized
+notice reads use `RoomCommandModel.GetNotice`.
+
 The config component uses snapshot contract `v3`. Timezone-clear events retain
 an empty optional value for an explicit browser-default choice. Older snapshots
 are rebuilt from EVT because they represented that choice as an absent value.

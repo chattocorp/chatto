@@ -101,6 +101,8 @@ another address does not change the selection. See
 
 **Room** — A channel or DM. Where messages live. Identified by `(serverId, roomId)`.
 
+**Room notice** — One current Markdown notice for a channel room's members. A correction preserves device-local dismissals; explicit republishing makes the notice appear again. See [FDR-054](fdr/FDR-054-room-notices.md).
+
 **Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
 
 **Room removal** — A moderator removes a current user from a channel room and records a reason. The user can rejoin when normal room permissions allow it, unless the moderator also applies a suspension. Universal rooms require a suspension. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
@@ -164,6 +166,8 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 **Permission** — Capability gate with an opaque, stable identifier, for example `message.post` or `role.assign`. Punctuation does not define authority. The catalog in `cli/internal/core/permission.go` defines scope and explicit inclusion.
 
 **Privileged Mode** — Explicit, fixed 15-minute activation of the elevation-required permissions that a human is currently entitled to use on one server session. For an effective owner, it also activates the owner override. It does not grant a role or permission. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
+
+**Shield Mode** — User-facing name for Privileged Mode, controlled by the shield button for the current server. It temporarily activates eligible permissions and the effective-owner override for that session. See [FDR-046](fdr/FDR-046-privileged-mode.md).
 
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 

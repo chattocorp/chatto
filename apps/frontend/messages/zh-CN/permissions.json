@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "发布、修正、重新公告和清除房间公告",
       "server_manage": "更新服务器设置（名称、描述、徽标）",
       "server_manage_neighbors": "管理公开的邻居目录",
       "room_create": "创建新聊天室",

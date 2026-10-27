@@ -147,6 +147,7 @@
       "call": "Oproepen"
     },
     "permission_help": {
+      "room_manage_notice": "Hiermee kan een lid de mededeling in een actieve kanaalkamer beheren, maar niet de kamer zelf. Nieuwe instanties geven dit recht alleen aan Admin; upgrades behouden bestaande rechten.",
       "server_manage": "Staat een account toe de servernaam, beschrijving, het logo en andere serverinstellingen te wijzigen. Het staat ook wijzigingen in de openbare burengids toe. Geef het alleen aan mensen die namens de hele server kunnen spreken.",
       "server_manage_neighbors": "Staat een account toe items in de openbare burengids toe te voegen, te wijzigen en te verwijderen. Het staat geen wijzigingen in andere serverinstellingen toe.",
       "room_create": "Staat een account toe kanaalkamers aan te maken. Op het niveau van een kamergroep staat het nieuwe kamers alleen in die groep toe.",

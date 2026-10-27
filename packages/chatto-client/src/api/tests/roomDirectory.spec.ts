@@ -176,7 +176,8 @@ describe('createRoomDirectoryAPI', () => {
         canInvite: false,
         invitation: undefined,
         canJoinRoom: false,
-        canManageRoom: false
+        canManageRoom: false,
+        canManageNotice: false
       },
       {
         id: 'room-2',
@@ -197,7 +198,8 @@ describe('createRoomDirectoryAPI', () => {
         canInvite: false,
         invitation: undefined,
         canJoinRoom: true,
-        canManageRoom: false
+        canManageRoom: false,
+        canManageNotice: false
       }
     ]);
   });
@@ -262,6 +264,7 @@ describe('createRoomDirectoryAPI', () => {
       canPinMessages: false,
       canManageOthersMessage: false,
       canManageRoom: true,
+      canManageNotice: false,
       canBanRoomMembers: false
     });
   });

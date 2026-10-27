@@ -1,5 +1,6 @@
 {
   "common": {
+    "edit": "Upravit",
     "copy_failed": "Do schránky se nepodařilo zkopírovat. Vyberte text a zkopírujte jej ručně.",
     "cancel": "Zrušit",
     "close_sidebar": "Zavřít postranní panel",

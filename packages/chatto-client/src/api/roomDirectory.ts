@@ -21,6 +21,8 @@ export type ViewerRoomInvitation = {
 };
 
 export type DirectoryRoomSummary = {
+  /** Explicit notice-management grant for a current member of an active channel. */
+  canManageNotice?: boolean;
   invitation?: ViewerRoomInvitation;
   canInvite?: boolean;
   id: string;
@@ -212,6 +214,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     canInvite:
       entry.viewerState?.permissions.some((p) => p.permission === 'room.invite' && p.granted) ??
       false,
+    canManageNotice: hasRoomPermission(entry.viewerState, 'room.manage-notice'),
     id: entry.room.id,
     name: entry.room.name,
     description: entry.room.description || null,

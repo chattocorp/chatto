@@ -76,6 +76,7 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 		}
 		rooms[room.GetId()] = &roomCatalogEntry{
 			createdAt: room.GetCreatedAt(),
+			notice:    room.GetNotice(),
 			purpose:   room.GetPurpose(),
 			name:      room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
 			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),

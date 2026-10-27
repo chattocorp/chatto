@@ -674,6 +674,46 @@ export class RoomUniversalChangedEvent extends Message<RoomUniversalChangedEvent
 }
 
 /**
+ * RoomNoticeChangedEvent asks current room members to read the latest notice.
+ * It covers corrections, publication, republishing, and clear operations.
+ *
+ * @generated from message chatto.realtime.v1.RoomNoticeChangedEvent
+ */
+export class RoomNoticeChangedEvent extends Message<RoomNoticeChangedEvent> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<RoomNoticeChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoomNoticeChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomNoticeChangedEvent {
+    return new RoomNoticeChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomNoticeChangedEvent {
+    return new RoomNoticeChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomNoticeChangedEvent {
+    return new RoomNoticeChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomNoticeChangedEvent | PlainMessage<RoomNoticeChangedEvent> | undefined, b: RoomNoticeChangedEvent | PlainMessage<RoomNoticeChangedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomNoticeChangedEvent, a, b);
+  }
+}
+
+/**
  * RoomSlowModeChangedEvent reports the current slow-mode interval.
  *
  * @generated from message chatto.realtime.v1.RoomSlowModeChangedEvent

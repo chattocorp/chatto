@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Telpas paziņojums",
+      "dismiss": "Aizvērt",
+      "body": "Paziņojums (Markdown)",
+      "too_long": "Paziņojumā var būt ne vairāk kā {max} rakstzīmes, ieskaitot atstarpes.",
+      "help": "Saglabājiet labojumus, nerādot paziņojumu vēlreiz. Izziņojiet to, lai atkal parādītu dalībniekiem, kuri to aizvēra savās ierīcēs.",
+      "conflict": "Paziņojums rediģēšanas laikā ir mainījies. Jūsu melnraksts ir saglabāts. Ja nepieciešams, nokopējiet to un pirms atkārtotas saglabāšanas ielādējiet pašreizējo paziņojumu.",
+      "reload": "Ielādēt pašreizējo paziņojumu",
+      "save": "Atjaunināt",
+      "republish": "Izziņot",
+      "clear": "Notīrīt",
+      "clear_confirm_title": "Notīrīt telpas paziņojumu?",
+      "clear_confirm_description": "Tas nekavējoties noņem aktīvo paziņojumu visiem telpā. Jūsu nesaglabātās izmaiņas netiks publicētas.",
+      "empty": "Neviens paziņojums nav publicēts.",
+      "edit": "Rediģēt paziņojumu"
+    },
     "information": {
       "description": "Apraksts",
       "created": "Izveidota",

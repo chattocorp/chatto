@@ -21,6 +21,12 @@ function handles(...args: Parameters<typeof rankMentionCandidates>): string[] {
 describe('rankMentionCandidates', () => {
   const members = [member('cha'), member('chaz6'), member('chatto'), member('chatto_bot')];
 
+  it('lists members before broadcast and role handles for a bare @', () => {
+    expect(
+      handles('', [member('bob'), member('alice')], [{ name: 'staff', pingable: true }])
+    ).toEqual(['alice', 'bob', 'all', 'here', 'staff']);
+  });
+
   it('orders users by fuzzy score and handle without prioritized users', () => {
     expect(handles('cha', members, [])).toEqual(['cha', 'chaz6', 'chatto', 'chatto_bot']);
   });

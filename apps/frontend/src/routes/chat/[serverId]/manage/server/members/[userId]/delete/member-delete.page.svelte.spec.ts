@@ -271,7 +271,7 @@ describe('server member delete modal', () => {
     expect(api.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
     expect(mocks.toastSuccess).toHaveBeenCalledOnce();
     expect(queryClient.getQueryData(membersKey)).toBeUndefined();
-    expect(mocks.goto).toHaveBeenCalledOnce();
+    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/-/manage/server/members');
   });
 
   it('shows a failure without navigating away', async () => {

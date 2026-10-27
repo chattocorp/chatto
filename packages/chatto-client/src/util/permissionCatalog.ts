@@ -78,6 +78,10 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
     scopes: ['server', 'group', 'room'],
     privileged: true
   },
+  'room.manage-notice': {
+    category: 'room',
+    scopes: ['server', 'group', 'room']
+  },
   'room.remove-member': {
     category: 'room',
     scopes: ['server', 'group', 'room'],

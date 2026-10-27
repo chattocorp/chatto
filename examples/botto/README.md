@@ -134,7 +134,7 @@ has a 30-second deadline.
 ## Message flow
 
 Botto answers text DMs, verified mentions, and verified replies to its messages.
-It also answers ordinary text in threads where it has queued or running work,
+It also answers ordinary text and image messages in threads where it has queued or running work,
 or a saved Pi transcript. Saved transcripts keep threads active across restarts;
 this does not make other threads in the room active. Messages from other bots
 and from users outside `chatto.allowed_user_id`, when set, are ignored.
@@ -164,7 +164,7 @@ batch and recent thread context. Botto gets the thread's live timeline from
 `@chatto/client`. The client reads the latest page once, when the thread first
 becomes active, and keeps it current through realtime delivery. This includes
 edits, deletions, and the reload after a reconnect. Botto selects the root and
-up to `runtime.context_messages` recent text replies from that timeline. It
+up to `runtime.context_messages` recent replies, including image-only messages, from that timeline. It
 has no separate thread cache or event reducer.
 While Chatto reconnects, a turn waits for the connection, until the turn
 deadline. If a read fails, Botto reads again once. If the client disposes the
@@ -353,7 +353,47 @@ data during memory discovery fails the turn. Later connection failures follow
 Pi's MCP behavior described above.
 
 Botto connects to the configured Chatto server and model provider. The provider
-receives addressed messages, recent thread text, author IDs, and saved context.
+receives addressed messages, recent thread text, author IDs, saved context, and
+selected image attachments. Image-only DMs and replies in active threads can
+trigger a turn under the same participation rules as text.
+
+Botto reads up to four images per turn, prioritizing the current batch, then
+recent thread images. Chatto resizes each image to fit within 2048 pixels on each
+side. Each download is limited to 4 MiB and 30 seconds, within the turn deadline.
+The client fetches images only from the configured Chatto origin, with current
+room authorization and without following redirects. No image URL or access ticket
+is sent to the model provider. PNG, JPEG, WebP, and GIF responses are supported;
+other file types are not loaded. Botto checks the active model's input types in Pi's
+model metadata. It downloads images only when that metadata includes image input;
+no separate Botto capability setting is needed. Downloads are reused within a turn.
+The model receives a note when an image is unavailable, unsupported, or omitted.
+
+When an overview is too small to read, the model can call `view_image` with a
+message ID and attachment ID from the current context. An optional `crop` has
+`x`, `y`, `width`, and `height` values from 0 to 1. Coordinates refer to the full
+original image after orientation correction, with the origin at the top left.
+For example, `{ "x": 0.5, "y": 0, "width": 0.5, "height": 1 }` selects the right
+half. Omitting `crop` selects the full image. Crops always use the original,
+not the resized overview or a previous crop. Animated images use the first frame.
+
+The tool rechecks attachment membership and room access. It permits four attempts
+per turn, in addition to the automatic overviews. Each original is limited to
+16 MiB and 40 million decoded pixels. Processing has a ten-second timeout; the
+download and processing also share the turn deadline. Output is PNG, at most
+2048 pixels on each side and 4 MiB, without enlarging small images. The tool
+rejects calls for models whose Pi metadata does not include image input.
+
+Crop bytes stay in memory for the turn and are added only to model requests.
+The transcript stores tool arguments and text receipts, including crop dimensions,
+but no crop bytes. Later turns can request the image again if it is still in
+context and accessible. This tool contacts only the configured Chatto server;
+the configured model provider receives the selected pixels.
+
+Image bytes are added to the current model request. They are not stored in Pi
+transcripts, delivery files, or Runling journals. Later turns read images again
+from current thread context; images outside that window are not retained. Model
+responses can describe images, and those responses remain in the transcript.
+
 With MCP enabled, the provider also receives tool definitions and tool results,
 which can include messages from other rooms the bot can access. Tool calls and
 results are saved in the Pi transcript. MCP uses the configured Chatto server;
@@ -453,7 +493,7 @@ root awaits a single child and routing reads Runling's source-owned runs directl
 Runling's batch queue owns ordering, capacity, and timers. `src/threads.ts`
 keeps Botto's routing keys and transcript identities consistent.
 `src/messages.ts` selects addressed
-messages and ordinary text in active threads. `src/inbox.ts` supplies typing and
+messages and ordinary text or images in active threads. `src/inbox.ts` supplies typing and
 quiet-period policy. `src/turn.ts` connects a batch to a model turn and reply. `src/agent.ts`
 configures Runling agent sessions; `src/thread-context.ts` connects Pi's request hook to the pure
 merge function in `src/context-messages.ts`. `src/context.ts` selects text from

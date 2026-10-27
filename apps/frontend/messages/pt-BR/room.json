@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Aviso da sala",
+      "dismiss": "Fechar",
+      "body": "Aviso (Markdown)",
+      "too_long": "Os avisos podem conter no máximo {max} caracteres, incluindo espaços em branco.",
+      "help": "Salve correções sem mostrar o aviso novamente. Anuncie para mostrá-lo de novo aos membros que o fecharam em seus dispositivos.",
+      "conflict": "Este aviso mudou enquanto você o editava. Seu rascunho continua aqui. Copie-o se necessário e carregue o aviso atual antes de salvar novamente.",
+      "reload": "Carregar aviso atual",
+      "save": "Atualizar",
+      "republish": "Anunciar",
+      "clear": "Limpar",
+      "clear_confirm_title": "Limpar aviso da sala?",
+      "clear_confirm_description": "Isso remove imediatamente o aviso ativo para todos na sala. Suas alterações não salvas não serão publicadas.",
+      "empty": "Nenhum aviso foi publicado.",
+      "edit": "Editar aviso"
+    },
     "information": {
       "description": "Descrição",
       "created": "Criada",

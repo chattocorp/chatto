@@ -144,6 +144,12 @@ socket.
 
 ## Mounted public services
 
+`RoomService` owns member-only channel notice reads and version-checked publish
+and clear commands. `RoomCommandModel` evaluates membership and
+`room.manage-notice`, rejects archived writes, and commits through room aggregate
+OCC. Commands wait for the Room Directory projection before returning. See
+[FDR-054](../fdr/FDR-054-room-notices.md).
+
 `MyAccountService` and the operator identity service use the same configured
 sign-in policy for unlinking identities. The core user mutation checks that an
 enabled sign-in method remains inside its OCC loop. Account identity listings

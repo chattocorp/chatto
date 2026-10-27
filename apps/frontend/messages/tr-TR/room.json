@@ -1,5 +1,21 @@
 {
   "room": {
+    "notice": {
+      "title": "Oda duyurusu",
+      "dismiss": "Kapat",
+      "body": "Duyuru (Markdown)",
+      "too_long": "Duyurular, boşluklar dahil en fazla {max} karakter içerebilir.",
+      "help": "Düzeltmeleri duyuruyu yeniden göstermeden kaydedin. Cihazlarında kapatan üyelere yeniden göstermek için duyurun.",
+      "conflict": "Bu duyuru siz düzenlerken değişti. Taslağınız hâlâ burada. Gerekirse kopyalayın ve yeniden kaydetmeden önce mevcut duyuruyu yükleyin.",
+      "reload": "Mevcut duyuruyu yükle",
+      "save": "Güncelle",
+      "republish": "Duyur",
+      "clear": "Temizle",
+      "clear_confirm_title": "Oda duyurusu temizlensin mi?",
+      "clear_confirm_description": "Bu işlem etkin duyuruyu odadaki herkes için hemen kaldırır. Kaydedilmemiş değişiklikleriniz yayımlanmaz.",
+      "empty": "Henüz bir duyuru yayımlanmadı.",
+      "edit": "Duyuruyu düzenle"
+    },
     "information": {
       "description": "Açıklama",
       "created": "Oluşturuldu",
