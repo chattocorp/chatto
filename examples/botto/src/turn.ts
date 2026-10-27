@@ -134,12 +134,18 @@ export function createTurnHandler(
                 signal,
                 onText,
                 context,
-                loadImages: () =>
-                  safeStep(
-                    'Read images',
-                    () => readImages(server, destination.roomId, context, currentIds, signal),
-                    metrics
-                  ),
+                loadImages: context.messages.some((message) =>
+                  message.attachments?.some((attachment) =>
+                    attachment.contentType.startsWith('image/')
+                  )
+                )
+                  ? () =>
+                      safeStep(
+                        'Read images',
+                        () => readImages(server, destination.roomId, context, currentIds, signal),
+                        metrics
+                      )
+                  : undefined,
                 userIds: [...new Set(messages.map((item) => item.authorId))],
                 capabilities: ['delegation', 'images', 'reactions'],
                 tools: [
