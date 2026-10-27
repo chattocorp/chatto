@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -264,7 +266,7 @@ func (c *ChattoCore) DeletePendingExternalIdentityFlow(ctx context.Context, toke
 	return nil
 }
 
-func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*evtv1.User, error) {
+func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*readmodel.User, error) {
 	if flow == nil || flow.Kind != ExternalIdentityFlowKindCreate {
 		return nil, ErrExternalIdentityFlowWrongKind
 	}

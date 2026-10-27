@@ -460,6 +460,7 @@ jobs:
       - name: Check storage, internal, and Operator protobuf breaking changes
         if: github.event_name == 'pull_request'
         run: |
+          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           base_ref="${GITHUB_BASE_REF}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"

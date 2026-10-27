@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
@@ -290,7 +292,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"room_group_layout", func() snapshotProjection { return NewRoomGroupLayoutProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomGroupLayoutProjection)
-			p.Groups.groups["G1"] = &roomGroupEntry{name: "Lobby", roomIDs: []string{"R1"}, entries: []*evtv1.SidebarGroupEntry{{Kind: evtv1.SidebarGroupEntry_ROOM, Id: "R1"}}, links: map[string]*evtv1.SidebarLink{"L1": {Id: "L1", Label: "Docs", Url: "https://example.test"}}}
+			p.Groups.groups["G1"] = &roomGroupEntry{name: "Lobby", roomIDs: []string{"R1"}, entries: []*evtv1.SidebarGroupEntry{{Kind: evtv1.SidebarGroupEntry_ROOM, Id: "R1"}}, links: map[string]*readmodel.SidebarLink{"L1": {Id: "L1", Label: "Docs", Url: "https://example.test"}}}
 			p.Groups.seq = 42
 			p.Layout.groupIDs = []string{"G1"}
 		}},
@@ -385,7 +387,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"rbac", func() snapshotProjection { return NewRBACProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RBACProjection)
-			p.roles["member"] = &evtv1.Role{Name: "member", DisplayName: "Member"}
+			p.roles["member"] = &readmodel.Role{Name: "member", DisplayName: "Member"}
 			p.assignments["U1"] = map[string]string{"member": "", "moderator": "company"}
 			p.decisions[rbacDecisionKey{scope: ScopeServer, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessagePost}] = DecisionAllow
 			p.decisions[rbacDecisionKey{scope: ScopeDM, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessageRead}] = DecisionDeny
@@ -398,7 +400,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"users", func() snapshotProjection { return NewUserProjection(nil, nil) }, func(raw snapshotProjection) {
 			p := raw.(*UserProjection)
-			p.users["U1"] = &projectedUser{user: &evtv1.User{Id: "U1", CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
+			p.users["U1"] = &projectedUser{user: &readmodel.User{Id: "U1", CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
 			p.replayGuard.highestSeq = 41
 			p.replayGuard.completeReplay()
 		}},

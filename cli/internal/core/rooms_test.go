@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -520,7 +521,7 @@ func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	errs := make(chan error, 8)
-	successes := make(chan *evtv1.Room, 8)
+	successes := make(chan *readmodel.Room, 8)
 
 	for range 8 {
 		wg.Go(func() {

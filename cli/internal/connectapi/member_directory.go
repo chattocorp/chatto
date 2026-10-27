@@ -7,10 +7,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -68,7 +69,7 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 		return nil, err
 	}
 
-	var user *evtv1.User
+	var user *readmodel.User
 	var err error
 	switch req.Msg.GetTarget().(type) {
 	case *apiv1.GetUserRequest_UserId:
@@ -256,7 +257,7 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	usersByID := make(map[string]*evtv1.User, len(users))
+	usersByID := make(map[string]*readmodel.User, len(users))
 	for _, user := range users {
 		usersByID[user.GetId()] = user
 	}
@@ -282,7 +283,7 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&apiv1.BatchGetMembersResponse{Members: members}), nil
 }
 
-func serverMemberForUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.DirectoryMember, error) {
+func serverMemberForUser(ctx context.Context, api *API, user *readmodel.User) (*apiv1.DirectoryMember, error) {
 	assigned, err := api.core.GetUserRoles(ctx, user.GetId())
 	if err != nil {
 		return nil, err
@@ -294,7 +295,7 @@ func serverMemberForUser(ctx context.Context, api *API, user *evtv1.User) (*apiv
 	return directoryMember(ctx, api, user, roles)
 }
 
-func directoryMember(ctx context.Context, api *API, user *evtv1.User, roles []string) (*apiv1.DirectoryMember, error) {
+func directoryMember(ctx context.Context, api *API, user *readmodel.User, roles []string) (*apiv1.DirectoryMember, error) {
 	presence, err := api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, err
@@ -302,7 +303,7 @@ func directoryMember(ctx context.Context, api *API, user *evtv1.User, roles []st
 	return directoryMemberWithPresence(ctx, api, user, roles, presence)
 }
 
-func directoryMemberWithPresence(ctx context.Context, api *API, user *evtv1.User, roles []string, presence string) (*apiv1.DirectoryMember, error) {
+func directoryMemberWithPresence(ctx context.Context, api *API, user *readmodel.User, roles []string, presence string) (*apiv1.DirectoryMember, error) {
 	avatarSize := 96
 	avatar := &apiv1.ImageTransformOptions{
 		Width:  int32(avatarSize),
@@ -322,7 +323,7 @@ func directoryMemberWithPresence(ctx context.Context, api *API, user *evtv1.User
 	return member, nil
 }
 
-func findCoreUserByID(users []*evtv1.User, userID string) *evtv1.User {
+func findCoreUserByID(users []*readmodel.User, userID string) *readmodel.User {
 	for _, user := range users {
 		if user.GetId() == userID {
 			return user

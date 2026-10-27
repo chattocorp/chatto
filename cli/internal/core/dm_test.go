@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 
@@ -429,7 +431,7 @@ func TestFindOrCreateDM(t *testing.T) {
 	})
 }
 
-func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Context, userID string) []*evtv1.Room {
+func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Context, userID string) []*readmodel.Room {
 	t.Helper()
 	rooms, err := core.ListMemberRooms(ctx, KindDM, userID, MemberRoomListOptions{
 		RequireLastMessage:    true,

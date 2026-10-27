@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // newRoomManagerForTest creates an account with room.manage on roomID and
@@ -25,7 +26,7 @@ func newRoomManagerForTest(t *testing.T, ctx context.Context, c *ChattoCore, log
 
 // setRoomUniversalForTest changes the universal flag through the production
 // room command path. actorID must hold room.manage on roomID.
-func setRoomUniversalForTest(t *testing.T, ctx context.Context, c *ChattoCore, actorID, roomID string, universal bool) *evtv1.Room {
+func setRoomUniversalForTest(t *testing.T, ctx context.Context, c *ChattoCore, actorID, roomID string, universal bool) *readmodel.Room {
 	t.Helper()
 	room, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: actorID, RoomID: roomID, Universal: &universal})
 	require.NoError(t, err)

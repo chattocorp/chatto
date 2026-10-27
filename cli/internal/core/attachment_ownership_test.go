@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -168,7 +170,7 @@ func TestConcurrentMessagePostsAttachAssetOnceAcrossReplicas(t *testing.T) {
 	require.Equal(t, 1, rejected)
 }
 
-func setupAttachmentOwnershipUsers(t *testing.T, chatto *ChattoCore, ctx context.Context, suffix string) (*evtv1.User, *evtv1.User, *evtv1.Room) {
+func setupAttachmentOwnershipUsers(t *testing.T, chatto *ChattoCore, ctx context.Context, suffix string) (*readmodel.User, *readmodel.User, *readmodel.Room) {
 	t.Helper()
 	victim, err := chatto.CreateUser(ctx, SystemActorID, "av-"+suffix, "Asset Victim", "password123")
 	require.NoError(t, err)

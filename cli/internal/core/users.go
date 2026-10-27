@@ -8,6 +8,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -21,8 +23,8 @@ import (
 
 const DeletedUserDisplayName = "Deleted User"
 
-func DeletedUserReference(userID string) *evtv1.User {
-	return &evtv1.User{
+func DeletedUserReference(userID string) *readmodel.User {
+	return &readmodel.User{
 		Id:          userID,
 		DisplayName: DeletedUserDisplayName,
 		Deleted:     true,
@@ -33,7 +35,7 @@ func DeletedUserReference(userID string) *evtv1.User {
 // Uses the mentionables projection plus stream-wide OCC to prevent user/role
 // handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
-func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*evtv1.User, error) {
+func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*readmodel.User, error) {
 	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{})
 }
 
@@ -56,7 +58,7 @@ type userCreationOptions struct {
 	importEmails []string
 }
 
-func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*evtv1.User, error) {
+func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*readmodel.User, error) {
 	if options.setup == nil && (options.verifiedEmail != "" || options.external != nil) {
 		required, err := c.SetupRequired(ctx)
 		if err != nil {
@@ -123,7 +125,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}
 
 	now := timestamppb.Now()
-	user := &evtv1.User{
+	user := &readmodel.User{
 		Id:             userID,
 		Login:          login,
 		DisplayName:    displayName,
@@ -403,7 +405,7 @@ func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, keyRef
 //
 // Used by signup-completion (post email-link click) and trusted account-link
 // flows where the email has already been proven.
-func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*evtv1.User, error) {
+func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*readmodel.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return nil, ErrInvalidArgument
@@ -413,7 +415,7 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 
 // CreateVerifiedUserWithInvitation atomically creates a verified account and
 // records its invitation redemption.
-func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*evtv1.User, error) {
+func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*readmodel.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return nil, ErrInvalidArgument
@@ -430,19 +432,19 @@ func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actor
 
 // rollbackUserCreation undoes the persisted writes performed by CreateUser. Best-effort —
 // failures are logged but not returned, since the caller is already in an error path.
-func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *evtv1.User) {
+func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *readmodel.User) {
 	c.logger.Warn("rolling back user creation", "user_id", user.Id)
 	_ = c.DeleteUser(ctx, "system:rollback", user.Id)
 }
 
 // GetUser retrieves a user from the user projection.
-func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*evtv1.User, error) {
+func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*readmodel.User, error) {
 	return c.userModel.GetUser(ctx, userID)
 }
 
 // GetUserReference retrieves a public user reference. Deleted or crypto-shredded
 // users are returned as tombstones; unknown users still return ErrNotFound.
-func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*evtv1.User, error) {
+func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*readmodel.User, error) {
 	user, ok, err := c.userModel.userReference(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -455,12 +457,12 @@ func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*evtv
 
 // GetUserReferences returns public user references in request order. A deleted
 // account has an explicit tombstone; an unknown or not-yet-projected ID is nil.
-func (c *ChattoCore) GetUserReferences(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
+func (c *ChattoCore) GetUserReferences(ctx context.Context, userIDs []string) ([]*readmodel.User, error) {
 	return c.userModel.userReferences(ctx, userIDs)
 }
 
 // GetUserByLogin retrieves a user by their login name using the login index.
-func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*evtv1.User, error) {
+func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*readmodel.User, error) {
 	return c.userModel.GetUserByLogin(ctx, login)
 }
 
@@ -470,7 +472,7 @@ func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
 	return c.userModel.userCount(), nil
 }
 
-func (c *ChattoCore) ListUsers(ctx context.Context) ([]*evtv1.User, error) {
+func (c *ChattoCore) ListUsers(ctx context.Context) ([]*readmodel.User, error) {
 	return c.userModel.allUsers(ctx)
 }
 

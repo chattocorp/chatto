@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -1087,7 +1089,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateRoom archived: %v", err)
 	}
-	for _, room := range []*evtv1.Room{visible, memberArchived} {
+	for _, room := range []*readmodel.Room{visible, memberArchived} {
 		for _, perm := range []core.Permission{
 			core.PermRoomJoin,
 			core.PermMessagePost,
@@ -2255,7 +2257,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 		t.Fatalf("CreateUser actor: %v", err)
 	}
 	baseTime := time.Now().UTC().Add(-time.Minute)
-	createOccurrence := func(room *evtv1.Room, sourceID string, sourceCreated time.Time) *notificationv1.NotificationOccurrence {
+	createOccurrence := func(room *readmodel.Room, sourceID string, sourceCreated time.Time) *notificationv1.NotificationOccurrence {
 		t.Helper()
 		posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, actor.Id, sourceID, nil, "", "", nil, false)
 		if err != nil {
@@ -3001,7 +3003,7 @@ func TestRoomDirectoryServiceArchiveFilters(t *testing.T) {
 		t.Fatalf("CreateUser: %v", err)
 	}
 	ctx := withCaller(env.ctx, caller)
-	createRoom := func(name string) *evtv1.Room {
+	createRoom := func(name string) *readmodel.Room {
 		t.Helper()
 		room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", name, "")
 		if err != nil {
@@ -3016,12 +3018,12 @@ func TestRoomDirectoryServiceArchiveFilters(t *testing.T) {
 	if _, err := env.core.JoinRoom(env.ctx, caller.Id, core.KindChannel, caller.Id, memberOnly.Id); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
-	for _, room := range []*evtv1.Room{memberOnly, hidden} {
+	for _, room := range []*readmodel.Room{memberOnly, hidden} {
 		if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
 	}
-	for _, room := range []*evtv1.Room{archived, memberOnly, hidden} {
+	for _, room := range []*readmodel.Room{archived, memberOnly, hidden} {
 		if _, err := env.core.ArchiveRoom(env.ctx, core.SystemActorID, core.KindChannel, room.Id); err != nil {
 			t.Fatalf("ArchiveRoom: %v", err)
 		}

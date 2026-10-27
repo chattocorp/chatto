@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -168,14 +170,14 @@ func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string
 }
 
 // VerifyPassword verifies a user's password by login name or email and returns the user if valid.
-func (c *ChattoCore) VerifyPassword(ctx context.Context, identifier string, password string) (*evtv1.User, error) {
+func (c *ChattoCore) VerifyPassword(ctx context.Context, identifier string, password string) (*readmodel.User, error) {
 	user, _, err := c.VerifyPasswordWithAuthGeneration(ctx, identifier, password)
 	return user, err
 }
 
 // VerifyPasswordWithAuthGeneration verifies a password and returns the user
 // auth generation that was current when the password hash was checked.
-func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, identifier string, password string) (*evtv1.User, uint64, error) {
+func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, identifier string, password string) (*readmodel.User, uint64, error) {
 	// Timing attack protection: Always run bcrypt comparison even for non-existent users.
 	// Without this, attackers could enumerate valid logins by measuring response times:
 	// - Non-existent login: fast return (~1μs)
@@ -206,7 +208,7 @@ func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, ident
 }
 
 // verifyUserPassword is an internal helper that verifies a password for an already-fetched user.
-func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *evtv1.User, password string, dummyHash []byte) (*evtv1.User, uint64, error) {
+func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *readmodel.User, password string, dummyHash []byte) (*readmodel.User, uint64, error) {
 	authGeneration, err := c.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
 		return nil, 0, err

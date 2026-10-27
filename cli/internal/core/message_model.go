@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/proto"
 
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -72,7 +74,7 @@ func authorizationInputForPost(input MessagePostInput, threadRootEventID string)
 
 // MessagePostAuthorization is the resolved room context for an authorized post.
 type MessagePostAuthorization struct {
-	Room *evtv1.Room
+	Room *readmodel.Room
 	Kind RoomKind
 }
 
@@ -472,7 +474,7 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	return &MessagePostAuthorization{Room: room, Kind: kind}, nil
 }
 
-func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *evtv1.Room, input MessagePostAuthorizationInput) error {
+func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *readmodel.Room, input MessagePostAuthorizationInput) error {
 	mode := EffectiveRoomThreadingMode(room)
 	threadRootID := strings.TrimSpace(input.ThreadRootEventID)
 	inReplyTo := strings.TrimSpace(input.InReplyTo)
@@ -548,7 +550,7 @@ func (s *MessageModel) bypassesSlowMode(ctx context.Context, actorID string, kin
 // slowModeNextPostAt returns a future eligibility timestamp, or zero when the
 // actor is currently allowed to post. The caller supplies now so boundary
 // behavior can be tested without sleeping.
-func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypasses bool, now time.Time) time.Time {
+func (s *MessageModel) slowModeNextPostAt(room *readmodel.Room, actorID string, bypasses bool, now time.Time) time.Time {
 	if room == nil || KindOfRoom(room) != KindChannel || room.GetSlowModeSeconds() == 0 || bypasses {
 		return time.Time{}
 	}
@@ -561,7 +563,7 @@ func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypa
 
 // EffectiveThreadSlowModeSeconds preserves the interval of legacy room facts.
 // New configuration facts store an explicit thread interval, including zero.
-func EffectiveThreadSlowModeSeconds(room *evtv1.Room) uint32 {
+func EffectiveThreadSlowModeSeconds(room *readmodel.Room) uint32 {
 	if room == nil {
 		return 0
 	}
@@ -571,7 +573,7 @@ func EffectiveThreadSlowModeSeconds(room *evtv1.Room) uint32 {
 	return room.GetThreadSlowModeSeconds()
 }
 
-func (s *MessageModel) threadSlowModeNextPostAt(room *evtv1.Room, threadID, actorID string, bypasses bool, now time.Time) time.Time {
+func (s *MessageModel) threadSlowModeNextPostAt(room *readmodel.Room, threadID, actorID string, bypasses bool, now time.Time) time.Time {
 	if room == nil || KindOfRoom(room) != KindChannel || EffectiveThreadSlowModeSeconds(room) == 0 || bypasses {
 		return time.Time{}
 	}
@@ -778,7 +780,7 @@ func (s *MessageModel) DeleteLinkPreview(ctx context.Context, input MessageLinkP
 // actor must be a room member and must be authorized to read the destination
 // timeline. There is intentionally no message-posting permission check.
 func (s *MessageModel) SendTypingIndicator(ctx context.Context, input TypingIndicatorInput) error {
-	var room *evtv1.Room
+	var room *readmodel.Room
 	var kind RoomKind
 	var err error
 	if input.ThreadRootEventID == nil {

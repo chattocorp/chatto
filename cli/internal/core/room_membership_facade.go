@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 )
 
 // RoomMembershipExists delegates to AuthorizationModel, which owns the
@@ -13,12 +13,12 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 }
 
 // JoinRoom delegates to the owning RoomMembershipModel.
-func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error) {
+func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*readmodel.RoomMembership, error) {
 	return c.roomMemberships.JoinRoom(ctx, actorID, kind, user_id, room_id)
 }
 
 // AddMember delegates to the owning RoomMembershipModel.
-func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*evtv1.RoomMembership, error) {
+func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*readmodel.RoomMembership, error) {
 	return c.roomMemberships.AddMember(ctx, actorID, kind, roomID, targetUserID)
 }
 
@@ -33,6 +33,6 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 }
 
 // GetRoomMembersList delegates to the owning RoomMembershipModel.
-func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*evtv1.RoomMembership, error) {
+func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*readmodel.RoomMembership, error) {
 	return c.roomMemberships.GetRoomMembersList(ctx, kind, room_id)
 }
