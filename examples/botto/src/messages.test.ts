@@ -33,7 +33,11 @@ function setup() {
     { service: vi.fn().mockReturnValue({ getMessage }) },
     async () => 'bot'
   );
-  const server = { accountId: 'bot', addressedMessage: requests.addressedMessage.bind(requests) };
+  const server = {
+    accountId: 'bot',
+    addressedMessage: requests.addressedMessage.bind(requests),
+    getMessage: requests.getMessage.bind(requests)
+  };
   const active = vi.fn(async () => true);
   const event = new RealtimeEvent({
     id: 'incoming',
@@ -56,6 +60,29 @@ function setup() {
       incomingMessage(server, event, active, signal, respondTo)
   };
 }
+
+test.each([RoomKind.DM, RoomKind.CHANNEL])(
+  'accepts image-only messages in DMs and active threads (%s)',
+  async (roomKind) => {
+    const { event, getMessage, read } = setup();
+    if (event.event.case !== 'messagePosted') throw new Error('Fixture');
+    event.event.value.bodyPlaintext = '';
+    event.event.value.roomKind = roomKind;
+    getMessage.mockResolvedValue({
+      message: new Message({
+        id: event.id,
+        roomId: 'room',
+        actorId: 'human',
+        attachments: [{ id: 'image', filename: 'image.png', contentType: 'image/png' }]
+      })
+    });
+    expect(await read()).toMatchObject({ id: 'incoming', body: '' });
+    getMessage.mockResolvedValue({
+      message: new Message({ id: event.id, roomId: 'room', actorId: 'human' })
+    });
+    expect(await read()).toBeUndefined();
+  }
+);
 
 test('ignores explicit thread replies when respond_to excludes reply', async () => {
   const { event, active, getMessage, read } = setup();

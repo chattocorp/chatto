@@ -203,6 +203,9 @@ export class MessagingRequests {
       authorId: message.actorId,
       ...(message.threadRootEventId ? { threadRootId: message.threadRootEventId } : {}),
       ...(message.inReplyTo ? { inReplyTo: message.inReplyTo } : {}),
+      ...(message.attachments.length
+        ? { attachments: message.attachments.map(attachmentInfo) }
+        : {}),
       // A message without text has an empty body; report it as absent.
       ...(message.body ? { body: message.body } : {})
     };

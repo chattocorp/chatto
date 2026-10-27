@@ -24,7 +24,15 @@ vi.mock(sdkPath, async () => {
       await result.session.modelRuntime.setRuntimeApiKey('anthropic', 'offline-test');
       const agent = result.session.agent;
       agent.getApiKey = () => 'offline-test';
-      agent.streamFunction = () => {
+      agent.streamFunction = (_model, context) => {
+        expect(
+          context.messages.some(
+            (message) =>
+              message.role === 'user' &&
+              Array.isArray(message.content) &&
+              message.content.some((part) => part.type === 'image' && part.data === 'AQID')
+          )
+        ).toBe(true);
         type Stream = Awaited<ReturnType<typeof agent.streamFunction>>;
         const message: Awaited<ReturnType<Stream['result']>> = {
           role: 'assistant',
@@ -56,7 +64,7 @@ vi.mock(sdkPath, async () => {
 });
 
 test('records fresh usage and cost for reopened Botto sessions without logging content', async () => {
-  const { createAgent } = await import('./agent.ts');
+  const { createAgent, transcriptName } = await import('./agent.ts');
   await mkdir(resolve('../../.context'), { recursive: true });
   const directory = await mkdtemp(resolve('../../.context/botto-usage-'));
   const store = new RunStore(join(directory, 'runs'));
@@ -80,7 +88,22 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
             await agent.reply(ctx, {
               identity: ['server', 'bot', 'room', 'thread'],
               prompt: 'private-prompt',
-              signal: ctx.signal
+              signal: ctx.signal,
+              context: {
+                messages: [],
+                olderContextOmitted: false
+              },
+              loadImages: async () => ({
+                imageNotes: [],
+                images: [
+                  {
+                    messageId: 'message',
+                    attachmentId: 'image',
+                    mimeType: 'image/png',
+                    data: 'AQID'
+                  }
+                ]
+              })
             })
           ).toBe('private-answer');
         }
@@ -102,6 +125,12 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     expect(journal).toContain('usage.updated');
     expect(journal).not.toContain('private-prompt');
     expect(journal).not.toContain('private-answer');
+    expect(journal).not.toContain('AQID');
+    const transcript = await readFile(
+      join(directory, transcriptName(['server', 'bot', 'room', 'thread'])),
+      'utf8'
+    );
+    expect(transcript).not.toContain('AQID');
   } finally {
     await store.close();
     await rm(directory, { recursive: true, force: true });
