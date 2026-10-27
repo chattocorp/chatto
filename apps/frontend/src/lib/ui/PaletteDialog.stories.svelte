@@ -25,7 +25,7 @@
             placeholder="Keyboard shortcuts"
             class="min-w-0 flex-1 bg-transparent text-[16px] text-text outline-none placeholder:text-muted"
           />
-          <button type="button" class="keycap" aria-label="Close" onclick={close}>Esc</button>
+          <button type="button" class="keycap" aria-label="Close (Esc)" onclick={close}>Esc</button>
         </div>
       </div>
       <div class="menu-section">

@@ -132,7 +132,7 @@ describe('global keyboard shortcuts', () => {
       expect(dialog.textContent).toContain('Go to next unread source');
       expect(draft.value).toBe('Keep my draft');
       const close = [...dialog.querySelectorAll('button')].find(
-        (button) => button.getAttribute('aria-label') === 'Close'
+        (button) => button.getAttribute('aria-label') === 'Close (Esc)'
       )!;
       close.click();
       await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
@@ -152,13 +152,13 @@ describe('global keyboard shortcuts', () => {
       flushSync();
       document.querySelector<HTMLButtonElement>('button[aria-label="Keyboard shortcuts"]')!.click();
       await expect
-        .poll(() => document.querySelector('dialog[open]')?.textContent)
-        .toContain('Keyboard shortcuts');
-      return document.querySelector('dialog[open]')!;
+        .poll(() => document.querySelector('dialog[open][aria-label="Keyboard shortcuts"]'))
+        .not.toBeNull();
+      return document.querySelector('dialog[open][aria-label="Keyboard shortcuts"]')!;
     };
     const close = async (dialog: Element) => {
       [...dialog.querySelectorAll('button')]
-        .find((button) => button.getAttribute('aria-label') === 'Close')!
+        .find((button) => button.getAttribute('aria-label') === 'Close (Esc)')!
         .click();
       await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
     };
