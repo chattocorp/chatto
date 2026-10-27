@@ -271,6 +271,7 @@
     "unread_separator": "Uued sõnumid",
     "close_extras": "Sule ruumi lisad",
     "dm": {
+      "deactivated_user_notice": "See konto on deaktiveeritud. Kasutaja ei saa sõnumeid lugeda ega neile vastata.",
       "deleted_user_notice": "Teine kasutaja on kustutatud."
     },
     "management": {

@@ -46,6 +46,12 @@ retain a separate room purpose. See [ADR-119](../adr/ADR-119-portable-history-in
 
 Existing `Event` oneof field numbers are part of the persisted JetStream wire format; do not renumber or reuse them.
 
+`evt.user.{userID}.account_deactivation_changed` records
+`UserAccountDeactivationChangedEvent`. It changes account access without
+erasing data. The user and auth projections consume it. Public profiles expose
+the current flag. Live delivery and replay map it to the public
+`UserAccountDeactivationChangedEvent`, with no administrator identity.
+
 **Protobuf package organization:**
 
 | Package                       | Contents                                                                                                                 | Safety                                                                                                 |

@@ -271,6 +271,7 @@
     "unread_separator": "新しいメッセージ",
     "close_extras": "密室エクストラ",
     "dm": {
+      "deactivated_user_notice": "このアカウントは無効化されています。ユーザーはメッセージを読んだり返信したりできません。",
       "deleted_user_notice": "相手のユーザーは削除されました。"
     },
     "management": {

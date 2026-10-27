@@ -430,8 +430,12 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	// A user-page link can contain any ID. Do not create a conversation with
 	// a missing account. Stored conversations with deleted accounts were found above.
 	for _, id := range input.ParticipantIDs {
-		if _, err := s.users.GetUser(ctx, id); err != nil {
+		user, err := s.users.GetUser(ctx, id)
+		if err != nil {
 			return nil, false, err
+		}
+		if user.GetDeactivated() {
+			return nil, false, ErrPermissionDenied
 		}
 	}
 	return s.findOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)

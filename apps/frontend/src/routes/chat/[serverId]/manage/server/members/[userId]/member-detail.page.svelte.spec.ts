@@ -40,6 +40,7 @@ const api = {
   updateUserProfile: vi.fn(),
   clearUsernameCooldown: vi.fn(),
   changeUserPassword: vi.fn(),
+  setUserDeactivated: vi.fn(),
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
   uploadAvatar: vi.fn(),
@@ -468,6 +469,37 @@ describe('server member detail queries', () => {
       current: link.getAttribute('aria-current')
     }));
   }
+
+  it('confirms deactivation and offers reactivation without deletion permission', async () => {
+    api.getMember.mockResolvedValue(
+      details(member('alice', { viewerCanDeleteAccount: false, viewerCanChangeDeactivation: true }))
+    );
+    api.setUserDeactivated.mockResolvedValue(
+      member('alice', {
+        viewerCanDeleteAccount: false,
+        viewerCanChangeDeactivation: true,
+        deactivated: true
+      })
+    );
+    const rendered = renderSection('account');
+    await settle();
+    await rendered.getByRole('button', { name: 'Deactivate Account', exact: true }).click();
+    expect(api.setUserDeactivated).not.toHaveBeenCalled();
+    const dialog = rendered.getByRole('dialog');
+    await expect.element(dialog).toHaveTextContent('Their data will remain intact.');
+    await dialog.getByRole('button', { name: 'Deactivate Account', exact: true }).click();
+    await settle();
+    expect(api.setUserDeactivated).toHaveBeenCalledWith('alice', true);
+    await expect
+      .element(rendered.getByRole('button', { name: 'Reactivate Account', exact: true }))
+      .toBeVisible();
+  });
+
+  it('hides deactivation when the server does not authorize it', async () => {
+    const rendered = renderSection('account');
+    await settle();
+    expect(rendered.container.textContent).not.toContain('Deactivate Account');
+  });
 
   it('offers every section to an account manager and marks the current one', async () => {
     const rendered = renderSection('roles');

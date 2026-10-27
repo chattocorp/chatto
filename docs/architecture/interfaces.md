@@ -257,6 +257,11 @@ rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
 
+`AdminUserService.SetUserDeactivated` delegates access changes to the
+[account lifecycle operation](../../cli/internal/core/user_deactivation.go).
+`AdminMember` exposes the flag and the caller's authority to change it.
+The public user profile does not expose administrative access state.
+
 `AdminRoleService` separates role details from explicit membership pages.
 Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs
 before bounded user-profile hydration. It does not require `admin.view-users`.

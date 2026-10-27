@@ -4,16 +4,18 @@
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import type { AdminMember } from '$lib/api/adminUsers';
   import { m } from '$lib/i18n/messages';
-  import { Hint, Panel } from '$lib/ui';
-  import { Button, FormError, TextInput } from '$lib/ui/form';
+  import { Hint, FormDialog, UserCard } from '$lib/ui';
+  import { TextInput } from '$lib/ui/form';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   let {
     member,
-    cancelHref,
+    onclose,
     deleteMember
   }: {
     member: AdminMember;
-    cancelHref: string;
+    onclose: () => void;
     deleteMember: () => Promise<void>;
   } = $props();
 
@@ -47,53 +49,57 @@
   }
 </script>
 
-<!-- @component Confirmation form for permanently deleting a member's account. Owns only the input state; the parent route owns authorization, the API call, and post-deletion navigation. -->
-<Panel title={m('admin.members.danger_zone')} icon="iconify icon-[uil--exclamation-triangle]">
-  <form class="flex max-w-md flex-col gap-4" onsubmit={handleSubmit}>
-    <Hint tone="danger">
-      <strong
-        ><AccountNameTokens
-          text={m('admin.member_delete.warning', { name: accountNameToken(0) })}
-          accounts={[{ name: member.displayName, identity: member }]}
-        /></strong
-      >
-    </Hint>
+<!-- @component Account deletion confirmation. The shared member layout owns authorization, deletion, cache cleanup, and navigation. -->
+<FormDialog
+  visible
+  title={m('admin.member_delete.title')}
+  submitLabel={m('admin.member_delete.submit')}
+  submitTone="danger"
+  submitIcon="iconify icon-[uil--trash-alt]"
+  submitLoadingText={m('admin.member_delete.deleting')}
+  loading={deleting}
+  disabled={!canConfirm}
+  {error}
+  onsubmit={handleSubmit}
+  onclose={() => {
+    if (!deleting) onclose();
+  }}
+>
+  <UserCard
+    variant="card"
+    name={member.displayName || member.login}
+    identity={member}
+    username={member.login}
+  >
+    {#snippet avatar()}
+      <UserAvatar user={{ ...member, presenceStatus: PresenceStatus.OFFLINE }} size="sm" />
+    {/snippet}
+  </UserCard>
+  <Hint tone="danger">
+    <strong
+      ><AccountNameTokens
+        text={m('admin.member_delete.warning', { name: accountNameToken(0) })}
+        accounts={[{ name: member.displayName, identity: member }]}
+      /></strong
+    >
+  </Hint>
 
-    <p class="text-sm text-muted">{m('admin.member_delete.consequences_intro')}</p>
-    <ul class="list-inside list-disc text-sm text-muted">
+  <div class="space-y-2 text-muted">
+    <p>{m('admin.member_delete.consequences_intro')}</p>
+    <ul class="list-outside list-disc space-y-1 ps-6">
       <li>{m('admin.member_delete.consequence_rooms')}</li>
       <li>{m('admin.member_delete.consequence_messages')}</li>
       <li>{m('admin.member_delete.consequence_profile')}</li>
       <li>{m('admin.member_delete.consequence_sessions')}</li>
     </ul>
+  </div>
 
-    <TextInput
-      id="member-delete-confirm"
-      label={m('admin.member_delete.confirm_label', { login: isolate(member.login) })}
-      bind:value={confirmText}
-      placeholder={member.login}
-      disabled={deleting}
-      autocomplete="off"
-    />
-
-    {#if error}
-      <FormError {error} />
-    {/if}
-
-    <div class="flex flex-wrap justify-end gap-2">
-      <Button variant="secondary" href={cancelHref} disabled={deleting}>
-        {m('common.cancel')}
-      </Button>
-      <Button
-        type="submit"
-        variant="danger"
-        defaultAction
-        disabled={!canConfirm}
-        loading={deleting}
-        loadingText={m('admin.member_delete.deleting')}
-      >
-        {m('admin.member_delete.submit')}
-      </Button>
-    </div>
-  </form>
-</Panel>
+  <TextInput
+    id="member-delete-confirm"
+    label={m('admin.member_delete.confirm_label', { login: isolate(member.login) })}
+    bind:value={confirmText}
+    placeholder={member.login}
+    disabled={deleting}
+    autocomplete="off"
+  />
+</FormDialog>

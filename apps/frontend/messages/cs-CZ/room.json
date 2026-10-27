@@ -271,6 +271,7 @@
     "unread_separator": "Nové zprávy",
     "close_extras": "Zavřít doplňky pokoje",
     "dm": {
+      "deactivated_user_notice": "Tento účet je deaktivován. Uživatel nemůže číst zprávy ani na ně odpovídat.",
       "deleted_user_notice": "Druhý uživatel byl smazán."
     },
     "management": {

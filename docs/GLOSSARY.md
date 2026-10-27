@@ -80,6 +80,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **MCP scope** — OAuth grant ceiling for one class of MCP tools, such as `chatto:rooms:read` or `chatto:messages:write`. It limits delegated agent authority in addition to normal Chatto permissions and resource visibility. It is not an RBAC permission.
 
+**Deactivated account** — An account that retains its data and assigned roles but cannot use the server. Reactivation permits new sign-ins; old human sessions stay invalid. See [FDR-018](fdr/FDR-018-account-lifecycle.md).
+
 **Bot account** — Passwordless user identity for an integration, explicitly owned by a human and marked as a bot. It receives only directly configured permissions, capped by the owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
 **Bot API key** — One of a bot account's named, non-expiring bearer credentials. Chatto shows the raw key only when it creates the key and stores only its durable verifier. Each key can be revoked independently. See [FDR-038](fdr/FDR-038-bot-accounts.md).

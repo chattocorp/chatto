@@ -271,6 +271,7 @@
     "unread_separator": "新訊息",
     "close_extras": "關閉聊天室資訊",
     "dm": {
+      "deactivated_user_notice": "此帳號已停用。該使用者無法閱讀或回覆訊息。",
       "deleted_user_notice": "對方使用者已被刪除。"
     },
     "management": {

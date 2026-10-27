@@ -18,6 +18,28 @@ also tells you how other Chatto clients connect to your server.
 | Organization SSO | Add [login providers](/guides/integrations/external-login-providers/) and turn off [password login](#sso-only-login). |
 | Mixed community | Keep password accounts and add selected login providers. |
 
+## Deactivate an Account
+
+To stop access and keep the user's data, open **Server configuration → Members**,
+select the member, and open **Account → Deactivate Account**. You need
+`admin.view-users` and `user.manage-accounts`. Confirm the account and effect.
+You cannot deactivate your own account or an owner account.
+
+One-to-one conversations show a notice when the other account is deactivated
+and stop accepting new messages.
+Deactivated accounts do not appear in new-conversation, mention, or invitation
+pickers. Existing messages and profiles remain readable. Reactivation restores
+these controls without a page reload. Administrative details remain private.
+
+Deactivation blocks sign-in and invalidates existing sessions. The profile,
+messages, files, memberships, and roles remain intact. The user's bots also
+lose access. Existing call connections are removed at the next participant
+permission check. The account's login and email addresses remain claimed.
+
+Select **Reactivate Account** to permit access again. The user must sign in
+again; old human sessions stay invalid. Bot credentials work again after
+reactivation. Account deletion remains a separate action that removes data.
+
 ## SSO-Only Login
 
 Configure and test at least one login provider first. Then disable password

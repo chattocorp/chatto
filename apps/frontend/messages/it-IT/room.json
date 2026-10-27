@@ -271,6 +271,7 @@
     "unread_separator": "Nuovi messaggi",
     "close_extras": "Chiudi gli extra della camera",
     "dm": {
+      "deactivated_user_notice": "Questo account è disattivato. L’utente non può leggere i messaggi né rispondere.",
       "deleted_user_notice": "L’altro utente è stato eliminato."
     },
     "management": {

@@ -271,6 +271,7 @@
     "unread_separator": "Mensajes nuevos",
     "close_extras": "Cerrar extras de habitación",
     "dm": {
+      "deactivated_user_notice": "Esta cuenta está desactivada. Esta persona no puede leer ni responder mensajes.",
       "deleted_user_notice": "El otro usuario ha sido eliminado."
     },
     "management": {

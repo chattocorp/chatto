@@ -271,6 +271,7 @@
     "unread_separator": "New messages",
     "close_extras": "Close room extras",
     "dm": {
+      "deactivated_user_notice": "This account is deactivated. They cannot read or reply to messages.",
       "deleted_user_notice": "The other user has been deleted."
     },
     "management": {

@@ -33,6 +33,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, av
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
 		Deleted:        user.GetDeleted(),
+		Deactivated:    user.GetDeactivated(),
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 	}

@@ -52,6 +52,12 @@
       "subtitle": "Serveridentität, Branding und Nachrichten"
     },
     "members": {
+      "deactivated": "Deaktiviert",
+      "deactivate": "Konto deaktivieren",
+      "reactivate": "Konto reaktivieren",
+      "deactivate_description": "Das Mitglied kann diesen Server nicht mehr nutzen. Alle Sitzungen werden sofort beendet. Die Daten bleiben erhalten. Du kannst das Konto später reaktivieren.",
+      "deactivated_description": "Dieses Konto ist deaktiviert. Nach der Reaktivierung kann sich das Mitglied wieder anmelden. Alte Sitzungen bleiben ungültig.",
+      "deactivation_failed": "Der Kontozugriff konnte nicht geändert werden.",
       "title": "Mitglieder",
       "subtitle": "Servermitglieder und ihre Rollen anzeigen und verwalten",
       "search": "Mitglieder suchen",

@@ -52,6 +52,12 @@
       "subtitle": "Serveridentitet, varumärke och meddelanden"
     },
     "members": {
+      "deactivated": "Inaktiverat",
+      "deactivate": "Inaktivera konto",
+      "reactivate": "Återaktivera konto",
+      "deactivate_description": "Användaren kommer inte längre att kunna använda den här servern. Alla sessioner avslutas omedelbart. Alla data bevaras. Du kan återaktivera kontot senare.",
+      "deactivated_description": "Det här kontot är inaktiverat. Efter återaktivering kan användaren logga in igen. Gamla sessioner förblir ogiltiga.",
+      "deactivation_failed": "Det gick inte att ändra kontoåtkomsten.",
       "title": "Medlemmar",
       "subtitle": "Visa och hantera servermedlemmar och deras roller",
       "search": "Sök medlemmar",

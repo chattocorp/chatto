@@ -233,6 +233,8 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 
 	if credentialOK && (credential.Kind == authctx.RuntimeCredentialKindCookieSession || credential.Kind == authctx.RuntimeCredentialKindBearerToken) {
 		credentialCheckDone := make(chan struct{})
+		accountAccessInvalidated, stopAccountAccessWatch := s.core.WatchAccountAccessInvalidated(credential.UserID)
+		defer stopAccountAccessWatch()
 		credentialCheckEvery := realtimeCredentialCheckInterval
 		if s.realtimeCredentialCheckEvery > 0 {
 			credentialCheckEvery = s.realtimeCredentialCheckEvery
@@ -243,6 +245,9 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			defer ticker.Stop()
 			for {
 				select {
+				case <-accountAccessInvalidated:
+					terminateRealtimeForCredentialRevocation(cancel, writeFrame, func() { _ = conn.Close() })
+					return
 				case <-ticker.C:
 					privilegedUntil, err := s.revalidateRealtimeCredential(ctx)
 					if err == nil {

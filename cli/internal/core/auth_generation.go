@@ -51,6 +51,7 @@ func (c *ChattoCore) waitForUserAuthGenerationCurrent(ctx context.Context, userI
 		agg.Subject(evtstream.EventUserPasswordHashChanged),
 		agg.Subject(evtstream.EventUserExternalIdentityUnlinked),
 		agg.Subject(evtstream.EventUserAccountDeleted),
+		agg.Subject(evtstream.EventUserAccountDeactivationChanged),
 	); err != nil {
 		return fmt.Errorf("wait for user auth generation: %w", err)
 	}

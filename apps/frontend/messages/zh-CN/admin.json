@@ -52,6 +52,12 @@
       "subtitle": "服务器标识、品牌和消息"
     },
     "members": {
+      "deactivated": "已停用",
+      "deactivate": "停用账户",
+      "reactivate": "重新启用账户",
+      "deactivate_description": "该用户将无法再使用此服务器。所有会话将立即结束。用户数据将保留。你可以稍后重新启用账户。",
+      "deactivated_description": "此账户已停用。重新启用后，用户可以再次登录。旧会话仍然无效。",
+      "deactivation_failed": "无法更改账户访问权限。",
       "title": "成员",
       "subtitle": "查看和管理服务器成员及其角色",
       "search": "搜索成员",

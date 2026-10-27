@@ -52,6 +52,12 @@
       "subtitle": "伺服器識別資訊、品牌與訊息"
     },
     "members": {
+      "deactivated": "已停用",
+      "deactivate": "停用帳戶",
+      "reactivate": "重新啟用帳戶",
+      "deactivate_description": "此使用者將無法再使用此伺服器。所有工作階段將立即結束。使用者資料將保留。你可以稍後重新啟用帳戶。",
+      "deactivated_description": "此帳戶已停用。重新啟用後，使用者可以再次登入。舊工作階段仍然無效。",
+      "deactivation_failed": "無法變更帳戶存取權限。",
       "title": "成員",
       "subtitle": "檢視及管理伺服器成員與角色",
       "search": "搜尋成員",

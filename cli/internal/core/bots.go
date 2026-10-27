@@ -225,7 +225,7 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 		return nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
-	if err != nil || owner.GetIsBot() {
+	if err != nil || owner.GetIsBot() || owner.GetDeactivated() {
 		return nil, ErrAuthTokenNotFound
 	}
 	c.credentialUsage.recordIfActive(botID, incomingWebhookUsageKey(webhookID), time.Now(), func() bool {
@@ -265,7 +265,7 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
-	if err != nil || owner.GetIsBot() {
+	if err != nil || owner.GetIsBot() || owner.GetDeactivated() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	c.credentialUsage.recordIfActive(botID, botAPIKeyUsageKey(credential.ID), time.Now(), func() bool {

@@ -348,7 +348,9 @@ type User struct {
 	BotOwnerUserId string `protobuf:"bytes,8,opt,name=bot_owner_user_id,json=botOwnerUserId,proto3" json:"bot_owner_user_id,omitempty"`
 	// Current public bio, hydrated at read boundaries from encrypted projected
 	// state. Never persisted in plaintext here.
-	Bio           string `protobuf:"bytes,9,opt,name=bio,proto3" json:"bio,omitempty"`
+	Bio string `protobuf:"bytes,9,opt,name=bio,proto3" json:"bio,omitempty"`
+	// Deactivated accounts retain their data but cannot authenticate.
+	Deactivated   bool `protobuf:"varint,10,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -444,6 +446,13 @@ func (x *User) GetBio() string {
 		return x.Bio
 	}
 	return ""
+}
+
+func (x *User) GetDeactivated() bool {
+	if x != nil {
+		return x.Deactivated
+	}
+	return false
 }
 
 // CustomUserStatus is a durable, public user-authored status that is
@@ -2062,7 +2071,7 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x18\n" +
 	"\apurpose\x18\x0e \x01(\tR\apurposeB\x1b\n" +
-	"\x19_thread_slow_mode_secondsJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xc3\x02\n" +
+	"\x19_thread_slow_mode_secondsJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xe5\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -2073,7 +2082,9 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\rcustom_status\x18\x06 \x01(\v2$.chatto.core.evt.v1.CustomUserStatusR\fcustomStatus\x12\x15\n" +
 	"\x06is_bot\x18\a \x01(\bR\x05isBot\x12)\n" +
 	"\x11bot_owner_user_id\x18\b \x01(\tR\x0ebotOwnerUserId\x12\x10\n" +
-	"\x03bio\x18\t \x01(\tR\x03bio\"w\n" +
+	"\x03bio\x18\t \x01(\tR\x03bio\x12 \n" +
+	"\vdeactivated\x18\n" +
+	" \x01(\bR\vdeactivated\"w\n" +
 	"\x10CustomUserStatus\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +

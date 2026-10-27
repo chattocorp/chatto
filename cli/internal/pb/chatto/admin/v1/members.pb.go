@@ -47,8 +47,13 @@ type AdminMember struct {
 	// Selected primary verified email visible to the caller. Absence can mean
 	// that no primary email exists or that the field is not visible.
 	PrimaryVerifiedEmail *string `protobuf:"bytes,13,opt,name=primary_verified_email,json=primaryVerifiedEmail,proto3,oneof" json:"primary_verified_email,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Deactivated accounts retain their data but cannot use the server.
+	Deactivated bool `protobuf:"varint,14,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	// Whether the caller may deactivate or reactivate this account.
+	// Absent on servers that do not support account deactivation.
+	ViewerCanChangeDeactivation *bool `protobuf:"varint,15,opt,name=viewer_can_change_deactivation,json=viewerCanChangeDeactivation,proto3,oneof" json:"viewer_can_change_deactivation,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *AdminMember) Reset() {
@@ -135,6 +140,20 @@ func (x *AdminMember) GetPrimaryVerifiedEmail() string {
 		return *x.PrimaryVerifiedEmail
 	}
 	return ""
+}
+
+func (x *AdminMember) GetDeactivated() bool {
+	if x != nil {
+		return x.Deactivated
+	}
+	return false
+}
+
+func (x *AdminMember) GetViewerCanChangeDeactivation() bool {
+	if x != nil && x.ViewerCanChangeDeactivation != nil {
+		return *x.ViewerCanChangeDeactivation
+	}
+	return false
 }
 
 // Request server-admin member IDs.
@@ -1029,11 +1048,109 @@ func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{16}
 }
 
+// Set account access without deleting user data.
+type SetUserDeactivatedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Deactivated   bool                   `protobuf:"varint,2,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetUserDeactivatedRequest) Reset() {
+	*x = SetUserDeactivatedRequest{}
+	mi := &file_chatto_admin_v1_members_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetUserDeactivatedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetUserDeactivatedRequest) ProtoMessage() {}
+
+func (x *SetUserDeactivatedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_members_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetUserDeactivatedRequest.ProtoReflect.Descriptor instead.
+func (*SetUserDeactivatedRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SetUserDeactivatedRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *SetUserDeactivatedRequest) GetDeactivated() bool {
+	if x != nil {
+		return x.Deactivated
+	}
+	return false
+}
+
+type SetUserDeactivatedResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updated administrative member record.
+	Member        *AdminMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetUserDeactivatedResponse) Reset() {
+	*x = SetUserDeactivatedResponse{}
+	mi := &file_chatto_admin_v1_members_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetUserDeactivatedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetUserDeactivatedResponse) ProtoMessage() {}
+
+func (x *SetUserDeactivatedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_members_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetUserDeactivatedResponse.ProtoReflect.Descriptor instead.
+func (*SetUserDeactivatedResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SetUserDeactivatedResponse) GetMember() *AdminMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
 var File_chatto_admin_v1_members_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/admin/v1/members.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x03\n" +
+	"\x1dchatto/admin/v1/members.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x05\n" +
 	"\vAdminMember\x12\x14\n" +
 	"\x05roles\x18\x05 \x03(\tR\x05roles\x129\n" +
 	"\n" +
@@ -1044,8 +1161,11 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	" \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12'\n" +
 	"\x04user\x18\f \x01(\v2\x13.chatto.api.v1.UserR\x04user\x129\n" +
-	"\x16primary_verified_email\x18\r \x01(\tH\x00R\x14primaryVerifiedEmail\x88\x01\x01B\x19\n" +
-	"\x17_primary_verified_emailJ\x04\b\x01\x10\x05J\x04\b\a\x10\bR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"\x16primary_verified_email\x18\r \x01(\tH\x00R\x14primaryVerifiedEmail\x88\x01\x01\x12 \n" +
+	"\vdeactivated\x18\x0e \x01(\bR\vdeactivated\x12H\n" +
+	"\x1eviewer_can_change_deactivation\x18\x0f \x01(\bH\x01R\x1bviewerCanChangeDeactivation\x88\x01\x01B\x19\n" +
+	"\x17_primary_verified_emailB!\n" +
+	"\x1f_viewer_can_change_deactivationJ\x04\b\x01\x10\x05J\x04\b\a\x10\bR\x02idR\x05loginR\fdisplay_nameR\n" +
 	"avatar_urlR\adeleted\"w\n" +
 	"\x12ListMembersRequest\x12\x16\n" +
 	"\x06search\x18\x01 \x01(\tR\x06search\x12.\n" +
@@ -1094,7 +1214,12 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x1dClearUsernameCooldownResponseJ\x04\b\x01\x10\x02R\acleared\"M\n" +
 	"\x11DeleteUserRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userIdJ\x04\b\x02\x10\x03R\x10current_password\"#\n" +
-	"\x12DeleteUserResponseJ\x04\b\x01\x10\x02R\adeleted2\x92\x06\n" +
+	"\x12DeleteUserResponseJ\x04\b\x01\x10\x02R\adeleted\"_\n" +
+	"\x19SetUserDeactivatedRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12 \n" +
+	"\vdeactivated\x18\x02 \x01(\bR\vdeactivated\"R\n" +
+	"\x1aSetUserDeactivatedResponse\x124\n" +
+	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member2\x81\a\n" +
 	"\x10AdminUserService\x12X\n" +
 	"\vListMembers\x12#.chatto.admin.v1.ListMembersRequest\x1a$.chatto.admin.v1.ListMembersResponse\x12R\n" +
 	"\tGetMember\x12!.chatto.admin.v1.GetMemberRequest\x1a\".chatto.admin.v1.GetMemberResponse\x12d\n" +
@@ -1106,7 +1231,8 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x12ChangeUserPassword\x12*.chatto.admin.v1.ChangeUserPasswordRequest\x1a+.chatto.admin.v1.ChangeUserPasswordResponse\x12v\n" +
 	"\x15ClearUsernameCooldown\x12-.chatto.admin.v1.ClearUsernameCooldownRequest\x1a..chatto.admin.v1.ClearUsernameCooldownResponse\x12U\n" +
 	"\n" +
-	"DeleteUser\x12\".chatto.admin.v1.DeleteUserRequest\x1a#.chatto.admin.v1.DeleteUserResponseB\xc7\x01\n" +
+	"DeleteUser\x12\".chatto.admin.v1.DeleteUserRequest\x1a#.chatto.admin.v1.DeleteUserResponse\x12m\n" +
+	"\x12SetUserDeactivated\x12*.chatto.admin.v1.SetUserDeactivatedRequest\x1a+.chatto.admin.v1.SetUserDeactivatedResponseB\xc7\x01\n" +
 	"\x13com.chatto.admin.v1B\fMembersProtoP\x01ZDgithub.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
 
 var (
@@ -1121,7 +1247,7 @@ func file_chatto_admin_v1_members_proto_rawDescGZIP() []byte {
 	return file_chatto_admin_v1_members_proto_rawDescData
 }
 
-var file_chatto_admin_v1_members_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chatto_admin_v1_members_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chatto_admin_v1_members_proto_goTypes = []any{
 	(*AdminMember)(nil),                   // 0: chatto.admin.v1.AdminMember
 	(*ListMembersRequest)(nil),            // 1: chatto.admin.v1.ListMembersRequest
@@ -1140,47 +1266,52 @@ var file_chatto_admin_v1_members_proto_goTypes = []any{
 	(*ClearUsernameCooldownResponse)(nil), // 14: chatto.admin.v1.ClearUsernameCooldownResponse
 	(*DeleteUserRequest)(nil),             // 15: chatto.admin.v1.DeleteUserRequest
 	(*DeleteUserResponse)(nil),            // 16: chatto.admin.v1.DeleteUserResponse
-	(*timestamppb.Timestamp)(nil),         // 17: google.protobuf.Timestamp
-	(*v1.User)(nil),                       // 18: chatto.api.v1.User
-	(*v1.PageRequest)(nil),                // 19: chatto.api.v1.PageRequest
-	(*v1.PageInfo)(nil),                   // 20: chatto.api.v1.PageInfo
-	(*AdminRole)(nil),                     // 21: chatto.admin.v1.AdminRole
-	(*v1.Role)(nil),                       // 22: chatto.api.v1.Role
+	(*SetUserDeactivatedRequest)(nil),     // 17: chatto.admin.v1.SetUserDeactivatedRequest
+	(*SetUserDeactivatedResponse)(nil),    // 18: chatto.admin.v1.SetUserDeactivatedResponse
+	(*timestamppb.Timestamp)(nil),         // 19: google.protobuf.Timestamp
+	(*v1.User)(nil),                       // 20: chatto.api.v1.User
+	(*v1.PageRequest)(nil),                // 21: chatto.api.v1.PageRequest
+	(*v1.PageInfo)(nil),                   // 22: chatto.api.v1.PageInfo
+	(*AdminRole)(nil),                     // 23: chatto.admin.v1.AdminRole
+	(*v1.Role)(nil),                       // 24: chatto.api.v1.Role
 }
 var file_chatto_admin_v1_members_proto_depIdxs = []int32{
-	17, // 0: chatto.admin.v1.AdminMember.created_at:type_name -> google.protobuf.Timestamp
-	17, // 1: chatto.admin.v1.AdminMember.last_login_change:type_name -> google.protobuf.Timestamp
-	18, // 2: chatto.admin.v1.AdminMember.user:type_name -> chatto.api.v1.User
-	19, // 3: chatto.admin.v1.ListMembersRequest.page:type_name -> chatto.api.v1.PageRequest
-	20, // 4: chatto.admin.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
+	19, // 0: chatto.admin.v1.AdminMember.created_at:type_name -> google.protobuf.Timestamp
+	19, // 1: chatto.admin.v1.AdminMember.last_login_change:type_name -> google.protobuf.Timestamp
+	20, // 2: chatto.admin.v1.AdminMember.user:type_name -> chatto.api.v1.User
+	21, // 3: chatto.admin.v1.ListMembersRequest.page:type_name -> chatto.api.v1.PageRequest
+	22, // 4: chatto.admin.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
 	0,  // 5: chatto.admin.v1.GetMemberResponse.member:type_name -> chatto.admin.v1.AdminMember
-	21, // 6: chatto.admin.v1.GetMemberResponse.roles:type_name -> chatto.admin.v1.AdminRole
+	23, // 6: chatto.admin.v1.GetMemberResponse.roles:type_name -> chatto.admin.v1.AdminRole
 	0,  // 7: chatto.admin.v1.BatchGetMembersResponse.members:type_name -> chatto.admin.v1.AdminMember
-	22, // 8: chatto.admin.v1.BatchGetMembersResponse.roles:type_name -> chatto.api.v1.Role
+	24, // 8: chatto.admin.v1.BatchGetMembersResponse.roles:type_name -> chatto.api.v1.Role
 	0,  // 9: chatto.admin.v1.AssignRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
 	0,  // 10: chatto.admin.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
 	0,  // 11: chatto.admin.v1.ChangeUserPasswordResponse.member:type_name -> chatto.admin.v1.AdminMember
-	1,  // 12: chatto.admin.v1.AdminUserService.ListMembers:input_type -> chatto.admin.v1.ListMembersRequest
-	3,  // 13: chatto.admin.v1.AdminUserService.GetMember:input_type -> chatto.admin.v1.GetMemberRequest
-	5,  // 14: chatto.admin.v1.AdminUserService.BatchGetMembers:input_type -> chatto.admin.v1.BatchGetMembersRequest
-	7,  // 15: chatto.admin.v1.AdminUserService.AssignRole:input_type -> chatto.admin.v1.AssignRoleRequest
-	9,  // 16: chatto.admin.v1.AdminUserService.RevokeRole:input_type -> chatto.admin.v1.RevokeRoleRequest
-	11, // 17: chatto.admin.v1.AdminUserService.ChangeUserPassword:input_type -> chatto.admin.v1.ChangeUserPasswordRequest
-	13, // 18: chatto.admin.v1.AdminUserService.ClearUsernameCooldown:input_type -> chatto.admin.v1.ClearUsernameCooldownRequest
-	15, // 19: chatto.admin.v1.AdminUserService.DeleteUser:input_type -> chatto.admin.v1.DeleteUserRequest
-	2,  // 20: chatto.admin.v1.AdminUserService.ListMembers:output_type -> chatto.admin.v1.ListMembersResponse
-	4,  // 21: chatto.admin.v1.AdminUserService.GetMember:output_type -> chatto.admin.v1.GetMemberResponse
-	6,  // 22: chatto.admin.v1.AdminUserService.BatchGetMembers:output_type -> chatto.admin.v1.BatchGetMembersResponse
-	8,  // 23: chatto.admin.v1.AdminUserService.AssignRole:output_type -> chatto.admin.v1.AssignRoleResponse
-	10, // 24: chatto.admin.v1.AdminUserService.RevokeRole:output_type -> chatto.admin.v1.RevokeRoleResponse
-	12, // 25: chatto.admin.v1.AdminUserService.ChangeUserPassword:output_type -> chatto.admin.v1.ChangeUserPasswordResponse
-	14, // 26: chatto.admin.v1.AdminUserService.ClearUsernameCooldown:output_type -> chatto.admin.v1.ClearUsernameCooldownResponse
-	16, // 27: chatto.admin.v1.AdminUserService.DeleteUser:output_type -> chatto.admin.v1.DeleteUserResponse
-	20, // [20:28] is the sub-list for method output_type
-	12, // [12:20] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0,  // 12: chatto.admin.v1.SetUserDeactivatedResponse.member:type_name -> chatto.admin.v1.AdminMember
+	1,  // 13: chatto.admin.v1.AdminUserService.ListMembers:input_type -> chatto.admin.v1.ListMembersRequest
+	3,  // 14: chatto.admin.v1.AdminUserService.GetMember:input_type -> chatto.admin.v1.GetMemberRequest
+	5,  // 15: chatto.admin.v1.AdminUserService.BatchGetMembers:input_type -> chatto.admin.v1.BatchGetMembersRequest
+	7,  // 16: chatto.admin.v1.AdminUserService.AssignRole:input_type -> chatto.admin.v1.AssignRoleRequest
+	9,  // 17: chatto.admin.v1.AdminUserService.RevokeRole:input_type -> chatto.admin.v1.RevokeRoleRequest
+	11, // 18: chatto.admin.v1.AdminUserService.ChangeUserPassword:input_type -> chatto.admin.v1.ChangeUserPasswordRequest
+	13, // 19: chatto.admin.v1.AdminUserService.ClearUsernameCooldown:input_type -> chatto.admin.v1.ClearUsernameCooldownRequest
+	15, // 20: chatto.admin.v1.AdminUserService.DeleteUser:input_type -> chatto.admin.v1.DeleteUserRequest
+	17, // 21: chatto.admin.v1.AdminUserService.SetUserDeactivated:input_type -> chatto.admin.v1.SetUserDeactivatedRequest
+	2,  // 22: chatto.admin.v1.AdminUserService.ListMembers:output_type -> chatto.admin.v1.ListMembersResponse
+	4,  // 23: chatto.admin.v1.AdminUserService.GetMember:output_type -> chatto.admin.v1.GetMemberResponse
+	6,  // 24: chatto.admin.v1.AdminUserService.BatchGetMembers:output_type -> chatto.admin.v1.BatchGetMembersResponse
+	8,  // 25: chatto.admin.v1.AdminUserService.AssignRole:output_type -> chatto.admin.v1.AssignRoleResponse
+	10, // 26: chatto.admin.v1.AdminUserService.RevokeRole:output_type -> chatto.admin.v1.RevokeRoleResponse
+	12, // 27: chatto.admin.v1.AdminUserService.ChangeUserPassword:output_type -> chatto.admin.v1.ChangeUserPasswordResponse
+	14, // 28: chatto.admin.v1.AdminUserService.ClearUsernameCooldown:output_type -> chatto.admin.v1.ClearUsernameCooldownResponse
+	16, // 29: chatto.admin.v1.AdminUserService.DeleteUser:output_type -> chatto.admin.v1.DeleteUserResponse
+	18, // 30: chatto.admin.v1.AdminUserService.SetUserDeactivated:output_type -> chatto.admin.v1.SetUserDeactivatedResponse
+	22, // [22:31] is the sub-list for method output_type
+	13, // [13:22] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_members_proto_init() }
@@ -1200,7 +1331,7 @@ func file_chatto_admin_v1_members_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_members_proto_rawDesc), len(file_chatto_admin_v1_members_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

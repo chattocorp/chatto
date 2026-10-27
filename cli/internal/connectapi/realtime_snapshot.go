@@ -264,6 +264,7 @@ func (a *API) realtimeSnapshotUser(ctx context.Context, content *core.HydratedUs
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
 		Deleted:        user.GetDeleted(),
+		Deactivated:    user.GetDeactivated(),
 		PresenceStatus: apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED,
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 	}

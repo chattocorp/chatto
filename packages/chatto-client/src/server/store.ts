@@ -1336,6 +1336,9 @@ export class ServerStateStore {
         this.scrubRemovedUser(userId);
         return;
       }
+      case 'userAccountDeactivationChanged':
+        this.projection.users.setDeactivated(payload.value.userId, payload.value.deactivated);
+        return;
       case 'roomDeleted':
         this.projection.removeRoom(payload.value.roomId);
         this.scrubRemovedRoom(payload.value.roomId);

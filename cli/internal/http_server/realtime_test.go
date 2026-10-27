@@ -1051,6 +1051,75 @@ func TestRealtimeWebSocketDeliversPublicCursorlessEvent(t *testing.T) {
 	}
 }
 
+func TestRealtimeAccountDeactivationUpdatesOtherViewersAndReplays(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "status-manager", "Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "status-target", "Target", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.Id, core.PermUserManageAccounts); err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, manager.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	if err := env.core.SetUserDeactivated(env.ctx, manager.Id, target.Id, true); err != nil {
+		t.Fatal(err)
+	}
+	event := readPublicRealtimeEvent(t, conn)
+	if event.GetUserAccountDeactivationChanged().GetUserId() != target.Id || !event.GetUserAccountDeactivationChanged().GetDeactivated() || event.GetActorId() != "" {
+		t.Fatalf("unexpected event: %v", event)
+	}
+	cursor := event.GetCursor()
+	conn.Close()
+	if err := env.core.SetUserDeactivated(env.ctx, manager.Id, target.Id, false); err != nil {
+		t.Fatal(err)
+	}
+	resumed := env.dialRealtime(t)
+	subscribeRealtime(t, resumed, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, cursor)
+	event = readPublicRealtimeEvent(t, resumed)
+	if event.GetUserAccountDeactivationChanged().GetUserId() != target.Id || event.GetUserAccountDeactivationChanged().GetDeactivated() {
+		t.Fatalf("unexpected reactivation replay: %v", event)
+	}
+}
+
+func TestRealtimeWebSocketClosesForAccountDeactivation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-deactivated", "RT Deactivated", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-manager", "RT Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.GetId(), core.PermUserManageAccounts); err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	if err := env.core.SetUserDeactivated(env.ctx, manager.GetId(), viewer.GetId(), true); err != nil {
+		t.Fatal(err)
+	}
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
+		t.Fatal("deactivation did not promptly close the authenticated socket")
+	}
+}
+
 func TestRealtimeWebSocketUsesCloseFrameForSessionTermination(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-terminated", "RT Terminated", "password123")

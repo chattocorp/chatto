@@ -88,6 +88,8 @@ message User {
   // Current public bio, hydrated at read boundaries from encrypted projected
   // state. Never persisted in plaintext here.
   string bio = 9;
+  // Deactivated accounts retain their data but cannot authenticate.
+  bool deactivated = 10;
 }
 
 // CustomUserStatus is a durable, public user-authored status that is

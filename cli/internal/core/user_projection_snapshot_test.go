@@ -327,7 +327,7 @@ func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 18)
+	require.Len(t, p.Subjects(), 19)
 }
 
 func TestUserAuthProjectionReplaysBotIncomingWebhookLifecycle(t *testing.T) {

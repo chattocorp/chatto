@@ -278,6 +278,7 @@
     "unread_separator": "Nowe wiadomości",
     "close_extras": "Zamknij dodatki do pokoju",
     "dm": {
+      "deactivated_user_notice": "To konto jest dezaktywowane. Użytkownik nie może czytać wiadomości ani na nie odpowiadać.",
       "deleted_user_notice": "Drugi użytkownik został usunięty."
     },
     "management": {

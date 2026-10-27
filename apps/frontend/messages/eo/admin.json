@@ -52,6 +52,12 @@
       "subtitle": "Servila identeco, marko kaj mesaĝoj"
     },
     "members": {
+      "deactivated": "Malaktivigita",
+      "deactivate": "Malaktivigi konton",
+      "reactivate": "Reaktivigi konton",
+      "deactivate_description": "La uzanto ne plu povos uzi ĉi tiun servilon. Ĉiuj seancoj tuj finiĝos. La datumoj restos konservitaj. Vi povos reaktivigi la konton poste.",
+      "deactivated_description": "Ĉi tiu konto estas malaktiva. Reaktivigo permesos al la uzanto denove ensaluti. Malnovaj seancoj restos nevalidaj.",
+      "deactivation_failed": "Ne eblis ŝanĝi la aliron al la konto.",
       "title": "Membroj",
       "subtitle": "Rigardu kaj administru servilmembrojn kaj iliajn rolojn",
       "search": "Serĉu membrojn",
