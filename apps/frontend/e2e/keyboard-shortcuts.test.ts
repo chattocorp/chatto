@@ -19,7 +19,7 @@ test('shortcut help preserves editor text, selection, and focus', async ({
   await roomPage.messageInput.press('ControlOrMeta+A');
   const selected = await page.evaluate(() => window.getSelection()?.toString());
 
-  await page.keyboard.press('ControlOrMeta+Slash');
+  await page.keyboard.press('ControlOrMeta+Shift+K');
   const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Open quick switcher', { exact: true })).toBeVisible();

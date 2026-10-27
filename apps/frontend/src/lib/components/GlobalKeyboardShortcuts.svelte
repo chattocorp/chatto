@@ -43,9 +43,9 @@ once at the root layout level.
   ontrigger={() => quickSwitcher.open()}
 />
 <KeyboardShortcut
-  key="/"
+  key="k"
   command
-  capture={false}
+  shift
   description={m('common.keyboard_shortcuts.title')}
   ontrigger={openHelp}
 />

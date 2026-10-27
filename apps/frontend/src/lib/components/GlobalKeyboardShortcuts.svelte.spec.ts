@@ -117,13 +117,13 @@ beforeEach(() => {
 
 describe('global keyboard shortcuts', () => {
   it.each(['metaKey', 'ctrlKey'] as const)(
-    'opens shortcut help with %s+/ without changing a draft',
+    'opens shortcut help with %s+Shift+K without changing a draft',
     async (modifier) => {
       render(Harness);
       const draft = document.querySelector('textarea')!;
       draft.value = 'Keep my draft';
       draft.focus();
-      const event = press({ key: '/', altKey: false, shiftKey: false, [modifier]: true });
+      const event = press({ key: 'K', altKey: false, shiftKey: true, [modifier]: true });
       expect(event.defaultPrevented).toBe(true);
       flushSync();
       const dialog = document.querySelector('dialog[open]')!;

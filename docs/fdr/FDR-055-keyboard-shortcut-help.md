@@ -10,8 +10,8 @@ It lets users discover shortcuts without leaving their draft or changing setting
 
 ## Behavior
 
-- Cmd+/ on Apple platforms, or Ctrl+/ elsewhere, opens help. In views with a
-  filter shortcut, that filter takes priority.
+- Cmd+Shift+K on Apple platforms, or Ctrl+Shift+K elsewhere, opens help.
+  Cmd/Ctrl+/ keeps room search and filters.
 - The Cmd/Ctrl+K palette also has a Keyboard shortcuts button to open help
   from any view, including views with filters.
 - Help lists registered app shortcuts and filters in the current view. A form's
@@ -33,11 +33,12 @@ It lets users discover shortcuts without leaving their draft or changing setting
 
 ### 1. Keep the filter shortcut
 
-**Decision:** Use Cmd/Ctrl+/ for help, with existing filters taking priority.
+**Decision:** Use Cmd/Ctrl+Shift+K for help and preserve Cmd/Ctrl+/ for room search and filters.
 Also provide a help button in the quick switcher.
 **Why:** Users can continue to reach filters with the existing shortcut.
 Cmd+Shift+/ can open a native browser menu before the page receives the key.
-**Tradeoff:** On filter pages, users open help through the quick switcher.
+**Tradeoff:** Browsers can reserve shortcuts. The quick-switcher button provides
+a second entry point when a browser intercepts the help shortcut.
 
 ### 2. Describe the current view
 
