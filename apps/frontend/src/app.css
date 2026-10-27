@@ -1857,6 +1857,15 @@
   @apply pointer-events-none absolute z-30 to-transparent transition-opacity;
 }
 
+@utility image-canvas-asset {
+  @apply m-0 block h-full w-full max-w-none touch-none object-contain outline-none;
+}
+
+@utility image-canvas-fade {
+  @apply scroll-edge-fade;
+  --tw-gradient-from: var(--message-code-background, var(--color-background));
+}
+
 /* Shared code chrome for messages and both composer implementations. */
 @utility code-frame {
   @apply min-w-0 overflow-hidden rounded-md border shadow-xs;

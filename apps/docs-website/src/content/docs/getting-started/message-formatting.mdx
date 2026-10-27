@@ -138,9 +138,11 @@ flowchart LR
 ````
 
 Chatto renders diagrams locally with [Pele](https://pele.run/). It does not send
-the source to a rendering service. Diagrams follow your theme, fit the message
-width, and show their full height without internal scrolling. Add `accTitle`
-and `accDescr` to describe the diagram for screen readers.
+the source to a rendering service. Diagrams follow your theme. Large SVG and
+Mermaid previews use a bounded canvas: scroll or drag to move around, and pinch
+or use Ctrl-wheel to zoom. The zoom buttons and **Fit** control are also available.
+At an edge, wheel scrolling continues through the conversation. Add `accTitle`
+and `accDescr` to describe a Mermaid diagram for screen readers.
 
 Links, external images, and source configuration are disabled. Invalid or
 unsupported diagrams show their source. Each message can render up to four

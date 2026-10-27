@@ -1,5 +1,6 @@
 /** Local tab state and lazy image jobs for one mounted Markdown HTML version. */
 import { createMermaidPreview } from './mermaid/previews';
+import { mount, unmount } from 'svelte';
 
 /** Scope ARIA IDs to the component, and dispose all jobs when its HTML changes. */
 export function attachCodeFrames(html: string, scope: string) {
@@ -7,6 +8,7 @@ export function attachCodeFrames(html: string, scope: string) {
     if (!html.includes('data-artifact')) return;
     const controller = new AbortController();
     const { signal } = controller;
+    const canvases: (() => void)[] = [];
     const starts = new Map<Element, () => void>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -73,7 +75,15 @@ export function attachCodeFrames(html: string, scope: string) {
             image.decoding = 'async';
             image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`;
           }
-          renderPanel.append(image);
+          const { ZoomableImage } = await import('$lib/ui/attachments');
+          if (signal.aborted) return;
+          const canvas = mount(ZoomableImage, {
+            target: renderPanel,
+            props: { image, inline: true, onerror: fail }
+          });
+          canvases.push(() => {
+            void unmount(canvas);
+          });
           if (image.complete) {
             renderPanel.removeAttribute('aria-busy');
             if (!image.naturalWidth) fail();
@@ -128,6 +138,7 @@ export function attachCodeFrames(html: string, scope: string) {
     });
     return () => {
       controller.abort();
+      canvases.forEach((dispose) => dispose());
       observer.disconnect();
       starts.clear();
     };

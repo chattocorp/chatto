@@ -92,7 +92,7 @@ describe('Mermaid previews', () => {
   });
 
   it.each(['TB', 'LR'])(
-    'shows the whole %s diagram without internal scrolling on a narrow screen',
+    'bounds the %s diagram in the shared image canvas on a narrow screen',
     async (direction) => {
       const source =
         `flowchart ${direction}\n` +
@@ -113,9 +113,16 @@ describe('Mermaid previews', () => {
       expect(getComputedStyle(block).overflowY).toBe('hidden');
       expect(block.scrollHeight).toBeLessThanOrEqual(block.clientHeight + 1);
       expect(block.scrollWidth).toBeLessThanOrEqual(block.clientWidth + 1);
-      expect(image.getBoundingClientRect().width).toBeLessThanOrEqual(320);
-      expect(block.clientHeight).toBeGreaterThanOrEqual(image.getBoundingClientRect().height - 1);
-      if (direction === 'TB') expect(block.clientHeight).toBeGreaterThan(512);
+      const stage = block.querySelector<HTMLElement>('.image-canvas [role="group"]')!;
+      expect(stage.getBoundingClientRect().width).toBeLessThanOrEqual(320);
+      await expect.poll(() => stage.clientHeight).toBeGreaterThan(0);
+      expect(stage.clientHeight).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6) + 1);
+      expect(block.querySelector('button[aria-label="Zoom in"]')).not.toBeNull();
+      if (direction === 'TB') {
+        await expect
+          .poll(() => image.getBoundingClientRect().height)
+          .toBeGreaterThan(stage.clientHeight);
+      }
       expect(block.hasAttribute('tabindex')).toBe(false);
     }
   );
@@ -160,11 +167,19 @@ describe('Mermaid previews', () => {
     expect(image.alt).toBe('Flight plan. Launch then orbit');
     expect(container.querySelector('svg')).toBeNull();
     expect(container.querySelector<HTMLElement>('[data-code-panel="source"]')?.hidden).toBe(true);
+    const zoomIn = container.querySelector<HTMLButtonElement>('[aria-label="Zoom in"]')!;
+    await userEvent.click(zoomIn);
+    const zoom = container.querySelector('output')!.textContent;
+    await userEvent.click(container.querySelector('[data-code-tab="source"]')!);
+    await userEvent.click(container.querySelector('[data-code-tab="render"]')!);
+    await expect.poll(() => container.querySelector('output')?.textContent).toBe(zoom);
     const before = image.src;
     const previous = document.documentElement.dataset.theme;
     try {
       document.documentElement.dataset.theme = previous === 'dark' ? 'light' : 'dark';
       await expect.poll(() => image.src).not.toBe(before);
+      expect(container.querySelector('img')).toBe(image);
+      expect(container.querySelector('output')?.textContent).toBe(zoom);
     } finally {
       if (previous === undefined) delete document.documentElement.dataset.theme;
       else document.documentElement.dataset.theme = previous;
