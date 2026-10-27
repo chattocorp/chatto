@@ -32,6 +32,13 @@ func TestThreadProjectionHistoricalImportRetainsMessageIndexWithoutInteraction(t
 	if p.HasInteraction("AUTHOR", "ROOM", imported.Id) {
 		t.Fatal("import created an author interaction")
 	}
+	reply := newEvent(SystemActorID, &evtv1.Event{Id: "REPLY", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+		RoomId: "ROOM", AuthorId: "REACTOR", InThread: imported.Id, HistoricalImport: true,
+	}}})
+	require.NoError(t, p.Apply(reply, 3))
+	require.Equal(t, 1, p.ThreadMetadata(imported.Id).ReplyCount)
+	require.Equal(t, []string{"REACTOR"}, p.ParticipantIDs(imported.Id))
+	require.False(t, p.HasInteraction("REACTOR", "ROOM", imported.Id))
 	snapshot, err := p.Snapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -44,6 +51,9 @@ func TestThreadProjectionHistoricalImportRetainsMessageIndexWithoutInteraction(t
 	if !ok || rootID != imported.Id || restored.HasInteraction("AUTHOR", "ROOM", imported.Id) {
 		t.Fatal("snapshot changed historical thread state")
 	}
+	require.Equal(t, p.ThreadMetadata(imported.Id), restored.ThreadMetadata(imported.Id))
+	require.False(t, restored.HasInteraction("REACTOR", "ROOM", imported.Id))
+	require.Empty(t, restored.ThreadFollowers("ROOM", imported.Id))
 }
 
 func TestThreadProjectionDMReceivedInteractions(t *testing.T) {

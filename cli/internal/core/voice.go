@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
@@ -286,7 +288,7 @@ func (c *ChattoCore) RecordCallParticipantLeft(ctx context.Context, roomID, user
 	return c.callModel.AppendLeft(ctx, roomID, userID, source)
 }
 
-func (c *ChattoCore) VoiceCallRoomForMember(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
+func (c *ChattoCore) VoiceCallRoomForMember(ctx context.Context, actorID, roomID string) (*readmodel.Room, RoomKind, error) {
 	return c.requireRoomMember(ctx, actorID, roomID)
 }
 

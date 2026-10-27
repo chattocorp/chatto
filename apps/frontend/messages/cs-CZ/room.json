@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Oznámení místnosti",
+      "dismiss": "Zavřít",
+      "body": "Oznámení (Markdown)",
+      "too_long": "Oznámení mohou obsahovat nejvýše {max} znaků včetně bílých znaků.",
+      "help": "Uložte opravy bez opětovného zobrazení oznámení. Oznamte je znovu, aby se zobrazilo členům, kteří je na svých zařízeních zavřeli.",
+      "conflict": "Toto oznámení se během úprav změnilo. Váš koncept zůstává zachován. Podle potřeby jej zkopírujte a před dalším uložením načtěte aktuální oznámení.",
+      "reload": "Načíst aktuální oznámení",
+      "save": "Aktualizovat",
+      "republish": "Oznámit",
+      "clear": "Smazat",
+      "clear_confirm_title": "Smazat oznámení místnosti?",
+      "clear_confirm_description": "Tím okamžitě odstraníte aktivní oznámení pro všechny v místnosti. Vaše neuložené změny nebudou zveřejněny.",
+      "empty": "Nebylo zveřejněno žádné oznámení.",
+      "edit": "Upravit oznámení"
+    },
+    "information": {
+      "description": "Popis",
+      "created": "Vytvořeno",
+      "title": "Informace o místnosti",
+      "basic": "Obecné",
+      "pinned_messages": "Připnuté zprávy"
+    },
     "create": {
       "title": "Vytvořit novou místnost",
       "description": "Místnosti jsou konverzace na vašem serveru.",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "Opustit místnost",
       "action": "Opustit místnost",
-      "prompt": "Opravdu chcete opustit #{room}? Můžete se znovu připojit později.",
-      "failed": "Nepodařilo se opustit místnost"
+      "prompt": "Opravdu chcete opustit #{room}?",
+      "failed": "Nepodařilo se opustit místnost",
+      "join_later": "Můžete se znovu připojit později.",
+      "need_invite": "Pro připojení k této místnosti budete potřebovat novou pozvánku.",
+      "rejoin_unknown": "K opětovnému připojení možná budete potřebovat novou pozvánku."
     },
     "directory": {
       "universal_title": "Univerzální místnosti se spojují automaticky",
@@ -59,7 +85,8 @@
       "join_group_failed": "Připojení ke skupině se nezdařilo",
       "left": "Vlevo #{room}",
       "left_generic": "Levý pokoj",
-      "leave_confirm": "Opravdu chcete opustit #{room}?"
+      "leave_confirm": "Opravdu chcete opustit #{room}?",
+      "invited": "Pozván(a)"
     },
     "server": {
       "remove_title": "Odebrat server",
@@ -73,7 +100,8 @@
       "beginning": "Toto je začátek tohoto rozhovoru.",
       "read_denied": "Nemáte oprávnění číst zprávy v této místnosti.",
       "limited_empty": "Zatím žádné konverzace, které můžete číst.",
-      "loading": "Načítání zpráv..."
+      "loading": "Načítání zpráv...",
+      "load_failed": "Zprávy nelze načíst."
     },
     "message": {
       "empty": "Zatím žádné zprávy",
@@ -259,6 +287,7 @@
     "unread_separator": "Nové zprávy",
     "close_extras": "Zavřít doplňky pokoje",
     "dm": {
+      "deactivated_user_notice": "Tento účet je deaktivován. Uživatel nemůže číst zprávy ani na ně odpovídat.",
       "deleted_user_notice": "Druhý uživatel byl smazán."
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "Na neurčito",
       "remove_title": "Odebrat {user} z místnosti",
       "suspension_period": "Doba pozastavení"
+    },
+    "invitation": {
+      "invite": "Pozvat člena",
+      "invited": "Máte pozvánku",
+      "sent": "Pozvánky odeslány",
+      "expires": "Platí do {date}",
+      "unavailable": "Tuto pozvánku nyní nemůžete přijmout. Stále ji můžete odmítnout.",
+      "accept": "Přijmout pozvánku",
+      "decline": "Odmítnout",
+      "title": "Pozvat členy do #{room}",
+      "description": "Vyberte, koho chcete pozvat. Pozvaní uživatelé obdrží oznámení a budou mít sedm dní na přijetí nebo odmítnutí.",
+      "members": "Členové",
+      "send": "Odeslat pozvánky",
+      "failed": "Nepodařilo se pozvat {name}: {error}",
+      "already_member": "Již je v této místnosti",
+      "invited_by": "Pozvání vám posílá",
+      "decline_title": "Odmítnout pozvánku?",
+      "decline_join_later": "K této místnosti se můžete připojit později.",
+      "decline_need_invite": "Pro připojení k této místnosti budete potřebovat novou pozvánku."
     }
   }
 }

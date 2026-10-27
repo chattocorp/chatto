@@ -52,6 +52,11 @@
       "subtitle": "Serveridentitet, varumärke och meddelanden"
     },
     "members": {
+      "deactivate": "Inaktivera konto",
+      "reactivate": "Återaktivera konto",
+      "deactivate_description": "Användaren kommer inte längre att kunna använda den här servern. Alla sessioner avslutas omedelbart. Alla data bevaras. Du kan återaktivera kontot senare.",
+      "deactivated_description": "Det här kontot är inaktiverat. Efter återaktivering kan användaren logga in igen. Gamla sessioner förblir ogiltiga.",
+      "deactivation_failed": "Det gick inte att ändra kontoåtkomsten.",
       "title": "Medlemmar",
       "subtitle": "Visa och hantera servermedlemmar och deras roller",
       "search": "Sök medlemmar",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Åsidosättningsbehörigheter per rum (lagrat ovanpå rummets grupp)",
       "permissions_page_title": "Behörigheter – {name}",
       "back_to_rooms": "Tillbaka till rummen",
-      "group_permissions_hint": "Åsidosättanden per grupp för kanalrummen i denna grupp. Standardvärden ärvda från serveromfånget. Enskilda rum kan ytterligare åsidosätta behörigheter från sin egen behörighetssida.",
+      "group_permissions_hint": "Ange rollbehörigheter för alla rum i den här gruppen. De ersätter serverns standardvärden. Enskilda rum kan åsidosätta dessa inställningar.",
       "room_permissions_hint": "De här inställningarna gäller bara i det här rummet. De ersätter inställningarna för rumsgruppen och servern för samma roll eller användare. Om bara vissa roller ska kunna göra något här väljer du Neka för everyone och Tillåt för de rollerna.",
       "loading": "Laddar rum...",
       "empty_groups": "Inga rumsgrupper än",

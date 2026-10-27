@@ -147,6 +147,7 @@
       "call": "Rozmowy"
     },
     "permission_help": {
+      "room_manage_notice": "Pozwala członkowi zarządzać ogłoszeniem w aktywnym pokoju kanału, ale nie samym pokojem. Nowe instancje przyznają to uprawnienie tylko roli Admin; aktualizacje zachowują istniejące uprawnienia.",
       "server_manage": "Pozwala kontu zmieniać nazwę, opis, logo i inne ustawienia serwera. Pozwala też zmieniać publiczny katalog sąsiadów. Nadawaj je tylko osobom, które mogą wypowiadać się w imieniu całego serwera.",
       "server_manage_neighbors": "Pozwala kontu dodawać, zmieniać i usuwać wpisy w publicznym katalogu sąsiadów. Nie pozwala zmieniać innych ustawień serwera.",
       "room_create": "Pozwala kontu tworzyć pokoje kanałów. Na poziomie grupy pokoi pozwala tworzyć nowe pokoje tylko w tej grupie.",
@@ -179,7 +180,8 @@
       "call_join": "Pozwala kontu dołączyć do trwającego połączenia, także tylko jako słuchacz. Wysyłanie dźwięku lub obrazu wymaga call.voice, call.camera lub call.screenshare.",
       "call_voice": "Pozwala kontu wysyłać dźwięk z mikrofonu w połączeniach. Bez niego konto może nadal słuchać.",
       "call_camera": "Pozwala kontu wysyłać obraz z kamery w połączeniach.",
-      "call_screenshare": "Pozwala kontu udostępniać ekran, okno, kartę lub aplikację w połączeniach, razem z dźwiękiem. Nie pozwala na dźwięk z mikrofonu; do tego potrzebne jest call.voice."
+      "call_screenshare": "Pozwala kontu udostępniać ekran, okno, kartę lub aplikację w połączeniach, razem z dźwiękiem. Nie pozwala na dźwięk z mikrofonu; do tego potrzebne jest call.voice.",
+      "room_invite": "Zapraszaj członków serwera do pokoi, do których należysz."
     }
   }
 }

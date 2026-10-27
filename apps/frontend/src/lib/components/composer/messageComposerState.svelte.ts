@@ -35,6 +35,7 @@ import type { DraftReplies } from '$lib/state/server/draftReplies';
 const emptyFormattingState: ComposerFormattingState = {
   bold: false,
   italic: false,
+  underline: false,
   inlineCode: false,
   heading: false,
   bulletList: false,
@@ -111,6 +112,8 @@ type MessageComposerDependencies = {
   onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
   getMembers: () => RoomMember[];
+  /** Read current account access state when rendering or selecting a mention. */
+  isUserDeactivated?: (userId: string) => boolean;
   getMentionPriorityUserIds: () => ReadonlySet<string> | undefined;
   membersStore: RoomMembersStore;
   mentionRolesStore: MentionRolesStore;
@@ -220,10 +223,15 @@ export class MessageComposerState {
   }
 
   get mentionCandidates(): RoomMember[] {
-    const members = this.#dependencies.getMembers();
+    const active = (member: RoomMember) =>
+      !(this.#dependencies.isUserDeactivated?.(member.id) ?? member.deactivated);
+    const members = this.#dependencies.getMembers().filter(active);
     if (this.mentionSearchMembers.length === 0) return members;
     const loadedIds = new SvelteSet(members.map((member) => member.id));
-    return [...members, ...this.mentionSearchMembers.filter((member) => !loadedIds.has(member.id))];
+    return [
+      ...members,
+      ...this.mentionSearchMembers.filter((member) => !loadedIds.has(member.id) && active(member))
+    ];
   }
 
   get draftKey(): string {
@@ -250,8 +258,13 @@ export class MessageComposerState {
     );
   }
 
+  /** A send only makes the editor read-only, so it keeps the on-screen keyboard. */
+  get editorEditable(): boolean {
+    return this.#dependencies.getCanPost() || this.isEditing;
+  }
+
   get inputDisabled(): boolean {
-    return this.submission.loading || (!this.#dependencies.getCanPost() && !this.isEditing);
+    return this.submission.loading || !this.editorEditable;
   }
 
   get hasSendableAttachments(): boolean {
@@ -376,6 +389,17 @@ export class MessageComposerState {
   }
 
   handleEditorKeyDown(event: KeyboardEvent): boolean {
+    if (this.submission.loading) {
+      // The editor keeps focus during a send. Swallow plain keys, so they can
+      // neither edit the draft nor start an edit. Let shortcuts, Tab, Escape,
+      // and IME input through.
+      const passThrough =
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        ['Tab', 'Escape'].includes(event.key);
+      return !passThrough;
+    }
     if (this.autocomplete.emoji?.query && this.autocomplete.emojiRef?.handleKeyDown(event)) {
       return true;
     }
@@ -582,8 +606,8 @@ export class MessageComposerState {
       }
       this.#dependencies.context.scrollState.requestScrollToBottom();
       this.#dependencies.context.replyState.cancelReply();
-      // Submission clears loading after this callback. Wait for the editor to
-      // become editable again before restoring the caret for the next message.
+      // Submission clears loading after this callback. Wait for that before
+      // restoring the caret, for example after a send from the focused Send button.
       void tick().then(() => {
         if (
           api &&
@@ -664,7 +688,7 @@ export class MessageComposerState {
     // Keep any draft or edit that has since taken its place.
     if (!saved || this.draftKey !== draftKey || this.editState.eventId !== eventId) return;
     this.cancelEdit();
-    // Submission has cleared loading and the editor is editable again.
+    // Submission has cleared loading, so the editor accepts input again.
     if (api && this.editorApi === api && !this.inputDisabled) {
       api.focus();
     }

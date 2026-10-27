@@ -33,8 +33,6 @@ const { mocks } = vi.hoisted(() => {
       followThread: vi.fn(),
       unfollowThread: vi.fn(),
       setThread: vi.fn(),
-      retainThread: vi.fn(),
-      releaseThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
@@ -269,6 +267,9 @@ function highlight(eventId: string, notificationId: string | null = null) {
   return { roomId: 'room-1', threadRootEventId: 'thread-root', eventId, notificationId };
 }
 
+/** Stores of threads other than the default one, by thread root event ID. */
+const threadStores = new Map<string, ThreadPaneTestStore>();
+
 const threadProps = {
   roomId: 'room-1',
   roomName: 'General',
@@ -290,6 +291,8 @@ describe('ThreadPane', () => {
     localStorage.clear();
     threadPaneWidth.reset();
     mocks.threadStore = new ThreadPaneTestStore();
+    threadStores.clear();
+    threadStores.set('thread-2', new ThreadPaneTestStore());
     // Like the real store, scroll only to a message that the thread window contains.
     mocks.storeJumpToMessage.mockImplementation(async (eventId: string) =>
       mocks.threadStore!.threadEvents.some((event) => event.id === eventId)
@@ -310,10 +313,9 @@ describe('ThreadPane', () => {
         },
         reconcileThreadRead: mocks.reconcileThreadRead,
         rooms: {
-          retainThread: mocks.retainThread,
-          releaseThread: mocks.releaseThread,
-          thread: () =>
-            Object.assign(mocks.threadStore!, {
+          // Like the registry, return one store for each thread.
+          thread: (_roomId: string, threadRootEventId: string) =>
+            Object.assign(threadStores.get(threadRootEventId) ?? mocks.threadStore!, {
               isLoadingMore: false,
               hasReachedStart: true,
               setThread: mocks.setThread,
@@ -812,42 +814,6 @@ describe('ThreadPane', () => {
 
     rendered.unmount();
     expect(mocks.restoreLatestWindow).toHaveBeenCalledTimes(4);
-  });
-
-  it('retains decrypted thread history only for the mounted pane lifetime', async () => {
-    const rendered = render(ThreadPane, {
-      props: {
-        roomId: 'room-1',
-        roomName: 'General',
-        threadRootEventId: 'thread-root',
-        onClose: mocks.onClose
-      }
-    });
-
-    await vi.waitFor(() => expect(mocks.retainThread).toHaveBeenCalledOnce());
-    const mountedStore = mocks.threadStore;
-    expect(mocks.retainThread).toHaveBeenCalledWith('room-1', 'thread-root', mountedStore);
-
-    rendered.unmount();
-    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', mountedStore);
-  });
-
-  it('releases decrypted thread history through the store that retained it', async () => {
-    const rendered = render(ThreadPane, {
-      props: {
-        roomId: 'room-1',
-        roomName: 'General',
-        threadRootEventId: 'thread-root',
-        onClose: mocks.onClose
-      }
-    });
-
-    await vi.waitFor(() => expect(mocks.retainThread).toHaveBeenCalledOnce());
-    const retainedStore = mocks.threadStore;
-    expect(mocks.releaseThread).not.toHaveBeenCalled();
-
-    rendered.unmount();
-    expect(mocks.releaseThread).toHaveBeenCalledWith('room-1', 'thread-root', retainedStore);
   });
 
   it('does not jump to a highlight that is cleared before it starts', async () => {

@@ -71,6 +71,15 @@ message CreateMessageRequest {
   repeated MessageAttachmentDescriptionInput attachment_descriptions = 12 [(buf.validate.field).repeated = {
     max_items: 10
   }];
+  // Optional caller-generated UUID for this send. Reuse it with the same room
+  // and request when a response is lost. For 30 minutes after first acceptance,
+  // an exact retry returns the same message ID; changed arguments are rejected.
+  // Retries do not extend this period. After expiry, the key can be used again.
+  // Omit the key for ordinary posting without duplicate protection.
+  optional string idempotency_key = 13 [(buf.validate.field).string = {
+    len: 36
+    uuid: true
+  }];
 }
 
 // Result of creating a message.

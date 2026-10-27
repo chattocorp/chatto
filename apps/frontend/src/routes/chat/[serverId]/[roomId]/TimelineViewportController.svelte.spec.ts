@@ -33,6 +33,21 @@ describe('TimelineViewportController', () => {
     expect(controller.isUnreadEntryLandingRunning).toBe(false);
   });
 
+  it('lands like a new entry after a retry', () => {
+    const controller = new TimelineViewportController();
+    controller.enterRoom('R1');
+    // The pointer press on Retry reaches the scroll container first.
+    controller.markUserScrollIntent();
+    controller.stopFollowingBottom();
+    controller.initialScrollDone = true;
+
+    controller.retryEntry();
+
+    expect(controller.shouldScrollToBottom).toBe(true);
+    expect(controller.initialScrollDone).toBe(false);
+    expect(controller.beginUnreadEntryLanding('R1')).toBe(true);
+  });
+
   it('skips the landing for an entry that targets a message', () => {
     const controller = new TimelineViewportController();
     controller.enterRoom('R1');

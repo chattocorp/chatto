@@ -25,6 +25,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { tags } from '@lezer/highlight';
   import { Table } from '@lezer/markdown';
   import { sourceAutolinks } from './sourceAutolinks';
+  import { sourceEmphasisHighlighting, sourceEmphasisSyntax } from './sourceEmphasisHighlighting';
   import { sourceLinkHighlighting, sourceLinkSyntax } from './sourceLinkHighlighting';
   import { m } from '$lib/i18n/messages';
   import { codeFenceHighlighting } from './codeFenceHighlighting';
@@ -42,6 +43,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   const emptyFormattingState: ComposerFormattingState = {
     bold: false,
     italic: false,
+    underline: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -59,6 +61,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     editorView: EditorView,
     command: ComposerFormattingCommand
   ): boolean => {
+    if (editorView.state.readOnly) return false;
     const main = editorView.state.selection.main;
     const result = applySourceFormatting(
       editorView.state.doc.toString(),
@@ -75,19 +78,13 @@ the same API as the visual editor while keeping the stored Markdown visible.
   };
 
   const markdownHighlightStyle = HighlightStyle.define([
-    { tag: tags.heading, color: 'var(--color-text)', fontWeight: '600' },
-    { tag: tags.strong, fontWeight: '700' },
-    { tag: tags.emphasis, fontStyle: 'italic' },
-    { tag: [tags.link, tags.url], color: 'var(--color-link)', textDecoration: 'underline' },
-    { tag: tags.list, color: 'var(--color-text)' },
-    { tag: tags.quote, color: 'var(--color-muted)' },
-    {
-      tag: tags.monospace,
-      color: 'var(--color-text)',
-      backgroundColor: 'var(--color-surface-emphasized)',
-      fontFamily: 'var(--font-mono)'
-    },
-    { tag: [tags.processingInstruction, tags.punctuation], color: 'var(--color-muted)' }
+    { tag: tags.heading, class: 'cm-format-heading' },
+    { tag: tags.strong, class: 'cm-format-strong' },
+    { tag: tags.emphasis, class: 'cm-format-emphasis' },
+    { tag: [tags.link, tags.url], class: 'cm-format-link' },
+    { tag: tags.quote, class: 'cm-format-quote' },
+    { tag: tags.monospace, class: 'cm-format-code' },
+    { tag: [tags.processingInstruction, tags.punctuation], class: 'cm-format-marker' }
   ]);
 
   const markdownTheme = EditorView.theme({
@@ -112,7 +109,6 @@ the same API as the visual editor while keeping the stored Markdown visible.
       caretColor: 'var(--color-text)'
     },
     '.cm-line': { padding: '0' },
-    '.cm-link-label': { color: 'var(--color-link)', textDecoration: 'underline' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
     // Firefox positions the native caret against the buffer before the placeholder.
     // Keep that buffer on the text baseline when the editor is empty.
@@ -175,6 +171,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   let {
     placeholder = m('composer.placeholder'),
     editable = true,
+    readOnly = false,
     autofocus = false,
     testid,
     onUpdate,
@@ -192,7 +189,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     const editableCompartment = new Compartment();
     const placeholderCompartment = new Compartment();
     const attributesCompartment = new Compartment();
-    const initial = untrack(() => ({ editable, placeholder, testid, autofocus }));
+    const initial = untrack(() => ({ editable, readOnly, placeholder, testid, autofocus }));
     let destroyed = false;
     let suppressUpdate = false;
 
@@ -204,6 +201,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
           keymap.of([
             { key: 'Mod-b', run: (view) => toggleSourceFormatting(view, 'bold') },
             { key: 'Mod-i', run: (view) => toggleSourceFormatting(view, 'italic') },
+            { key: 'Mod-u', run: (view) => toggleSourceFormatting(view, 'underline') },
             {
               key: '`',
               run: (view) =>
@@ -214,19 +212,20 @@ the same API as the visual editor while keeping the stored Markdown visible.
           ]),
           markdown({
             base: commonmarkLanguage,
-            extensions: [Table, sourceAutolinks, sourceLinkSyntax],
+            extensions: [Table, sourceAutolinks, sourceLinkSyntax, sourceEmphasisSyntax],
             completeHTMLTags: false,
             pasteURLAsLink: true
           }),
           syntaxHighlighting(markdownHighlightStyle),
           sourceLinkHighlighting,
+          sourceEmphasisHighlighting,
           codeFenceHighlighting,
           markdownTheme,
           EditorView.lineWrapping,
           EditorView.perLineTextDirection.of(true),
           editableCompartment.of([
             EditorView.editable.of(initial.editable),
-            EditorState.readOnly.of(!initial.editable)
+            EditorState.readOnly.of(!initial.editable || initial.readOnly)
           ]),
           placeholderCompartment.of(editorPlaceholder(initial.placeholder)),
           attributesCompartment.of(contentAttributes(initial.placeholder, initial.testid)),
@@ -237,8 +236,9 @@ the same API as the visual editor while keeping the stored Markdown visible.
                 event.preventDefault();
                 return true;
               },
-              paste: (event) => {
-                if (!onPaste?.(event)) return false;
+              paste: (event, view) => {
+                // The Markdown paste-as-link handler ignores the read-only state.
+                if (!view.state.readOnly && !onPaste?.(event)) return false;
                 event.preventDefault();
                 return true;
               }
@@ -357,7 +357,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       editorView.dispatch({
         effects: editableCompartment.reconfigure([
           EditorView.editable.of(editable),
-          EditorState.readOnly.of(!editable)
+          EditorState.readOnly.of(!editable || readOnly)
         ])
       });
     });

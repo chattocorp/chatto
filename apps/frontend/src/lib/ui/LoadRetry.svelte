@@ -1,8 +1,9 @@
 <!--
 @component
-Fallback for a lazily loaded part of the interface that failed to load. It
-shows a message and a Retry button. Pass `secondaryAction` for one more
-button, such as one that closes the failed pane.
+Fallback for a part of the interface that failed to load, such as a lazily
+loaded component or a message timeline. It shows a message and a Retry button.
+Pass `secondaryAction` for one more button, such as one that closes the failed
+pane.
 
 It imports `Button` directly, not through `$lib/ui/form`, so deferred room
 bundles do not load the complete form barrel.

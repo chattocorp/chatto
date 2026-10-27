@@ -24,6 +24,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Server Sidebar** — The wider sidebar to the right of the Server Gutter. It controls the position, mobile slide, size, and current-user footer of a server pane. App Preferences uses the same shell without the server footer. The sidebar contains the server banner and room list, the unified Settings navigation, or the App Preferences navigation. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
 
+**Room invitation** — A request for an existing human server member to join a channel room. It appears in the room list and welcome screen, expires after seven days, and grants membership only after acceptance. It is distinct from a server invite link. See [FDR-051](fdr/FDR-051-room-invitations.md).
+
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — _Room View_ is the canonical name.
 
 **Message Header** — Line above a non-compact message body that contains the author identity, time, and other message metadata.
@@ -43,6 +45,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 **Pane Header** — The top bar of a content pane (Room View, settings page, admin page, etc.). Carries the title, optional subtitle, optional back arrow, and icon-only action buttons via the `actions` snippet. Chunky labelled buttons belong in the body, not here. See [`AGENTS.md`](../AGENTS.md).
 
 **Quick Switcher** — Cmd-K / Ctrl-K palette for jumping between rooms, DMs, servers, and admin pages. Distinct from the Server Gutter — both let you change server, but the Quick Switcher is keyboard-first and searchable. See [FDR-015](fdr/FDR-015-quick-switcher.md).
+
+**About** — Public Markdown text on a human or bot account's profile. The API field is `bio`. See [FDR-022](fdr/FDR-022-user-profile.md).
 
 **Profile Card** — Compact user profile shown in a popover on pointer devices or a bottom sheet on touch devices. It contains public identity details and relevant actions. See [FDR-022](fdr/FDR-022-user-profile.md).
 
@@ -76,6 +80,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **MCP scope** — OAuth grant ceiling for one class of MCP tools, such as `chatto:rooms:read` or `chatto:messages:write`. It limits delegated agent authority in addition to normal Chatto permissions and resource visibility. It is not an RBAC permission.
 
+**Deactivated account** — An account that retains its data and assigned roles but cannot use the server. Reactivation permits new sign-ins; old human sessions stay invalid. See [FDR-018](fdr/FDR-018-account-lifecycle.md).
+
 **Bot account** — Passwordless user identity for an integration, explicitly owned by a human and marked as a bot. It receives only directly configured permissions, capped by the owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
 **Bot API key** — One of a bot account's named, non-expiring bearer credentials. Chatto shows the raw key only when it creates the key and stores only its durable verifier. Each key can be revoked independently. See [FDR-038](fdr/FDR-038-bot-accounts.md).
@@ -94,6 +100,8 @@ another address does not change the selection. See
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Room** — A channel or DM. Where messages live. Identified by `(serverId, roomId)`.
+
+**Room notice** — One current Markdown notice for a channel room's members. A correction preserves device-local dismissals; explicit republishing makes the notice appear again. See [FDR-054](fdr/FDR-054-room-notices.md).
 
 **Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
 
@@ -125,7 +133,7 @@ another address does not change the selection. See
 
 **Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-077](adr/ADR-077-persistent-notification-list.md).
 
-**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Badge, Notification, or Push notification. Badge adds only a neutral unread dot. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Unread dot, In-app notification, or Push notification. Unread dot adds only a neutral unread dot. In-app notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Push Subscription** — One browser's Web Push registration for one account on one server, stored by that server. Each server has its own subscription in each browser. A subscription expires 180 days after its most recent save; the client saves it again while the device uses Chatto. See [FDR-013](fdr/FDR-013-web-push-notifications.md).
 
@@ -158,6 +166,8 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 **Permission** — Capability gate with an opaque, stable identifier, for example `message.post` or `role.assign`. Punctuation does not define authority. The catalog in `cli/internal/core/permission.go` defines scope and explicit inclusion.
 
 **Privileged Mode** — Explicit, fixed 15-minute activation of the elevation-required permissions that a human is currently entitled to use on one server session. For an effective owner, it also activates the owner override. It does not grant a role or permission. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
+
+**Shield Mode** — User-facing name for Privileged Mode, controlled by the shield button for the current server. It temporarily activates eligible permissions and the effective-owner override for that session. See [FDR-046](fdr/FDR-046-privileged-mode.md).
 
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 
@@ -219,6 +229,15 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 **Event** — `evtv1.Event` envelope and payload that describe one durable Chatto
 domain fact. EVT stores this value. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
+
+**Interchange archive** — Portable catalogs, an ordered event file, and local
+asset bytes for transferring supported channel history. Its draft contract is
+separate from EVT and server backups. See [the format specification](interchange/v1.md).
+
+**Interchange event** — A source historical fact or an explicit final-state
+snapshot in an interchange archive. Historical facts retain known occurrence
+times. Snapshots preserve state without inventing timeline activity. They are
+not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 

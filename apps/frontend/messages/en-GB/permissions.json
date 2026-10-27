@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publish, correct, republish, and clear room notices",
       "server_manage": "Update server settings (name, description, logo)",
       "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Create new rooms",
@@ -34,7 +35,8 @@
       "call_join": "Join an active call",
       "call_voice": "Use the microphone in calls",
       "call_camera": "Use the camera in calls",
-      "call_screenshare": "Share a screen or application, including captured audio"
+      "call_screenshare": "Share a screen or application, including captured audio",
+      "room_invite": "Invite server members to rooms that you have joined"
     }
   }
 }

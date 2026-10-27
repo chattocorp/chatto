@@ -18,11 +18,6 @@ export async function loadAccountMemberships(
 ): Promise<MatrixData & Pick<UserPermissionMatrix, 'userId'>> {
   const scopes: MatrixScope[] = matrix.scopes.map((scope) => ({ ...scope }));
   const roomScopes = scopes.filter((scope) => scope.kind === 'ROOM');
-  const joinableScopes = new Set(
-    matrix.cells
-      .filter((cell) => cell.permission === 'room.join' && cell.effective === 'ALLOW')
-      .map((cell) => cell.scopeId)
-  );
   const directory = connection.getAPI(createRoomDirectoryAPI);
   const members = connection.getAPI(createMemberDirectoryAPI);
   // RoomDirectory's batch contract accepts at most 100 room IDs.
@@ -46,12 +41,17 @@ export async function loadAccountMemberships(
           const joined =
             (await members.batchGetRoomMembers(roomID, [matrix.userId], { signal })).length > 0;
           const manager = canManageAccounts || room.canManageRoom;
-          const allowed = joinableScopes.has(scope.id);
+          // Adding a bot uses the acting human's authority, not the bot's grants.
+          // canRejoin also covers humans who are already room members.
+          const actorCanJoin = room.canRejoin ?? room.canJoinRoom;
           scope.membership = {
             joined,
             automatic: room.isUniversal,
             canJoin:
-              !joined && !room.isUniversal && !room.archived && (manager || (isBot && allowed)),
+              !joined &&
+              !room.isUniversal &&
+              !room.archived &&
+              (manager || (isBot && actorCanJoin)),
             canLeave: joined && !room.isUniversal && (manager || isBot)
           };
         } catch (error) {

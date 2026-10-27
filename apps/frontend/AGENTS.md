@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `apps/frontend/`
 
-Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Lingua JSON i18n,
+Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Translatto JSON i18n,
 generated protobuf clients, Vitest browser tests, Playwright end-to-end tests,
 and Storybook.
 
@@ -272,7 +272,7 @@ behavior. Apply those rules when choosing an implementation too.
   correct in that locale, add the key and locale to
   `src/lib/i18n/identicalTranslations.ts`.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
-  JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
+  JSON runtime in `packages/translatto` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
   English source for shared sections is bundled as the synchronous fallback.
   Management-only sections (`admin`, `rbac`, and `server_settings`) load on

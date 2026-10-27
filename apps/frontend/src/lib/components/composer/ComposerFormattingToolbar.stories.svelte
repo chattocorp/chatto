@@ -17,6 +17,7 @@
   let formattingState = $state<ComposerFormattingState>({
     bold: true,
     italic: false,
+    underline: true,
     inlineCode: false,
     heading: false,
     bulletList: false,

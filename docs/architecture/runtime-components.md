@@ -1,5 +1,11 @@
 # Runtime Component Inventory
 
+The core [archive importer](../../cli/internal/core/interchange_import.go) owns
+portable archive validation, name mapping, native event construction, and
+durable progress. It runs on operator requests, uses existing user, room,
+encryption, and attachment services, and reads its EVT receipts on resume.
+It adds no background worker or runtime unit.
+
 This file lists the server-side components of the Chatto process: the core
 facade, runtime units, models, publishers, and workers. It does not list
 client runtimes (the bundled frontend, the desktop and mobile shells, and
@@ -43,6 +49,20 @@ listener address, and total startup duration. Optional runtime units and
 automatic TLS certificate issuance do not gate this message. If any listener
 cannot bind, startup closes the listeners already opened and does not log
 readiness. Shutdown and serve failures close all HTTP servers.
+
+The HTTP server owns a process-local
+[`imageTransforms`](../../cli/internal/http_server/image_transforms.go)
+coordinator for uncached image derivatives. It shares work for the same
+derivative and admits distinct operations before they open source files.
+Source admission covers reads, waits for the pixel budget, and transformation;
+the operation releases its slot when it returns. These memory controls are
+ephemeral and independent on each replica. Cache hits bypass the coordinator.
+See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
+
+The shared asset image decoder also accepts HEIC still images. Public and
+Operator uploads use header inspection; the image transform coordinator owns
+preview decoding. Original HEIC bytes remain in attachment storage. HEIC
+sequence containers are rejected before pixel decoding.
 
 INFO projection summaries report the projection name, rounded startup
 duration, replayed message count, restore source, and final sequence. Each
@@ -92,7 +112,9 @@ operations do not duplicate these outcomes.
   `search.BleveProvider`, started by `[search_provider].enabled` under
   `chatto run` or as `chatto search-provider`; opens existing EVT and encryption
   resources without starting `ChattoCore`, exposes status during startup replay,
-  and joins the shared query queue only after replay is current.
+  and joins the shared query queue only after replay is current. After query and
+  status endpoints are registered, it logs `stage=service_ready`; the operator's
+  standalone search wrapper uses this field to mark the pod ready.
 - **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
@@ -188,6 +210,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`notification_badge_sources.go`](../../cli/internal/core/notification_badge_sources.go),
   [`notification_projection.go`](../../cli/internal/core/notification_projection.go),
   [`notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
+  [`notification_invitations.go`](../../cli/internal/core/notification_invitations.go),
   [`notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go),
   [`notification_alert_delivery.go`](../../cli/internal/core/notification_alert_delivery.go),
   [`stream.go`](../../cli/internal/notificationstream/stream.go)):
@@ -195,7 +218,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   signal class; materialization-time Ambient/Important classification
   independent from delivery mode; deterministic recipient/source/signal
   identity; durable rich mention causes; root channel-message delivery to
-  current members with `message.read`; Badge attention computed when it is read
+  current members with `message.read`; a separate durable invitation consumer
+  creates room-targeted attention for eligible pending recipients and removes
+  it after acceptance or decline; invitation expiry bounds its visible lifetime;
+  Badge attention computed when it is read
   from the decision projection's Badge source index, current visibility, and
   read boundaries (ADR-109), with hints only when a source turns attention on; a
   compact current-state decision projection; direct double-ack derivation from
@@ -477,3 +503,9 @@ grants guarded by the complete RBAC subject tail. The same startup step also
 applies the 0.5 upgrade grants (ADR-113). It reads historical decisions so a
 cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
+
+## Room invitations
+
+`RoomInvitationModel` owns participant reads and invitation commands. It uses
+the room aggregate for creation and responses. Acceptance commits membership
+in the same atomic batch. See [FDR-051](../fdr/FDR-051-room-invitations.md).

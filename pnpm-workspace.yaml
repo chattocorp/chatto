@@ -11,6 +11,7 @@ allowBuilds:
   '@tailwindcss/oxide': false
   '@google/genai': false
   protobufjs: false
+  electron-winstaller: false
 
 minimumReleaseAgeExclude:
   - virtua@0.53.4

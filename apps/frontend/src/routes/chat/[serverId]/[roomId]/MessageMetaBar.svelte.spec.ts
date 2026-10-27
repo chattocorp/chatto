@@ -170,12 +170,12 @@ describe('MessageMetaBar', () => {
     expect(link.textContent?.trim()).toContain('Thread');
   });
 
-  it('uses a neutral dot for Badge unread and lets notification orange win', () => {
+  it('uses a neutral dot for unread activity and lets notification orange win', () => {
     const badge = render(MessageMetaBar, {
       props: { ...baseProps, replyCount: 1, hasThreadUnread: true }
     });
     const badgeDot = q(badge.container, '[data-testid="thread-unread-dot"]')!;
-    expect(badgeDot.classList).toContain('bg-neutral-action');
+    expect(badgeDot.classList).toContain('bg-text');
     expect(q(badge.container, '[data-testid="thread-notification-dot"]')).toBeNull();
     badge.unmount();
 

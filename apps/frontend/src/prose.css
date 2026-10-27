@@ -132,6 +132,13 @@
     font-style: italic;
   }
 
+  /* Emphasis reverses the quote's italics; code stays upright. */
+  & blockquote em,
+  & blockquote code,
+  & blockquote pre {
+    font-style: normal;
+  }
+
   & blockquote > * {
     margin-block: 0;
   }
@@ -173,6 +180,20 @@
   & pre.markdown-code > .markdown-code-actions {
     @apply absolute right-0 bottom-0 z-10 flex items-center gap-1.5 rounded-tl-md bg-surface-emphasized px-2 py-1;
     white-space: normal;
+  }
+
+  /* ANSI art uses terminal cell spacing and a fixed palette in both themes. */
+  & pre.markdown-ansi {
+    background: #000;
+    color: #aaa;
+    line-height: 1;
+    font-variant-ligatures: none;
+  }
+
+  & pre.markdown-ansi > code {
+    max-height: 32rem;
+    overflow: auto;
+    white-space: pre;
   }
 
   & pre.markdown-code .markdown-code-language {

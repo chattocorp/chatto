@@ -17,11 +17,11 @@ const expected = readdirSync(messages).filter((locale) =>
   )
 );
 const management = new Set(
-  Object.keys(manifest).filter((key) => /^lingua-.+-management$/.test(manifest[key].name))
+  Object.keys(manifest).filter((key) => /^translatto-.+-management$/.test(manifest[key].name))
 );
 for (const locale of expected) {
   assert.ok(
-    [...management].some((key) => manifest[key].name === `lingua-${locale}-management`),
+    [...management].some((key) => manifest[key].name === `translatto-${locale}-management`),
     `${locale} must have a separate management translation payload`
   );
 }

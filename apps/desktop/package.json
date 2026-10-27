@@ -1,17 +1,22 @@
 {
   "name": "chatto-desktop",
   "productName": "Chatto Desktop",
-  "version": "0.1.0-alpha.2",
+  "description": "Chatto Desktop",
+  "author": "ChattoCorp GmbH",
+  "homepage": "https://chatto.run",
+  "version": "0.5.0-beta.21",
   "private": true,
   "type": "module",
   "main": "main.mjs",
   "scripts": {
+    "build:windows-installer": "node scripts/windows-installer.mjs",
     "build": "install-electron && node scripts/build.mjs",
     "check": "node --check main.mjs && node --check preload.cjs && node --check frontend_protocol.mjs && node --check game_capture.mjs && node --check scripts/build.mjs && node --check scripts/macos-capture-helper.mjs && node --test",
     "dev": "electron ."
   },
   "devDependencies": {
     "@electron/packager": "20.2.0",
-    "electron": "43.3.0"
+    "electron": "43.3.0",
+    "electron-builder": "26.18.0"
   }
 }

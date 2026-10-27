@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -34,11 +36,11 @@ func requireConnectCode(t testing.TB, err error, want connect.Code) {
 	}
 }
 
-func withCaller(ctx context.Context, user *evtv1.User) context.Context {
+func withCaller(ctx context.Context, user *readmodel.User) context.Context {
 	return authn.SetInfo(ctx, Caller{UserID: user.Id})
 }
 
-func withBearerCredential(ctx context.Context, user *evtv1.User, token string) context.Context {
+func withBearerCredential(ctx context.Context, user *readmodel.User, token string) context.Context {
 	ctx = withCaller(ctx, user)
 	return authctx.WithCredential(ctx, authctx.RuntimeCredential{
 		Kind:   authctx.RuntimeCredentialKindBearerToken,
@@ -47,7 +49,7 @@ func withBearerCredential(ctx context.Context, user *evtv1.User, token string) c
 	})
 }
 
-func withArmedBearerCredential(ctx context.Context, user *evtv1.User, token string) context.Context {
+func withArmedBearerCredential(ctx context.Context, user *readmodel.User, token string) context.Context {
 	ctx = withCaller(ctx, user)
 	return authctx.WithCredential(ctx, authctx.RuntimeCredential{
 		Kind:                    authctx.RuntimeCredentialKindBearerToken,
@@ -127,7 +129,7 @@ type connectAPITestEnv struct {
 	users                *userService
 	viewerService        *viewerService
 	voice                *voiceCallService
-	viewer               *evtv1.User
+	viewer               *readmodel.User
 }
 
 func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
@@ -256,7 +258,7 @@ func apiPermissionGranted(grants []*apiv1.PermissionGrant, permission string) bo
 	return false
 }
 
-func (e *connectAPITestEnv) createJoinedRoom(name string) *evtv1.Room {
+func (e *connectAPITestEnv) createJoinedRoom(name string) *readmodel.Room {
 	room, err := e.core.CreateRoom(e.ctx, e.viewer.Id, core.KindChannel, "", name, "")
 	if err != nil {
 		panic(err)

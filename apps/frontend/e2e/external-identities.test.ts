@@ -224,7 +224,7 @@ test.describe('External identity confirmation flows', () => {
     ).toBeVisible();
     await expect(
       page.getByText(
-        'GitHub is your only sign-in method. Add a password or link another provider first.'
+        'Set up another sign-in method supported by this server before disconnecting GitHub.'
       )
     ).toBeVisible();
     expect(disconnectRequestCount).toBe(0);

@@ -64,7 +64,7 @@ func TestCompoundRoomUpdateRejectsEveryPartialBatch(t *testing.T) {
 			require.Equal(t, beforeSeq, afterSeq, "a rejected batch must not persist any room field")
 			after, err := core.GetRoom(ctx, KindChannel, room.Id)
 			require.NoError(t, err)
-			require.True(t, proto.Equal(before, after))
+			require.Equal(t, before, after)
 		})
 	}
 }

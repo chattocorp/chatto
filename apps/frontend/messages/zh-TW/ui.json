@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "正在載入...",
       "empty": "找不到相符項目",
-      "clear": "清除"
+      "clear": "清除",
+      "remove": "移除 {label}"
     },
     "expiry": {
       "24h": "24 小時",

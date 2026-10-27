@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publiser, rett, kunngjør på nytt og fjern romkunngjøringer",
       "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
       "server_manage_neighbors": "Administrer den offentlige nabokatalogen",
       "room_create": "Opprett nye rom",
@@ -34,7 +35,8 @@
       "call_join": "Bli med i en pågående samtale",
       "call_voice": "Bruke mikrofonen i samtaler",
       "call_camera": "Bruke kameraet i samtaler",
-      "call_screenshare": "Dele en skjerm eller et program, inkludert innspilt lyd"
+      "call_screenshare": "Dele en skjerm eller et program, inkludert innspilt lyd",
+      "room_invite": "Inviter servermedlemmer til rom du har blitt med i"
     }
   }
 }

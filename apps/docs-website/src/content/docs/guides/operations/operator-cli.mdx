@@ -25,6 +25,53 @@ The socket mode is always `0600`. Its parent directory must be owned by the Chat
   Anyone who can access the operator socket can create accounts, set passwords, assign roles, and delete accounts. Never publish the socket over TCP or mount it into an untrusted container.
 </Aside>
 
+## Import a portable archive
+
+The draft v1 importer accepts a directory in Chatto's interchange format.
+It does not accept a Slack export directly.
+
+```sh
+chatto operator import ./archive --validate-only \
+  --channel-prefix old- --username-suffix -imported
+
+chatto operator import ./archive --accept-omissions \
+  --channel-prefix old- --username-suffix -imported
+```
+
+Validation checks local files and destination compatibility without writes.
+The server must be running with the Operator API enabled. Both commands use the
+same naming options. Channel and username prefixes and suffixes are optional;
+defaults preserve source names. Invalid names and collisions stop validation.
+
+Start with a destination that has no messages. Existing accounts are permitted.
+Existing empty channels are permitted if their names do not collide. Keep the
+destination unused until import completes. To resume after a failure, repeat
+the command with the same archive and options. Progress is stored on the server
+without an expiry. Changed input cannot resume an existing import. Unrelated
+server changes stop an unfinished import. A completed import can be repeated
+without duplicates.
+
+The first version supports public channels, active human users, known message
+creation times, and available local files. New accounts require usernames.
+It preserves edits, threads, reactions, tombstone snapshots, and membership
+history. Final membership does not create invented join notices. Files must
+belong to one message; original bytes are stored without starting derivative
+media processing. Unsupported data fails validation. The initial limits are
+64 MiB total, 20,000 JSON records, and 1 MiB per record.
+
+Email addresses match existing accounts after trimming whitespace and ignoring
+case. Matched accounts keep their usernames, profiles, and credentials; naming
+prefixes and suffixes apply only to new accounts. Source records sharing emails
+resolve to one account. For a new account, the first record supplies the profile.
+If emails point to different existing accounts, validation fails.
+
+The importer trusts the archive's email claims and adds unowned addresses as
+verified emails. They can enable the configured email sign-in flow. It creates
+no passwords. Accounts without emails need access configured separately.
+The importer does not send historical notifications or fetch source
+URLs. Files go to the configured attachment store, including S3 when enabled.
+Declared losses require `--accept-omissions`. Generic export is not available yet.
+
 ## Create a user
 
 <Steps>
@@ -177,7 +224,43 @@ The command prints the new Chatto message ID. Use `--json` to read `messageId` i
 
 Use `--edited-at RFC3339` to preserve the last edit time. Use `--in-reply-to CHATTO_MESSAGE_ID` to refer to an existing message in the same room. A reply reference does not create a Chatto thread. To preserve an exported preview, use `--preview-url URL` with optional `--preview-title`, `--preview-description`, and `--preview-type` fields. The URL must use HTTP or HTTPS. Chatto stores these values without fetching the URL.
 
-The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. Update all server replicas before you start an import so each replica recognizes historical messages. The command does not require a user session or room membership. Each successful call creates a new message. Save the returned ID in your import script so a retry does not create a duplicate.
+The room must be an active channel, and the author must exist. Attached assets must belong to that author and room. Chatto encrypts the body and applies its normal message and attachment limits. Historical imports do not notify users, mark messages unread, follow threads, or send bot webhooks. The command does not require a user session or room membership.
+
+For safe retries, supply `--idempotency-key UUID` and retain the same UUID and arguments for that message. Exact retries return the original message ID for 30 minutes after the server first accepts the key. Changed arguments conflict, and retries do not extend the window. A completed retry returns the original ID even after the message is retracted or its channel archived. Without a key, each successful call creates a new message.
+
+Use `--deleted` to import an already deleted message as a native tombstone. Omit body, attachments, preview, and edit time. The original creation time and author remain; Chatto records the retraction at import time because the source deletion time is unknown. You can combine `--deleted` with `--create-thread` or `--thread-id`. Historical replies can target a deleted root. Upgrade all server replicas before using deleted imports.
+
+Tombstone retractions use ordinary live delivery and reconnect replay. Connected clients can receive deletion updates during import.
+
+Save the UUID and first-attempt time before sending, and save the returned message ID. Stop retries before 30 minutes; after expiry the same UUID can create another message. Reconcile an older uncertain result manually. Finish upgrading all replicas to support import keys before relying on this guarantee: older servers can ignore the field.
+
+To establish an empty thread on a new root, add `--create-thread`. To import a reply inside a thread, use the existing root's ID:
+
+```sh
+chatto operator message import \
+  --room-id ROOM_ID --author-id USER_ID \
+  --created-at 2022-08-19T11:11:11.147Z \
+  --thread-id ROOT_MESSAGE_ID \
+  --body-file /path/to/exported-reply.txt
+```
+
+The thread ID is its root message ID. The reply establishes the thread if necessary. Do not combine `--create-thread` with `--thread-id`. The root must be a message in the same room, not another reply or a channel echo. Imported placement is independent of the room's interactive threading mode. A thread reply does not also appear in the channel timeline. `--in-reply-to` remains a separate reply reference and does not select a thread.
+
+## Import a historical reaction
+
+```sh
+chatto operator message import-reaction \
+  --room-id ROOM_ID --message-event-id MESSAGE_ID \
+  --user-id USER_ID --emoji heart --json
+```
+
+The user and message must exist in the specified active channel. The user does not need room membership. Use a supported emoji shortcode, such as `heart`. A channel echo ID resolves to its original thread reply.
+
+Historical reactions can also target deleted messages. They remain visible on the native tombstone. Upgrade all replicas before importing reactions on deleted messages.
+
+The response has `added: true` for a new reaction. For an existing reaction, `added` is false (the JSON field can be omitted). Repeating the same user/message/emoji is safe, including after a lost response. Imports bypass the interactive per-user reaction-count limit and do not create notifications, unread activity, or live reaction frames. The mapped user can remove the reaction normally when they have access.
+
+No source reaction timestamp is required. The event records the import time. Before the first reaction import, finish updating all replicas to a version that supports this command. Earlier binaries cannot preserve the mapped reactor or suppress historical reaction activity; do not serve this imported state with an earlier binary.
 
 ## Update a user
 

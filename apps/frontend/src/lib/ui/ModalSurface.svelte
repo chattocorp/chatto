@@ -17,6 +17,7 @@ the handle claims drag gestures; content retains native scrolling.
     describedBy,
     ariaLabel,
     autofocusContent = false,
+    oncloserequest,
     onclose,
     onkeydown,
     children
@@ -28,6 +29,8 @@ the handle claims drag gestures; content retains native scrolling.
     describedBy?: string;
     ariaLabel?: string;
     autofocusContent?: boolean;
+    /** Runs when dismissal starts, before the closing animation. */
+    oncloserequest?: () => void;
     onclose?: () => void;
     onkeydown?: (event: KeyboardEvent) => void;
     children: Snippet<[close: () => void, handle: Snippet]>;
@@ -119,6 +122,7 @@ the handle claims drag gestures; content retains native scrolling.
     closing = true;
     // Also close when an animation is disabled or interrupted.
     closeTimer = setTimeout(() => dialogEl?.close(), sheet ? 350 : 100);
+    oncloserequest?.();
   }
 
   function nativeClose() {
@@ -194,7 +198,12 @@ the handle claims drag gestures; content retains native scrolling.
   {@attach syncVisibility}
   {@attach viewport}
   onclose={nativeClose}
-  {onkeydown}
+  onkeydown={(event) => {
+    // Keep Escape inside this modal. Descendants can cancel it to dismiss a
+    // dropdown; otherwise the browser sends the native dialog cancel event.
+    if (event.key === 'Escape') event.stopPropagation();
+    onkeydown?.(event);
+  }}
   oncancel={(event) => {
     event.preventDefault();
     if (

@@ -6,6 +6,8 @@
       "confirmation": "لمدة 15 دقيقة، يؤدي هذا إلى تفعيل الأذونات الإضافية المعيّنة لك على هذا الخادم."
     },
     "notifications": {
+      "next_unread_source": "انتقل إلى المصدر التالي غير المقروء",
+      "no_unread": "لا توجد إشعارات غير مقروءة",
       "title": "الإشعارات",
       "subtitle": "إليك ما هو جديد",
       "clear_read": "حذف المقروءة",
@@ -25,7 +27,8 @@
         "mention": "أشار إليك {actor}",
         "followed_thread": "ردّ {actor} في سلسلة تتابعها",
         "new_message": "نشر {actor} رسالة جديدة",
-        "activity": "أرسل إليك {actor} إشعارًا"
+        "activity": "أرسل إليك {actor} إشعارًا",
+        "room_invitation": "دعاك {actor} إلى غرفة"
       }
     },
     "sign_out": {

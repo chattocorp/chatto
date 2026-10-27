@@ -98,7 +98,7 @@ describe('first-run wizard', () => {
       await view.getByLabelText('Password', { exact: true }).fill(password);
       await view.getByLabelText('Confirm Password', { exact: true }).fill(password);
       await view.getByRole('button', { name: 'Finish setup' }).click();
-      await expect.element(view.getByRole('alert')).toHaveTextContent('72 UTF-8 bytes');
+      await expect.element(view.getByRole('alert')).toHaveTextContent('Password is too long');
       expect(mocks.complete).not.toHaveBeenCalled();
       await view.getByLabelText('Password', { exact: true }).fill('😀😀');
       await view.getByLabelText('Confirm Password', { exact: true }).fill('😀😀');

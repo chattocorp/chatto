@@ -52,6 +52,11 @@
       "subtitle": "Tożsamość serwera, marka i wiadomości"
     },
     "members": {
+      "deactivate": "Dezaktywuj konto",
+      "reactivate": "Aktywuj ponownie konto",
+      "deactivate_description": "Użytkownik nie będzie już mógł korzystać z tego serwera. Wszystkie sesje zakończą się natychmiast. Dane pozostaną zachowane. Możesz później ponownie aktywować konto.",
+      "deactivated_description": "To konto jest nieaktywne. Ponowna aktywacja pozwoli użytkownikowi znów się zalogować. Stare sesje pozostaną nieważne.",
+      "deactivation_failed": "Nie udało się zmienić dostępu do konta.",
       "title": "Członkowie",
       "subtitle": "Przeglądaj i zarządzaj członkami serwera i ich rolami",
       "search": "Wyszukaj członków",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Zastąpienie uprawnień dla poszczególnych pomieszczeń (nałożone na grupę pomieszczeń)",
       "permissions_page_title": "Uprawnienia - {name}",
       "back_to_rooms": "Powrót do pokoi",
-      "group_permissions_hint": "Zastąpienie poszczególnych grup pomieszczeń kanałów w tej grupie. Wartości domyślne dziedziczone z zakresu serwera. Poszczególne pokoje mogą dodatkowo zastępować uprawnienia na własnej stronie uprawnień.",
+      "group_permissions_hint": "Ustaw uprawnienia ról dla wszystkich pokoi w tej grupie. Zastępują one domyślne ustawienia serwera. Poszczególne pokoje mogą zastąpić te ustawienia.",
       "room_permissions_hint": "Te ustawienia obowiązują tylko w tym pokoju. Zastępują ustawienia grupy pokojów i serwera dla tej samej roli lub użytkownika. Aby tylko niektóre role mogły tu coś zrobić, ustaw Odmów dla everyone i Zezwól dla tych ról.",
       "loading": "Ładowanie pokoi...",
       "empty_groups": "Nie ma jeszcze grup pokoi",

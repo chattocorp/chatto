@@ -177,10 +177,10 @@ source. Workspace consumers compile it with their own tools, and Node hosts
 load it through tsx
 ([ADR-116](ADR-116-consume-internal-packages-from-source.md)).
 
-The package keeps the MIT license of the previous `@chatto/client` package.
-Most of its code comes from `apps/frontend`, where it was Apache-2.0. This
-decision moves that code across the license boundary: in the package, it is
-MIT. `REUSE.toml` records the package boundary.
+The package uses Apache-2.0 for npm publication. This replaces the earlier
+decision to keep the MIT license of the previous `@chatto/client` package.
+Most of its code comes from `apps/frontend`, which also uses Apache-2.0.
+`REUSE.toml` records the package boundary.
 
 ## Consequences
 

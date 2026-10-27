@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Ogłoszenie pokoju",
+      "dismiss": "Zamknij",
+      "body": "Ogłoszenie (Markdown)",
+      "too_long": "Ogłoszenia mogą zawierać najwyżej {max} znaków, w tym białe znaki.",
+      "help": "Zapisz poprawki bez ponownego wyświetlania ogłoszenia. Ogłoś je, aby pokazać je ponownie osobom, które zamknęły je na swoich urządzeniach.",
+      "conflict": "To ogłoszenie zmieniło się podczas edycji. Twój szkic jest zachowany. W razie potrzeby skopiuj go, a następnie wczytaj aktualne ogłoszenie przed ponownym zapisem.",
+      "reload": "Wczytaj aktualne ogłoszenie",
+      "save": "Aktualizuj",
+      "republish": "Ogłoś",
+      "clear": "Usuń",
+      "clear_confirm_title": "Usunąć ogłoszenie pokoju?",
+      "clear_confirm_description": "To natychmiast usuwa aktywne ogłoszenie dla wszystkich osób w pokoju. Twoje niezapisane zmiany nie zostaną opublikowane.",
+      "empty": "Nie opublikowano żadnego ogłoszenia.",
+      "edit": "Edytuj ogłoszenie"
+    },
+    "information": {
+      "description": "Opis",
+      "created": "Utworzono",
+      "title": "Informacje o pokoju",
+      "basic": "Ogólne",
+      "pinned_messages": "Przypięte wiadomości"
+    },
     "create": {
       "title": "Utwórz nowy pokój",
       "description": "Pokoje to rozmowy prowadzone na Twoim serwerze.",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "Opuść pokój",
       "action": "Opuść pokój",
-      "prompt": "Czy na pewno chcesz opuścić #{room}? Możesz dołączyć później.",
-      "failed": "Nie udało się opuścić pokoju"
+      "prompt": "Czy na pewno chcesz opuścić #{room}?",
+      "failed": "Nie udało się opuścić pokoju",
+      "join_later": "Możesz dołączyć później.",
+      "need_invite": "Aby dołączyć do tego pokoju, będziesz potrzebować nowego zaproszenia.",
+      "rejoin_unknown": "Do ponownego dołączenia może być potrzebne nowe zaproszenie."
     },
     "directory": {
       "universal_title": "Pokoje uniwersalne łączą się automatycznie",
@@ -59,7 +85,8 @@
       "join_group_failed": "Nie udało się dołączyć do grupy",
       "left": "W lewo #{room}",
       "left_generic": "Opuścił pokój",
-      "leave_confirm": "Czy na pewno chcesz opuścić #{room}?"
+      "leave_confirm": "Czy na pewno chcesz opuścić #{room}?",
+      "invited": "Zaproszono"
     },
     "server": {
       "remove_title": "Usuń serwer",
@@ -73,7 +100,8 @@
       "beginning": "To początek tej rozmowy.",
       "read_denied": "Nie masz uprawnień do odczytywania wiadomości w tym pokoju.",
       "limited_empty": "Nie ma jeszcze rozmów, które możesz przeczytać.",
-      "loading": "Wczytywanie wiadomości..."
+      "loading": "Wczytywanie wiadomości...",
+      "load_failed": "Nie udało się wczytać wiadomości."
     },
     "message": {
       "empty": "Nie ma jeszcze żadnych wiadomości",
@@ -266,6 +294,7 @@
     "unread_separator": "Nowe wiadomości",
     "close_extras": "Zamknij dodatki do pokoju",
     "dm": {
+      "deactivated_user_notice": "To konto jest dezaktywowane. Użytkownik nie może czytać wiadomości ani na nie odpowiadać.",
       "deleted_user_notice": "Drugi użytkownik został usunięty."
     },
     "management": {
@@ -320,6 +349,25 @@
       "indefinite": "Bezterminowo",
       "remove_title": "Usuń {user} z pokoju",
       "suspension_period": "Okres zawieszenia"
+    },
+    "invitation": {
+      "invite": "Zaproś członka",
+      "invited": "Masz zaproszenie",
+      "sent": "Zaproszenia wysłane",
+      "expires": "Wygasa {date}",
+      "unavailable": "Nie możesz teraz przyjąć tego zaproszenia. Nadal możesz je odrzucić.",
+      "accept": "Przyjmij zaproszenie",
+      "decline": "Odrzuć",
+      "title": "Zaproś członków do #{room}",
+      "description": "Wybierz, kogo chcesz zaprosić. Zaproszeni użytkownicy otrzymają powiadomienie i będą mieć siedem dni na przyjęcie lub odrzucenie zaproszenia.",
+      "members": "Członkowie",
+      "send": "Wyślij zaproszenia",
+      "failed": "Nie udało się zaprosić {name}: {error}",
+      "already_member": "Już jest w tym pokoju",
+      "invited_by": "Zaproszenie od",
+      "decline_title": "Odrzucić zaproszenie?",
+      "decline_join_later": "Możesz dołączyć do tego pokoju później.",
+      "decline_need_invite": "Aby dołączyć do tego pokoju, będziesz potrzebować nowego zaproszenia."
     }
   }
 }

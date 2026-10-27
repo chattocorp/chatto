@@ -43,6 +43,22 @@ it alive. Closing steering does not cancel an active turn. See
 [agent steering](agent-steering.md). As with other tasks, a successful `steer`
 means queued, not processed; do not send more work after the task completes.
 
+## Model discovery
+
+Use a model reference in `provider/model-id` form. For OpenRouter, keep the
+upstream provider in the model ID, for example
+`openrouter/deepseek/deepseek-v4.1-flash-1017`.
+
+Runling uses the local catalog first. If the model is missing, Runling refreshes
+only its provider's catalog with a five-second deadline and tries lookup again.
+Set `PI_OFFLINE` to disable network discovery. If the model is still missing,
+session creation fails before a model request is sent.
+
+Catalog discovery can contact Pi's catalog service at `pi.dev`. OpenRouter
+catalog discovery also contacts `openrouter.ai` with the configured API key.
+These services receive the host's IP address. Discovery sends no task prompt,
+thread messages, or tool results.
+
 ## Typed input and invocation setup
 
 Give `input` and `prompt` to accept structured input. Runling validates and
@@ -101,7 +117,9 @@ import { AgentSessionStore, createAgentSession } from 'runling';
 const sessions = new AgentSessionStore('.runling/research').scope('project-one');
 await using saved = await sessions.open();
 await using researcher = await createAgentSession({
-  model, cwd, sessionFile: saved.file
+  model,
+  cwd,
+  sessionFile: saved.file
 });
 // Save saved.id to resume later with sessions.open({ id, resume: true }).
 ```
@@ -177,6 +195,25 @@ Use `createAgentSession(options)` when you need a custom conversation loop,
 report outcomes, or session forks. Call `run()` or `runOutcome()` for each turn
 and dispose of the session when you finish. `runAgent(ctx, prompt, options)`
 remains a convenience for one interaction and returns its outcome.
+
+Use `await using` or `await session.dispose()` to finish a session. Disposal
+is asynchronous: it cancels active work, emits `session_shutdown`, waits for
+extension cleanup, and then releases Pi resources. Callers that previously
+used `session.dispose()` without awaiting it must now await it before releasing
+resources that extensions use. Repeated disposal waits for the same cleanup.
+Session creation binds extensions and emits `session_start` before returning.
+
+Set `tools: 'extensions'` to expose extension tools, including tools discovered
+by native MCP extensions, without Pi's built-in tools. Use `resources` to
+disable ambient extensions, skills, and context files separately. Set
+`toolExecution: 'sequential'` when extension hooks acquire a shared lock;
+parallel preparation of several calls must not wait on a lock held by another
+call in the same batch.
+
+Set `logContent: false` to omit model text, reasoning, and tool arguments from
+logs and progress events. Tool activity and usage remain visible. This does
+not remove content from private session transcripts or from explicit task
+inputs and outputs. Applications must choose safe task data and extension logs.
 
 For these session APIs, the default `output: "report"` is for coding and
 specialist tasks. The agent
@@ -270,7 +307,11 @@ cancellation or a restart. When the file does not exist, the agent starts a new
 conversation in it. Pi writes the file after the first model reply.
 
 ```ts
-await using worker = await createAgentSession({ model, cwd, sessionFile: join(artifactDirectory, 'worker.jsonl') });
+await using worker = await createAgentSession({
+  model,
+  cwd,
+  sessionFile: join(artifactDirectory, 'worker.jsonl')
+});
 ```
 
 The file contains the complete model context: prompts, tool results, and
@@ -396,7 +437,8 @@ them.
 `agent()` now returns a task synchronously. For code that used
 `await agent(options)` and then called `.run()`, `.runOutcome()`, `.steer()`, or
 `.fork()`, replace the constructor with `await createAgentSession(options)`.
-The session methods and `AgentOptions` type are unchanged.
+The interaction methods and `AgentOptions` type are unchanged. Await `dispose()`
+as described above, or use asynchronous disposal.
 
 For a task that only created a text session, ran a prompt, and returned its
 summary, use `agent({ name, ... })` directly. Remove manual run and disposal

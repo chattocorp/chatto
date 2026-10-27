@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "ルームのお知らせ",
+      "dismiss": "閉じる",
+      "body": "お知らせ（Markdown）",
+      "too_long": "お知らせは空白を含めて最大 {max} 文字です。",
+      "help": "修正を保存しても、お知らせは再表示されません。告知すると、端末で閉じたメンバーにも再表示されます。",
+      "conflict": "編集中にこのお知らせが変更されました。下書きは保持されています。必要に応じてコピーし、現在のお知らせを読み込んでから再度保存してください。",
+      "reload": "現在のお知らせを読み込む",
+      "save": "更新",
+      "republish": "告知",
+      "clear": "削除",
+      "clear_confirm_title": "ルームのお知らせを削除しますか？",
+      "clear_confirm_description": "ルームの全員に対して、公開中のお知らせが直ちに削除されます。未保存の変更は公開されません。",
+      "empty": "お知らせはまだ公開されていません。",
+      "edit": "お知らせを編集"
+    },
+    "information": {
+      "description": "説明",
+      "created": "作成日時",
+      "title": "ルーム情報",
+      "basic": "概要",
+      "pinned_messages": "ピン留めされたメッセージ"
+    },
     "create": {
       "title": "新しいルームを作成する",
       "description": "ルームはサーバー内の会話です。",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "ルームから退出",
       "action": "ルームから退出",
-      "prompt": "#{room} を退会してもよろしいですか?後で再参加できます。",
-      "failed": "ルームから退出できませんでした"
+      "prompt": "#{room} を退会してもよろしいですか?",
+      "failed": "ルームから退出できませんでした",
+      "join_later": "後で再参加できます。",
+      "need_invite": "このルームに参加するには、新しい招待が必要になります。",
+      "rejoin_unknown": "再参加には新しい招待が必要になる場合があります。"
     },
     "directory": {
       "universal_title": "ユニバーサルルームは自動的に参加します",
@@ -59,7 +85,8 @@
       "join_group_failed": "グループに参加できませんでした",
       "left": "左 #{room}",
       "left_generic": "部屋を出ました",
-      "leave_confirm": "#{room} を退会してもよろしいですか?"
+      "leave_confirm": "#{room} を退会してもよろしいですか?",
+      "invited": "招待済み"
     },
     "server": {
       "remove_title": "サーバーを削除",
@@ -73,7 +100,8 @@
       "beginning": "ここから会話が始まります。",
       "read_denied": "このルームのメッセージを読む権限がありません。",
       "limited_empty": "読める会話はまだありません。",
-      "loading": "メッセージを読み込んでいます..."
+      "loading": "メッセージを読み込んでいます...",
+      "load_failed": "メッセージを読み込めませんでした。"
     },
     "message": {
       "empty": "まだメッセージはありません",
@@ -259,6 +287,7 @@
     "unread_separator": "新しいメッセージ",
     "close_extras": "密室エクストラ",
     "dm": {
+      "deactivated_user_notice": "このアカウントは無効化されています。ユーザーはメッセージを読んだり返信したりできません。",
       "deleted_user_notice": "相手のユーザーは削除されました。"
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "無期限",
       "remove_title": "{user}をルームから退出させる",
       "suspension_period": "参加停止期間"
+    },
+    "invitation": {
+      "invite": "メンバーを招待",
+      "invited": "招待されています",
+      "sent": "招待を送信しました",
+      "expires": "有効期限：{date}",
+      "unavailable": "現在この招待を承諾できません。辞退することはできます。",
+      "accept": "招待を承諾",
+      "decline": "辞退",
+      "title": "#{room}にメンバーを招待",
+      "description": "招待するユーザーを選んでください。招待されたユーザーには通知が届き、7日以内に承諾または辞退できます。",
+      "members": "メンバー",
+      "send": "招待を送信",
+      "failed": "{name}さんを招待できませんでした：{error}",
+      "already_member": "すでにこのルームに参加しています",
+      "invited_by": "招待者：",
+      "decline_title": "招待を辞退しますか？",
+      "decline_join_later": "このルームには後で参加できます。",
+      "decline_need_invite": "このルームに参加するには、新しい招待が必要になります。"
     }
   }
 }

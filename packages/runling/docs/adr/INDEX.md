@@ -15,3 +15,4 @@ These records belong to Runling and use independent numbering. See the
 | ADR-008 | [Parents own approval of delegated actions](ADR-008-parent-owned-approvals.md)                 | Withdrawn             | 2026-10-03 |
 | ADR-009 | [Typed task invocations are the execution model](ADR-009-task-invocations.md)                  | Amended by ADR-010    | 2026-10-14 |
 | ADR-010 | [Periodic workflow state snapshots](ADR-010-workflow-state-snapshots.md)                       | Accepted              | 2026-10-18 |
+| ADR-011 | [In-process hosting and keyed batching](ADR-011-hosting-and-batching.md) | Accepted | 2026-10-26 |

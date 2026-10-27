@@ -59,11 +59,16 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import RoomSidebarProfile from './RoomSidebarProfile.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
   import RoomSearchPanel from './RoomSearchPanel.svelte';
-  import RoomPinsPanel from './RoomPinsPanel.svelte';
+  import RoomInformationPanel from './RoomInformationPanel.svelte';
+  import type { RoomNoticeStore } from '@chatto/client/room/notice';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
   let {
     loading = false,
     roomId,
+    roomName = '',
+    roomDescription = '',
+    roomCreatedAt = null,
     activePanel = 'members',
     activeProfileUserId = null,
     presentation = 'desktop',
@@ -78,6 +83,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onSearchFocused,
     filesStore,
     pinsStore,
+    noticeStore,
+    canManageNotice = false,
+    noticeMentions,
     livekitUrl,
     fileGroupingNow,
     onOpenFileMessage,
@@ -90,6 +98,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
   }: {
     loading?: boolean;
     roomId: string;
+    roomName?: string;
+    roomDescription?: string;
+    roomCreatedAt?: string | null;
     activePanel?: RoomSidebarPanel;
     activeProfileUserId?: string | null;
     presentation?: 'desktop' | 'overlay';
@@ -105,6 +116,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onSearchFocused?: () => void;
     filesStore?: RoomFilesStore;
     pinsStore?: RoomPinsStore;
+    noticeStore?: RoomNoticeStore;
+    canManageNotice?: boolean;
+    noticeMentions?: MarkdownMentionOptions;
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onOpenFileMessage?: (messageEventId: string, threadRootEventId: string | null) => void;
@@ -139,7 +153,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     }
     if (activePanel === 'search') return m('search.in_room');
     if (activePanel === 'files') return m('room.sidebar.files');
-    if (activePanel === 'pins') return m('room.sidebar.pins');
+    if (activePanel === 'pins') return m('room.information.title');
     return m('room.sidebar.call');
   });
   const showMaximizeButton = $derived(
@@ -532,9 +546,19 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <EmptyState icon="icon-[mdi--file-outline]" title={m('room.sidebar.no_files')} />
     {/if}
   {:else if activePanel === 'pins'}
-    {#if pinsStore}
-      <RoomPinsPanel store={pinsStore} {onOpenPin} />
-    {/if}
+    <RoomInformationPanel
+      serverId={activeServerId}
+      {roomName}
+      {roomDescription}
+      {roomCreatedAt}
+      memberCount={membersStore.hasFirstPage ? memberCount : null}
+      {isUniversal}
+      {pinsStore}
+      {noticeStore}
+      {canManageNotice}
+      {noticeMentions}
+      {onOpenPin}
+    />
   {:else if activePanel === 'call'}
     {#if livekitUrl}
       <VoiceCallPanel

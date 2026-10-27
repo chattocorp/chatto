@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -225,6 +226,7 @@ func effectiveNotificationDeliveryModesAtScope(server, group, room *evtv1.Notifi
 		FollowedThreads: resolvedNotificationMode(room.FollowedThreads, group.FollowedThreads, server.FollowedThreads, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
 		FollowedRooms:   resolvedNotificationMode(room.FollowedRooms, group.FollowedRooms, server.FollowedRooms, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
 		Reactions:       resolvedNotificationMode(room.Reactions, group.Reactions, server.Reactions, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
+		RoomInvitations: resolvedNotificationMode(room.RoomInvitations, group.RoomInvitations, server.RoomInvitations, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
 		RoomMessages:    resolvedNotificationMode(room.RoomMessages, group.RoomMessages, server.RoomMessages, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE).Enum(),
 	}
 }
@@ -258,6 +260,8 @@ func notificationModeForSignal(modes *evtv1.NotificationDeliveryModes, signal *n
 		return modes.GetReactions()
 	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return modes.GetRoomMessages()
+	case *notificationv1.NotificationSignal_RoomInvitationReceived:
+		return modes.GetRoomInvitations()
 	default:
 		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
@@ -540,10 +544,9 @@ func (s *NotificationPolicyModel) checkRoomGroupAccess(ctx context.Context, grou
 	return nil
 }
 
-// checkRoomAccess waits for the projections that define current effective room
-// membership, then confirms that the authenticated user is a member. Policy
-// changes use request-time membership semantics because they affect only that
-// user's preferences.
+// checkRoomAccess waits for current room and invitation projections, then
+// requires membership or a pending invitation for the authenticated user.
+// Request-time access is sufficient because changes affect only their preferences.
 func (s *NotificationPolicyModel) checkRoomAccess(ctx context.Context, actorID, roomID string) error {
 	roomPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
@@ -572,6 +575,15 @@ func (s *NotificationPolicyModel) checkRoomAccess(ctx context.Context, actorID, 
 	}
 	if err := s.core.userModel.waitForUsers(ctx, userPosition); err != nil {
 		return fmt.Errorf("wait for notification policy user boundary: %w", err)
+	}
+	if err := s.core.roomInvitations.projection.Projector().WaitFor(ctx, roomPosition); err != nil {
+		return err
+	}
+	if _, pending := s.core.roomInvitations.projection.Projection().pending(roomID, actorID, time.Now()); pending {
+		if _, err := s.core.GetUser(ctx, actorID); err != nil {
+			return err
+		}
+		return nil
 	}
 	if err := s.requireRoomMember(ctx, actorID, roomID); err != nil {
 		return err

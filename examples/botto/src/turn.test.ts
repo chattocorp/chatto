@@ -1,0 +1,337 @@
+/** Exercise inbox, shared client timeline, Pi input, and reply routing together. */
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import type { AddressedMessage, Destination, Server } from '@chatto/client';
+import { Inbox } from './inbox.ts';
+import { createTurnHandler } from './turn.ts';
+import { parseSettings } from './settings.ts';
+import { contextFixture, page, row } from './context.fixture.ts';
+import { hasTranscript } from './messages.ts';
+import { createTaskContext } from 'runling';
+
+vi.mock('./messages.ts', () => ({ hasTranscript: vi.fn() }));
+
+beforeEach(() => {
+  vi.mocked(hasTranscript).mockReset().mockResolvedValue(false);
+  vi.useFakeTimers();
+  vi.spyOn(console, 'info').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+const fixtures: { dispose(): void }[] = [];
+afterEach(() => {
+  for (const rooms of fixtures.splice(0)) rooms.dispose();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}) {
+  const settings = parseSettings(
+    '[chatto]\nurl="https://chat.example.com"\napi_key="test"\n[agent]\nmodel="test/model"',
+    'botto.toml',
+    {}
+  );
+  const fixture = contextFixture();
+  fixtures.push(fixture.rooms);
+  const server = {
+    ...fixture.server,
+    getMessage: vi.fn<Server['getMessage']>().mockResolvedValue(undefined),
+    readAttachment: vi.fn<Server['readAttachment']>(),
+    addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
+    postMessage: vi.fn<Server['postMessage']>().mockResolvedValue({ ids: ['reply'] }),
+    withTyping: async <T>(_destination: Destination, work: () => Promise<T>) => work()
+  };
+  const agent = {
+    reply: vi.fn<Parameters<typeof createTurnHandler>[3]['reply']>().mockResolvedValue('One answer')
+  };
+  const controller = new AbortController();
+  const handle = createTurnHandler(
+    settings,
+    'bot',
+    server,
+    agent,
+    controller.signal,
+    beforeEffects
+  );
+  const ctx = createTaskContext();
+  const turn = (messages: readonly AddressedMessage[]) => handle(ctx, messages);
+  const one: AddressedMessage = {
+    id: 'one',
+    roomId: 'room',
+    threadRootId: 'root',
+    authorId: 'human',
+    body: 'First',
+    reasons: ['mention']
+  };
+  const two: AddressedMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
+  return { ...fixture, settings, server, agent, controller, turn, one, two };
+}
+
+test('passes image-only message pixels as request context, not persisted prompt text', async () => {
+  const { turn, one, history, server, agent } = setup();
+  const image = row('one', '');
+  if (image.event.kind !== 'messagePosted') throw new Error('Expected message');
+  image.event.attachments = [
+    { id: 'image', filename: 'image.png', contentType: 'image/png', width: 10, height: 10 }
+  ];
+  history.mockResolvedValue(page([row('root', 'Root'), image]));
+  server.readAttachment.mockResolvedValue({
+    filename: 'image.png',
+    contentType: 'image/png',
+    data: new Uint8Array([1, 2, 3])
+  });
+  await turn([{ ...one, body: '' }]);
+  const input = agent.reply.mock.calls[0]![1];
+  expect(server.readAttachment).not.toHaveBeenCalled();
+  expect((await input.loadImages!()).images).toEqual([
+    { messageId: 'one', attachmentId: 'image', mimeType: 'image/png', data: 'AQID' }
+  ]);
+  expect(input.prompt).not.toContain('AQID');
+  expect(server.postMessage).toHaveBeenCalledOnce();
+});
+
+test('a failed durable start prevents reactions, model calls, and reply posts', async () => {
+  const beforeEffects = vi.fn(() => {
+    throw new Error('Storage unavailable');
+  });
+  const { turn, one, server, agent } = setup(beforeEffects);
+  await expect(turn([one])).rejects.toThrow('Storage unavailable');
+  expect(beforeEffects).toHaveBeenCalledExactlyOnceWith([one]);
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('failed context reads leave the batch safe to retry', async () => {
+  const beforeEffects = vi.fn();
+  const { turn, one, history, agent } = setup(beforeEffects);
+  history.mockRejectedValue(new Error('Offline'));
+  await expect(turn([one])).rejects.toThrow();
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+});
+
+test.each(['root', 'outside'])('includes the reply target ID and author: %s', async (target) => {
+  const { turn, one, server, agent } = setup();
+  server.getMessage.mockResolvedValue({ id: target, roomId: 'room', authorId: 'human' });
+  await turn([{ ...one, inReplyTo: target }]);
+  expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt).currentMessages[0].inReplyTo).toEqual({
+    id: target,
+    author: 'human'
+  });
+  expect(server.getMessage).toHaveBeenCalledTimes(target === 'root' ? 0 : 1);
+});
+
+test('an unavailable reply target has an unknown author', async () => {
+  const { turn, one, agent } = setup();
+  await turn([{ ...one, inReplyTo: 'missing' }]);
+  expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt).currentMessages[0].inReplyTo).toEqual({
+    id: 'missing',
+    author: null
+  });
+});
+
+test('a failed reply target lookup leaves the batch safe to retry', async () => {
+  const beforeEffects = vi.fn();
+  const { turn, one, server, agent } = setup(beforeEffects);
+  server.getMessage.mockRejectedValue(new Error('Offline'));
+  await expect(turn([{ ...one, inReplyTo: 'outside' }])).rejects.toThrow('Offline');
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+});
+
+test('later turns use the live timeline without another history request', async () => {
+  const { turn, one, two, store, history, server, agent, controller } = setup();
+  await turn([one]);
+  vi.mocked(hasTranscript).mockResolvedValue(true);
+  store().ingestEvent(row('unaddressed', 'Live context', 'another'));
+  await turn([two]);
+  expect(history).toHaveBeenCalledOnce();
+  expect(agent.reply.mock.calls[1]?.[1].context?.messages).toContainEqual({
+    id: 'unaddressed',
+    author: 'another',
+    fromViewer: false,
+    text: 'Live context'
+  });
+  expect(server.postMessage).toHaveBeenCalledTimes(2);
+  expect(server.addReaction).toHaveBeenCalledOnce();
+  controller.abort();
+});
+
+test('a debounced batch becomes one prompt and one reply in its original thread', async () => {
+  const { settings, server, agent, controller, turn, one, two, history } = setup();
+  const failed = vi.fn();
+  const inbox = new Inbox(turn, failed, settings);
+  inbox.accept(one);
+  await vi.advanceTimersByTimeAsync(1000);
+  inbox.accept(two);
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(failed).not.toHaveBeenCalled();
+  expect(agent.reply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    {
+      identity: ['https://chat.example.com', 'bot', 'room', 'root'],
+      prompt: JSON.stringify({
+        currentMessages: [
+          { id: 'one', author: 'human', text: 'First' },
+          { id: 'two', author: 'another', text: 'Clarification' }
+        ]
+      }),
+      signal: expect.any(AbortSignal),
+      onText: expect.any(Function),
+      loadImages: expect.any(Function),
+      context: {
+        messages: [
+          { id: 'root', author: 'human', text: 'Root', fromViewer: false },
+          {
+            id: 'ordinary',
+            author: 'human',
+            text: 'Useful unaddressed context',
+            fromViewer: false
+          },
+          { id: 'one', author: 'human', text: 'First', fromViewer: false },
+          { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
+        ],
+        olderContextOmitted: false,
+        imageNotes: []
+      },
+      userIds: ['human', 'another'],
+      tools: [expect.any(Function), expect.any(Function), expect.any(Function)]
+    }
+  );
+  expect(history).toHaveBeenCalledOnce();
+  expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
+    { roomId: 'room', messageId: 'one' },
+    'eyes',
+    { signal: expect.any(AbortSignal) }
+  );
+  expect(server.addReaction.mock.invocationCallOrder[0]).toBeLessThan(
+    agent.reply.mock.invocationCallOrder[0]!
+  );
+  expect(server.postMessage).toHaveBeenCalledExactlyOnceWith(
+    { roomId: 'room', threadRootId: 'root', inReplyTo: 'two' },
+    'One answer',
+    { signal: expect.any(AbortSignal) }
+  );
+  controller.abort();
+  await inbox.close();
+});
+
+test('failed acknowledgement still answers and acknowledgement can be disabled', async () => {
+  const { settings, server, agent, turn, one } = setup();
+  server.addReaction.mockRejectedValueOnce(new Error('unavailable'));
+  await turn([one]);
+  expect(server.postMessage).toHaveBeenCalledOnce();
+  settings.acknowledgementEmoji = '';
+  await turn([one]);
+  expect(server.addReaction).toHaveBeenCalledOnce();
+  expect(agent.reply).toHaveBeenCalledTimes(2);
+});
+
+test('a stalled acknowledgement times out without stopping the answer', async () => {
+  const { server, agent, turn, one } = setup();
+  server.addReaction.mockImplementationOnce(
+    (_message, _emoji, options) =>
+      new Promise((_, reject) => {
+        options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason), {
+          once: true
+        });
+      })
+  );
+  // Native AbortSignal.timeout uses real timers, so inject the acknowledgement deadline.
+  const deadline = new AbortController();
+  const timeout = AbortSignal.timeout;
+  vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) =>
+    ms === 2000 ? deadline.signal : timeout(ms)
+  );
+  const pending = turn([one]);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(agent.reply).not.toHaveBeenCalled();
+  deadline.abort(new Error('deadline'));
+  await pending;
+  expect(server.postMessage).toHaveBeenCalledOnce();
+});
+
+test('a resumed thread does not get another acknowledgement', async () => {
+  const { turn, one, server, settings } = setup();
+  vi.mocked(hasTranscript).mockResolvedValue(true);
+  await turn([one]);
+  expect(hasTranscript).toHaveBeenCalledWith(settings.directory, [
+    'https://chat.example.com',
+    'bot',
+    'room',
+    'root'
+  ]);
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(server.postMessage).toHaveBeenCalledOnce();
+});
+
+test('failed or cancelled model work never posts a reply', async () => {
+  const { server, agent, controller, turn, one } = setup();
+  agent.reply.mockRejectedValueOnce(new Error('model failure'));
+  await expect(turn([one])).rejects.toThrow('model failure');
+  expect(server.postMessage).not.toHaveBeenCalled();
+  agent.reply.mockImplementationOnce(async () => {
+    controller.abort();
+    return 'Too late';
+  });
+  await expect(turn([one])).rejects.toThrow();
+  expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('posts interim text before model completion, preserves order, and sends the final answer once', async () => {
+  const { server, agent, turn, one } = setup();
+  const firstPost = Promise.withResolvers<void>();
+  const releasePost = Promise.withResolvers<void>();
+  const finishModel = Promise.withResolvers<void>();
+  server.postMessage.mockImplementationOnce(async () => {
+    firstPost.resolve();
+    await releasePost.promise;
+    return { ids: ['interim'] };
+  });
+  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
+    onText!('Let me take a closer look.');
+    onText!('Here is the answer.');
+    await finishModel.promise;
+    return 'Here is the answer.';
+  });
+  const pending = turn([one]);
+  await firstPost.promise;
+  expect(server.postMessage).toHaveBeenCalledTimes(1);
+  releasePost.resolve();
+  finishModel.resolve();
+  await pending;
+  expect(server.postMessage.mock.calls.map((call) => call[1])).toEqual([
+    'Let me take a closer look.',
+    'Here is the answer.'
+  ]);
+});
+
+test('a failed interim post cancels model work and is never retried', async () => {
+  const { server, agent, turn, one } = setup();
+  server.postMessage.mockRejectedValueOnce(new Error('Uncertain write'));
+  agent.reply.mockImplementationOnce(async (_ctx, { onText, signal }) => {
+    const stopped = new Promise<never>((_resolve, reject) =>
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    );
+    onText!('Looking now.');
+    onText!('Queued update.');
+    return stopped;
+  });
+  await expect(turn([one])).rejects.toThrow();
+  expect(server.postMessage).toHaveBeenCalledTimes(1);
+});
+
+test('an already delivered interim message survives a later model failure without another post', async () => {
+  const { server, agent, turn, one } = setup();
+  const posted = Promise.withResolvers<void>();
+  server.postMessage.mockImplementationOnce(async () => {
+    posted.resolve();
+    return { ids: ['interim'] };
+  });
+  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
+    onText!('Looking now.');
+    await posted.promise;
+    throw new Error('Model failed');
+  });
+  await expect(turn([one])).rejects.toThrow('Model failed');
+  expect(server.postMessage).toHaveBeenCalledTimes(1);
+});

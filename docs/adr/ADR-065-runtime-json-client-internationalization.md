@@ -19,8 +19,8 @@ than generated TypeScript modules.
 
 ## Decision
 
-Chatto will use the small, framework-neutral `@chatto/lingua` package under
-`packages/lingua`. It reads ordinary nested JSON catalogs at runtime and does
+Chatto will use the small, framework-neutral `@chatto/translatto` package under
+`packages/translatto`. It reads ordinary nested JSON catalogs at runtime and does
 not generate source code. The package is Apache-2.0 licensed and contains no
 Chatto product policy or runtime dependencies.
 

@@ -7,6 +7,7 @@ import {
 } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import {
+  type DisconnectEligibility,
   type ExternalIdentityProvider as APIExternalIdentityProvider,
   type LinkedExternalIdentity as APILinkedExternalIdentity
 } from '@chatto/api-types/api/v1/external_identities_pb';
@@ -35,6 +36,8 @@ export type LinkedExternalIdentityInfo = {
   providerType: string;
   providerLabel: string;
   subjectHash: string;
+  /** Listing-time eligibility; unspecified on older servers. */
+  disconnectEligibility: DisconnectEligibility;
 };
 
 export type ExternalIdentityProviderInfo = {
@@ -189,7 +192,8 @@ function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIde
     providerId: identity.providerId,
     providerType: identity.providerType,
     providerLabel: identity.providerLabel,
-    subjectHash: identity.subjectHash
+    subjectHash: identity.subjectHash,
+    disconnectEligibility: identity.disconnectEligibility
   };
 }
 

@@ -6,6 +6,8 @@
       "confirmation": "Na 15 minut włączy to dodatkowe uprawnienia przypisane do ciebie na tym serwerze."
     },
     "notifications": {
+      "next_unread_source": "Przejdź do następnego nieprzeczytanego źródła",
+      "no_unread": "Brak nieprzeczytanych powiadomień",
       "title": "Powiadomienia",
       "subtitle": "Oto nowości",
       "clear_read": "Usuń przeczytane",
@@ -25,7 +27,8 @@
         "mention": "Osoba {actor} wspomniała o Tobie",
         "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku",
         "new_message": "Osoba {actor} opublikowała nową wiadomość",
-        "activity": "Masz nowe powiadomienie od {actor}"
+        "activity": "Masz nowe powiadomienie od {actor}",
+        "room_invitation": "{actor} zaprasza Cię do pokoju"
       }
     },
     "sign_out": {

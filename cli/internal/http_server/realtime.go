@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -233,6 +235,16 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 
 	if credentialOK && (credential.Kind == authctx.RuntimeCredentialKindCookieSession || credential.Kind == authctx.RuntimeCredentialKindBearerToken) {
 		credentialCheckDone := make(chan struct{})
+		accountAccessInvalidated, stopAccountAccessWatch, err := s.watchRealtimeAccountAccess(ctx, credential.UserID)
+		if err != nil {
+			if errors.Is(err, core.ErrNotAuthenticated) {
+				terminateRealtimeForCredentialRevocation(cancel, writeFrame, func() { _ = conn.Close() })
+			} else {
+				writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "authentication service temporarily unavailable", true, time.Second)
+			}
+			return
+		}
+		defer stopAccountAccessWatch()
 		credentialCheckEvery := realtimeCredentialCheckInterval
 		if s.realtimeCredentialCheckEvery > 0 {
 			credentialCheckEvery = s.realtimeCredentialCheckEvery
@@ -243,6 +255,9 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			defer ticker.Stop()
 			for {
 				select {
+				case <-accountAccessInvalidated:
+					terminateRealtimeForCredentialRevocation(cancel, writeFrame, func() { _ = conn.Close() })
+					return
 				case <-ticker.C:
 					privilegedUntil, err := s.revalidateRealtimeCredential(ctx)
 					if err == nil {
@@ -744,7 +759,7 @@ func (s *HTTPServer) watchRealtimeClient(ctx context.Context, cancel context.Can
 	}
 }
 
-func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *realtimev1.RealtimeSubscribe) (context.Context, *evtv1.User, error) {
+func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *realtimev1.RealtimeSubscribe) (context.Context, *readmodel.User, error) {
 	if token := strings.TrimSpace(subscribe.GetBearerToken()); token != "" {
 		credential, ok, err := s.bearerPresentedCredential(ctx, token)
 		if err != nil {
@@ -771,6 +786,18 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *r
 // access when a live revocation signal is lost. It returns the credential's
 // current privileged-mode deadline, which another connection of the same
 // session can change.
+// watchRealtimeAccountAccess registers before validating the credential again.
+// A completed deactivate/reactivate cycle before registration must still reject
+// the old credential; a transition after registration closes the watch.
+func (s *HTTPServer) watchRealtimeAccountAccess(ctx context.Context, userID string) (<-chan struct{}, func(), error) {
+	invalidated, stop := s.core.WatchAccountAccessInvalidated(userID)
+	if _, err := s.revalidateRealtimeCredential(ctx); err != nil {
+		stop()
+		return nil, nil, err
+	}
+	return invalidated, stop, nil
+}
+
 func (s *HTTPServer) revalidateRealtimeCredential(ctx context.Context) (time.Time, error) {
 	credential, ok := authctx.CredentialForContext(ctx)
 	if !ok {

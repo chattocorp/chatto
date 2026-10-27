@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -17,11 +19,11 @@ const maxJoinRoomRetries = 5
 // Reads explicit membership through RoomModel (ADR-035 phase 5 cutover).
 // kind is ignored — roomID is globally unique, so the (roomID, userID)
 // pair fully identifies a membership.
-func (m *RoomMembershipModel) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error) {
+func (m *RoomMembershipModel) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*readmodel.RoomMembership, error) {
 	if !m.rooms.hasExplicitRoomMembership(room_id, user_id) {
 		return nil, fmt.Errorf("room membership for user %s in room %s: %w", user_id, room_id, ErrNotFound)
 	}
-	return &evtv1.RoomMembership{
+	return &readmodel.RoomMembership{
 		UserId: user_id,
 		RoomId: room_id,
 	}, nil
@@ -43,7 +45,7 @@ func (m *RoomMembershipModel) RoomMembershipExists(ctx context.Context, kind Roo
 //
 // Event-only. Publishes UserJoinedRoomEvent to EVT, then WaitForSeq on the
 // projections that serve membership and room history reads.
-func (m *RoomMembershipModel) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error) {
+func (m *RoomMembershipModel) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*readmodel.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := m.rooms.GetRoom(ctx, kind, room_id)
 	if err != nil {
@@ -56,7 +58,7 @@ func (m *RoomMembershipModel) JoinRoom(ctx context.Context, actorID string, kind
 		return nil, ErrPermissionDenied
 	}
 
-	membership := &evtv1.RoomMembership{
+	membership := &readmodel.RoomMembership{
 		UserId: user_id,
 		RoomId: room_id,
 	}
@@ -127,12 +129,12 @@ func (m *RoomMembershipModel) JoinRoom(ctx context.Context, actorID string, kind
 // the target user as actor, so existing membership projections and public room
 // history remain compatible. A separate moderation event records the manager
 // action for audit.
-func (m *RoomMembershipModel) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*evtv1.RoomMembership, error) {
+func (m *RoomMembershipModel) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*readmodel.RoomMembership, error) {
 	return m.addMember(ctx, actorID, kind, roomID, targetUserID, nil)
 }
 
 // addMember rechecks command authorization after each room aggregate catch-up.
-func (m *RoomMembershipModel) addMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string, authorize func() error) (*evtv1.RoomMembership, error) {
+func (m *RoomMembershipModel) addMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string, authorize func() error) (*readmodel.RoomMembership, error) {
 	if err := m.policy.authorizeAtStableInputs(ctx, authorize); err != nil {
 		return nil, err
 	}
@@ -153,7 +155,7 @@ func (m *RoomMembershipModel) addMember(ctx context.Context, actorID string, kin
 		return nil, err
 	}
 
-	membership := &evtv1.RoomMembership{
+	membership := &readmodel.RoomMembership{
 		UserId: targetUserID,
 		RoomId: roomID,
 	}
@@ -517,14 +519,14 @@ func (m *RoomMembershipModel) initializeRoomReadMarker(ctx context.Context, kind
 // filters the user's projected room IDs through RoomModel's projected room
 // catalog. This is O(N) in the user's room count and uses local projection
 // reads; each user has a bounded number of rooms.
-func (m *RoomMembershipModel) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*evtv1.RoomMembership, error) {
+func (m *RoomMembershipModel) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*readmodel.RoomMembership, error) {
 	rooms, err := m.ListMemberRooms(ctx, kind, user_id, MemberRoomListOptions{})
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*evtv1.RoomMembership, 0, len(rooms))
+	out := make([]*readmodel.RoomMembership, 0, len(rooms))
 	for _, room := range rooms {
-		out = append(out, &evtv1.RoomMembership{
+		out = append(out, &readmodel.RoomMembership{
 			UserId: user_id,
 			RoomId: room.Id,
 		})
@@ -628,10 +630,10 @@ func (m *RoomMembershipModel) deleteUserRoomMembershipsInSpace(ctx context.Conte
 // kind is preserved on the signature for symmetry with the rest of the
 // room API; the (roomID, userID) pair is globally unique so kind is
 // irrelevant to the lookup.
-func (m *RoomMembershipModel) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*evtv1.RoomMembership, error) {
+func (m *RoomMembershipModel) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*readmodel.RoomMembership, error) {
 	userIDs := m.rooms.explicitRoomMemberIDs(room_id)
 	seen := make(map[string]struct{}, len(userIDs))
-	out := make([]*evtv1.RoomMembership, 0, len(userIDs))
+	out := make([]*readmodel.RoomMembership, 0, len(userIDs))
 	add := func(uid string) {
 		if uid == "" {
 			return
@@ -640,7 +642,7 @@ func (m *RoomMembershipModel) GetRoomMembersList(ctx context.Context, kind RoomK
 			return
 		}
 		seen[uid] = struct{}{}
-		out = append(out, &evtv1.RoomMembership{UserId: uid, RoomId: room_id})
+		out = append(out, &readmodel.RoomMembership{UserId: uid, RoomId: room_id})
 	}
 	for _, uid := range userIDs {
 		add(uid)
@@ -669,7 +671,7 @@ func (m *RoomMembershipModel) GetRoomMembersList(ctx context.Context, kind RoomK
 	return out, nil
 }
 
-func (m *RoomMembershipModel) ListRoomMemberReferences(ctx context.Context, actorID, roomID string) ([]*evtv1.User, error) {
+func (m *RoomMembershipModel) ListRoomMemberReferences(ctx context.Context, actorID, roomID string) ([]*readmodel.User, error) {
 	room, kind, err := m.policy.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
@@ -681,7 +683,7 @@ func (m *RoomMembershipModel) ListRoomMemberReferences(ctx context.Context, acto
 // Existing members and channel-room managers may list their room. Other
 // channel-room nonmembers need both room.list and room.join; DMs retain their
 // membership-only privacy boundary.
-func (m *RoomMembershipModel) ListRoomMemberReferencesForList(ctx context.Context, actorID, roomID string) ([]*evtv1.User, error) {
+func (m *RoomMembershipModel) ListRoomMemberReferencesForList(ctx context.Context, actorID, roomID string) ([]*readmodel.User, error) {
 	return m.listRoomMemberReferencesForRead(ctx, actorID, roomID, true)
 }
 
@@ -705,7 +707,7 @@ func (m *RoomMembershipModel) ListActiveRoomMemberIDs(ctx context.Context, actor
 
 // ListRoomMemberReferencesForLookup authorizes member hydration for room members
 // and channel-room managers. DMs require membership.
-func (m *RoomMembershipModel) ListRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string) ([]*evtv1.User, error) {
+func (m *RoomMembershipModel) ListRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string) ([]*readmodel.User, error) {
 	return m.listRoomMemberReferencesForRead(ctx, actorID, roomID, false)
 }
 
@@ -713,7 +715,7 @@ func (m *RoomMembershipModel) ListRoomMemberReferencesForLookup(ctx context.Cont
 // membership may be read by room members, room managers, account managers, and
 // managers of the requested bot. Bot ownership never exposes other members.
 // DMs retain their membership-only privacy boundary.
-func (m *RoomMembershipModel) GetRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string, userIDs []string) ([]*evtv1.User, error) {
+func (m *RoomMembershipModel) GetRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string, userIDs []string) ([]*readmodel.User, error) {
 	room, kind, err := m.policy.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		if !errors.Is(err, ErrNotRoomMember) {
@@ -764,7 +766,7 @@ func (m *RoomMembershipModel) GetRoomMemberReferencesForLookup(ctx context.Conte
 	return m.userReferencesForIDs(ctx, memberIDs)
 }
 
-func (m *RoomMembershipModel) listRoomMemberReferencesForRead(ctx context.Context, actorID, roomID string, allowDiscoverableNonmember bool) ([]*evtv1.User, error) {
+func (m *RoomMembershipModel) listRoomMemberReferencesForRead(ctx context.Context, actorID, roomID string, allowDiscoverableNonmember bool) ([]*readmodel.User, error) {
 	userIDs, err := m.listRoomMemberIDsForRead(ctx, actorID, roomID, allowDiscoverableNonmember)
 	if err != nil {
 		return nil, err
@@ -813,7 +815,7 @@ func (m *RoomMembershipModel) listRoomMemberIDsForRead(ctx context.Context, acto
 	return m.roomMemberIDs(ctx, kind, room.GetId())
 }
 
-func (m *RoomMembershipModel) roomMemberReferences(ctx context.Context, kind RoomKind, roomID string) ([]*evtv1.User, error) {
+func (m *RoomMembershipModel) roomMemberReferences(ctx context.Context, kind RoomKind, roomID string) ([]*readmodel.User, error) {
 	userIDs, err := m.roomMemberIDs(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -821,8 +823,8 @@ func (m *RoomMembershipModel) roomMemberReferences(ctx context.Context, kind Roo
 	return m.userReferencesForIDs(ctx, userIDs)
 }
 
-func (m *RoomMembershipModel) userReferencesForIDs(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
-	users := make([]*evtv1.User, 0, len(userIDs))
+func (m *RoomMembershipModel) userReferencesForIDs(ctx context.Context, userIDs []string) ([]*readmodel.User, error) {
+	users := make([]*readmodel.User, 0, len(userIDs))
 	references, err := m.users.userReferences(ctx, userIDs)
 	if err != nil {
 		return nil, err

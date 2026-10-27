@@ -10,6 +10,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/interchange"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1/adminv1connect"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
@@ -132,6 +133,7 @@ func (a *API) Handlers() []Handler {
 	botPath, botHandler := apiv1connect.NewBotServiceHandler(&botService{api: a}, options...)
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(&assetService{api: a}, options...)
 	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
+	assetUploadHandler = newUploadChunkLimiter(assetUploadHandler, assetUploadOptions...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	invitationCodePath, invitationCodeHandler := adminv1connect.NewAdminInvitationCodeServiceHandler(&adminInvitationCodeService{api: a}, options...)
@@ -164,12 +166,14 @@ func (a *API) Handlers() []Handler {
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
 	adminRolePath, adminRoleHandler := adminv1connect.NewAdminRoleServiceHandler(&roleService{api: a}, options...)
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(&publicRoleService{api: a}, options...)
+	roomInvitationPath, roomInvitationHandler := apiv1connect.NewRoomInvitationServiceHandler(&roomInvitationService{api: a}, options...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(&roomService{api: a}, options...)
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
 	adminRoomLayoutPath, adminRoomLayoutHandler := adminv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	handlers := []Handler{
+		{ServicePath: roomInvitationPath, Handler: roomInvitationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: setupPath, Handler: setupHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: botPath, Handler: botHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -222,11 +226,13 @@ func (a *API) OperatorHandlers() []Handler {
 	roomPath, roomHandler := operatorv1connect.NewOperatorRoomServiceHandler(&operatorRoomService{api: a}, options...)
 	assetPath, assetHandler := operatorv1connect.NewOperatorAssetServiceHandler(&operatorAssetService{api: a}, assetOptions...)
 	messagePath, messageHandler := operatorv1connect.NewOperatorMessageServiceHandler(&operatorMessageService{api: a}, options...)
+	importPath, importHandler := operatorv1connect.NewOperatorImportServiceHandler(&operatorImportService{api: a}, handlerOptionsWithReadMax(2*interchange.MaxArchiveBytes, a.config.Webserver)...)
 	handlers := []Handler{
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: roomPath, Handler: roomHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: importPath, Handler: importHandler, AuthPolicy: AuthPolicyPublic},
 	}
 	return append(handlers, a.operatorSeedHandlers(options)...)
 }

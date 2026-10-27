@@ -52,6 +52,11 @@
       "subtitle": "Sunucu kimliği, markalama ve mesajlar"
     },
     "members": {
+      "deactivate": "Hesabı devre dışı bırak",
+      "reactivate": "Hesabı yeniden etkinleştir",
+      "deactivate_description": "Kullanıcı artık bu sunucuyu kullanamayacak. Tüm oturumlar hemen sonlandırılacak. Verileri korunacak. Hesabı daha sonra yeniden etkinleştirebilirsiniz.",
+      "deactivated_description": "Bu hesap devre dışı. Yeniden etkinleştirme, kullanıcının tekrar giriş yapmasını sağlar. Eski oturumlar geçersiz kalır.",
+      "deactivation_failed": "Hesap erişimi değiştirilemedi.",
       "title": "Üyeler",
       "subtitle": "Sunucu üyelerini ve rollerini görüntüleyin ve yönetin",
       "search": "Üye ara",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Oda başına geçersiz kılma izinleri (oda grubunun üstüne yerleştirilmiş)",
       "permissions_page_title": "İzinler - {name}",
       "back_to_rooms": "Odalara geri dön",
-      "group_permissions_hint": "Bu gruptaki kanal odaları için grup başına geçersiz kılmalar. Sunucu kapsamından devralınan varsayılanlar. Bireysel odalar ayrıca kendi izinler sayfalarından izinleri geçersiz kılabilir.",
+      "group_permissions_hint": "Bu gruptaki tüm odalar için rol izinlerini ayarlayın. Bunlar sunucunun varsayılan ayarlarını geçersiz kılar. Her oda bu ayarları geçersiz kılabilir.",
       "room_permissions_hint": "Bu ayarlar yalnızca bu odada geçerlidir. Aynı rol veya kullanıcı için oda grubunun ve sunucunun ayarlarının yerini alır. Burada yalnızca bazı rollerin bir işlem yapabilmesi için everyone için Reddet, bu roller için İzin ver ayarlayın.",
       "loading": "Odalar yükleniyor...",
       "empty_groups": "Henüz oda grubu yok",

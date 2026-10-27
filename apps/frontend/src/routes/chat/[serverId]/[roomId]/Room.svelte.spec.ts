@@ -2,7 +2,8 @@ import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
-import { q } from '$lib/test-utils';
+import { q, testSnippet } from '$lib/test-utils';
+import ContextMenu from '$lib/ui/ContextMenu.svelte';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
@@ -258,6 +259,13 @@ vi.mock('./RoomSidebar.svelte', async () => {
 });
 
 vi.mock('./RoomSidebarToggle.svelte', async () => {
+  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
+  return { default: EmptyMock };
+});
+
+// The banner has its own browser tests; keep this room-layout fixture isolated
+// from its Markdown renderer and editor dependencies, like the other panels.
+vi.mock('./RoomNoticeBanner.svelte', async () => {
   const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
   return { default: EmptyMock };
 });
@@ -1730,28 +1738,66 @@ describe('Room local message echo', () => {
     });
   });
 
-  it('keeps the thread open when pressing the app sidebar surface', async () => {
+  it('closes the thread when pressing inside the app sidebar or server gutter', async () => {
     render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
     await tick();
     mocks.goto.mockClear();
 
     const appSidebar = document.createElement('div');
     appSidebar.dataset.appSidebar = 'true';
+    const control = document.createElement('button');
+    appSidebar.append(control);
     document.body.append(appSidebar);
 
     try {
-      appSidebar.dispatchEvent(
+      control.dispatchEvent(
         new PointerEvent('pointerdown', {
           bubbles: true,
           button: 0
         })
       );
 
-      expect(mocks.goto).not.toHaveBeenCalled();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
     } finally {
       appSidebar.remove();
     }
   });
+
+  it.each(['room', 'sidebar'])(
+    'dismisses only the context menu on the first %s press',
+    async (surface) => {
+      const { container } = render(Room, {
+        props: { roomId: 'room-1', threadId: 'thread-root' }
+      });
+      const onclose = vi.fn();
+      const menu = render(ContextMenu, {
+        position: { x: 20, y: 20 },
+        presentation: 'floating',
+        onclose,
+        children: testSnippet('<button role="menuitem">Menu action</button>')
+      });
+      await tick();
+      await new Promise(requestAnimationFrame);
+      mocks.goto.mockClear();
+
+      const sidebar = document.createElement('div');
+      sidebar.dataset.appSidebar = 'true';
+      document.body.append(sidebar);
+      const target =
+        surface === 'sidebar' ? sidebar : q(container, '[data-testid="room-view-region"]')!;
+      try {
+        target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+        expect(onclose).toHaveBeenCalledOnce();
+        expect(mocks.goto).not.toHaveBeenCalled();
+
+        await menu.unmount();
+        target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+        expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+      } finally {
+        sidebar.remove();
+      }
+    }
+  );
 
   it('closes the thread when pressing the room view behind it', async () => {
     const { container } = render(Room, {

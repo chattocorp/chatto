@@ -19,7 +19,8 @@ actionlint = "1.7.12"
 buf = "latest"
 go = "1.27.3"
 goreleaser = "latest"
-node = "lts"
+# Includes the Brotli decoder fix for CVE-2026-111497.
+node = "24.22.1"
 pnpm = "11.25.0"
 uv = "0.11.30"
 
@@ -198,6 +199,14 @@ run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
 description = "Check GitHub Actions workflows and repository shell scripts"
 run = ["actionlint", "shellcheck --severity=warning tools/*.sh"]
 
+[tasks.test-release-policy]
+description = "Test GitHub release publication and Latest selection"
+run = "node --test tools/release-policy.test.mjs"
+
+[tasks.test-interchange]
+description = "Validate draft interchange schemas and synthetic conformance fixtures"
+run = "uv run --script tools/test_interchange.py"
+
 # =============================================================================
 # Code Generation
 # =============================================================================
@@ -207,9 +216,15 @@ description = "Check Chatto protobuf naming and schema conventions"
 dir = "proto"
 run = "buf lint"
 
+[tasks.build-proto-generators]
+description = "Build the pinned protobuf generators before Buf runs"
+depends = ["setup-cli"]
+dir = "cli"
+run = "go build -o bin/proto/ google.golang.org/protobuf/cmd/protoc-gen-go connectrpc.com/connect/cmd/protoc-gen-connect-go github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
+
 [tasks.codegen-proto]
 description = "Generate Go and frontend code from protobuf schemas"
-depends = ["setup-cli", "setup-frontend"]
+depends = ["build-proto-generators", "setup-frontend"]
 dir = "proto"
 run = [
     "pnpm --dir ../packages/api-types run clean",
@@ -256,6 +271,22 @@ description = "Build the experimental Chatto desktop app for the host platform"
 depends = ["build-frontend"]
 dir = "apps/desktop"
 run = "pnpm build"
+
+[tasks.desktop-build-dev]
+description = "Build Chatto Desktop Dev with separate macOS permissions and app data"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+env.CHATTO_DESKTOP_BUILD = "development"
+run = "pnpm build"
+
+[tasks.desktop-run-dev]
+description = "Build and open Chatto Desktop Dev on macOS"
+depends = ["desktop-build-dev"]
+run = 'open "apps/desktop/dist/Chatto Desktop Dev.app"'
+
+[tasks.desktop-video-benchmark]
+description = "Compare macOS hardware encoder settings locally (pass --output <new-directory>)"
+run = "xcrun swift run --package-path apps/desktop/native/macos-capture-probe -c release chatto-video-benchmark"
 
 [tasks.mobile-ios-sync]
 description = "Bundle the shared frontend into the experimental iOS app"
@@ -351,7 +382,7 @@ sources = [
     "{src,messages,static}/**",
     "{package.json,*config.*,scripts/*.mjs,.env*}",
     "../../{package.json,pnpm-*.yaml,.npmrc,.env*,turbo.json,tools/turbo.mjs,tools/prepare-embedded-frontend.sh}",
-    "../../packages/{api-types,lingua,chatto-client}/{src/**,package.json,tsconfig*.json}",
+    "../../packages/{api-types,translatto,chatto-client}/{src/**,package.json,tsconfig*.json}",
 ]
 outputs = [
     "build",
@@ -937,14 +968,9 @@ dir = "pkg/natsruntime"
 tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
-[tasks.lint-lingua]
-description = "Type-check the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm turbo run check --filter=@chatto/lingua"
-
 [tasks.lint]
 description = "Run linters"
-run = [{ task = "lint-*" }]
+run = [{ task = "lint-*" }, { task = "check-workspace" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
@@ -972,11 +998,6 @@ run = "bash tools/test-chatto-build.sh"
 description = "Run selected frontend Vitest specs"
 depends = ["setup-frontend"]
 run = "pnpm run test:frontend:focused"
-
-[tasks.test-lingua]
-description = "Test the JSON internationalisation runtime package"
-depends = ["setup-frontend"]
-run = "pnpm run test:lingua"
 
 [tasks.check-workspace]
 description = "Type-check every pnpm workspace package"

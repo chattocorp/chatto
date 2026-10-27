@@ -13,15 +13,20 @@ See [the TODO list](docs/TODO.md) for planned work and experiments.
 ## How it works
 
 1. The `chatto` event source connects to Chatto as the bot. It receives the
-   messages that address the bot: new room-level DMs, mentions, and replies to
+   messages that address the bot: DMs, mentions, and replies to
    the bot, plus added emoji reactions to the bot's messages.
 2. The router sends each message to the conversation run of its thread. When a
    thread has no run, the router starts one.
-3. The conversation answers the messages in turns. A turn includes all messages
+3. The participation classifier chooses silence, an emoji acknowledgment, or a
+   conversation turn for automatic intake and ordinary thread replies. Verified
+   mentions, replies to the bot, and DMs always reach the conversation.
+   The workflow adds emoji acknowledgments without starting the conversation agent.
+4. The conversation answers accepted messages in turns. A turn includes all messages
    that arrived since the previous turn, and the other new messages in the
-   thread as context. The first turn includes the thread so far.
-4. The agent's final text is posted to the thread as the reply. It can instead
-   add an emoji reaction when a short acknowledgment is sufficient.
+   thread as context. The first turn includes the thread so far. Replies lead with
+   the answer or next action, usually in one short paragraph. The bot gives more
+   detail when requested or needed.
+5. The agent's final text is posted to the thread as the reply.
 
 A conversation ends after one hour without an addressed message or an accepted
 automatic follow-up, once its current turn and background jobs finish. The next
@@ -89,8 +94,8 @@ Dedicated models return a choice and probabilities instead of a written reason.
 Both modes use the same participation policy, no tools, and a 30-second deadline.
 They also check reactions before a reaction can start a conversation turn.
 Failures never fall back to another model. The task
-does not post, react, or show typing. Ignored posts and failed classifications
-stay silent. Users can still mention the bot to get help.
+does not post or show typing. The workflow can add a classifier-selected emoji.
+Ignored automatic posts and failed automatic classifications stay silent. Users can still mention the bot to get help.
 
 For accepted reports, the workflow runs the normal conversation task as a child
 in the same run. It forwards later addressed messages to that child. The bot asks questions
@@ -116,7 +121,7 @@ This tool is limited to the active automatic-intake conversation. Reactions rema
 after expiry or restart. Recovered conversations retain intake status; a new
 conversation after expiry does not recover it.
 
-Mentions, replies to the bot, and direct messages bypass classification.
+Mentions, replies to the bot, and direct messages bypass participation classification.
 Bot posts, forwarded copies, and existing history do not start intake.
 `CHATTO_ALLOWED_USER_ID` also applies to intake.
 
@@ -127,8 +132,9 @@ bot with that request. The classifier does not grant permissions.
 Duplicate intake deliveries are suppressed for 24 hours in the running
 process, including source reloads. A process restart clears this memory.
 Failed classifications are not retried automatically. A mention received during
-classification cancels the classifier and starts the conversation child with
-that addressed message. It does not add a second intake turn or start another run.
+classification cancels that check. The verified addressed batch starts the
+conversation child directly. It does not add a second intake turn or start
+another run.
 
 ## Automatic thread follow-ups
 
@@ -140,16 +146,17 @@ start a conversation.
 All incoming messages use a fixed three-second batching window, including the
 first post, pings, direct replies, and reactions to bot messages. The first queued message starts the window;
 later messages join it without extending it. This lets people finish a short
-sequence of messages before the bot answers. Addressed messages in the same window
+sequence of messages before the bot answers. Accepted addressed messages in the same window
 reach one conversation turn, with each author's identity and authorization context
 kept separate. The window runs while the agent is busy, so it adds no further wait
 when the agent becomes available after the window has ended.
 
-DM threads use the same participation rules as channel threads. A new room-level
-DM starts a direct conversation. Inside its thread, ordinary messages go through
-classification. Explicit mentions and replies to the bot go directly to the
-conversation. Reactions to its messages pass a participation check first.
-Ordinary DM replies cannot authorize restricted work or reopen an expired conversation.
+All DM messages, including thread replies, are addressed input. DMs, explicit
+mentions, and verified replies to the bot always reach a conversation turn.
+Ordinary thread replies and reactions to the bot's messages still pass participation
+checks. A current maintainer's DM can authorize
+restricted work without a mention. Channel thread replies still need a mention
+or a verified reply to the bot to provide authorization.
 
 Ordinary realtime replies notify an existing thread workflow after that same
 window. It reads human messages after the bot's latest post (or the conversation's
@@ -172,10 +179,10 @@ further. Questions about the current report's progress, missing information, or
 next steps also qualify. One clear reply to the bot is sufficient for a batch;
 earlier vague remarks do not outweigh it. Discussion of the same topic,
 human-to-human questions, brainstorming, and status updates do not qualify on
-their own. Uncertain cases, thanks, and
-requests to leave the conversation to humans should stay silent.
+their own. Uncertain cases and requests to leave the conversation to humans
+stay silent. Simple unaddressed thanks to the bot can receive an emoji acknowledgment.
 For automatic-intake conversations, clear resolutions and report withdrawals also
-reach the conversation agent so it can update the checkmark; plain thanks stay silent.
+reach the conversation agent so it can update the checkmark.
 
 The bot adds 👀 when it engages with a thread root. It does not add eyes reactions
 to later messages in the thread, including pings and accepted automatic follow-ups.
@@ -225,8 +232,8 @@ not contain private conversation content, logs, credentials, or personal data.
 The bot declines unrelated requests without research, including requests that
 only mention Chatto or say the answer will be posted there. For mixed requests,
 it helps with the Chatto part. Brief greetings and social replies are allowed.
-These rules apply to maintainers too. They are model instructions, checked with
-behavioral evaluations, not a host-enforced topic classifier.
+These rules apply to maintainers too. The participation classifier and conversation
+agent use model instructions, checked with behavioral evaluations.
 
 ### Available tools
 
@@ -235,7 +242,6 @@ behavioral evaluations, not a host-enforced topic classifier.
 | `fetchPage`           | Reads the Chatto documentation and the Awesome Chatto list.                                           |
 | `readThread`          | Reads the newest messages of the thread.                                                              |
 | `viewAttachment`      | Looks at an image or a small text file in the thread.                                                 |
-| `react`               | Adds an emoji reaction to a message seen in the current thread.                                      |
 | `webSearch`           | Searches the web with Tavily, when configured.                                                        |
 | `browsePage`          | Reads a web page with Cloudflare Browser Run, when configured.                                        |
 | `gh`                  | Runs read-only GitHub CLI commands, when GitHub is configured.                                        |
@@ -284,8 +290,9 @@ the emoji, the thread root, and up to 20 recent replies. Target text is context,
 not a new request. Appreciation on completed answers normally requires no response. Clear
 answers to pending questions and approval of pending proposals can start a turn.
 The classifier checks each reaction separately, including in batches with direct
-messages. A failed check sends no reaction-driven response. Direct messages still
-reach the conversation. Checked reaction event IDs are retained across recovery.
+messages. A failed check sends no reaction-driven response. If a classifier or
+context read fails for verified explicit text, that text reaches the conversation.
+Checked reaction event IDs are retained across recovery.
 Accepted reactions retain the reacting user's identity, event ID, and exact target
 for the conversation model and its authorization checks. Its own reactions,
 reactions to other people's messages, and reaction removals do not start a turn.
@@ -298,9 +305,17 @@ clarification when the scope is unclear. Appreciation and reactions to completed
 work must not start another job. Non-maintainers can react in normal conversation,
 but cannot authorize restricted work.
 
-ChattoBot can use `react` to acknowledge a message without an extra text reply.
-It can target only messages it has seen in the current thread. Delegation and
-result summaries still use text, and automatic report completion still uses
+The classifier can choose 👍, ❤️, or 😄 for a brief acknowledgment of text.
+The workflow adds it to the last verified new text message in the batch. It does
+not start or steer the conversation agent for that response. A batch that needs
+an answer, supplies diagnostic facts, or approves pending work goes to the agent.
+Incoming reaction events cannot cause an emoji acknowledgment.
+
+The workflow records consumed message IDs in its recovery state. A failed or
+uncertain reaction write does not cause a text reply or an automatic retry.
+Recovery uses the last saved state; an action after that snapshot can still be
+considered again. Adding the same bot reaction is idempotent on the server.
+Delegation and result summaries use text. Automatic report completion still uses
 `setHandled` for the root ✅.
 
 ## Background jobs
@@ -333,7 +348,9 @@ its `origin/main` reference. The endpoint must use `ws://` or `wss://`, end in `
 and contain no credentials, query, or fragment. Use `wss://` for remote connections.
 With all Paseo settings absent, the capability is disabled.
 
-For a local desktop daemon, use `CHATTO_PASEO_URL=ws://127.0.0.1:6767/ws`.
+For a local desktop daemon that listens on loopback, use
+`CHATTO_PASEO_URL=ws://127.0.0.1:6767/ws`. If the daemon listens on another
+interface, use that address. The bot must be able to reach the listener.
 The default local listener does not use TLS; `wss://localhost:6767/ws` will fail.
 
 To enable implementation, also set `CHATTO_PASEO_AGENT_MODEL` to a `provider/model`
@@ -389,7 +406,8 @@ the workspace. After creation, the bot assigns the `chattobot` workspace label.
 If labeling fails, the result retains the workspace and reports `labelApplied: false`;
 implementation can continue in that workspace.
 
-The bot acknowledges accepted work once and keeps answering messages. The Runling
+The bot acknowledges accepted work once as an attempt to start the work and keeps
+answering messages. It confirms startup only after the remote service confirms it. The Runling
 child task subscribes before sending the brief, streams assistant messages back,
 and waits for the coding turn to finish, a permission request, an error, or a
 one-hour timeout. It joins live text fragments and emits each segment at the next
@@ -651,7 +669,9 @@ ChattoBot sends these data to other systems:
 With automatic intake enabled, the model provider also receives eligible new
 posts and attachment MIME types in the configured rooms, without a mention.
 For every active bot conversation, follow-up classification can send ordinary
-human replies and a short preceding excerpt without a ping. When
+human replies and a short preceding excerpt without a ping. Mentions, direct
+replies, and new DMs also send text, attachment MIME types, and recent thread
+context to the participation classifier. When
 `CHATTO_INTAKE_DECISION_MODEL` is set, these classification inputs go to OpenRouter
 and its selected decision-model provider instead of the conversation provider.
 These requests reveal the bot host's IP address, not the author's IP address.
@@ -717,7 +737,9 @@ to the configured model provider. They incur model costs but do not contact
 Chatto or GitHub. Cases cover reports, feature requests, incomplete reports,
 German text, unrelated messages, instruction injection, and image metadata.
 Follow-up cases cover partial and batched answers, corrections, screenshots,
-resolved questions, human discussion, and requests for silence.
+resolved questions, human discussion, requests for silence, and emoji-only
+acknowledgments. Addressed cases cover thanks, unrelated requests, approval,
+and mixed batches.
 Reports are saved under `.runling/evaluations/`. Each case records the expected
 decision, actual result or error, elapsed time, tokens, and reported USD cost.
 Eight additional cases are marked `held-out` for comparison with the original
@@ -799,3 +821,11 @@ or a live GitHub integration test. These evaluations are separate from the
 deterministic tests in `mise test-chattobot`.
 
 Read [AGENTS.md](AGENTS.md) before you add a tool or change the conversation.
+
+### Response style evaluation
+
+Run `pnpm eval:style` to check concise replies and summaries with the configured
+conversation model. The thread history is synthetic. Chatto and documentation
+services are not contacted; only the model provider receives the test prompts.
+The checks retain known facts while limiting word counts, repeated questions,
+and generic offers of more help. A pass is a behavior sample, not a guarantee.

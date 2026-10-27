@@ -1,9 +1,9 @@
 import {
-  createLingua,
+  createTranslatto,
   type HtmlTranslationKey,
   type LocalizedHtml,
   type TranslationArguments
-} from '@chatto/lingua';
+} from '@chatto/translatto';
 
 import {
   catalogLoaders,
@@ -22,7 +22,7 @@ import {
   setReactiveLocale
 } from './state.svelte';
 
-const lingua = createLingua({
+const translatto = createTranslatto({
   baseLocale,
   fallbackLocales,
   initialBaseCatalogs,
@@ -42,7 +42,7 @@ export function m<const Key extends string>(
   ...args: TranslationArguments<Key>
 ): string {
   getI18nRevision();
-  return lingua.t(key, ...args);
+  return translatto.t(key, ...args);
 }
 
 /** Resolve untrusted localized markup for the reviewed sanitizing renderer. */
@@ -51,14 +51,14 @@ export function mHtml<const Key extends HtmlTranslationKey>(
   ...args: TranslationArguments<Key>
 ): LocalizedHtml {
   getI18nRevision();
-  return lingua.html(key, ...args);
+  return translatto.html(key, ...args);
 }
 
 /** Load every catalog section; retained for focused tests and non-route consumers. */
 export async function loadLocaleMessages(locale: Locale): Promise<void> {
   await scheduleCatalogTransition(async () => {
-    await lingua.setActiveSections(catalogSections);
-    await lingua.setLocale(locale);
+    await translatto.setActiveSections(catalogSections);
+    await translatto.setLocale(locale);
     bumpI18nRevision();
   });
 }
@@ -66,7 +66,7 @@ export async function loadLocaleMessages(locale: Locale): Promise<void> {
 /** Switch locales while preserving the route's independently loaded sections. */
 export async function switchLocaleMessages(locale: Locale): Promise<void> {
   await scheduleCatalogTransition(async () => {
-    await lingua.setLocale(locale);
+    await translatto.setLocale(locale);
     bumpI18nRevision();
   });
 }
@@ -75,8 +75,8 @@ export async function switchLocaleMessages(locale: Locale): Promise<void> {
 export async function preloadPublicLocaleMessages(): Promise<void> {
   const locale = getReactiveLocale();
   await scheduleCatalogTransition(async () => {
-    await lingua.setActiveSections(publicCatalogSections);
-    await lingua.setLocale(locale);
+    await translatto.setActiveSections(publicCatalogSections);
+    await translatto.setLocale(locale);
     setReactiveLocale(locale);
     bumpI18nRevision();
   });
@@ -86,14 +86,14 @@ export async function preloadPublicLocaleMessages(): Promise<void> {
 export async function preloadChatLocaleMessages(management = false): Promise<void> {
   await scheduleCatalogTransition(async () => {
     const sections = management ? catalogSections : chatCatalogSections;
-    const active = lingua.snapshot.activeSections;
+    const active = translatto.snapshot.activeSections;
     if (
       active.length === sections.length &&
       sections.every((section) => active.includes(section))
     ) {
       return;
     }
-    await lingua.setActiveSections(sections);
+    await translatto.setActiveSections(sections);
     bumpI18nRevision();
   });
 }
@@ -105,10 +105,10 @@ export async function preloadChatLocaleMessages(management = false): Promise<voi
  */
 export async function deactivateManagementLocaleMessages(): Promise<void> {
   await scheduleCatalogTransition(async () => {
-    const active = lingua.snapshot.activeSections;
+    const active = translatto.snapshot.activeSections;
     const sections = active.filter(
       (section) => !isManagementCatalogSection(section as CatalogSection)
     );
-    if (sections.length !== active.length) await lingua.setActiveSections(sections);
+    if (sections.length !== active.length) await translatto.setActiveSections(sections);
   });
 }

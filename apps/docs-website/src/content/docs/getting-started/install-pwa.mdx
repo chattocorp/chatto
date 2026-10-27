@@ -1,0 +1,76 @@
+---
+title: Install Chatto on Your Phone
+description: Add the Chatto progressive web app to your Home Screen with Safari on iOS or Chrome or Firefox on Android.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Chatto's **progressive web app (PWA)** brings the full Chatto experience to your phone: rooms, threads, direct messages, file attachments, search, and voice and video calls.
+
+Install it from your browser to open Chatto from your Home Screen in its own app window. There is no app store download, and you use the same Chatto features as in your browser.
+
+You choose how to use your servers: install a separate PWA from each server's address to keep a separate app icon for each community, or connect to multiple servers from a single PWA and switch between them in one app.
+
+**Push notifications** let you receive alerts even when Chatto is not open. Enable them after installation to keep up with your conversations. App badges also show unread activity where your browser and operating system support them. See [Enable Notifications](#enable-notifications) below to get started.
+
+## Before You Start
+
+Open the Chatto address that you normally use, such as `https://chat.example.com`. Ask your community administrator for the address if you do not know it. Use the Chatto app page, not this documentation site.
+
+Use an HTTPS address and an up-to-date browser. If a link opens inside another app, copy the address and open it in Safari, Chrome, or Firefox.
+
+## iOS: Safari
+
+<Steps>
+
+1. Open **Safari** and go to your Chatto address.
+2. Tap **Share** (the square with an upward arrow). Depending on your Safari layout, first open the page menu to find **Share**.
+3. Scroll through the actions and tap **Add to Home Screen**.
+4. Keep **Open as Web App** on if Safari shows this option. Change the app name if necessary, then tap **Add**.
+5. Tap the new icon on your Home Screen to open Chatto. Sign in if asked.
+
+</Steps>
+
+If **Add to Home Screen** is missing, scroll to **Edit Actions** in the Share menu and add it. See [Apple's Safari instructions](https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios) for more help.
+
+## Android: Chrome
+
+<Steps>
+
+1. Open **Chrome** and go to your Chatto address.
+2. Open the **three-dot menu** beside the address bar.
+3. Select **Install and create shortcut**, then **Install**. Depending on your Chrome version, the menu may instead show **Add to Home screen** or **Install app**.
+4. Confirm the installation when prompted.
+5. Open Chatto from its app icon. Sign in if asked.
+
+</Steps>
+
+See [Google's web app instructions](https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DAndroid) for more help.
+
+## Android: Firefox
+
+<Steps>
+
+1. Open **Firefox** and go to your Chatto address.
+2. Open the **three-dot menu**.
+3. Tap **Install** to open the **Add to Home Screen** panel.
+4. Tap **Add automatically**, or drag the icon to a location on your Home Screen.
+5. Tap the new icon to open Chatto. Sign in if asked.
+
+</Steps>
+
+See [Mozilla's web app instructions](https://support.mozilla.org/en-US/kb/use-web-apps-firefox-android) for more help.
+
+## Enable Notifications
+
+Open the installed app. In your server's notification settings, select **Push notifications on this device**, then allow notifications when prompted. Use **Send test notification** to check delivery.
+
+<Aside type="note">
+  On iOS, open Chatto from its Home Screen icon before you enable push notifications. Installing the app does not grant notification permission.
+</Aside>
+
+For notification settings and server requirements, see [Notifications & Web Push](/guides/operations/notifications-web-push/).
+
+<Aside type="tip" title="For server operators">
+  You do not need to run a separate push notification server or special push infrastructure. Chatto sends notifications directly to the push services used by your members' browsers. Enable Web Push and configure VAPID keys on your Chatto server as described in [Enable Web Push](/guides/operations/notifications-web-push/#enable-web-push).
+</Aside>

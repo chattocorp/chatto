@@ -147,6 +147,7 @@
       "call": "Aramalar"
     },
     "permission_help": {
+      "room_manage_notice": "Bir üyenin etkin bir kanal odasındaki duyuruyu yönetmesine izin verir, ancak odanın kendisini yönetmesine izin vermez. Yeni kurulumlar bu izni yalnızca Admin rolüne verir; yükseltmeler mevcut izinleri korur.",
       "server_manage": "Bir hesabın sunucu adını, açıklamasını, logosunu ve diğer sunucu ayarlarını değiştirmesine izin verir. Herkese açık Komşu dizininde değişiklik yapmaya da izin verir. Bu izni yalnızca tüm sunucu adına konuşabilecek kişilere verin.",
       "server_manage_neighbors": "Bir hesabın herkese açık Komşu dizinine kayıt eklemesine, kayıtları değiştirmesine ve kaldırmasına izin verir. Diğer sunucu ayarlarını değiştirmeye izin vermez.",
       "room_create": "Bir hesabın kanal odaları oluşturmasına izin verir. Oda grubu kapsamında yalnızca o grupta yeni oda oluşturmaya izin verir.",
@@ -179,7 +180,8 @@
       "call_join": "Bir hesabın devam eden bir aramaya, yalnızca dinleyici olarak da olsa katılmasına izin verir. Ses veya görüntü göndermek için call.voice, call.camera veya call.screenshare gerekir.",
       "call_voice": "Bir hesabın aramalarda mikrofon sesi göndermesine izin verir. Bu izin olmadan hesap yine de dinleyebilir.",
       "call_camera": "Bir hesabın aramalarda kamera görüntüsü göndermesine izin verir.",
-      "call_screenshare": "Bir hesabın aramalarda bir ekranı, pencereyi, sekmeyi veya uygulamayı sesiyle birlikte paylaşmasına izin verir. Mikrofon sesine izin vermez; bunun için call.voice gerekir."
+      "call_screenshare": "Bir hesabın aramalarda bir ekranı, pencereyi, sekmeyi veya uygulamayı sesiyle birlikte paylaşmasına izin verir. Mikrofon sesine izin vermez; bunun için call.voice gerekir.",
+      "room_invite": "Sunucu üyelerini katıldığınız odalara davet edin."
     }
   }
 }

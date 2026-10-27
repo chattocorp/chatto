@@ -12,8 +12,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/brianvoe/gofakeit/v7"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // SeedVersion identifies the deterministic content and relationship generator.
@@ -222,7 +223,7 @@ func seedNameCandidate(base string, attempt int) string {
 	return fmt.Sprintf("%s-%d", base, attempt+1)
 }
 
-func (c *ChattoCore) createSeedUser(ctx context.Context, base, displayName string) (*evtv1.User, error) {
+func (c *ChattoCore) createSeedUser(ctx context.Context, base, displayName string) (*readmodel.User, error) {
 	for attempt := range 10000 {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -235,7 +236,7 @@ func (c *ChattoCore) createSeedUser(ctx context.Context, base, displayName strin
 	return nil, fmt.Errorf("could not allocate a unique permitted synthetic login")
 }
 
-func (c *ChattoCore) createSeedRoom(ctx context.Context, base, description string) (*evtv1.Room, error) {
+func (c *ChattoCore) createSeedRoom(ctx context.Context, base, description string) (*readmodel.Room, error) {
 	for attempt := range 10000 {
 		if err := ctx.Err(); err != nil {
 			return nil, err

@@ -51,11 +51,14 @@ type transformRequest struct {
 	AssetID string
 	// JPEGQuality overrides the default quality for opaque static derivatives.
 	JPEGQuality int
-	// FetchAsset returns the asset data and content type.
+	// FetchAsset returns the asset data and content type. Concurrent requests
+	// for the same derivative call it only once, after Authorize.
 	// The reader will be closed if it implements io.Closer.
 	FetchAsset func(ctx context.Context) (io.Reader, string, error)
 	// Authorize checks if access is allowed. Return true if authorized.
-	// If nil, asset is considered public and no authorization is needed.
+	// It runs before the cache lookup and FetchAsset, so it must not depend on
+	// FetchAsset. If nil, asset is considered public and no authorization is
+	// needed.
 	Authorize func(c *gin.Context) bool
 }
 
@@ -670,16 +673,15 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	// Build cache key with prefix to distinguish between asset types
 	cacheKey := core.ImageCacheKey(req.CachePrefix, req.AssetID, params.Width, params.Height, params.Fit)
 
+	if req.Authorize != nil && !req.Authorize(c) {
+		return
+	}
+
 	// Try cache first
 	if cached, err := s.core.GetCachedResize(ctx, cacheKey); err == nil && cached != nil {
 		s.logger.Debug("Cache hit for transformed asset",
 			"asset_id", req.AssetID,
 			"cache_key", cacheKey)
-
-		// Still need to check authorization if required
-		if req.Authorize != nil && !req.Authorize(c) {
-			return
-		}
 
 		c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
 		c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
@@ -689,68 +691,66 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 		return
 	}
 
-	// Cache miss - fetch the asset first
-	// (FetchAsset may cache metadata like room ID needed by Authorize)
-	reader, contentType, err := req.FetchAsset(ctx)
-	if err != nil {
+	// Cache miss. Only the request that does the shared transform opens the
+	// source, so waiting requests do not buffer source bytes.
+	result, err := s.imageTransforms.do(ctx, cacheKey,
+		func() ([]byte, error) {
+			reader, contentType, err := req.FetchAsset(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %w", errTransformSourceNotFound, err)
+			}
+			if closer, ok := reader.(io.Closer); ok {
+				defer closer.Close()
+			}
+			if contentType == "" || !isImageContentType(contentType) {
+				return nil, errTransformSourceNotImage
+			}
+			data, err := io.ReadAll(reader)
+			if err != nil {
+				return nil, fmt.Errorf("read asset: %w", err)
+			}
+			return data, nil
+		},
+		func(data []byte) (*transformedImage, error) {
+			var result *assets.TransformResult
+			var err error
+			if req.JPEGQuality > 0 {
+				result, err = assets.TransformImageWithOptions(data, params.Width, params.Height, assets.FitMode(params.Fit), assets.TransformOptions{
+					JPEGQuality: req.JPEGQuality,
+				})
+			} else {
+				result, err = assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+			}
+			if err != nil {
+				return nil, fmt.Errorf("transform image: %w", err)
+			}
+			transformedData, err := io.ReadAll(result.Reader)
+			if err != nil {
+				return nil, fmt.Errorf("read transformed image: %w", err)
+			}
+			// Store in cache (fire-and-forget, skip animated GIFs which are large)
+			if result.ContentType != "image/gif" {
+				go func() {
+					if err := s.core.StoreCachedResize(context.Background(), cacheKey, transformedData); err != nil {
+						s.logger.Warn("Failed to cache transformed image", "error", err, "cache_key", cacheKey)
+					}
+				}()
+			}
+			return &transformedImage{Data: transformedData, ContentType: result.ContentType}, nil
+		},
+	)
+	switch {
+	case errors.Is(err, errTransformSourceNotFound):
 		s.logger.Error("Failed to get asset", "error", err, "asset_id", req.AssetID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
-	}
-	// Close the reader if it implements io.Closer
-	if closer, ok := reader.(io.Closer); ok {
-		defer closer.Close()
-	}
-
-	// Check authorization after fetching (Authorize can use metadata cached by FetchAsset)
-	if req.Authorize != nil && !req.Authorize(c) {
-		return
-	}
-
-	// Check if content type is an image
-	if contentType == "" || !isImageContentType(contentType) {
+	case errors.Is(err, errTransformSourceNotImage):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Asset is not an image"})
 		return
-	}
-
-	// Read asset data into bytes for transformation
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		s.logger.Error("Failed to read asset", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read asset"})
-		return
-	}
-
-	// Transform the image
-	var result *assets.TransformResult
-	if req.JPEGQuality > 0 {
-		result, err = assets.TransformImageWithOptions(data, params.Width, params.Height, assets.FitMode(params.Fit), assets.TransformOptions{
-			JPEGQuality: req.JPEGQuality,
-		})
-	} else {
-		result, err = assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
-	}
-	if err != nil {
-		s.logger.Error("Failed to transform image", "error", err)
+	case err != nil:
+		s.logger.Error("Failed to transform image", "error", err, "asset_id", req.AssetID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transform image"})
 		return
-	}
-
-	// Read transformed bytes for caching and response
-	transformedData, err := io.ReadAll(result.Reader)
-	if err != nil {
-		s.logger.Error("Failed to read transformed image", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read transformed image"})
-		return
-	}
-
-	// Store in cache (fire-and-forget, skip animated GIFs which are large)
-	if result.ContentType != "image/gif" {
-		go func() {
-			if err := s.core.StoreCachedResize(context.Background(), cacheKey, transformedData); err != nil {
-				s.logger.Warn("Failed to cache transformed image", "error", err, "cache_key", cacheKey)
-			}
-		}()
 	}
 
 	// Set cache headers for long-term caching (immutable content)
@@ -760,7 +760,7 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	c.Header("X-Cache", "MISS")
 
 	// Serve the transformed image with appropriate content type
-	c.Data(http.StatusOK, result.ContentType, transformedData)
+	c.Data(http.StatusOK, result.ContentType, result.Data)
 }
 
 func transformedAssetCacheControl(public bool) string {
@@ -820,6 +820,8 @@ func isImageContentType(contentType string) bool {
 	return contentType == "image/jpeg" ||
 		contentType == "image/png" ||
 		contentType == "image/gif" ||
+		contentType == "image/heic" ||
+		contentType == "image/heif" ||
 		contentType == "image/webp"
 }
 

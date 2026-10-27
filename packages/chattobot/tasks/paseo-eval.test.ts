@@ -11,52 +11,30 @@ import { GitHubWorkInput } from './github.ts';
 
 vi.mock('../paseo/client.ts', () => ({ createPaseoClient: vi.fn() }));
 
-test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
-  {
-    request: 'Start implementing this',
+test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each(
+  [
+    { request: 'Start implementing Croatian UI translations', connectionFailed: true },
+    { request: 'Start implementing this' },
+    { request: 'Put this into Paseo', status: 'permission' as const },
+    { request: 'Build this', authorId: 'member' },
+    { request: 'the UI', authorId: 'member', bavarian: true },
+    { request: "Haha yeah it's a good request, let's build it. ZEFIX!", bavarian: true },
+    {
+      request: "Haha yeah it's a good request, let's build it. ZEFIX!",
+      bavarian: true,
+      configured: false
+    }
+  ].map((scenario) => ({
     authorId: 'maintainer',
     status: 'idle' as const,
     configured: true,
-    bavarian: false
-  },
-  {
-    request: 'Put this into Paseo',
-    authorId: 'maintainer',
-    status: 'permission' as const,
-    configured: true,
-    bavarian: false
-  },
-  {
-    request: 'Build this',
-    authorId: 'member',
-    status: 'idle' as const,
-    configured: true,
-    bavarian: false
-  },
-  {
-    request: 'the UI',
-    authorId: 'member',
-    status: 'idle' as const,
-    configured: true,
-    bavarian: true
-  },
-  {
-    request: "Haha yeah it's a good request, let's build it. ZEFIX!",
-    authorId: 'maintainer',
-    status: 'idle' as const,
-    configured: true,
-    bavarian: true
-  },
-  {
-    request: "Haha yeah it's a good request, let's build it. ZEFIX!",
-    authorId: 'maintainer',
-    status: 'idle' as const,
-    configured: false,
-    bavarian: true
-  }
-])(
+    bavarian: false,
+    connectionFailed: false,
+    ...scenario
+  }))
+)(
   'Paseo conversation: $request by $authorId ($status, configured: $configured)',
-  async ({ request, authorId, status, configured, bavarian }) => {
+  async ({ request, authorId, status, configured, bavarian, connectionFailed }) => {
     const model = setting('CHATTO_AGENT_MODEL');
     if (!model) throw new Error('Set CHATTO_AGENT_MODEL for the opt-in evaluation');
     const posts: string[] = [];
@@ -64,8 +42,17 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
     const attempts: string[] = [];
     const github = new FakeGitHub();
     const githubWorker = vi.fn(async () => 'Wrong capability: this worker cannot implement code.');
+    const send = vi.fn(async (_prompt: string) => {});
     const launch = vi.fn(async (_options: PaseoWorkspaceAgentCreateOptions) => ({
       id: 'fixture-agent',
+      send,
+      timeline: {
+        subscribe: () =>
+          Object.assign(() => {}, {
+            ready: Promise.resolve(),
+            release: async () => {}
+          })
+      },
       waitForFinish: async () => ({
         status,
         final: null,
@@ -82,7 +69,9 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
       directory: '/fixture/drafts'
     }));
     vi.mocked(createPaseoClient).mockReturnValue({
-      connect: async () => {},
+      connect: async () => {
+        if (connectionFailed) throw new Error('Connection refused');
+      },
       close: async () => {},
       labelWorkspace: async () => true,
       workspaces: { create, ref: () => ({ agents: { create: launch } }) }
@@ -108,7 +97,6 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
         typing: async () => {},
         acknowledge: async () => {},
         setHandled: async () => {},
-        react: async () => {},
         readThread: async () => ({
           messages: clarification
             ? [
@@ -189,9 +177,10 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
         authorId,
         roomId: 'fixture-room',
         threadRootId: 'fixture-thread',
-        body: bavarian
-          ? request
-          : `${request}: preserve unsent draft text when switching between Chatto rooms, and add a regression test for switching away and back. No GitHub issue exists or is needed. Leave the change for review. Do not commit or push.`
+        body:
+          bavarian || connectionFailed
+            ? request
+            : `${request}: preserve unsent draft text when switching between Chatto rooms, and add a regression test for switching away and back. No GitHub issue exists or is needed. Leave the change for review. Do not commit or push.`
       }
     });
     if (!result.ok) throw result.error;
@@ -222,10 +211,20 @@ test.skipIf(process.env.CHATTO_EVAL_PASEO !== '1').each([
       expect(posts.join('\n')).toContain('@reviewer');
       return;
     }
+    if (connectionFailed) {
+      expect(create).not.toHaveBeenCalled();
+      expect(launch).not.toHaveBeenCalled();
+      expect(posts).toHaveLength(2);
+      expect(posts[0]).toMatch(/try|attempt/i);
+      expect(posts[0]).not.toMatch(/I[’']m starting|work (?:has|is) (?:started|in progress)/i);
+      expect(posts[1]).toMatch(/couldn.t|could not|fail|unable/i);
+      return;
+    }
     expect(create).toHaveBeenCalledOnce();
     expect(launch).toHaveBeenCalledOnce();
     expect(attempts.filter((name) => name === 'startImplementation')).toHaveLength(1);
-    const brief = launch.mock.calls[0]![0].prompt!;
+    expect(send).toHaveBeenCalledOnce();
+    const brief = send.mock.calls[0]![0];
     expect(brief).toMatch(/^# Task\n/);
     expect(brief).toMatch(bavarian ? /Bavarian|Bairisch/i : /draft/i);
     if (!bavarian) expect(brief).toMatch(/test/i);

@@ -163,6 +163,209 @@ permissions remain separate entries; clients can group them for display.
 | `permissions` | repeated [`EffectivePermission`](#chatto-api-v1-EffectivePermission) | Effective grants visible to the caller. |
 
 
+<a id="chatto-api-v1-RoomInvitationService"></a>
+
+## RoomInvitationService
+
+Invitations grant membership only after the recipient accepts them.
+
+<a id="chatto-api-v1-RoomInvitationService-CreateRoomInvitation"></a>
+
+### CreateRoomInvitation
+
+Requires room membership and room.invite. A duplicate from the same sender returns the pending invitation.
+A pending invitation from a different sender returns INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/CreateRoomInvitation
+```
+
+<a id="chatto-api-v1-CreateRoomInvitationRequest"></a>
+
+#### Input: CreateRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `recipient_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateRoomInvitationResponse"></a>
+
+#### Result: CreateRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-GetRoomInvitation"></a>
+
+### GetRoomInvitation
+
+Returns NOT_FOUND for absent or inaccessible invitations.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/GetRoomInvitation
+```
+
+<a id="chatto-api-v1-GetRoomInvitationRequest"></a>
+
+#### Input: GetRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetRoomInvitationResponse"></a>
+
+#### Result: GetRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-BatchGetRoomInvitations"></a>
+
+### BatchGetRoomInvitations
+
+Omits absent and inaccessible invitations. Accepts at most 100 IDs.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/BatchGetRoomInvitations
+```
+
+<a id="chatto-api-v1-BatchGetRoomInvitationsRequest"></a>
+
+#### Input: BatchGetRoomInvitationsRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_ids` | `repeated string` | No field description provided. |
+
+
+<a id="chatto-api-v1-BatchGetRoomInvitationsResponse"></a>
+
+#### Result: BatchGetRoomInvitationsResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitations` | repeated [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-ListRoomInvitations"></a>
+
+### ListRoomInvitations
+
+Lists the caller's received or sent invitations, newest first. Default 50, maximum 100.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/ListRoomInvitations
+```
+
+<a id="chatto-api-v1-ListRoomInvitationsRequest"></a>
+
+#### Input: ListRoomInvitationsRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | No field description provided. |
+| `sent` | `bool` | Select sent invitations instead of invitations received by the caller. |
+| `pending_only` | `bool` | Restrict to unexpired pending invitations. |
+
+
+<a id="chatto-api-v1-ListRoomInvitationsResponse"></a>
+
+#### Result: ListRoomInvitationsResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitations` | repeated [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-AcceptRoomInvitation"></a>
+
+### AcceptRoomInvitation
+
+Recipient-only. Rechecks sender authority and bypasses only room.join.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/AcceptRoomInvitation
+```
+
+<a id="chatto-api-v1-AcceptRoomInvitationRequest"></a>
+
+#### Input: AcceptRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-AcceptRoomInvitationResponse"></a>
+
+#### Result: AcceptRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomInvitationService-DeclineRoomInvitation"></a>
+
+### DeclineRoomInvitation
+
+Recipient-only. Does not change membership or notification preferences.
+
+```http
+POST /api/connect/chatto.api.v1.RoomInvitationService/DeclineRoomInvitation
+```
+
+<a id="chatto-api-v1-DeclineRoomInvitationRequest"></a>
+
+#### Input: DeclineRoomInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-DeclineRoomInvitationResponse"></a>
+
+#### Result: DeclineRoomInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | No field description provided. |
+
+
 <a id="chatto-api-v1-AssetService"></a>
 
 ## AssetService
@@ -256,6 +459,110 @@ to one room, including lifecycle, membership, moderation, room timeline reads,
 room read state, attachments, and live typing. Resource-specific services
 should still be preferred when an operation is not naturally room-scoped or
 when the resource needs an independent CRUD/batch surface.
+
+<a id="chatto-api-v1-RoomService-GetNotice"></a>
+
+### GetNotice
+
+Reads a channel notice. Requires current room membership, including in
+archived rooms. A room without a notice returns an empty body.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetNotice
+```
+
+<a id="chatto-api-v1-GetNoticeRequest"></a>
+
+#### Input: GetNoticeRequest
+
+Reads the current channel notice, including its version when cleared.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetNoticeResponse"></a>
+
+#### Result: GetNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomService-PublishNotice"></a>
+
+### PublishNotice
+
+Publishes, corrects, or explicitly republishes a notice. Requires current
+membership and room.manage-notice. Archived rooms reject writes. A stale
+expected_version returns ABORTED; preserve the draft and reload before retry.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/PublishNotice
+```
+
+<a id="chatto-api-v1-PublishNoticeRequest"></a>
+
+#### Input: PublishNoticeRequest
+
+Publishes or replaces a notice. Replacements preserve dismissals unless
+republish is true. A new publication always has a fresh dismissal revision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `body` | `string` | No field description provided. |
+| `expected_version` | `string` | No field description provided. |
+| `republish` | `bool` | True announces the replacement to members who dismissed the previous notice. False preserves dismissals. A first publication always announces the notice. |
+
+
+<a id="chatto-api-v1-PublishNoticeResponse"></a>
+
+#### Result: PublishNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomService-ClearNotice"></a>
+
+### ClearNotice
+
+Clears a notice under the same access and version rules as PublishNotice.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ClearNotice
+```
+
+<a id="chatto-api-v1-ClearNoticeRequest"></a>
+
+#### Input: ClearNoticeRequest
+
+Clears the current notice without removing its concurrency version.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `expected_version` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-ClearNoticeResponse"></a>
+
+#### Result: ClearNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](#chatto-api-v1-RoomNotice) | No field description provided. |
+
 
 <a id="chatto-api-v1-RoomService-GetRoomReadState"></a>
 
@@ -724,7 +1031,8 @@ Batch room member response.
 Adds an account as an explicit channel-room member. room.manage for this
 room or user.manage-accounts overrides the target's missing room.join.
 Bot owners and bot.manage holders may also add bots, but without either
-override the bot needs effective room.join, bounded by its owner's authority.
+override the acting human needs effective room.join. The bot's own
+room.join is required only when the bot joins itself through JoinRoom.
 Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
 
 ```http
@@ -3405,6 +3713,7 @@ Request to create a message in a room or thread.
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 | `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires message.post (which includes thread posting). Cannot be combined with thread_root_event_id. |
 | `attachment_descriptions` | repeated [`MessageAttachmentDescriptionInput`](#chatto-api-v1-MessageAttachmentDescriptionInput) | Optional descriptions for assets in attachment_asset_ids. Asset IDs must be unique in this list. At most one description can target each asset. |
+| `idempotency_key` | `optional string` | Optional caller-generated UUID for this send. Reuse it with the same room and request when a response is lost. For 30 minutes after first acceptance, an exact retry returns the same message ID; changed arguments are rejected. Retries do not extend this period. After expiry, the key can be used again. Omit the key for ordinary posting without duplicate protection. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -4954,6 +5263,7 @@ Public user fields.
 | `bio` | `optional string` | Short Markdown biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
+| `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
 
 
 
@@ -5025,6 +5335,25 @@ Effective decision for one permission key.
 | --- | --- | --- |
 | `permission` | `string` | Stable permission key, such as "server.manage". |
 | `granted` | `bool` | Whether the permission is currently granted. |
+
+
+
+<a id="chatto-api-v1-RoomInvitation"></a>
+
+### RoomInvitation
+
+An invitation visible only to its sender and recipient.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+| `room_id` | `string` | No field description provided. |
+| `sender_id` | `string` | No field description provided. |
+| `recipient_id` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `status` | [`RoomInvitationStatus`](#chatto-api-v1-RoomInvitationStatus) | No field description provided. |
+| `can_accept` | `bool` | True only for the recipient while current room and sender rules permit acceptance. |
 
 
 
@@ -5606,6 +5935,22 @@ Public room metadata returned by room commands.
 | `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
+| `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+
+
+
+<a id="chatto-api-v1-RoomNotice"></a>
+
+### RoomNotice
+
+Current member-only notice in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `body` | `string` | Markdown source. Empty means the notice has been cleared. |
+| `version` | `string` | Opaque write version. Send it with every mutation. Empty before first publish. |
+| `publication_id` | `string` | Opaque dismissal revision. Corrections preserve it; publish and republish replace it. Empty when there is no published notice. |
+| `published_at` | `google.protobuf.Timestamp` | Time of publication or explicit republishing. Corrections preserve it. Absent when cleared or unavailable on an older server. |
 
 
 
@@ -5697,6 +6042,8 @@ Viewer-specific state and permission decisions for one room.
 | `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
 | `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another root message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | Pending invitation for this viewer; does not grant access to room content. |
+| `can_rejoin` | `optional bool` | Whether current permissions and room state allow joining without an invitation, even if already a member. Absent on servers that do not report this decision. |
 
 
 
@@ -5792,6 +6139,7 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_type` | `string` | Provider type recorded when the identity was linked. |
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
+| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
 
 
 
@@ -6166,6 +6514,7 @@ Presence is significant: absent fields inherit in a stored policy.
 | `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | **Deprecated.** Deprecated compatibility slot. Use room_messages at room scope. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
+| `room_invitations` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for invitations to join a channel room. |
 
 
 
@@ -6196,7 +6545,7 @@ One exact Notifications 2.0 source occurrence.
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
 | `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
-| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
 
@@ -6226,7 +6575,7 @@ group.
 | --- | --- | --- |
 | `scope.server` | `google.protobuf.Empty` | Selects the authenticated viewer's server-wide policy. |
 | `scope.room_group_id` | `string` | Selects one existing room group's policy. |
-| `scope.room_id` | `string` | Selects one room's policy and requires current room membership. |
+| `scope.room_id` | `string` | Selects one room's policy. Requires membership or a pending invitation. |
 
 
 
@@ -6264,6 +6613,7 @@ navigation semantics for them.
 | `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | **Deprecated.** No field description provided. |
 | `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
 | `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
+| `kind.room_invitation_received` | [`RoomInvitationReceived`](#chatto-api-v1-RoomInvitationReceived) | No field description provided. |
 
 
 
@@ -6302,6 +6652,21 @@ A message mentioning a role held by the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 | `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+
+
+<a id="chatto-api-v1-RoomInvitationReceived"></a>
+
+### RoomInvitationReceived
+
+An invitation to join a room. Its destination is the room, not a message.
+Attention ends when the invitation is handled or reaches the containing
+NotificationOccurrence's expires_at deadline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | No field description provided. |
+| `invitation_id` | `string` | Stable invitation identifier. |
 
 
 
@@ -6413,6 +6778,21 @@ Scope of effective authority. Channel scopes never include direct messages.
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
 
 
+<a id="chatto-api-v1-RoomInvitationStatus"></a>
+
+### RoomInvitationStatus
+
+Current lifecycle state. Expiry does not extend when the invitation is read.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_INVITATION_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `ROOM_INVITATION_STATUS_PENDING` | `1` | No value description provided. |
+| `ROOM_INVITATION_STATUS_ACCEPTED` | `2` | No value description provided. |
+| `ROOM_INVITATION_STATUS_DECLINED` | `3` | No value description provided. |
+| `ROOM_INVITATION_STATUS_EXPIRED` | `4` | No value description provided. |
+
+
 <a id="chatto-api-v1-ImageFitMode"></a>
 
 ### ImageFitMode
@@ -6508,6 +6888,20 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
+
+
+<a id="chatto-api-v1-DisconnectEligibility"></a>
+
+### DisconnectEligibility
+
+Eligibility to disconnect an identity at the time it is listed.
+This does not replace fresh authentication or the mutation's eligibility check.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
+| `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
+| `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

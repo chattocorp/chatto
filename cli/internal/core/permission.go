@@ -57,6 +57,9 @@ const (
 	// it directly.
 	PermRoomJoin Permission = "room.join"
 
+	// PermRoomInvite allows members to invite human accounts to a channel room.
+	PermRoomInvite Permission = "room.invite"
+
 	// PermRoomList allows seeing a room in the directory and elsewhere
 	// the server enumerates rooms (e.g. group "Join all" affordances).
 	// Default-granted at server scope so the directory works out of the
@@ -66,6 +69,10 @@ const (
 
 	// PermRoomManage allows updating or deleting channel rooms.
 	PermRoomManage Permission = "room.manage"
+
+	// PermRoomManageNotice allows members to publish, correct, republish, and
+	// clear channel notices. It is independent of general room management.
+	PermRoomManageNotice Permission = "room.manage-notice"
 
 	// PermRoomMemberRemove allows moderated removal from channel rooms,
 	// with an optional suspension that prevents rejoining.
@@ -208,8 +215,10 @@ var allPermissions = []PermissionMetadata{
 	// Room
 	{Permission: PermRoomCreate, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup}, RequiresPrivilegedMode: true},
 	{Permission: PermRoomJoin, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomInvite, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
+	{Permission: PermRoomManageNotice, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomMemberRemove, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 
 	// Calls
@@ -441,6 +450,8 @@ func DefaultAdminPermissions() []Permission {
 		PermRoomJoin,
 		PermRoomList,
 		PermRoomManage,
+		PermRoomManageNotice,
+		PermRoomInvite,
 		PermRoomMemberRemove,
 		PermMessageManage,
 		PermMessagePin,

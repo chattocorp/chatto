@@ -1,0 +1,23 @@
+{
+  "format": "chatto-interchange",
+  "version": 1,
+  "export_id": "167e2e49-08f7-4e1b-867c-3d7a19df1788",
+  "captured_at": "2020-03-15T00:00:00Z",
+  "consistency": "consistent",
+  "source": {
+    "platform": "synthetic",
+    "workspace_id": "example"
+  },
+  "history": "partial",
+  "scope": {
+    "kind": "channels",
+    "coverage": "all"
+  },
+  "omissions": [
+    {
+      "category": "history",
+      "reason": "Original body, deletion time, and reaction times for message-3 are not retained.",
+      "count": null
+    }
+  ]
+}

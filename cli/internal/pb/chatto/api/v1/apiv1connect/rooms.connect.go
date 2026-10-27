@@ -33,6 +33,13 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// RoomServiceGetNoticeProcedure is the fully-qualified name of the RoomService's GetNotice RPC.
+	RoomServiceGetNoticeProcedure = "/chatto.api.v1.RoomService/GetNotice"
+	// RoomServicePublishNoticeProcedure is the fully-qualified name of the RoomService's PublishNotice
+	// RPC.
+	RoomServicePublishNoticeProcedure = "/chatto.api.v1.RoomService/PublishNotice"
+	// RoomServiceClearNoticeProcedure is the fully-qualified name of the RoomService's ClearNotice RPC.
+	RoomServiceClearNoticeProcedure = "/chatto.api.v1.RoomService/ClearNotice"
 	// RoomServiceGetRoomReadStateProcedure is the fully-qualified name of the RoomService's
 	// GetRoomReadState RPC.
 	RoomServiceGetRoomReadStateProcedure = "/chatto.api.v1.RoomService/GetRoomReadState"
@@ -105,6 +112,15 @@ const (
 
 // RoomServiceClient is a client for the chatto.api.v1.RoomService service.
 type RoomServiceClient interface {
+	// Reads a channel notice. Requires current room membership, including in
+	// archived rooms. A room without a notice returns an empty body.
+	GetNotice(context.Context, *connect.Request[v1.GetNoticeRequest]) (*connect.Response[v1.GetNoticeResponse], error)
+	// Publishes, corrects, or explicitly republishes a notice. Requires current
+	// membership and room.manage-notice. Archived rooms reject writes. A stale
+	// expected_version returns ABORTED; preserve the draft and reload before retry.
+	PublishNotice(context.Context, *connect.Request[v1.PublishNoticeRequest]) (*connect.Response[v1.PublishNoticeResponse], error)
+	// Clears a notice under the same access and version rules as PublishNotice.
+	ClearNotice(context.Context, *connect.Request[v1.ClearNoticeRequest]) (*connect.Response[v1.ClearNoticeResponse], error)
 	// Reads the current viewer's stored marker without changing it. Requires the
 	// same membership and read access as MarkRoomAsRead. Missing resources
 	// return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
@@ -155,7 +171,8 @@ type RoomServiceClient interface {
 	// Adds an account as an explicit channel-room member. room.manage for this
 	// room or user.manage-accounts overrides the target's missing room.join.
 	// Bot owners and bot.manage holders may also add bots, but without either
-	// override the bot needs effective room.join, bounded by its owner's authority.
+	// override the acting human needs effective room.join. The bot's own
+	// room.join is required only when the bot joins itself through JoinRoom.
 	// Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes an explicit channel-room member. Requires room.manage for this room,
@@ -229,6 +246,24 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	roomServiceMethods := v1.File_chatto_api_v1_rooms_proto.Services().ByName("RoomService").Methods()
 	return &roomServiceClient{
+		getNotice: connect.NewClient[v1.GetNoticeRequest, v1.GetNoticeResponse](
+			httpClient,
+			baseURL+RoomServiceGetNoticeProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("GetNotice")),
+			connect.WithClientOptions(opts...),
+		),
+		publishNotice: connect.NewClient[v1.PublishNoticeRequest, v1.PublishNoticeResponse](
+			httpClient,
+			baseURL+RoomServicePublishNoticeProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("PublishNotice")),
+			connect.WithClientOptions(opts...),
+		),
+		clearNotice: connect.NewClient[v1.ClearNoticeRequest, v1.ClearNoticeResponse](
+			httpClient,
+			baseURL+RoomServiceClearNoticeProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("ClearNotice")),
+			connect.WithClientOptions(opts...),
+		),
 		getRoomReadState: connect.NewClient[v1.GetRoomReadStateRequest, v1.GetRoomReadStateResponse](
 			httpClient,
 			baseURL+RoomServiceGetRoomReadStateProcedure,
@@ -390,6 +425,9 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // roomServiceClient implements RoomServiceClient.
 type roomServiceClient struct {
+	getNotice              *connect.Client[v1.GetNoticeRequest, v1.GetNoticeResponse]
+	publishNotice          *connect.Client[v1.PublishNoticeRequest, v1.PublishNoticeResponse]
+	clearNotice            *connect.Client[v1.ClearNoticeRequest, v1.ClearNoticeResponse]
 	getRoomReadState       *connect.Client[v1.GetRoomReadStateRequest, v1.GetRoomReadStateResponse]
 	batchGetRoomReadStates *connect.Client[v1.BatchGetRoomReadStatesRequest, v1.BatchGetRoomReadStatesResponse]
 	createRoom             *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
@@ -416,6 +454,21 @@ type roomServiceClient struct {
 	markRoomAsRead         *connect.Client[v1.MarkRoomAsReadRequest, v1.MarkRoomAsReadResponse]
 	removeUser             *connect.Client[v1.RemoveUserRequest, v1.RemoveUserResponse]
 	liftSuspension         *connect.Client[v1.LiftSuspensionRequest, v1.LiftSuspensionResponse]
+}
+
+// GetNotice calls chatto.api.v1.RoomService.GetNotice.
+func (c *roomServiceClient) GetNotice(ctx context.Context, req *connect.Request[v1.GetNoticeRequest]) (*connect.Response[v1.GetNoticeResponse], error) {
+	return c.getNotice.CallUnary(ctx, req)
+}
+
+// PublishNotice calls chatto.api.v1.RoomService.PublishNotice.
+func (c *roomServiceClient) PublishNotice(ctx context.Context, req *connect.Request[v1.PublishNoticeRequest]) (*connect.Response[v1.PublishNoticeResponse], error) {
+	return c.publishNotice.CallUnary(ctx, req)
+}
+
+// ClearNotice calls chatto.api.v1.RoomService.ClearNotice.
+func (c *roomServiceClient) ClearNotice(ctx context.Context, req *connect.Request[v1.ClearNoticeRequest]) (*connect.Response[v1.ClearNoticeResponse], error) {
+	return c.clearNotice.CallUnary(ctx, req)
 }
 
 // GetRoomReadState calls chatto.api.v1.RoomService.GetRoomReadState.
@@ -550,6 +603,15 @@ func (c *roomServiceClient) LiftSuspension(ctx context.Context, req *connect.Req
 
 // RoomServiceHandler is an implementation of the chatto.api.v1.RoomService service.
 type RoomServiceHandler interface {
+	// Reads a channel notice. Requires current room membership, including in
+	// archived rooms. A room without a notice returns an empty body.
+	GetNotice(context.Context, *connect.Request[v1.GetNoticeRequest]) (*connect.Response[v1.GetNoticeResponse], error)
+	// Publishes, corrects, or explicitly republishes a notice. Requires current
+	// membership and room.manage-notice. Archived rooms reject writes. A stale
+	// expected_version returns ABORTED; preserve the draft and reload before retry.
+	PublishNotice(context.Context, *connect.Request[v1.PublishNoticeRequest]) (*connect.Response[v1.PublishNoticeResponse], error)
+	// Clears a notice under the same access and version rules as PublishNotice.
+	ClearNotice(context.Context, *connect.Request[v1.ClearNoticeRequest]) (*connect.Response[v1.ClearNoticeResponse], error)
 	// Reads the current viewer's stored marker without changing it. Requires the
 	// same membership and read access as MarkRoomAsRead. Missing resources
 	// return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
@@ -600,7 +662,8 @@ type RoomServiceHandler interface {
 	// Adds an account as an explicit channel-room member. room.manage for this
 	// room or user.manage-accounts overrides the target's missing room.join.
 	// Bot owners and bot.manage holders may also add bots, but without either
-	// override the bot needs effective room.join, bounded by its owner's authority.
+	// override the acting human needs effective room.join. The bot's own
+	// room.join is required only when the bot joins itself through JoinRoom.
 	// Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes an explicit channel-room member. Requires room.manage for this room,
@@ -670,6 +733,24 @@ type RoomServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	roomServiceMethods := v1.File_chatto_api_v1_rooms_proto.Services().ByName("RoomService").Methods()
+	roomServiceGetNoticeHandler := connect.NewUnaryHandler(
+		RoomServiceGetNoticeProcedure,
+		svc.GetNotice,
+		connect.WithSchema(roomServiceMethods.ByName("GetNotice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServicePublishNoticeHandler := connect.NewUnaryHandler(
+		RoomServicePublishNoticeProcedure,
+		svc.PublishNotice,
+		connect.WithSchema(roomServiceMethods.ByName("PublishNotice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceClearNoticeHandler := connect.NewUnaryHandler(
+		RoomServiceClearNoticeProcedure,
+		svc.ClearNotice,
+		connect.WithSchema(roomServiceMethods.ByName("ClearNotice")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceGetRoomReadStateHandler := connect.NewUnaryHandler(
 		RoomServiceGetRoomReadStateProcedure,
 		svc.GetRoomReadState,
@@ -828,6 +909,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 	)
 	return "/chatto.api.v1.RoomService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case RoomServiceGetNoticeProcedure:
+			roomServiceGetNoticeHandler.ServeHTTP(w, r)
+		case RoomServicePublishNoticeProcedure:
+			roomServicePublishNoticeHandler.ServeHTTP(w, r)
+		case RoomServiceClearNoticeProcedure:
+			roomServiceClearNoticeHandler.ServeHTTP(w, r)
 		case RoomServiceGetRoomReadStateProcedure:
 			roomServiceGetRoomReadStateHandler.ServeHTTP(w, r)
 		case RoomServiceBatchGetRoomReadStatesProcedure:
@@ -888,6 +975,18 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 
 // UnimplementedRoomServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedRoomServiceHandler struct{}
+
+func (UnimplementedRoomServiceHandler) GetNotice(context.Context, *connect.Request[v1.GetNoticeRequest]) (*connect.Response[v1.GetNoticeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.GetNotice is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) PublishNotice(context.Context, *connect.Request[v1.PublishNoticeRequest]) (*connect.Response[v1.PublishNoticeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.PublishNotice is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) ClearNotice(context.Context, *connect.Request[v1.ClearNoticeRequest]) (*connect.Response[v1.ClearNoticeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ClearNotice is not implemented"))
+}
 
 func (UnimplementedRoomServiceHandler) GetRoomReadState(context.Context, *connect.Request[v1.GetRoomReadStateRequest]) (*connect.Response[v1.GetRoomReadStateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.GetRoomReadState is not implemented"))

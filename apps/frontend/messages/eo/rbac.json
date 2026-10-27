@@ -147,6 +147,7 @@
       "call": "Vokoj"
     },
     "permission_help": {
+      "room_manage_notice": "Permesas al membro administri la avizon en aktiva kanala ĉambro, sed ne la ĉambron mem. Novaj instalaĵoj donas ĉi tiun permeson nur al Admin; ĝisdatigoj konservas ekzistantajn permesojn.",
       "server_manage": "Permesas al konto ŝanĝi la nomon, priskribon, emblemon kaj aliajn agordojn de la servilo. Ĝi ankaŭ permesas ŝanĝi la publikan najbaran katalogon. Donu ĝin nur al homoj, kiuj povas paroli por la tuta servilo.",
       "server_manage_neighbors": "Permesas al konto aldoni, ŝanĝi kaj forigi erojn en la publika najbara katalogo. Ĝi ne permesas ŝanĝi aliajn agordojn de la servilo.",
       "room_create": "Permesas al konto krei kanalajn ĉambrojn. Ĉe la nivelo de ĉambrogrupo, ĝi permesas novajn ĉambrojn nur en tiu grupo.",
@@ -179,7 +180,8 @@
       "call_join": "Permesas al konto aliĝi al aktiva voko, ankaŭ nur kiel aŭskultanto. Por sendi sonon aŭ videon necesas call.voice, call.camera aŭ call.screenshare.",
       "call_voice": "Permesas al konto sendi mikrofonan sonon en vokoj. Sen ĝi, la konto tamen povas aŭskulti.",
       "call_camera": "Permesas al konto sendi kameraan videon en vokoj.",
-      "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice."
+      "call_screenshare": "Permesas al konto kunhavigi ekranon, fenestron, langeton aŭ aplikaĵon en vokoj, kun ĝia sono. Ĝi ne permesas mikrofonan sonon; por tio necesas call.voice.",
+      "room_invite": "Invitu servilanojn al ĉambroj, kiujn vi aliĝis."
     }
   }
 }

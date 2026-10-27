@@ -10,6 +10,11 @@ snapshots. Recovery re-enters the root task; it does not resume JavaScript execu
 
 ## Behavior
 
+- `RUNLING_DATA_DIRECTORY` selects an instance's storage root. Run journals and
+  snapshots use `runs/`; server diagnostics use `logs/`. This lets several
+  application instances use one configuration module with separate storage.
+  Without the setting, existing project storage paths remain in use.
+
 - Each server root receives its own mutable `ctx.state` object, initially empty.
   State contains JSON data. Child contexts have independent, unsaved objects.
 - The server snapshots all workflow state every 60 seconds, with the next interval
@@ -26,8 +31,12 @@ snapshots. Recovery re-enters the root task; it does not resume JavaScript execu
 - Roots decide which children and connections to create again. Child state can be
   passed as an ordinary sub-object in input. Input validators that transform data
   can replace that reference; task authors must account for this.
-- The latest journal attempt drives the console. Earlier attempts remain in the
-  journal file. Logs and agent transcripts are not copied into the snapshot.
+- The console shows the latest attempt's activity and total token usage and cost
+  across all attempts. Usage updates and final records replace the current
+  attempt's total; they do not add the same tokens again. The reader also totals
+  older journals without a migration. Missing prices remain marked incomplete.
+  Earlier attempts remain in the journal file. Logs and agent transcripts are
+  not copied into the snapshot.
 - A source can inspect `ctx.runs()` and use original inputs to rebuild routing.
   Inboxes, adapter state maps, and agent sessions are not automatically restored.
 - `runling run` has no automatic recovery in this slice. `runWorkflow` accepts a

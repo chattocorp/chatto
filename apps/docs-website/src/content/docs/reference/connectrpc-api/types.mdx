@@ -138,6 +138,7 @@ Public user fields.
 | `bio` | `optional string` | Short Markdown biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
+| `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -201,6 +202,23 @@ Effective decision for one permission key.
 | --- | --- | --- |
 | `permission` | `string` | Stable permission key, such as "server.manage". |
 | `granted` | `bool` | Whether the permission is currently granted. |
+
+<a id="chatto-api-v1-RoomInvitation"></a>
+
+### RoomInvitation
+
+An invitation visible only to its sender and recipient.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+| `room_id` | `string` | No field description provided. |
+| `sender_id` | `string` | No field description provided. |
+| `recipient_id` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `status` | [`RoomInvitationStatus`](#chatto-api-v1-RoomInvitationStatus) | No field description provided. |
+| `can_accept` | `bool` | True only for the recipient while current room and sender rules permit acceptance. |
 
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
@@ -714,6 +732,20 @@ Public room metadata returned by room commands.
 | `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
+| `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+
+<a id="chatto-api-v1-RoomNotice"></a>
+
+### RoomNotice
+
+Current member-only notice in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `body` | `string` | Markdown source. Empty means the notice has been cleared. |
+| `version` | `string` | Opaque write version. Send it with every mutation. Empty before first publish. |
+| `publication_id` | `string` | Opaque dismissal revision. Corrections preserve it; publish and republish replace it. Empty when there is no published notice. |
+| `published_at` | `google.protobuf.Timestamp` | Time of publication or explicit republishing. Corrections preserve it. Absent when cleared or unavailable on an older server. |
 
 <a id="chatto-api-v1-RoomSummary"></a>
 
@@ -793,6 +825,8 @@ Viewer-specific state and permission decisions for one room.
 | `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
 | `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another root message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `invitation` | [`RoomInvitation`](#chatto-api-v1-RoomInvitation) | Pending invitation for this viewer; does not grant access to room content. |
+| `can_rejoin` | `optional bool` | Whether current permissions and room state allow joining without an invitation, even if already a member. Absent on servers that do not report this decision. |
 
 <a id="chatto-api-v1-RoomWithViewerState"></a>
 
@@ -876,6 +910,7 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_type` | `string` | Provider type recorded when the identity was linked. |
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
+| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
 
 <a id="chatto-api-v1-PrivilegedModeState"></a>
 
@@ -1200,6 +1235,7 @@ Presence is significant: absent fields inherit in a stored policy.
 | `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | **Deprecated.** Deprecated compatibility slot. Use room_messages at room scope. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
+| `room_invitations` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for invitations to join a channel room. |
 
 <a id="chatto-api-v1-NotificationMessageReference"></a>
 
@@ -1226,7 +1262,7 @@ One exact Notifications 2.0 source occurrence.
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
 | `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
-| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry: the invitation deadline for room invitations, otherwise 90 days after source activity. Handled invitations are removed earlier. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
 <a id="chatto-api-v1-NotificationPolicy"></a>
@@ -1252,7 +1288,7 @@ group.
 | --- | --- | --- |
 | `scope.server` | `google.protobuf.Empty` | Selects the authenticated viewer's server-wide policy. |
 | `scope.room_group_id` | `string` | Selects one existing room group's policy. |
-| `scope.room_id` | `string` | Selects one room's policy and requires current room membership. |
+| `scope.room_id` | `string` | Selects one room's policy. Requires membership or a pending invitation. |
 
 <a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
 
@@ -1286,6 +1322,7 @@ navigation semantics for them.
 | `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | **Deprecated.** No field description provided. |
 | `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
 | `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
+| `kind.room_invitation_received` | [`RoomInvitationReceived`](#chatto-api-v1-RoomInvitationReceived) | No field description provided. |
 
 <a id="chatto-api-v1-ReactionReceived"></a>
 
@@ -1318,6 +1355,19 @@ A message mentioning a role held by the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 | `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+<a id="chatto-api-v1-RoomInvitationReceived"></a>
+
+### RoomInvitationReceived
+
+An invitation to join a room. Its destination is the room, not a message.
+Attention ends when the invitation is handled or reaches the containing
+NotificationOccurrence's expires_at deadline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | No field description provided. |
+| `invitation_id` | `string` | Stable invitation identifier. |
 
 <a id="chatto-api-v1-RoomMessageReceived"></a>
 
@@ -1676,6 +1726,8 @@ admin/member metadata with visibility controlled by the service.
 | `last_login_change` | `google.protobuf.Timestamp` | Start of the current username-change cooldown, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 | `primary_verified_email` | `optional string` | Selected primary verified email visible to the caller. Absence can mean that no primary email exists or that the field is not visible. |
+| `deactivated` | `bool` | Deactivated accounts retain their data but cannot use the server. |
+| `viewer_can_change_deactivation` | `optional bool` | Whether the caller may deactivate or reactivate this account. Absent on servers that do not support account deactivation. |
 
 <a id="chatto-admin-v1-OAuthClient"></a>
 
@@ -1961,6 +2013,20 @@ Scope of effective authority. Channel scopes never include direct messages.
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
 | `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
 
+<a id="chatto-api-v1-RoomInvitationStatus"></a>
+
+### RoomInvitationStatus
+
+Current lifecycle state. Expiry does not extend when the invitation is read.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_INVITATION_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `ROOM_INVITATION_STATUS_PENDING` | `1` | No value description provided. |
+| `ROOM_INVITATION_STATUS_ACCEPTED` | `2` | No value description provided. |
+| `ROOM_INVITATION_STATUS_DECLINED` | `3` | No value description provided. |
+| `ROOM_INVITATION_STATUS_EXPIRED` | `4` | No value description provided. |
+
 <a id="chatto-api-v1-ImageFitMode"></a>
 
 ### ImageFitMode
@@ -2050,6 +2116,19 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
+
+<a id="chatto-api-v1-DisconnectEligibility"></a>
+
+### DisconnectEligibility
+
+Eligibility to disconnect an identity at the time it is listed.
+This does not replace fresh authentication or the mutation's eligibility check.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
+| `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
+| `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
 
 <a id="chatto-api-v1-TimeFormat"></a>
 

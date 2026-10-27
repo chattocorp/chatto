@@ -12,10 +12,24 @@ import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { normalizeRoomThreadingMode, type RoomThreadingMode } from '../util/roomThreading.js';
 
+/** Pending invitation metadata does not grant room-content access. */
+export type ViewerRoomInvitation = {
+  id: string;
+  senderId: string;
+  expiresAt: Date;
+  viewerCanAccept: boolean;
+};
+
 export type DirectoryRoomSummary = {
+  /** Explicit notice-management grant for a current member of an active channel. */
+  canManageNotice?: boolean;
+  invitation?: ViewerRoomInvitation;
+  canInvite?: boolean;
   id: string;
   name: string;
   description: string | null;
+  /** Original room creation time; absent on older servers. */
+  createdAt?: string | null;
   kind: RoomKind;
   archived: boolean;
   isUniversal: boolean;
@@ -32,6 +46,8 @@ export type DirectoryRoomSummary = {
   lastRootMessageAt?: string | null;
   canReadMessages: boolean | null;
   canJoinRoom: boolean;
+  /** Joining authority without an invitation, including current members; absent on older servers. */
+  canRejoin?: boolean;
   canManageRoom: boolean;
 };
 
@@ -187,9 +203,22 @@ export function mapDirectoryRoomDetails(
 export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
   if (!entry.room) return null;
   return {
+    invitation: entry.viewerState?.invitation?.expiresAt
+      ? {
+          id: entry.viewerState.invitation.id,
+          senderId: entry.viewerState.invitation.senderId,
+          expiresAt: entry.viewerState.invitation.expiresAt.toDate(),
+          viewerCanAccept: entry.viewerState.invitation.canAccept
+        }
+      : undefined,
+    canInvite:
+      entry.viewerState?.permissions.some((p) => p.permission === 'room.invite' && p.granted) ??
+      false,
+    canManageNotice: hasRoomPermission(entry.viewerState, 'room.manage-notice'),
     id: entry.room.id,
     name: entry.room.name,
     description: entry.room.description || null,
+    createdAt: entry.room.createdAt?.toDate().toISOString() ?? null,
     kind: entry.room.kind,
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
@@ -206,6 +235,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
       RoomPermission.ReadInteractions
     ]),
     canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
+    canRejoin: entry.viewerState?.canRejoin,
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };
 }

@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Rumsmeddelande",
+      "dismiss": "Stäng",
+      "body": "Meddelande (Markdown)",
+      "too_long": "Meddelanden får innehålla högst {max} tecken, inklusive blanksteg.",
+      "help": "Spara rättelser utan att visa meddelandet igen. Tillkännage det för att visa det igen för medlemmar som stängt det på sina enheter.",
+      "conflict": "Meddelandet ändrades medan du redigerade. Ditt utkast finns kvar. Kopiera det vid behov och läs in det aktuella meddelandet innan du sparar igen.",
+      "reload": "Läs in aktuellt meddelande",
+      "save": "Uppdatera",
+      "republish": "Tillkännage",
+      "clear": "Rensa",
+      "clear_confirm_title": "Rensa rumsmeddelandet?",
+      "clear_confirm_description": "Detta tar omedelbart bort det aktiva meddelandet för alla i rummet. Dina osparade ändringar publiceras inte.",
+      "empty": "Inget meddelande har publicerats.",
+      "edit": "Redigera meddelande"
+    },
+    "information": {
+      "description": "Beskrivning",
+      "created": "Skapat",
+      "title": "Rumsinformation",
+      "basic": "Allmänt",
+      "pinned_messages": "Fästa meddelanden"
+    },
     "create": {
       "title": "Skapa ett nytt rum",
       "description": "Rum är konversationer på din server.",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "Lämna rum",
       "action": "Lämna rum",
-      "prompt": "Är du säker på att du vill lämna #{room}? Du kan gå med igen senare.",
-      "failed": "Det gick inte att lämna rummet"
+      "prompt": "Är du säker på att du vill lämna #{room}?",
+      "failed": "Det gick inte att lämna rummet",
+      "join_later": "Du kan gå med igen senare.",
+      "need_invite": "Du behöver en ny inbjudan för att gå med i det här rummet.",
+      "rejoin_unknown": "Du kan behöva en ny inbjudan för att gå med igen."
     },
     "directory": {
       "universal_title": "Universalrum ansluts automatiskt",
@@ -59,7 +85,8 @@
       "join_group_failed": "Det gick inte att gå med i gruppen",
       "left": "Vänster #{room}",
       "left_generic": "Vänster rummet",
-      "leave_confirm": "Är du säker på att du vill lämna #{room}?"
+      "leave_confirm": "Är du säker på att du vill lämna #{room}?",
+      "invited": "Inbjuden"
     },
     "server": {
       "remove_title": "Ta bort server",
@@ -73,7 +100,8 @@
       "beginning": "Det här är början på den här konversationen.",
       "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet.",
       "limited_empty": "Det finns inga konversationer du kan läsa ännu.",
-      "loading": "Läser in meddelanden..."
+      "loading": "Läser in meddelanden...",
+      "load_failed": "Det gick inte att läsa in meddelanden."
     },
     "message": {
       "empty": "Inga meddelanden än",
@@ -259,6 +287,7 @@
     "unread_separator": "Nya meddelanden",
     "close_extras": "Stäng extra rum",
     "dm": {
+      "deactivated_user_notice": "Det här kontot är inaktiverat. Användaren kan inte läsa eller svara på meddelanden.",
       "deleted_user_notice": "Den andra användaren har raderats."
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "Tills vidare",
       "remove_title": "Ta bort {user} från rummet",
       "suspension_period": "Avstängningens längd"
+    },
+    "invitation": {
+      "invite": "Bjud in medlem",
+      "invited": "Du har blivit inbjuden",
+      "sent": "Inbjudningar skickade",
+      "expires": "Upphör {date}",
+      "unavailable": "Du kan inte acceptera denna inbjudan just nu. Du kan fortfarande avböja den.",
+      "accept": "Acceptera inbjudan",
+      "decline": "Avböj",
+      "title": "Bjud in medlemmar till #{room}",
+      "description": "Välj vilka du vill bjuda in. Inbjudna användare får en avisering och har sju dagar på sig att acceptera eller avböja.",
+      "members": "Medlemmar",
+      "send": "Skicka inbjudningar",
+      "failed": "Kunde inte bjuda in {name}: {error}",
+      "already_member": "Redan i det här rummet",
+      "invited_by": "Du har blivit inbjuden av",
+      "decline_title": "Avböja inbjudan?",
+      "decline_join_later": "Du kan gå med i det här rummet senare.",
+      "decline_need_invite": "Du behöver en ny inbjudan för att gå med i det här rummet."
     }
   }
 }

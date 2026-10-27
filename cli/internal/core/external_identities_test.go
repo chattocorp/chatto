@@ -464,7 +464,7 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 		t.Fatalf("identities = %+v", identities)
 	}
 
-	if err := core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
+	if err := core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, identities[0].SubjectHash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}); err != nil {
 		t.Fatalf("DisconnectExternalIdentity: %v", err)
 	}
 	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "12345")
@@ -501,7 +501,7 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 		t.Fatal("auth generation must remain unchanged after external identity disconnect")
 	}
 
-	err = core.DisconnectExternalIdentity(ctx, user.Id, "missing-subject-hash")
+	err = core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, "missing-subject-hash", ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
 	if !errors.Is(err, ErrExternalIdentityNotFound) {
 		t.Fatalf("DisconnectExternalIdentity missing error = %v, want ErrExternalIdentityNotFound", err)
 	}
@@ -525,7 +525,8 @@ func TestChattoCore_DisconnectExternalIdentityRejectsLastPasswordlessMethod(t *t
 		t.Fatalf("ExternalIdentitiesForUser: %v", err)
 	}
 
-	err = core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
+	policy := ExternalIdentitySignInPolicy{Issuers: []string{"github-main", "discord-main"}}
+	err = core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, identities[0].SubjectHash, policy)
 	if !errors.Is(err, ErrExternalIdentityLastMethod) {
 		t.Fatalf("DisconnectExternalIdentity last method error = %v, want ErrExternalIdentityLastMethod", err)
 	}
@@ -533,7 +534,7 @@ func TestChattoCore_DisconnectExternalIdentityRejectsLastPasswordlessMethod(t *t
 	if err := core.LinkExternalIdentity(ctx, "discord-main", "discord", "discord-main", "abc123", user.Id); err != nil {
 		t.Fatalf("LinkExternalIdentity second: %v", err)
 	}
-	if err := core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
+	if err := core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, identities[0].SubjectHash, policy); err != nil {
 		t.Fatalf("DisconnectExternalIdentity with second identity: %v", err)
 	}
 	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
@@ -572,7 +573,7 @@ func TestChattoCore_DisconnectExternalIdentityConcurrentDuplicate(t *testing.T) 
 	for range 2 {
 		wg.Go(func() {
 			<-start
-			errs <- core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
+			errs <- core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, identities[0].SubjectHash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
 		})
 	}
 	close(start)

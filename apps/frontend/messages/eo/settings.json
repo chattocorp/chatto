@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Heredi",
           "off": "Malŝaltita",
-          "badge": "Insigno",
+          "badge": "Punkto por nelegita enhavo",
           "badge_hint": "Aldonas nur neŭtralan punkton por nelegita enhavo. Ĝi ne kreas sciigon, ludas sonon aŭ sendas puŝan sciigon.",
-          "notification": "Sciigo",
+          "notification": "En-aplika sciigo",
           "push_notification": "Puŝa sciigo"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Mesaĝoj, kiuj uzas @here kiam via ĉeesto ne estas eksterreta.",
           "all": "Mesaĝoj, kiuj uzas @all en ĉambro, al kiu vi apartenas.",
           "followed_thread": "Novaj respondoj en fadenoj, kiujn vi sekvas.",
-          "reaction": "Reagoj, kiujn aliaj membroj aldonas al viaj mesaĝoj."
+          "reaction": "Reagoj, kiujn aliaj membroj aldonas al viaj mesaĝoj.",
+          "room_invitation": "Invitoj por aliĝi al ĉambroj."
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "Pasvorto",
         "add_description": "Aldonu pasvorton por ke vi povu rekte ensaluti kaj malkonekti vian lastan SSO-provizanton.",
         "change_description": "Ŝanĝu la pasvorton uzatan por rekta ensaluto.",
+        "sso_managed": "Vi ne povas aldoni aŭ ŝanĝi pasvorton, ĉar ĉi tiu servilo uzas ununuran ensaluton (SSO). Administru viajn ensalutajn datumojn ĉe via identeca provizanto.",
         "current_label": "Nuna Pasvorto",
         "current_required": "Enigu vian nunan pasvorton.",
         "add_button": "Aldonu Pasvorton",
@@ -448,6 +450,7 @@
         "link_button": "Ligo",
         "link_failed": "Malsukcesis ligi la ensalutprovizanton",
         "fresh_auth_required": "Ensalutu denove antaŭ ligi alian provizanton.",
+        "sso_fresh_auth_required": "Malfermu la kontajn agordojn sur la servilo, al kiu apartenas ĉi tiu konto. Elsalutu kaj ensalutu denove per via SSO-provizanto, poste reprovu la agon tie.",
         "provider_unconfigured": "Provizanto ne plu agordita",
         "disconnect_button": "Malkonekti",
         "disconnecting": "Malkonekto...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provizanto ne povas esti malkonektita",
-          "body": "{provider} estas via sola ensaluta metodo. Aldonu pasvorton aŭ ligu alian provizanton unue."
+          "body": "Agordu alian ensalutmetodon subtenatan de ĉi tiu servilo antaŭ ol malkonekti {provider}."
         },
         "fresh_auth_modal": {
           "title": "Konfirmu pasvorton",

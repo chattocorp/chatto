@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publicera, rätta, tillkännage igen och rensa rumsmeddelanden",
       "server_manage": "Uppdatera serverinställningar (namn, beskrivning, logotyp)",
       "server_manage_neighbors": "Hantera den offentliga grannkatalogen",
       "room_create": "Skapa nya rum",
@@ -34,7 +35,8 @@
       "call_join": "Ansluta till ett pågående samtal",
       "call_voice": "Använda mikrofonen i samtal",
       "call_camera": "Använda kameran i samtal",
-      "call_screenshare": "Dela en skärm eller ett program, inklusive inspelat ljud"
+      "call_screenshare": "Dela en skärm eller ett program, inklusive inspelat ljud",
+      "room_invite": "Bjud in servermedlemmar till rum som du har gått med i"
     }
   }
 }

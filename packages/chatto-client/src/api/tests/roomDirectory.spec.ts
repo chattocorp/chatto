@@ -37,6 +37,42 @@ describe('createRoomDirectoryAPI', () => {
     vi.resetAllMocks();
   });
 
+  it('maps creation time and accepts older servers without it', async () => {
+    mocks.getRoom.mockReturnValueOnce({
+      room: {
+        room: {
+          id: 'room',
+          createdAt: Timestamp.fromDate(new Date('2026-01-02T03:04:05Z'))
+        }
+      }
+    });
+    mocks.getRoom.mockReturnValueOnce({ room: { room: { id: 'legacy' } } });
+    const api = directoryAPI();
+    expect(await api.getRoom('room')).toMatchObject({
+      createdAt: '2026-01-02T03:04:05.000Z'
+    });
+    expect(await api.getRoom('legacy')).toMatchObject({ createdAt: null });
+  });
+
+  it.each([true, false, undefined])(
+    'preserves rejoin authority %s independently of membership',
+    async (canRejoin) => {
+      mocks.getRoom.mockReturnValue({
+        room: {
+          room: { id: 'joined', kind: RoomKind.CHANNEL },
+          viewerState: {
+            isMember: true,
+            canRejoin,
+            permissions: [{ permission: 'room.join', granted: false }]
+          }
+        }
+      });
+      const room = await directoryAPI().getRoom('joined');
+      expect(room?.canRejoin).toBe(canRejoin);
+      expect(room?.canJoinRoom).toBe(false);
+    }
+  );
+
   it('maps DM posting timestamps through list, get, and batch reads', async () => {
     const lastMessageAt = Timestamp.fromDate(new Date('2026-10-20T12:00:00Z'));
     const lastRootMessageAt = Timestamp.fromDate(new Date('2026-10-10T12:00:00Z'));
@@ -122,6 +158,7 @@ describe('createRoomDirectoryAPI', () => {
     });
     expect(rooms).toEqual([
       {
+        createdAt: null,
         id: 'room-1',
         name: 'general',
         description: 'Lobby channel',
@@ -136,13 +173,17 @@ describe('createRoomDirectoryAPI', () => {
         isMember: true,
         hasUnread: true,
         canReadMessages: null,
+        canInvite: false,
+        invitation: undefined,
         canJoinRoom: false,
-        canManageRoom: false
+        canManageRoom: false,
+        canManageNotice: false
       },
       {
         id: 'room-2',
         name: 'random',
         description: null,
+        createdAt: null,
         kind: RoomKind.DM,
         archived: true,
         isUniversal: false,
@@ -154,8 +195,11 @@ describe('createRoomDirectoryAPI', () => {
         isMember: true,
         hasUnread: false,
         canReadMessages: null,
+        canInvite: false,
+        invitation: undefined,
         canJoinRoom: true,
-        canManageRoom: false
+        canManageRoom: false,
+        canManageNotice: false
       }
     ]);
   });
@@ -193,6 +237,7 @@ describe('createRoomDirectoryAPI', () => {
 
     expect(receivedRequest(mocks.getRoom)).toMatchObject({ roomId: 'room-1' });
     expect(room).toEqual({
+      createdAt: null,
       id: 'room-1',
       name: 'general',
       description: 'Lobby channel',
@@ -208,6 +253,8 @@ describe('createRoomDirectoryAPI', () => {
       isMember: true,
       hasUnread: true,
       canReadMessages: true,
+      canInvite: false,
+      invitation: undefined,
       canJoinRoom: false,
       canPostMessage: true,
       canPostInThread: true,
@@ -217,6 +264,7 @@ describe('createRoomDirectoryAPI', () => {
       canPinMessages: false,
       canManageOthersMessage: false,
       canManageRoom: true,
+      canManageNotice: false,
       canBanRoomMembers: false
     });
   });

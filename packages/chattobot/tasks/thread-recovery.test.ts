@@ -34,7 +34,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
     body: 'It happens in Firefox',
     trigger: 'follow-up'
   };
-  const classify = vi.fn(async () => ({ engage: true, reason: 'relevant' }));
+  const classify = vi.fn(async () => ({ action: 'engage' as const, reason: 'relevant' }));
   const classifier = task(
     { name: 'Classifier', input: IntakeInput, result: IntakeDecision },
     classify
@@ -46,7 +46,6 @@ test('restores one thread, retains intake and follow-up state, and waits without
       typing: async () => {},
       acknowledge: async () => {},
       setHandled: async () => {},
-      react: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('unused');
@@ -75,7 +74,7 @@ test('restores one thread, retains intake and follow-up state, and waits without
         async fork() {
           throw new Error('unused');
         },
-        dispose() {},
+        async dispose() {},
         async [Symbol.asyncDispose]() {}
       } satisfies RunlingAgent;
     }
@@ -84,7 +83,8 @@ test('restores one thread, retains intake and follow-up state, and waits without
     classifier,
     conversation,
     read: async () => ({ body: first.body, attachmentTypes: [] }),
-    readReactionContext: async () => [],
+    readContext: async () => [],
+    react: async () => {},
     readFollowUp: async () => ({
       boundary: 'bot-post',
       input: { context: [{ role: 'bot', body: 'What browser?' }] },

@@ -6,6 +6,8 @@
       "confirmation": "See aktiveerib 15 minutiks sulle selles serveris määratud lisaõigused."
     },
     "notifications": {
+      "next_unread_source": "Minge järgmise lugemata allika juurde",
+      "no_unread": "Lugemata teavitusi pole",
       "title": "Märguanded",
       "subtitle": "Siin on, mis on uut",
       "clear_read": "Kustuta loetud",
@@ -25,7 +27,8 @@
         "mention": "{actor} mainis sind",
         "followed_thread": "{actor} vastas lõimes, mida jälgid",
         "new_message": "{actor} postitas uue sõnumi",
-        "activity": "{actor} saatis sulle teavituse"
+        "activity": "{actor} saatis sulle teavituse",
+        "room_invitation": "{actor} kutsus sind ruumi"
       }
     },
     "sign_out": {

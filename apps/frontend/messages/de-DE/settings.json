@@ -118,10 +118,10 @@
       "conflict": "Dieses Profil wurde geändert, während du es bearbeitet hast. Lade die Seite neu und speichere deine Änderungen dann erneut.",
       "save_button": "Änderungen speichern",
       "bio": {
-        "label": "Bio",
+        "label": "Über",
         "description": "Bis zu {max} Zeichen, sichtbar in deinem Profil.",
         "placeholder": "Erzähle anderen kurz etwas über dich",
-        "too_long": "Die Bio darf höchstens {max} Zeichen lang sein."
+        "too_long": "Der Text darf höchstens {max} Zeichen lang sein."
       }
     },
     "preferences": {
@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
-          "badge": "Markierung",
+          "badge": "Ungelesen-Punkt",
           "badge_hint": "Fügt nur einen neutralen Punkt für ungelesene Inhalte hinzu. Erstellt keine Benachrichtigung, spielt keinen Ton ab und sendet keine Push-Benachrichtigung.",
-          "notification": "Benachrichtigung",
+          "notification": "In-App-Benachrichtigung",
           "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Nachrichten mit @here, wenn dein Anwesenheitsstatus nicht offline ist.",
           "all": "Nachrichten mit @all in einem Raum, dem du angehörst.",
           "followed_thread": "Neue Antworten in Threads, denen du folgst.",
-          "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen."
+          "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen.",
+          "room_invitation": "Einladungen zum Beitritt zu Räumen."
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "Passwort",
         "add_description": "Füge ein Passwort hinzu, damit du dich direkt anmelden und deinen letzten SSO-Anbieter trennen kannst.",
         "change_description": "Ändere das Passwort für die direkte Anmeldung.",
+        "sso_managed": "Du kannst kein Passwort hinzufügen oder ändern, da dieser Server Single Sign-On (SSO) verwendet. Verwalte deine Anmeldedaten bei deinem Identitätsanbieter.",
         "current_label": "Aktuelles Passwort",
         "current_required": "Gib dein aktuelles Passwort ein.",
         "add_button": "Passwort hinzufügen",
@@ -448,6 +450,7 @@
         "link_button": "Verknüpfen",
         "link_failed": "Anmeldeanbieter konnte nicht verknüpft werden",
         "fresh_auth_required": "Melde dich erneut an, bevor du einen weiteren Anbieter verknüpfst.",
+        "sso_fresh_auth_required": "Öffne die Kontoeinstellungen auf dem Server, zu dem dieses Konto gehört. Melde dich ab und über deinen SSO-Anbieter erneut an. Versuche die Aktion dann dort noch einmal.",
         "provider_unconfigured": "Anbieter ist nicht mehr konfiguriert",
         "disconnect_button": "Trennen",
         "disconnecting": "Wird getrennt...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Anbieter kann nicht getrennt werden",
-          "body": "{provider} ist deine einzige Anmeldemethode. Füge zuerst ein Passwort hinzu oder verknüpfe einen weiteren Anbieter."
+          "body": "Richte eine weitere von diesem Server unterstützte Anmeldemethode ein, bevor du {provider} trennst."
         },
         "fresh_auth_modal": {
           "title": "Passwort bestätigen",

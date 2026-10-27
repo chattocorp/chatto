@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publikowanie, poprawianie, ponowne ogłaszanie i usuwanie ogłoszeń pokoju",
       "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
       "server_manage_neighbors": "Zarządzanie publicznym katalogiem sąsiadów",
       "room_create": "Utwórz nowe pokoje",
@@ -34,7 +35,8 @@
       "call_join": "Dołączanie do trwającej rozmowy",
       "call_voice": "Używanie mikrofonu podczas rozmów",
       "call_camera": "Używanie kamery podczas rozmów",
-      "call_screenshare": "Udostępnianie ekranu lub aplikacji wraz z przechwyconym dźwiękiem"
+      "call_screenshare": "Udostępnianie ekranu lub aplikacji wraz z przechwyconym dźwiękiem",
+      "room_invite": "Zapraszaj członków serwera do pokoi, do których należysz"
     }
   }
 }

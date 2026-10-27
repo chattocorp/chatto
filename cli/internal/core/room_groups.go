@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -57,17 +59,17 @@ var (
 // CreateRoomGroup publishes a RoomGroupCreatedEvent and appends the
 // new group ID to the layout ordering via a RoomGroupsReorderedEvent.
 // Name is trimmed; description may be empty.
-func (m *RoomLayoutModel) CreateRoomGroup(ctx context.Context, actorID, name, description string) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) CreateRoomGroup(ctx context.Context, actorID, name, description string) (*readmodel.RoomGroup, error) {
 	return m.createRoomGroup(ctx, actorID, name, description, nil)
 }
 
-func (m *RoomLayoutModel) createRoomGroup(ctx context.Context, actorID, name, description string, authorize func() error) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) createRoomGroup(ctx context.Context, actorID, name, description string, authorize func() error) (*readmodel.RoomGroup, error) {
 	name = strings.TrimSpace(name)
 	if err := validateRoomGroupMetadata(name, description); err != nil {
 		return nil, err
 	}
 
-	group := &evtv1.RoomGroup{
+	group := &readmodel.RoomGroup{
 		Id:          NewRoomGroupID(),
 		Name:        name,
 		Description: description,
@@ -141,18 +143,18 @@ func (m *RoomLayoutModel) createRoomGroup(ctx context.Context, actorID, name, de
 
 // UpdateRoomGroup publishes a RoomGroupUpdatedEvent. Layout ordering
 // is untouched; only metadata changes.
-func (m *RoomLayoutModel) UpdateRoomGroup(ctx context.Context, actorID, groupID, name, description string) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) UpdateRoomGroup(ctx context.Context, actorID, groupID, name, description string) (*readmodel.RoomGroup, error) {
 	return m.updateRoomGroupFields(ctx, actorID, groupID, &name, &description, nil)
 }
 
 // UpdateRoomGroupFields applies a sparse metadata patch. Each OCC retry
 // recomposes omitted fields from the latest group projection so a stale client
 // cannot overwrite a concurrent update to a field it did not submit.
-func (m *RoomLayoutModel) UpdateRoomGroupFields(ctx context.Context, actorID, groupID string, name, description *string) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) UpdateRoomGroupFields(ctx context.Context, actorID, groupID string, name, description *string) (*readmodel.RoomGroup, error) {
 	return m.updateRoomGroupFields(ctx, actorID, groupID, name, description, nil)
 }
 
-func (m *RoomLayoutModel) updateRoomGroupFields(ctx context.Context, actorID, groupID string, name, description *string, authorize func() error) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) updateRoomGroupFields(ctx context.Context, actorID, groupID string, name, description *string, authorize func() error) (*readmodel.RoomGroup, error) {
 	if name == nil && description == nil {
 		return nil, fmt.Errorf("%w: provide at least one room group field to update", ErrInvalidArgument)
 	}
@@ -257,7 +259,7 @@ func isValidSidebarLinkURL(rawURL string) bool {
 // GetRoomGroup reads a single group through RoomModel.
 // Returns ErrRoomGroupNotFound if no RoomGroupCreatedEvent for the
 // ID has been observed.
-func (m *RoomLayoutModel) GetRoomGroup(ctx context.Context, groupID string) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) GetRoomGroup(ctx context.Context, groupID string) (*readmodel.RoomGroup, error) {
 	return m.rooms.GetRoomGroup(ctx, groupID)
 }
 
@@ -276,13 +278,13 @@ func (m *RoomLayoutModel) sidebarLinkGroup(ctx context.Context, linkID string) (
 	return groupID, nil
 }
 
-func sidebarLinkFromGroup(group *evtv1.RoomGroup, linkID string) *evtv1.SidebarLink {
+func sidebarLinkFromGroup(group *readmodel.RoomGroup, linkID string) *readmodel.SidebarLink {
 	if group == nil {
 		return nil
 	}
 	for _, link := range group.GetSidebarLinks() {
 		if link.GetId() == linkID {
-			return cloneSidebarLink(link)
+			return link.Clone()
 		}
 	}
 	return nil
@@ -808,16 +810,16 @@ func (m *RoomLayoutModel) ReorderRoomsInGroup(ctx context.Context, actorID, grou
 	return nil
 }
 
-func (m *RoomLayoutModel) CreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) CreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*readmodel.SidebarLink, error) {
 	return m.createSidebarLink(ctx, actorID, groupID, label, rawURL, nil)
 }
 
-func (m *RoomLayoutModel) createSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string, authorize func() error) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) createSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string, authorize func() error) (*readmodel.SidebarLink, error) {
 	label, rawURL, err := validateSidebarLink(label, rawURL)
 	if err != nil {
 		return nil, err
 	}
-	link := &evtv1.SidebarLink{
+	link := &readmodel.SidebarLink{
 		Id:    NewSidebarLinkID(),
 		Label: label,
 		Url:   rawURL,
@@ -860,7 +862,7 @@ func (m *RoomLayoutModel) createSidebarLink(ctx context.Context, actorID, groupI
 	return nil, fmt.Errorf("create-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
 }
 
-func (m *RoomLayoutModel) UpdateSidebarLink(ctx context.Context, actorID, linkID, label, rawURL string) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) UpdateSidebarLink(ctx context.Context, actorID, linkID, label, rawURL string) (*readmodel.SidebarLink, error) {
 	groupID, err := m.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err
@@ -868,11 +870,11 @@ func (m *RoomLayoutModel) UpdateSidebarLink(ctx context.Context, actorID, linkID
 	return m.UpdateSidebarLinkInGroup(ctx, actorID, groupID, linkID, label, rawURL)
 }
 
-func (m *RoomLayoutModel) UpdateSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID, label, rawURL string) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) UpdateSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID, label, rawURL string) (*readmodel.SidebarLink, error) {
 	return m.updateSidebarLinkInGroup(ctx, actorID, groupID, linkID, label, rawURL, nil)
 }
 
-func (m *RoomLayoutModel) updateSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID, label, rawURL string, authorize func() error) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) updateSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID, label, rawURL string, authorize func() error) (*readmodel.SidebarLink, error) {
 	label, rawURL, err := validateSidebarLink(label, rawURL)
 	if err != nil {
 		return nil, err
@@ -913,7 +915,7 @@ func (m *RoomLayoutModel) updateSidebarLinkInGroup(ctx context.Context, actorID,
 		}
 
 		m.logger.Info("Updated sidebar link", "group_id", groupID, "link_id", linkID, "actor_id", actorID)
-		return &evtv1.SidebarLink{Id: linkID, Label: label, Url: rawURL}, nil
+		return &readmodel.SidebarLink{Id: linkID, Label: label, Url: rawURL}, nil
 	}
 	return nil, fmt.Errorf("update-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
 }
@@ -1334,7 +1336,7 @@ func sidebarEntryKey(entry *evtv1.SidebarGroupEntry) string {
 //
 // `kind` is preserved on the signature for symmetry with other room
 // APIs; only KindChannel participates in the layout today.
-func (m *RoomLayoutModel) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) ([]*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) ([]*readmodel.RoomGroup, error) {
 	return m.rooms.ListRoomGroupsOrdered(ctx, kind)
 }
 

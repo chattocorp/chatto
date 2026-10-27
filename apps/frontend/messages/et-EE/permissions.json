@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Ruumi teadete avaldamine, parandamine, uuesti väljakuulutamine ja eemaldamine",
       "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
       "server_manage_neighbors": "Avaliku naabrite kataloogi haldamine",
       "room_create": "Looge uusi ruume",
@@ -34,7 +35,8 @@
       "call_join": "Käimasoleva kõnega liitumine",
       "call_voice": "Mikrofoni kasutamine kõnedes",
       "call_camera": "Kaamera kasutamine kõnedes",
-      "call_screenshare": "Ekraani või rakenduse jagamine koos salvestatud heliga"
+      "call_screenshare": "Ekraani või rakenduse jagamine koos salvestatud heliga",
+      "room_invite": "Kutsuge serveri liikmeid tubadesse, millega olete liitunud"
     }
   }
 }

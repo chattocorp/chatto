@@ -457,6 +457,15 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	log.Info("Provider login matched by external identity", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "userId", user.Id)
 
+	// Enrich upgraded hash-only links even when group-role sync is disabled.
+	if providerRuntime.config.Type == config.AuthProviderTypeOpenIDConnect {
+		if err := s.core.CompleteLegacyOIDCIdentityLink(ctx, user.Id, providerRuntime.config.ID, identity.issuer, identity.subject); err != nil {
+			log.Error("Legacy OIDC identity completion failed", "provider_id", providerRuntime.config.ID, "userId", user.Id, "error", err)
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+			return
+		}
+	}
+
 	// Sync before the session exists, so a failed revocation cannot leave a
 	// signed-in user with a role that the provider removed.
 	if err := s.core.SyncProviderGroupRoles(ctx, user.Id, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {

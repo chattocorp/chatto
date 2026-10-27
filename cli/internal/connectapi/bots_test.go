@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -258,10 +259,8 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	_, err = env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: env.viewer.Id}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err), "bot ownership must not authorize human lookups")
 	add := connect.NewRequest(&apiv1.AddMemberRequest{RoomId: room.Id, UserId: bot.User.Id})
-	_, err = env.rooms.AddMember(ctx, add)
-	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
-	require.NoError(t, env.core.SetUserPermissionState(env.ctx, env.viewer.Id, bot.User.Id,
-		core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.Id}, core.PermRoomJoin, core.PermissionStateAllow))
+	_, err = env.rooms.JoinRoom(withCaller(env.ctx, bot.User), connect.NewRequest(&apiv1.JoinRoomRequest{RoomId: room.Id}))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err), "bot cannot join itself without a grant")
 	added, err := env.rooms.AddMember(ctx, add)
 	require.NoError(t, err)
 	require.NotNil(t, added.Msg.Member)
@@ -317,4 +316,65 @@ func TestBotServiceOutboundWebhookPatchPresence(t *testing.T) {
 	require.False(t, updated.Msg.GetWebhook().GetHasAuthorization())
 	require.False(t, updated.Msg.GetWebhook().GetEnabled())
 	require.Equal(t, "https://example.com/webhook", updated.Msg.GetWebhook().GetUrl())
+}
+
+// Webhook administration belongs to the API contract, independent of any receiver.
+func TestBotServiceOutboundWebhookLifecycle(t *testing.T) {
+	t.Parallel()
+
+	env := newConnectAPITestEnv(t)
+	service := &botService{api: env.api}
+	ctx := withCaller(env.ctx, env.viewer)
+	allowBotCreation(t, env.ctx, env.core, env.viewer.Id)
+	bot, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "webhook_bot", DisplayName: "Webhook Bot"}))
+	require.NoError(t, err)
+	botID := bot.Msg.GetBot().GetUser().GetId()
+	created, err := service.CreateBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.CreateBotOutboundWebhookRequest{
+		BotUserId: botID, Name: "Active", Url: "https://example.com/active", Enabled: true,
+	}))
+	require.NoError(t, err)
+	paused, err := service.CreateBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.CreateBotOutboundWebhookRequest{
+		BotUserId: botID, Name: "Paused", Url: "https://example.com/paused", Enabled: false,
+	}))
+	require.NoError(t, err)
+	activeID := created.Msg.GetWebhook().GetId()
+	pausedID := paused.Msg.GetWebhook().GetId()
+	require.NotEmpty(t, activeID)
+	require.NotEmpty(t, pausedID)
+	require.NotEqual(t, activeID, pausedID)
+	require.NotEmpty(t, created.Msg.GetSigningSecret())
+	require.NotEmpty(t, paused.Msg.GetSigningSecret())
+	require.NotEqual(t, created.Msg.GetSigningSecret(), paused.Msg.GetSigningSecret())
+	require.False(t, paused.Msg.GetWebhook().GetEnabled())
+
+	listed, err := service.ListBotOutboundWebhooks(ctx, connect.NewRequest(&apiv1.ListBotOutboundWebhooksRequest{BotUserId: botID}))
+	require.NoError(t, err)
+	ids := make([]string, 0, len(listed.Msg.GetWebhooks()))
+	for _, webhook := range listed.Msg.GetWebhooks() {
+		ids = append(ids, webhook.GetId())
+	}
+	require.ElementsMatch(t, []string{activeID, pausedID}, ids)
+
+	for _, enabled := range []bool{false, true} {
+		updated, err := service.UpdateBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.UpdateBotOutboundWebhookRequest{
+			BotUserId: botID, WebhookId: activeID, Enabled: &enabled,
+		}))
+		require.NoError(t, err)
+		require.Equal(t, enabled, updated.Msg.GetWebhook().GetEnabled())
+		encoded, err := protojson.Marshal(updated.Msg)
+		require.NoError(t, err)
+		require.NotContains(t, string(encoded), "signingSecret")
+		fetched, err := service.GetBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.GetBotOutboundWebhookRequest{BotUserId: botID, WebhookId: activeID}))
+		require.NoError(t, err)
+		require.Equal(t, enabled, fetched.Msg.GetWebhook().GetEnabled())
+	}
+
+	_, err = service.RevokeBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.RevokeBotOutboundWebhookRequest{BotUserId: botID, WebhookId: pausedID}))
+	require.NoError(t, err)
+	listed, err = service.ListBotOutboundWebhooks(ctx, connect.NewRequest(&apiv1.ListBotOutboundWebhooksRequest{BotUserId: botID}))
+	require.NoError(t, err)
+	require.Len(t, listed.Msg.GetWebhooks(), 1)
+	require.Equal(t, activeID, listed.Msg.GetWebhooks()[0].GetId())
+	_, err = service.GetBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.GetBotOutboundWebhookRequest{BotUserId: botID, WebhookId: pausedID}))
+	requireConnectCode(t, err, connect.CodeNotFound)
 }

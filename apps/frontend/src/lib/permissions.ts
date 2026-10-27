@@ -57,6 +57,10 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
     description: () => m('permissions.descriptions.room_create'),
     help: () => m('rbac.permission_help.room_create')
   },
+  'room.invite': {
+    description: () => m('permissions.descriptions.room_invite'),
+    help: () => m('rbac.permission_help.room_invite')
+  },
   'room.join': {
     description: () => m('permissions.descriptions.room_join'),
     help: () => m('rbac.permission_help.room_join')
@@ -68,6 +72,10 @@ const PERMISSION_TEXT: Record<string, PermissionText> = {
   'room.manage': {
     description: () => m('permissions.descriptions.room_manage'),
     help: () => m('rbac.permission_help.room_manage')
+  },
+  'room.manage-notice': {
+    description: () => m('permissions.descriptions.room_manage_notice'),
+    help: () => m('rbac.permission_help.room_manage_notice')
   },
   'room.remove-member': {
     description: () => m('permissions.descriptions.room_remove_member'),

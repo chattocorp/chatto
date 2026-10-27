@@ -417,7 +417,8 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
     .split('\n')
     .map((line) => JSON.parse(line));
   assert(serverLog.some((record) => record.event === 'server.listening'));
-  assert(serverLog.some((record) => record.event === 'http.response' && record.status === 200));
+  assert(!serverLog.some((record) => record.event === 'http.response' && record.status === 200));
+  assert(serverLog.some((record) => record.event === 'http.response' && record.status === 404));
   assert(serverLog.some((record) => record.event === 'run.finished' && record.runId === id));
   assert(serverLog.some((record) => record.event === 'config.reload_failed'));
   assert(serverLog.some((record) => record.event === 'run.started' && record.source === 'source'));

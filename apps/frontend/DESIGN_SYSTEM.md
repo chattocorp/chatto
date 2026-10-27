@@ -156,7 +156,7 @@ a side stripe or cast shadow for navigation selection.
 | Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                               |
 | Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                    |
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
-| Lazily loaded part failed to load           | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
+| Part or its data failed to load             | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
 
 `TextInput` and `Select` accept `labelHidden` when the surrounding context
 already names the control, for example a policy column in a table row. The
@@ -391,6 +391,15 @@ section?”. One exception applies: an activity list page whose list is the
 whole feature, such as the notification list or My Threads, renders the list
 directly in `PaneContent` without a `Panel`. Put its controls in a toolbar
 above the list or in `PaneHeader` actions.
+
+Panel subtitles follow the title on the same line by default. They use muted
+text and align with the title's baseline. When the available width is too
+small, the subtitle wraps below the title. This depends on the panel's actual
+width, not a viewport breakpoint, and applies to both text and rich subtitles.
+
+Use `Button size="compact"` for actions that must fit a panel's 24 px title
+line without increasing the header height. This is a header-specific size;
+toast actions and dismiss controls keep `btn-xs` with a 32 px minimum height.
 
 ### Settings And Preferences
 

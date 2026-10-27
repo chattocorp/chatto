@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Raumhinweise veröffentlichen, korrigieren, erneut veröffentlichen und entfernen",
       "server_manage": "Servereinstellungen aktualisieren (Name, Beschreibung, Logo)",
       "server_manage_neighbors": "Öffentliches Nachbarverzeichnis verwalten",
       "room_create": "Neue Räume erstellen",
@@ -34,7 +35,8 @@
       "call_join": "Einem laufenden Anruf beitreten",
       "call_voice": "Das Mikrofon in Anrufen verwenden",
       "call_camera": "Die Kamera in Anrufen verwenden",
-      "call_screenshare": "Bildschirm oder Anwendung einschließlich aufgenommenem Audio teilen"
+      "call_screenshare": "Bildschirm oder Anwendung einschließlich aufgenommenem Audio teilen",
+      "room_invite": "Servermitglieder in Räume einladen, denen du beigetreten bist"
     }
   }
 }

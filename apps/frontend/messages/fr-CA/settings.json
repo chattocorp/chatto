@@ -118,10 +118,10 @@
       "conflict": "Ce profil a changé pendant que vous le modifiiez. Rechargez la page, puis enregistrez de nouveau vos modifications.",
       "save_button": "Sauvegarder les modifications",
       "bio": {
-        "label": "Bio",
+        "label": "À propos",
         "description": "Jusqu'à {max} caractères, visible sur votre profil.",
         "placeholder": "Présentez-vous en quelques mots",
-        "too_long": "La bio ne peut pas dépasser {max} caractères."
+        "too_long": "Le texte ne peut pas dépasser {max} caractères."
       }
     },
     "preferences": {
@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
-          "badge": "Pastille",
+          "badge": "Point de contenu non lu",
           "badge_hint": "Ajoute seulement un point neutre pour le contenu non lu. Ne crée aucune notification, ne joue aucun son et n’envoie aucune notification poussée.",
-          "notification": "Notification",
+          "notification": "Notification dans l’application",
           "push_notification": "Notification poussée"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Messages qui utilisent @here lorsque votre présence n’est pas hors ligne.",
           "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
           "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
-          "reaction": "Réactions ajoutées à vos messages par d’autres membres."
+          "reaction": "Réactions ajoutées à vos messages par d’autres membres.",
+          "room_invitation": "Invitations à rejoindre des salons."
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "Mot de passe",
         "add_description": "Ajoutez un mot de passe pour pouvoir vous connecter directement et déconnecter votre dernier fournisseur SSO.",
         "change_description": "Modifier le mot de passe utilisé pour la connexion directe.",
+        "sso_managed": "Vous ne pouvez pas ajouter ni modifier de mot de passe, car ce serveur utilise l’authentification unique (SSO). Gérez vos données de connexion auprès de votre fournisseur d’identité.",
         "current_label": "Mot de passe actuel",
         "current_required": "Entrez votre mot de passe actuel.",
         "add_button": "Ajouter un mot de passe",
@@ -448,6 +450,7 @@
         "link_button": "Lien",
         "link_failed": "Échec de l'association du fournisseur d'authentification",
         "fresh_auth_required": "Reconnectez-vous avant de lier un autre fournisseur.",
+        "sso_fresh_auth_required": "Ouvrez les paramètres du compte sur le serveur auquel ce compte appartient. Déconnectez-vous, puis reconnectez-vous par l’intermédiaire de votre fournisseur SSO et réessayez l’action sur ce serveur.",
         "provider_unconfigured": "Le fournisseur n'est plus configuré",
         "disconnect_button": "Déconnecter",
         "disconnecting": "Déconnexion...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Le fournisseur ne peut pas être débranché",
-          "body": "{provider} est votre seule méthode de connexion. Ajoutez un mot de passe ou associez d'abord un autre fournisseur."
+          "body": "Configurez une autre méthode de connexion prise en charge par ce serveur avant de déconnecter {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmer le mot de passe",

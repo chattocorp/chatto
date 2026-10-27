@@ -256,6 +256,25 @@ describe('createRoomTimelineAPI', () => {
     });
   });
 
+  it('bounds timeline page reads without a cursor', async () => {
+    // A window refresh waits for a pending page read, so a stalled read must fail.
+    threads.getThreadEvents.mockReturnValue({});
+    threads.getThreadEventsAround.mockReturnValue({});
+    const api = timelineAPI();
+
+    await api.getThreadEvents({ roomId: 'room', threadRootEventId: 'root', limit: 20 });
+    await api.getThreadEventsAround({
+      roomId: 'room',
+      threadRootEventId: 'root',
+      eventId: 'reply',
+      limit: 20
+    });
+
+    for (const handler of [threads.getThreadEvents, threads.getThreadEventsAround]) {
+      expect(receivedContext(handler)?.timeoutMs()).toBeGreaterThan(9_000);
+    }
+  });
+
   it('bounds realtime-triggered message reads by the event cursor', async () => {
     messages.getMessage.mockReturnValue({
       message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })

@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publikigi, korekti, reanonci kaj forigi ĉambrajn avizojn",
       "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
       "server_manage_neighbors": "Administri la publikan najbaran katalogon",
       "room_create": "Krei novajn ĉambrojn",
@@ -34,7 +35,8 @@
       "call_join": "Aliĝi al aktiva voko",
       "call_voice": "Uzi la mikrofonon dum vokoj",
       "call_camera": "Uzi la kameraon dum vokoj",
-      "call_screenshare": "Kunhavigi ekranon aŭ aplikaĵon, inkluzive de kaptita sono"
+      "call_screenshare": "Kunhavigi ekranon aŭ aplikaĵon, inkluzive de kaptita sono",
+      "room_invite": "Invitu servilanojn al ĉambroj, kiujn vi aliĝis"
     }
   }
 }

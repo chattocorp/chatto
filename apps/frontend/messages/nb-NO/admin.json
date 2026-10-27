@@ -52,6 +52,11 @@
       "subtitle": "Serveridentitet, merkevarebygging og meldinger"
     },
     "members": {
+      "deactivate": "Deaktiver konto",
+      "reactivate": "Aktiver konto igjen",
+      "deactivate_description": "Brukeren vil ikke lenger kunne bruke denne serveren. Alle økter avsluttes umiddelbart. Alle data beholdes. Du kan aktivere kontoen igjen senere.",
+      "deactivated_description": "Denne kontoen er deaktivert. Når den aktiveres igjen, kan brukeren logge inn på nytt. Gamle økter forblir ugyldige.",
+      "deactivation_failed": "Kunne ikke endre kontotilgangen.",
       "title": "Medlemmer",
       "subtitle": "Se og administrer tjenermedlemmer og deres roller",
       "search": "Søk etter medlemmer",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Overstyringstillatelser per rom (lagt på toppen av rommets gruppe)",
       "permissions_page_title": "Tillatelser – {name}",
       "back_to_rooms": "Tilbake til rommene",
-      "group_permissions_hint": "Overstyringer per gruppe for kanalrommene i denne gruppen. Standarder som er arvet fra serveromfanget. Individuelle rom kan videre overstyre tillatelser fra deres egen tillatelsesside.",
+      "group_permissions_hint": "Angi rolletillatelser for alle rom i denne gruppen. De overstyrer serverens standardverdier. Enkeltrom kan overstyre disse innstillingene.",
       "room_permissions_hint": "Disse innstillingene gjelder bare i dette rommet. De erstatter innstillingene for romgruppen og serveren for samme rolle eller bruker. Hvis bare noen roller skal kunne gjøre noe her, velger du Avvis for everyone og Tillat for disse rollene.",
       "loading": "Laster rom ...",
       "empty_groups": "Ingen romgrupper ennå",

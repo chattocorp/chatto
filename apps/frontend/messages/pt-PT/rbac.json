@@ -147,6 +147,7 @@
       "call": "Chamadas"
     },
     "permission_help": {
+      "room_manage_notice": "Permite a um membro gerir o aviso de uma sala de canal ativa, mas não a própria sala. As novas instâncias concedem esta permissão apenas a Admin; as atualizações mantêm as permissões existentes.",
       "server_manage": "Permite que uma conta altere o nome, a descrição, o logotipo e outras definições do servidor. Também permite alterar o diretório público de vizinhos. Conceda apenas a pessoas que possam falar pelo servidor inteiro.",
       "server_manage_neighbors": "Permite que uma conta adicione, altere e remova entradas no diretório público de vizinhos. Não permite alterar outras definições do servidor.",
       "room_create": "Permite que uma conta crie salas. No âmbito de um grupo de salas, permite criar salas apenas nesse grupo.",
@@ -179,7 +180,8 @@
       "call_join": "Permite que uma conta entre numa chamada ativa, também apenas para ouvir. Para enviar áudio ou vídeo, precisa de call.voice, call.camera ou call.screenshare.",
       "call_voice": "Permite que uma conta envie áudio do microfone nas chamadas. Sem ela, a conta ainda pode ouvir.",
       "call_camera": "Permite que uma conta envie vídeo da câmara nas chamadas.",
-      "call_screenshare": "Permite que uma conta partilhe um ecrã, janela, separador ou aplicação nas chamadas, com o áudio. Não permite áudio do microfone; para isso é preciso call.voice."
+      "call_screenshare": "Permite que uma conta partilhe um ecrã, janela, separador ou aplicação nas chamadas, com o áudio. Não permite áudio do microfone; para isso é preciso call.voice.",
+      "room_invite": "Convidar membros do servidor para salas em que participa."
     }
   }
 }

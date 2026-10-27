@@ -13,6 +13,7 @@ export type AdminNavPermissions = Pick<
   | 'canManageRooms'
   | 'canModerateRooms'
   | 'canAdminManageRoles'
+  | 'canAssignRoles'
   | 'canAdminViewAudit'
   | 'canAdminViewSystem'
 >;
@@ -91,7 +92,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (permissions.canAdminManageRoles) {
+  if (permissions.canAdminManageRoles || permissions.canAssignRoles) {
     items.push({
       href: resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }),
       label: m('chat.management_nav.permissions'),

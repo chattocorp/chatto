@@ -373,7 +373,7 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.authorizationRefreshRequired).toBe(true);
     finish();
     await expect(refreshed).resolves.toBe(true);
-    expect(reconcile).toHaveBeenCalledWith('current-cursor');
+    expect(reconcile).toHaveBeenCalledWith('current-cursor', undefined, false);
     expect(sync.authorizationRefreshRequired).toBe(false);
     expect(updates).not.toHaveBeenCalled();
   });
@@ -424,8 +424,8 @@ describe('eventBusManager realtime transport', () => {
         })
       );
 
-      if (narrow) expect(completeCatchUp).toHaveBeenCalledWith('after', generation);
-      else expect(completeCatchUp).toHaveBeenCalledWith('after');
+      if (narrow) expect(completeCatchUp).toHaveBeenCalledWith('after', generation, false);
+      else expect(completeCatchUp).toHaveBeenCalledWith('after', undefined, false);
       expect(sync.authorizationRefreshRequired).toBe(false);
     }
   );
@@ -467,7 +467,7 @@ describe('eventBusManager realtime transport', () => {
       })
     );
 
-    expect(completeCatchUp).toHaveBeenCalledWith('after', generation);
+    expect(completeCatchUp).toHaveBeenCalledWith('after', generation, false);
   });
 
   it.each(['network failure', 'read failure', 'not caught up', 'newer generation'])(
@@ -519,7 +519,7 @@ describe('eventBusManager realtime transport', () => {
         })
       );
 
-      expect(completeCatchUp).toHaveBeenCalledWith('after');
+      expect(completeCatchUp).toHaveBeenCalledWith('after', undefined, false);
       if (failure === 'newer generation') expect(sync.authorizationRefreshRequired).toBe(true);
       else expect(sync.authorizationRefreshRequired).toBe(false);
     }
@@ -643,7 +643,11 @@ describe('eventBusManager realtime transport', () => {
 
     expect(sync.phase).toBe('ready');
     expect(sync.resumeCursor).toBe('cursor-reset-caught-up');
-    expect(completeProjectionCatchUp).toHaveBeenCalledWith('cursor-reset-caught-up');
+    expect(completeProjectionCatchUp).toHaveBeenCalledWith(
+      'cursor-reset-caught-up',
+      undefined,
+      false
+    );
     expect(fake.status).toBe('connected');
   });
 
@@ -1090,7 +1094,7 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.resumeCursor).toBe('before-replay');
     pendingRead.resolve();
     await vi.waitFor(() => expect(sync.resumeCursor).toBe('caught-up'));
-    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('caught-up');
+    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('caught-up', undefined, false);
     await socket.receive(projectionFrame('live-event'));
     await socket.receive(heartbeatFrame('idle-heartbeat'));
     await vi.waitFor(() => expect(sync.resumeCursor).toBe('idle-heartbeat'));
@@ -1118,7 +1122,7 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(
       serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'hydrated' }) })
     );
-    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('hydrated');
+    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('hydrated', undefined, false);
     expect(sync.resumeCursor).toBeNull();
     hydration.resolve();
     await vi.waitFor(() => expect(sync.resumeCursor).toBe('hydrated'));
@@ -1189,6 +1193,88 @@ describe('eventBusManager realtime transport', () => {
     expect(inactiveSync.resumeCursor).toBe('inactive-ready');
     expect(active.status).toBe('connecting');
     expect(inactive.status).toBe('dormant');
+  });
+
+  it('marks the catch-up of an inactive poll and completes it again after a promotion', async () => {
+    const active = new FakeServerConnection();
+    const inactive = new FakeServerConnection();
+    inactive.realtimeUrl = 'ws://inactive.test/api/realtime';
+    const pollCatchUp = deferred<void>();
+    const completeCatchUp = vi
+      .fn<(cursor: string, generation?: number, inactivePoll?: boolean) => Promise<void>>()
+      .mockReturnValueOnce(pollCatchUp.promise)
+      .mockResolvedValue(undefined);
+    const registrations = [
+      {
+        serverId: 'active-server',
+        connection: active as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'inactive-server',
+        connection: inactive as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn(),
+        completeProjectionCatchUp: completeCatchUp
+      }
+    ];
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'active-server');
+    const pollSocket = sockets[1];
+    pollSocket.open();
+    const caughtUp = pollSocket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'poll-ready' }) })
+    );
+    await vi.waitFor(() =>
+      expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('poll-ready', undefined, true)
+    );
+
+    // The server becomes active while the poll's catch-up still runs.
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'inactive-server');
+    pollCatchUp.resolve();
+    await caughtUp;
+
+    await vi.waitFor(() => expect(inactive.status).toBe('connected'));
+    expect(completeCatchUp).toHaveBeenCalledTimes(2);
+    expect(completeCatchUp).toHaveBeenLastCalledWith('poll-ready');
+    expect(pollSocket.closeCalls).toEqual([]);
+  });
+
+  it('completes a poll in full when the server becomes active before caught_up', async () => {
+    const active = new FakeServerConnection();
+    const inactive = new FakeServerConnection();
+    inactive.realtimeUrl = 'ws://inactive.test/api/realtime';
+    const completeCatchUp = vi.fn().mockResolvedValue(undefined);
+    const registrations = [
+      {
+        serverId: 'active-server',
+        connection: active as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn()
+      },
+      {
+        serverId: 'inactive-server',
+        connection: inactive as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState(),
+        projectionHandler: vi.fn(),
+        completeProjectionCatchUp: completeCatchUp
+      }
+    ];
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'active-server');
+    const pollSocket = sockets[1];
+    pollSocket.open();
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'inactive-server');
+    await pollSocket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'poll-ready' }) })
+    );
+
+    await vi.waitFor(() => expect(inactive.status).toBe('connected'));
+    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('poll-ready', undefined, false);
   });
 
   it('reuses an inactive projection cursor when that server becomes active', async () => {

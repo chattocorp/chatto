@@ -69,7 +69,8 @@ export class CallDeviceTest {
       if (generation !== this.#generation) return;
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+          // Saved device IDs can expire or disappear between enumeration and capture.
+          ...(deviceId ? { deviceId: { ideal: deviceId } } : {}),
           channelCount: { ideal: 1 },
           // Capture the selected raw or processed signal. Playback starts only
           // after capture ends, so it cannot feed into this microphone.

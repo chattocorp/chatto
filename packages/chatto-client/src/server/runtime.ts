@@ -51,8 +51,8 @@ function realtimeRegistrations({
             projectionSupported: store.serverInfo.canConnect,
             sync: store.realtimeSync,
             projectionHandler: store.realtimeProjectionHandler,
-            completeProjectionCatchUp: (cursor, authorizationRefreshGeneration) =>
-              store.completeRealtimeCatchUp(cursor, authorizationRefreshGeneration),
+            completeProjectionCatchUp: (cursor, authorizationRefreshGeneration, inactivePoll) =>
+              store.completeRealtimeCatchUp(cursor, authorizationRefreshGeneration, inactivePoll),
             waitForProjectionReconciliation: () => store.waitForRealtimeReconciliation()
           }
         ]

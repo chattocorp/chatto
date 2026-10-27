@@ -147,6 +147,7 @@
       "call": "Appels"
     },
     "permission_help": {
+      "room_manage_notice": "Permet à un membre de gérer l’annonce d’un salon actif, mais pas le salon lui-même. Les nouvelles instances accordent ce droit uniquement à Admin ; les mises à niveau conservent les droits existants.",
       "server_manage": "Permet à un compte de modifier le nom, la description, le logo et les autres paramètres du serveur. Elle permet aussi de modifier l’annuaire public des voisins. Ne l’accordez qu’aux personnes qui peuvent parler au nom de tout le serveur.",
       "server_manage_neighbors": "Permet à un compte d’ajouter, de modifier et de supprimer des entrées dans l’annuaire public des voisins. Elle ne permet pas de modifier les autres paramètres du serveur.",
       "room_create": "Permet à un compte de créer des salons. Au niveau d’un groupe de salons, elle permet de créer des salons uniquement dans ce groupe.",
@@ -179,7 +180,8 @@
       "call_join": "Permet à un compte de rejoindre un appel en cours, y compris seulement pour écouter. Envoyer de l’audio ou de la vidéo nécessite call.voice, call.camera ou call.screenshare.",
       "call_voice": "Permet à un compte d’envoyer le son de son micro pendant les appels. Sans elle, le compte peut quand même écouter.",
       "call_camera": "Permet à un compte d’envoyer la vidéo de sa caméra pendant les appels.",
-      "call_screenshare": "Permet à un compte de partager un écran, une fenêtre, un onglet ou une application pendant les appels, avec le son. Elle ne permet pas d’envoyer le son du micro ; il faut pour cela call.voice."
+      "call_screenshare": "Permet à un compte de partager un écran, une fenêtre, un onglet ou une application pendant les appels, avec le son. Elle ne permet pas d’envoyer le son du micro ; il faut pour cela call.voice.",
+      "room_invite": "Inviter des membres du serveur dans les salons que vous avez rejoints."
     }
   }
 }

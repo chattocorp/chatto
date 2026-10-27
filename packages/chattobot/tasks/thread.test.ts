@@ -24,11 +24,12 @@ const message: IncomingMessage = {
 const ping: IncomingMessage = { ...message, id: 'ping', body: 'Please help', trigger: undefined };
 
 function harness(
-  decide: () => Promise<boolean>,
+  decide: () => Promise<boolean | IntakeDecision>,
   readable = true,
   options: {
+    react?: ThreadOptions['react'];
     readFollowUp?: ReadFollowUp;
-    readReactionContext?: ThreadOptions['readReactionContext'];
+    readContext?: ThreadOptions['readContext'];
     intervalMs?: number;
     batchMs?: number;
     idleMs?: number;
@@ -40,9 +41,15 @@ function harness(
   const batches: IncomingMessage[][] = [];
   const runIds: (string | undefined)[] = [];
   const classify = vi.fn((_input: unknown) => decide());
-  const read = vi.fn(async () =>
-    readable ? { body: 'Current report', attachmentTypes: ['image/png'] } : undefined
+  const read = vi.fn(async (item: IncomingMessage, _signal: AbortSignal) =>
+    readable
+      ? {
+          body: item.trigger === 'intake' ? 'Current report' : item.body,
+          attachmentTypes: ['image/png']
+        }
+      : undefined
   );
+  const react = vi.fn(options.react ?? (async () => {}));
   const stopped = vi.fn();
   const classifier = task(
     { name: 'Fixture classifier', input: IntakeInput, result: IntakeDecision },
@@ -52,7 +59,10 @@ function harness(
         ctx.signal.addEventListener('abort', () => reject(ctx.signal.reason), { once: true })
       );
       try {
-        return { engage: await Promise.race([classify(input), aborted]), reason: 'fixture' };
+        const result = await Promise.race([classify(input), aborted]);
+        return typeof result === 'boolean'
+          ? { action: result ? ('engage' as const) : ('ignore' as const), reason: 'fixture' }
+          : result;
       } finally {
         stopped();
       }
@@ -86,10 +96,11 @@ function harness(
     classifier,
     conversation,
     read,
-    readReactionContext: async () => [],
+    readContext: async () => [],
     readFollowUp: async () => undefined,
     batchMs: 0,
-    ...options
+    ...options,
+    react
   });
   return {
     workflow,
@@ -99,6 +110,7 @@ function harness(
     read,
     classify,
     stopped,
+    react,
     start: (first = message) => createTaskContext().start(workflow, first)
   };
 }
@@ -177,7 +189,11 @@ test('a fresh reply queued during recovery renews an expired conversation', asyn
 test('a ping queued during metadata lookup is answered even if the report is gone', async () => {
   const h = harness(async () => false);
   const reading = Promise.withResolvers<undefined>();
-  h.read.mockImplementation(() => reading.promise);
+  h.read.mockImplementation((item) =>
+    item.trigger === 'intake'
+      ? reading.promise
+      : Promise.resolve({ body: item.body, attachmentTypes: [] })
+  );
   await using run = h.start();
   await run.steer(ping);
   reading.resolve(undefined);
@@ -569,12 +585,12 @@ test('replies arriving during classification are reconsidered once the current c
   await run.result;
 });
 
-test('addressed entry bypasses intake; empty checks never call the model and stop on input close', async () => {
+test('addressed entry is read once; empty follow-up checks do not call the model', async () => {
   const readFollowUp = vi.fn(async () => undefined);
   const h = harness(async () => true, true, { readFollowUp, intervalMs: 5 });
   await using run = h.start(ping);
   await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(1));
-  expect(h.read).not.toHaveBeenCalled();
+  expect(h.read).toHaveBeenCalledOnce();
   expect(h.classify).not.toHaveBeenCalled();
   run.closeSteering();
   await run.result;
@@ -790,7 +806,7 @@ const appreciation: IncomingMessage = {
 
 test('appreciation on a completed answer does not open a conversation', async () => {
   const context = [{ role: 'bot' as const, body: appreciation.reaction!.body }];
-  const h = harness(async () => false, true, { readReactionContext: async () => context });
+  const h = harness(async () => false, true, { readContext: async () => context });
   await using run = h.start(appreciation);
   await run.result;
   expect(h.received).toEqual([]);
@@ -857,7 +873,7 @@ test.each(['context', 'classifier'])(
     };
     const h = harness(failure === 'classifier' ? fail : async () => true, true, {
       batchMs: 10,
-      readReactionContext: failure === 'context' ? fail : async () => []
+      readContext: failure === 'context' ? fail : async () => []
     });
     await using run = h.start(appreciation);
     await run.steer(ping);
@@ -983,4 +999,181 @@ test('an ignored reaction resumes a pending ordinary reply check without waiting
   await vi.waitFor(() => expect(h.received.map((item) => item.id)).toEqual(['ping', 'one']));
   run.closeSteering();
   await run.result;
+});
+
+test.each(
+  ['maintainer', 'member'].flatMap((authorId) =>
+    (['ignore', 'like', 'love', 'smile'] as const).map((action) => ({ authorId, action }))
+  )
+)(
+  '$authorId addressed text bypasses a classifier that would choose $action',
+  async ({ authorId, action }) => {
+    const h = harness(async () => ({ action }));
+    const run = h.start({ ...ping, authorId, body: 'Please continue' });
+    run.closeSteering();
+    await run.result;
+    expect(h.received).toEqual([{ ...ping, authorId, body: 'Please continue' }]);
+    expect(h.classify).not.toHaveBeenCalled();
+    expect(h.react).not.toHaveBeenCalled();
+  }
+);
+
+test('unrelated addressed text reaches the conversation for a scope reply', async () => {
+  const h = harness(async () => false);
+  const request = { ...ping, body: 'Write a pizza recipe' };
+  const run = h.start(request);
+  run.closeSteering();
+  await run.result;
+  expect(h.received).toEqual([request]);
+  expect(h.classify).not.toHaveBeenCalled();
+});
+
+test('an active conversation always receives later pings and direct replies', async () => {
+  const h = harness(async () => {
+    throw new Error('Classifier unavailable');
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  const reply = { ...ping, id: 'reply', authorId: 'maintainer', body: 'Go ahead' };
+  await run.steer(reply);
+  await vi.waitFor(() => expect(h.received).toEqual([ping, reply]));
+  expect(h.classify).not.toHaveBeenCalled();
+  run.closeSteering();
+  await run.result;
+});
+
+test('an addressed batch keeps each message and author without reading classifier context', async () => {
+  const readContext = vi.fn(async (): Promise<never> => {
+    throw new Error('Context unavailable');
+  });
+  const h = harness(async () => false, true, { readContext, batchMs: 5 });
+  const thanks = { ...ping, body: 'Thanks!' };
+  const question = {
+    ...ping,
+    id: 'question',
+    authorId: 'other',
+    body: 'Can you explain how to upgrade?'
+  };
+  const run = h.start(thanks);
+  await run.steer(question);
+  run.closeSteering();
+  await run.result;
+  expect(h.received).toEqual([thanks, question]);
+  expect(readContext).not.toHaveBeenCalled();
+  expect(h.classify).not.toHaveBeenCalled();
+});
+
+test('consumed messages from an older snapshot are not delivered again', async () => {
+  const h = harness(async () => false);
+  const messages = createChannel<IncomingMessage>();
+  const run = runWorkflow(h.workflow, {
+    input: ping,
+    state: { first: ping, delivered: [ping.id], consumed: ['thanks'], lastActivity: Date.now() },
+    run: { id: 'ack-recovery', resumed: true },
+    messages
+  });
+  messages.send({ ...ping, id: 'thanks' });
+  messages.close();
+  expect((await run).ok).toBe(true);
+  expect(h.received).toEqual([]);
+});
+
+test('ordinary thanks reacts once and does not steer the existing agent', async () => {
+  const readFollowUp = vi.fn(async () => snapshot('thanks'));
+  const h = harness(async () => ({ action: 'like' }), true, { readFollowUp, intervalMs: 5 });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.react).toHaveBeenCalledOnce());
+  expect(h.react).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'thanks', trigger: 'follow-up' }),
+    '+1',
+    expect.any(AbortSignal)
+  );
+  expect(h.received).toEqual([ping]);
+  await run.steer({ ...ping, id: 'thanks', trigger: 'follow-up' });
+  await vi.waitFor(() => expect(readFollowUp.mock.calls.length).toBeGreaterThan(2));
+  expect(h.react).toHaveBeenCalledOnce();
+  expect(h.classify).toHaveBeenCalledOnce();
+  run.closeSteering();
+  await run.result;
+});
+
+test('a direct message cancels an obsolete follow-up and permits a fresh check', async () => {
+  let calls = 0;
+  const h = harness(async () => (++calls === 1 ? new Promise<boolean>(() => {}) : true), true, {
+    readFollowUp: async (_first, _signal, pending) =>
+      pending?.includes('answer') ? snapshot('answer') : undefined,
+    intervalMs: 60_000
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await run.steer({ ...ping, id: 'answer', trigger: 'follow-up' });
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer({ ...ping, id: 'irrelevant' });
+  await vi.waitFor(() =>
+    expect(h.received.map((item) => item.id)).toEqual(['ping', 'irrelevant', 'answer'])
+  );
+  expect(h.classify).toHaveBeenCalledTimes(2);
+  run.closeSteering();
+  await run.result;
+});
+
+test('a completed follow-up decision waits for an unfinished direct window without consuming replies', async () => {
+  const decision = Promise.withResolvers<boolean>();
+  let checks = 0;
+  const h = harness(async () => (++checks === 1 ? decision.promise : true), true, {
+    readFollowUp: async (_first, _signal, pending) =>
+      pending?.includes('answer') ? snapshot('answer') : undefined,
+    intervalMs: 60_000,
+    batchMs: 40
+  });
+  await using run = h.start(ping);
+  await vi.waitFor(() => expect(h.received).toEqual([ping]));
+  await run.steer({ ...ping, id: 'answer', trigger: 'follow-up' });
+  await vi.waitFor(() => expect(h.classify).toHaveBeenCalledOnce());
+  await run.steer({ ...ping, id: 'unrelated' });
+  decision.resolve(true);
+  await vi.waitFor(() =>
+    expect(h.received.map((item) => item.id)).toEqual(['ping', 'unrelated', 'answer'])
+  );
+  expect(h.classify).toHaveBeenCalledTimes(2);
+  run.closeSteering();
+  await run.result;
+});
+
+test.each(['first', 'middle'])(
+  'a %s metadata read failure does not discard later addressed messages',
+  async (position) => {
+    const h = harness(async () => true, true, { batchMs: 5 });
+    h.read.mockImplementation(async (item) => {
+      if (item.id === 'failed') throw new Error('transient read failure');
+      return { body: item.body, attachmentTypes: [] };
+    });
+    const before = { ...ping, id: 'before' };
+    const after = { ...ping, id: 'after' };
+    const failed = { ...ping, id: 'failed' };
+    const batch = position === 'first' ? [failed, after] : [before, failed, after];
+    const run = h.start(batch[0]!);
+    for (const item of batch.slice(1)) await run.steer(item);
+    run.closeSteering();
+    await run.result;
+    expect(h.read.mock.calls.map(([item]) => item.id)).toEqual(batch.map((item) => item.id));
+    expect(h.received).toEqual(batch.filter((item) => item.id !== 'failed'));
+  }
+);
+
+test('cancellation during message verification stops the rest of the batch', async () => {
+  const h = harness(async () => true, true, { batchMs: 5 });
+  h.read.mockImplementation(
+    async (_item, signal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      })
+  );
+  const run = h.start(ping);
+  await run.steer({ ...ping, id: 'next' });
+  await vi.waitFor(() => expect(h.read).toHaveBeenCalledOnce());
+  run.cancel();
+  await expect(run.result).rejects.toThrow();
+  expect(h.read).toHaveBeenCalledOnce();
+  expect(h.received).toEqual([]);
 });

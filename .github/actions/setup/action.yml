@@ -91,8 +91,20 @@ runs:
       if: inputs.install-ffmpeg == 'true'
       shell: bash
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq ffmpeg
+        if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+          ffmpeg -version
+          ffprobe -version
+        else
+          # Job containers run as root and do not necessarily include sudo.
+          elevate=()
+          if [ "$(id -u)" != 0 ]; then
+            elevate=(sudo)
+          fi
+          "${elevate[@]}" timeout 120s apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          # A fresh runner downloads FFmpeg and its codec libraries. Allow slow
+          # mirrors to finish, and omit recommended packages that tests do not use.
+          "${elevate[@]}" timeout 600s apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --no-install-recommends -y ffmpeg
+        fi
 
     - name: Set up CLI
       if: inputs.install-cli-deps == 'true'

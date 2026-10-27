@@ -32,7 +32,11 @@ const (
 )
 
 // NewHandler constructs the protected MCP and metadata endpoints.
-func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version string) (http.Handler, error) {
+func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version string, options ...Option) (http.Handler, error) {
+	var deps handlerOptions
+	for _, option := range options {
+		option(&deps)
+	}
 	if chattoCore == nil {
 		return nil, fmt.Errorf("Chatto core is required")
 	}
@@ -54,14 +58,14 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 		if err != nil || resourceURL.Path != "/mcp" || resourceURL.Host == "" {
 			return nil, fmt.Errorf("valid MCP resource URL is required")
 		}
-		handlers[strings.ToLower(resourceURL.Host)] = newResourceHandler(chattoCore, issuer, resource, version, limiter)
+		handlers[strings.ToLower(resourceURL.Host)] = newResourceHandler(chattoCore, issuer, resource, version, limiter, cfg.Search.Enabled, deps)
 	}
 	return requireConfiguredHost(handlers), nil
 }
 
 // newResourceHandler constructs one self-consistent MCP resource. The caller
 // must dispatch requests only when their Host matches the resource origin.
-func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version string, limiter *rate.Limiter) http.Handler {
+func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version string, limiter *rate.Limiter, searchEnabled bool, deps handlerOptions) http.Handler {
 	resourceURL, _ := url.Parse(resource)
 	metadataURL := resourceURL.Scheme + "://" + resourceURL.Host + "/.well-known/oauth-protected-resource/mcp"
 
@@ -99,9 +103,16 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 			Description: "List one page of recent messages in a joined room on the connected Chatto server. To retrieve older messages, pass nextBeforeEventId as before_event_id until nextBeforeEventId is absent.",
 			Annotations: readOnlyToolAnnotations("List room messages"),
 		}, listRoomMessagesHandler(chattoCore))
+		if searchEnabled {
+			addTool(server, &mcp.Tool{
+				Name:        "search_messages",
+				Description: "Search current messages in rooms the authenticated account can read on this Chatto server, including direct messages and thread replies. Supports words, quoted phrases, AND, in:, from:, before:, after:, and has:attachment filters. Pass nextCursor as cursor with all other arguments unchanged until nextCursor is absent, even after an empty page. Results use a live index and can move between pages.",
+				Annotations: readOnlyToolAnnotations("Search messages"),
+			}, searchMessagesHandler(chattoCore, deps.search))
+		}
 		addTool(server, &mcp.Tool{
 			Name:        "post_message",
-			Description: "Post one text message to a joined room on the connected Chatto server. This operation is not idempotent; do not retry it after an uncertain result.",
+			Description: "Post one text message to a joined room on the connected Chatto server. Supply an optional caller-generated UUID idempotency_key to retry the exact request safely within 30 minutes of the first attempt. Changed arguments with the same key are rejected. Without a key, do not retry after an uncertain result. The idempotent hint is false because the key is optional.",
 			Annotations: mutationToolAnnotations("Post message", false, false),
 		}, postMessageHandler(chattoCore))
 		addTool(server, &mcp.Tool{

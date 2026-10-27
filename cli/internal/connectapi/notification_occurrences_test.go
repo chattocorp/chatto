@@ -155,3 +155,23 @@ func testNotificationSignalWithMessage(kind notificationTestSignalKind, message 
 	}
 	return signal
 }
+
+func TestNotificationSummaryIncludesRoomOnlyInvitation(t *testing.T) {
+	t.Parallel()
+	invitation := &notificationv1.NotificationOccurrence{
+		Signal: &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomInvitationReceived{
+			RoomInvitationReceived: &notificationv1.RoomInvitationReceived{RoomId: "invited-room", InvitationId: "invite"},
+		}},
+		AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		ExpiresAt:      timestamppb.New(time.Now().Add(time.Hour)),
+	}
+	summary := notificationSummary([]*notificationv1.NotificationOccurrence{invitation})
+	if summary.unreadCount != 1 || summary.importantUnreadCount != 1 || len(summary.roomCounts) != 1 || summary.roomCounts[0].GetRoomId() != "invited-room" {
+		t.Fatalf("invitation summary = %+v", summary)
+	}
+	invitation.Read = true
+	summary = notificationSummary([]*notificationv1.NotificationOccurrence{invitation})
+	if summary.unreadCount != 0 || len(summary.roomCounts) != 0 {
+		t.Fatalf("read invitation summary = %+v", summary)
+	}
+}

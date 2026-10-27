@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -46,6 +47,8 @@ type NotificationMaterializer struct {
 	ready                     chan struct{}
 	consumer                  jetstream.Consumer
 	consumerInfoMu            sync.Mutex
+	invitationConsumer        jetstream.Consumer
+	invitationConsumerInfoMu  sync.Mutex
 }
 
 func NewNotificationMaterializer(core *ChattoCore, decisions events.ProjectionHandle[*NotificationDecisionProjection]) *NotificationMaterializer {
@@ -69,6 +72,11 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 		return err
 	}
 	m.consumer = consumer
+	invitationConsumer, err := m.createInvitationConsumer(ctx)
+	if err != nil {
+		return err
+	}
+	m.invitationConsumer = invitationConsumer
 	close(m.ready)
 	return nil
 }
@@ -92,7 +100,17 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		return fmt.Errorf("configure notification worker: %w", err)
 	}
 
-	err = worker.Run(ctx)
+	invitationWorker, err := evtstream.NewEffectWorker(m.invitationConsumer, m.processInvitationDelivery, evtstream.EffectWorkerOptions{
+		MaxConcurrent: 1, RetryDelay: notificationWorkerRetryDelay, AckTimeout: notificationWorkerAckTimeout,
+		HeartbeatInterval: notificationWorkerHeartbeat, Logger: m.core.logger.WithPrefix("InvitationNotificationWorker"),
+	})
+	if err != nil {
+		return err
+	}
+	group, workerCtx := errgroup.WithContext(ctx)
+	group.Go(func() error { return worker.Run(workerCtx) })
+	group.Go(func() error { return invitationWorker.Run(workerCtx) })
+	err = group.Wait()
 	if err == nil && ctx.Err() == nil {
 		return errors.New("notification worker stopped unexpectedly")
 	}
@@ -173,6 +191,9 @@ func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
 		}
 	}
 	if err := m.WaitThrough(ctx, boundary); err != nil {
+		return err
+	}
+	if err := m.waitInvitationCurrent(ctx); err != nil {
 		return err
 	}
 	return m.core.notificationOccurrences.projection.Projector().WaitForCurrent(ctx)
@@ -285,6 +306,9 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 }
 
 func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *evtv1.Event, streamSequence uint64) error {
+	if event.GetImportContext() != nil {
+		return nil
+	}
 	if event == nil {
 		return nil
 	}
@@ -645,6 +669,9 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 }
 
 func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
+	if reaction.GetHistoricalImport() {
+		return nil
+	}
 	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
 		return nil
 	}

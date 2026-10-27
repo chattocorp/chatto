@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publier, corriger, annoncer à nouveau et effacer les annonces du salon",
       "server_manage": "Mettre à jour les paramètres du serveur (nom, description, logo)",
       "server_manage_neighbors": "Gérer l’annuaire public des voisins",
       "room_create": "Créer de nouvelles salles",
@@ -34,7 +35,8 @@
       "call_join": "Rejoindre un appel en cours",
       "call_voice": "Utiliser le microphone pendant les appels",
       "call_camera": "Utiliser la caméra pendant les appels",
-      "call_screenshare": "Partager un écran ou une application, y compris le son capturé"
+      "call_screenshare": "Partager un écran ou une application, y compris le son capturé",
+      "room_invite": "Inviter des membres du serveur dans les salons que vous avez rejoints"
     }
   }
 }

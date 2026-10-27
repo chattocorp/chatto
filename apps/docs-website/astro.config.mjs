@@ -69,6 +69,7 @@ export default defineConfig({
           items: [
             'getting-started/introduction',
             'getting-started/quick-start',
+            'getting-started/install-pwa',
             'getting-started/faq'
           ]
         },
@@ -147,6 +148,7 @@ export default defineConfig({
                 'reference/connectrpc-api/push-notifications',
                 'reference/connectrpc-api/roles',
                 'reference/connectrpc-api/room-directory',
+                'reference/connectrpc-api/room-invitations',
                 'reference/connectrpc-api/rooms',
                 'reference/connectrpc-api/server',
                 'reference/connectrpc-api/threads',

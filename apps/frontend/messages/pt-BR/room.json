@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Aviso da sala",
+      "dismiss": "Fechar",
+      "body": "Aviso (Markdown)",
+      "too_long": "Os avisos podem conter no máximo {max} caracteres, incluindo espaços em branco.",
+      "help": "Salve correções sem mostrar o aviso novamente. Anuncie para mostrá-lo de novo aos membros que o fecharam em seus dispositivos.",
+      "conflict": "Este aviso mudou enquanto você o editava. Seu rascunho continua aqui. Copie-o se necessário e carregue o aviso atual antes de salvar novamente.",
+      "reload": "Carregar aviso atual",
+      "save": "Atualizar",
+      "republish": "Anunciar",
+      "clear": "Limpar",
+      "clear_confirm_title": "Limpar aviso da sala?",
+      "clear_confirm_description": "Isso remove imediatamente o aviso ativo para todos na sala. Suas alterações não salvas não serão publicadas.",
+      "empty": "Nenhum aviso foi publicado.",
+      "edit": "Editar aviso"
+    },
+    "information": {
+      "description": "Descrição",
+      "created": "Criada",
+      "title": "Informações da sala",
+      "basic": "Geral",
+      "pinned_messages": "Mensagens fixadas"
+    },
     "create": {
       "title": "Crie uma nova sala",
       "description": "Salas são conversas dentro do seu servidor.",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "Sair da sala",
       "action": "Sair da sala",
-      "prompt": "Tem certeza de que deseja sair de #{room}? Você pode voltar mais tarde.",
-      "failed": "Falha ao sair da sala"
+      "prompt": "Tem certeza de que deseja sair de #{room}?",
+      "failed": "Falha ao sair da sala",
+      "join_later": "Você pode voltar mais tarde.",
+      "need_invite": "Você precisará de um novo convite para entrar nesta sala.",
+      "rejoin_unknown": "Você pode precisar de um novo convite para voltar."
     },
     "directory": {
       "universal_title": "As salas universais são unidas automaticamente",
@@ -59,7 +85,8 @@
       "join_group_failed": "Falha ao entrar no grupo",
       "left": "Esquerda #{room}",
       "left_generic": "Esquerda da sala",
-      "leave_confirm": "Tem certeza de que deseja sair de #{room}?"
+      "leave_confirm": "Tem certeza de que deseja sair de #{room}?",
+      "invited": "Convidado"
     },
     "server": {
       "remove_title": "Remover servidor",
@@ -73,7 +100,8 @@
       "beginning": "Este é o início desta conversa.",
       "read_denied": "Você não tem permissão para ler mensagens nesta sala.",
       "limited_empty": "Ainda não há conversas que você possa ler.",
-      "loading": "Carregando mensagens..."
+      "loading": "Carregando mensagens...",
+      "load_failed": "Não foi possível carregar as mensagens."
     },
     "message": {
       "empty": "Nenhuma mensagem ainda",
@@ -259,6 +287,7 @@
     "unread_separator": "Novas mensagens",
     "close_extras": "Fechar extras do quarto",
     "dm": {
+      "deactivated_user_notice": "Esta conta está desativada. Esta pessoa não pode ler nem responder às mensagens.",
       "deleted_user_notice": "O outro usuário foi excluído."
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "Indeterminada",
       "remove_title": "Remover {user} da sala",
       "suspension_period": "Período de suspensão"
+    },
+    "invitation": {
+      "invite": "Convidar membro",
+      "invited": "Você recebeu um convite",
+      "sent": "Convites enviados",
+      "expires": "Expira em {date}",
+      "unavailable": "Você não pode aceitar este convite no momento. Você ainda pode recusá-lo.",
+      "accept": "Aceitar convite",
+      "decline": "Recusar",
+      "title": "Convidar membros para #{room}",
+      "description": "Escolha quem você quer convidar. Os usuários convidados receberão uma notificação e terão sete dias para aceitar ou recusar.",
+      "members": "Membros",
+      "send": "Enviar convites",
+      "failed": "Não foi possível convidar {name}: {error}",
+      "already_member": "Já está nesta sala",
+      "invited_by": "Você recebeu um convite de",
+      "decline_title": "Recusar convite?",
+      "decline_join_later": "Você pode entrar nesta sala mais tarde.",
+      "decline_need_invite": "Você precisará de um novo convite para entrar nesta sala."
     }
   }
 }

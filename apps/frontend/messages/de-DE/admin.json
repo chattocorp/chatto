@@ -52,6 +52,11 @@
       "subtitle": "Serveridentität, Branding und Nachrichten"
     },
     "members": {
+      "deactivate": "Konto deaktivieren",
+      "reactivate": "Konto reaktivieren",
+      "deactivate_description": "Das Mitglied kann diesen Server nicht mehr nutzen. Alle Sitzungen werden sofort beendet. Die Daten bleiben erhalten. Du kannst das Konto später reaktivieren.",
+      "deactivated_description": "Dieses Konto ist deaktiviert. Nach der Reaktivierung kann sich das Mitglied wieder anmelden. Alte Sitzungen bleiben ungültig.",
+      "deactivation_failed": "Der Kontozugriff konnte nicht geändert werden.",
       "title": "Mitglieder",
       "subtitle": "Servermitglieder und ihre Rollen anzeigen und verwalten",
       "search": "Mitglieder suchen",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Berechtigungsüberschreibungen pro Raum (auf der Raumgruppe aufbauend)",
       "permissions_page_title": "Berechtigungen - {name}",
       "back_to_rooms": "Zurück zu Räumen",
-      "group_permissions_hint": "Überschreibungen pro Gruppe für die Kanalräume in dieser Gruppe. Vorgaben werden vom Serverbereich geerbt. Einzelne Räume können Berechtigungen auf ihrer eigenen Berechtigungsseite weiter überschreiben.",
+      "group_permissions_hint": "Lege Rollenberechtigungen für alle Räume dieser Gruppe fest. Sie überschreiben die Servervorgaben. Einzelne Räume können diese Einstellungen überschreiben.",
       "room_permissions_hint": "Diese Einstellungen gelten nur in diesem Raum. Sie ersetzen für dieselbe Rolle oder denselben Benutzer die Einstellungen der Raumgruppe und des Servers. Wenn hier nur bestimmte Rollen etwas tun dürfen, setze Verweigern für everyone und Erlauben für diese Rollen.",
       "loading": "Räume werden geladen...",
       "empty_groups": "Noch keine Raumgruppen",

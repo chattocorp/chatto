@@ -3,6 +3,7 @@ import type { QuoteInsertionContent } from '$lib/state/room';
 export type ComposerFormattingCommand =
   | 'bold'
   | 'italic'
+  | 'underline'
   | 'inlineCode'
   | 'heading'
   | 'bulletList'
@@ -60,6 +61,11 @@ export type ComposerEditorApi = {
 export type ComposerEditorProps = {
   placeholder?: string;
   editable?: boolean;
+  /**
+   * Rejects input but, unlike `editable: false`, keeps focus and the on-screen
+   * keyboard. `setContent` still replaces the content.
+   */
+  readOnly?: boolean;
   autofocus?: boolean;
   testid?: string;
   onUpdate?: (markdown: string) => void;

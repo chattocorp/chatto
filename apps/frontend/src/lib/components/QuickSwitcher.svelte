@@ -10,7 +10,8 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
 
-  const model = new QuickSwitcherModel();
+  let { onNextUnread }: { onNextUnread?: () => Promise<void> } = $props();
+  const model = new QuickSwitcherModel(() => onNextUnread?.());
   let dialogEl: HTMLDialogElement | undefined;
 
   function syncQuickSwitcherDialog(node: HTMLDialogElement) {
@@ -82,6 +83,7 @@
         <div class="flex min-h-10 items-center gap-2 px-3 py-1.5">
           <span class="iconify sidebar-icon icon-[uil--search] text-muted" aria-hidden="true"
           ></span>
+          <!-- Keep input text at 16px to prevent iOS zoom on focus. -->
           <input
             {@attach registerInput}
             value={model.query}
@@ -90,7 +92,7 @@
             type="text"
             placeholder={m('quick_switcher.placeholder')}
             aria-label={m('quick_switcher.placeholder')}
-            class="min-w-0 flex-1 bg-transparent text-text outline-none placeholder:text-muted"
+            class="min-w-0 flex-1 bg-transparent text-[16px] text-text outline-none placeholder:text-muted"
           />
           {#if model.loading}
             <span
@@ -223,7 +225,9 @@
                   </span>
                 {/if}
 
-                {#if index === model.selectedIndex}
+                {#if item.id === 'next-unread'}
+                  <kbd class="keycap">Alt ⇧ ↓</kbd>
+                {:else if index === model.selectedIndex}
                   <span class="shrink-0 text-muted" aria-hidden="true">↵</span>
                 {/if}
               </button>

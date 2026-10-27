@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-18
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -11,6 +11,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 - Automatic links require `www.` or an allowed protocol: `https://`, `http://`, or `mailto:`. Bare domains, filenames, email addresses without `mailto:`, and protocol-relative URLs stay plain text. Explicit Markdown links also allow root-relative paths that start with one `/`, such as `[room](/chat/example.com/R8rLgzhPkYja7Gs)`. These paths do not produce link previews, and the visual editor preserves them. Other protocols stay unlinked. This rule prevents filenames such as `agents.md` and `foo.py` from becoming links. The source editor uses the same prefix rule for URL highlighting. Selecting a `mailto:` link opens the configured mail application.
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
+- Double underscores (`__text__`) mean underline, including in existing messages. Double asterisks (`**text**`) mean bold. Underline uses the normal emphasis boundaries and does not interpret underscores inside inline code, code blocks, or link destinations. Both editors provide an Underline toolbar button and Ctrl+U (⌘U on macOS). The visual editor retains underline when messages are saved, reopened, or switched to Markdown.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
 - Both composer editors can insert a footnote from the formatting toolbar. The visual editor shows numbered markers and editable notes, supports repeated references, and retains the named syntax when switching modes or editing a message. Typing `[^label]` in the visual editor creates a note or refers to its existing definition.
@@ -23,6 +24,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. In the visual editor, pasting into an unlabelled code block or leaving a changed block starts language detection. A successful guess becomes the block's saved language and appears in the language selector. Users can override the guess, including with **TEXT** for plain text. Detection uses a fixed set of preferred languages and does not change blocks merely opened for editing. Unlabelled blocks without a match and unsupported languages remain plain code. Detection does not delay sending.
 - Rendered code blocks use the visual editor's spacing without line numbers. Each block has a button to copy its code without the Markdown fence or display-only tab spacing.
+- Fenced blocks labelled `ansi` show static ANSI art after posting. They support terminal colors, Unicode text, cursor movement, and erase commands. Each block uses an 80-column, 100-row screen with no scrollback. Unused bottom rows are hidden. Wide or tall art scrolls inside the block. The first four ANSI blocks in a message render as art; additional blocks show their source. Copy retains the escape codes. Artwork uses a fixed black background in both themes. It cannot blink, open terminal links, access the clipboard, or make external connections.
 - The message menu offers **Copy message text** to copy the full Markdown source. When text is selected wholly within that message body, **Copy selected text** appears immediately above it and copies only the selected text. A selection outside the message or across messages does not show this action. The menu keeps the selected text when it opens, even if focus changes.
 - Right-clicking a link in a message body opens the message menu. **Copy Link** copies that link's URL; **Copy Message Link** copies the message permalink.
 - The app applies the editor choice to every registered Chatto server. It does not sync this App Preference to other browsers or devices.
@@ -59,6 +61,12 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 **Decision:** The bundled client supplies visual and Markdown source editors for the same message body. App Preferences stores the editor and send-key choices on the Composer page. It also stores the formatting-toolbar state when a person changes it in the composer. Markdown, Return-to-send, and a hidden formatting toolbar are the defaults when a preference is absent or invalid. The key that does not send keeps the editor's normal Return behavior. Each editor uses its own indent model. The visual editor changes list structure. The Markdown editor changes source-line indentation.
 **Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. They can also preserve their preferred chat shortcut and familiar keyboard editing behavior in paragraphs, lists, or code blocks.
 **Tradeoff:** App Preferences do not follow a person to another browser or device. Each editor must have the same composer integrations and formatting controls. A person must open the toolbar before they can select a formatting control. The indent controls operate differently in each editor. The alternate Return shortcut changes meaning with the selected send mode.
+
+### 5. ANSI blocks show a static terminal screen
+
+**Decision:** Interpret terminal drawing commands only in `ansi` fences and show the final screen as selectable text. Use fixed screen dimensions and a limit on the number of rendered blocks.
+**Why:** People and bots can share colored art and cursor-based drawings through the existing message body. Fixed limits keep each message's display work bounded. Static output needs no active terminal session.
+**Tradeoff:** Terminal animations and raw CP437 file imports are not supported. Send Unicode text with actual escape characters. The composer shows source. Other clients can show the source if they do not support ANSI art.
 
 ## Related
 

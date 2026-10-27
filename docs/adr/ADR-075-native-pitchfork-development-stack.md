@@ -76,7 +76,7 @@ Pitchfork stops the namespace when the project session leaves or its host
 process disappears. The `mise dev-archive` task explicitly stops the namespace
 and removes its service routes.
 
-The shared API types and Lingua packages are built by `mise setup`; the regular
+The shared API types and Translatto packages are built by `mise setup`; the regular
 stack does not keep separate TypeScript package watchers running. Storybook and
 the documentation website remain available through their explicit mise tasks
 but are not part of `mise dev`. Mailpit and LiveKit run from their mise-managed

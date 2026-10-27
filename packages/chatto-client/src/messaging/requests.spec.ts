@@ -120,6 +120,33 @@ describe('messages', () => {
     });
   });
 
+  test('message reads expose attachment metadata without signed addresses', async () => {
+    const { requests: api } = requests((router) =>
+      router.service(MessageService, {
+        getMessage: () => ({
+          message: {
+            id: 'image-message',
+            roomId: 'room',
+            actorId: 'human',
+            attachments: [
+              {
+                id: 'image',
+                filename: 'photo.png',
+                contentType: 'image/png',
+                assetUrl: { url: '/assets/private?ticket=secret' }
+              }
+            ]
+          }
+        })
+      })
+    );
+    const message = await api.getMessage({ roomId: 'room', messageId: 'image-message' });
+    expect(message?.attachments).toEqual([
+      { id: 'image', filename: 'photo.png', contentType: 'image/png' }
+    ]);
+    expect(JSON.stringify(message)).not.toContain('ticket');
+  });
+
   test('adds a reaction to the given message', async () => {
     const reactions: unknown[] = [];
     const { requests: api } = requests((router) =>
@@ -471,10 +498,50 @@ describe('addressing', () => {
     });
     incoming.event.value.roomKind = RoomKind.CHANNEL;
     incoming.event.value.mentions = [
-      { includesViewer: true }
+      { includesViewer: true, cause: { case: 'direct', value: {} } }
     ] as typeof incoming.event.value.mentions;
     expect((await api.addressedMessage(incoming))?.reasons).toEqual(['mention']);
     expect(getMessage).not.toHaveBeenCalled();
+  });
+
+  test('recognizes role, @here, and @all mentions only when enabled', async () => {
+    const { api } = lookup();
+    const incoming = event();
+    if (incoming.event.case !== 'messagePosted') throw new Error('fixture');
+    incoming.event.value.inReplyTo = '';
+    incoming.event.value.mentions = (['role', 'here', 'all'] as const).map((kind) => ({
+      includesViewer: true,
+      cause: { case: kind, value: {} }
+    })) as unknown as typeof incoming.event.value.mentions;
+    // By default, mentions that only include the viewer do not address it.
+    expect(await api.addressedMessage(incoming)).toBeUndefined();
+    expect(
+      (
+        await api.addressedMessage(incoming, {
+          reasons: ['role_mention', 'here_mention', 'all_mention']
+        })
+      )?.reasons
+    ).toEqual(['role_mention', 'here_mention', 'all_mention']);
+    expect((await api.addressedMessage(incoming, { reasons: ['here_mention'] }))?.reasons).toEqual([
+      'here_mention'
+    ]);
+  });
+
+  test('reports a mention by name together with @here only when both are enabled', async () => {
+    const { api } = lookup();
+    const incoming = event();
+    if (incoming.event.case !== 'messagePosted') throw new Error('fixture');
+    incoming.event.value.inReplyTo = '';
+    incoming.event.value.mentions = [
+      { includesViewer: true, cause: { case: 'here', value: {} } },
+      { includesViewer: true, cause: { case: 'direct', value: {} } },
+      // A mention without a known kind never addresses the viewer.
+      { includesViewer: true, cause: { case: undefined } }
+    ] as unknown as typeof incoming.event.value.mentions;
+    expect((await api.addressedMessage(incoming))?.reasons).toEqual(['mention']);
+    expect(
+      (await api.addressedMessage(incoming, { reasons: ['mention', 'here_mention'] }))?.reasons
+    ).toEqual(['here_mention', 'mention']);
   });
 
   test.each(['self', 'missing-text', 'missing-id', 'missing-actor', 'other-event', 'unaddressed'])(

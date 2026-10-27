@@ -27,9 +27,9 @@ function session(run: RunlingAgent['runOutcome']): RunlingAgent {
     fork: async () => {
       throw new Error('unused');
     },
-    dispose: vi.fn(),
+    dispose: vi.fn(async () => {}),
     async [Symbol.asyncDispose]() {
-      this.dispose();
+      await this.dispose();
     }
   };
 }

@@ -1,4 +1,4 @@
-import { ReactiveMap, ReactiveSet, batch, signal } from '../../reactivity/index.js';
+import { ReactiveMap, ReactiveSet, batch, computed, signal } from '../../reactivity/index.js';
 import {
   TimelineEventKind,
   timelineEventKind,
@@ -16,7 +16,7 @@ import type {
   RoomTimelineIncludes
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '../../server/serverConnection.js';
-import { Code, isConnectCode, StaleResponseError } from '../../api/connect.js';
+import { Code, ConnectError, isConnectCode, StaleResponseError } from '../../api/connect.js';
 import { getActorId, unmask } from './helpers.js';
 import { MessageTimelineSource } from './MessageTimelineSource.js';
 import { OptimisticMutationRegistry } from '../../util/optimisticMutations.js';
@@ -111,6 +111,19 @@ function sameEventList(a: readonly TimelineEventView[], b: readonly TimelineEven
       eventFingerprint(event) === eventFingerprint(other)
     );
   });
+}
+
+/** Thread fields can refresh without replacing message content or reactions. */
+function threadSummary(payload: MessagePostedPayload) {
+  return {
+    threadExists: payload.threadExists,
+    replyCount: payload.replyCount,
+    lastReplyAt: payload.lastReplyAt,
+    threadParticipantCount: payload.threadParticipantCount,
+    threadParticipants: payload.threadParticipants,
+    viewerIsFollowingThread: payload.viewerIsFollowingThread,
+    viewerHasUnreadThread: payload.viewerHasUnreadThread
+  };
 }
 
 function snapshotEventFingerprints(events: readonly TimelineEventView[]): Map<string, string> {
@@ -263,12 +276,80 @@ export class MessagesStore {
   #loadId = 0;
   #jumpId = 0;
   #windowId = 0;
-  #pendingAuthoritativeLoadId: number | null = null;
-  #pendingJumpId: number | null = null;
-  /** True when the retained room window is historical or its latest read failed. */
-  #needsLatestWindow = false;
-  #projectionAccessRevoked = false;
   #previewGeneration = 0;
+
+  // `isCurrent` derives from the signals below. Store methods read them with
+  // `peek()`, so a host that creates a store inside a reactive read does not
+  // subscribe to internal state that the same call then writes.
+  readonly #pendingAuthoritativeLoadIdSignal = signal<number | null>(null);
+  get #pendingAuthoritativeLoadId(): number | null {
+    return this.#pendingAuthoritativeLoadIdSignal.peek();
+  }
+  set #pendingAuthoritativeLoadId(value: number | null) {
+    this.#pendingAuthoritativeLoadIdSignal.set(value);
+  }
+  readonly #pendingJumpIdSignal = signal<number | null>(null);
+  get #pendingJumpId(): number | null {
+    return this.#pendingJumpIdSignal.peek();
+  }
+  set #pendingJumpId(value: number | null) {
+    this.#pendingJumpIdSignal.set(value);
+  }
+  /** True when the retained window is historical or its latest window read failed. */
+  readonly #needsLatestWindowSignal = signal(false);
+  get #needsLatestWindow(): boolean {
+    return this.#needsLatestWindowSignal.peek();
+  }
+  set #needsLatestWindow(value: boolean) {
+    this.#needsLatestWindowSignal.set(value);
+  }
+  readonly #projectionAccessRevokedSignal = signal(false);
+  get #projectionAccessRevoked(): boolean {
+    return this.#projectionAccessRevokedSignal.peek();
+  }
+  set #projectionAccessRevoked(value: boolean) {
+    this.#projectionAccessRevokedSignal.set(value);
+  }
+  readonly #disposedSignal = signal(false);
+  /** The read of the latest authoritative load; see {@link refreshCurrentWindow}. */
+  #authoritativeRead: { loadId: number; read: Promise<boolean> } | null = null;
+
+  readonly #loadErrorSignal = signal<unknown>(null);
+  /**
+   * The error of the latest failed window read, or null. A read fails, for
+   * example, when the server is unreachable, the viewer cannot read the
+   * timeline, or the thread root does not exist. Loss of room access sets a
+   * `PermissionDenied` error without a read. The next latest-window read, or
+   * a jump that replaces the window, clears it.
+   * Call {@link restoreLatestWindow} to read again after a failed read; after
+   * access loss, the store reads again when access returns. Reactive.
+   */
+  get loadError(): unknown {
+    return this.#loadErrorSignal.get();
+  }
+
+  readonly #isCurrent = computed(
+    () =>
+      !this.#disposedSignal.get() &&
+      !this.isInitialLoading &&
+      this.loadError === null &&
+      this.#pendingAuthoritativeLoadIdSignal.get() === null &&
+      this.#pendingJumpIdSignal.get() === null &&
+      !this.#needsLatestWindowSignal.get() &&
+      !this.#projectionAccessRevokedSignal.get()
+  );
+  /**
+   * True when the window shows the latest events and realtime delivery keeps
+   * it current: its latest window read succeeded, and no read, reconnect
+   * reload, or jump is pending. While the realtime connection is down, the
+   * window shows the state of the last delivered event. False while the store
+   * loads, after a read fails ({@link loadError}), while it shows a historical
+   * window, after room access is lost, and after {@link dispose}. Older pages
+   * can still be missing; see {@link hasReachedStart}. Reactive.
+   */
+  get isCurrent(): boolean {
+    return this.#isCurrent.get();
+  }
 
   /**
    * Create the store for one room or thread timeline and start its first read.
@@ -299,8 +380,19 @@ export class MessagesStore {
     return this.source.threadRootEventId ?? '';
   }
 
-  /** Tear down lifecycle listeners. Idempotent. */
+  /**
+   * True after {@link dispose}. A disposed store gets no more realtime updates,
+   * and it is never current. A host that keeps a store across a long wait, for
+   * example a wait for {@link isCurrent}, gets a new store from its registry
+   * when this becomes true. Reactive.
+   */
+  get isDisposed(): boolean {
+    return this.#disposedSignal.get();
+  }
+
+  /** Tear down lifecycle listeners. Idempotent. A disposed store is never current. */
   dispose(): void {
+    this.#disposedSignal.set(true);
     // Invalidate every outstanding async read before its owner drops the
     // store. Server-event replay itself is managed by the singleton event bus.
     this.startLoad();
@@ -387,6 +479,47 @@ export class MessagesStore {
       if (row.event.channelEchoEventId) ids.add(row.event.channelEchoEventId);
     }
     return [...ids];
+  }
+
+  /**
+   * Capture loaded roots for a shared summary read. Each callback updates only
+   * unchanged summary fields in this view. Content edits remain intact, and a
+   * reset, disposal, or access loss makes the captured callbacks stale.
+   */
+  captureThreadSummaries(): Map<string, (root: TimelineEventView) => void> {
+    const loadId = this.#loadId;
+    const capture = (rows: Iterable<TimelineEventView | null>) => {
+      const summaries = new Map<string, string>();
+      for (const row of rows) {
+        if (row && isMessagePostedPayload(row.event) && row.event.threadExists) {
+          summaries.set(row.id, JSON.stringify(threadSummary(row.event)));
+        }
+      }
+      return summaries;
+    };
+    const rowsBefore = capture(this.events);
+    const previewsBefore = capture(this.previewEvents.values());
+    const callbacks = new Map<string, (root: TimelineEventView) => void>();
+    for (const rootId of new Set([...rowsBefore.keys(), ...previewsBefore.keys()])) {
+      callbacks.set(rootId, (event) => {
+        if (this.isStale(loadId) || this.#projectionAccessRevoked || event.id !== rootId) return;
+        const root = this.unmaskEvents([event])[0];
+        if (!root || !isMessagePostedPayload(root.event)) return;
+        const summary = threadSummary(root.event);
+        const apply = (row: TimelineEventView, before: string | undefined): TimelineEventView =>
+          row.id === rootId &&
+          isMessagePostedPayload(row.event) &&
+          JSON.stringify(threadSummary(row.event)) === before
+            ? { ...row, event: { ...row.event, ...summary } }
+            : row;
+        batch(() => {
+          this.updateEvents((row) => apply(row, rowsBefore.get(rootId)));
+          const preview = this.previewEvents.get(rootId);
+          if (preview) this.previewEvents.set(rootId, apply(preview, previewsBefore.get(rootId)));
+        });
+      });
+    }
+    return callbacks;
   }
 
   /**
@@ -567,7 +700,9 @@ export class MessagesStore {
 
   /**
    * Cancel a pending jump and load the latest window at a route boundary, when
-   * a jump left the retained window on older events.
+   * a jump left the retained window on older events or the latest window read
+   * failed. Resolves to whether this call loaded the latest window; it does
+   * not start a read when the window is already current or a read is pending.
    */
   restoreLatestWindow(): Promise<boolean> {
     if (this.recoveryAnchor) return Promise.resolve(false);
@@ -580,16 +715,18 @@ export class MessagesStore {
 
   /** Purge retained rows without starting a read outside a realtime boundary. */
   resetProjectionState(): void {
-    if (!this.recoveryAnchor && this.#anchor) {
-      this.#recoveryAnchorSignal.set({ eventId: this.#anchor });
-    }
-    const thisLoad = this.startLoad();
-    this.#jumpId++;
-    this.#windowId++;
-    this.#pendingJumpId = null;
-    this.#pendingAuthoritativeLoadId = thisLoad;
-    this.resetState();
-    this.isInitialLoading = true;
+    batch(() => {
+      if (!this.recoveryAnchor && this.#anchor) {
+        this.#recoveryAnchorSignal.set({ eventId: this.#anchor });
+      }
+      const thisLoad = this.startLoad();
+      this.#jumpId++;
+      this.#windowId++;
+      this.#pendingJumpId = null;
+      this.#pendingAuthoritativeLoadId = thisLoad;
+      this.resetState();
+      this.isInitialLoading = true;
+    });
   }
 
   /** Reload this mounted timeline at the resource boundary for a reset. */
@@ -598,16 +735,22 @@ export class MessagesStore {
     acceptResult: () => boolean,
     replaceWindow = false
   ): Promise<boolean> {
-    const thisLoad = this.startLoad();
-    this.#pendingAuthoritativeLoadId = thisLoad;
-    // Keep the retained timeline visible until its replacement read settles.
-    this.isInitialLoading = this.events.length === 0;
-    return this.fetchCurrent(
+    const thisLoad = batch(() => {
+      const thisLoad = this.startLoad();
+      this.#pendingAuthoritativeLoadId = thisLoad;
+      // Keep the retained timeline visible until its replacement read settles.
+      this.isInitialLoading = this.events.length === 0;
+      return thisLoad;
+    });
+    return this.trackAuthoritativeRead(
       thisLoad,
-      minimumCursor,
-      acceptResult,
-      this.recoveryAnchor?.eventId,
-      replaceWindow
+      this.fetchCurrent(
+        thisLoad,
+        minimumCursor,
+        acceptResult,
+        this.recoveryAnchor?.eventId,
+        replaceWindow
+      )
     );
   }
 
@@ -619,25 +762,34 @@ export class MessagesStore {
    * from reinstalling data after the authorization transition.
    */
   clearForAccessRevocation(): void {
-    this.clearAnchor();
-    this.startLoad();
-    this.#jumpId++;
-    this.#windowId++;
-    this.#pendingJumpId = null;
-    this.#pendingAuthoritativeLoadId = null;
-    this.#projectionAccessRevoked = true;
-    this.resetState();
-    this.isInitialLoading = false;
+    batch(() => {
+      this.clearAnchor();
+      this.startLoad();
+      this.#jumpId++;
+      this.#windowId++;
+      this.#pendingJumpId = null;
+      this.#pendingAuthoritativeLoadId = null;
+      this.#projectionAccessRevoked = true;
+      this.resetState();
+      this.isInitialLoading = false;
+      this.#loadErrorSignal.set(
+        new ConnectError('access to the room timeline was revoked', Code.PermissionDenied)
+      );
+    });
   }
 
   /** Reload an open thread only when it was previously scrubbed for access loss. */
   restoreAfterAccessGrant(): void {
     if (!this.#projectionAccessRevoked) return;
-    this.#projectionAccessRevoked = false;
-    this.isInitialLoading = true;
-    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
-      void this.fetchCurrent(this.startLoad());
-    }
+    const thisLoad = batch(() => {
+      this.#projectionAccessRevoked = false;
+      this.isInitialLoading = true;
+      if (this.scope !== 'thread' || !this.roomId || !this.threadRootEventId) return null;
+      const thisLoad = this.startLoad();
+      this.#pendingAuthoritativeLoadId = thisLoad;
+      return thisLoad;
+    });
+    if (thisLoad !== null) void this.trackAuthoritativeRead(thisLoad, this.fetchCurrent(thisLoad));
   }
 
   /**
@@ -921,6 +1073,7 @@ export class MessagesStore {
       this.newestCursor = endCursor ?? undefined;
       this.hasReachedStart = !hasOlder;
       this.#needsLatestWindow = hasNewer;
+      this.#loadErrorSignal.set(null);
       return { status: 'loaded', hasNewer, hasOlder };
     } catch (error) {
       if (this.#jumpId !== jumpId) return { status: 'superseded' };
@@ -947,7 +1100,8 @@ export class MessagesStore {
   /**
    * Refresh the currently displayed message window from projected state without
    * clearing the buffer. Used after tab wake / reconnect when the client may
-   * have missed subscription events.
+   * have missed subscription events. While a read that replaces the window is
+   * pending, the refresh waits for it; see {@link isCurrent}.
    */
   async refreshCurrentWindow(
     anchorEventId?: string | null,
@@ -956,6 +1110,17 @@ export class MessagesStore {
     acceptResult: () => boolean = () => true
   ): Promise<RefreshCurrentWindowResult> {
     const source = this.source;
+
+    // A refresh that superseded a pending read that replaces the window would
+    // leave the store current without a window. The refresh waits for that
+    // read instead. After a reset, the realtime reload reads the window.
+    while (this.#pendingAuthoritativeLoadId !== null) {
+      const pending = this.#authoritativeRead;
+      if (pending?.loadId !== this.#pendingAuthoritativeLoadId) return skippedRefreshResult();
+      await pending.read.catch(() => {});
+      // A rejected result keeps its load pending until a later read.
+      if (this.#pendingAuthoritativeLoadId === pending.loadId) return skippedRefreshResult();
+    }
 
     const thisLoad = this.startLoad();
     const deadlineBeforeFetch = this.#threadSlowModeDeadline.get();
@@ -1259,6 +1424,7 @@ export class MessagesStore {
       this.events = [];
       this.seenIds = new Set();
       this.#needsLatestWindow = false;
+      this.#loadErrorSignal.set(null);
       this.previewEvents.clear();
       this.invalidatePendingPreviewFetches();
       this.optimisticReactions.clearAll();
@@ -1449,13 +1615,22 @@ export class MessagesStore {
   }
 
   private async resetAndFetchLatest(): Promise<boolean> {
-    const thisLoad = this.startLoad();
-    this.#pendingAuthoritativeLoadId = thisLoad;
-    this.resetState();
-    this.isInitialLoading = true;
-    const loaded = await this.fetchCurrent(thisLoad);
+    const thisLoad = batch(() => {
+      const thisLoad = this.startLoad();
+      this.#pendingAuthoritativeLoadId = thisLoad;
+      this.resetState();
+      this.isInitialLoading = true;
+      return thisLoad;
+    });
+    const loaded = await this.trackAuthoritativeRead(thisLoad, this.fetchCurrent(thisLoad));
     if (!this.isStale(thisLoad)) this.#needsLatestWindow = !loaded;
     return loaded;
+  }
+
+  /** Record the read of the pending authoritative load `loadId`. */
+  private trackAuthoritativeRead(loadId: number, read: Promise<boolean>): Promise<boolean> {
+    this.#authoritativeRead = { loadId, read };
+    return read;
   }
 
   private async fetchCurrent(
@@ -1468,6 +1643,7 @@ export class MessagesStore {
     const source = this.source;
     const deadlineBeforeFetch = this.#threadSlowModeDeadline.get();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
+    this.#loadErrorSignal.set(null);
     try {
       // A removed anchor cannot prevent recovery. Only NotFound falls back;
       // permission and transient failures keep their normal handling below.
@@ -1501,8 +1677,10 @@ export class MessagesStore {
       this.#pendingAuthoritativeLoadId = null;
       // A concurrent historical jump still owns its loading state.
       this.isInitialLoading = this.#pendingJumpId !== null;
+      // A read without an anchor installs the latest page, also after an
+      // earlier read failed.
+      this.#needsLatestWindow = anchorEventId ? page.hasNewer : false;
       if (anchorEventId) {
-        this.#needsLatestWindow = page.hasNewer;
         const recovery = this.recoveryAnchor;
         if (recovery) this.#recoveryAnchorSignal.set({ ...recovery, hasNewer: page.hasNewer });
       }
@@ -1516,12 +1694,19 @@ export class MessagesStore {
       ) {
         console.error('MessagesStore: fetchCurrent failed:', error);
       }
-      this.#pendingAuthoritativeLoadId = null;
-      this.isInitialLoading = false;
-      if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
-        if (minimumCursor) this.clearForAccessRevocation();
-        else this.clearAnchor();
-      }
+      batch(() => {
+        this.#pendingAuthoritativeLoadId = null;
+        this.isInitialLoading = false;
+        const accessLost =
+          isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound);
+        if (accessLost && minimumCursor) {
+          this.clearForAccessRevocation();
+          return;
+        }
+        if (accessLost) this.clearAnchor();
+        this.#loadErrorSignal.set(error);
+        this.#needsLatestWindow = true;
+      });
       if (
         minimumCursor &&
         !isConnectCode(error, Code.PermissionDenied) &&

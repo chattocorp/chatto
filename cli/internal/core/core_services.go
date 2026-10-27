@@ -159,9 +159,10 @@ func initializeCoreServices(
 		core, core.logger,
 	)
 	core.messageModel = &MessageModel{core: core}
+	core.roomInvitations = &RoomInvitationModel{core: core, projection: projections.roomInvitations}
 	core.roomDirectoryReads = newRoomDirectoryReadModel(
 		core.roomModel, core.permissionResolver, core.messageModel,
-		core.authorization, core.roomMemberships, core.readStateModel,
+		core.authorization, core.roomMemberships, core.readStateModel, core.roomInvitations,
 	)
 	core.notificationPolicy = &NotificationPolicyModel{core: core}
 	core.roomTimelineReads = newRoomTimelineReadModel(core, core.roomModel)

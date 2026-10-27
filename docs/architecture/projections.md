@@ -1,5 +1,13 @@
 # Projection Inventory
 
+The Room Directory catalog also retains the current member-only notice and its
+write version, including after clear. `RoomNoticeChangedEvent` updates this state.
+The publication timestamp comes from the event envelope when the publication
+ID changes. Corrections preserve it; clearing the notice removes it.
+The room snapshot includes it, so the schema fingerprint selects a new snapshot
+contract. Public room metadata assembly does not include the notice. Authorized
+notice reads use `RoomCommandModel.GetNotice`.
+
 The config component uses snapshot contract `v3`. Timezone-clear events retain
 an empty optional value for an explicit browser-default choice. Older snapshots
 are rebuilt from EVT because they represented that choice as an absent value.
@@ -15,9 +23,9 @@ separate components behind that barrier.
 
 `initializeCoreProjections` registers each top-level projector once with a
 stable machine-readable key and a human display name. `NewChattoCore` installs
-that registry into the core runtime. The registry contains seven projectors:
+that registry into the core runtime. The registry contains eight projectors:
 `server_content_view`, `notification_decisions`, `notifications`, `user_auth`,
-`invitations`, `oauth_clients`, and `bot_webhooks`. Each registration also declares whether
+`invitations`, `room_invitations`, `oauth_clients`, and `bot_webhooks`. Each registration also declares whether
 that key is eligible for shared snapshots.
 
 Core couples each projection pointer to its exact projector as one typed
@@ -37,10 +45,10 @@ see [`NotificationOccurrenceModel`](../../cli/internal/core/notification_occurre
 and [`NotificationProjection`](../../cli/internal/core/notification_projection.go).
 
 `ChattoCore.Run` starts one process-local ordered consumer for each registered
-projector. `ServerContentView` and the five independent EVT projectors read
+projector. `ServerContentView` and the six independent EVT projectors read
 `EVT`. Notifications reads `NOTIFICATIONS`. Each projector owns its physical
 filters, replay progress, failure state, and readiness. Chatto waits for all
-seven registered projectors before it completes boot.
+eight registered projectors before it completes boot.
 
 Writers wait for the relevant projector sequence before returning
 read-your-writes. Projection-aware domain models keep the projector references
@@ -101,6 +109,11 @@ DM membership is fixed at creation: the Room Directory component ignores
 which end the account's DM call participation, so deleted accounts stay DM
 members in current and replayed state. Snapshot semantics v2 records this rule,
 so v1 snapshots are rebuilt.
+
+The Room Directory catalog retains the timestamp from each
+`RoomCreated` event. Its snapshot preserves this field. The schema fingerprint
+selects a new snapshot namespace, so existing rooms recover their creation
+time from the event log when an older snapshot lacks this field.
 
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run
@@ -228,6 +241,17 @@ in place. Unreadable indexes without a rebuild marker are never deleted.
 
 ## Snapshot support
 
+Room, notice, membership, user, role, and room-layout read results use
+[`internal/readmodel`](../../cli/internal/readmodel/models.go) Go types.
+Snapshot codecs map projection state to dedicated `projection/v1` records;
+transport adapters map read results to public API records. The
+[`snapshot adapters`](../../cli/internal/core/read_model_snapshots.go) exclude
+hydrated login, display name, and bio structurally. Room snapshots retain raw
+threading enum values before read-time normalization. Legacy group and link
+records live with `RoomLayout` in `runtime_state/v1/legacy_state.proto`. Event-owned
+values stay in `evt/v1/event_values.proto`. See
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
+
 `core.projection_snapshots` enables ADR-050 encrypted projection snapshots.
 Every eligible projection owns one opaque, projection-scoped contract ID and
 generation prefix. The contract covers serialized state, replay semantics,
@@ -235,12 +259,22 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v10`.
+uses `v11`. Reactions uses `v2` to restore mapped historical reactors;
+Notification Decisions uses `v3` to exclude historical reactions from Badge
+attention.
+
+Room Timeline `v11` excludes hidden import reconciliation facts from its visible
+timeline index. Room Directory retains the separate imported purpose through
+the `RoomSnapshot` protobuf in its snapshots.
 
 Room Timeline `v9` retains a historical-import bit on each message reference.
 Unread and room-activity reads omit these messages, while timeline reads keep
 them visible. Slow Mode, thread interaction, notification, webhook, and live
 delivery consumers also omit historical posting effects when they replay EVT.
+Imported thread replies retain reply counts and mapped participants without
+creating follows or interactions. Historical reaction facts retain the mapped
+reactor in the Reactions component and omit notification and live-delivery
+effects. Their snapshot contract changes force a cold replay of older caches.
 
 The 0.5 internal protobuf package split changes full protobuf names and selects
 new snapshot contract IDs. A server ignores older snapshots, cold-replays EVT,
@@ -425,7 +459,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Projection             | Contract                                                        | Payload store                                                                                   | Pointer store                                                                       | Publication                                                                                                        |
 | ---------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Server Content View    | `v1` componentized-projection contract plus component contracts | `PROJECTION_SNAPSHOTS` or configured S3; one manifest and one object for each initial component | One encrypted `server_content_view` pointer in `RUNTIME_STATE` with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
-| Notification Decisions | `v2`                                                            | `PROJECTION_SNAPSHOTS` or configured S3                                                         | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC               | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
+| Notification Decisions | `v3`                                                            | `PROJECTION_SNAPSHOTS` or configured S3                                                         | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC               | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
 | Notifications          | `v2`                                                            | `PROJECTION_SNAPSHOTS` or configured S3                                                         | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC               | Binds snapshots to the independent `NOTIFICATIONS` stream identity and sequence                                    |
 
 ## Registered projections
@@ -438,6 +472,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | User authentication                 | User Auth              | Focused account, password, external-identity, consent, deletion, and key-shredding user facts. Identity unlink events preserve auth generation when `preserve_existing_credentials` is set; historical events without it advance the generation. | `UserModel`; password verifiers, auth generations, external identity links, and OAuth consent keyed by stable client ID (legacy facts by redirect origin); always cold-replayed                                                                                                                                                            |
 | OAuth clients                       | OAuth Clients          | `evt.oauth_client.>`                                                                                                                                                                                                                             | `OAuthClientModel`; validated metadata and callback origins for successfully authorized clients, distinct authorized-user counts, and administrative default/trusted/blocked policy; always cold-replayed                                                                                                                                  |
 | Invitations                         | Invitations            | `evt.invitation.>`                                                                                                                                                                                                                               | `InvitationModel`; immutable constraints, redemption count, revocation state, and administrator listings; always cold-replayed                                                                                                                                                                                                             |
+| Room invitations                    | Room invitations       | `evt.room.>`                                                                                                                                                                                                                                     | `RoomInvitationModel`; participant history and pending room-recipient index; always cold-replayed                                                                                                                                                                                                                                          |
 
 Registered projector keys are used by metrics and automation. Registered names
 match the admin projection diagnostics. Composite projections expose nested
@@ -496,6 +531,14 @@ external-identity, consent, and auth-generation state from
 `UserAuthProjection`, giving domain callers one user boundary while snapshot
 serialization cannot reach authentication state.
 
+Both user projections consume `UserAccountDeactivationChangedEvent`.
+The profile projection retains the flag in its user value and snapshot.
+The auth projection advances the auth generation on both transitions and
+rejects credentials while deactivated. Its process-local access watchers close
+realtime connections as the durable fact reaches each replica. They have no
+external effect or separate recovery store. See
+[account deactivation](../../cli/internal/core/user_deactivation.go).
+
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for
 management, reassignment, and cascade deletion. `UserAuthProjection` replays
@@ -535,7 +578,7 @@ same room. Body selection and attachment indexes use the original body
 reference. Echo bodies from historical EVT records remain indexed only for
 physical record ownership and secure deletion. Snapshot restore rebuilds
 attachment membership from these links. The Room Timeline snapshot semantics
-token is `v10`. Timeline pages batch original metadata reads and reuse metadata
+token is `v11`. Timeline pages batch original metadata reads and reuse metadata
 and canonical bodies within the response. Missing or invalid original metadata
 is omitted for the affected echo; storage errors still fail the read. Historical
 echo metadata is never used as a fallback. Projections do not retain decrypted
@@ -544,3 +587,9 @@ content.
 The Bleve search checkpoint contract is `bleve-message-index-v12`. Echo posts
 are not searchable contributions. Historical echo bodies cannot replace the
 original search document or create a second result.
+
+## Room invitations
+
+`RoomInvitationProjection` consumes room aggregate facts and cold-replays
+invitation state. It has no snapshot or notification dependency. The registered
+`room_invitations` projector participates in startup readiness and diagnostics.

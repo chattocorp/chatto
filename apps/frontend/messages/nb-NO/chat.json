@@ -6,6 +6,8 @@
       "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
     },
     "notifications": {
+      "next_unread_source": "Gå til neste uleste kilde",
+      "no_unread": "Ingen uleste varsler",
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",
       "clear_read": "Fjern leste",
@@ -25,7 +27,8 @@
         "mention": "{actor} nevnte deg",
         "followed_thread": "{actor} svarte i en tråd du følger",
         "new_message": "{actor} la ut en ny melding",
-        "activity": "{actor} sendte deg et varsel"
+        "activity": "{actor} sendte deg et varsel",
+        "room_invitation": "{actor} inviterte deg til et rom"
       }
     },
     "sign_out": {

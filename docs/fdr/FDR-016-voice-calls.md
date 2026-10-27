@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-10-10
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -19,6 +19,15 @@ Rooms support real-time voice conversations with optional camera video and scree
   poor connection and a red disconnected icon for a lost connection. Hover or
   click the icon to read its status. Healthy and unknown connections show no
   warning. Recovery removes the warning and closes its explanation.
+
+- Video quality selection uses the display's physical pixel density so that
+  HiDPI call views can request enough detail. This can increase download use
+  and activate a larger publisher layer. Native macOS screen sharing defaults
+  to one tuned H.264 layer with resolution priority and an 8 Mbps video maximum.
+  Actual rates depend on network and encoder limits. The Diagnostics menu
+  retains stock H.264 and HEVC simulcast modes with 8/4/1 Mbps layer limits;
+  their combined video ceiling is 13 Mbps when viewers need all three layers.
+  See [FDR-034](FDR-034-chatto-desktop.md) for rate control and fallback behavior.
 
 - Open a participant's user context menu with the three-dot button or a
   right-click anywhere on their card, including camera and screen-share video.
@@ -91,8 +100,11 @@ Rooms support real-time voice conversations with optional camera video and scree
   default without erasing the saved choice. The next call can use a device
   that returns.
   Changes from this preferences page also switch the connected call. An explicit
-  microphone uses an exact capture constraint; only a missing device permits
-  fallback.
+  microphone is a preferred capture device when a call or local test starts.
+  The browser can use an available input without first rejecting capture for a
+  missing saved device. The device picker shows the system default fallback
+  and keeps the saved choice. A local test also uses the default output when
+  the saved speaker is absent or output selection is unsupported.
 - Camera selection does not start video. Joining muted does not request
   microphone access merely to list devices. Browser support controls whether
   a speaker can be selected.
@@ -140,7 +152,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Members of a room with the right permission see a phone tab alongside the room sidebar's members/files tabs when LiveKit is configured.
 - Opening the call tab shows the current room call. If no call is active, it offers a "Start call" action. If a call is active and the viewer has not joined, it shows projected participants as ungrouped participant cards and a "Join call" action.
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
-- Joining the call switches the call tab into participant mode. The sidebar keeps a featured source above a separate scrolling participant list. Other screen shares come first in the list, then cameras, then compact voice-only cards. The featured camera has a compact participant row instead of a second video. Participant mode exposes a voice activity glow, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
+- Joining the call switches the call tab into participant mode. The sidebar keeps a featured source above a separate scrolling participant list. Other screen shares come first in the list, then cameras, then compact voice-only cards. The featured person has no second card in the list, with or without a camera. A screen share is a separate source: its owner's person card stays visible when the share is featured. Participant mode exposes a voice activity glow, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
 - The pane header shows maximize and fullscreen controls only while the viewer is connected to that room's call. An active call alone does not show these controls.
 - On desktop, an active call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout.
 - The stage layout features one source in the largest 16:9 card that fits the stage, so very wide or tall screens do not crop camera feeds or stretch the card. Both layouts use the same selection: a pin comes first, then the remote active speaker, then a remote camera, then the viewer's own camera. The active speaker counts only while at least one camera is on, and is featured with or without a camera of their own. All other screen shares, cameras, and participants show as equal tiles. The tiles go in one row below the featured source, which scrolls horizontally when the tiles do not fit, or beside it when that gives the featured source a larger card, as on ultrawide screens. Beside the featured source, the tiles fill the remaining width in a near-square grid that starts at the top edge of the featured card.

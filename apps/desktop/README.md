@@ -1,9 +1,11 @@
 # Chatto Desktop
 
 This directory packages the official Chatto SvelteKit frontend as an
-experimental Electron application. Chatto Desktop has its own pre-1.0 version
-and release-please component; tags use `chatto-desktop/vX.Y.Z`, independently of
-the Chatto server version.
+experimental Electron application. Chatto Desktop, the server, and the frontend
+share one version and release commit. Tags use `vX.Y.Z`; desktop archives and
+checksums are attached to the same Chatto GitHub release. Tagged builds display
+that exact version in the frontend. Manual verification builds display the
+development version and commit SHA instead.
 
 There is no desktop-specific frontend. Electron embeds the unchanged static
 artifacts from `apps/frontend/build` and exposes them to its renderer at the
@@ -34,10 +36,122 @@ the default session beneath the platform's application-data directory for
 
 ## Verify and build
 
+### Windows installation
+
+Download `chatto-desktop_<version>_Windows_X64_Setup.exe` from the Chatto release
+and run it. The installer installs for the current Windows user without
+administrator rights and adds a **Chatto Desktop** Start menu shortcut. Run a
+newer installer to update the application. Automatic updates are not available.
+Close Chatto Desktop before an update.
+
+The installer uses the same profile as the ZIP application. Existing server
+registrations and sessions remain available. Quit the ZIP application before
+using the installed application; the installer does not remove old extracted
+folders. The ZIP download remains available.
+
+Remove the installed application through Windows Settings. Uninstall preserves
+the local profile, including sessions and preferences. It does not sign out
+registered servers or erase local credentials.
+
+### Build commands
+
 ```sh
 mise test-desktop
 mise desktop-build
 ```
+
+To build and open a local macOS app with its own screen-recording permission, use:
+
+```sh
+mise desktop-run-dev
+```
+
+`mise desktop-build-dev` builds the app without opening it. To open an existing
+build, run `open "apps/desktop/dist/Chatto Desktop Dev.app"` from the repository
+root. Quit a running dev app before rebuilding it to test the new binary.
+
+This creates **Chatto Desktop Dev** (`run.chatto.desktop.dev`) with a separate
+capture-helper identity and app-data directory. Sign in and grant permission
+to the dev app once. The official app keeps `run.chatto.desktop`; switching
+between these installs does not replace its permission identity.
+
+An ad-hoc signature changes when the binary changes, so macOS can still ask
+again after a dev rebuild. Use the same installed code-signing certificate
+for each build to keep its permission identity stable. List valid identities
+with `security find-identity -v -p codesigning`. An Apple Development certificate
+is sufficient for local builds; notarisation is not required.
+
+Create `mise.local.toml` at the repository root with the exact certificate name:
+
+```toml
+[tasks.desktop-build-dev.env]
+CHATTO_MACOS_SIGN_IDENTITY = "Apple Development: Your Name (IDENTIFIER)"
+```
+
+This file is gitignored. Both `mise desktop-build-dev` and
+`mise desktop-run-dev` now use that identity. The setting applies only to the
+development build task. After you switch from ad-hoc signing, macOS can require
+one more permission grant and app restart. Later builds should retain that
+grant while the signing identity stays the same. Quit the dev app before
+rebuilding it. Do not reset the official app's permissions to repair a dev build.
+
+Local development builds skip online signature timestamps to reduce build time.
+Certificate signing stays enabled. Release builds and builds configured for
+notarisation retain online timestamps. The build prints when signing starts
+and reports the time when signing and packaging finish. A signing failure stops
+the build.
+
+### Screen-share diagnostics and codec selection
+
+Native macOS screen sharing defaults to tuned H.264 in development and release
+builds. It sends one layer, prioritizes resolution, and uses hardware VBR on
+macOS 26 or later. The target is at most 6 Mbps and the video maximum is
+8 Mbps; both follow WebRTC's network allowance. Older macOS versions and Macs
+that reject VBR setup use tuned average-rate H.264 at 90% of that allowance.
+Audio and transport overhead are additional. Receivers must support H.264
+Constrained High profile at level 4.2 or above.
+
+The **Diagnostics** menu retains explicit average-rate and VBR comparisons,
+stock H.264, and HEVC. Select a mode, then stop and start sharing. Select
+**Default: Tuned H.264 (Automatic VBR) for Next Share** to restore the default.
+Explicit VBR reports an error if unsupported. The stock H.264 and HEVC options
+use 8/4/1 Mbps simulcast limits. HEVC needs receiver and LiveKit server support;
+an explicit server rejection retries H.264. No mode publishes two codecs at once.
+If a viewer cannot receive HEVC, return to H.264 and restart sharing.
+
+To test resolution priority, select **Test H.264 Single Layer (8 Mbps,
+Resolution First) for Next Share**, then restart sharing. This test publishes
+one video layer with the same capture settings and frame-rate limit. It prefers
+to preserve resolution and lets frame rate decrease under pressure. Its video
+ceiling is 8 Mbps; audio and transport overhead are additional. It does not force a
+constant bitrate. All viewers receive the same encoded resolution. Select
+either regular codec option to restore simulcast and frame-rate priority on the
+next share. Diagnostic samples include `maintainsResolution` to identify the
+adaptation preference.
+
+To report a problem, share a moving scene for at least 15 seconds, then select
+**Diagnostics → Copy Screen Sharing Diagnostics**. Paste the report into the
+issue or conversation. Reports contain the last 60 lifecycle and performance
+records from this app process. Native publisher samples arrive every second
+for the first 20 seconds, then every five seconds. They also appear on the
+terminal when the app is launched from one.
+
+Each sample reports negotiated codec/profile, encoder category, capture and
+encoded dimensions, fps, target and measured bitrate, mean QP, encoding time,
+quality-limit reason, packet-loss counters, retransmissions, and round-trip
+delay when the SDK supplies them. Missing values mean unavailable; QP values
+must be compared within the same codec. The first sample has no measured rate
+because it establishes the counter baseline. Reports cover the native
+publisher, not the viewer's decoder or the browser screen-share path.
+
+Each record identifies whether simulcast is enabled and lists its configured
+video layer ceilings in `limitsBps`. `availableOutgoingBps`, when available,
+is WebRTC's bandwidth estimate for the shared publisher transport, including
+audio. It is not a separate budget for each layer or a speed-test result.
+
+Reports stay in memory and contain no account or source names, participant or
+track IDs, server addresses, IP addresses, tokens, or encryption keys. Copying
+puts the report on the clipboard; the app does not send it to a service.
 
 The build task first produces the frontend, then packages the host-platform
 bundle beneath `apps/desktop/dist/`. macOS builds include the native
@@ -50,6 +164,19 @@ Microsoft Artifact Signing on Windows. CI verifies every shipped Windows
 executable and library has a valid RFC 3161-timestamped signature, and verifies
 `chatto-desktop.exe` against ChattoCorp's expected publisher identity before
 creating the release archive.
+
+On Windows x64, after `mise desktop-build`, build the installer with:
+
+```sh
+mise x -- pnpm --filter chatto-desktop build:windows-installer
+```
+
+The output is in `apps/desktop/dist/installer/`. electron-builder wraps the
+existing bundle in a per-user NSIS installer. The application ID
+`run.chatto.desktop` is the persistent upgrade identity; do not change it between
+releases. CI tests silent installation, reinstall, shortcut and uninstall
+registration, removal, and profile preservation on a disposable Windows runner.
+PR installer artifacts are explicitly labelled unsigned.
 
 ### Configure macOS release signing
 
@@ -77,7 +204,7 @@ as repository-wide secrets:
 | `CHATTO_MACOS_NOTARY_API_KEY_ID`     | App Store Connect API key ID                 |
 | `CHATTO_MACOS_NOTARY_API_ISSUER_ID`  | App Store Connect team issuer ID             |
 
-The environment permits deployments only from `chatto-desktop/v*` tags and the
+The environment permits deployments only from `v*` tags and the
 `main` branch used for manually dispatched verification builds. Its required
 reviewer must approve a release before any matrix runner can access the signing
 secrets. The desktop release workflow then fails closed when any secret is
@@ -164,7 +291,7 @@ An Azure administrator must complete the one-time service setup:
 | Variable | `CHATTO_WINDOWS_EXPECTED_PUBLISHER`       | Complete certificate subject, exactly as Windows reports it |
 
 Configure `desktop-windows-signing` to permit deployments only from
-`chatto-desktop/v*` tags and the `main` branch used for manually dispatched
+`v*` tags and the `main` branch used for manually dispatched
 verification builds. Require a reviewer, who must approve a release before the
 Windows runner can request an Azure token.
 Enable prevention of self-review when another authorised reviewer is available;
@@ -174,6 +301,10 @@ setting is missing or when the repository is not using the documented default
 immutable OIDC subject. After building, it signs every `.exe`, `.dll`, and
 native `.node` module recursively with SHA-256 and an RFC 3161 timestamp, then
 rejects missing, invalid, or untimestamped signatures before packaging the ZIP.
+The installer build then uses the same Azure login and ArtifactSigning module
+to sign and verify its generated uninstaller before embedding it, and to sign
+and verify the final installer. Both require the expected publisher and a valid
+timestamp. A signing or verification failure stops desktop publication.
 The main `chatto-desktop.exe` must also report the expected ChattoCorp publisher;
 bundled third-party libraries may retain their original valid publisher, such
 as Microsoft.
@@ -184,6 +315,13 @@ Windows verification ZIP on a clean supported Windows installation. In File
 Explorer, the Digital Signatures tab on `chatto-desktop.exe` must show the same
 publisher configured in `CHATTO_WINDOWS_EXPECTED_PUBLISHER`; PowerShell's
 `Get-AuthenticodeSignature` must report `Valid`.
+
+For installer changes, also test the signed `*_Setup.exe` on Windows before
+releasing. Check the publisher shown by Windows, installation as a standard
+user, Start menu launch, existing ZIP-profile reuse, an upgrade from the previous
+installed version, the prompt with the application running, and uninstall from
+Windows Settings. Confirm that registrations and sessions survive the upgrade.
+The automated reinstall test does not replace these interactive checks.
 
 Artifact Signing keeps the signing keys and short-lived leaf certificates in
 Azure, so routine renewal does not require rotating a PFX secret. Renew the
@@ -201,15 +339,17 @@ Azure and GitHub audit logs, replace the Entra application if its identity was
 compromised, and publish incident-specific user guidance before signing with a
 replacement identity.
 
-Electron handles camera, microphone, and notification permission requests only
-for the fixed app origin. Screen sharing presents a native source picker.
+Electron allows camera, microphone, notification, clipboard write, and fullscreen
+permission requests only for the fixed app origin. Clipboard reads and automatic
+fullscreen without a user gesture remain blocked.
+Screen sharing presents a native source picker.
 Navigation outside the app is restricted to OAuth popup windows or opened in
 the system browser; renderer Node.js integration is disabled and the renderer
 is sandboxed.
 
 ## Prototype boundaries
 
-This scaffold does not yet provide auto-update, OS deep links, installers, or
+This scaffold does not yet provide auto-update, OS deep links, macOS or Linux installers, or
 end-to-end desktop tests. Some identity providers
 reject authentication inside embedded user agents, so a system-browser OAuth
 handoff may still be required before treating this as a general release.

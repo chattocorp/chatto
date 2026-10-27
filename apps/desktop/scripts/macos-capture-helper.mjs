@@ -16,7 +16,10 @@ const probeRoot = path.resolve(scriptsRoot, '../native/macos-capture-probe');
  * Builds the ScreenCaptureKit probe and embeds it as a nested background app.
  * The surrounding Electron packager signs this bundle with the rest of Chatto.
  */
-export async function embedMacOSCaptureHelper(appBundle, { shortVersion, bundleVersion }) {
+export async function embedMacOSCaptureHelper(
+  appBundle,
+  { shortVersion, bundleVersion, bundleIdentifier }
+) {
   if (process.platform !== 'darwin') {
     throw new Error('The macOS capture helper can only be built on macOS.');
   }
@@ -54,13 +57,13 @@ export async function embedMacOSCaptureHelper(appBundle, { shortVersion, bundleV
   );
   await writeFile(
     path.join(contents, 'Info.plist'),
-    helperInfoPlist({ shortVersion, bundleVersion })
+    helperInfoPlist({ shortVersion, bundleVersion, bundleIdentifier })
   );
 
   return helperBundle;
 }
 
-function helperInfoPlist({ shortVersion, bundleVersion }) {
+function helperInfoPlist({ shortVersion, bundleVersion, bundleIdentifier }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -72,7 +75,7 @@ function helperInfoPlist({ shortVersion, bundleVersion }) {
   <key>CFBundleExecutable</key>
   <string>${macOSCaptureHelperExecutable}</string>
   <key>CFBundleIdentifier</key>
-  <string>run.chatto.desktop.capture-helper</string>
+  <string>${bundleIdentifier}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

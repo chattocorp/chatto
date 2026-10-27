@@ -118,10 +118,10 @@
       "conflict": "Este perfil mudou enquanto o editava. Recarregue a página e guarde novamente as suas alterações.",
       "save_button": "Guardar alterações",
       "bio": {
-        "label": "Bio",
+        "label": "Sobre",
         "description": "Até {max} caracteres, visível no seu perfil.",
         "placeholder": "Diga algo breve sobre si",
-        "too_long": "A bio pode ter no máximo {max} caracteres."
+        "too_long": "O texto pode ter no máximo {max} caracteres."
       }
     },
     "preferences": {
@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Herdar",
           "off": "Desativado",
-          "badge": "Indicador",
+          "badge": "Ponto de conteúdo não lido",
           "badge_hint": "Adiciona apenas um ponto neutro de conteúdo não lido. Não cria uma notificação, reproduz um som nem envia uma notificação push.",
-          "notification": "Notificação",
+          "notification": "Notificação na aplicação",
           "push_notification": "Notificação push"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Mensagens que usam @here quando a sua presença não está offline.",
           "all": "Mensagens que usam @all numa sala da qual faz parte.",
           "followed_thread": "Novas respostas nos tópicos que segue.",
-          "reaction": "Reações que outros membros adicionam às suas mensagens."
+          "reaction": "Reações que outros membros adicionam às suas mensagens.",
+          "room_invitation": "Convites para entrar em salas."
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "Palavra-passe",
         "add_description": "Adicione uma palavra-passe para poder fazer login diretamente e desligar o seu último fornecedor de SSO.",
         "change_description": "Altere a palavra-passe utilizada para login direto.",
+        "sso_managed": "Não pode adicionar nem alterar uma palavra-passe porque este servidor utiliza autenticação única (SSO). Faça a gestão dos seus dados de acesso junto do seu fornecedor de identidade.",
         "current_label": "Palavra-passe atual",
         "current_required": "Introduza a sua palavra-passe atual.",
         "add_button": "Adicionar palavra-passe",
@@ -448,6 +450,7 @@
         "link_button": "Link",
         "link_failed": "Falha ao ligar o fornecedor de login",
         "fresh_auth_required": "Faça login novamente antes de ligar outro fornecedor.",
+        "sso_fresh_auth_required": "Abra as definições da conta no servidor ao qual esta conta pertence. Termine a sessão e inicie sessão novamente através do seu fornecedor de SSO. Depois, tente realizar a ação novamente nesse servidor.",
         "provider_unconfigured": "O fornecedor já não está configurado",
         "disconnect_button": "Desligar",
         "disconnecting": "A desligar...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "O fornecedor não pode ser desligado",
-          "body": "{provider} é o seu único método de login. Adicione uma palavra-passe ou ligue primeiro outro fornecedor."
+          "body": "Configure outro método de início de sessão suportado por este servidor antes de desligar {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmar palavra-passe",

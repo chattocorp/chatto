@@ -33,8 +33,8 @@ func createPNGHeader(width, height uint32) []byte {
 
 func TestImageProcessingRejectsOversizedDecodedDimensions(t *testing.T) {
 	data := createPNGHeader(MaxDecodedImageDimension+1, 1)
-	if _, err := ProcessAttachmentImage(bytes.NewReader(data)); err == nil {
-		t.Fatal("ProcessAttachmentImage accepted oversized decoded dimensions")
+	if _, err := InspectImage(bytes.NewReader(data)); err == nil {
+		t.Fatal("InspectImage accepted oversized decoded dimensions")
 	}
 	if _, err := TransformImage(data, 100, 100, FitContain); err == nil {
 		t.Fatal("TransformImage accepted oversized decoded dimensions")
@@ -1070,19 +1070,59 @@ func TestTransformImage_ExifOrientation(t *testing.T) {
 	}
 }
 
-func TestProcessAttachmentImage_ExifOrientation(t *testing.T) {
-	// Test that ProcessAttachmentImage reports corrected dimensions
-	data := testJPEGWithOrientation6
-
-	result, err := ProcessAttachmentImageWithConfig(bytes.NewReader(data), DefaultConfig())
+func TestInspectImage_ExifOrientation(t *testing.T) {
+	t.Parallel()
+	info, err := InspectImage(bytes.NewReader(testJPEGWithOrientation6))
 	if err != nil {
-		t.Fatalf("ProcessAttachmentImageWithConfig failed: %v", err)
+		t.Fatalf("InspectImage failed: %v", err)
 	}
 
 	// With orientation correction, dimensions should be 50x70 (not 70x50)
-	if result.Width != 50 || result.Height != 70 {
-		t.Errorf("EXIF orientation not applied to dimensions: got %dx%d, expected 50x70",
-			result.Width, result.Height)
+	if info.Width != 50 || info.Height != 70 || info.Format != "jpeg" {
+		t.Errorf("got %dx%d %q, expected 50x70 jpeg", info.Width, info.Height, info.Format)
+	}
+}
+
+func TestInspectImageReadsOnlyHeaders(t *testing.T) {
+	t.Parallel()
+	// The PNG has a valid header but no pixel data, so a full decode fails.
+	data := createPNGHeader(6000, 6000)
+	info, err := InspectImage(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("InspectImage failed: %v", err)
+	}
+	if info.Width != 6000 || info.Height != 6000 || info.Format != "png" || info.Frames != 0 {
+		t.Fatalf("got %+v, expected a 6000x6000 png", info)
+	}
+}
+
+func TestInspectImageCountsGIFFrames(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		frames int
+	}{
+		{"static", 1},
+		{"animated", 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			info, err := InspectImage(bytes.NewReader(createAnimatedGIF(4, 3, tt.frames)))
+			if err != nil {
+				t.Fatalf("InspectImage failed: %v", err)
+			}
+			if info.Format != "gif" || info.Frames != tt.frames || info.Width != 4 || info.Height != 3 {
+				t.Fatalf("got %+v, expected a 4x3 gif with %d frames", info, tt.frames)
+			}
+		})
+	}
+}
+
+func TestInspectImageRejectsTruncatedGIF(t *testing.T) {
+	t.Parallel()
+	data := createAnimatedGIF(4, 3, 2)
+	if _, err := InspectImage(bytes.NewReader(data[:len(data)-1])); err == nil {
+		t.Fatal("InspectImage accepted a GIF without a trailer")
 	}
 }
 

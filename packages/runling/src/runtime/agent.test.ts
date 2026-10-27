@@ -24,6 +24,17 @@ let createdSessions: any[] = [];
 let abortCalls = 0;
 let disposed = false;
 let modelAvailable = true;
+let modelAvailableAfterRefresh = false;
+const refreshModels = vi.fn(
+  async (_options: {
+    providers: string[];
+    allowNetwork: boolean;
+    force: boolean;
+    signal: AbortSignal;
+  }) => {
+    modelAvailable = modelAvailableAfterRefresh;
+  }
+);
 
 vi.doMock('@earendil-works/pi-coding-agent', async () => {
   const actual = await vi.importActual<typeof import('@earendil-works/pi-coding-agent')>(
@@ -33,7 +44,8 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
     convertToLlm: actual.convertToLlm,
     ModelRuntime: {
       create: async () => ({
-        getModel: () => (modelAvailable ? fakeModel : undefined)
+        getModel: () => (modelAvailable ? fakeModel : undefined),
+        refresh: refreshModels
       })
     },
     DefaultResourceLoader: class {
@@ -64,8 +76,11 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
       sessionOptions = options;
       let messages: any[] = sessionOptions.sessionManager.buildSessionContext().messages;
       const session = {
+        bindExtensions: vi.fn(async () => {}),
+        extensionRunner: { emit: vi.fn(async () => {}) },
         sessionManager: sessionOptions.sessionManager,
         agent: {
+          toolExecution: 'parallel',
           steer: vi.fn(),
           clearSteeringQueue: vi.fn(),
           state: {
@@ -120,9 +135,95 @@ test.each([
   expect(toolFailureCategory({ content: [{ type: 'text', text }] })).toBe(expected);
 });
 
+test('starts extensions, configures sequential tools, and waits for one shutdown', async () => {
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text',
+    tools: 'extensions',
+    toolExecution: 'sequential'
+  });
+  const session = createdSessions[0];
+  expect(sessionOptions.noTools).toBe('builtin');
+  expect(sessionOptions.tools).toBeUndefined();
+  expect(session.agent.toolExecution).toBe('sequential');
+  expect(session.bindExtensions).toHaveBeenCalledOnce();
+  const closed = Promise.withResolvers<void>();
+  session.extensionRunner.emit.mockImplementation(() => closed.promise);
+  const first = instance.dispose();
+  const second = instance.dispose();
+  expect(disposed).toBe(false);
+  expect(session.extensionRunner.emit).toHaveBeenCalledExactlyOnceWith({
+    type: 'session_shutdown',
+    reason: 'quit'
+  });
+  closed.resolve();
+  await Promise.all([first, second]);
+  expect(disposed).toBe(true);
+});
+
 test('malformed failure details do not break activity reporting', () => {
   expect(toolFailureCategory({ content: [null, { type: 'text', text: 42 }] })).toBe('unknown');
   expect(toolFailureCategory(undefined)).toBe('unknown');
+});
+
+test('private agent content stays out of logs and events while results and usage remain available', async () => {
+  const events: RunlingEvent[] = [];
+  const output = vi.spyOn(console, 'info').mockImplementation(() => {});
+  promptImplementation = async () => {
+    eventHandler?.({
+      type: 'auto_retry_start',
+      delayMs: 100,
+      attempt: 1,
+      maxAttempts: 5,
+      errorMessage: 'PRIVATE_PROVIDER_ERROR'
+    });
+    eventHandler?.({
+      type: 'message_update',
+      assistantMessageEvent: {
+        type: 'text_delta',
+        contentIndex: 0,
+        partial: { content: [{ type: 'text', text: 'PRIVATE_PREVIEW' }] }
+      }
+    });
+    eventHandler?.({
+      type: 'tool_execution_start',
+      toolName: 'bash',
+      toolCallId: 'one',
+      args: { command: 'PRIVATE_ARGUMENT' }
+    });
+    eventHandler?.({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        stopReason: 'stop',
+        content: [
+          { type: 'thinking', thinking: 'PRIVATE_THOUGHT' },
+          { type: 'text', text: 'PRIVATE_ANSWER' }
+        ],
+        usage: { ...emptyUsage, input: 5 }
+      }
+    });
+  };
+  try {
+    const result = await observeRunlingEvents(
+      (event) => events.push(event),
+      () =>
+        runAgent(createTaskContext(), 'PRIVATE_PROMPT', {
+          cwd: '/project',
+          model: 'anthropic/claude-opus-4-5',
+          output: 'text',
+          logContent: false
+        })
+    );
+    expect(result.summary).toBe('PRIVATE_ANSWER');
+    expect(result.usage.input).toBe(5);
+    expect(JSON.stringify(events)).not.toContain('PRIVATE_');
+    expect(JSON.stringify(output.mock.calls)).not.toContain('PRIVATE_');
+    expect(events.some((event) => event.type === 'agent.tool')).toBe(true);
+  } finally {
+    output.mockRestore();
+  }
 });
 
 const { log } = await import('./log.ts');
@@ -140,6 +241,9 @@ beforeEach(() => {
   abortCalls = 0;
   disposed = false;
   modelAvailable = true;
+  modelAvailableAfterRefresh = false;
+  refreshModels.mockClear();
+  vi.unstubAllEnvs();
 });
 
 async function reportOutcome(report: {
@@ -920,6 +1024,43 @@ describe('runAgent', () => {
     });
   });
 
+  test('discovers a missing model by refreshing only its provider', async () => {
+    modelAvailable = false;
+    modelAvailableAfterRefresh = true;
+    await using agent = await createAgentSession({
+      cwd: '/project',
+      model: 'openrouter/deepseek/deepseek-v4.1-flash-1017'
+    });
+    expect(refreshModels).toHaveBeenCalledExactlyOnceWith({
+      providers: ['openrouter'],
+      allowNetwork: true,
+      force: true,
+      signal: expect.any(AbortSignal)
+    });
+    expect(sessionCreations).toBe(1);
+  });
+
+  test('known models need no catalog refresh', async () => {
+    await using agent = await createAgentSession({
+      cwd: '/project',
+      model: 'anthropic/claude-opus-4-5'
+    });
+    expect(refreshModels).not.toHaveBeenCalled();
+  });
+
+  test('offline mode rejects a missing model without network discovery', async () => {
+    vi.stubEnv('PI_OFFLINE', '1');
+    modelAvailable = false;
+    await expect(
+      createAgentSession({
+        cwd: '/project',
+        model: 'openrouter/missing'
+      })
+    ).rejects.toThrow('Model openrouter/missing is unavailable');
+    expect(refreshModels).not.toHaveBeenCalled();
+    expect(sessionOptions).toBeUndefined();
+  });
+
   test('rejects unavailable models before creating a session', async () => {
     modelAvailable = false;
 
@@ -1279,7 +1420,7 @@ describe('agent', () => {
       expect(promptCalls).toBe(2);
       expect(disposed).toBe(false);
     } finally {
-      instance.dispose();
+      await instance.dispose();
     }
 
     expect(disposed).toBe(true);

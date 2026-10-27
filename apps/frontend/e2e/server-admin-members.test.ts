@@ -192,7 +192,22 @@ test.describe('Server Admin Members', () => {
       // The account summary and permission matrix share these labels.
       await expect(summary.getByText('Roles', { exact: true })).toBeVisible();
       await expect(summary.getByText('Joined', { exact: true })).toBeVisible();
-      await expect(page.getByTitle('Copy to clipboard')).toBeVisible();
+      const idCopy = summary
+        .getByText(admin.id!, { exact: true })
+        .locator('..')
+        .getByRole('button', { name: 'Copy to clipboard', exact: true });
+      const emailCopy = summary
+        .getByText(`${admin.login}@example.com`, { exact: true })
+        .locator('..')
+        .getByRole('button', { name: 'Copy to clipboard', exact: true });
+      await expect(idCopy).toBeVisible();
+      await expect(emailCopy).toBeVisible();
+      await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+      await emailCopy.click();
+      await expect(page.getByText('Copied to clipboard', { exact: true })).toBeVisible();
+      await expect
+        .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toBe(`${admin.login}@example.com`);
       await expect(page.getByText('Email verified')).toBeVisible();
       await expect(page.getByText(`${admin.login}@example.com`)).toBeVisible();
       await expect(page.getByText(/Deletion (allowed|protected)/)).toBeVisible();
@@ -311,10 +326,12 @@ test.describe('Server Admin Members', () => {
       await expect(page.getByText('Danger Zone')).toHaveCount(0, {
         timeout: TIMEOUTS.UI_STANDARD
       });
-      await expect(page.getByRole('link', { name: 'Delete account' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toHaveCount(
+        0
+      );
     });
 
-    test('admin can delete another member through the confirmation page', async ({
+    test('admin can delete another member through the confirmation modal', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -325,11 +342,11 @@ test.describe('Server Admin Members', () => {
 
       await serverAdminPage.gotoMemberDetails(server.id, target.id!);
       await serverAdminPage.openMemberSection('Account');
-      const deleteButton = page.getByRole('link', { name: 'Delete account' });
+      const deleteButton = page.getByRole('button', { name: 'Delete account', exact: true });
       await expect(deleteButton).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await deleteButton.click();
 
-      await expect(page).toHaveURL(routes.serverAdminMemberDelete(target.id!));
+      await expect(page.getByRole('dialog')).toBeVisible();
 
       // Confirmation is gated on typing the target's login.
       const confirmInput = page.locator('#member-delete-confirm');
@@ -353,7 +370,7 @@ test.describe('Server Admin Members', () => {
       await waitForUserDeletedViaConnect(page, target.id!);
     });
 
-    test('the deletion page blocks viewers without delete permission', async ({
+    test('old deletion links do not offer deletion without permission', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -363,16 +380,17 @@ test.describe('Server Admin Members', () => {
       const target = await createSecondTestUser(page);
 
       // The viewer may read member data (admin.view-users granted to everyone)
-      // but has no user.delete-any grant, so the confirmation page must refuse
-      // to act even though the page itself is reachable.
+      // but has no user.delete-any grant, so the account page must not offer deletion.
       await grantPermission(page, 'everyone', 'admin.view-users');
       await logoutUser(page);
       await loginUser(page, viewer.login, viewer.password);
       await activatePrivilegedMode(page);
       await page.goto(routes.serverAdminMemberDelete(target.id!));
-      await expect(page.getByText('You cannot delete this account.')).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
+      await expect(page).toHaveURL(/\/account$/);
+      await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toHaveCount(
+        0
+      );
+      await expect(page.getByRole('dialog')).toHaveCount(0);
     });
   });
 });

@@ -118,10 +118,10 @@
       "conflict": "Tento profil se během úprav změnil. Znovu načtěte stránku a poté změny uložte znovu.",
       "save_button": "Uložit změny",
       "bio": {
-        "label": "Bio",
+        "label": "Informace",
         "description": "Maximálně {max} znaků, zobrazuje se ve vašem profilu.",
         "placeholder": "Napište o sobě pár slov",
-        "too_long": "Bio může mít nejvýše {max} znaků."
+        "too_long": "Text může mít nejvýše {max} znaků."
       }
     },
     "preferences": {
@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Zdědit",
           "off": "Vypnuto",
-          "badge": "Odznak",
+          "badge": "Tečka nepřečteného obsahu",
           "badge_hint": "Přidá pouze neutrální tečku nepřečteného obsahu. Nevytvoří oznámení, nepřehraje zvuk ani neodešle push oznámení.",
-          "notification": "Oznámení",
+          "notification": "Oznámení v aplikaci",
           "push_notification": "Push oznámení"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Zprávy, které používají @here, když váš stav není offline.",
           "all": "Zprávy, které používají @all v místnosti, jejímž jste členem.",
           "followed_thread": "Nové odpovědi ve vláknech, která sledujete.",
-          "reaction": "Reakce, které ostatní členové přidají k vašim zprávám."
+          "reaction": "Reakce, které ostatní členové přidají k vašim zprávám.",
+          "room_invitation": "Pozvánky ke vstupu do místností."
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "Heslo",
         "add_description": "Přidejte heslo, abyste se mohli přihlásit přímo a odpojit svého posledního poskytovatele jednotného přihlášení.",
         "change_description": "Změňte heslo používané pro přímé přihlášení.",
+        "sso_managed": "Nemůžete přidat ani změnit heslo, protože tento server používá jednotné přihlašování (SSO). Přihlašovací údaje spravujte u svého poskytovatele identity.",
         "current_label": "Aktuální heslo",
         "current_required": "Zadejte své aktuální heslo.",
         "add_button": "Přidat heslo",
@@ -448,6 +450,7 @@
         "link_button": "Odkaz",
         "link_failed": "Propojení poskytovatele přihlášení se nezdařilo",
         "fresh_auth_required": "Před propojením jiného poskytovatele se znovu přihlaste.",
+        "sso_fresh_auth_required": "Otevřete nastavení účtu na serveru, ke kterému tento účet patří. Odhlaste se a znovu se přihlaste prostřednictvím svého poskytovatele SSO. Potom akci zopakujte na tomto serveru.",
         "provider_unconfigured": "Poskytovatel již není nakonfigurován",
         "disconnect_button": "Odpojit",
         "disconnecting": "Odpojování...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Poskytovatele nelze odpojit",
-          "body": "{provider} je váš jediný způsob přihlášení. Nejprve přidejte heslo nebo propojte jiného poskytovatele."
+          "body": "Před odpojením poskytovatele {provider} nastavte jiný způsob přihlášení podporovaný tímto serverem."
         },
         "fresh_auth_modal": {
           "title": "Potvrďte heslo",

@@ -6,6 +6,8 @@
       "confirmation": "15分間、このサーバーで割り当てられている追加の権限を有効にします。"
     },
     "notifications": {
+      "next_unread_source": "次の未読の通知元に移動",
+      "no_unread": "未読の通知はありません",
       "title": "通知",
       "subtitle": "新機能はこちら",
       "clear_read": "既読を削除",
@@ -25,7 +27,8 @@
         "mention": "{actor}さんがあなたをメンションしました",
         "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました",
         "new_message": "{actor}さんが新しいメッセージを投稿しました",
-        "activity": "{actor}さんから通知が届きました"
+        "activity": "{actor}さんから通知が届きました",
+        "room_invitation": "{actor} があなたをルームに招待しました"
       }
     },
     "sign_out": {

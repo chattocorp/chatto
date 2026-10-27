@@ -7,7 +7,13 @@ import type { CurrentUser } from './api/viewer.js';
 
 const mocks = vi.hoisted(() => ({
   viewer: vi.fn<(config: ConnectAPIConfig) => Promise<CurrentUser>>(),
-  recoveryFails: false
+  recoveryFails: false,
+  stopPresence: vi.fn(),
+  sendPresenceHeartbeats: vi.fn()
+}));
+vi.mock('./server/presenceTracking.js', async (original) => ({
+  ...(await original<typeof import('./server/presenceTracking.js')>()),
+  sendPresenceHeartbeats: mocks.sendPresenceHeartbeats
 }));
 vi.mock('./server/serverRecovery.js', async (original) => {
   const actual = await original<typeof import('./server/serverRecovery.js')>();
@@ -127,6 +133,65 @@ describe('isolated clients', () => {
     await Promise.all([first.ready(), second.ready()]);
     await vi.waitFor(() =>
       expect(new Set(sockets)).toEqual(new Set(['one.example', 'two.example']))
+    );
+  });
+
+  it('keeps as many recently used threads as keepRecent allows', async () => {
+    const bots = client({ keepRecent: { threads: 1 } });
+    const server = bots.connect({ serverUrl: 'https://bot.example', apiKey: 'bot' });
+    await server.ready();
+    const first = server.rooms.thread('room', 'one');
+    const second = server.rooms.thread('room', 'two');
+    expect(first.isDisposed).toBe(true);
+    expect(second.isDisposed).toBe(false);
+  });
+
+  it('reports presence of a server only after reportPresence()', async () => {
+    mocks.sendPresenceHeartbeats.mockReset().mockReturnValue(mocks.stopPresence);
+    mocks.stopPresence.mockReset();
+    const bots = client();
+    const quiet = bots.connect({ serverUrl: 'https://quiet.example', apiKey: 'quiet' });
+    await quiet.ready();
+    expect(mocks.sendPresenceHeartbeats).not.toHaveBeenCalled();
+
+    const present = bots.connect({ serverUrl: 'https://present.example', apiKey: 'present' });
+    present.reportPresence();
+    present.reportPresence();
+    // Heartbeats start only after the server accepted the key, once.
+    expect(mocks.sendPresenceHeartbeats).not.toHaveBeenCalled();
+    await present.ready();
+    await vi.waitFor(() => expect(mocks.sendPresenceHeartbeats).toHaveBeenCalledOnce());
+    expect(mocks.stopPresence).not.toHaveBeenCalled();
+    present.close();
+    expect(mocks.stopPresence).toHaveBeenCalledOnce();
+  });
+
+  it('starts reporting presence after a failed first attempt succeeds later', async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      mocks.sendPresenceHeartbeats.mockReset().mockReturnValue(mocks.stopPresence);
+      mocks.viewer.mockRejectedValueOnce(new TypeError('fetch failed'));
+      const bots = client();
+      const server = bots.connect({ serverUrl: 'https://late.example', apiKey: 'late' });
+      server.reportPresence();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(mocks.sendPresenceHeartbeats).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(30_000);
+      await server.ready();
+      await vi.waitFor(() => expect(mocks.sendPresenceHeartbeats).toHaveBeenCalledOnce());
+    } finally {
+      logged.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects keepRecent values that are not positive integers', () => {
+    expect(() => client({ keepRecent: { rooms: 0 } })).toThrow(
+      'keepRecent.rooms must be a positive integer'
+    );
+    expect(() => client({ keepRecent: { threads: 1.5 } })).toThrow(
+      'keepRecent.threads must be a positive integer'
     );
   });
 

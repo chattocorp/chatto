@@ -51,6 +51,8 @@ export type FollowedThreadCache = {
 
 /** Room-member snapshot operations registered by `query/roomMembers`. */
 export type RoomMemberQueryCache = {
+  /** Refresh member lists and invitation candidates after membership changes. */
+  refreshRoom(serverId: string, roomId: string): Promise<void>;
   /** Remove every session's member snapshots of a room the viewer lost. */
   purgeRoom(serverId: string, roomId: string): void;
   /** Remove a deleted user from every cached member and eligible-user list. */
@@ -183,6 +185,11 @@ function refreshAfterUpdate(serverId: string, update: RealtimeProjectionUpdate):
   }
   const payload = update.event?.event;
   switch (payload?.case) {
+    case 'userJoinedRoom':
+    case 'userLeftRoom':
+    case 'roomUniversalChanged':
+      void queryCaches.roomMembers?.refreshRoom(serverId, payload.value.roomId);
+      return;
     case 'roleAssigned':
     case 'roleRevoked':
     case 'roleDeleted':

@@ -147,6 +147,7 @@
       "call": "Chiamate"
     },
     "permission_help": {
+      "room_manage_notice": "Consente a un membro di gestire l’avviso in una stanza di canale attiva, ma non la stanza stessa. Le nuove istanze concedono questo permesso solo ad Admin; gli aggiornamenti mantengono i permessi esistenti.",
       "server_manage": "Consente a un account di modificare il nome, la descrizione, il logo e le altre impostazioni del server. Consente anche di modificare la directory pubblica dei vicini. Concedila solo a persone che possono parlare a nome dell’intero server.",
       "server_manage_neighbors": "Consente a un account di aggiungere, modificare e rimuovere voci nella directory pubblica dei vicini. Non consente di modificare le altre impostazioni del server.",
       "room_create": "Consente a un account di creare stanze. Nell’ambito di un gruppo di stanze, consente di creare stanze solo in quel gruppo.",
@@ -179,7 +180,8 @@
       "call_join": "Consente a un account di partecipare a una chiamata in corso, anche solo in ascolto. Per inviare audio o video servono call.voice, call.camera o call.screenshare.",
       "call_voice": "Consente a un account di inviare l’audio del microfono nelle chiamate. Senza di essa, l’account può comunque ascoltare.",
       "call_camera": "Consente a un account di inviare il video della fotocamera nelle chiamate.",
-      "call_screenshare": "Consente a un account di condividere uno schermo, una finestra, una scheda o un’applicazione nelle chiamate, con il relativo audio. Non consente l’audio del microfono; per quello serve call.voice."
+      "call_screenshare": "Consente a un account di condividere uno schermo, una finestra, una scheda o un’applicazione nelle chiamate, con il relativo audio. Non consente l’audio del microfono; per quello serve call.voice.",
+      "room_invite": "Invita i membri del server nelle stanze a cui hai aderito."
     }
   }
 }

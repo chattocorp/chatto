@@ -19,7 +19,7 @@ message ImportMessageRequest {
   string in_reply_to = 5;
   // Existing unattached asset IDs owned by the author in this room.
   repeated string attachment_asset_ids = 6;
-  // Message text. Empty is valid only when attachments are present.
+  // Message text. Empty is valid with attachments or when deleted is true.
   string body = 7;
   // Exported HTTP or HTTPS preview URL; no external URL is fetched.
   string preview_url = 8;
@@ -29,6 +29,18 @@ message ImportMessageRequest {
   string preview_description = 10;
   // Exported preview type.
   string preview_type = 11;
+  // Existing root message in this room, including a deleted root.
+  // Creates the thread if necessary.
+  // Cannot be combined with create_thread. Does not create a channel echo.
+  string thread_root_event_id = 12;
+  // Establish this new root as an empty thread without following it.
+  bool create_thread = 13;
+  // Optional non-zero UUID. Exact retries return the same ID for 30 minutes.
+  // Scoped to operator imports; changed arguments conflict. Expiry permits reuse.
+  string idempotency_key = 14;
+  // Import a native tombstone atomically. Body, attachments, preview, and
+  // edited_at must be absent. Historical replies may target deleted roots.
+  bool deleted = 15;
 }
 
 // Stable Chatto identity of the new historical message.
@@ -36,9 +48,32 @@ message ImportMessageResponse {
   string message_id = 1;
 }
 
+// Import a reaction for an existing user without membership or posting policy.
+// No source reaction time is required; the event time records the import.
+message ImportReactionRequest {
+  // Active channel containing the message.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Message or channel echo ID. Echoes resolve to their original reply.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Existing user shown as the reactor.
+  string user_id = 3 [(buf.validate.field).string.min_len = 1];
+  // Supported emoji shortcode, such as heart.
+  string emoji = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+// Whether this request stored a new historical reaction.
+message ImportReactionResponse {
+  // False when the canonical message already has this user's reaction.
+  bool added = 1;
+}
+
 // Private historical import. Only the Operator Unix socket serves this RPC.
 service OperatorMessageService {
   // Appends an encrypted historical message as a system operation. A repeated
-  // request creates another message; import scripts own retry decisions.
+  // request without a key creates another message. Keyed retries must stop
+  // before the fixed 30-minute window expires. All replicas must support keys.
   rpc ImportMessage(ImportMessageRequest) returns (ImportMessageResponse);
+  // Adds a historical reaction without notifications or live delivery. Repeats
+  // are idempotent. Bypasses the interactive per-user reaction count limit.
+  rpc ImportReaction(ImportReactionRequest) returns (ImportReactionResponse);
 }

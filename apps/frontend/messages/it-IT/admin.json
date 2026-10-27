@@ -52,6 +52,11 @@
       "subtitle": "Identità del server, branding e messaggi"
     },
     "members": {
+      "deactivate": "Disattiva account",
+      "reactivate": "Riattiva account",
+      "deactivate_description": "L’utente non potrà più usare questo server. Tutte le sessioni termineranno immediatamente. I dati saranno conservati. Puoi riattivare l’account in seguito.",
+      "deactivated_description": "Questo account è disattivato. La riattivazione permette all’utente di accedere di nuovo. Le vecchie sessioni restano non valide.",
+      "deactivation_failed": "Impossibile modificare l’accesso all’account.",
       "title": "Membri",
       "subtitle": "Visualizza e gestisci i membri del server e i loro ruoli",
       "search": "Cerca membri",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Autorizzazioni di sostituzione per stanza (stratificate sopra il gruppo della stanza)",
       "permissions_page_title": "Autorizzazioni - {name}",
       "back_to_rooms": "Torniamo alle stanze",
-      "group_permissions_hint": "Sostituzioni per gruppo per le stanze canale in questo gruppo. Impostazioni predefinite ereditate dall'ambito del server. Le singole stanze possono inoltre sovrascrivere le autorizzazioni dalla propria pagina delle autorizzazioni.",
+      "group_permissions_hint": "Imposta i permessi dei ruoli per tutte le stanze di questo gruppo. Sostituiscono i valori predefiniti del server. Ogni stanza può sostituire queste impostazioni.",
       "room_permissions_hint": "Queste impostazioni valgono solo in questa stanza. Sostituiscono le impostazioni del gruppo di stanze e del server per lo stesso ruolo o utente. Per consentire un’azione qui solo ad alcuni ruoli, imposta Nega per everyone e Consenti per quei ruoli.",
       "loading": "Caricamento stanze...",
       "empty_groups": "Nessun gruppo di stanze ancora",

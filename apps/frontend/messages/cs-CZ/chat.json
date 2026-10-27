@@ -6,6 +6,8 @@
       "confirmation": "Tímto na 15 minut zapnete další oprávnění, která vám byla na tomto serveru přidělena."
     },
     "notifications": {
+      "next_unread_source": "Přejít na další nepřečtený zdroj",
+      "no_unread": "Žádná nepřečtená oznámení",
       "title": "Oznámení",
       "subtitle": "Zde je novinka",
       "clear_read": "Odstranit přečtené",
@@ -25,7 +27,8 @@
         "mention": "Uživatel {actor} vás zmínil",
         "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete",
         "new_message": "Uživatel {actor} zveřejnil novou zprávu",
-        "activity": "Uživatel {actor} vám poslal oznámení"
+        "activity": "Uživatel {actor} vám poslal oznámení",
+        "room_invitation": "{actor} vás pozval do místnosti"
       }
     },
     "sign_out": {

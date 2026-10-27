@@ -1,0 +1,179 @@
+/** Verify Botto's Runling boundary: isolated tools, stable transcripts, and per-turn context. */
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { afterEach, expect, test, vi } from 'vitest';
+import { createTaskContext, type TaskContext } from 'runling';
+import { createAgent, transcriptName } from './agent.ts';
+import { parseSettings } from './settings.ts';
+import { createMemory } from './memory.ts';
+import { threadContextExtension } from './thread-context.ts';
+
+const mock = vi.hoisted(() => ({ create: vi.fn() }));
+vi.mock('runling', async (original) => ({
+  ...(await original<typeof import('runling')>()),
+  createAgentSession: mock.create
+}));
+vi.mock('./memory.ts', () => ({ createMemory: vi.fn(() => vi.fn()) }));
+vi.mock('./mcp.ts', () => ({ mcpExtension: () => () => {}, memoryLockExtension: () => () => {} }));
+vi.mock('./thread-context.ts', () => ({ threadContextExtension: vi.fn(() => () => {}) }));
+
+const directories: string[] = [];
+afterEach(async () => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+  await Promise.all(
+    directories.splice(0).map((path) => rm(path, { recursive: true, force: true }))
+  );
+});
+
+async function setup(memory = false) {
+  await mkdir(resolve('../../.context'), { recursive: true });
+  const directory = await mkdtemp(resolve('../../.context/botto-agent-'));
+  directories.push(directory);
+  const session = {
+    run: vi.fn(async (_ctx: TaskContext, _prompt: string, _options?: { signal?: AbortSignal }) => ({
+      summary: ' Hello '
+    })),
+    dispose: vi.fn(async () => {}),
+    [Symbol.asyncDispose]: vi.fn(async () => {})
+  };
+  mock.create.mockResolvedValue(session);
+  const agent = await createAgent({
+    ...parseSettings(
+      '[chatto]\nurl="https://chat.example.com"\napi_key="unused"\n[agent]\nmodel="test/model"',
+      'botto.toml'
+    ),
+    directory,
+    memory,
+    reasoningLevel: 'low',
+    adminUserIds: ['admin']
+  });
+  return { agent, session, directory };
+}
+
+test('uses Runling with explicit extensions, no ambient resources, and the original transcript path', async () => {
+  const { agent, session, directory } = await setup();
+  const identity = ['server', 'bot', 'room', 'thread'];
+  const ctx = createTaskContext();
+  const signal = new AbortController().signal;
+  expect(await agent.reply(ctx, { identity, prompt: 'hello', signal })).toBe('Hello');
+  expect(mock.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      model: 'test/model',
+      thinkingLevel: 'low',
+      output: 'text',
+      tools: 'extensions',
+      sessionFile: join(directory, transcriptName(identity)),
+      resources: {
+        agentDir: directory,
+        extensions: false,
+        skills: false,
+        promptTemplates: false,
+        themes: false,
+        contextFiles: false
+      }
+    })
+  );
+  expect(session.run).toHaveBeenCalledWith(ctx, 'hello', { signal });
+  expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  expect(transcriptName(identity)).not.toBe(transcriptName(['server', 'other', 'room', 'thread']));
+});
+
+test('refreshes the current UTC date when a later turn opens its session', async () => {
+  const { agent } = await setup();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  for (const date of ['2026-10-26', '2026-10-27']) {
+    vi.setSystemTime(new Date(`${date}T00:00:01Z`));
+    await agent.reply(createTaskContext(), {
+      identity: ['server', 'bot', 'room', 'thread'],
+      prompt: 'What is in this image?',
+      signal: new AbortController().signal
+    });
+    expect(mock.create.mock.calls.at(-1)![0].systemPrompt).toContain(
+      `Current date (UTC): ${date}.`
+    );
+  }
+});
+
+test('refreshes private memory context per batch without changing system instructions', async () => {
+  let documents = { global: ['one'], users: { human: ['two'] } };
+  const open = vi.fn(async () => ({
+    directory: '/memory',
+    documents,
+    acquire: async () => () => {}
+  }));
+  vi.mocked(createMemory).mockReturnValueOnce(open);
+  const { agent } = await setup(true);
+  const prompts: string[] = [];
+  const signal = new AbortController().signal;
+  for (const user of ['human', 'admin']) {
+    documents = { global: [user], users: { human: ['current'] } };
+    await agent.reply(createTaskContext(), {
+      identity: ['server', 'bot', 'room', 'thread'],
+      prompt: 'batch',
+      signal,
+      userIds: [user]
+    });
+    const options = mock.create.mock.calls.at(-1)![0];
+    prompts.push(options.systemPrompt);
+    expect(options.toolExecution).toBe('sequential');
+    expect(options.systemPrompt).toContain('Configured admin user IDs: ["admin"]');
+    expect(threadContextExtension).toHaveBeenLastCalledWith(
+      expect.objectContaining({ memoryDocuments: documents }),
+      undefined
+    );
+    expect(open).toHaveBeenLastCalledWith('thread', [user], signal);
+  }
+  expect(prompts[0]).toBe(prompts[1]);
+});
+
+test('passes fresh thread context through the request hook, not the persisted prompt', async () => {
+  const { agent, session } = await setup();
+  const context = {
+    messages: [{ id: 'old', author: 'human', text: 'Older context' }],
+    olderContextOmitted: false
+  };
+  await agent.reply(createTaskContext(), {
+    identity: ['thread'],
+    prompt: 'accepted batch',
+    signal: new AbortController().signal,
+    context
+  });
+  expect(threadContextExtension).toHaveBeenCalledWith(context, undefined);
+  expect(session.run.mock.calls[0]?.[1]).toBe('accepted batch');
+});
+
+test('releases the agent on failure and rejects empty or cancelled answers', async () => {
+  const { agent, session } = await setup();
+  session.run.mockRejectedValueOnce(new Error('failed turn'));
+  await expect(
+    agent.reply(createTaskContext(), {
+      identity: ['thread'],
+      prompt: 'batch',
+      signal: new AbortController().signal
+    })
+  ).rejects.toThrow('failed turn');
+  expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+  session.run.mockResolvedValueOnce({ summary: ' ' });
+  await expect(
+    agent.reply(createTaskContext(), {
+      identity: ['thread'],
+      prompt: 'batch',
+      signal: new AbortController().signal
+    })
+  ).rejects.toThrow('no answer');
+  const controller = new AbortController();
+  mock.create.mockImplementationOnce(async () => {
+    controller.abort();
+    return session;
+  });
+  await expect(
+    agent.reply(createTaskContext(), {
+      identity: ['thread'],
+      prompt: 'batch',
+      signal: controller.signal
+    })
+  ).rejects.toThrow();
+  expect(session.run).toHaveBeenCalledTimes(2);
+  expect(session[Symbol.asyncDispose]).toHaveBeenCalledTimes(3);
+});

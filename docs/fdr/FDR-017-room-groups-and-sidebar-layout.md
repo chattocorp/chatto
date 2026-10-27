@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
@@ -40,6 +40,12 @@ Channel rooms are organized into **room groups** — named, ordered containers t
   message, a link to a known server opens in the current client. Unknown
   servers open externally; the client does not probe them or add them.
 - The room-layout overview remains available as a management fallback while the sidebar gains feature parity. Resource settings pages remain the place for group metadata and permission matrices.
+- Room-group settings use General and Permissions tabs with separate URLs.
+  General contains the name and description form. Permissions contains the
+  group permission matrix. Viewers who can manage permissions but cannot
+  change group settings go directly to Permissions and do not see General.
+  Leaving General with unsaved changes requires confirmation, including when
+  switching tabs. Cancelling navigation keeps the draft.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
 - Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar. The create and edit forms add `https://` when an operator enters a host name without a scheme.

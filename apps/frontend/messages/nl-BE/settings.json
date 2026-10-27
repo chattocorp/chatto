@@ -118,10 +118,10 @@
       "conflict": "Dit profiel is gewijzigd terwijl je het bewerkte. Laad de pagina opnieuw en sla je wijzigingen daarna opnieuw op.",
       "save_button": "Wijzigingen opslaan",
       "bio": {
-        "label": "Bio",
+        "label": "Over",
         "description": "Tot {max} tekens, zichtbaar in je profiel.",
         "placeholder": "Vertel anderen kort iets over jezelf",
-        "too_long": "De bio mag maximaal {max} tekens bevatten."
+        "too_long": "De tekst mag maximaal {max} tekens bevatten."
       }
     },
     "preferences": {
@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
-          "badge": "Markering",
+          "badge": "Bolletje voor ongelezen inhoud",
           "badge_hint": "Voegt alleen een neutraal bolletje voor ongelezen inhoud toe. Maakt geen melding, speelt geen geluid af en verstuurt geen pushmelding.",
-          "notification": "Melding",
+          "notification": "Melding in de app",
           "push_notification": "Pushmelding"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
           "all": "Berichten met @all in een ruimte waarvan je lid bent.",
           "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
-          "reaction": "Reacties die andere leden aan je berichten toevoegen."
+          "reaction": "Reacties die andere leden aan je berichten toevoegen.",
+          "room_invitation": "Uitnodigingen om deel te nemen aan ruimtes."
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "Wachtwoord",
         "add_description": "Voeg een wachtwoord toe zodat u direct kunt inloggen en de verbinding met uw laatste SSO-provider kunt verbreken.",
         "change_description": "Wijzig het wachtwoord dat wordt gebruikt voor direct inloggen.",
+        "sso_managed": "U kunt geen wachtwoord toevoegen of wijzigen omdat deze server eenmalige aanmelding (SSO) gebruikt. Beheer uw aanmeldgegevens bij uw identiteitsprovider.",
         "current_label": "Huidig wachtwoord",
         "current_required": "Voer uw huidige wachtwoord in.",
         "add_button": "Wachtwoord toevoegen",
@@ -448,6 +450,7 @@
         "link_button": "Link",
         "link_failed": "Kan aanmeldingsprovider niet koppelen",
         "fresh_auth_required": "Log opnieuw in voordat u een andere provider koppelt.",
+        "sso_fresh_auth_required": "Open de accountinstellingen op de server waartoe dit account behoort. Meld u af en meld u opnieuw aan via uw SSO-provider. Probeer de actie daarna op die server opnieuw.",
         "provider_unconfigured": "Provider niet meer geconfigureerd",
         "disconnect_button": "Verbinding verbreken",
         "disconnecting": "Verbinding verbreken...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provider kan de verbinding niet verbreken",
-          "body": "{provider} is uw enige aanmeldingsmethode. Voeg een wachtwoord toe of koppel eerst een andere provider."
+          "body": "Stel een andere aanmeldmethode in die door deze server wordt ondersteund voordat u {provider} loskoppelt."
         },
         "fresh_auth_modal": {
           "title": "Bevestig wachtwoord",

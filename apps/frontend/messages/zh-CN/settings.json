@@ -118,7 +118,7 @@
       "conflict": "你编辑时此个人资料已被更改。请重新加载页面，然后再次保存更改。",
       "save_button": "保存更改",
       "bio": {
-        "label": "个人简介",
+        "label": "简介",
         "description": "最多 {max} 个字符，显示在你的个人资料中。",
         "placeholder": "简单介绍一下自己",
         "too_long": "简介不能超过 {max} 个字符。"
@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "继承",
           "off": "关闭",
-          "badge": "徽标",
-          "badge_hint": "仅添加一个表示未读的灰色圆点。不会创建通知、播放声音或发送推送通知。",
-          "notification": "通知",
+          "badge": "未读圆点",
+          "badge_hint": "仅添加一个表示未读的圆点。不会创建通知、播放声音或发送推送通知。",
+          "notification": "应用内通知",
           "push_notification": "推送通知"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "当你的在线状态不是离线时使用 @here 的消息。",
           "all": "在你已加入的房间中使用 @all 的消息。",
           "followed_thread": "你所关注讨论串中的新回复。",
-          "reaction": "其他成员添加到你消息上的回应。"
+          "reaction": "其他成员添加到你消息上的回应。",
+          "room_invitation": "加入房间的邀请。"
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "密码",
         "add_description": "添加密码后，你可以直接登录，并可解绑最后一个 SSO 提供商。",
         "change_description": "更改直接登录所使用的密码。",
+        "sso_managed": "此服务器使用单点登录（SSO），因此你无法添加或更改密码。请在你的身份提供商处管理登录信息。",
         "current_label": "当前密码",
         "current_required": "请输入当前密码。",
         "add_button": "添加密码",
@@ -448,6 +450,7 @@
         "link_button": "关联",
         "link_failed": "登录提供商关联失败",
         "fresh_auth_required": "关联其他提供商前请重新登录。",
+        "sso_fresh_auth_required": "请在此账号所属的服务器上打开账号设置。退出登录，然后通过你的 SSO 提供商重新登录，再在该服务器上重试此操作。",
         "provider_unconfigured": "已不再配置此提供商",
         "disconnect_button": "解除关联",
         "disconnecting": "正在解除关联...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "无法解除提供商关联",
-          "body": "{provider} 是你唯一的登录方式。请先添加密码或关联其他提供商。"
+          "body": "解除与 {provider} 的关联前，请先设置此服务器支持的其他登录方式。"
         },
         "fresh_auth_modal": {
           "title": "确认密码",

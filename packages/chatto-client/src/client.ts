@@ -15,6 +15,7 @@ import { ServerRegistry } from './server/registry.js';
 import { ServerConnectionManager } from './server/serverConnection.js';
 import { startClientRuntime, type ClientRuntime } from './server/runtime.js';
 import { emptyServerSession } from './server/sessions.js';
+import { keepRecentLimits, type KeepRecent } from './server/roomStores.js';
 
 /** Settings for {@link createClient}. */
 export interface ClientOptions {
@@ -34,9 +35,17 @@ export interface ClientOptions {
   /**
    * Which servers keep a persistent WebSocket: `all` (the default), or only
    * the server that {@link ChattoClient.setActiveServer} selects. The others
-   * catch up by polling.
+   * catch up by polling. Polling does not keep their presence current; it
+   * becomes current when the server becomes active.
    */
   liveServers?: LiveServers;
+  /**
+   * How many recently used rooms and threads each server keeps live stores
+   * for: by default 10 rooms and 20 threads. The client disposes the stores of
+   * older ones. A host that uses more rooms or threads at the same time, such
+   * as a bot that answers in many threads at once, sets higher values.
+   */
+  keepRecent?: KeepRecent;
 }
 
 /** Clients that use device storage or the origin server; a process can have one of each. */
@@ -68,10 +77,11 @@ export class ChattoClient {
     if (options.originServer && exclusiveClients.has('originServer')) {
       throw new Error('A process can have one Chatto client for the origin server');
     }
+    const keepRecent = keepRecentLimits(options.keepRecent);
     this.realtime = new EventBusManager({ liveServers: options.liveServers ?? 'all' });
     this.connections = new ServerConnectionManager(() => this.registry);
     this.registry = new ServerRegistry(
-      { connections: this.connections, realtime: this.realtime },
+      { connections: this.connections, realtime: this.realtime, keepRecent },
       { deviceStorage: options.storage === 'device', originServer: options.originServer ?? false }
     );
     if (options.storage === 'device') exclusiveClients.set('deviceStorage', this);

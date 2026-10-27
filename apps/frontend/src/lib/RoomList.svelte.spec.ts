@@ -3,10 +3,12 @@ import { NavigationStore } from '$lib/state/server/navigation';
 import { RoomListView } from '@chatto/client/server/rooms';
 import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomWithViewerState, RoomViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page as browserPage, userEvent } from 'vitest/browser';
 import { SvelteMap } from 'svelte/reactivity';
@@ -313,6 +315,19 @@ function setRooms() {
   }
 }
 
+/** Add recent conversations so activity tests can hide DMs beyond the minimum. */
+function addRecentDMs(): void {
+  const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+  const template = rooms.find((room) => room.type === RoomKind.DM)!;
+  for (let index = 0; index < 2; index++) {
+    rooms.push({
+      ...template,
+      id: `dm-recent-${index}`,
+      lastMessageAt: new Date(Date.now() - 86400000).toISOString()
+    });
+  }
+}
+
 function setDMParticipants(participants: UserAvatarUserView[], participantIds?: string[]): void {
   const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
     (room) => room.id === 'dm-with-participants'
@@ -391,6 +406,10 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('hides ages in narrow rows while notification badges stay visible', async () => {
     const rooms = mocks.store.navigation.rooms as RoomsListItem[];
     const room = rooms.find((entry) => entry.id === 'dm-with-participants')!;
@@ -424,14 +443,19 @@ describe('RoomList', () => {
   });
 
   it.each([
-    [0, '0min'],
+    [0, 'now'],
+    [59 / 60, 'now'],
+    [1, '1min'],
     [59, '59min'],
     [60, '1h'],
     [1439, '23h'],
     [1440, '1d'],
     [90 * 1440, '90d'],
-    [-1, '0min']
+    [-1, 'now']
   ])('shows %s elapsed minutes as %s, including older expanded DMs', async (minutes, age) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T12:00:00Z'));
+    addRecentDMs();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (r) => r.id === 'dm-with-participants'
     )!;
@@ -450,35 +474,43 @@ describe('RoomList', () => {
     expect(time.getAttribute('dir')).toBe('ltr');
   });
 
-  it('refreshes a visible age on the minute tick without replacing the room', async () => {
-    const now = Date.now();
-    const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
-      (r) => r.id === 'dm-with-participants'
-    )!;
-    room.lastMessageAt = new Date(now - 59 * 60000).toISOString();
-    const intervals = vi.spyOn(window, 'setInterval');
-    const { container, unmount } = render(RoomList);
-    try {
-      const time = container.querySelector<HTMLTimeElement>(
-        '[href="/chat/-/dm-with-participants"] time'
+  it.each([
+    [0, 'now', 60000, '1min'],
+    [59, '59min', 120000, '1h']
+  ])(
+    'refreshes %s elapsed minutes from %s on the minute tick without replacing the room',
+    async (minutes, initialAge, elapsed, updatedAge) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-22T12:00:00Z'));
+      const now = Date.now();
+      const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+        (r) => r.id === 'dm-with-participants'
       )!;
-      await expect.element(time).toHaveTextContent('59min');
-      const interval = intervals.mock.calls.find((args) => args[1] === 60000)![0] as () => void;
-      const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now + 120000);
+      room.lastMessageAt = new Date(now - Number(minutes) * 60000).toISOString();
+      const intervals = vi.spyOn(window, 'setInterval');
+      const { container, unmount } = render(RoomList);
       try {
-        interval();
+        const time = container.querySelector<HTMLTimeElement>(
+          '[href="/chat/-/dm-with-participants"] time'
+        )!;
+        await expect.element(time).toHaveTextContent(String(initialAge));
+        const interval = intervals.mock.calls.find((args) => args[1] === 60000)![0] as () => void;
+        const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now + Number(elapsed));
+        try {
+          interval();
+        } finally {
+          dateNow.mockRestore();
+        }
+        await expect.element(time).toHaveTextContent(String(updatedAge));
+        expect(
+          (mocks.store.navigation.rooms as RoomsListItem[]).find((r) => r.id === room.id)
+        ).toBe(room);
       } finally {
-        dateNow.mockRestore();
+        await unmount();
+        intervals.mockRestore();
       }
-      await expect.element(time).toHaveTextContent('1h');
-      expect((mocks.store.navigation.rooms as RoomsListItem[]).find((r) => r.id === room.id)).toBe(
-        room
-      );
-    } finally {
-      await unmount();
-      intervals.mockRestore();
     }
-  });
+  );
 
   it.each([undefined, null, 'invalid'])('omits unknown or invalid activity %s', (timestamp) => {
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
@@ -531,7 +563,127 @@ describe('RoomList', () => {
     expect(container.querySelector('[href="/chat/-/channel-1"] time')).toBeNull();
   });
 
+  it.each([0, 1, 2, 3, 5])('shows up to three of %s old DMs by default', async (count) => {
+    const template = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (room) => room.type === RoomKind.DM
+    )!;
+    // Navigation order differs from activity order; the newest are at the end.
+    mocks.store.navigation.rooms = Array.from({ length: count }, (_, index) => ({
+      ...template,
+      id: `dm-old-${index}`,
+      lastMessageAt: new Date(Date.now() - (20 - index) * 86400000).toISOString()
+    })) as never;
+    const { container } = render(RoomList);
+    const visibleIds = () =>
+      Array.from(container.querySelectorAll('a[href^="/chat/-/dm-old-"]'), (link) =>
+        link.getAttribute('href')!.split('/').at(-1)
+      );
+    const allIds = Array.from({ length: count }, (_, index) => `dm-old-${index}`);
+    expect(visibleIds()).toEqual(allIds.slice(-3).reverse());
+    if (count <= 3) {
+      expect(container.querySelector('[data-testid="older-conversations"]')).toBeNull();
+    } else {
+      await browserPage.getByRole('button', { name: 'Show older (2)', exact: true }).click();
+      expect(visibleIds()).toEqual(allIds.toReversed());
+      await browserPage.getByRole('button', { name: 'Show less', exact: true }).click();
+      await vi.waitFor(() => expect(visibleIds()).toEqual(allIds.slice(-3).reverse()));
+    }
+  });
+
+  it.each([
+    { ages: [12, 1, 10, 8], visibleIds: [1, 3, 2], hiddenCount: 1 },
+    { ages: [12, 1, 2, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 2 },
+    { ages: [12, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 3 },
+    { ages: [12, 1, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3, 4], hiddenCount: 3 }
+  ])('fills the minimum for DM ages $ages', ({ ages, visibleIds, hiddenCount }) => {
+    // Equal ages must produce equal timestamps even when fixture creation crosses a millisecond.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-27T12:00:00Z'));
+    const template = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+      (room) => room.type === RoomKind.DM
+    )!;
+    mocks.store.navigation.rooms = ages.map((days, index) => ({
+      ...template,
+      id: `dm-mixed-${index}`,
+      lastMessageAt: new Date(Date.now() - days * 86400000).toISOString()
+    })) as never;
+    const { container } = render(RoomList);
+    const visible = Array.from(container.querySelectorAll('a[href^="/chat/-/dm-mixed-"]'), (link) =>
+      link.getAttribute('href')
+    );
+    expect(visible).toEqual(visibleIds.map((id) => `/chat/-/dm-mixed-${id}`));
+    expect(container.querySelector('[data-testid="older-conversations"]')).toHaveTextContent(
+      `Show older (${hiddenCount})`
+    );
+  });
+
+  it.each([false, true])(
+    'reorders a revived DM while mounted with older DMs shown: %s',
+    async (expanded) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+      const originalNavigation = mocks.store.navigation;
+      const projection = new ServerProjectionStore();
+      const updateRoom = (id: string, hours: number) => {
+        projection.rooms.set(
+          id,
+          new RoomWithViewerState({
+            room: new Room({
+              id,
+              name: id,
+              kind: RoomKind.DM
+            }),
+            lastMessageAt: Timestamp.fromDate(new Date(Date.now() - hours * 3600000)),
+            lastRootMessageAt: Timestamp.fromDate(new Date('2026-09-01T12:00:00Z')),
+            viewerState: new RoomViewerState({
+              isMember: true,
+              permissions: [new PermissionGrant({ permission: 'message.read', granted: true })]
+            }),
+            hasMessageHistory: true
+          })
+        );
+      };
+      // Deliberately keep insertion order different from posting order.
+      updateRoom('dm-two-days', 48);
+      updateRoom('dm-one-day', 24);
+      updateRoom('dm-three-days', 72);
+      updateRoom('dm-revived', 240);
+      mocks.store.navigation = new NavigationStore(
+        new RoomListView(projection, { hasUsableProjection: true }),
+        () => ({
+          unreadNotificationCount: 0,
+          importantUnreadNotificationCount: 0,
+          roomUnreadCounts: {},
+          roomImportantUnreadCounts: {}
+        })
+      ) as unknown as typeof originalNavigation;
+      try {
+        const { container } = render(RoomList);
+        const ids = () =>
+          Array.from(container.querySelectorAll('a[href^="/chat/-/dm-"]'), (link) =>
+            link.getAttribute('href')!.split('/').at(-1)
+          );
+        expect(ids()).toEqual(['dm-one-day', 'dm-two-days', 'dm-three-days']);
+        if (expanded) {
+          await browserPage.getByRole('button', { name: 'Show older (1)', exact: true }).click();
+          expect(ids()).toEqual(['dm-one-day', 'dm-two-days', 'dm-three-days', 'dm-revived']);
+        }
+        // A reply updates posting activity without changing root-message activity.
+        updateRoom('dm-revived', 1);
+        await vi.waitFor(() =>
+          expect(ids()).toEqual(['dm-revived', 'dm-one-day', 'dm-two-days', 'dm-three-days'])
+        );
+        await expect
+          .element(container.querySelector<HTMLTimeElement>('[href="/chat/-/dm-revived"] time'))
+          .toHaveTextContent('1h');
+      } finally {
+        mocks.store.navigation = originalNavigation;
+      }
+    }
+  );
+
   it('hides old DMs, reveals them on request, and keeps unknown activity visible', async () => {
+    addRecentDMs();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (entry) => entry.id === 'dm-with-participants'
     )!;
@@ -554,6 +706,7 @@ describe('RoomList', () => {
   it.each(['recent', 'unread', 'notification', 'current', 'call', 'invalid'])(
     'keeps a DM visible with %s activity or attention',
     async (reason) => {
+      addRecentDMs();
       const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
         (entry) => entry.id === 'dm-with-participants'
       )!;
@@ -573,6 +726,7 @@ describe('RoomList', () => {
   );
 
   it('keeps older-conversation controls out of the collapsed section', async () => {
+    addRecentDMs();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (entry) => entry.id === 'dm-with-participants'
     )!;
@@ -587,6 +741,7 @@ describe('RoomList', () => {
   });
 
   it('ages DMs while mounted and clears its interval when removed', async () => {
+    addRecentDMs();
     const now = Date.now();
     const room = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (entry) => entry.id === 'dm-with-participants'
@@ -779,7 +934,7 @@ describe('RoomList', () => {
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
     await expect.element(leave ?? null).toBeInTheDocument();
-    expect(markRead?.closest('.menu-section')).toBe(leave?.closest('.menu-section'));
+    expect(markRead?.closest('.menu-section')).not.toBe(leave?.closest('.menu-section'));
     expect(q(document.body, '[role="separator"]')).toBeNull();
 
     markRead!.click();
@@ -807,11 +962,12 @@ describe('RoomList', () => {
   });
 
   it.each([false, true])(
-    'groups user actions before admin actions for universal=%s and copies the room ID',
+    'groups room, copy, and exit actions for universal=%s and copies the room ID',
     async (isUniversal) => {
-      const rooms = mocks.store.navigation.rooms as Array<{ id: string; isUniversal: boolean }>;
+      const rooms = mocks.store.navigation.rooms as RoomsListItem[];
       const room = rooms.find((room) => room.id === 'channel-1')!;
       room.isUniversal = isUniversal;
+      room.viewerCanInvite = true;
       const { container } = render(RoomList);
       const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
 
@@ -830,14 +986,84 @@ describe('RoomList', () => {
           )
         )
       ).toEqual([
-        ['Mark as read', 'Copy room link', 'Copy room ID', ...(isUniversal ? [] : ['Leave room'])],
-        ['Open room settings', 'Archive room']
+        ['Invite member', 'Mark as read'],
+        ['Copy room link', 'Copy room ID'],
+        ['Open room settings', 'Archive room', ...(isUniversal ? [] : ['Leave room'])]
       ]);
 
       copyRoomId.click();
 
       await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('channel-1'));
       expect(getToasts().map((item) => item.message)).toContain('Copied to clipboard');
+    }
+  );
+
+  it('keeps an invited non-member room visible and opens its invitation instead of joining', async () => {
+    const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+    const invited = rooms.find((room) => room.id === 'restricted-channel')!;
+    invited.viewerInvitation = {
+      id: 'invitation-1',
+      senderId: 'sender-1',
+      expiresAt: new Date('2099-01-01'),
+      viewerCanAccept: true
+    };
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
+    await expect.element(row).toBeVisible();
+    expect(row.classList.contains('opacity-60')).toBe(false);
+    await expect
+      .element(row.querySelector<HTMLElement>('[aria-label="You have been invited"]'))
+      .toBeVisible();
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await browserPage.getByRole('menuitem', { name: 'You have been invited' }).click();
+    expect(mocks.store.roomDirectory.joinRoom).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/restricted-channel');
+  });
+
+  it.each(['badge', 'notification'] as const)(
+    'shows %s attention for an invited nonmember',
+    async (delivery) => {
+      const invited = (mocks.store.navigation.rooms as RoomsListItem[]).find(
+        (room) => room.id === 'restricted-channel'
+      )!;
+      invited.viewerInvitation = {
+        id: 'invitation',
+        senderId: 'sender',
+        expiresAt: new Date('2099-01-01'),
+        viewerCanAccept: true
+      };
+      if (delivery === 'badge') mocks.unreadRoomIds.add(invited.id);
+      else {
+        invited.viewerNotificationCount = 1;
+        invited.viewerImportantNotificationCount = 1;
+      }
+      const { container } = render(RoomList);
+      const row = q(container, '[href="/chat/-/restricted-channel"]')!;
+      await expect
+        .element(
+          row.querySelector<HTMLElement>(
+            delivery === 'badge'
+              ? '[data-testid="room-unread-dot"]'
+              : '[data-testid="room-notification-badge"]'
+          )
+        )
+        .toBeVisible();
+      expect(mocks.store.roomDirectory.joinRoom).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([true, false])(
+    'shows Invite member only with room invitation authority (%s)',
+    async (allowed) => {
+      const rooms = mocks.store.navigation.rooms as RoomsListItem[];
+      rooms.find((room) => room.id === 'channel-1')!.viewerCanInvite = allowed;
+      const { container } = render(RoomList);
+      const row = q(container, '[href="/chat/-/channel-1"]')!;
+      row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      await expect.element(browserPage.getByTestId('copy-room-id')).toBeVisible();
+      const invite = browserPage.getByRole('menuitem', { name: 'Invite member' });
+      if (allowed) await expect.element(invite).toBeVisible();
+      else await expect.element(invite).not.toBeInTheDocument();
     }
   );
 
@@ -1235,7 +1461,7 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Open room settings'
     );
     expect(settings).toBeUndefined();
-    expect(document.querySelectorAll('[role="menu"] .menu-section')).toHaveLength(1);
+    expect(document.querySelectorAll('[role="menu"] .menu-section')).toHaveLength(3);
     expect(document.body.textContent).not.toContain('Archive room');
   });
 

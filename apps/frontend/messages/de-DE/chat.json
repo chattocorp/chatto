@@ -6,6 +6,8 @@
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {
+      "next_unread_source": "Zur nächsten ungelesenen Quelle",
+      "no_unread": "Keine ungelesenen Benachrichtigungen",
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
       "clear_read": "Gelesene löschen",
@@ -25,7 +27,8 @@
         "mention": "{actor} hat dich erwähnt",
         "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst",
         "new_message": "{actor} hat eine neue Nachricht gepostet",
-        "activity": "{actor} hat dir eine Benachrichtigung gesendet"
+        "activity": "{actor} hat dir eine Benachrichtigung gesendet",
+        "room_invitation": "{actor} hat dich in einen Raum eingeladen"
       }
     },
     "sign_out": {

@@ -1,16 +1,16 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-10-22
 
 ## Overview
 
-Notifications and Badge indicators are user-scoped ways to show activity that
+Notifications and Unread dot indicators are user-scoped ways to show activity that
 deserves attention. Notifications form a persistent list of exact activity.
-Badge indicators add only neutral unread dots. Both forms cover direct
+Unread dot indicators add only neutral unread dots. Both forms cover direct
 messages, root messages in channel rooms, replies, direct and role mentions,
-`@here`, `@all`, followed threads, and reactions. Notification
-occurrences use a small lifecycle: Unread, Read, or explicitly Deleted. Badge
+`@here`, `@all`, followed threads, reactions, and room invitations. Notification
+occurrences use a small lifecycle: Unread, Read, or explicitly Deleted. Unread dot
 attention uses a latest-value marker that becomes inactive through read,
 visibility, and expiry boundaries.
 
@@ -20,14 +20,25 @@ targets, unread counts, read state, or deletion semantics.
 
 ## Behavior
 
+- Option/Alt+Shift+Down opens the next unread notification source across signed-in
+  servers. The quick switcher offers the same action. Important notifications
+  come before Ambient notifications; plain Unread dots are excluded. Sources
+  follow server order, room-group order, and stable room/thread IDs for remaining
+  ties. The newest unread occurrence at that priority opens in the selected
+  conversation. Existing view and read rules apply, so each use selects from
+  the sources that still need attention. There is no Previous action. The shortcut
+  works in the composer and leaves drafts intact, but does not run while a modal
+  is open. When no source remains, it shows “No unread notifications”. A failed
+  load shows an error instead.
+
 - The notification page is one newest-activity-first chronological list that
   contains both Unread and Read activity. Unread reactions are Ambient and use
   a neutral treatment. Every other current cause is Important and uses Chatto's
   notification orange. Unread rows show their summary in bold. Read rows use
   regular weight and remain fully interactive. The list does not use a
   separate unread dot on each row.
-- Badge activity does not add a row to the notification page. It adds a neutral
-  unread dot to the applicable room. A thread-scoped Badge contributes to its
+- Unread dot activity does not add a row to the notification page. It adds a neutral
+  unread dot to the applicable room. A thread-scoped Unread dot contributes to its
   parent room. An orange notification indicator takes priority when both types
   of attention apply.
 - A room or direct-message row shows two unread notification counts next to
@@ -57,11 +68,16 @@ targets, unread counts, read state, or deletion semantics.
 - The list has no panel frame. Below 768px viewport width, summaries and
   metadata wrap so the activity remains readable. This layout applies to both
   touch and mouse input.
-- Opening a row navigates to the selected occurrence's exact room, thread, and
+- Opening a message activity row navigates to the selected occurrence's exact room, thread, and
   event. The occurrence is marked Read only after the target is visible and
   highlighted. An interrupted load keeps the selected target until navigation
   completes or the user leaves the destination or selects another target.
   A failed jump does not itself mark the occurrence Read.
+- Invitation notifications use Push by default and support the same delivery
+  preferences. They open the room without a message target and become Read
+  after successful navigation. Reading or deleting them does not resolve the
+  invitation. Acceptance, decline, or expiry removes them from history.
+  Invitation Unread dot attention lasts while the invitation is pending.
 - Reading a room or thread marks covered occurrences Read. A reaction is
   covered according to the reacted-to message and reaction horizon.
 - A thread root belongs to its room, so a thread read does not cover
@@ -91,11 +107,11 @@ targets, unread counts, read state, or deletion semantics.
   before or during the action. If a page fails to load, the action reports an
   error and does not start deletion. Both deletion actions update the UI
   optimistically and then reconcile with the server.
-- Every occurrence leaves application-visible state exactly 90 days after its
-  source activity. Reading or deleting it does not extend that lifetime.
+- Message-derived occurrences leave application-visible state 90 days after their
+  source activity. Reading or deleting them does not extend that lifetime.
   Physical cleanup may continue during ADR-076's 24-hour grace period without
   extending user-visible retention.
-- A Badge source gives attention for 90 days after its source activity. A
+- A message Unread dot source gives attention for 90 days after its source activity. A
   read, visibility loss, target removal, reaction removal, or a change of the
   notification policy or thread follow can end the attention sooner.
 - The combined multi-server list preserves healthy results when another server
@@ -151,24 +167,24 @@ the user has no server preference, the concrete product default supplies the
 server value.
 
 - **Off** — do not create attention for this cause.
-- **Badge** — add only a neutral unread dot. Do not create a notification
+- **Unread dot** — add only a neutral unread dot. Do not create a notification
   occurrence, play a sound, or send push.
-- **Notification** — create an in-app notification without push delivery. The
+- **In-app notification** — create an in-app notification without push delivery. The
   client can play the configured notification sound for Important attention.
 - **Push notification** — create the same in-app notification and make it
   eligible for Web Push or native delivery.
 
-| Cause                          | Default           |
-| ------------------------------ | ----------------- |
-| Root direct message            | Push notification |
-| Root message in a channel room | Badge             |
-| Direct username mention        | Push notification |
-| Reply to the user's message    | Push notification |
-| Role mention                   | Push notification |
-| `@here`                        | Push notification |
-| `@all`                         | Push notification |
-| Followed thread activity       | Notification      |
-| Reaction to the user's message | Notification      |
+| Cause                          | Default             |
+| ------------------------------ | ------------------- |
+| Root direct message            | Push notification   |
+| Root message in a channel room | Unread dot          |
+| Direct username mention        | Push notification   |
+| Reply to the user's message    | Push notification   |
+| Role mention                   | Push notification   |
+| `@here`                        | Push notification   |
+| `@all`                         | Push notification   |
+| Followed thread activity       | In-app notification |
+| Reaction to the user's message | In-app notification |
 
 Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, and app indicators use
@@ -186,27 +202,28 @@ modes when the notification has Important attention.
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
 
-The notification settings page shows the nine supported causes as matrix rows.
-It shows the server, visible room groups, current-member channel rooms, and
+The notification settings page shows the ten supported causes as matrix rows.
+It shows the server, visible room groups, joined or invited channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user
 preference exists, it shows the product default at full intensity without an
-inheritance marker. Server cells cycle through Off, Badge, Notification, and
+inheritance marker. Server cells cycle through Off, Unread dot, In-app notification, and
 Push notification.
 
-Room-group and room cells cycle through Inherit, Off, Badge, Notification,
-Push notification, and back to Inherit. Off uses a grey crossed bell. Badge
-uses a grey filled bell. Both notification modes use notification orange, with
-a bell for Notification and a phone for Push notification. An inherited cell
-shows the effective mode at reduced intensity. The legend and distinct icons
-make the state clear without color alone.
+Room-group and room cells cycle through Inherit, Off, Unread dot, In-app notification,
+Push notification, and back to Inherit. Off uses a neutral crossed-out bell,
+and Unread dot uses a neutral small filled dot. In-app notification uses an
+orange bell, and Push notification uses an orange phone. These icons show
+delivery mode; their colour does not show the activity's attention level.
+An inherited cell shows the effective mode at reduced intensity.
+The legend and distinct icons make the state clear without colour alone.
 
-Badge decisions use the existing room and thread read boundaries. A thread
-Badge rolls up to its parent room. Reading the thread clears its contribution
+Unread dot decisions use the existing room and thread read boundaries. A thread
+Unread dot rolls up to its parent room. Reading the thread clears its contribution
 to the room indicator. The Message Read Cursor remains separate and places the
 New messages separator. Cursor lag alone does not create a room dot. Thus,
 setting Room messages to Off prevents neutral dots for ordinary root messages
-without disabling last-read tracking. Badge does not update an operating-system
+without disabling last-read tracking. Unread dot does not update an operating-system
 or application-icon badge.
 
 Posting a message does not advance the poster's Message Read Cursor or
@@ -252,7 +269,7 @@ A user's own activity does not notify them. One source activity produces at
 most one delivery decision per recipient and cause. For example, a root
 message that contains `@all` and a direct mention can produce room-message,
 `@all`, and direct-mention decisions for one recipient. If these decisions use
-a notification mode, they create separate occurrences. Badge decisions
+a notification mode, they create separate occurrences. Unread dot decisions
 coalesce into one latest-value marker for the applicable room or thread.
 Channel-room recipients must currently have `message.read`.
 A direct mention also permits its recipient when `message.read-interactions`
@@ -273,7 +290,9 @@ the bounded notification lifecycle. ADR-076 defines that architecture.
 
 **Decision:** An occurrence may be listed, opened, mutated, or delivered only
 while the recipient still exists and can currently see its room and exact
-target. Message-derived occurrences also require current
+target. An invitation requires a current, eligible pending invitation for the
+recipient; it does not require room membership or message access.
+Message-derived occurrences also require current
 `message.read`, or `message.read-interactions` with a relationship to the
 target's thread. Without applicable
 access, Chatto hides the occurrence. Removed reactions, retracted targets,
@@ -282,7 +301,7 @@ Durable visibility-loss boundaries prevent old queued activity from
 reappearing after a quick regain of room access.
 Actor identity is hydrated from current account data; an unavailable or deleted
 actor does not by itself expose copied profile data or make an otherwise valid
-occurrence invisible. Badge attention is computed from the current room,
+occurrence invisible. Unread dot attention is computed from the current room,
 target, reaction, and read state, the current membership start, and the
 current notification policy (ADR-109). It does not use visibility-loss
 boundaries: an unread message counts again when the user can read it again.
@@ -297,10 +316,10 @@ success.
 ### 6. Realtime delivery is a convergence hint
 
 **Decision:** Realtime notification updates tell clients to replace their
-finite notification view from authoritative server state. Badge updates tell
+finite notification view from authoritative server state. Unread dot updates tell
 clients to replace only unread and Slow Mode activity for the affected room.
 This update does not repeat room membership or permission decisions. A new
-source sends an update only when it turns Badge attention on. Another source in
+source sends an update only when it turns Unread dot attention on. Another source in
 a scope that is already unread sends no update, because the public unread value
 stays true. My Threads can
 decorate a followed thread from matching unread occurrences in the finite
@@ -376,7 +395,7 @@ record a client audio filter as server state. The migration keeps the user's
 existing sound choice.
 
 **Tradeoff:** Sound choices do not sync to another browser or device. The
-client keeps a small local-storage entry for each server. Both Notification and
+client keeps a small local-storage entry for each server. Both In-app notification and
 Push notification can cause the configured local sound for Important attention.
 The client can miss a
 sound if its bounded resource page does not contain the created occurrence.
@@ -424,7 +443,7 @@ activity unread.
 Notifications 2.0 supersedes Notifications 1.0 at the 0.5.0 pre-1.0 boundary.
 Legacy records and coarse Muted/Normal/All Messages preferences are not migrated
 or interpreted. Historical persisted event variants remain replay-decodable,
-but current code adds no notification occurrences, triggers, or Badge markers
+but current code adds no notification occurrences, triggers, or Unread dot markers
 to `EVT`. Notification policy changes remain user-configuration facts in
 `EVT`. Older clients cannot use the replacement notification API on an
 upgraded server. After the 0.5.0 contract ships, new signal variants are
@@ -438,7 +457,7 @@ followed-room slots remain readable so old stored values do
 not acquire a new meaning. Current clients use Room messages at room scope
 instead of the retired followed-room cause.
 
-Older servers do not derive Badge or Room messages output and cannot apply
+Older servers do not derive Unread dot or Room messages output and cannot apply
 room-group policy. During rollback, those additions become temporarily
 inactive instead of turning into another notification cause. Older clients
 can render an unknown occurrence generically, but cannot infer its navigation

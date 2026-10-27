@@ -2,6 +2,22 @@ import { expect, test } from 'vitest';
 import type { RunlingEvent } from 'runling';
 import { logTime, logTreeRows, nextLogFollow, runLogRows } from './run-log.ts';
 
+test('shows structured warning fields without changing the journal message', () => {
+  const event: RunlingEvent = {
+    type: 'log',
+    level: 'warn',
+    message: 'Retrying',
+    fields: { attempts: 2, detail: 'one\ntwo' },
+    depth: 0,
+    color: 'gold',
+    timestamp: 1
+  };
+  const [row] = runLogRows([event]);
+  expect(row?.event.message).toBe('Retrying attempts=2 detail="one\\ntwo"');
+  expect(row?.event.level).toBe('warn');
+  expect(event.message).toBe('Retrying');
+});
+
 test('shows recorded logs and task milestones in order', () => {
   const events: RunlingEvent[] = [
     { type: 'step.started', id: 'task', label: 'private task label', timestamp: 0 },

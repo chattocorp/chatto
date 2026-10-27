@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Avviso della stanza",
+      "dismiss": "Chiudi",
+      "body": "Avviso (Markdown)",
+      "too_long": "Gli avvisi possono contenere al massimo {max} caratteri, inclusi gli spazi.",
+      "help": "Salva le correzioni senza mostrare di nuovo l’avviso. Annuncialo per mostrarlo di nuovo ai membri che lo hanno chiuso sui propri dispositivi.",
+      "conflict": "Questo avviso è cambiato durante la modifica. La tua bozza è ancora qui. Copiala se necessario, poi carica l’avviso attuale prima di salvare di nuovo.",
+      "reload": "Carica avviso attuale",
+      "save": "Aggiorna",
+      "republish": "Annuncia",
+      "clear": "Cancella",
+      "clear_confirm_title": "Cancellare l’avviso della stanza?",
+      "clear_confirm_description": "Questo rimuove subito l’avviso attivo per tutti nella stanza. Le tue modifiche non salvate non verranno pubblicate.",
+      "empty": "Non è stato pubblicato alcun avviso.",
+      "edit": "Modifica avviso"
+    },
+    "information": {
+      "description": "Descrizione",
+      "created": "Creata",
+      "title": "Informazioni sulla stanza",
+      "basic": "Generale",
+      "pinned_messages": "Messaggi fissati"
+    },
     "create": {
       "title": "Crea una nuova stanza",
       "description": "Le stanze virtuali sono conversazioni all'interno del tuo server.",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "Lascia stanza",
       "action": "Lascia stanza",
-      "prompt": "Sei sicuro di voler lasciare #{room}? Puoi ricongiungerti più tardi.",
-      "failed": "Impossibile lasciare la stanza"
+      "prompt": "Sei sicuro di voler lasciare #{room}?",
+      "failed": "Impossibile lasciare la stanza",
+      "join_later": "Puoi ricongiungerti più tardi.",
+      "need_invite": "Avrai bisogno di un nuovo invito per entrare in questa stanza.",
+      "rejoin_unknown": "Potresti aver bisogno di un nuovo invito per rientrare."
     },
     "directory": {
       "universal_title": "Le stanze universali vengono unite automaticamente",
@@ -59,7 +85,8 @@
       "join_group_failed": "Impossibile unirsi al gruppo",
       "left": "A sinistra #{room}",
       "left_generic": "Stanza di sinistra",
-      "leave_confirm": "Sei sicuro di voler lasciare #{room}?"
+      "leave_confirm": "Sei sicuro di voler lasciare #{room}?",
+      "invited": "Invitato"
     },
     "server": {
       "remove_title": "Rimuovi server",
@@ -73,7 +100,8 @@
       "beginning": "Questo è l'inizio di questa conversazione.",
       "read_denied": "Non hai l'autorizzazione per leggere i messaggi in questa stanza.",
       "limited_empty": "Non ci sono ancora conversazioni che puoi leggere.",
-      "loading": "Caricamento dei messaggi..."
+      "loading": "Caricamento dei messaggi...",
+      "load_failed": "Impossibile caricare i messaggi."
     },
     "message": {
       "empty": "Nessun messaggio ancora",
@@ -259,6 +287,7 @@
     "unread_separator": "Nuovi messaggi",
     "close_extras": "Chiudi gli extra della camera",
     "dm": {
+      "deactivated_user_notice": "Questo account è disattivato. L’utente non può leggere i messaggi né rispondere.",
       "deleted_user_notice": "L’altro utente è stato eliminato."
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "Indefinita",
       "remove_title": "Rimuovi {user} dalla stanza",
       "suspension_period": "Durata della sospensione"
+    },
+    "invitation": {
+      "invite": "Invita membro",
+      "invited": "Hai ricevuto un invito",
+      "sent": "Inviti inviati",
+      "expires": "Scade il {date}",
+      "unavailable": "Al momento non puoi accettare questo invito. Puoi ancora rifiutarlo.",
+      "accept": "Accetta l’invito",
+      "decline": "Rifiuta",
+      "title": "Invita membri in #{room}",
+      "description": "Scegli chi vuoi invitare. Gli utenti invitati riceveranno una notifica e avranno sette giorni per accettare o rifiutare.",
+      "members": "Membri",
+      "send": "Invia inviti",
+      "failed": "Impossibile invitare {name}: {error}",
+      "already_member": "Già in questa stanza",
+      "invited_by": "Hai ricevuto un invito da",
+      "decline_title": "Rifiutare l’invito?",
+      "decline_join_later": "Puoi entrare in questa stanza più tardi.",
+      "decline_need_invite": "Avrai bisogno di un nuovo invito per entrare in questa stanza."
     }
   }
 }

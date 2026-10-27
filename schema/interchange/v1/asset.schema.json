@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatto.chat/schema/interchange/v1/asset.schema.json",
+  "description": "File metadata and optional local bytes. Missing files must have an explicit reason.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "filename": {
+      "type": "string",
+      "minLength": 1
+    },
+    "media_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "storage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "available"
+            },
+            "path": {
+              "type": "string",
+              "pattern": "^files/[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)?$"
+            },
+            "size": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": ["status", "path", "size", "sha256"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "unavailable"
+            },
+            "reason": {
+              "enum": ["not_exported", "deleted", "access_denied", "external", "unknown"]
+            }
+          },
+          "required": ["status", "reason"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": ["id", "filename", "media_type", "storage"],
+  "additionalProperties": false
+}

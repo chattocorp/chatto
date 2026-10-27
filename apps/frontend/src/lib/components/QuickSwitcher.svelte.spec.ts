@@ -1,3 +1,4 @@
+import '../../app.css';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -360,6 +361,14 @@ afterAll(() => {
 });
 
 describe('QuickSwitcher', () => {
+  it('focuses the search input with text large enough to avoid iOS focus zoom', async () => {
+    const { container } = await renderOpenSwitcher();
+    const search = input(container);
+
+    await expect.element(search).toHaveFocus();
+    expect(Number.parseFloat(getComputedStyle(search).fontSize)).toBeGreaterThanOrEqual(16);
+  });
+
   it('opens with server, destination, room, and DM results from mocked data', async () => {
     const { container } = await renderOpenSwitcher();
 
@@ -431,6 +440,25 @@ describe('QuickSwitcher', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/overview');
     });
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/overview');
+  });
+
+  it('hides new-DM candidates while deactivated and restores them without reopening', async () => {
+    const profiles = mocks.store.projection.users;
+    profiles.set(
+      'inactive-target',
+      new DirectoryMember({
+        user: { id: 'inactive-target', login: 'statusperson', displayName: 'Status Person' }
+      })
+    );
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, 'statusperson');
+    expect(resultButtons(container)).toHaveLength(1);
+    profiles.setDeactivated('inactive-target', true);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(0);
+    profiles.setDeactivated('inactive-target', false);
+    flushSync();
+    expect(resultButtons(container)).toHaveLength(1);
   });
 
   it('finds existing conversations locally and opens the room without starting a DM', async () => {

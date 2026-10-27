@@ -185,6 +185,7 @@ export class RoomMembersStore {
   private readonly api: MemberDirectoryAPI | null;
   private readonly roomId: string;
   #loadId = 0;
+  #disposed = false;
   #searchCache = new ReactiveMap<string, MemberSearchCacheEntry>();
   #membershipChanges = new ReactiveMap<string, boolean>();
   #minimumCursor: string | undefined;
@@ -279,7 +280,7 @@ export class RoomMembersStore {
 
   async loadInitial(): Promise<void> {
     // The projection has the complete membership, so a server read adds nothing.
-    if (!this.roomId || !this.api || this.#projected !== null) return;
+    if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = true;
     this.#fullScanFinished = false;
@@ -311,7 +312,7 @@ export class RoomMembersStore {
     reauthorize?: boolean;
     minimumCursor?: string;
   } = {}): Promise<void> {
-    if (!this.roomId || !this.api || this.#projected !== null) return;
+    if (this.#disposed || !this.roomId || !this.api || this.#projected !== null) return;
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     const loadId = ++this.#loadId;
     this.#isInitialLoading = !this.#hasFirstPage;
@@ -350,7 +351,7 @@ export class RoomMembersStore {
 
   async searchMembers(search: string, limit = MENTION_MEMBER_SEARCH_LIMIT): Promise<RoomMember[]> {
     const normalizedSearch = search.trim();
-    if (!normalizedSearch || this.hasLoadedAll || !this.roomId || !this.api) {
+    if (!normalizedSearch || this.hasLoadedAll || this.#disposed || !this.roomId || !this.api) {
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
 
@@ -377,6 +378,7 @@ export class RoomMembersStore {
   }
 
   private async searchAllMembers(search: string): Promise<void> {
+    if (this.#disposed) return;
     const query = search.trim().toLowerCase();
     const loadId = this.#loadId;
     let ids: string[] = [];
@@ -426,7 +428,7 @@ export class RoomMembersStore {
   /** Apply membership deltas even while this room is not mounted. A delta
    * during offset pagination restarts that read to avoid skipped rows. */
   async applyMembership(userId: string, joined: boolean, minimumCursor?: string): Promise<void> {
-    if (!userId || !this.api) return;
+    if (!userId || this.#disposed || !this.api) return;
     this.#minimumCursor = minimumCursor ?? this.#minimumCursor;
     this.#membershipChanges.set(userId, joined);
     if (!joined && !this.#users) this.#standaloneProfiles.delete(userId);
@@ -469,6 +471,15 @@ export class RoomMembersStore {
   /** Discard snapshots after a recovery gap or an authorization boundary. */
   resetProjectionState(): void {
     this.reset();
+  }
+
+  /**
+   * Stop the store: discard reads in progress and start no new ones. The
+   * loaded members stay readable. Idempotent.
+   */
+  dispose(): void {
+    this.#disposed = true;
+    this.#loadId++;
   }
 
   /** Publish connected members without waiting for unrelated profile batches.

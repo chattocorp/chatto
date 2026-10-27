@@ -1,0 +1,77 @@
+name: publish-chatto-client
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Manual runs verify and save a package without publishing it.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-chatto-client-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          turbo-remote-cache: 'false'
+          install-cli-deps: 'false'
+      - name: Check package identity
+        run: mise x -- pnpm --filter @chatto/client check:release --verify-only
+      - name: Check release tag and registry history
+        if: github.event_name == 'push'
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
+        run: mise x -- pnpm --filter @chatto/client check:release
+      - run: mise x -- pnpm --filter @chatto/client check
+      - run: mise x -- pnpm --filter @chatto/client test
+      - name: Build and test the release tarball
+        run: mise x -- pnpm --filter @chatto/client test:package
+        env:
+          CHATTO_CLIENT_RELEASE_DIR: ${{ runner.temp }}/chatto-client-release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: chatto-client-package
+          path: ${{ runner.temp }}/chatto-client-release/*.tgz
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push'
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.22.1'
+      - run: npm install --global npm@11.19.0
+      - uses: actions/download-artifact@v8
+        with:
+          name: chatto-client-package
+          path: release
+      - name: Publish the tested tarball with trusted publishing
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          packages=(./release/*.tgz)
+          test "${#packages[@]}" -eq 1
+          dist_tag=latest
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            dist_tag=next
+          fi
+          npm publish "${packages[0]}" --tag "$dist_tag" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org

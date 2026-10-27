@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-10-20
+**Last reviewed:** 2026-10-25
 
 ## Overview
 
@@ -25,16 +25,25 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - Selecting **Send message** or a quick-switcher user result first opens that recipient's DM destination. The destination creates or finds the room, shows a loading state until room data is available, and then opens the conversation. A failed attempt stays at the destination with a retry action. Opening a user menu does not create a room.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
+- DMs are sorted by latest message time, newest first, including thread replies.
+  A new message moves an older conversation into its current position without a
+  page reload. **Show older** uses the same order. Unknown activity times follow
+  known times; equal times keep their existing navigation order.
 - The expanded DM section shows conversations with a message in the last seven
   days. Thread replies count. Unread conversations, conversations with
   notifications that need attention, the current conversation, and conversations
   with active calls stay visible regardless of age.
-- **Show older (N)** shows the remaining conversations.
-  **Show less** restores the seven-day filter. This display choice is local to
+- If these rules show fewer than three conversations, the section adds the
+  most recently active older conversations until three are visible. If fewer
+  than three conversations have message history, it shows all of them.
+- **Show older (N)** appears only when more conversations are hidden and shows
+  those conversations. **Show less** restores the seven-day filter with the
+  minimum of three conversations. This display choice is local to
   the sidebar and does not archive conversations. The Quick Switcher still
   includes older conversations. The collapsed section keeps its attention rules.
 - When a DM has no notification badge, its row shows the elapsed time since
-  the latest message, including replies: `min`, `h`, or `d`. The unread dot
+  the latest message, including replies: `now` for less than one minute, then
+  `min`, `h`, or `d`. The unread dot
   and active call indicator remain visible. Unknown activity times have no age.
   The full date and time appear on hover. Narrow sidebar rows hide ages to
   leave more space for names; notification badges stay visible.
@@ -187,11 +196,13 @@ writable; a read-only DM state is not part of this decision.
 
 ### 10. Derive sidebar visibility from activity
 
-**Decision:** Use a fixed seven-day window and existing attention state.
+**Decision:** Use a fixed seven-day window and existing attention state, with
+a minimum of three conversations when available.
 Keep the complete conversation directory available to navigation and search.
 **Why:** This reduces long sidebar lists without a per-conversation archive
 choice that must be stored and shared across clients. Seven days includes a
-normal working week.
+normal working week. The minimum keeps recent contacts available when no
+conversation has activity in that window.
 **Tradeoff:** Old unread conversations remain visible. The cutoff is not
 configurable.
 

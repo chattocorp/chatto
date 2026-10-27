@@ -1,0 +1,85 @@
+syntax = "proto3";
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
+import "google/protobuf/timestamp.proto";
+
+// Current lifecycle state. Expiry does not extend when the invitation is read.
+enum RoomInvitationStatus {
+  ROOM_INVITATION_STATUS_UNSPECIFIED = 0;
+  ROOM_INVITATION_STATUS_PENDING = 1;
+  ROOM_INVITATION_STATUS_ACCEPTED = 2;
+  ROOM_INVITATION_STATUS_DECLINED = 3;
+  ROOM_INVITATION_STATUS_EXPIRED = 4;
+}
+// An invitation visible only to its sender and recipient.
+message RoomInvitation {
+  string id = 1;
+  string room_id = 2;
+  string sender_id = 3;
+  string recipient_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  RoomInvitationStatus status = 7;
+  // True only for the recipient while current room and sender rules permit acceptance.
+  bool can_accept = 8;
+}
+message CreateRoomInvitationRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string recipient_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+message CreateRoomInvitationResponse {
+  RoomInvitation invitation = 1;
+}
+message GetRoomInvitationRequest {
+  string invitation_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+message GetRoomInvitationResponse {
+  RoomInvitation invitation = 1;
+}
+message BatchGetRoomInvitationsRequest {
+  repeated string invitation_ids = 1 [(buf.validate.field).repeated.max_items = 100];
+}
+message BatchGetRoomInvitationsResponse {
+  repeated RoomInvitation invitations = 1;
+}
+message ListRoomInvitationsRequest {
+  PageRequest page = 1;
+  // Select sent invitations instead of invitations received by the caller.
+  bool sent = 2;
+  // Restrict to unexpired pending invitations.
+  bool pending_only = 3;
+}
+message ListRoomInvitationsResponse {
+  repeated RoomInvitation invitations = 1;
+  PageInfo page = 2;
+}
+message AcceptRoomInvitationRequest {
+  string invitation_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+message AcceptRoomInvitationResponse {
+  RoomInvitation invitation = 1;
+}
+message DeclineRoomInvitationRequest {
+  string invitation_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+message DeclineRoomInvitationResponse {
+  RoomInvitation invitation = 1;
+}
+// Invitations grant membership only after the recipient accepts them.
+service RoomInvitationService {
+  // Requires room membership and room.invite. A duplicate from the same sender returns the pending invitation.
+  // A pending invitation from a different sender returns INVALID_ARGUMENT.
+  rpc CreateRoomInvitation(CreateRoomInvitationRequest) returns (CreateRoomInvitationResponse);
+  // Returns NOT_FOUND for absent or inaccessible invitations.
+  rpc GetRoomInvitation(GetRoomInvitationRequest) returns (GetRoomInvitationResponse);
+  // Omits absent and inaccessible invitations. Accepts at most 100 IDs.
+  rpc BatchGetRoomInvitations(BatchGetRoomInvitationsRequest) returns (BatchGetRoomInvitationsResponse);
+  // Lists the caller's received or sent invitations, newest first. Default 50, maximum 100.
+  rpc ListRoomInvitations(ListRoomInvitationsRequest) returns (ListRoomInvitationsResponse);
+  // Recipient-only. Rechecks sender authority and bypasses only room.join.
+  rpc AcceptRoomInvitation(AcceptRoomInvitationRequest) returns (AcceptRoomInvitationResponse);
+  // Recipient-only. Does not change membership or notification preferences.
+  rpc DeclineRoomInvitation(DeclineRoomInvitationRequest) returns (DeclineRoomInvitationResponse);
+}

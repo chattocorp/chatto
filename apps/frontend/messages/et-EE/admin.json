@@ -52,6 +52,11 @@
       "subtitle": "Serveri identiteet, kaubamärk ja sõnumid"
     },
     "members": {
+      "deactivate": "Inaktiveeri konto",
+      "reactivate": "Aktiveeri konto uuesti",
+      "deactivate_description": "Kasutaja ei saa enam seda serverit kasutada. Kõik seansid lõpetatakse kohe. Andmed säilivad. Saate konto hiljem uuesti aktiveerida.",
+      "deactivated_description": "See konto on inaktiveeritud. Pärast uuesti aktiveerimist saab kasutaja taas sisse logida. Vanad seansid jäävad kehtetuks.",
+      "deactivation_failed": "Konto juurdepääsu ei saanud muuta.",
       "title": "liikmed",
       "subtitle": "Saate vaadata ja hallata serveriliikmeid ja nende rolle",
       "search": "Otsige liikmeid",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Ruumipõhised alistamise load (kihina ruumi rühma peal)",
       "permissions_page_title": "Load – {name}",
       "back_to_rooms": "Tagasi tubadesse",
-      "group_permissions_hint": "Selle rühma kanaliruumide grupipõhised alistamised. Vaikeväärtused on päritud serveri ulatuselt. Üksikud ruumid saavad oma lubade lehel olevaid õigusi veelgi alistada.",
+      "group_permissions_hint": "Määrake rollide õigused kõigile selle rühma tubadele. Need asendavad serveri vaikeseaded. Üksikud toad saavad need seaded üle kirjutada.",
       "room_permissions_hint": "Need seaded kehtivad ainult selles ruumis. Need asendavad sama rolli või kasutaja puhul ruumirühma ja serveri seaded. Kui soovite, et siin saaksid midagi teha ainult mõned rollid, määrake everyone jaoks Keela ja nende rollide jaoks Luba.",
       "loading": "Ruumide laadimine...",
       "empty_groups": "Ruumigruppe pole veel",

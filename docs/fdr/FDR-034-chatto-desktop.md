@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -47,14 +47,84 @@ system-browser authentication, and clean-machine media behavior are hardened.
   publisher identity; bundled third-party libraries may retain their original
   valid publisher. Local, pull-request, and Linux artifacts are not trusted
   release builds.
-- Chatto Desktop has an independent version and changelog. Its release tags use
-  `chatto-desktop/v{version}` and do not change the Chatto server version.
-- Each release rebuilds and embeds the official frontend from the Desktop tag's
-  commit. The frontend build identity combines the Desktop version with that
-  commit's abbreviated SHA so the bundled source revision remains explicit
-  even while Chatto and Chatto Desktop release independently.
+- Chatto Desktop shares the server and frontend version, release commit,
+  changelog, and `v{version}` tag. Each release embeds the frontend from that
+  commit and displays the shared version. Manual verification builds display
+  a development version and abbreviated commit SHA.
+- Desktop downloads are attached to the Chatto release. Signing failures can
+  delay those downloads, but do not block server publication. Matching desktop
+  and server versions are not required; existing compatibility rules apply.
+- Windows users can install through a self-contained installer without
+  administrator rights. It adds a Start menu shortcut and a Windows Settings
+  uninstall entry. Running a newer installer updates the application while
+  preserving the existing profile. The installer and uninstaller are signed
+  with ChattoCorp's publisher identity. The ZIP remains available.
+- The installed Windows application uses the same profile as the ZIP version.
+  Uninstall removes application files and shortcuts but preserves registrations,
+  credentials, and preferences. Users must close the ZIP application before
+  switching to the installed application. Old extracted folders are not removed.
+  Updates remain manual.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
+- Local macOS development bundles can use the separate **Chatto Desktop Dev**
+  identity, helper identity, and app-data directory. This keeps development
+  permissions and sessions separate from the official app. Ad-hoc signed
+  rebuilds can still require a new permission grant; a stable signing
+  certificate preserves the code identity across rebuilds.
+- The Diagnostics menu can copy a bounded, in-memory native screen-share
+  performance report. It includes codec, encoder, resolution, frame rate,
+  bitrate, and network statistics without source names, account identifiers,
+  addresses, or credentials. Reports are not sent automatically.
+- Development and release builds default to tuned H.264 with one layer and
+  resolution priority. Tall and square sources scale to fit the negotiated
+  decoder's frame-size limit while retaining the full image. Automatic mode
+  uses hardware VBR on macOS 26 or later.
+  Older systems, or hardware that rejects VBR setup, use the tuned average-rate
+  mode. This preserves the H.264 receiver contract, including tested Firefox
+  viewing, without increasing the 8 Mbps video maximum. Diagnostics retain
+  all explicit comparisons and a default-mode selection for the next share.
+  HEVC remains opt-in. The publisher does not send a parallel backup codec.
+  An explicit server rejection of HEVC retries stock H.264. If a viewer cannot
+  receive HEVC, the sender must select H.264 and restart.
+- The Diagnostics menu also offers a single-layer H.264 comparison at up to
+  8 Mbps of video. It removes lower-resolution layers without changing the
+  capture settings or frame-rate limit. This mode prioritizes resolution and
+  permits frame rate to decrease under pressure. All viewers receive the same
+  encoded resolution. Reports identify the selected layer mode and include an outgoing
+  bandwidth estimate when available. Samples identify the resolution preference.
+  Regular codec options restore simulcast and frame-rate priority.
+- A separate **Test Tuned H.264** option uses a custom hardware VideoToolbox
+  encoder with High profile, one layer, and resolution priority. Its average
+  target is 90% of WebRTC's current video allowance. Its five-second data limit
+  follows that allowance, capped at 8 Mbps; zero pauses encoding. Shorter bursts
+  can exceed this limit, as with the SDK encoder. Audio and transport overhead
+  are additional. This experiment tests the High-profile and rate-control
+  headroom gains from the local synthetic benchmark in a live call. It requires
+  a compatible High-profile receiver and does not fall back to Baseline or
+  software encoding. Reports include applied bitrate,
+  hardware status, actual SPS profile, frame counts, and VideoToolbox errors.
+- The default VBR mode and **Test Tuned H.264 VBR** option use macOS 26 variable-bitrate
+  controls. Its target is the smaller of 6 Mbps or 90% of WebRTC's allowance.
+  Its VBV maximum follows that allowance up to 8 Mbps. A 250 ms VBV buffer
+  with zero initial delay replaces the average-rate mode's five-second data
+  limit. The mode preserves single-layer publication and resolution priority.
+  Explicit VBR requires hardware support and does not silently fall back.
+  Automatic mode retries a failed VBR setup once with a fresh average-rate
+  session. The fallback remains active for that encoder. Local tests found
+  better synthetic motion quality with additional encoder delay. Manual
+  Firefox and production tests showed smooth playback. These tests do not
+  cover all receiver hardware or impaired networks. Diagnostics identify
+  requested and actual modes, fallback status, accepted target and maximum,
+  buffer duration, and input queue drops.
+- The native publisher uses LiveKit Swift 2.18.0. The SDK seeds screen-share
+  bandwidth estimation at 90% of the active layers' configured bitrate limits.
+  For the single-layer comparison, this is a 7.2 Mbps startup hint, not a
+  guaranteed send rate. Congestion control remains active. Reports include the
+  SDK version and sample every second for the first 20 seconds, then every
+  five seconds. When available, they include capture, encoded, and sent frame
+  rates, packet send delay, and the target-byte rate for encoded frames over
+  the same interval as the actual bitrate. This target-byte rate is not a
+  network bandwidth estimate. Missing counters remain absent.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
   callback. Desktop API and realtime access use bearer credentials and require
   no origin configuration.
@@ -92,6 +162,16 @@ application's user-data directory. HTTP and HTTPS retain Chromium's normal
 network behavior. The custom shell origin is frontend-only and is never probed
 as a Chatto HTTP backend; discovery, viewer, and realtime requests target only
 registered HTTP or HTTPS server origins.
+
+YouTube player frames loaded directly by the local frontend receive the fixed
+app identity `https://run.chatto.desktop/` as their HTTP referrer. YouTube
+requires this identity because the custom origin does not supply an HTTP
+referrer. The value contains no server address, room path, or user identifier.
+The player still connects directly to YouTube, which receives the user's IP
+address and requested video ID. This exception applies only to the existing
+`youtube-nocookie.com` embed endpoint; other requests keep normal browser
+referrer handling. See [YouTube's client identity requirements](https://developers.google.com/youtube/terms/required-minimum-functionality#api-client-identity-and-credentials).
+
 **Why:** A stable secure origin keeps local storage, IndexedDB, service workers,
 OAuth callbacks, and registered servers reachable on every launch. The
 dedicated scheme cannot collide with a local service and avoids intercepting
@@ -111,17 +191,16 @@ must tightly constrain popup and navigation behavior. The host opens a new
 window only on the frontend's `/servers/authorize` launch page and sends all
 other window requests to the system browser.
 
-### 5. Release the desktop shell independently
+### 5. Synchronize Desktop and Chatto releases
 
-**Decision:** Chatto Desktop uses an independent pre-1.0 release stream,
-changelog, tag namespace, and artifacts while continuing to bundle the official
-frontend revision at its release tag. Release builds identify that frontend as
-`{desktop-version}+{commit-sha}` and verify the generated identity before
-packaging.
-**Why:** Desktop packaging, platform fixes, and runtime upgrades have a cadence
-different from Chatto server releases.
-**Tradeoff:** Compatibility diagnostics must distinguish the desktop shell
-version from the bundled Chatto client version.
+**Decision:** Desktop and Chatto share one version, release commit, changelog,
+and GitHub release. Every release builds Desktop from the same source and
+uses the shared version for its frontend. See ADR-118.
+**Why:** Users can compare desktop and web frontend versions directly, and
+maintainers prepare one release instead of two.
+**Tradeoff:** Each release requires desktop builds and signing approvals, and
+desktop-only fixes also advance the Chatto version. Desktop uploads can arrive
+after server publication so signing failures do not block security fixes.
 
 ### 6. Build all supported host bundles and sign trusted releases
 
@@ -186,12 +265,13 @@ participant model shared across platform providers.
 **Tradeoff:** Chatto needs an auxiliary publisher-token RPC, companion-aware
 webhook and reconciliation filtering, and frontend participant merging. The
 native helper also becomes responsible for matching the primary call's E2EE
-and publication policy. Its aspect-ratio-preserving H.264 publication includes
-1920-, 1280-, and 640-pixel maximum-edge quality classes at 60, 60, and 30 fps,
-and dynacast pauses layers that no subscriber requests. Simultaneously active
-qualities increase native encoding and upload cost. These are explicit
-control-plane costs in exchange for a materially shorter and more efficient
-media path that can adapt to each receiver.
+and publication policy. Its default H.264 publication preserves aspect ratio
+within a 1920-pixel maximum edge at up to 60 fps. One layer reduces encoding
+and upload cost but gives all viewers the same encoded resolution. The
+Diagnostics menu retains stock H.264 and HEVC simulcast comparisons with
+1920-, 1280-, and 640-pixel quality classes at 60, 60, and 30 fps. Simultaneously
+active layers increase encoding and upload cost. The native media path avoids
+the prototype's extra decode and re-encode.
 
 ### 9. Keep background notification transport host-owned
 
@@ -218,15 +298,15 @@ The iOS shell shares the frontend but uses native system authentication. See
 [FDR-048](FDR-048-chatto-mobile.md) and
 [ADR-099](../adr/ADR-099-capacitor-mobile-client.md).
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities), ADR-074 (device-local server catalogue), ADR-118 (synchronized releases)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-013 (Web Push Notifications), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions
 
 - How system-browser OAuth callbacks and normal external links should return to
   or focus the application on every platform.
-- Which installer and automatic-update strategy should follow the first
-  downloadable archives.
+- Which automatic-update strategy and macOS/Linux installers should follow the
+  Windows installer and downloadable archives.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
 - Which higher native screen-share quality profiles should be offered once representative

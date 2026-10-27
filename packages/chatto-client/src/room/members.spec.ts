@@ -79,6 +79,26 @@ function createStore(
 }
 
 describe('RoomMembersStore', () => {
+  it('discards a read in progress and starts no reads after dispose', async () => {
+    const page = deferred<MemberDirectoryPage>();
+    const api = new FakeMemberDirectoryAPI([page.promise, pageResult([user('u2')])]);
+    const store = new RoomMembersStore('room', api);
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(api.listRoomMembers).toHaveBeenCalledOnce());
+
+    store.dispose();
+    page.resolve(pageResult([user('u1')]));
+    await loading;
+    expect(store.members).toEqual([]);
+
+    await store.loadInitial();
+    await store.refresh();
+    await store.searchMembers('u');
+    await store.setSearch('u');
+    await store.applyMembership('u3', true);
+    expect(api.listRoomMembers).toHaveBeenCalledOnce();
+    expect(api.batchGetRoomMembers).not.toHaveBeenCalled();
+  });
   it('retains the complete visible membership until all refresh pages arrive', async () => {
     const finalPage = deferred<MemberDirectoryPage>();
     const store = createStore('room', [

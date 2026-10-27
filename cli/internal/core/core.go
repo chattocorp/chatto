@@ -41,6 +41,7 @@ type ChattoCore struct {
 	roomModel                 *RoomModel
 	authorization             *AuthorizationModel
 	roomMemberships           *RoomMembershipModel
+	roomInvitations           *RoomInvitationModel
 	roomLayout                *RoomLayoutModel
 	roomCommands              *RoomCommandModel
 	roomDirectoryReads        *RoomDirectoryReadModel
@@ -372,7 +373,7 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)
 	}
-	if _, err := c.storage.serverEvtStream.Info(ctx); err != nil {
+	if _, err := c.currentEventStreamInfo(ctx); err != nil {
 		return fmt.Errorf("EVT not ready: %w", err)
 	}
 	if err := c.ProjectionHealthError(); err != nil {

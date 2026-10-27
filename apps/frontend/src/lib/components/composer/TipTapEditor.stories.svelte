@@ -24,6 +24,7 @@
   let formattingState = $state<ComposerFormattingState>({
     bold: false,
     italic: false,
+    underline: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -33,11 +34,53 @@
   });
   let indentState = $state(emptyComposerIndentState);
 
+  const quoteExample = `Text *marked with stars* and _marked with underscores_.
+
+> Quoted text *marked with stars* and _marked with underscores_.`;
+  const quoteSource = `${quoteExample}
+>
+> Second paragraph with **strong**, __also strong__, \`inline code\`, and a [link](https://example.com).
+>
+> > Nested quote with *emphasis* and **strong** text.
+>
+> - Bullet with _emphasis_
+> - Bullet with **strong** text
+>
+> 1. Ordered item with *emphasis*
+> 2. Ordered item with __strong__ text`;
+
   function ready(api: ComposerEditorApi) {
     editorApi = api;
     api.setContent(source);
   }
 </script>
+
+<Story name="Shared formatting" asChild>
+  {@const preview =
+    '# Heading\n**Strong** and *emphasis*, `code`, [link](https://example.com).\n> Quote with **strong**, *emphasis*, and `code`.'}
+  <div class="flex w-xl max-w-full flex-col gap-3">
+    <div class="rounded-md border border-border bg-surface p-3">
+      <TipTapEditor placeholder="Visual formatting" onReady={(api) => api.setContent(preview)} />
+    </div>
+    <div class="rounded-md border border-border bg-surface p-3">
+      <MarkdownEditor placeholder="Source formatting" onReady={(api) => api.setContent(preview)} />
+    </div>
+  </div>
+</Story>
+
+<Story name="Blockquote emphasis" asChild>
+  <div class="flex w-xl max-w-full flex-col gap-3">
+    <div class="rounded-md border border-border bg-surface p-3">
+      <TipTapEditor placeholder="Write a quote" onReady={(api) => api.setContent(quoteSource)} />
+    </div>
+    <div class="rounded-md border border-border bg-surface p-3">
+      <MarkdownEditor
+        placeholder="Write quote Markdown"
+        onReady={(api) => api.setContent(quoteExample)}
+      />
+    </div>
+  </div>
+</Story>
 
 <Story name="Footnotes" asChild>
   <div class="flex w-xl max-w-full flex-col gap-3">

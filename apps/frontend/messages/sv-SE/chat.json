@@ -6,6 +6,8 @@
       "confirmation": "I 15 minuter aktiverar detta de ytterligare behörigheter som du har tilldelats på den här servern."
     },
     "notifications": {
+      "next_unread_source": "Gå till nästa olästa källa",
+      "no_unread": "Inga olästa aviseringar",
       "title": "Aviseringar",
       "subtitle": "Här är vad som är nytt",
       "clear_read": "Rensa lästa",
@@ -25,7 +27,8 @@
         "mention": "{actor} nämnde dig",
         "followed_thread": "{actor} svarade i en tråd som du följer",
         "new_message": "{actor} publicerade ett nytt meddelande",
-        "activity": "{actor} skickade en avisering till dig"
+        "activity": "{actor} skickade en avisering till dig",
+        "room_invitation": "{actor} bjöd in dig till ett rum"
       }
     },
     "sign_out": {

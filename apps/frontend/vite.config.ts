@@ -25,7 +25,7 @@ function localeCatalogChunkName(moduleId: string): string | null {
 
   const boundary = catalogBoundary(section as (typeof catalogSections)[number]);
   if (locale === 'en-GB' && boundary !== 'management') return null;
-  return `lingua-${locale}-${boundary}`;
+  return `translatto-${locale}-${boundary}`;
 }
 
 function normalizeHighlightLanguageToken(value: string): string | null {
@@ -242,7 +242,7 @@ export default defineConfig(async ({ command }) => {
       port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
       host: true,
       allowedHosts: ['fatso.fritz.box', '.orb.local'],
-      // Regional Lingua catalogs live beside the Svelte source tree so the
+      // Regional Translatto catalogs live beside the Svelte source tree so the
       // public and chat section imports can remain independently lazy.
       fs: {
         allow: [

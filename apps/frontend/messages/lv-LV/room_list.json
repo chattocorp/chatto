@@ -31,6 +31,7 @@
     "room_actions": "Darbības ar #{room}",
     "open_group_settings": "Atveriet grupas iestatījumus",
     "open_room_settings": "Atveriet istabas iestatījumus",
+    "activity_now": "tagad",
     "older_conversations": "Vecākas sarunas",
     "show_older_conversations": "Rādīt vecākas ({count})",
     "show_fewer_conversations": "Rādīt mazāk"

@@ -612,6 +612,17 @@ func buildPayloadFromOccurrence(
 		roomName = payloadCtx.RoomName
 	}
 
+	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
+		payload.Title = fmt.Sprintf("%s invited you to a room", actorDisplayName)
+		if roomName != "" {
+			payload.Title = fmt.Sprintf("%s invited you to #%s", actorDisplayName, roomName)
+		}
+		payload.Body = "Open the room to accept or decline the invitation."
+		payload.Tag = OccurrenceTag(occurrence)
+		payload.URL = buildNotificationURL(navigationBaseURL, invitation.GetRoomId(), "", "")
+		return payload
+	}
+
 	target := occurrenceMessageReference(occurrence)
 	if target == nil {
 		payload.Title = "New notification"
@@ -678,6 +689,9 @@ func buildPayloadFromOccurrence(
 
 // OccurrenceTag returns the stable native-notification tag for an occurrence.
 func OccurrenceTag(occurrence *notificationv1.NotificationOccurrence) string {
+	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
+		return "invitation-" + invitation.GetInvitationId()
+	}
 	target := occurrenceMessageReference(occurrence)
 	if target == nil {
 		return ""

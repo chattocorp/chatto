@@ -6,6 +6,8 @@
       "confirmation": "For 15 minutes, this enables the additional permissions assigned to you on this server."
     },
     "notifications": {
+      "next_unread_source": "Go to next unread source",
+      "no_unread": "No unread notifications",
       "title": "Notifications",
       "subtitle": "Here's what's new",
       "clear_read": "Dismiss read",
@@ -25,7 +27,8 @@
         "mention": "{actor} mentioned you",
         "followed_thread": "{actor} replied in a thread you follow",
         "new_message": "{actor} posted a new message",
-        "activity": "{actor} sent you a notification"
+        "activity": "{actor} sent you a notification",
+        "room_invitation": "{actor} invited you to a room"
       }
     },
     "sign_out": {

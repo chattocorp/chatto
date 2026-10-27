@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Telpas paziņojums",
+      "dismiss": "Aizvērt",
+      "body": "Paziņojums (Markdown)",
+      "too_long": "Paziņojumā var būt ne vairāk kā {max} rakstzīmes, ieskaitot atstarpes.",
+      "help": "Saglabājiet labojumus, nerādot paziņojumu vēlreiz. Izziņojiet to, lai atkal parādītu dalībniekiem, kuri to aizvēra savās ierīcēs.",
+      "conflict": "Paziņojums rediģēšanas laikā ir mainījies. Jūsu melnraksts ir saglabāts. Ja nepieciešams, nokopējiet to un pirms atkārtotas saglabāšanas ielādējiet pašreizējo paziņojumu.",
+      "reload": "Ielādēt pašreizējo paziņojumu",
+      "save": "Atjaunināt",
+      "republish": "Izziņot",
+      "clear": "Notīrīt",
+      "clear_confirm_title": "Notīrīt telpas paziņojumu?",
+      "clear_confirm_description": "Tas nekavējoties noņem aktīvo paziņojumu visiem telpā. Jūsu nesaglabātās izmaiņas netiks publicētas.",
+      "empty": "Neviens paziņojums nav publicēts.",
+      "edit": "Rediģēt paziņojumu"
+    },
+    "information": {
+      "description": "Apraksts",
+      "created": "Izveidota",
+      "title": "Informācija par istabu",
+      "basic": "Vispārīgi",
+      "pinned_messages": "Piespraustie ziņojumi"
+    },
     "create": {
       "title": "Izveidojiet jaunu istabu",
       "description": "Telpas ir sarunas jūsu serverī.",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "Atstāj istabu",
       "action": "Atstāj istabu",
-      "prompt": "Vai tiešām vēlaties atstāt #{room}? Varat pievienoties vēlāk.",
-      "failed": "Neizdevās atstāt telpu"
+      "prompt": "Vai tiešām vēlaties atstāt #{room}?",
+      "failed": "Neizdevās atstāt telpu",
+      "join_later": "Varat pievienoties vēlāk.",
+      "need_invite": "Lai pievienotos šai istabai, būs vajadzīgs jauns uzaicinājums.",
+      "rejoin_unknown": "Lai pievienotos vēlreiz, iespējams, būs vajadzīgs jauns uzaicinājums."
     },
     "directory": {
       "universal_title": "Universālās telpas tiek apvienotas automātiski",
@@ -59,7 +85,8 @@
       "join_group_failed": "Neizdevās pievienoties grupai",
       "left": "Pa kreisi #{room}",
       "left_generic": "Kreisā istaba",
-      "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?"
+      "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?",
+      "invited": "Uzaicināts"
     },
     "server": {
       "remove_title": "Noņemt serveri",
@@ -73,7 +100,8 @@
       "beginning": "Tas ir šīs sarunas sākums.",
       "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā.",
       "limited_empty": "Vēl nav sarunu, kuras vari lasīt.",
-      "loading": "Ielādē ziņas..."
+      "loading": "Ielādē ziņas...",
+      "load_failed": "Neizdevās ielādēt ziņas."
     },
     "message": {
       "empty": "Vēl nav ziņojumu",
@@ -259,6 +287,7 @@
     "unread_separator": "Jaunas ziņas",
     "close_extras": "Aizvērt telpas ekstras",
     "dm": {
+      "deactivated_user_notice": "Šis konts ir deaktivizēts. Lietotājs nevar lasīt ziņojumus vai uz tiem atbildēt.",
       "deleted_user_notice": "Otrs lietotājs ir dzēsts."
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "Bez termiņa",
       "remove_title": "Noņemt {user} no telpas",
       "suspension_period": "Apturējuma ilgums"
+    },
+    "invitation": {
+      "invite": "Uzaicināt dalībnieku",
+      "invited": "Jūs esat uzaicināts",
+      "sent": "Uzaicinājumi nosūtīti",
+      "expires": "Derīgs līdz {date}",
+      "unavailable": "Pašlaik jūs nevarat pieņemt šo uzaicinājumu. Jūs joprojām varat to noraidīt.",
+      "accept": "Pieņemt uzaicinājumu",
+      "decline": "Noraidīt",
+      "title": "Uzaicināt dalībniekus uz #{room}",
+      "description": "Izvēlieties, ko vēlaties uzaicināt. Uzaicinātie lietotāji saņems paziņojumu un varēs pieņemt vai noraidīt uzaicinājumu septiņu dienu laikā.",
+      "members": "Dalībnieki",
+      "send": "Sūtīt uzaicinājumus",
+      "failed": "Neizdevās uzaicināt {name}: {error}",
+      "already_member": "Jau ir šajā istabā",
+      "invited_by": "Tevi uzaicināja",
+      "decline_title": "Noraidīt uzaicinājumu?",
+      "decline_join_later": "Šai istabai vari pievienoties vēlāk.",
+      "decline_need_invite": "Lai pievienotos šai istabai, būs vajadzīgs jauns uzaicinājums."
     }
   }
 }

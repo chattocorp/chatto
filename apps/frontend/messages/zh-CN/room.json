@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "房间公告",
+      "dismiss": "关闭",
+      "body": "公告（Markdown）",
+      "too_long": "公告最多可包含 {max} 个字符，包括空白。",
+      "help": "保存修正不会再次显示公告。选择公告可向已在设备上关闭公告的成员再次显示。",
+      "conflict": "这则公告在你编辑时已更改。你的草稿仍保留在此。请按需复制草稿，然后加载当前公告再保存。",
+      "reload": "加载当前公告",
+      "save": "更新",
+      "republish": "公告",
+      "clear": "清除",
+      "clear_confirm_title": "清除房间公告？",
+      "clear_confirm_description": "这会立即为房间内所有人移除当前公告。你尚未保存的更改不会发布。",
+      "empty": "尚未发布任何公告。",
+      "edit": "编辑公告"
+    },
+    "information": {
+      "description": "描述",
+      "created": "创建时间",
+      "title": "聊天室信息",
+      "basic": "概览",
+      "pinned_messages": "置顶消息"
+    },
     "create": {
       "title": "创建新聊天室",
       "description": "聊天室是服务器内的对话空间。",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "离开聊天室",
       "action": "离开聊天室",
-      "prompt": "确定要退出 #{room} 吗？之后可以重新加入。",
-      "failed": "退出聊天室失败"
+      "prompt": "确定要退出 #{room} 吗？",
+      "failed": "退出聊天室失败",
+      "join_later": "之后可以重新加入。",
+      "need_invite": "你需要新的邀请才能加入此房间。",
+      "rejoin_unknown": "你可能需要新的邀请才能重新加入。"
     },
     "directory": {
       "universal_title": "全员聊天室会自动加入",
@@ -59,7 +85,8 @@
       "join_group_failed": "加入分组失败",
       "left": "已退出 #{room}",
       "left_generic": "已退出聊天室",
-      "leave_confirm": "确定要退出 #{room} 吗？"
+      "leave_confirm": "确定要退出 #{room} 吗？",
+      "invited": "已获邀请"
     },
     "server": {
       "remove_title": "移除服务器",
@@ -73,7 +100,8 @@
       "beginning": "这是本次对话的开端。",
       "read_denied": "你没有权限阅读此房间中的消息。",
       "limited_empty": "还没有你可以阅读的对话。",
-      "loading": "正在加载消息..."
+      "loading": "正在加载消息...",
+      "load_failed": "无法加载消息。"
     },
     "message": {
       "empty": "暂无消息",
@@ -259,6 +287,7 @@
     "unread_separator": "新消息",
     "close_extras": "关闭聊天室附加内容",
     "dm": {
+      "deactivated_user_notice": "此账号已停用。该用户无法阅读或回复消息。",
       "deleted_user_notice": "对方用户已被删除。"
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "无限期",
       "remove_title": "将 {user} 移出聊天室",
       "suspension_period": "暂停期限"
+    },
+    "invitation": {
+      "invite": "邀请成员",
+      "invited": "你已收到邀请",
+      "sent": "邀请已发送",
+      "expires": "到期时间：{date}",
+      "unavailable": "你目前无法接受此邀请，但仍可拒绝。",
+      "accept": "接受邀请",
+      "decline": "拒绝",
+      "title": "邀请成员加入 #{room}",
+      "description": "选择你想邀请的用户。受邀用户将收到通知，并可在七天内接受或拒绝邀请。",
+      "members": "成员",
+      "send": "发送邀请",
+      "failed": "无法邀请 {name}：{error}",
+      "already_member": "已在此房间中",
+      "invited_by": "邀请你加入的用户：",
+      "decline_title": "拒绝邀请？",
+      "decline_join_later": "你可以稍后加入此房间。",
+      "decline_need_invite": "你需要新的邀请才能加入此房间。"
     }
   }
 }

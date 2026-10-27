@@ -196,6 +196,66 @@ export class NotificationStore {
     this.#nextExpiryAtSignal.set(value);
   }
   readonly revokedRoomIds = new ReactiveSet<string>();
+  readonly #roomInvitations = new ReactiveMap<string, string>();
+
+  /** Pending invitations expose only their exact occurrence, never room messages. */
+  canDisplayOccurrence(occurrence: NotificationOccurrenceItem): boolean {
+    const roomId = occurrence.room?.id;
+    return (
+      !roomId ||
+      !this.revokedRoomIds.has(roomId) ||
+      (occurrence.signalKind === NotificationSignalKind.ROOM_INVITATION &&
+        !!occurrence.invitationId &&
+        this.#roomInvitations.get(roomId) === occurrence.invitationId)
+    );
+  }
+
+  /** Keep server pagination/counts while removing revoked room content. */
+  #privacySafePage(
+    page: NotificationOccurrencePage,
+    authoritative = true
+  ): NotificationOccurrencePage {
+    const roomUnreadCounts = { ...page.roomUnreadCounts };
+    const roomImportantUnreadCounts = { ...page.roomImportantUnreadCounts };
+    let removedUnread = 0;
+    let removedImportant = 0;
+    for (const roomId of this.revokedRoomIds) {
+      // A recipient has at most one pending invitation per room. Server counts
+      // can include it even when its occurrence is on a later page.
+      const invitationId = this.#roomInvitations.get(roomId);
+      const matchesInvitation = (row: NotificationOccurrenceItem) =>
+        row.room?.id === roomId &&
+        row.signalKind === NotificationSignalKind.ROOM_INVITATION &&
+        row.invitationId === invitationId;
+      const knownInvitation =
+        authoritative && invitationId ? page.occurrences.find(matchesInvitation) : undefined;
+      // Only this server page can confirm a read. Retained rows can be
+      // optimistic; off-page invitations use the authoritative aggregate.
+      const limit = invitationId && knownInvitation?.unread !== false ? 1 : 0;
+      const unread = Math.min(limit, roomUnreadCounts[roomId] ?? 0);
+      const important = Math.min(unread, roomImportantUnreadCounts[roomId] ?? 0);
+      removedUnread += (roomUnreadCounts[roomId] ?? 0) - unread;
+      removedImportant += (roomImportantUnreadCounts[roomId] ?? 0) - important;
+      if (unread) roomUnreadCounts[roomId] = unread;
+      else delete roomUnreadCounts[roomId];
+      if (important) roomImportantUnreadCounts[roomId] = important;
+      else delete roomImportantUnreadCounts[roomId];
+    }
+    return {
+      ...page,
+      consumedCount: page.consumedCount ?? page.occurrences.length,
+      occurrences: page.occurrences
+        .filter((row) => this.canDisplayOccurrence(row))
+        .map((row) => this.#privacySafeOccurrence(row)),
+      unreadCount: Math.max(0, page.unreadCount - removedUnread),
+      importantUnreadCount: Math.max(
+        0,
+        Math.min(page.importantUnreadCount - removedImportant, page.unreadCount - removedUnread)
+      ),
+      roomUnreadCounts,
+      roomImportantUnreadCounts
+    };
+  }
   /** Users whose copied profile data must not be rendered from stale notification pages. */
   readonly scrubbedUserIds = new ReactiveSet<string>();
   readonly #loadingSignal = signal(false);
@@ -244,40 +304,25 @@ export class NotificationStore {
 
   /** Replace notification state from the realtime projection. */
   replaceOccurrenceProjection(page: NotificationOccurrencePage): void {
+    this.#replaceSafeOccurrenceProjection(this.#privacySafePage(page));
+  }
+
+  /** Install a page whose room access and actor data have already been checked. */
+  #replaceSafeOccurrenceProjection(page: NotificationOccurrencePage): void {
     this.pushRevision++;
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
     this.#pendingDeletionById.clear();
     this.#pendingReadById.clear();
     this.#pendingReadRequestById.clear();
-    const occurrences = page.occurrences
-      .filter((occurrence) => !occurrence.room || !this.revokedRoomIds.has(occurrence.room.id))
-      .map((occurrence) => this.#privacySafeOccurrence(occurrence));
-    const revokedUnreadCount = [...this.revokedRoomIds].reduce(
-      (total, roomId) => total + (page.roomUnreadCounts[roomId] ?? 0),
-      0
-    );
-    const revokedImportantUnreadCount = [...this.revokedRoomIds].reduce(
-      (total, roomId) => total + (page.roomImportantUnreadCounts[roomId] ?? 0),
-      0
-    );
-    this.occurrences = occurrences;
+    this.occurrences = page.occurrences;
     this.consumedCount = page.consumedCount ?? page.occurrences.length;
     this.totalCount = page.totalCount;
     this.hasMore = page.hasMore && this.consumedCount > 0;
-    this.unreadNotificationCount = Math.max(0, page.unreadCount - revokedUnreadCount);
-    this.importantUnreadNotificationCount = Math.max(
-      0,
-      Math.min(
-        page.importantUnreadCount - revokedImportantUnreadCount,
-        this.unreadNotificationCount
-      )
-    );
-    this.roomUnreadCounts = omitRecordKeys(page.roomUnreadCounts, this.revokedRoomIds);
-    this.roomImportantUnreadCounts = omitRecordKeys(
-      page.roomImportantUnreadCounts,
-      this.revokedRoomIds
-    );
+    this.unreadNotificationCount = page.unreadCount;
+    this.importantUnreadNotificationCount = page.importantUnreadCount;
+    this.roomUnreadCounts = page.roomUnreadCounts;
+    this.roomImportantUnreadCounts = page.roomImportantUnreadCounts;
     this.nextExpiryAt = page.nextExpiryAt ?? null;
     this.loading = false;
     this.hasLoaded = true;
@@ -288,6 +333,7 @@ export class NotificationStore {
   resetProjectionState(): void {
     this.pushRevision++;
     this.#handledPushIds.clear();
+    this.#roomInvitations.clear();
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
     this.#pendingDeletionById.clear();
@@ -321,55 +367,47 @@ export class NotificationStore {
     }
   }
 
-  /** Drop notification payloads for a room at an authorization boundary. */
-  clearRoom(roomId: string): void {
+  /** Revoke message notifications, retaining only an explicit pending invitation.
+   * Returns true when a new invitation grant requires a fresh notification read.
+   */
+  clearRoom(roomId: string, invitationId?: string): boolean {
+    const invitationAdded = !!invitationId && this.#roomInvitations.get(roomId) !== invitationId;
     this.#authoritativeGeneration++;
-    const roomOccurrenceIds = new Set(
-      this.occurrences
-        .filter((occurrence) => occurrence.room?.id === roomId)
-        .map((occurrence) => occurrence.id)
-    );
-    for (const id of roomOccurrenceIds) {
-      this.#pendingDeletionById.delete(id);
-      this.#pendingReadById.delete(id);
-      this.#pendingReadRequestById.delete(id);
-    }
+    if (invitationId) this.#roomInvitations.set(roomId, invitationId);
+    else this.#roomInvitations.delete(roomId);
     this.revokedRoomIds.add(roomId);
-    const removedUnreadOccurrences =
-      this.roomUnreadCounts[roomId] ??
-      this.occurrences.filter((occurrence) => occurrence.unread && occurrence.room?.id === roomId)
-        .length;
-    const removedImportantUnreadOccurrences =
-      this.roomImportantUnreadCounts[roomId] ??
-      this.occurrences.filter(
-        (occurrence) =>
-          occurrence.unread &&
-          occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
-          occurrence.room?.id === roomId
-      ).length;
-    this.occurrences = this.occurrences.filter((occurrence) => occurrence.room?.id !== roomId);
+    const removed = this.occurrences.filter((row) => !this.canDisplayOccurrence(row));
+    for (const occurrence of removed) {
+      this.#pendingDeletionById.delete(occurrence.id);
+      this.#pendingReadById.delete(occurrence.id);
+      this.#pendingReadRequestById.delete(occurrence.id);
+    }
+    const safe = this.#privacySafePage(
+      {
+        occurrences: this.occurrences,
+        unreadCount: this.unreadNotificationCount,
+        importantUnreadCount: this.importantUnreadNotificationCount,
+        roomUnreadCounts: this.roomUnreadCounts,
+        roomImportantUnreadCounts: this.roomImportantUnreadCounts,
+        totalCount: this.totalCount,
+        hasMore: this.hasMore
+      },
+      false
+    );
+    this.occurrences = safe.occurrences;
     this.consumedCount = this.occurrences.length;
-    this.totalCount = Math.max(this.occurrences.length, this.totalCount - roomOccurrenceIds.size);
-
-    if (removedUnreadOccurrences > 0) {
-      this.unreadNotificationCount = Math.max(
-        0,
-        this.unreadNotificationCount - removedUnreadOccurrences
-      );
-    }
-    if (removedImportantUnreadOccurrences > 0) {
-      this.importantUnreadNotificationCount = Math.max(
-        0,
-        this.importantUnreadNotificationCount - removedImportantUnreadOccurrences
-      );
-    }
-    this.roomUnreadCounts = withoutRecordKey(this.roomUnreadCounts, roomId);
-    this.roomImportantUnreadCounts = withoutRecordKey(this.roomImportantUnreadCounts, roomId);
+    this.totalCount = Math.max(this.occurrences.length, this.totalCount - removed.length);
+    this.unreadNotificationCount = safe.unreadCount;
+    this.importantUnreadNotificationCount = safe.importantUnreadCount;
+    this.roomUnreadCounts = safe.roomUnreadCounts;
+    this.roomImportantUnreadCounts = safe.roomImportantUnreadCounts;
     this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
+    return invitationAdded;
   }
 
-  /** Re-open a room only after an explicit positive membership projection. */
+  /** Re-open message notifications only after an explicit membership projection. */
   restoreRoom(roomId: string): void {
+    this.#roomInvitations.delete(roomId);
     if (!this.revokedRoomIds.delete(roomId)) return;
     this.#authoritativeGeneration++;
   }
@@ -439,32 +477,8 @@ export class NotificationStore {
       if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
       return await this.#fetchPage(offset);
     }
-    const revokedUnreadCount = [...this.revokedRoomIds].reduce(
-      (total, roomId) => total + (page.roomUnreadCounts[roomId] ?? 0),
-      0
-    );
-    const revokedImportantUnreadCount = [...this.revokedRoomIds].reduce(
-      (total, roomId) => total + (page.roomImportantUnreadCounts[roomId] ?? 0),
-      0
-    );
-    const safePage = {
-      ...page,
-      consumedCount: page.consumedCount ?? page.occurrences.length,
-      occurrences: page.occurrences
-        .filter((occurrence) => !occurrence.room || !this.revokedRoomIds.has(occurrence.room.id))
-        .map((occurrence) => this.#privacySafeOccurrence(occurrence)),
-      unreadCount: Math.max(0, page.unreadCount - revokedUnreadCount),
-      importantUnreadCount: Math.max(
-        0,
-        Math.min(
-          page.importantUnreadCount - revokedImportantUnreadCount,
-          page.unreadCount - revokedUnreadCount
-        )
-      ),
-      roomUnreadCounts: omitRecordKeys(page.roomUnreadCounts, this.revokedRoomIds),
-      roomImportantUnreadCounts: omitRecordKeys(page.roomImportantUnreadCounts, this.revokedRoomIds)
-    };
-    if (offset === 0) this.replaceOccurrenceProjection(safePage);
+    const safePage = this.#privacySafePage(page);
+    if (offset === 0) this.#replaceSafeOccurrenceProjection(safePage);
     else {
       this.occurrences = mergeNotificationOccurrences(this.occurrences, safePage.occurrences);
       const consumedCount = safePage.consumedCount ?? safePage.occurrences.length;
@@ -623,7 +637,7 @@ export class NotificationStore {
     try {
       if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
       const authoritativeGeneration = this.#authoritativeGeneration;
-      if (this.revokedRoomIds.has(roomId)) {
+      if (this.revokedRoomIds.has(roomId) && !this.#roomInvitations.has(roomId)) {
         return { ok: true, totalCount: 0, notification: null };
       }
       let offset = 0;
@@ -639,11 +653,14 @@ export class NotificationStore {
           if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
           return await this.fetchRoomNotification(roomId, options);
         }
-        if (this.revokedRoomIds.has(roomId)) {
+        if (this.revokedRoomIds.has(roomId) && !this.#roomInvitations.has(roomId)) {
           return { ok: true, totalCount: 0, notification: null };
         }
         const matches = page.occurrences.filter(
-          (occurrence) => occurrence.unread && matchesRoomNotification(occurrence, roomId, options)
+          (occurrence) =>
+            occurrence.unread &&
+            this.canDisplayOccurrence(occurrence) &&
+            matchesRoomNotification(occurrence, roomId, options)
         );
         totalCount += matches.length;
         if (!matchedOccurrence && matches.length > 0) matchedOccurrence = matches[0]!;
@@ -652,7 +669,7 @@ export class NotificationStore {
         if (!hasMore || consumedCount === 0) break;
         offset += consumedCount;
       } while (hasMore);
-      if (this.revokedRoomIds.has(roomId)) {
+      if (this.revokedRoomIds.has(roomId) && !this.#roomInvitations.has(roomId)) {
         return { ok: true, totalCount: 0, notification: null };
       }
       const notification = matchedOccurrence
@@ -875,15 +892,6 @@ function withoutRecordKey(source: Record<string, number>, key: string): Record<s
   const next = { ...source };
   delete next[key];
   return next;
-}
-
-function omitRecordKeys(
-  source: Record<string, number>,
-  keys: ReadonlySet<string>
-): Record<string, number> {
-  let next = source;
-  for (const key of keys) next = withoutRecordKey(next, key);
-  return next === source ? { ...source } : next;
 }
 
 function withAdjustedRecordValue(

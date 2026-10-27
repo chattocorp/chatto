@@ -196,9 +196,21 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	if err != nil {
 		return nil, err
 	}
+	hasPassword, err := s.api.core.HasPassword(ctx, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
+	policy := s.api.externalIdentitySignInPolicy()
+	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
+	for _, identity := range linked {
+		identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD
+		if policy.CanDisconnect(identity.SubjectHash, identities, hasPassword) {
+			identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED
+		}
+	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),
-		LinkedIdentities: apiLinkedExternalIdentities(identities, s.api.providerLabels()),
+		LinkedIdentities: linked,
 	}), nil
 }
 
@@ -235,7 +247,7 @@ func (s *accountService) DisconnectExternalIdentity(ctx context.Context, req *co
 	if err := s.api.requireFreshCredentialOrPassword(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
 		return nil, err
 	}
-	if err := s.api.core.DisconnectExternalIdentity(ctx, caller.UserID, req.Msg.GetSubjectHash()); err != nil {
+	if err := s.api.core.DisconnectExternalIdentityAs(ctx, caller.UserID, caller.UserID, req.Msg.GetSubjectHash(), s.api.externalIdentitySignInPolicy()); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DisconnectExternalIdentityResponse{}), nil

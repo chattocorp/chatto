@@ -1,5 +1,15 @@
 # Durable Effect Inventory
 
+Portable archive import writes original files to the configured attachment
+store (NATS Object Store or S3). File keys are stable within the archive, so a
+retry uses the same key and bytes. Asset facts and import progress commit in
+one EVT batch after storage succeeds. A file written before a failed commit
+remains available for resume; import does not automatically roll back or fetch
+source URLs. Historical facts carry `ImportContext`; the notification
+materializer and realtime mapper suppress their effects. See
+[the importer](../../cli/internal/core/interchange_import.go) and
+[FDR-053](../fdr/FDR-053-history-import-export.md).
+
 Key files: [`pkg/events/durable_worker.go`](../../pkg/events/durable_worker.go),
 [`cli/internal/evtstream/effects.go`](../../cli/internal/evtstream/effects.go),
 [`cli/internal/core/durable_delivery.go`](../../cli/internal/core/durable_delivery.go),
@@ -28,6 +38,15 @@ materialization use application-owned durable consumers through this boundary.
 `internal/evtstream` standardizes consumer creation and worker wiring. Each
 application site still owns its name, filters, handler, retry policy, and
 lifecycle.
+
+Room invitation notification effects use a separate durable consumer owned by
+`NotificationMaterializer` (see
+[`notification_invitations.go`](../../cli/internal/core/notification_invitations.go)).
+Creation uses the recipient, source event, and cause as the idempotency key.
+Acceptance and decline remove matching occurrences before acknowledgement.
+Current invitation state fences reads and alert delivery; expiry also bounds
+occurrence retention. Retries and other replicas reuse the same effect identity.
+The consumer starts with new events and does not backfill old invitations.
 
 Transient fetch failures retry in place. A deleted consumer stops its worker so
 the owning core process or supervised runtime unit can recreate the declared

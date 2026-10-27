@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publicēt, labot, atkārtoti izziņot un notīrīt telpas paziņojumus",
       "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
       "server_manage_neighbors": "Pārvaldīt publisko kaimiņu katalogu",
       "room_create": "Izveidojiet jaunas telpas",
@@ -34,7 +35,8 @@
       "call_join": "Pievienoties notiekošam zvanam",
       "call_voice": "Izmantot mikrofonu zvanos",
       "call_camera": "Izmantot kameru zvanos",
-      "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio"
+      "call_screenshare": "Kopīgot ekrānu vai lietotni, tostarp uztverto audio",
+      "room_invite": "Uzaicināt servera dalībniekus uz istabām, kurām esat pievienojies"
     }
   }
 }

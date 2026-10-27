@@ -39,6 +39,8 @@ func roomIDOfEvent(event *evtv1.Event) string {
 		return e.RoomCreated.GetRoomId()
 	case *evtv1.Event_RoomUpdated:
 		return e.RoomUpdated.GetRoomId()
+	case *evtv1.Event_RoomNoticeChanged:
+		return e.RoomNoticeChanged.GetRoomId()
 	case *evtv1.Event_RoomDeleted:
 		return e.RoomDeleted.GetRoomId()
 	case *evtv1.Event_RoomArchived:
@@ -59,6 +61,12 @@ func roomIDOfEvent(event *evtv1.Event) string {
 		return e.RoomMemberBanned.GetRoomId()
 	case *evtv1.Event_RoomMemberUnbanned:
 		return e.RoomMemberUnbanned.GetRoomId()
+	case *evtv1.Event_RoomInvitationCreated:
+		return e.RoomInvitationCreated.GetRoomId()
+	case *evtv1.Event_RoomInvitationAccepted:
+		return e.RoomInvitationAccepted.GetRoomId()
+	case *evtv1.Event_RoomInvitationDeclined:
+		return e.RoomInvitationDeclined.GetRoomId()
 	case *evtv1.Event_RoomMemberAdded:
 		return e.RoomMemberAdded.GetRoomId()
 	case *evtv1.Event_RoomMemberRemoved:
@@ -119,6 +127,8 @@ func userIDOfUserEvent(event *evtv1.Event) string {
 		return payload.UserAvatarCleared.GetUserId()
 	case *evtv1.Event_UserAccountDeleted:
 		return payload.UserAccountDeleted.GetUserId()
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		return payload.UserAccountDeactivationChanged.GetUserId()
 	case *evtv1.Event_UserKeyShreddingRequested:
 		return payload.UserKeyShreddingRequested.GetUserId()
 	case *evtv1.Event_UserKeyShredded:
@@ -356,7 +366,7 @@ func isAssetLifecycleEvent(event *evtv1.Event) bool {
 // unarchived/deleted), Threading Mode changes, memberships (user_joined /
 // user_left), and voice call lifecycle (started / ended).
 func isVisibleRoomTimelineEntry(event *evtv1.Event) bool {
-	if event == nil {
+	if event == nil || event.GetImportContext().GetHiddenTimeline() {
 		return false
 	}
 	switch e := event.GetEvent().(type) {
@@ -398,7 +408,10 @@ func IsVisibleRoomTimelineEntry(event *evtv1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
-	if event.GetMessagePosted().GetHistoricalImport() {
+	if event.GetImportContext() != nil {
+		return false
+	}
+	if event.GetMessagePosted().GetHistoricalImport() || event.GetReactionAdded().GetHistoricalImport() || event.GetThreadCreated().GetHistoricalImport() {
 		return false
 	}
 	return isDeliverableLiveEVTRoomEventType(evtstream.EventTypeOf(event))
@@ -406,7 +419,8 @@ func isDeliverableLiveEVTRoomEvent(event *evtv1.Event) bool {
 
 func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 	switch eventType {
-	case evtstream.EventRoomCreated,
+	case evtstream.EventRoomInvitationCreated, evtstream.EventRoomInvitationAccepted, evtstream.EventRoomInvitationDeclined, evtstream.EventRoomCreated,
+		evtstream.EventRoomNoticeChanged,
 		evtstream.EventRoomUpdated,
 		evtstream.EventRoomDeleted,
 		evtstream.EventRoomArchived,
@@ -442,6 +456,9 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 }
 
 func isDeliverableLiveEVTAssetEvent(event *evtv1.Event) bool {
+	if event.GetImportContext() != nil {
+		return false
+	}
 	return isDeliverableLiveEVTAssetEventType(evtstream.EventTypeOf(event))
 }
 
@@ -496,6 +513,7 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 		evtstream.EventUserAvatarCleared,
 		evtstream.EventAssetCreated,
 		evtstream.EventUserAccountDeleted,
+		evtstream.EventUserAccountDeactivationChanged,
 		evtstream.EventUserKeyShreddingRequested,
 		evtstream.EventUserKeyShredded,
 		evtstream.EventUserCustomStatusSet,
@@ -591,7 +609,8 @@ func eventNeedsThreadProjection(event *evtv1.Event) bool {
 
 func eventNeedsRoomDirectoryProjection(event *evtv1.Event) bool {
 	switch event.GetEvent().(type) {
-	case *evtv1.Event_UserJoinedRoom,
+	case *evtv1.Event_RoomNoticeChanged,
+		*evtv1.Event_UserJoinedRoom,
 		*evtv1.Event_UserLeftRoom,
 		*evtv1.Event_RoomMemberBanned,
 		*evtv1.Event_RoomMemberUnbanned,

@@ -39,6 +39,11 @@ Chatto's pre-1.0 API remains experimental.
   thread Slow Mode requires beta.18. Older servers keep a shared cooldown
   and a single setting; room field presence still controls the runtime fallback. Below the
   connection threshold, it blocks chat routes and the realtime connection.
+- A connected server's version stays current without a reload. The client
+  reads the server profile again at each full realtime catch-up. A full
+  catch-up occurs when the live connection reconnects, for example after a
+  server upgrade, and at each poll of an inactive server. A limited-version
+  warning clears when the updated version meets the full-support threshold.
 - The origin server serves its own frontend and has no version check.
 - Custom suffixes do not affect comparison. For example,
   `0.6.1-my-customization` compares as `0.6.1`, and
@@ -123,8 +128,10 @@ with the registered server and its credentials.
 **Why:** Persisted compatibility information would become stale across server
 and client upgrades. The registry should retain connection identity, while the
 server state owns current discovery facts.
+Full realtime catch-up refreshes the version of a connected server, because an
+upgrade restarts the server without an event that reports the new version.
 **Tradeoff:** Compatibility is unknown until discovery completes after the
-client starts.
+client starts. Each full catch-up makes one more small request.
 
 ### 4. Pre-1.0 compatibility remains advisory
 

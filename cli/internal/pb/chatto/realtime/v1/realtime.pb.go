@@ -641,6 +641,11 @@ type RealtimeEvent struct {
 	//	*RealtimeEvent_RolePermissionsChanged
 	//	*RealtimeEvent_ViewerPermissionsChanged
 	//	*RealtimeEvent_ViewerPresencePreferenceChanged
+	//	*RealtimeEvent_RoomInvitationCreated
+	//	*RealtimeEvent_RoomInvitationAccepted
+	//	*RealtimeEvent_RoomInvitationDeclined
+	//	*RealtimeEvent_RoomNoticeChanged
+	//	*RealtimeEvent_UserAccountDeactivationChanged
 	Event         isRealtimeEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1143,6 +1148,51 @@ func (x *RealtimeEvent) GetViewerPresencePreferenceChanged() *ViewerPresencePref
 	return nil
 }
 
+func (x *RealtimeEvent) GetRoomInvitationCreated() *RoomInvitationCreatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoomInvitationCreated); ok {
+			return x.RoomInvitationCreated
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRoomInvitationAccepted() *RoomInvitationAcceptedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoomInvitationAccepted); ok {
+			return x.RoomInvitationAccepted
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRoomInvitationDeclined() *RoomInvitationDeclinedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoomInvitationDeclined); ok {
+			return x.RoomInvitationDeclined
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetRoomNoticeChanged() *RoomNoticeChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoomNoticeChanged); ok {
+			return x.RoomNoticeChanged
+		}
+	}
+	return nil
+}
+
+func (x *RealtimeEvent) GetUserAccountDeactivationChanged() *UserAccountDeactivationChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_UserAccountDeactivationChanged); ok {
+			return x.UserAccountDeactivationChanged
+		}
+	}
+	return nil
+}
+
 type isRealtimeEvent_Event interface {
 	isRealtimeEvent_Event()
 }
@@ -1339,6 +1389,26 @@ type RealtimeEvent_ViewerPresencePreferenceChanged struct {
 	ViewerPresencePreferenceChanged *ViewerPresencePreferenceChangedEvent `protobuf:"bytes,68,opt,name=viewer_presence_preference_changed,json=viewerPresencePreferenceChanged,proto3,oneof"`
 }
 
+type RealtimeEvent_RoomInvitationCreated struct {
+	RoomInvitationCreated *RoomInvitationCreatedEvent `protobuf:"bytes,69,opt,name=room_invitation_created,json=roomInvitationCreated,proto3,oneof"`
+}
+
+type RealtimeEvent_RoomInvitationAccepted struct {
+	RoomInvitationAccepted *RoomInvitationAcceptedEvent `protobuf:"bytes,70,opt,name=room_invitation_accepted,json=roomInvitationAccepted,proto3,oneof"`
+}
+
+type RealtimeEvent_RoomInvitationDeclined struct {
+	RoomInvitationDeclined *RoomInvitationDeclinedEvent `protobuf:"bytes,71,opt,name=room_invitation_declined,json=roomInvitationDeclined,proto3,oneof"`
+}
+
+type RealtimeEvent_RoomNoticeChanged struct {
+	RoomNoticeChanged *RoomNoticeChangedEvent `protobuf:"bytes,72,opt,name=room_notice_changed,json=roomNoticeChanged,proto3,oneof"`
+}
+
+type RealtimeEvent_UserAccountDeactivationChanged struct {
+	UserAccountDeactivationChanged *UserAccountDeactivationChangedEvent `protobuf:"bytes,73,opt,name=user_account_deactivation_changed,json=userAccountDeactivationChanged,proto3,oneof"`
+}
+
 func (*RealtimeEvent_RoomCreated) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomUpdated) isRealtimeEvent_Event() {}
@@ -1434,6 +1504,16 @@ func (*RealtimeEvent_RolePermissionsChanged) isRealtimeEvent_Event() {}
 func (*RealtimeEvent_ViewerPermissionsChanged) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_ViewerPresencePreferenceChanged) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoomInvitationCreated) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoomInvitationAccepted) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoomInvitationDeclined) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoomNoticeChanged) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_UserAccountDeactivationChanged) isRealtimeEvent_Event() {}
 
 // Application-level heartbeat.
 type RealtimeHeartbeat struct {
@@ -1584,7 +1664,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"l\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12@\n" +
-	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\x81'\n" +
+	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xaa+\n" +
 	"\rRealtimeEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1640,7 +1720,12 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\frole_revoked\x18A \x01(\v2$.chatto.realtime.v1.RoleRevokedEventH\x00R\vroleRevoked\x12k\n" +
 	"\x18role_permissions_changed\x18B \x01(\v2/.chatto.realtime.v1.RolePermissionsChangedEventH\x00R\x16rolePermissionsChanged\x12q\n" +
 	"\x1aviewer_permissions_changed\x18C \x01(\v21.chatto.realtime.v1.ViewerPermissionsChangedEventH\x00R\x18viewerPermissionsChanged\x12\x87\x01\n" +
-	"\"viewer_presence_preference_changed\x18D \x01(\v28.chatto.realtime.v1.ViewerPresencePreferenceChangedEventH\x00R\x1fviewerPresencePreferenceChangedB\a\n" +
+	"\"viewer_presence_preference_changed\x18D \x01(\v28.chatto.realtime.v1.ViewerPresencePreferenceChangedEventH\x00R\x1fviewerPresencePreferenceChanged\x12h\n" +
+	"\x17room_invitation_created\x18E \x01(\v2..chatto.realtime.v1.RoomInvitationCreatedEventH\x00R\x15roomInvitationCreated\x12k\n" +
+	"\x18room_invitation_accepted\x18F \x01(\v2/.chatto.realtime.v1.RoomInvitationAcceptedEventH\x00R\x16roomInvitationAccepted\x12k\n" +
+	"\x18room_invitation_declined\x18G \x01(\v2/.chatto.realtime.v1.RoomInvitationDeclinedEventH\x00R\x16roomInvitationDeclined\x12\\\n" +
+	"\x13room_notice_changed\x18H \x01(\v2*.chatto.realtime.v1.RoomNoticeChangedEventH\x00R\x11roomNoticeChanged\x12\x84\x01\n" +
+	"!user_account_deactivation_changed\x18I \x01(\v27.chatto.realtime.v1.UserAccountDeactivationChangedEventH\x00R\x1euserAccountDeactivationChangedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idB\t\n" +
 	"\a_cursorJ\x04\b#\x10.R\x12room_group_createdR\x12room_group_updatedR\x12room_group_deletedR\x13room_added_to_groupR\x17room_removed_from_groupR\x18rooms_in_group_reorderedR\x1bsidebar_link_added_to_groupR\x14sidebar_link_updatedR\x1fsidebar_link_removed_from_groupR\x1fsidebar_group_entries_reorderedR\x15room_groups_reordered\";\n" +
@@ -1753,7 +1838,12 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*RolePermissionsChangedEvent)(nil),          // 61: chatto.realtime.v1.RolePermissionsChangedEvent
 	(*ViewerPermissionsChangedEvent)(nil),        // 62: chatto.realtime.v1.ViewerPermissionsChangedEvent
 	(*ViewerPresencePreferenceChangedEvent)(nil), // 63: chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
-	(*durationpb.Duration)(nil),                  // 64: google.protobuf.Duration
+	(*RoomInvitationCreatedEvent)(nil),           // 64: chatto.realtime.v1.RoomInvitationCreatedEvent
+	(*RoomInvitationAcceptedEvent)(nil),          // 65: chatto.realtime.v1.RoomInvitationAcceptedEvent
+	(*RoomInvitationDeclinedEvent)(nil),          // 66: chatto.realtime.v1.RoomInvitationDeclinedEvent
+	(*RoomNoticeChangedEvent)(nil),               // 67: chatto.realtime.v1.RoomNoticeChangedEvent
+	(*UserAccountDeactivationChangedEvent)(nil),  // 68: chatto.realtime.v1.UserAccountDeactivationChangedEvent
+	(*durationpb.Duration)(nil),                  // 69: google.protobuf.Duration
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	0,  // 0: chatto.realtime.v1.RealtimeSubscribe.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
@@ -1817,13 +1907,18 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	61, // 58: chatto.realtime.v1.RealtimeEvent.role_permissions_changed:type_name -> chatto.realtime.v1.RolePermissionsChangedEvent
 	62, // 59: chatto.realtime.v1.RealtimeEvent.viewer_permissions_changed:type_name -> chatto.realtime.v1.ViewerPermissionsChangedEvent
 	63, // 60: chatto.realtime.v1.RealtimeEvent.viewer_presence_preference_changed:type_name -> chatto.realtime.v1.ViewerPresencePreferenceChangedEvent
-	2,  // 61: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
-	64, // 62: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
-	63, // [63:63] is the sub-list for method output_type
-	63, // [63:63] is the sub-list for method input_type
-	63, // [63:63] is the sub-list for extension type_name
-	63, // [63:63] is the sub-list for extension extendee
-	0,  // [0:63] is the sub-list for field type_name
+	64, // 61: chatto.realtime.v1.RealtimeEvent.room_invitation_created:type_name -> chatto.realtime.v1.RoomInvitationCreatedEvent
+	65, // 62: chatto.realtime.v1.RealtimeEvent.room_invitation_accepted:type_name -> chatto.realtime.v1.RoomInvitationAcceptedEvent
+	66, // 63: chatto.realtime.v1.RealtimeEvent.room_invitation_declined:type_name -> chatto.realtime.v1.RoomInvitationDeclinedEvent
+	67, // 64: chatto.realtime.v1.RealtimeEvent.room_notice_changed:type_name -> chatto.realtime.v1.RoomNoticeChangedEvent
+	68, // 65: chatto.realtime.v1.RealtimeEvent.user_account_deactivation_changed:type_name -> chatto.realtime.v1.UserAccountDeactivationChangedEvent
+	2,  // 66: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
+	69, // 67: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
+	68, // [68:68] is the sub-list for method output_type
+	68, // [68:68] is the sub-list for method input_type
+	68, // [68:68] is the sub-list for extension type_name
+	68, // [68:68] is the sub-list for extension extendee
+	0,  // [0:68] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -1889,6 +1984,11 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeEvent_RolePermissionsChanged)(nil),
 		(*RealtimeEvent_ViewerPermissionsChanged)(nil),
 		(*RealtimeEvent_ViewerPresencePreferenceChanged)(nil),
+		(*RealtimeEvent_RoomInvitationCreated)(nil),
+		(*RealtimeEvent_RoomInvitationAccepted)(nil),
+		(*RealtimeEvent_RoomInvitationDeclined)(nil),
+		(*RealtimeEvent_RoomNoticeChanged)(nil),
+		(*RealtimeEvent_UserAccountDeactivationChanged)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

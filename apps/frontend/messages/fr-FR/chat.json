@@ -6,6 +6,8 @@
       "confirmation": "Pendant 15 minutes, ceci active les autorisations supplémentaires qui te sont attribuées sur ce serveur."
     },
     "notifications": {
+      "next_unread_source": "Accéder à la prochaine source non lue",
+      "no_unread": "Aucune notification non lue",
       "title": "Notifications",
       "subtitle": "Voici les nouveautés",
       "clear_read": "Effacer les notifications lues",
@@ -25,7 +27,8 @@
         "mention": "{actor} vous a mentionné",
         "followed_thread": "{actor} a répondu dans un fil que vous suivez",
         "new_message": "{actor} a publié un nouveau message",
-        "activity": "{actor} vous a envoyé une notification"
+        "activity": "{actor} vous a envoyé une notification",
+        "room_invitation": "{actor} vous a invité dans un salon"
       }
     },
     "sign_out": {

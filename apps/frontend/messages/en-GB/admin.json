@@ -52,6 +52,11 @@
       "subtitle": "Server identity, branding, and messages"
     },
     "members": {
+      "deactivate": "Deactivate Account",
+      "reactivate": "Reactivate Account",
+      "deactivate_description": "The user will no longer be able to use this server. All sessions will end immediately. Their data will remain intact. You can reactivate the account later.",
+      "deactivated_description": "This account is deactivated. Reactivation lets the user sign in again. Old sessions stay invalid.",
+      "deactivation_failed": "Could not change account access.",
       "title": "Members",
       "subtitle": "View and manage server members and their roles",
       "search": "Search members",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Per-room override permissions (layered on top of the room's group)",
       "permissions_page_title": "Permissions - {name}",
       "back_to_rooms": "Back to rooms",
-      "group_permissions_hint": "Per-group overrides for the channel rooms in this group. Defaults inherited from the server scope. Individual rooms can further override permissions from their own permissions page.",
+      "group_permissions_hint": "Set role permissions for all rooms in this group. These override server defaults. Individual rooms can override these settings.",
       "room_permissions_hint": "These settings apply only in this room. They replace the room group and server settings for the same role or user. To let only some roles do something here, set Deny for everyone and Allow for those roles.",
       "loading": "Loading rooms...",
       "empty_groups": "No room groups yet",

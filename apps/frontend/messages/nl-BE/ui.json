@@ -80,7 +80,8 @@
     "combobox": {
       "loading": "Laden...",
       "empty": "Geen overeenkomsten",
-      "clear": "Duidelijk"
+      "clear": "Duidelijk",
+      "remove": "{label} verwijderen"
     },
     "expiry": {
       "24h": "24 uur",

@@ -162,10 +162,12 @@ the local cache (ADR-102).
 not run it at the same time as `mise test-cli`, a frontend build, or another
 task that reads `packages/api-types`.
 
-The internal TypeScript packages `@chatto/api-types`, `@chatto/lingua`, and
-`@chatto/client` export their source and have no build (ADR-116). Load them
-through a compiling tool, such as Vite, Vitest, tsx, or jiti. Plain Node
-cannot load them.
+The workspace packages `@chatto/api-types`, `@chatto/translatto`, and
+`@chatto/client` export their source (ADR-116). Load workspace imports through
+a compiling tool, such as Vite, Vitest, tsx, or jiti. Plain Node cannot load
+them. Translatto has a `build` script for npm releases. Its
+published package exports compiled JavaScript and type declarations. The
+client also has a publication build, which includes the private API types.
 
 Put scratch files, such as PR bodies, commit messages, logs, and file backups,
 in the gitignored `.context/` directory of the worktree. Do not use fixed paths
@@ -225,11 +227,11 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
   or an adjacent `.license` file says otherwise.
 - Runling under `packages/runling/` keeps its MIT license. `@chatto/client`
-  under `packages/` also uses MIT.
+  under `packages/` uses Apache-2.0.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`,
   `pkg/datacrypto/`, and `pkg/appconfig/`, the framework-neutral
-  `packages/lingua` runtime, plus explicit integration and documentation
+  `packages/translatto` runtime, plus explicit integration and documentation
   surfaces such as the standalone frontend source and image, public
   protocol/API definitions, generated TypeScript API clients, documentation,
   and examples.

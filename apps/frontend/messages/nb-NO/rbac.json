@@ -147,6 +147,7 @@
       "call": "Samtaler"
     },
     "permission_help": {
+      "room_manage_notice": "Lar et medlem administrere kunngjøringen i et aktivt kanalrom, men ikke selve rommet. Nye instanser gir bare Admin denne tillatelsen; oppgraderinger beholder eksisterende tillatelser.",
       "server_manage": "Lar en konto endre servernavn, beskrivelse, logo og andre serverinnstillinger. Den tillater også endringer i den offentlige nabokatalogen. Gi den bare til personer som kan tale for hele serveren.",
       "server_manage_neighbors": "Lar en konto legge til, endre og fjerne oppføringer i den offentlige nabokatalogen. Den tillater ikke endringer i andre serverinnstillinger.",
       "room_create": "Lar en konto opprette kanalrom. På romgruppenivå tillater den nye rom bare i den gruppen.",
@@ -179,7 +180,8 @@
       "call_join": "Lar en konto bli med i en pågående samtale, også bare som lytter. For å sende lyd eller video kreves call.voice, call.camera eller call.screenshare.",
       "call_voice": "Lar en konto sende mikrofonlyd i samtaler. Uten den kan kontoen fortsatt lytte.",
       "call_camera": "Lar en konto sende kameravideo i samtaler.",
-      "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice."
+      "call_screenshare": "Lar en konto dele en skjerm, et vindu, en fane eller et program i samtaler, med lyd. Den tillater ikke mikrofonlyd; det krever call.voice.",
+      "room_invite": "Inviter servermedlemmer til rom du har blitt med i."
     }
   }
 }

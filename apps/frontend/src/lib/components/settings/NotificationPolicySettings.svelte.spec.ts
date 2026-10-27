@@ -45,6 +45,7 @@ function policy(
       allMentions: null,
       followedThreads: null,
       followedRooms: null,
+      roomInvitations: null,
       reactions: null
     },
     effective: {
@@ -57,6 +58,7 @@ function policy(
       allMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
       followedThreads: NotificationDeliveryMode.IN_APP_NOTIFICATION,
       followedRooms: NotificationDeliveryMode.OFF,
+      roomInvitations: NotificationDeliveryMode.PUSH_NOTIFICATION,
       reactions: NotificationDeliveryMode.IN_APP_NOTIFICATION
     }
   };
@@ -132,8 +134,8 @@ describe('NotificationPolicySettings', () => {
     ).toEqual(['server', 'roomGroup:group-1', 'room:room-1', 'room:dm-1']);
     expect(container.querySelector('th[data-notification-scope="room:room-2"]')).toBeNull();
     expect(container.querySelector('[data-notification-field="followedRooms"]')).toBeNull();
-    expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
-    expect(container.textContent).not.toContain('Room invitations');
+    expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(10 * 4);
+    expect(container.textContent).toContain('Room invitations');
     expect(container.textContent).not.toContain('Followed rooms');
     expect(container.textContent).not.toContain('Reset to defaults');
   });
@@ -145,7 +147,7 @@ describe('NotificationPolicySettings', () => {
       'tbody th button[aria-label^="More information: "]'
     );
 
-    expect(helpButtons).toHaveLength(9);
+    expect(helpButtons).toHaveLength(10);
     expect(helpButtons[0]?.getAttribute('aria-label')).toBe('More information: Direct messages');
     (helpButtons[0] as HTMLButtonElement).dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
@@ -262,13 +264,19 @@ describe('NotificationPolicySettings', () => {
 
     const legend = container.querySelector('[aria-label="Notification delivery modes"]');
     expect(legend?.textContent).toContain('Off');
-    expect(legend?.textContent).toContain('Badge');
-    expect(legend?.textContent).toContain('Notification');
+    expect(legend?.textContent).toContain('Unread dot');
+    expect(legend?.textContent).toContain('In-app notification');
     expect(legend?.textContent).toContain('Push notification');
     expect(legend?.querySelector('[class~="icon-[ph--bell-slash-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
+    expect(
+      legend?.querySelector('[class~="rounded-full"][class~="h-2"][class~="w-2"][class~="bg-text"]')
+    ).not.toBeNull();
+    expect(legend?.querySelectorAll('[class~="text-warning"]')).toHaveLength(2);
     expect(legend?.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
-    expect(legend?.querySelector('button[aria-label="More information: Badge"]')).not.toBeNull();
+    expect(
+      legend?.querySelector('button[aria-label="More information: Unread dot"]')
+    ).not.toBeNull();
     expect(legend?.querySelector('[title*="neutral unread dot"]')).toBeNull();
     expect(legend?.textContent).not.toContain('Inherit');
     expect(legend?.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
@@ -370,12 +378,12 @@ describe('NotificationPolicySettings', () => {
 
     const { container } = render(NotificationPolicySettings);
 
-    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(9 * 4 - 3);
+    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(10 * 4 - 4);
     expect(container.querySelectorAll('td[data-notification-field] button')).toHaveLength(0);
     const placeholders = container.querySelectorAll(
       'td[data-notification-field] > span[role="status"]'
     );
-    expect(placeholders).toHaveLength(9 * 4 - 3);
+    expect(placeholders).toHaveLength(10 * 4 - 4);
     expect([...placeholders].every((item) => item.textContent?.trim() === 'Loading...')).toBe(true);
   });
 
@@ -417,7 +425,7 @@ describe('NotificationPolicySettings', () => {
     await vi.waitFor(() =>
       expect(loadFailure.container.textContent).toContain('You do not have permission to do that.')
     );
-    expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
+    expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(10 * 4);
     loadFailure.unmount();
 
     queryClient.clear();
@@ -439,7 +447,7 @@ describe('NotificationPolicySettings', () => {
     );
     expect(
       saveFailure.container.querySelectorAll('td[data-notification-field] button')
-    ).toHaveLength(9 * 4 - 3);
+    ).toHaveLength(10 * 4 - 4);
   });
 
   it('does not restore a saved policy after the server cache is removed', async () => {

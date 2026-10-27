@@ -52,6 +52,11 @@
       "subtitle": "Identité du serveur, image de marque et messages"
     },
     "members": {
+      "deactivate": "Désactiver le compte",
+      "reactivate": "Réactiver le compte",
+      "deactivate_description": "L’utilisateur ne pourra plus utiliser ce serveur. Toutes ses sessions prendront fin immédiatement. Ses données seront conservées. Vous pourrez réactiver le compte plus tard.",
+      "deactivated_description": "Ce compte est désactivé. Sa réactivation permettra à l’utilisateur de se reconnecter. Les anciennes sessions resteront invalides.",
+      "deactivation_failed": "Impossible de modifier l’accès au compte.",
       "title": "Membres",
       "subtitle": "Afficher et gérer les membres du serveur et leurs rôles",
       "search": "Rechercher des membres",
@@ -186,7 +191,7 @@
       "room_permissions_subtitle": "Autorisations de remplacement par salle (superposées au groupe de la salle)",
       "permissions_page_title": "Autorisations - {name}",
       "back_to_rooms": "Retour aux chambres",
-      "group_permissions_hint": "Remplacements par groupe pour les salles de canaux de ce groupe. Valeurs héritées par défaut de la portée du serveur. Les salles individuelles peuvent en outre remplacer les autorisations de leur propre page d'autorisations.",
+      "group_permissions_hint": "Définissez les permissions des rôles pour tous les salons de ce groupe. Elles remplacent les valeurs par défaut du serveur. Chaque salon peut les remplacer à son tour.",
       "room_permissions_hint": "Ces paramètres s’appliquent uniquement dans cette salle. Ils remplacent les paramètres du groupe de salles et du serveur pour le même rôle ou le même utilisateur. Pour que seuls certains rôles puissent faire une action ici, définissez Refuser pour everyone et Autoriser pour ces rôles.",
       "loading": "Chargement des salles...",
       "empty_groups": "Aucun groupe de salles pour l'instant",

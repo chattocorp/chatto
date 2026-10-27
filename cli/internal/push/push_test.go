@@ -1306,3 +1306,22 @@ func TestOccurrencePayloadCleanupIdentity(t *testing.T) {
 		t.Fatal("legacy and declarative payloads must carry identical cleanup identity")
 	}
 }
+
+func TestRoomInvitationPayloadUsesRoomOnlyURL(t *testing.T) {
+	t.Parallel()
+	occurrence := &notificationv1.NotificationOccurrence{
+		Id: "notification", RecipientId: "recipient",
+		Signal:         &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomInvitationReceived{RoomInvitationReceived: &notificationv1.RoomInvitationReceived{RoomId: "private-room", InvitationId: "invitation"}}},
+		AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+	}
+	payload := BuildPayloadFromOccurrence(occurrence, "Alice", "https://chat.example", &PayloadContext{RoomName: "private"})
+	if payload.URL != "https://chat.example/chat/-/private-room" {
+		t.Fatalf("URL = %q", payload.URL)
+	}
+	if payload.Title != "Alice invited you to #private" {
+		t.Fatalf("title = %q", payload.Title)
+	}
+	if payload.Tag != "invitation-invitation" {
+		t.Fatalf("tag = %q", payload.Tag)
+	}
+}

@@ -18,7 +18,7 @@ message presentation. Each message row itself opens the original message.
   import type { UserSummary } from '@chatto/client/api/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import { EmptyState, LoadingFog, ScrollFader } from '$lib/ui';
+  import { EmptyState, LoadingFog } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import ClampedMessagePreview from './ClampedMessagePreview.svelte';
 
@@ -93,88 +93,86 @@ message presentation. Each message row itself opens the original message.
   });
 </script>
 
-<ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
-  <div class="flex min-h-full flex-col" aria-live="polite">
-    {#if store.error && store.items.length === 0}
-      <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('room.pins.error_title')}>
-        <p>{m('room.pins.error_description')}</p>
-        <div class="mt-4">
-          <Button variant="secondary" onclick={() => store.retry()}>{m('common.retry')}</Button>
-        </div>
-      </EmptyState>
-    {:else if store.isInitialLoading && store.items.length === 0}
-      <LoadingFog class="m-3 min-h-32 flex-1" label={m('room.pins.loading')} />
-    {:else if store.items.length === 0}
-      <EmptyState icon="icon-[mdi--pin-outline]" title={m('room.pins.empty_title')}>
-        {m('room.pins.empty_description')}
-      </EmptyState>
-    {:else}
-      <ol class="selectable-list gap-3 py-2">
-        {#each store.items as item (item.message?.id)}
-          {@const message = item.message}
-          {@const actor = message ? messageActor(message) : null}
-          {#if message}
-            <li>
-              <div
-                role="link"
-                tabindex="0"
-                aria-label={`${formatAccountName(actor?.displayName || actor?.login || m('common.unknown'), actor)}: ${message.body || ''}`}
-                data-room-pin-id={message.id}
-                class="group/search-result cursor-pointer selectable-list-item"
-                onclick={(pointerEvent) => openPinFromPointer(pointerEvent, message)}
-                onkeydown={(keyboardEvent) => openPinFromKeyboard(keyboardEvent, message)}
-              >
-                <div class="pointer-events-none" inert data-room-pin-preview>
-                  <ClampedMessagePreview>
-                    <MessageView
-                      eventId={message.id}
-                      {actor}
-                      displayName={actor?.displayName || actor?.login || m('common.unknown')}
-                      missingActorIsDeleted={false}
-                      body={message.body || null}
-                      viewerLogin={serverScope.store.currentUser.user?.login}
-                      timestampSettings={userSettings}
-                      timestampLocale={activeLocale}
-                      rowClass="hover:bg-transparent desktop-presentation:mx-0 desktop-presentation:pe-2"
-                    >
-                      {#snippet headerMeta()}
-                        {#if message.createdAt}
-                          <time
-                            class="text-xs text-muted"
-                            datetime={message.createdAt.toDate().toISOString()}
-                          >
-                            {formatTimestamp(message)}
-                          </time>
-                        {/if}
-                      {/snippet}
+<div class="flex flex-col" aria-live="polite">
+  {#if store.error && store.items.length === 0}
+    <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('room.pins.error_title')}>
+      <p>{m('room.pins.error_description')}</p>
+      <div class="mt-4">
+        <Button variant="secondary" onclick={() => store.retry()}>{m('common.retry')}</Button>
+      </div>
+    </EmptyState>
+  {:else if store.isInitialLoading && store.items.length === 0}
+    <LoadingFog class="m-3 min-h-32 flex-1" label={m('room.pins.loading')} />
+  {:else if store.items.length === 0}
+    <EmptyState icon="icon-[mdi--pin-outline]" title={m('room.pins.empty_title')}>
+      {m('room.pins.empty_description')}
+    </EmptyState>
+  {:else}
+    <ol class="selectable-list gap-3 py-2">
+      {#each store.items as item (item.message?.id)}
+        {@const message = item.message}
+        {@const actor = message ? messageActor(message) : null}
+        {#if message}
+          <li>
+            <div
+              role="link"
+              tabindex="0"
+              aria-label={`${formatAccountName(actor?.displayName || actor?.login || m('common.unknown'), actor)}: ${message.body || ''}`}
+              data-room-pin-id={message.id}
+              class="group/search-result cursor-pointer selectable-list-item"
+              onclick={(pointerEvent) => openPinFromPointer(pointerEvent, message)}
+              onkeydown={(keyboardEvent) => openPinFromKeyboard(keyboardEvent, message)}
+            >
+              <div class="pointer-events-none" inert data-room-pin-preview>
+                <ClampedMessagePreview>
+                  <MessageView
+                    eventId={message.id}
+                    {actor}
+                    displayName={actor?.displayName || actor?.login || m('common.unknown')}
+                    missingActorIsDeleted={false}
+                    body={message.body || null}
+                    viewerLogin={serverScope.store.currentUser.user?.login}
+                    timestampSettings={userSettings}
+                    timestampLocale={activeLocale}
+                    rowClass="hover:bg-transparent desktop-presentation:mx-0 desktop-presentation:pe-2"
+                  >
+                    {#snippet headerMeta()}
+                      {#if message.createdAt}
+                        <time
+                          class="text-xs text-muted"
+                          datetime={message.createdAt.toDate().toISOString()}
+                        >
+                          {formatTimestamp(message)}
+                        </time>
+                      {/if}
+                    {/snippet}
 
-                      {#snippet afterBody()}
-                        {#if message.attachments.length > 0}
-                          <p class="inline-flex items-center gap-1 text-xs text-muted">
-                            <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
-                            {m('search.attachments', { count: message.attachments.length })}
-                          </p>
-                        {/if}
-                      {/snippet}
-                    </MessageView>
-                  </ClampedMessagePreview>
-                </div>
+                    {#snippet afterBody()}
+                      {#if message.attachments.length > 0}
+                        <p class="inline-flex items-center gap-1 text-xs text-muted">
+                          <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
+                          {m('search.attachments', { count: message.attachments.length })}
+                        </p>
+                      {/if}
+                    {/snippet}
+                  </MessageView>
+                </ClampedMessagePreview>
               </div>
-            </li>
-          {/if}
-        {/each}
-      </ol>
-      {#if store.hasMore}
-        <div class="flex justify-center py-4" {@attach loadMoreWhenVisible}>
-          {#if store.loadMoreError}
-            <Button variant="secondary" onclick={() => void store.loadMore()}>
-              {m('common.retry')}
-            </Button>
-          {:else}
-            <LoadingFog class="h-8 w-full" />
-          {/if}
-        </div>
-      {/if}
+            </div>
+          </li>
+        {/if}
+      {/each}
+    </ol>
+    {#if store.hasMore}
+      <div class="flex justify-center py-4" {@attach loadMoreWhenVisible}>
+        {#if store.loadMoreError}
+          <Button variant="secondary" onclick={() => void store.loadMore()}>
+            {m('common.retry')}
+          </Button>
+        {:else}
+          <LoadingFog class="h-8 w-full" />
+        {/if}
+      </div>
     {/if}
-  </div>
-</ScrollFader>
+  {/if}
+</div>

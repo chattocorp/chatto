@@ -351,9 +351,9 @@
         "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",
-          "badge": "Atzīme",
+          "badge": "Nelasīta satura punkts",
           "badge_hint": "Pievieno tikai neitrālu nelasīta satura punktu. Neizveido paziņojumu, neatskaņo skaņu un nesūta pašpiegādes paziņojumu.",
-          "notification": "Paziņojums",
+          "notification": "Paziņojums lietotnē",
           "push_notification": "Pašpiegādes paziņojums"
         },
         "reason": {
@@ -378,7 +378,8 @@
           "here": "Ziņojumi, kuros izmantots @here, kad jūsu klātbūtnes statuss nav bezsaistē.",
           "all": "Ziņojumi ar @all telpā, kuras dalībnieks esat.",
           "followed_thread": "Jaunas atbildes pavedienos, kuriem sekojat.",
-          "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem."
+          "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem.",
+          "room_invitation": "Uzaicinājumi pievienoties telpām."
         }
       }
     },
@@ -424,6 +425,7 @@
         "title": "Parole",
         "add_description": "Pievienojiet paroli, lai varētu tieši pierakstīties un atvienot savu pēdējo SSO nodrošinātāju.",
         "change_description": "Mainiet tiešās pierakstīšanās paroli.",
+        "sso_managed": "Jūs nevarat pievienot vai mainīt paroli, jo šis serveris izmanto vienoto pierakstīšanos (SSO). Pārvaldiet savus pierakstīšanās datus pie sava identitātes pakalpojumu sniedzēja.",
         "current_label": "Pašreizējā parole",
         "current_required": "Ievadiet savu pašreizējo paroli.",
         "add_button": "Pievienot paroli",
@@ -448,6 +450,7 @@
         "link_button": "Saite",
         "link_failed": "Neizdevās saistīt pierakstīšanās nodrošinātāju",
         "fresh_auth_required": "Pirms cita pakalpojumu sniedzēja saistīšanas pierakstieties vēlreiz.",
+        "sso_fresh_auth_required": "Atveriet konta iestatījumus serverī, kuram pieder šis konts. Izrakstieties un pierakstieties vēlreiz, izmantojot savu SSO pakalpojumu sniedzēju, un pēc tam atkārtojiet darbību šajā serverī.",
         "provider_unconfigured": "Pakalpojumu sniedzējs vairs nav konfigurēts",
         "disconnect_button": "Atvienot",
         "disconnecting": "Notiek atvienošana...",
@@ -461,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Pakalpojumu sniedzēju nevar atvienot",
-          "body": "{provider} ir jūsu vienīgā pierakstīšanās metode. Vispirms pievienojiet paroli vai piesaistiet citu pakalpojumu sniedzēju."
+          "body": "Pirms atvienojat {provider}, iestatiet citu šī servera atbalstītu pierakstīšanās metodi."
         },
         "fresh_auth_modal": {
           "title": "Apstipriniet paroli",

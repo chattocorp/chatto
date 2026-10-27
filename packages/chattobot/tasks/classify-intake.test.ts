@@ -18,7 +18,7 @@ test('dedicated participation uses OpenRouter without starting an agent', async 
           type: 'choice',
           choice: 'ignore',
           confidence: 0.9,
-          probabilities: { engage: 0.1, ignore: 0.9 }
+          probabilities: { engage: 0.1, ignore: 0.9, like: 0, love: 0, smile: 0 }
         }
       }
     })
@@ -27,8 +27,8 @@ test('dedicated participation uses OpenRouter without starting an agent', async 
   const create = vi.fn();
   const classify = createIntakeClassifier('test/agent', intakeDecisionSettings(), create);
   expect(await classify(createTaskContext(), { body: 'Hello', attachmentTypes: [] })).toEqual({
-    engage: false,
-    probabilities: { engage: 0.1, ignore: 0.9 }
+    action: 'ignore',
+    probabilities: { engage: 0.1, ignore: 0.9, like: 0, love: 0, smile: 0 }
   });
   expect(create).not.toHaveBeenCalled();
   expect(JSON.parse(String(request.mock.calls[0]![1]!.body)).model).toBe('typesafe/jev-1.13');
@@ -73,13 +73,13 @@ function harness(summary: string) {
   return { classifier: createIntakeClassifier('test/model', {}, create), create, run, dispose };
 }
 
-test.each([true, false])(
+test.each(['engage', 'ignore', 'like', 'love', 'smile'])(
   'returns a validated decision (%s) from one tool-free turn',
-  async (engage) => {
-    const h = harness(JSON.stringify({ engage, reason: 'Fixture decision' }));
+  async (action) => {
+    const h = harness(JSON.stringify({ action, reason: 'Fixture decision' }));
     const input = { body: 'Images do not load', attachmentTypes: ['image/png'] };
     expect(await h.classifier(createTaskContext(), input)).toEqual({
-      engage,
+      action,
       reason: 'Fixture decision'
     });
     expect(h.create.mock.calls[0]![0]).toMatchObject({
@@ -106,6 +106,9 @@ test.each([true, false])(
 
 test.each([
   'yes',
+  '{"action":"react","emoji":"anything"}',
+  '{"action":"love","messageId":"elsewhere"}',
+  '{"action":"engage","authorId":"maintainer"}',
   '```json\n{"engage":true,"reason":"report"}\n```',
   '{"engage":"true","reason":"report"}',
   '{"reason":"report"}',

@@ -136,7 +136,6 @@ export async function languageReport(
       typing: async () => {},
       acknowledge: async () => {},
       setHandled: async () => {},
-      react: async () => {},
       readThread: async () => ({ messages: [], olderOmitted: false }),
       readAttachment: async () => {
         throw new Error('No evaluation attachments');

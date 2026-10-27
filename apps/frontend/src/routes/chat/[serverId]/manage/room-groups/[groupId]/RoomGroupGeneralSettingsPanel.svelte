@@ -24,6 +24,11 @@
     name.value.trim() !== name.original || description.value.trim() !== description.original
   );
 
+  /** Reports the live draft state to the section's navigation guard. */
+  export function hasChanges(): boolean {
+    return changed;
+  }
+
   function save(event: SubmitEvent): void {
     event.preventDefault();
     if (saving || !name.value.trim() || !changed) return;

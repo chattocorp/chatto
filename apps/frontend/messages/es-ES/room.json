@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Aviso de la sala",
+      "dismiss": "Cerrar",
+      "body": "Aviso (Markdown)",
+      "too_long": "Los avisos pueden contener como máximo {max} caracteres, incluidos los espacios en blanco.",
+      "help": "Guarda las correcciones sin volver a mostrar el aviso. Anúncialo para mostrarlo de nuevo a quienes lo cerraron en sus dispositivos.",
+      "conflict": "Este aviso cambió mientras lo editabas. Tu borrador sigue aquí. Cópialo si lo necesitas y carga el aviso actual antes de volver a guardar.",
+      "reload": "Cargar aviso actual",
+      "save": "Actualizar",
+      "republish": "Anunciar",
+      "clear": "Borrar",
+      "clear_confirm_title": "¿Borrar el aviso de la sala?",
+      "clear_confirm_description": "Esto elimina de inmediato el aviso activo para todos los miembros de la sala. Tus cambios sin guardar no se publicarán.",
+      "empty": "No se ha publicado ningún aviso.",
+      "edit": "Editar aviso"
+    },
+    "information": {
+      "description": "Descripción",
+      "created": "Creada",
+      "title": "Información de la sala",
+      "basic": "General",
+      "pinned_messages": "Mensajes fijados"
+    },
     "create": {
       "title": "Crear una Nueva Sala",
       "description": "Las salas son conversaciones dentro de tu servidor.",
@@ -35,8 +58,11 @@
     "leave": {
       "title": "Salir de la sala",
       "action": "Salir de la sala",
-      "prompt": "¿Estás seguro de que quieres salir de #{room}? Puedes volver a unirte más tarde.",
-      "failed": "No se pudo salir de la habitación"
+      "prompt": "¿Estás seguro de que quieres salir de #{room}?",
+      "failed": "No se pudo salir de la habitación",
+      "join_later": "Puedes volver a unirte más tarde.",
+      "need_invite": "Necesitarás una nueva invitación para unirte a esta sala.",
+      "rejoin_unknown": "Es posible que necesites una nueva invitación para volver a unirte."
     },
     "directory": {
       "universal_title": "Las salas universales se unen automáticamente",
@@ -59,7 +85,8 @@
       "join_group_failed": "No se pudo unir al grupo",
       "left": "Izquierda #{room}",
       "left_generic": "Sala izquierda",
-      "leave_confirm": "¿Estás seguro de que quieres salir de #{room}?"
+      "leave_confirm": "¿Estás seguro de que quieres salir de #{room}?",
+      "invited": "Invitado"
     },
     "server": {
       "remove_title": "Eliminar servidor",
@@ -73,7 +100,8 @@
       "beginning": "Este es el comienzo de esta conversación.",
       "read_denied": "No tienes permiso para leer mensajes en esta sala.",
       "limited_empty": "Aún no hay conversaciones que puedas leer.",
-      "loading": "Cargando mensajes..."
+      "loading": "Cargando mensajes...",
+      "load_failed": "No se han podido cargar los mensajes."
     },
     "message": {
       "empty": "Aún no hay mensajes",
@@ -259,6 +287,7 @@
     "unread_separator": "Mensajes nuevos",
     "close_extras": "Cerrar extras de habitación",
     "dm": {
+      "deactivated_user_notice": "Esta cuenta está desactivada. Esta persona no puede leer ni responder mensajes.",
       "deleted_user_notice": "El otro usuario ha sido eliminado."
     },
     "management": {
@@ -313,6 +342,25 @@
       "indefinite": "Indefinida",
       "remove_title": "Eliminar a {user} de la sala",
       "suspension_period": "Duración de la suspensión"
+    },
+    "invitation": {
+      "invite": "Invitar a un miembro",
+      "invited": "Has recibido una invitación",
+      "sent": "Invitaciones enviadas",
+      "expires": "Caduca el {date}",
+      "unavailable": "No puedes aceptar esta invitación en este momento. Todavía puedes rechazarla.",
+      "accept": "Aceptar invitación",
+      "decline": "Rechazar",
+      "title": "Invitar a miembros a #{room}",
+      "description": "Elige a quién quieres invitar. Los usuarios invitados recibirán una notificación y tendrán siete días para aceptar o rechazar.",
+      "members": "Miembros",
+      "send": "Enviar invitaciones",
+      "failed": "No se pudo invitar a {name}: {error}",
+      "already_member": "Ya está en esta sala",
+      "invited_by": "Has recibido una invitación de",
+      "decline_title": "¿Rechazar invitación?",
+      "decline_join_later": "Puedes unirte a esta sala más tarde.",
+      "decline_need_invite": "Necesitarás una nueva invitación para unirte a esta sala."
     }
   }
 }
