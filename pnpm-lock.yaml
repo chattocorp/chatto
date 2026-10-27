@@ -573,9 +573,6 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 1.3.0
         version: 1.3.0(@aws-sdk/credential-provider-node@3.972.82)(@smithy/signature-v4@5.7.3)(supports-color@7.2.0)(undici@7.29.1)(ws@8.22.0)(zod@4.6.5)
-      '@fontsource-variable/plus-jakarta-sans':
-        specifier: ^5.3.0
-        version: 5.3.0
       '@iconify-json/lucide':
         specifier: ^1.2.129
         version: 1.2.134
@@ -1516,9 +1513,6 @@ packages:
 
   '@fontsource-variable/ibm-plex-sans@5.3.0':
     resolution: {integrity: sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ==}
-
-  '@fontsource-variable/plus-jakarta-sans@5.3.0':
-    resolution: {integrity: sha512-/l/4r0yyWK9JzAlmA0LiYgGgmJe/Gswt4jTJEzr5QhJfwMbvJZDmYWyW0M4X7yCK69BajMVlV/Lx8g7WDc1+sw==}
 
   '@fontsource/ibm-plex-mono@5.3.0':
     resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
@@ -9637,8 +9631,6 @@ snapshots:
   '@fontsource-variable/ibm-plex-sans@5.2.8': {}
 
   '@fontsource-variable/ibm-plex-sans@5.3.0': {}
-
-  '@fontsource-variable/plus-jakarta-sans@5.3.0': {}
 
   '@fontsource/ibm-plex-mono@5.3.0': {}
 

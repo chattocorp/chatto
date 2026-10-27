@@ -90,8 +90,6 @@ Frontend, Examples, and Documentation Components:
 - Fontsource IBM Plex Sans and IBM Plex Mono
   (https://fontsource.org/fonts/ibm-plex-sans,
   https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
-- Plus Jakarta Sans, bundled by Runling through Fontsource
-  (https://fontsource.org/fonts/plus-jakarta-sans) - SIL Open Font License 1.1
 - daisyUI, used by the Runling console (https://daisyui.com/) - MIT License
 - gemoji (https://github.com/github/gemoji) - MIT License
 - heic2any (https://github.com/alexcorvi/heic2any) - MIT License

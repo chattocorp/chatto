@@ -141,6 +141,29 @@ test('passes image-only message pixels as request context, not persisted prompt 
   expect(server.postMessage).toHaveBeenCalledOnce();
 });
 
+test.each([false, true])(
+  'does not install an image loader for text or document-only context (document: %s)',
+  async (document) => {
+    const { turn, one, history, server, agent } = setup();
+    const message = row('one', 'Text request');
+    if (message.event.kind !== 'messagePosted') throw new Error('Expected message');
+    if (document)
+      message.event.attachments = [
+        {
+          id: 'document',
+          filename: 'notes.pdf',
+          contentType: 'application/pdf',
+          width: 0,
+          height: 0
+        }
+      ];
+    history.mockResolvedValue(page([row('root', 'Root'), message]));
+    await turn([one]);
+    expect(agent.reply.mock.calls[0]![1].loadImages).toBeUndefined();
+    expect(server.readAttachment).not.toHaveBeenCalled();
+  }
+);
+
 test('a failed durable start prevents reactions, model calls, and reply posts', async () => {
   const beforeEffects = vi.fn(() => {
     throw new Error('Storage unavailable');
@@ -230,7 +253,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
       }),
       signal: expect.any(AbortSignal),
       onText: expect.any(Function),
-      loadImages: expect.any(Function),
+      loadImages: undefined,
       context: {
         messages: [
           { id: 'root', author: 'human', text: 'Root', fromViewer: false },

@@ -11,10 +11,21 @@ available for diagnosis.
 
 ## Behavior
 
+- The run header always shows total tokens, cache-read tokens, and estimated
+  cost in USD. Cache writes appear separately. Unknown and partial costs remain
+  explicit. These totals include child activities.
+- Source metadata, the run reference, input, and output are available under
+  **Run details**. The wide-screen details pane opens only for a selected
+  activity, leaving the activity list room to use the full width.
 - Each task, command, wait, and agent has one row. Its position stays at its start
   time while its status, duration, and reported usage update.
 - Names describe the work. Identifiers and structured fields are available when
   a row is expanded, together with its recorded logs. Agent rows show the model.
+- Compact rows show usage only for agents. Parent totals remain in expanded
+  details, so the same tokens do not appear at each level of the tree.
+  Successful rows use a checkmark without a repeated completion label.
+  Start times are available in row tooltips and expanded activity details;
+  the detailed log keeps its timestamp column.
 - Warnings, errors, ordinary log messages, agent replies, and host messages remain
   visible. Failed task error messages appear beside the activity history.
 - Task label lines and known agent startup and token-total lines are replaced by
