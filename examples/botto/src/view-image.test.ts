@@ -142,9 +142,9 @@ test('resolves the owning message from the selected attachment without a model-s
   server.getMessage.mockResolvedValueOnce({
     attachments: [{ id: 'AL1OTYiP2g7EfGL', contentType: 'image/png' }]
   });
-  expect(tool.parameters.required).toEqual(['attachmentId']);
-  expect(tool.parameters.properties.attachmentId).toMatchObject({
-    anyOf: [{ const: 'image' }, { const: 'AL1OTYiP2g7EfGL' }]
+  expect(tool.parameters).toMatchObject({
+    required: ['attachmentId'],
+    properties: { attachmentId: { anyOf: [{ const: 'image' }, { const: 'AL1OTYiP2g7EfGL' }] } }
   });
   await tool.execute('call', { attachmentId: 'AL1OTYiP2g7EfGL' }, undefined, undefined, ctx);
   expect(server.getMessage).toHaveBeenCalledExactlyOnceWith(
