@@ -135,15 +135,6 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 }
 
 func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts, enforceCooldown bool) (*readmodel.User, error) {
-	if actorID == userID && login != nil {
-		managed, err := c.UsernameManaged(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		if managed {
-			return nil, ErrUsernameManaged
-		}
-	}
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -158,6 +149,17 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 			return nil, err
 		}
 		loginChanged = user.GetLogin() != nextLogin
+		// Clients may include an unchanged username when updating other fields.
+		// Provider management prevents renames, not full-profile submissions.
+		if actorID == userID && loginChanged {
+			managed, err := c.UsernameManaged(ctx, userID)
+			if err != nil {
+				return nil, err
+			}
+			if managed {
+				return nil, ErrUsernameManaged
+			}
+		}
 		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
 		if loginNeedsMentionCheck {
 			if c.configModel.IsUsernameBlocked(nextLogin) {
@@ -261,7 +263,7 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	}
 
 	checkUserExists := func() error {
-		if actorID == userID && login != nil && c.usernameManaged(userID) {
+		if actorID == userID && loginChanged && c.usernameManaged(userID) {
 			return ErrUsernameManaged
 		}
 		if err := checkCooldown(); err != nil {

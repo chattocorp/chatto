@@ -70,6 +70,52 @@ func TestManagedProviderAccountPolicy(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestManagedProviderProfileKeepsUsername(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "github", ManageUsernames: true}}
+	user, err := c.CreateUserForExternalIdentity(ctx, "ignored", "Original", &PendingExternalIdentityFlow{
+		Kind: ExternalIdentityFlowKindCreate, ProviderID: "company", ProviderType: "github",
+		Issuer: "company", Subject: "profile-subject", ProviderUsername: "alice",
+	})
+	require.NoError(t, err)
+	lastChange, err := c.GetLastLoginChange(ctx, user.Id)
+	require.NoError(t, err)
+
+	for _, login := range []string{"alice", "  alice  "} {
+		t.Run(fmt.Sprintf("unchanged %q", login), func(t *testing.T) {
+			displayName, bio := "Updated "+login, "Updated bio "+login
+			updated, err := c.UpdateOwnUserProfile(ctx, user.Id, &login, &displayName, &bio)
+			require.NoError(t, err)
+			require.Equal(t, "alice", updated.Login)
+			require.Equal(t, NormalizeDisplayName(displayName), updated.DisplayName)
+			require.Equal(t, normalizeBio(bio), updated.Bio)
+			stored, err := c.GetUser(ctx, user.Id)
+			require.NoError(t, err)
+			require.Equal(t, updated.DisplayName, stored.DisplayName)
+			require.Equal(t, updated.Bio, stored.Bio)
+			currentLastChange, err := c.GetLastLoginChange(ctx, user.Id)
+			require.NoError(t, err)
+			require.Equal(t, lastChange, currentLastChange, "an unchanged username must not start a cooldown")
+		})
+	}
+
+	before, err := c.GetUser(ctx, user.Id)
+	require.NoError(t, err)
+	for _, login := range []string{"renamed", "Alice"} {
+		t.Run("reject "+login, func(t *testing.T) {
+			_, err := c.UpdateOwnUserProfile(ctx, user.Id, &login, new("Must not save"), new("Must not save"))
+			require.ErrorIs(t, err, ErrUsernameManaged)
+			stored, err := c.GetUser(ctx, user.Id)
+			require.NoError(t, err)
+			require.Equal(t, before.Login, stored.Login)
+			require.Equal(t, before.DisplayName, stored.DisplayName)
+			require.Equal(t, before.Bio, stored.Bio)
+		})
+	}
+}
+
 func TestManagedProviderConcurrentCreation(t *testing.T) {
 	ns, _ := testutil.StartNATS(t)
 	cfg := testCoreConfig()

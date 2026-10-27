@@ -50,6 +50,14 @@ func TestManagedProviderAccountAPI(t *testing.T) {
 	viewer, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, apiv1.UsernameChangeAvailability_STATE_PROVIDER_MANAGED, viewer.Msg.User.Actions.ChangeUsername.State)
+	// Third-party clients can send a full profile, including the unchanged login.
+	profile, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{
+		UserId: user.Id, Login: new(user.Login), DisplayName: new("New display name"), Bio: new("New bio"),
+	}))
+	require.NoError(t, err)
+	require.Equal(t, user.Login, profile.Msg.User.Login)
+	require.Equal(t, "New display name", profile.Msg.User.DisplayName)
+	require.Equal(t, "New bio", profile.Msg.User.GetBio())
 	require.NoError(t, env.core.LinkExternalIdentity(env.ctx, "company", "github", "company", "second", user.Id))
 	list, err := env.account.ListExternalIdentities(ctx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
 	require.NoError(t, err)
