@@ -45,14 +45,22 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.desktop = false;
   // Failed or pending discovery keeps the default name.
-  createTestServerScope({ serverInfo: { name: 'Chatto', version: '', iconUrl: null } });
+  createTestServerScope({
+    serverInfo: { name: 'Chatto', version: '', iconUrl: null },
+    store: { realtimeSync: { hasDisplayableView: false } }
+  });
 });
 
 describe('ServerSignedOut', () => {
-  it.each([true, false])(
-    'offers Desktop signup only when registration is enabled=%s',
-    async (enabled) => {
-      mocks.desktop = true;
+  it.each([
+    [true, true],
+    [true, false],
+    [false, true],
+    [false, false]
+  ])(
+    'offers signup for desktop=%s only when registration is enabled=%s',
+    async (desktop, enabled) => {
+      mocks.desktop = desktop;
       mocks.startRemoteReauthentication.mockResolvedValue(undefined);
       createTestServerScope({
         serverInfo: { name: 'Saved Server', loading: false, directRegistrationEnabled: enabled },
@@ -132,14 +140,33 @@ describe('ServerSignedOut', () => {
     expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(registration);
     expect(mocks.passwordLogin).not.toHaveBeenCalled();
   });
-  it('names the server from its registration and explains the signed-out state', async () => {
+  it('names the server and explains the separate server-hosted sign-in window', async () => {
+    createTestServerScope({
+      serverInfo: {
+        name: 'Saved Server',
+        loading: false,
+        directLoginEnabled: true,
+        authProviders: [{ id: 'chatto-id', type: 'oidc', label: 'Chatto ID' }]
+      },
+      store: { realtimeSync: { hasDisplayableView: false } }
+    });
     render(ServerSignedOut, { props: { registration } });
 
-    await expect
-      .element(page.getByRole('heading', { name: 'You are signed out of this server' }))
-      .toBeVisible();
     await expect.element(page.getByText('Saved Server')).toBeVisible();
-    await expect.element(page.getByText('chat.example.test:8443')).toBeVisible();
+    await expect
+      .element(
+        page.getByText(
+          'Sign-in opens a separate window at chat.example.test:8443. Enter your credentials there, not in this app.'
+        )
+      )
+      .toBeVisible();
+    await expect.element(page.getByLabelText('Password', { exact: true })).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole('button', { name: 'Continue with Chatto ID' }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole('button', { name: 'Remove server' }))
+      .not.toBeInTheDocument();
     expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
   });
 
@@ -161,16 +188,5 @@ describe('ServerSignedOut', () => {
 
     await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
     await expect.element(page.getByRole('button', { name: 'Log in to server' })).toBeEnabled();
-  });
-
-  it('opens the remove-server confirmation', async () => {
-    render(ServerSignedOut, { props: { registration } });
-
-    await page.getByRole('button', { name: 'Remove server' }).click();
-
-    expect(mocks.pushState).toHaveBeenCalledWith('', {
-      modal: { type: 'removeServer', serverId: 'server-1', spaceName: 'Saved Server' }
-    });
-    expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
   });
 });
