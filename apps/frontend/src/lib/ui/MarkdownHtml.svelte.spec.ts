@@ -365,7 +365,7 @@ describe('MarkdownHtml code copy', () => {
     }
   );
 
-  it('numbers source lines without changing copied text and keeps the gutter fixed', async () => {
+  it('numbers source lines without a background or changing copied text', async () => {
     const source = 'first\n\n' + 'long '.repeat(80) + '\nlast\n';
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown('```text\n' + source + '```\n\n```ansi render\nART\n```')
@@ -379,10 +379,11 @@ describe('MarkdownHtml code copy', () => {
       true
     );
     expect(numbers[0].textContent).toBe('');
+    expect(getComputedStyle(numbers[0]).backgroundColor).toBe('rgba(0, 0, 0, 0)');
     const left = numbers[2].getBoundingClientRect().left;
     code.scrollLeft = 160;
     expect(code.scrollLeft).toBe(160);
-    expect(numbers[2].getBoundingClientRect().left).toBe(left);
+    expect(numbers[2].getBoundingClientRect().left).toBe(left - 160);
     expect(
       container.querySelector('[data-code-panel="render"] .markdown-code-line-number')
     ).toBeNull();
