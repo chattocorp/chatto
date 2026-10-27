@@ -100,6 +100,22 @@ test('Pi advertises skills with only the restricted reader and loads supporting 
   }
 });
 
+test('a line at the output limit advances pagination instead of returning an empty page', async () => {
+  const { skills, session, read } = await setup();
+  try {
+    const line = 'x'.repeat(20_000);
+    await writeFile(join(skills, 'boundary.txt'), `${line}\nlast`);
+    expect((await read.execute('first', { path: 'boundary.txt' })).content).toEqual([
+      { type: 'text', text: `${line}\n[Continue with offset=2.]` }
+    ]);
+    expect((await read.execute('last', { path: 'boundary.txt', offset: 2 })).content).toEqual([
+      { type: 'text', text: 'last' }
+    ]);
+  } finally {
+    session.dispose();
+  }
+});
+
 test('reader rejects outside files, traversal, symlink escapes, directories, binary and oversized files', async () => {
   const { directory, skills, session, read } = await setup();
   try {

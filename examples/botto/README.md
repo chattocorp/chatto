@@ -97,7 +97,8 @@ Relative paths start at the skills directory; references inside a skill should
 use the absolute path resolved from that skill's directory, as Pi instructs.
 Reads reject paths and symlinks that resolve outside the skills directory,
 non-regular files, binary content, and files over 256 KiB. Output is paginated
-and limited to 20,000 characters per call and per line.
+and limited to 20,000 characters of file text per call and per line, plus a
+continuation marker when more lines remain.
 Botto supplies no shell, execution, or file-writing tool. Skills that require
 scripts cannot run them. Skill instructions do not grant additional tools.
 

@@ -71,9 +71,10 @@ export function skillReadExtension(directory: string): ExtensionFactory {
           let size = 0;
           for (const line of lines.slice(offset - 1, offset - 1 + limit)) {
             if (line.length > MAX_OUTPUT_CHARS) throw new Error('Line is too long');
-            if (size + line.length + 1 > MAX_OUTPUT_CHARS) break;
+            const added = line.length + (selected.length ? 1 : 0);
+            if (size + added > MAX_OUTPUT_CHARS) break;
             selected.push(line);
-            size += line.length + 1;
+            size += added;
           }
           const next = offset + selected.length;
           return {
