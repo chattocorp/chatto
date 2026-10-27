@@ -32,7 +32,7 @@ await build({
       sign: false,
       writeUpdateInfo: false,
       title: 'Chatto Desktop',
-      backgroundColor: '#ffffff',
+      background: path.join(desktopRoot, 'icons/background.png'),
       window: { width: 540, height: 380 },
       contents: [
         { x: 150, y: 180, type: 'file', path: bundle },
