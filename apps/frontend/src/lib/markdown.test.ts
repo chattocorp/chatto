@@ -148,7 +148,7 @@ describe('renderMarkdown', () => {
 
       expect(html).toContain('Unknown[^missing]');
       expect(html).toContain('<code>[^known]</code>');
-      expect(html).toContain('<span class="line">[^known]</span>');
+      expect(html).toContain('</span>[^known]</span>');
       expect(html).not.toContain('class="footnotes"');
       expect(html).not.toContain('Unused note.');
     });
@@ -318,7 +318,7 @@ describe('renderMarkdown', () => {
       const html = await renderMarkdown('`&nbsp;`\n\n```text\n&nbsp;\n```');
 
       expect(html).toContain('<code>&amp;nbsp;</code>');
-      expect(html).toContain('<span class="line">&amp;nbsp;</span>');
+      expect(html).toContain('</span>&amp;nbsp;</span>');
     });
 
     it('preserves entity spellings Markdown-it does not decode', async () => {

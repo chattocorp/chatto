@@ -363,10 +363,15 @@ function renderCodeFence(code: string, rawLanguage: string): string {
             ).children
           )
         : renderPlainCodeLines(displayCode);
-  const lineHtml = lines.map((line) => `<span class="line">${line}</span>`).join('');
+  const lineHtml = lines
+    .map(
+      (line, index) =>
+        `<span class="line"><span class="markdown-code-line-number" data-line="${index + 1}" aria-hidden="true"></span>${line}</span>`
+    )
+    .join('');
 
   // Copy the parser's code content before display-only newline and tab changes.
-  return `<pre class="hljs markdown-code" data-language="${escapeAttribute(displayLanguage)}" data-copy-source="${escapeAttribute(code)}"><code class="language-${escapeAttribute(displayLanguage)}" tabindex="0">${lineHtml}</code></pre>`;
+  return `<pre class="hljs markdown-code" data-language="${escapeAttribute(displayLanguage)}" data-copy-source="${escapeAttribute(code)}" style="--code-line-digits:${String(lines.length).length}"><code class="language-${escapeAttribute(displayLanguage)}" tabindex="0">${lineHtml}</code></pre>`;
 }
 
 function normalizeCodeLanguage(language: string | null | undefined): string {

@@ -342,6 +342,31 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it('numbers source lines without changing copied text and keeps the gutter fixed', async () => {
+    const source = 'first\n\n' + 'long '.repeat(80) + '\nlast\n';
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```text\n' + source + '```\n\n```ansi render\nART\n```')
+    });
+    container.classList.add('prose');
+    container.style.width = '320px';
+    const code = container.querySelector<HTMLElement>('[data-code-panel="source"] code')!;
+    const numbers = code.querySelectorAll<HTMLElement>('.markdown-code-line-number');
+    expect([...numbers].map((number) => number.dataset.line)).toEqual(['1', '2', '3', '4']);
+    expect([...numbers].every((number) => number.getAttribute('aria-hidden') === 'true')).toBe(
+      true
+    );
+    expect(numbers[0].textContent).toBe('');
+    const left = numbers[2].getBoundingClientRect().left;
+    code.scrollLeft = 160;
+    expect(code.scrollLeft).toBe(160);
+    expect(numbers[2].getBoundingClientRect().left).toBe(left);
+    expect(
+      container.querySelector('[data-code-panel="render"] .markdown-code-line-number')
+    ).toBeNull();
+    await userEvent.click(container.querySelector('[data-markdown-copy]')!);
+    expect(writeText).toHaveBeenCalledWith(source);
+  });
+
   it.each(['light', 'dark'])(
     'keeps code chrome above the message surface in %s mode',
     async (theme) => {
