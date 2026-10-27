@@ -1852,6 +1852,27 @@
   @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
 }
 
+/* Shared code chrome for messages and both composer implementations. */
+@utility code-frame {
+  @apply min-w-0 overflow-hidden rounded-md border shadow-xs;
+  border-color: var(--message-code-surface, var(--color-surface));
+}
+
+@utility code-frame-header {
+  @apply flex h-6 items-center justify-end gap-1 px-2 py-0.5 font-sans text-xs leading-4 text-muted;
+  background-color: var(--message-code-surface, var(--color-surface));
+}
+
+@utility code-line-number {
+  @apply sticky start-0 inline-block pe-3 text-end text-muted select-none;
+  width: calc(var(--code-line-digits, 2) * 1ch + 0.75rem);
+  margin-inline-end: 0.75rem;
+  background-color: var(--message-code-surface, var(--color-surface));
+  &::before {
+    content: attr(data-line);
+  }
+}
+
 /* Chat message row primitives. These keep the hover-highlight shell and its
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {

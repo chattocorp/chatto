@@ -162,13 +162,11 @@
   }
 
   & .markdown-code-frame {
-    @apply my-2 min-w-0 overflow-hidden rounded-md border shadow-xs;
-    border-color: var(--message-code-surface, var(--color-surface));
+    @apply my-2 code-frame;
   }
 
   & .markdown-code-header {
-    @apply flex items-center justify-end gap-1 px-2 py-0.5 font-sans text-xs leading-4 text-muted;
-    background-color: var(--message-code-surface, var(--color-surface));
+    @apply code-frame-header;
   }
 
   & .markdown-code-header [role='tablist'] {
@@ -238,14 +236,7 @@
   }
 
   & .markdown-code-line-number {
-    @apply sticky start-0 inline-block pe-3 text-end text-muted select-none;
-    width: calc(var(--code-line-digits) * 1ch + 0.75rem);
-    margin-inline-end: 0.75rem;
-    background-color: var(--message-code-surface, var(--color-surface));
-  }
-
-  & .markdown-code-line-number::before {
-    content: attr(data-line);
+    @apply code-line-number;
   }
 
   & .hljs-comment,

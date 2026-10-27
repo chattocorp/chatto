@@ -76,7 +76,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let editorFrameElement = $state<HTMLDivElement>();
   let editor = $state<Editor | null>(null);
   let activeCodeBlockLanguage = $state<string | null>(null);
-  let activeCodeBlockSelectorPosition = $state<{ right: number; bottom: number } | null>(null);
+  let activeCodeBlockSelectorPosition = $state<{ right: number; top: number } | null>(null);
   let activeLinkHref = $state<string | null>(null);
   let activeLinkRange = $state<{ from: number; to: number } | null>(null);
   let linkHrefDraft = $state('');
@@ -101,7 +101,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   );
   let codeLanguageSelectStyle = $derived(
     activeCodeBlockSelectorPosition
-      ? `right: ${activeCodeBlockSelectorPosition.right}px; bottom: ${activeCodeBlockSelectorPosition.bottom}px;`
+      ? `right: ${activeCodeBlockSelectorPosition.right}px; top: ${activeCodeBlockSelectorPosition.top}px;`
       : ''
   );
 
@@ -127,7 +127,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   function updateActiveCodeBlockSelectorPosition(e: Editor) {
-    if (!editorFrameElement || !e.isActive('codeBlock')) {
+    if (!editorFrameElement || !editorElement || !e.isActive('codeBlock')) {
       activeCodeBlockSelectorPosition = null;
       return;
     }
@@ -161,9 +161,14 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
     const frameRect = editorFrameElement.getBoundingClientRect();
     const preRect = preElement.getBoundingClientRect();
+    const viewport = editorElement.getBoundingClientRect();
+    if (preRect.bottom < viewport.top + 24 || preRect.top >= viewport.bottom) {
+      activeCodeBlockSelectorPosition = null;
+      return;
+    }
     activeCodeBlockSelectorPosition = {
-      right: frameRect.right - preRect.right,
-      bottom: frameRect.bottom - preRect.bottom
+      right: frameRect.right - preRect.right + 1,
+      top: Math.max(preRect.top + 1, viewport.top) - frameRect.top
     };
   }
 
@@ -678,12 +683,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   ></div>
 
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
-    <div
-      class="absolute z-10 inline-flex items-center rounded-tl-md rounded-br-md bg-surface-emphasized"
-      style={codeLanguageSelectStyle}
-    >
+    <div class="absolute z-10 code-frame-header rounded-tr-md" style={codeLanguageSelectStyle}>
       <div
-        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
+        class="group relative inline-flex h-5 items-center gap-1 font-mono text-xs tracking-wide text-muted uppercase focus-within:text-text focus-within:outline-2 focus-within:outline-action hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
         <span aria-hidden="true" class="iconify icon-[uil--angle-down] size-3"></span>
@@ -704,7 +706,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       {#if activeArtifactHint}
         <button
           type="button"
-          class="code-render-toggle mini-icon-action size-6"
+          class="code-render-toggle mini-icon-action size-5"
           title={m('composer.render_by_default')}
           aria-label={m('composer.render_by_default')}
           aria-pressed={renderByDefault}
@@ -858,22 +860,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     margin-top: 0.45em;
   }
 
-  :global(.tiptap-editor .ProseMirror pre) {
-    overflow: hidden;
-    position: relative;
-    width: 100%;
-    border-radius: 0.375rem;
-    border: 1px solid var(--color-surface-emphasized);
-    background: transparent;
-    padding: 0.5rem 0.75rem;
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    line-height: 1.5;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-    direction: ltr;
-    unicode-bidi: isolate;
-  }
-
   :global(.tiptap-editor .ProseMirror p),
   :global(.tiptap-editor .ProseMirror li),
   :global(.tiptap-editor .ProseMirror blockquote),
@@ -896,34 +882,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   :global(.tiptap-editor .ProseMirror > pre:last-child) {
     margin-bottom: 0;
-  }
-
-  :global(.tiptap-editor .ProseMirror pre[data-language]::after) {
-    content: attr(data-language);
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    border-top-left-radius: 0.375rem;
-    background: var(--color-surface-emphasized);
-    padding: 0.125rem 0.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1rem;
-    letter-spacing: 0.025em;
-    color: var(--color-muted);
-    text-transform: uppercase;
-    pointer-events: none;
-  }
-
-  :global(.tiptap-editor .ProseMirror pre code) {
-    display: block;
-    overflow-x: auto;
-    background: transparent;
-    padding: 0 3.5rem 0 0;
-    font-size: inherit;
-    line-height: inherit;
-    color: var(--composer-code-text);
-    white-space: pre;
   }
 
   :global(.tiptap-editor .ProseMirror .hljs-comment),

@@ -34,6 +34,39 @@ it('opens a registered Chatto link from the composer through local routing', asy
 });
 
 describe('Composer artifact controls', () => {
+  it('uses a top header and decorative line numbers while editing code', async () => {
+    let api: ComposerEditorApi | undefined;
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      onReady: (ready) => (api = ready),
+      onUpdate: (markdown) => updates.push(markdown)
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.setContent('```mermaid\nflowchart LR\n\nA-->B\n```');
+    const pre = container.querySelector('pre')!;
+    const code = pre.querySelector('code')!;
+    await userEvent.click(code);
+    const numbers = () => [...code.querySelectorAll<HTMLElement>('.code-line-number')];
+    expect(numbers().map((number) => number.dataset.line)).toEqual(['1', '2', '3']);
+    expect(numbers().every((number) => number.getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect(code.textContent).toBe('flowchart LR\n\nA-->B');
+    expect(getComputedStyle(pre, '::before').height).toBe('24px');
+    expect(getComputedStyle(pre).borderTopColor).toBe(
+      getComputedStyle(pre, '::before').backgroundColor
+    );
+    const controls = container
+      .querySelector('[name="composer-code-language"]')!
+      .closest('.code-frame-header')!;
+    expect(
+      Math.abs(controls.getBoundingClientRect().top - pre.getBoundingClientRect().top)
+    ).toBeLessThan(2);
+    await userEvent.keyboard('{Home}');
+    api!.insertText('new\n');
+    await expect.poll(() => numbers().length).toBe(4);
+    expect(updates.at(-1)).toContain('new\n');
+    expect(updates.at(-1)).not.toContain('data-line');
+  });
+
   it.each(['svg', 'mermaid', 'ansi'])(
     'sets the render hint from the visual %s controls',
     async (language) => {

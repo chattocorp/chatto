@@ -114,7 +114,13 @@ function codeBodyDecorations(state: EditorState): DecorationSet {
         classes.push('cm-code-fence-body');
       }
       ranges.push(
-        Decoration.line({ class: classes.join(' ') }).range(state.doc.line(lineNumber).from)
+        Decoration.line({
+          class: classes.join(' '),
+          attributes: {
+            'data-line': String(lineNumber - firstLine),
+            style: `--code-line-digits:${String(Math.max(1, lastLine - firstLine - (fence.closed ? 1 : 0))).length}`
+          }
+        }).range(state.doc.line(lineNumber).from)
       );
     }
   }
