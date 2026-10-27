@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Atalhos de teclado",
+      "app": "Aplicação",
+      "editor_note": "Os atalhos do editor aplicam-se ao escrever. Alguns exigem texto selecionado ou um rascunho vazio.",
+      "undo": "Anular",
+      "redo": "Refazer",
+      "new_line": "Nova linha",
+      "edit_last": "Editar a última mensagem (rascunho vazio)",
+      "complete": "Completar menção ou emoji"
+    },
     "action_unavailable": "Esta ação está indisponível de momento.",
     "edit": "Editar",
     "copy_failed": "Não foi possível copiar para a área de transferência. Selecione o texto e copie-o manualmente.",

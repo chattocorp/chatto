@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "键盘快捷键",
+      "app": "应用",
+      "editor_note": "编辑器快捷键适用于输入时。部分需要选中文字或空白草稿。",
+      "undo": "撤销",
+      "redo": "重做",
+      "new_line": "换行",
+      "edit_last": "编辑最后一条消息（草稿为空时）",
+      "complete": "补全提及或表情符号"
+    },
     "action_unavailable": "此操作目前不可用。",
     "edit": "编辑",
     "copy_failed": "无法复制到剪贴板。请选择文本并手动复制。",

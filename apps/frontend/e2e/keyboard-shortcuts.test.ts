@@ -1,0 +1,46 @@
+import { expect } from '@playwright/test';
+import { test } from './setup';
+import { createAndLoginTestUser } from './fixtures/testUser';
+import { waitForRoomReady } from './fixtures/realtimeSync';
+
+test('shortcut help preserves editor text, selection, and focus', async ({
+  page,
+  chatPage,
+  roomPage
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+  await waitForRoomReady(page, 'general');
+  await roomPage.waitForInputEditable();
+  await roomPage.messageInput.fill('Keep this selected draft');
+  await roomPage.messageInput.press('ControlOrMeta+A');
+  const selected = await page.evaluate(() => window.getSelection()?.toString());
+
+  await page.keyboard.press('ControlOrMeta+Shift+Slash');
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Open quick switcher', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Send message', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Bold', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Undo', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('textbox', { name: 'Search', exact: true })).toBeFocused();
+  await page.keyboard.press('PageDown');
+  await expect
+    .poll(() => dialog.locator('.dialog-body').evaluate((node) => node.scrollTop))
+    .toBeGreaterThan(0);
+  await dialog.getByRole('textbox', { name: 'Search', exact: true }).fill('Bold');
+  await expect(dialog.getByText('Bold', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Undo', { exact: true })).not.toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(roomPage.messageInput).toBeFocused();
+  await expect(roomPage.messageInput).toHaveText('Keep this selected draft');
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
+
+  await page.keyboard.press('ControlOrMeta+b');
+  await expect(roomPage.messageInput.locator('strong')).toHaveText('Keep this selected draft');
+  expect(errors).toEqual([]);
+});

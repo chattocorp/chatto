@@ -11,6 +11,7 @@ typing should immediately replace the current query.
   import type { HTMLInputAttributes } from 'svelte/elements';
   import { usesAppleShortcutModifier } from '$lib/utils/platformShortcuts';
   import TextInput from './TextInput.svelte';
+  import KeyboardShortcut from '$lib/components/KeyboardShortcut.svelte';
 
   let {
     shortcutKey,
@@ -68,27 +69,21 @@ typing should immediately replace the current query.
     return element instanceof HTMLInputElement ? element : null;
   }
 
-  function handleWindowKeydown(event: KeyboardEvent) {
+  function focusInput() {
     const inputElement = inputForShortcut();
-    if (
-      event.defaultPrevented ||
-      event.altKey ||
-      event.shiftKey ||
-      (!event.metaKey && !event.ctrlKey) ||
-      event.key.toLowerCase() !== shortcutKey.toLowerCase() ||
-      !inputElement ||
-      inputElement.disabled
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-    inputElement.focus();
-    inputElement.select();
+    inputElement?.focus();
+    inputElement?.select();
   }
 </script>
 
-<svelte:window onkeydown={handleWindowKeydown} />
+<KeyboardShortcut
+  key={shortcutKey}
+  command
+  capture={false}
+  description={label}
+  when={() => !!inputForShortcut() && !inputForShortcut()?.disabled}
+  ontrigger={focusInput}
+/>
 
 <TextInput
   {label}

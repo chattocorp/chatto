@@ -10,6 +10,7 @@ import { quickSwitcher } from '$lib/state/globals.svelte';
 import { flushSync } from 'svelte';
 import Harness from './GlobalKeyboardShortcutsTestHarness.svelte';
 import ShortcutTextInput from '$lib/ui/form/ShortcutTextInput.svelte';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn().mockResolvedValue(undefined),
@@ -115,6 +116,74 @@ beforeEach(() => {
 });
 
 describe('global keyboard shortcuts', () => {
+  it.each(['metaKey', 'ctrlKey'] as const)(
+    'opens shortcut help with %s+? without changing a draft',
+    async (modifier) => {
+      render(Harness);
+      const draft = document.querySelector('textarea')!;
+      draft.value = 'Keep my draft';
+      draft.focus();
+      const event = press({ key: '?', altKey: false, shiftKey: true, [modifier]: true });
+      expect(event.defaultPrevented).toBe(true);
+      flushSync();
+      const dialog = document.querySelector('dialog[open]')!;
+      expect(dialog.textContent).toContain('Keyboard shortcuts');
+      expect(dialog.textContent).toContain('Open quick switcher');
+      expect(dialog.textContent).toContain('Go to next unread source');
+      expect(draft.value).toBe('Keep my draft');
+      const close = [...dialog.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === 'Close'
+      )!;
+      close.click();
+      await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+      expect(document.activeElement).toBe(draft);
+    }
+  );
+
+  it('lists mounted filters and current editor preferences, and removes unmounted entries', async () => {
+    const previousMode = userPreferences.composerSendMode;
+    const previousEditor = userPreferences.composerEditor;
+    userPreferences.composerSendMode = 'modifier-enter';
+    userPreferences.composerEditor = 'visual';
+    const view = render(Harness, { showFilter: true, showEditor: true });
+    const help = () => {
+      document.querySelector('textarea')!.focus();
+      press({ key: '?', altKey: false, shiftKey: true, ctrlKey: true });
+      flushSync();
+      return document.querySelector('dialog[open]')!;
+    };
+    const close = async (dialog: Element) => {
+      [...dialog.querySelectorAll('button')]
+        .find((button) => button.textContent?.trim() === 'Close')!
+        .click();
+      await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+    };
+    try {
+      let dialog = help();
+      expect(dialog.textContent).toContain('Filter permissions');
+      expect(dialog.textContent).toContain('Bold');
+      expect(dialog.textContent).toContain('Undo');
+      const sendKeys = () =>
+        [...dialog.querySelectorAll('dt')].find((row) => row.textContent === 'Send message')!
+          .nextElementSibling!;
+      expect(sendKeys().querySelectorAll('kbd')).toHaveLength(2);
+      await close(dialog);
+      userPreferences.composerSendMode = 'enter';
+      userPreferences.composerEditor = 'markdown';
+      dialog = help();
+      expect(sendKeys().querySelectorAll('kbd')).toHaveLength(1);
+      expect(dialog.textContent).not.toContain('Heading');
+      await close(dialog);
+      await view.rerender({ showFilter: false, showEditor: false });
+      dialog = help();
+      expect(dialog.textContent).not.toContain('Filter permissions');
+      expect(dialog.textContent).not.toContain('Bold');
+    } finally {
+      userPreferences.composerSendMode = previousMode;
+      userPreferences.composerEditor = previousEditor;
+    }
+  });
+
   it('leaves editor and navigation keys available to their local handlers', () => {
     render(Harness);
     const draft = document.querySelector('textarea')!;

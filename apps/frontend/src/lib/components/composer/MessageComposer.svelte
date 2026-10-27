@@ -4,6 +4,7 @@
 
 <script lang="ts">
   import ComposerStatusRow from './ComposerStatusRow.svelte';
+  import ComposerShortcutHints from './ComposerShortcutHints.svelte';
   import SlowModeBadge from './SlowModeBadge.svelte';
   import { createMessageAPI } from '@chatto/client/api/messages';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -236,6 +237,7 @@
     }
   }}
 >
+  <ComposerShortcutHints disabled={composer.inputDisabled} />
   <ComposerLinkPreview state={composer.linkPreviews} />
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
