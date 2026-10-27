@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Snapshot for changing a username. Missing means not reported. Commands still
+// check policy and input, including case-only exceptions. Unknown reasons stay blocked.
+message UsernameChangeAvailability {
+  // Primary reason this username change cannot be attempted.
+  enum Reason {
+    // No blocking reason is supplied.
+    REASON_UNSPECIFIED = 0;
+    // A linked provider manages the username.
+    REASON_PROVIDER_MANAGED = 1;
+    // The username change cooldown has not expired.
+    REASON_COOLDOWN = 2;
+  }
+  // Whether the action can be attempted, not an authorization grant.
+  bool allowed = 1;
+  // Unspecified when allowed is true.
+  Reason reason = 2;
+  // Earliest time to refresh a blocked cooldown decision. Expiry does not grant
+  // permission automatically. Absent for other reasons and allowed actions.
+  google.protobuf.Timestamp available_at = 3;
+}
+
+// Snapshot for setting or changing a password. Missing means not reported.
+// Commands still validate passwords and authentication. Unknown reasons stay blocked.
+message PasswordChangeAvailability {
+  // Primary reason password self-service cannot be attempted.
+  enum Reason {
+    // No blocking reason is supplied.
+    REASON_UNSPECIFIED = 0;
+    // The operator disabled direct login and password self-service.
+    REASON_DIRECT_LOGIN_DISABLED = 1;
+    // This account type does not support password self-service.
+    REASON_UNSUPPORTED_ACCOUNT = 2;
+  }
+  // Whether the action can be attempted, not an authorization grant.
+  bool allowed = 1;
+  // Unspecified when allowed is true.
+  Reason reason = 2;
+}
+
+// Snapshot for starting self-service account deletion. Missing means not reported.
+// Commands still check authority and authentication. Unknown reasons stay blocked.
+message AccountDeletionAvailability {
+  // Primary reason self-service deletion cannot be attempted.
+  enum Reason {
+    // No blocking reason is supplied.
+    REASON_UNSPECIFIED = 0;
+    // The viewer lacks permission to delete this account.
+    REASON_PERMISSION_DENIED = 1;
+    // This account type does not support self-service deletion.
+    REASON_UNSUPPORTED_ACCOUNT = 2;
+  }
+  // Whether the action can be attempted, not an authorization grant.
+  bool allowed = 1;
+  // Unspecified when allowed is true.
+  Reason reason = 2;
+}
+
+// Self-service decisions for the current viewer. Each action owns its reasons.
+message AccountActions {
+  // Changing the username, excluding input-specific exceptions such as case-only edits.
+  UsernameChangeAvailability change_username = 1;
+  // Setting an initial password or changing an existing password.
+  PasswordChangeAvailability change_password = 2;
+  // Starting self-service account deletion.
+  AccountDeletionAvailability delete_account = 3;
+}

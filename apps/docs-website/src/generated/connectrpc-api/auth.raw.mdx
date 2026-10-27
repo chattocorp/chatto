@@ -258,7 +258,21 @@ exposed; clients only need user-facing provider/profile hints.
 | `display_name_hint` | `string` | Suggested display name derived from provider profile hints. |
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
-| `choose_username` | `chatto.api.v1.ActionAvailability` | Whether the user can choose a username. When externally managed, the server assigns it and ignores client input. The login hint is not a reservation. |
+| `choose_username` | [`UsernameChoiceAvailability`](#chatto-auth-v1-UsernameChoiceAvailability) | Whether the user can choose a username. When externally managed, the server assigns it and ignores client input. The login hint is not a reservation. |
+
+
+
+<a id="chatto-auth-v1-UsernameChoiceAvailability"></a>
+
+### UsernameChoiceAvailability
+
+Snapshot for choosing a username during account creation. Missing means not
+reported. Creation still checks policy and input. Unknown reasons stay blocked.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `allowed` | `bool` | Whether the user can choose a username, not a guarantee of name availability. |
+| `reason` | [`UsernameChoiceAvailability.Reason`](#chatto-auth-v1-UsernameChoiceAvailability-Reason) | Unspecified when allowed is true. |
 
 
 
@@ -276,3 +290,15 @@ Mode of a pending external identity confirmation flow.
 | `EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED` | `0` | The flow kind was not specified. |
 | `EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT` | `1` | Create a new passwordless account and link the provider identity. |
 | `EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT` | `2` | Link the provider identity to the authenticated account. |
+
+
+<a id="chatto-auth-v1-UsernameChoiceAvailability-Reason"></a>
+
+### UsernameChoiceAvailability.Reason
+
+Primary reason the user cannot choose the account username.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REASON_UNSPECIFIED` | `0` | No blocking reason is supplied. |
+| `REASON_PROVIDER_MANAGED` | `1` | The provider supplies the username; the server resolves collisions. |

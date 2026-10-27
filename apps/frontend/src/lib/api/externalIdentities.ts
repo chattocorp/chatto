@@ -1,8 +1,10 @@
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
 import {
-  actionAvailabilityFromAPI,
-  type ActionAvailability
+  usernameChoiceAvailabilityFromAPI,
+  identityDisconnectAvailabilityFromAPI,
+  type UsernameChoiceAvailability,
+  type IdentityDisconnectAvailability
 } from '@chatto/client/api/actionAvailability';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
@@ -28,7 +30,7 @@ export type PendingExternalIdentityInfo = {
   providerLabel: string;
   verifiedEmail: string | null;
   loginHint: string;
-  chooseUsername?: ActionAvailability;
+  chooseUsername?: UsernameChoiceAvailability;
   displayNameHint: string;
   boundUserId: string | null;
   redirectPath: string | null;
@@ -41,7 +43,7 @@ export type LinkedExternalIdentityInfo = {
   subjectHash: string;
   /** Listing-time eligibility; unspecified on older servers. */
   disconnectEligibility: DisconnectEligibility;
-  disconnectAvailability?: ActionAvailability;
+  disconnectAvailability?: IdentityDisconnectAvailability;
 };
 
 export type ExternalIdentityProviderInfo = {
@@ -154,7 +156,7 @@ function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalI
     providerLabel: pending.providerLabel,
     verifiedEmail: pending.verifiedEmail || null,
     loginHint: pending.loginHint,
-    chooseUsername: actionAvailabilityFromAPI(pending.chooseUsername),
+    chooseUsername: usernameChoiceAvailabilityFromAPI(pending.chooseUsername),
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
     redirectPath: pending.redirectPath || null
@@ -198,7 +200,7 @@ function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIde
     providerLabel: identity.providerLabel,
     subjectHash: identity.subjectHash,
     disconnectEligibility: identity.disconnectEligibility,
-    disconnectAvailability: actionAvailabilityFromAPI(identity.disconnectAvailability)
+    disconnectAvailability: identityDisconnectAvailabilityFromAPI(identity.disconnectAvailability)
   };
 }
 

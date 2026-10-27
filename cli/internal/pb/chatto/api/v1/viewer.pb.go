@@ -789,7 +789,7 @@ var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a'chatto/api/v1/action_availability.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x01\n" +
+	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a#chatto/api/v1/account_actions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x01\n" +
 	"\fUserSettings\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
@@ -922,7 +922,7 @@ func file_chatto_api_v1_viewer_proto_init() {
 		return
 	}
 	file_chatto_api_v1_permissions_proto_init()
-	file_chatto_api_v1_action_availability_proto_init()
+	file_chatto_api_v1_account_actions_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_viewer_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}

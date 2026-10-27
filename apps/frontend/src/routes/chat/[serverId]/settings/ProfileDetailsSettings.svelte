@@ -1,10 +1,10 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
-    ActionUnavailableReason,
+    UsernameChangeReason,
     legacyUsernameChangeAvailability
   } from '@chatto/client/api/actionAvailability';
-  import { actionUnavailableMessage } from '$lib/actionAvailability';
+  import { usernameChangeUnavailableMessage } from '$lib/actionAvailability';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { UserAPI } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
@@ -84,7 +84,7 @@
     let normalizedLogin: string | undefined;
     if (loginModified) {
       if (!canChangeLogin) {
-        error = actionUnavailableMessage(usernameAvailability, 'username');
+        error = usernameChangeUnavailableMessage(usernameAvailability);
         return;
       }
       const validation = validateAndNormalizeLogin(login);
@@ -205,8 +205,8 @@
     />
 
     {#if !canChangeLogin}
-      <Hint>{actionUnavailableMessage(usernameAvailability, 'username')}</Hint>
-      {#if currentUser.user?.actions?.changeUsername?.reason === ActionUnavailableReason.COOLDOWN}
+      <Hint>{usernameChangeUnavailableMessage(usernameAvailability)}</Hint>
+      {#if currentUser.user?.actions?.changeUsername?.reason === UsernameChangeReason.COOLDOWN}
         <Button variant="secondary" onclick={() => currentUser.load()}>{m('common.retry')}</Button>
       {/if}
     {/if}

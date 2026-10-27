@@ -4,7 +4,6 @@ package chatto.auth.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/external_identities.proto";
-import "chatto/api/v1/action_availability.proto";
 
 // Mode of a pending external identity confirmation flow.
 enum ExternalIdentityFlowKind {
@@ -14,6 +13,22 @@ enum ExternalIdentityFlowKind {
   EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT = 1;
   // Link the provider identity to the authenticated account.
   EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT = 2;
+}
+
+// Snapshot for choosing a username during account creation. Missing means not
+// reported. Creation still checks policy and input. Unknown reasons stay blocked.
+message UsernameChoiceAvailability {
+  // Primary reason the user cannot choose the account username.
+  enum Reason {
+    // No blocking reason is supplied.
+    REASON_UNSPECIFIED = 0;
+    // The provider supplies the username; the server resolves collisions.
+    REASON_PROVIDER_MANAGED = 1;
+  }
+  // Whether the user can choose a username, not a guarantee of name availability.
+  bool allowed = 1;
+  // Unspecified when allowed is true.
+  Reason reason = 2;
 }
 
 // Metadata about a pending external identity flow. The provider subject is not
@@ -39,7 +54,7 @@ message PendingExternalIdentity {
   string redirect_path = 9;
   // Whether the user can choose a username. When externally managed, the server
   // assigns it and ignores client input. The login hint is not a reservation.
-  chatto.api.v1.ActionAvailability choose_username = 10;
+  UsernameChoiceAvailability choose_username = 10;
 }
 
 // Request to inspect a pending external identity flow.

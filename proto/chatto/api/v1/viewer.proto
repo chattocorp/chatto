@@ -3,7 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "chatto/api/v1/permissions.proto";
-import "chatto/api/v1/action_availability.proto";
+import "chatto/api/v1/account_actions.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 

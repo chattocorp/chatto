@@ -4,7 +4,6 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/common.proto";
-import "chatto/api/v1/action_availability.proto";
 
 // Public metadata for a configured external login provider.
 message ExternalIdentityProvider {
@@ -36,6 +35,24 @@ enum DisconnectEligibility {
   DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR = 3;
 }
 
+// Snapshot for disconnecting one linked identity. Missing means not reported.
+// Commands still check policy and fresh authentication. Unknown reasons stay blocked.
+message IdentityDisconnectAvailability {
+  // Primary reason this identity cannot be disconnected.
+  enum Reason {
+    // No blocking reason is supplied.
+    REASON_UNSPECIFIED = 0;
+    // The operator forbids unlinking this provider.
+    REASON_DISABLED_BY_OPERATOR = 1;
+    // Disconnecting would remove the last enabled sign-in method.
+    REASON_LAST_SIGN_IN_METHOD = 2;
+  }
+  // Whether the action can be attempted, not an authorization grant.
+  bool allowed = 1;
+  // Unspecified when allowed is true.
+  Reason reason = 2;
+}
+
 // Linked provider identity metadata for the authenticated user's settings UI.
 message LinkedExternalIdentity {
   // Provider ID recorded when the identity was linked.
@@ -51,7 +68,7 @@ message LinkedExternalIdentity {
   // when that action is absent.
   DisconnectEligibility disconnect_eligibility = 5 [deprecated = true];
   // Snapshot for disconnecting this identity. Absent on older servers.
-  ActionAvailability disconnect_availability = 6;
+  IdentityDisconnectAvailability disconnect_availability = 6;
 }
 
 // Request to list configured and linked external identities for the current user.

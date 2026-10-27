@@ -6,7 +6,7 @@ import { adminQueryKeys } from '$lib/query/admin';
 import { settingsQueryKeys } from '$lib/query/settings';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import AccountPage from './+page.svelte';
-import { ActionUnavailableReason } from '@chatto/client/api/actionAvailability';
+import { PasswordChangeReason } from '@chatto/client/api/actionAvailability';
 
 const mocks = vi.hoisted(() => ({
   listExternalIdentities: vi.fn(),
@@ -92,15 +92,18 @@ describe('Account settings page', () => {
     await expect.element(getByText('U123abcetc.')).toBeVisible();
   });
 
-  it('keeps unknown server restrictions disabled even when direct login is enabled', async () => {
-    server.currentUser.user!.actions = {
-      changePassword: { allowed: false, reason: 99 as ActionUnavailableReason }
-    };
-    const { getByLabelText, getByText } = render(AccountPage);
-    await settle();
-    await expect.element(getByLabelText('Current Password', { exact: true })).toBeDisabled();
-    await expect.element(getByText('This action is currently unavailable.')).toBeVisible();
-  });
+  it.each([PasswordChangeReason.UNSUPPORTED_ACCOUNT, 99 as PasswordChangeReason])(
+    'keeps password restriction %s disabled without borrowing another action reason',
+    async (reason) => {
+      server.currentUser.user!.actions = {
+        changePassword: { allowed: false, reason }
+      };
+      const { getByLabelText, getByText } = render(AccountPage);
+      await settle();
+      await expect.element(getByLabelText('Current Password', { exact: true })).toBeDisabled();
+      await expect.element(getByText('This action is currently unavailable.')).toBeVisible();
+    }
+  );
 
   it('keeps password controls visible but disabled on SSO-only servers', async () => {
     server.scope.store.serverInfo.directLoginEnabled = false;

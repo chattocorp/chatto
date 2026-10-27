@@ -38,7 +38,10 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		}
 	}
 	pending := apiPendingExternalIdentity(flow)
-	pending.ChooseUsername = actionAvailability(!s.api.core.ProviderUsernameManaged(flow.ProviderID), apiv1.ActionUnavailableReason_ACTION_UNAVAILABLE_REASON_EXTERNALLY_MANAGED)
+	pending.ChooseUsername = &authv1.UsernameChoiceAvailability{Allowed: !s.api.core.ProviderUsernameManaged(flow.ProviderID)}
+	if !pending.ChooseUsername.Allowed {
+		pending.ChooseUsername.Reason = authv1.UsernameChoiceAvailability_REASON_PROVIDER_MANAGED
+	}
 	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
 		Pending: pending,
 	}), nil

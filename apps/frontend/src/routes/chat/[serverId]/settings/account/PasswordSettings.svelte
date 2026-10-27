@@ -1,8 +1,8 @@
 <script lang="ts">
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { actionUnavailableMessage } from '$lib/actionAvailability';
-  import { ActionUnavailableReason } from '@chatto/client/api/actionAvailability';
+  import { passwordChangeUnavailableMessage } from '$lib/actionAvailability';
+  import { PasswordChangeReason } from '@chatto/client/api/actionAvailability';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '@chatto/client/api/account';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
@@ -35,7 +35,9 @@
   const passwordAvailability = $derived(
     currentUser.user?.actions?.changePassword ?? {
       allowed: directLoginEnabled,
-      reason: ActionUnavailableReason.DISABLED_BY_OPERATOR
+      reason: directLoginEnabled
+        ? PasswordChangeReason.UNSPECIFIED
+        : PasswordChangeReason.DIRECT_LOGIN_DISABLED
     }
   );
   const passwordValidationError = $derived(password ? validateNewPassword(password) : undefined);
@@ -115,7 +117,7 @@
 <Panel title={m('settings.account.password.title')} icon="iconify icon-[uil--key-skeleton]">
   <form class="flex max-w-md flex-col gap-4" onsubmit={handleChangePassword}>
     {#if !passwordAvailability.allowed}
-      <Hint>{actionUnavailableMessage(passwordAvailability, 'password')}</Hint>
+      <Hint>{passwordChangeUnavailableMessage(passwordAvailability)}</Hint>
     {:else}
       <p class="text-sm text-muted">
         {hasPassword

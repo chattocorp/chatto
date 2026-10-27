@@ -76,6 +76,111 @@ func (ExternalIdentityFlowKind) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{0}
 }
 
+// Primary reason the user cannot choose the account username.
+type UsernameChoiceAvailability_Reason int32
+
+const (
+	// No blocking reason is supplied.
+	UsernameChoiceAvailability_REASON_UNSPECIFIED UsernameChoiceAvailability_Reason = 0
+	// The provider supplies the username; the server resolves collisions.
+	UsernameChoiceAvailability_REASON_PROVIDER_MANAGED UsernameChoiceAvailability_Reason = 1
+)
+
+// Enum value maps for UsernameChoiceAvailability_Reason.
+var (
+	UsernameChoiceAvailability_Reason_name = map[int32]string{
+		0: "REASON_UNSPECIFIED",
+		1: "REASON_PROVIDER_MANAGED",
+	}
+	UsernameChoiceAvailability_Reason_value = map[string]int32{
+		"REASON_UNSPECIFIED":      0,
+		"REASON_PROVIDER_MANAGED": 1,
+	}
+)
+
+func (x UsernameChoiceAvailability_Reason) Enum() *UsernameChoiceAvailability_Reason {
+	p := new(UsernameChoiceAvailability_Reason)
+	*p = x
+	return p
+}
+
+func (x UsernameChoiceAvailability_Reason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (UsernameChoiceAvailability_Reason) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_auth_v1_external_identity_auth_proto_enumTypes[1].Descriptor()
+}
+
+func (UsernameChoiceAvailability_Reason) Type() protoreflect.EnumType {
+	return &file_chatto_auth_v1_external_identity_auth_proto_enumTypes[1]
+}
+
+func (x UsernameChoiceAvailability_Reason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use UsernameChoiceAvailability_Reason.Descriptor instead.
+func (UsernameChoiceAvailability_Reason) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{0, 0}
+}
+
+// Snapshot for choosing a username during account creation. Missing means not
+// reported. Creation still checks policy and input. Unknown reasons stay blocked.
+type UsernameChoiceAvailability struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the user can choose a username, not a guarantee of name availability.
+	Allowed bool `protobuf:"varint,1,opt,name=allowed,proto3" json:"allowed,omitempty"`
+	// Unspecified when allowed is true.
+	Reason        UsernameChoiceAvailability_Reason `protobuf:"varint,2,opt,name=reason,proto3,enum=chatto.auth.v1.UsernameChoiceAvailability_Reason" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsernameChoiceAvailability) Reset() {
+	*x = UsernameChoiceAvailability{}
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsernameChoiceAvailability) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsernameChoiceAvailability) ProtoMessage() {}
+
+func (x *UsernameChoiceAvailability) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsernameChoiceAvailability.ProtoReflect.Descriptor instead.
+func (*UsernameChoiceAvailability) Descriptor() ([]byte, []int) {
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *UsernameChoiceAvailability) GetAllowed() bool {
+	if x != nil {
+		return x.Allowed
+	}
+	return false
+}
+
+func (x *UsernameChoiceAvailability) GetReason() UsernameChoiceAvailability_Reason {
+	if x != nil {
+		return x.Reason
+	}
+	return UsernameChoiceAvailability_REASON_UNSPECIFIED
+}
+
 // Metadata about a pending external identity flow. The provider subject is not
 // exposed; clients only need user-facing provider/profile hints.
 type PendingExternalIdentity struct {
@@ -100,14 +205,14 @@ type PendingExternalIdentity struct {
 	RedirectPath string `protobuf:"bytes,9,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
 	// Whether the user can choose a username. When externally managed, the server
 	// assigns it and ignores client input. The login hint is not a reservation.
-	ChooseUsername *v1.ActionAvailability `protobuf:"bytes,10,opt,name=choose_username,json=chooseUsername,proto3" json:"choose_username,omitempty"`
+	ChooseUsername *UsernameChoiceAvailability `protobuf:"bytes,10,opt,name=choose_username,json=chooseUsername,proto3" json:"choose_username,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PendingExternalIdentity) Reset() {
 	*x = PendingExternalIdentity{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[0]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -119,7 +224,7 @@ func (x *PendingExternalIdentity) String() string {
 func (*PendingExternalIdentity) ProtoMessage() {}
 
 func (x *PendingExternalIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[0]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -132,7 +237,7 @@ func (x *PendingExternalIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PendingExternalIdentity.ProtoReflect.Descriptor instead.
 func (*PendingExternalIdentity) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{0}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PendingExternalIdentity) GetKind() ExternalIdentityFlowKind {
@@ -198,7 +303,7 @@ func (x *PendingExternalIdentity) GetRedirectPath() string {
 	return ""
 }
 
-func (x *PendingExternalIdentity) GetChooseUsername() *v1.ActionAvailability {
+func (x *PendingExternalIdentity) GetChooseUsername() *UsernameChoiceAvailability {
 	if x != nil {
 		return x.ChooseUsername
 	}
@@ -216,7 +321,7 @@ type GetPendingExternalIdentityRequest struct {
 
 func (x *GetPendingExternalIdentityRequest) Reset() {
 	*x = GetPendingExternalIdentityRequest{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[1]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -228,7 +333,7 @@ func (x *GetPendingExternalIdentityRequest) String() string {
 func (*GetPendingExternalIdentityRequest) ProtoMessage() {}
 
 func (x *GetPendingExternalIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[1]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -241,7 +346,7 @@ func (x *GetPendingExternalIdentityRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetPendingExternalIdentityRequest.ProtoReflect.Descriptor instead.
 func (*GetPendingExternalIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{1}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetPendingExternalIdentityRequest) GetToken() string {
@@ -262,7 +367,7 @@ type GetPendingExternalIdentityResponse struct {
 
 func (x *GetPendingExternalIdentityResponse) Reset() {
 	*x = GetPendingExternalIdentityResponse{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[2]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -274,7 +379,7 @@ func (x *GetPendingExternalIdentityResponse) String() string {
 func (*GetPendingExternalIdentityResponse) ProtoMessage() {}
 
 func (x *GetPendingExternalIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[2]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -287,7 +392,7 @@ func (x *GetPendingExternalIdentityResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetPendingExternalIdentityResponse.ProtoReflect.Descriptor instead.
 func (*GetPendingExternalIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{2}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetPendingExternalIdentityResponse) GetPending() *PendingExternalIdentity {
@@ -315,7 +420,7 @@ type CreateExternalIdentityAccountRequest struct {
 
 func (x *CreateExternalIdentityAccountRequest) Reset() {
 	*x = CreateExternalIdentityAccountRequest{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[3]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -327,7 +432,7 @@ func (x *CreateExternalIdentityAccountRequest) String() string {
 func (*CreateExternalIdentityAccountRequest) ProtoMessage() {}
 
 func (x *CreateExternalIdentityAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[3]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,7 +445,7 @@ func (x *CreateExternalIdentityAccountRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use CreateExternalIdentityAccountRequest.ProtoReflect.Descriptor instead.
 func (*CreateExternalIdentityAccountRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{3}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateExternalIdentityAccountRequest) GetToken() string {
@@ -386,7 +491,7 @@ type CreateExternalIdentityAccountResponse struct {
 
 func (x *CreateExternalIdentityAccountResponse) Reset() {
 	*x = CreateExternalIdentityAccountResponse{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[4]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -398,7 +503,7 @@ func (x *CreateExternalIdentityAccountResponse) String() string {
 func (*CreateExternalIdentityAccountResponse) ProtoMessage() {}
 
 func (x *CreateExternalIdentityAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[4]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -411,7 +516,7 @@ func (x *CreateExternalIdentityAccountResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use CreateExternalIdentityAccountResponse.ProtoReflect.Descriptor instead.
 func (*CreateExternalIdentityAccountResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{4}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateExternalIdentityAccountResponse) GetUserId() string {
@@ -467,7 +572,7 @@ type CancelExternalIdentityFlowRequest struct {
 
 func (x *CancelExternalIdentityFlowRequest) Reset() {
 	*x = CancelExternalIdentityFlowRequest{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[5]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +584,7 @@ func (x *CancelExternalIdentityFlowRequest) String() string {
 func (*CancelExternalIdentityFlowRequest) ProtoMessage() {}
 
 func (x *CancelExternalIdentityFlowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[5]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +597,7 @@ func (x *CancelExternalIdentityFlowRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use CancelExternalIdentityFlowRequest.ProtoReflect.Descriptor instead.
 func (*CancelExternalIdentityFlowRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{5}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CancelExternalIdentityFlowRequest) GetToken() string {
@@ -511,7 +616,7 @@ type CancelExternalIdentityFlowResponse struct {
 
 func (x *CancelExternalIdentityFlowResponse) Reset() {
 	*x = CancelExternalIdentityFlowResponse{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[6]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -523,7 +628,7 @@ func (x *CancelExternalIdentityFlowResponse) String() string {
 func (*CancelExternalIdentityFlowResponse) ProtoMessage() {}
 
 func (x *CancelExternalIdentityFlowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[6]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -536,7 +641,7 @@ func (x *CancelExternalIdentityFlowResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use CancelExternalIdentityFlowResponse.ProtoReflect.Descriptor instead.
 func (*CancelExternalIdentityFlowResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{6}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{7}
 }
 
 // Request to confirm a pending provider link using the flow capability token.
@@ -550,7 +655,7 @@ type ConfirmExternalIdentityLinkRequest struct {
 
 func (x *ConfirmExternalIdentityLinkRequest) Reset() {
 	*x = ConfirmExternalIdentityLinkRequest{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[7]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -562,7 +667,7 @@ func (x *ConfirmExternalIdentityLinkRequest) String() string {
 func (*ConfirmExternalIdentityLinkRequest) ProtoMessage() {}
 
 func (x *ConfirmExternalIdentityLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[7]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -575,7 +680,7 @@ func (x *ConfirmExternalIdentityLinkRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ConfirmExternalIdentityLinkRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmExternalIdentityLinkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{7}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ConfirmExternalIdentityLinkRequest) GetToken() string {
@@ -596,7 +701,7 @@ type ConfirmExternalIdentityLinkResponse struct {
 
 func (x *ConfirmExternalIdentityLinkResponse) Reset() {
 	*x = ConfirmExternalIdentityLinkResponse{}
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[8]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +713,7 @@ func (x *ConfirmExternalIdentityLinkResponse) String() string {
 func (*ConfirmExternalIdentityLinkResponse) ProtoMessage() {}
 
 func (x *ConfirmExternalIdentityLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[8]
+	mi := &file_chatto_auth_v1_external_identity_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +726,7 @@ func (x *ConfirmExternalIdentityLinkResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ConfirmExternalIdentityLinkResponse.ProtoReflect.Descriptor instead.
 func (*ConfirmExternalIdentityLinkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{8}
+	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ConfirmExternalIdentityLinkResponse) GetLinkedIdentity() *v1.LinkedExternalIdentity {
@@ -635,7 +740,13 @@ var File_chatto_auth_v1_external_identity_auth_proto protoreflect.FileDescriptor
 
 const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\n" +
-	"+chatto/auth/v1/external_identity_auth.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\x1a'chatto/api/v1/action_availability.proto\"\xcb\x03\n" +
+	"+chatto/auth/v1/external_identity_auth.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\"\xc0\x01\n" +
+	"\x1aUsernameChoiceAvailability\x12\x18\n" +
+	"\aallowed\x18\x01 \x01(\bR\aallowed\x12I\n" +
+	"\x06reason\x18\x02 \x01(\x0e21.chatto.auth.v1.UsernameChoiceAvailability.ReasonR\x06reason\"=\n" +
+	"\x06Reason\x12\x16\n" +
+	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17REASON_PROVIDER_MANAGED\x10\x01\"\xd4\x03\n" +
 	"\x17PendingExternalIdentity\x12<\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.chatto.auth.v1.ExternalIdentityFlowKindR\x04kind\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -647,9 +758,9 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"login_hint\x18\x06 \x01(\tR\tloginHint\x12*\n" +
 	"\x11display_name_hint\x18\a \x01(\tR\x0fdisplayNameHint\x12\"\n" +
 	"\rbound_user_id\x18\b \x01(\tR\vboundUserId\x12#\n" +
-	"\rredirect_path\x18\t \x01(\tR\fredirectPath\x12J\n" +
+	"\rredirect_path\x18\t \x01(\tR\fredirectPath\x12S\n" +
 	"\x0fchoose_username\x18\n" +
-	" \x01(\v2!.chatto.api.v1.ActionAvailabilityR\x0echooseUsername\"B\n" +
+	" \x01(\v2*.chatto.auth.v1.UsernameChoiceAvailabilityR\x0echooseUsername\"B\n" +
 	"!GetPendingExternalIdentityRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"g\n" +
 	"\"GetPendingExternalIdentityResponse\x12A\n" +
@@ -696,40 +807,42 @@ func file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP() []byte {
 	return file_chatto_auth_v1_external_identity_auth_proto_rawDescData
 }
 
-var file_chatto_auth_v1_external_identity_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_auth_v1_external_identity_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_chatto_auth_v1_external_identity_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chatto_auth_v1_external_identity_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_chatto_auth_v1_external_identity_auth_proto_goTypes = []any{
 	(ExternalIdentityFlowKind)(0),                 // 0: chatto.auth.v1.ExternalIdentityFlowKind
-	(*PendingExternalIdentity)(nil),               // 1: chatto.auth.v1.PendingExternalIdentity
-	(*GetPendingExternalIdentityRequest)(nil),     // 2: chatto.auth.v1.GetPendingExternalIdentityRequest
-	(*GetPendingExternalIdentityResponse)(nil),    // 3: chatto.auth.v1.GetPendingExternalIdentityResponse
-	(*CreateExternalIdentityAccountRequest)(nil),  // 4: chatto.auth.v1.CreateExternalIdentityAccountRequest
-	(*CreateExternalIdentityAccountResponse)(nil), // 5: chatto.auth.v1.CreateExternalIdentityAccountResponse
-	(*CancelExternalIdentityFlowRequest)(nil),     // 6: chatto.auth.v1.CancelExternalIdentityFlowRequest
-	(*CancelExternalIdentityFlowResponse)(nil),    // 7: chatto.auth.v1.CancelExternalIdentityFlowResponse
-	(*ConfirmExternalIdentityLinkRequest)(nil),    // 8: chatto.auth.v1.ConfirmExternalIdentityLinkRequest
-	(*ConfirmExternalIdentityLinkResponse)(nil),   // 9: chatto.auth.v1.ConfirmExternalIdentityLinkResponse
-	(*v1.ActionAvailability)(nil),                 // 10: chatto.api.v1.ActionAvailability
-	(*v1.LinkedExternalIdentity)(nil),             // 11: chatto.api.v1.LinkedExternalIdentity
+	(UsernameChoiceAvailability_Reason)(0),        // 1: chatto.auth.v1.UsernameChoiceAvailability.Reason
+	(*UsernameChoiceAvailability)(nil),            // 2: chatto.auth.v1.UsernameChoiceAvailability
+	(*PendingExternalIdentity)(nil),               // 3: chatto.auth.v1.PendingExternalIdentity
+	(*GetPendingExternalIdentityRequest)(nil),     // 4: chatto.auth.v1.GetPendingExternalIdentityRequest
+	(*GetPendingExternalIdentityResponse)(nil),    // 5: chatto.auth.v1.GetPendingExternalIdentityResponse
+	(*CreateExternalIdentityAccountRequest)(nil),  // 6: chatto.auth.v1.CreateExternalIdentityAccountRequest
+	(*CreateExternalIdentityAccountResponse)(nil), // 7: chatto.auth.v1.CreateExternalIdentityAccountResponse
+	(*CancelExternalIdentityFlowRequest)(nil),     // 8: chatto.auth.v1.CancelExternalIdentityFlowRequest
+	(*CancelExternalIdentityFlowResponse)(nil),    // 9: chatto.auth.v1.CancelExternalIdentityFlowResponse
+	(*ConfirmExternalIdentityLinkRequest)(nil),    // 10: chatto.auth.v1.ConfirmExternalIdentityLinkRequest
+	(*ConfirmExternalIdentityLinkResponse)(nil),   // 11: chatto.auth.v1.ConfirmExternalIdentityLinkResponse
+	(*v1.LinkedExternalIdentity)(nil),             // 12: chatto.api.v1.LinkedExternalIdentity
 }
 var file_chatto_auth_v1_external_identity_auth_proto_depIdxs = []int32{
-	0,  // 0: chatto.auth.v1.PendingExternalIdentity.kind:type_name -> chatto.auth.v1.ExternalIdentityFlowKind
-	10, // 1: chatto.auth.v1.PendingExternalIdentity.choose_username:type_name -> chatto.api.v1.ActionAvailability
-	1,  // 2: chatto.auth.v1.GetPendingExternalIdentityResponse.pending:type_name -> chatto.auth.v1.PendingExternalIdentity
-	11, // 3: chatto.auth.v1.ConfirmExternalIdentityLinkResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
-	2,  // 4: chatto.auth.v1.ExternalIdentityAuthService.GetPendingExternalIdentity:input_type -> chatto.auth.v1.GetPendingExternalIdentityRequest
-	4,  // 5: chatto.auth.v1.ExternalIdentityAuthService.CreateExternalIdentityAccount:input_type -> chatto.auth.v1.CreateExternalIdentityAccountRequest
-	8,  // 6: chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink:input_type -> chatto.auth.v1.ConfirmExternalIdentityLinkRequest
-	6,  // 7: chatto.auth.v1.ExternalIdentityAuthService.CancelExternalIdentityFlow:input_type -> chatto.auth.v1.CancelExternalIdentityFlowRequest
-	3,  // 8: chatto.auth.v1.ExternalIdentityAuthService.GetPendingExternalIdentity:output_type -> chatto.auth.v1.GetPendingExternalIdentityResponse
-	5,  // 9: chatto.auth.v1.ExternalIdentityAuthService.CreateExternalIdentityAccount:output_type -> chatto.auth.v1.CreateExternalIdentityAccountResponse
-	9,  // 10: chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink:output_type -> chatto.auth.v1.ConfirmExternalIdentityLinkResponse
-	7,  // 11: chatto.auth.v1.ExternalIdentityAuthService.CancelExternalIdentityFlow:output_type -> chatto.auth.v1.CancelExternalIdentityFlowResponse
-	8,  // [8:12] is the sub-list for method output_type
-	4,  // [4:8] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	1,  // 0: chatto.auth.v1.UsernameChoiceAvailability.reason:type_name -> chatto.auth.v1.UsernameChoiceAvailability.Reason
+	0,  // 1: chatto.auth.v1.PendingExternalIdentity.kind:type_name -> chatto.auth.v1.ExternalIdentityFlowKind
+	2,  // 2: chatto.auth.v1.PendingExternalIdentity.choose_username:type_name -> chatto.auth.v1.UsernameChoiceAvailability
+	3,  // 3: chatto.auth.v1.GetPendingExternalIdentityResponse.pending:type_name -> chatto.auth.v1.PendingExternalIdentity
+	12, // 4: chatto.auth.v1.ConfirmExternalIdentityLinkResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
+	4,  // 5: chatto.auth.v1.ExternalIdentityAuthService.GetPendingExternalIdentity:input_type -> chatto.auth.v1.GetPendingExternalIdentityRequest
+	6,  // 6: chatto.auth.v1.ExternalIdentityAuthService.CreateExternalIdentityAccount:input_type -> chatto.auth.v1.CreateExternalIdentityAccountRequest
+	10, // 7: chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink:input_type -> chatto.auth.v1.ConfirmExternalIdentityLinkRequest
+	8,  // 8: chatto.auth.v1.ExternalIdentityAuthService.CancelExternalIdentityFlow:input_type -> chatto.auth.v1.CancelExternalIdentityFlowRequest
+	5,  // 9: chatto.auth.v1.ExternalIdentityAuthService.GetPendingExternalIdentity:output_type -> chatto.auth.v1.GetPendingExternalIdentityResponse
+	7,  // 10: chatto.auth.v1.ExternalIdentityAuthService.CreateExternalIdentityAccount:output_type -> chatto.auth.v1.CreateExternalIdentityAccountResponse
+	11, // 11: chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink:output_type -> chatto.auth.v1.ConfirmExternalIdentityLinkResponse
+	9,  // 12: chatto.auth.v1.ExternalIdentityAuthService.CancelExternalIdentityFlow:output_type -> chatto.auth.v1.CancelExternalIdentityFlowResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_auth_v1_external_identity_auth_proto_init() }
@@ -742,8 +855,8 @@ func file_chatto_auth_v1_external_identity_auth_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_auth_v1_external_identity_auth_proto_rawDesc), len(file_chatto_auth_v1_external_identity_auth_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   9,
+			NumEnums:      2,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { actionUnavailableMessage } from '$lib/actionAvailability';
+  import { usernameChoiceUnavailableMessage } from '$lib/actionAvailability';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
@@ -147,7 +147,7 @@
         error={loginError}
       />
       {#if pending.chooseUsername?.allowed === false}
-        <Hint>{actionUnavailableMessage(pending.chooseUsername, 'username')}</Hint>
+        <Hint>{usernameChoiceUnavailableMessage(pending.chooseUsername)}</Hint>
       {/if}
 
       <TextInput

@@ -3,7 +3,7 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
   import { legacyDisconnectAvailability } from '@chatto/client/api/actionAvailability';
-  import { actionUnavailableMessage } from '$lib/actionAvailability';
+  import { identityDisconnectUnavailableMessage } from '$lib/actionAvailability';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
     openAuthorizationWindow,
@@ -530,9 +530,8 @@
                       {m('settings.account.sso.linked')}
                       {#if unlinkDisabled(provider.linkedIdentitySubjectHash)}
                         <p>
-                          {actionUnavailableMessage(
+                          {identityDisconnectUnavailableMessage(
                             disconnectAvailability(provider.linkedIdentitySubjectHash),
-                            'disconnect',
                             provider.label
                           )}
                         </p>
@@ -590,9 +589,8 @@
                     {m('settings.account.sso.provider_unconfigured')}
                     {#if unlinkDisabled(identity.subjectHash)}
                       <p>
-                        {actionUnavailableMessage(
+                        {identityDisconnectUnavailableMessage(
                           disconnectAvailability(identity.subjectHash),
-                          'disconnect',
                           identity.providerLabel
                         )}
                       </p>
@@ -676,9 +674,8 @@
   onclose={closeDisconnectBlockedModal}
 >
   <Hint tone="warning">
-    {actionUnavailableMessage(
+    {identityDisconnectUnavailableMessage(
       disconnectAvailability(blockedDisconnectSubjectHash),
-      'disconnect',
       blockedDisconnectProviderLabel
     )}
   </Hint>

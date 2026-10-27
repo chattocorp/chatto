@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
-import { ActionUnavailableReason } from '@chatto/client/api/actionAvailability';
+import { IdentityDisconnectReason } from '@chatto/client/api/actionAvailability';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { page as browserPage } from 'vitest/browser';
 import { flushSync } from 'svelte';
@@ -194,22 +194,29 @@ describe('external identity settings query lifecycle', () => {
     expect(mocks.disconnect).not.toHaveBeenCalled();
   });
 
-  it('keeps an unknown canonical restriction disabled despite a legacy allowed hint', async () => {
-    const list = linkedIdentityList();
-    Object.assign(list.linkedIdentities[0], {
-      disconnectEligibility: DisconnectEligibility.ALLOWED,
-      disconnectAvailability: { allowed: false, reason: 99 as ActionUnavailableReason }
-    });
-    mocks.list.mockResolvedValue(list);
-    renderSettings();
-    await expect
-      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
-      .toBeDisabled();
-    await expect
-      .element(browserPage.getByText('This action is currently unavailable.'))
-      .toBeVisible();
-    expect(mocks.disconnect).not.toHaveBeenCalled();
-  });
+  it.each([
+    { reason: 99 as IdentityDisconnectReason, notice: 'This action is currently unavailable.' },
+    {
+      reason: IdentityDisconnectReason.LAST_SIGN_IN_METHOD,
+      notice: 'Set up another sign-in method supported by this server before disconnecting GitHub.'
+    }
+  ])(
+    'shows the disconnect-specific notice for reason $reason despite a legacy allowed hint',
+    async ({ reason, notice }) => {
+      const list = linkedIdentityList();
+      Object.assign(list.linkedIdentities[0], {
+        disconnectEligibility: DisconnectEligibility.ALLOWED,
+        disconnectAvailability: { allowed: false, reason }
+      });
+      mocks.list.mockResolvedValue(list);
+      renderSettings();
+      await expect
+        .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+        .toBeDisabled();
+      await expect.element(browserPage.getByText(notice)).toBeVisible();
+      expect(mocks.disconnect).not.toHaveBeenCalled();
+    }
+  );
 
   it('disables unlinking when the operator forbids it', async () => {
     const list = linkedIdentityList();
@@ -251,7 +258,7 @@ describe('external identity settings query lifecycle', () => {
     { disconnectEligibility: DisconnectEligibility.DISABLED_BY_OPERATOR },
     {
       disconnectEligibility: DisconnectEligibility.ALLOWED,
-      disconnectAvailability: { allowed: false, reason: 99 as ActionUnavailableReason }
+      disconnectAvailability: { allowed: false, reason: 99 as IdentityDisconnectReason }
     }
   ])(
     'refreshes a stale disconnect hint %s before asking for reauthentication',

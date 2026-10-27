@@ -6,7 +6,6 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { ProviderMetadata } from "./common_pb.js";
-import { ActionAvailability } from "./action_availability_pb.js";
 
 /**
  * Legacy disconnect hint. New clients use disconnect_availability.
@@ -119,6 +118,90 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
 }
 
 /**
+ * Snapshot for disconnecting one linked identity. Missing means not reported.
+ * Commands still check policy and fresh authentication. Unknown reasons stay blocked.
+ *
+ * @generated from message chatto.api.v1.IdentityDisconnectAvailability
+ */
+export class IdentityDisconnectAvailability extends Message<IdentityDisconnectAvailability> {
+  /**
+   * Whether the action can be attempted, not an authorization grant.
+   *
+   * @generated from field: bool allowed = 1;
+   */
+  allowed = false;
+
+  /**
+   * Unspecified when allowed is true.
+   *
+   * @generated from field: chatto.api.v1.IdentityDisconnectAvailability.Reason reason = 2;
+   */
+  reason = IdentityDisconnectAvailability_Reason.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<IdentityDisconnectAvailability>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.IdentityDisconnectAvailability";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "allowed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(IdentityDisconnectAvailability_Reason) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): IdentityDisconnectAvailability {
+    return new IdentityDisconnectAvailability().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): IdentityDisconnectAvailability {
+    return new IdentityDisconnectAvailability().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): IdentityDisconnectAvailability {
+    return new IdentityDisconnectAvailability().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: IdentityDisconnectAvailability | PlainMessage<IdentityDisconnectAvailability> | undefined, b: IdentityDisconnectAvailability | PlainMessage<IdentityDisconnectAvailability> | undefined): boolean {
+    return proto3.util.equals(IdentityDisconnectAvailability, a, b);
+  }
+}
+
+/**
+ * Primary reason this identity cannot be disconnected.
+ *
+ * @generated from enum chatto.api.v1.IdentityDisconnectAvailability.Reason
+ */
+export enum IdentityDisconnectAvailability_Reason {
+  /**
+   * No blocking reason is supplied.
+   *
+   * @generated from enum value: REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The operator forbids unlinking this provider.
+   *
+   * @generated from enum value: REASON_DISABLED_BY_OPERATOR = 1;
+   */
+  DISABLED_BY_OPERATOR = 1,
+
+  /**
+   * Disconnecting would remove the last enabled sign-in method.
+   *
+   * @generated from enum value: REASON_LAST_SIGN_IN_METHOD = 2;
+   */
+  LAST_SIGN_IN_METHOD = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(IdentityDisconnectAvailability_Reason)
+proto3.util.setEnumType(IdentityDisconnectAvailability_Reason, "chatto.api.v1.IdentityDisconnectAvailability.Reason", [
+  { no: 0, name: "REASON_UNSPECIFIED" },
+  { no: 1, name: "REASON_DISABLED_BY_OPERATOR" },
+  { no: 2, name: "REASON_LAST_SIGN_IN_METHOD" },
+]);
+
+/**
  * Linked provider identity metadata for the authenticated user's settings UI.
  *
  * @generated from message chatto.api.v1.LinkedExternalIdentity
@@ -165,9 +248,9 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
   /**
    * Snapshot for disconnecting this identity. Absent on older servers.
    *
-   * @generated from field: chatto.api.v1.ActionAvailability disconnect_availability = 6;
+   * @generated from field: chatto.api.v1.IdentityDisconnectAvailability disconnect_availability = 6;
    */
-  disconnectAvailability?: ActionAvailability;
+  disconnectAvailability?: IdentityDisconnectAvailability;
 
   constructor(data?: PartialMessage<LinkedExternalIdentity>) {
     super();
@@ -182,7 +265,7 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
     { no: 3, name: "provider_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "disconnect_eligibility", kind: "enum", T: proto3.getEnumType(DisconnectEligibility) },
-    { no: 6, name: "disconnect_availability", kind: "message", T: ActionAvailability },
+    { no: 6, name: "disconnect_availability", kind: "message", T: IdentityDisconnectAvailability },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkedExternalIdentity {
