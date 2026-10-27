@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "Ta czynność jest obecnie niedostępna.",
     "edit": "Edytuj",
     "copy_failed": "Nie udało się skopiować do schowka. Zaznacz tekst i skopiuj go ręcznie.",
     "cancel": "Anuluj",

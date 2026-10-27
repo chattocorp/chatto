@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "Bu işlem şu anda kullanılamıyor.",
     "edit": "Düzenle",
     "copy_failed": "Panoya kopyalanamadı. Metni seçin ve elle kopyalayın.",
     "cancel": "İptal",

@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "Šī darbība pašlaik nav pieejama.",
     "edit": "Rediģēt",
     "copy_failed": "Neizdevās kopēt starpliktuvē. Atlasiet tekstu un kopējiet to manuāli.",
     "cancel": "Atcelt",
