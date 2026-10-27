@@ -23,8 +23,8 @@
     store: RoomNoticeStore;
     serverId: string;
     canManage?: boolean;
-    /** Optional editor trigger in place of the sidebar notice preview. */
-    trigger?: Snippet<[open: () => void]>;
+    /** Stable custom view in place of the sidebar preview. Open is absent without editing access. */
+    trigger?: Snippet<[open: (() => void) | undefined]>;
   } = $props();
   const editorId = $props.id();
   let draft = $state<{ roomId: string; epoch: number; body: string; version: string } | null>(null);
@@ -93,7 +93,7 @@
 
 {#if store.supported}
   {#if trigger}
-    {#if canManage && notice}{@render trigger(edit)}{/if}
+    {@render trigger(canManage && notice ? edit : undefined)}
   {:else}
     <div class="flex flex-col gap-3 px-2 py-3">
       {#if store.error}

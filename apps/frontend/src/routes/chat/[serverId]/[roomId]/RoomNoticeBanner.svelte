@@ -129,11 +129,8 @@
   {/if}
 {/snippet}
 
-<!-- The editor outlives the visible banner so remote clears preserve its draft. -->
-{#if canManage}
-  <RoomNoticePanel {store} {serverId} {canManage}>
-    {#snippet trigger(open)}{@render banner(open)}{/snippet}
-  </RoomNoticePanel>
-{:else}
-  {@render banner()}
-{/if}
+<!-- Keep one render path across permission changes so Shield Mode does not
+     remount the banner. The editor also outlives remote notice clears. -->
+<RoomNoticePanel {store} {serverId} {canManage}>
+  {#snippet trigger(open)}{@render banner(open)}{/snippet}
+</RoomNoticePanel>

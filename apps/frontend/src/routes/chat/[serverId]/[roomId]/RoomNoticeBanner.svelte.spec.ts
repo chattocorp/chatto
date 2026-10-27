@@ -18,6 +18,38 @@ describe('RoomNoticeBanner', () => {
     setReactiveLocale('en-GB');
   });
 
+  it('keeps the same banner mounted when Shield Mode changes editing permission', async () => {
+    const notice = new RoomNotice({ body: 'Stable notice', publicationId: 'p1' });
+    const store = new RoomNoticeStore(
+      { getAPI: () => ({ get: async () => notice }) } as unknown as ServerConnection,
+      'R1'
+    );
+    await store.refresh();
+    const view = render(RoomNoticeBanner, {
+      store,
+      serverId: 'test-server',
+      viewerId: 'viewer',
+      canManage: false
+    });
+    const surface = view.container.querySelector('.origin-top')!;
+    const dismiss = page.getByRole('button', { name: 'Dismiss', exact: true });
+    for (const canManage of [true, false, true, false]) {
+      await view.rerender({ canManage });
+      expect(view.container.querySelectorAll('.origin-top')).toHaveLength(1);
+      expect(view.container.querySelector('.origin-top')).toBe(surface);
+      expect((surface as HTMLElement).style.position).not.toBe('absolute');
+      await expect.element(dismiss).toBeVisible();
+      if (canManage)
+        await expect.element(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+      else
+        await expect
+          .element(page.getByRole('button', { name: 'Edit', exact: true }))
+          .not.toBeInTheDocument();
+    }
+    await view.unmount();
+    store.dispose();
+  });
+
   it('shows publication time using the viewer timezone and clock preference', async () => {
     await page.viewport(1280, 720);
     const notice = new RoomNotice({
