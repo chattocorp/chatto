@@ -15,7 +15,9 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
   import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
   import type { Attachment } from 'svelte/attachments';
-  import { MediaQuery } from 'svelte/reactivity';
+  import { MediaQuery, SvelteSet } from 'svelte/reactivity';
+  import { prefersReducedMotion } from 'svelte/motion';
+  import { fade } from 'svelte/transition';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
   import type { GutterItem } from './serverGutterDrag.svelte';
 
@@ -26,7 +28,12 @@ is connected to, plus the add-server button pinned to the bottom. See the
     servers.filter((server) => serverRegistry.tryGetStore(server.id)).map((server) => server.id)
   );
   const membership = $derived([...serverIds].sort().join('\0'));
-  const dragEnabled = $derived(!touchOnly.current && serverIds.length >= 2);
+  // Track nodes so an interrupted exit can resume dragging on introstart.
+  const exitingEntries = new SvelteSet<HTMLDivElement>();
+  // Outgoing entries remain in the DOM; the drag library requires one child per item.
+  const dragEnabled = $derived(
+    !touchOnly.current && serverIds.length >= 2 && exitingEntries.size === 0
+  );
   const orderedItems: GutterItem[] = $derived(
     serverGutterOrder.ordered(serverIds, originId).map((id) => ({ id, serverId: id }))
   );
@@ -126,6 +133,12 @@ is connected to, plus the add-server button pinned to the bottom. See the
         {#each items as item (item.id)}
           {@const store = serverRegistry.tryGetStore(item.serverId)}
           <div
+            transition:fade={{
+              duration: prefersReducedMotion.current || preview || item.isDndShadowItem ? 0 : 150
+            }}
+            onoutrostart={(event) => exitingEntries.add(event.currentTarget)}
+            onoutroend={(event) => exitingEntries.delete(event.currentTarget)}
+            onintrostart={(event) => exitingEntries.delete(event.currentTarget)}
             aria-hidden={item.isDndShadowItem || undefined}
             data-is-dnd-shadow-item-hint={item.isDndShadowItem || undefined}
           >

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { SvelteMap } from 'svelte/reactivity';
+import { prefersReducedMotion } from 'svelte/motion';
 
 type ServerMock = {
   id: string;
@@ -67,6 +68,8 @@ beforeEach(() => {
   mocks.pushState.mockReset();
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe('ServerGutter', () => {
   function register(...ids: string[]) {
     mocks.servers = ids.map((id) => ({ id, reauthRequiredAt: null }));
@@ -78,6 +81,63 @@ describe('ServerGutter', () => {
       (entry) => entry.textContent
     );
   }
+
+  it('fades added and removed entries and resumes dragging after removal', async () => {
+    vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(false);
+    register('origin', 'a', 'b');
+    mocks.stores.delete('b');
+    const { container } = render(ServerGutter);
+    const zone = container.querySelector<HTMLElement>('[data-testid="server-list"]')!;
+    await vi.waitFor(() => expect(zone.dataset.serverDragReady).toBe('true'));
+
+    mocks.stores.set('b', { isAuthenticated: false, currentUser: {} });
+    await tick();
+    const entry = [...zone.querySelectorAll('[data-testid="server-entry"]')].find(
+      (node) => node.textContent === 'b'
+    )!;
+    const wrapper = entry.parentElement!;
+    await vi.waitFor(() =>
+      expect(wrapper.getAnimations()[0]?.effect?.getTiming().duration).toBe(150)
+    );
+    await Promise.all(wrapper.getAnimations().map((animation) => animation.finished));
+
+    mocks.stores.delete('b');
+    await tick();
+    expect(entry.isConnected).toBe(true);
+    expect(wrapper.inert).toBe(true);
+    expect(zone.dataset.serverDragReady).toBeUndefined();
+    await vi.waitFor(() => expect(wrapper.getAnimations().length).toBeGreaterThan(0));
+    await Promise.all(wrapper.getAnimations().map((animation) => animation.finished));
+    await vi.waitFor(() => expect(entry.isConnected).toBe(false));
+    await vi.waitFor(() => expect(zone.dataset.serverDragReady).toBe('true'));
+    expect(entries(container)).toEqual(['origin', 'a']);
+  });
+
+  it('removes entries immediately with reduced motion', async () => {
+    vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(true);
+    register('origin', 'a');
+    const { container } = render(ServerGutter);
+    mocks.stores.delete('a');
+    await tick();
+    expect(entries(container)).toEqual(['origin']);
+    expect(container.getAnimations({ subtree: true })).toHaveLength(0);
+  });
+
+  it('restores dragging when a server returns before its fade-out finishes', async () => {
+    vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(false);
+    register('origin', 'a', 'b');
+    const store = mocks.stores.get('b')!;
+    const { container } = render(ServerGutter);
+    const zone = container.querySelector<HTMLElement>('[data-testid="server-list"]')!;
+    await vi.waitFor(() => expect(zone.dataset.serverDragReady).toBe('true'));
+    mocks.stores.delete('b');
+    await tick();
+    expect(zone.dataset.serverDragReady).toBeUndefined();
+    mocks.stores.set('b', store);
+    await tick();
+    await vi.waitFor(() => expect(zone.dataset.serverDragReady).toBe('true'));
+    expect(entries(container)).toEqual(['origin', 'a', 'b']);
+  });
 
   it('keeps the existing display order when saved order omits the formerly pinned origin', () => {
     register('a', 'b', 'origin', 'new');
