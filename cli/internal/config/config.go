@@ -356,6 +356,16 @@ func (c *ChattoConfig) Validate() error {
 		if provider.SyncUsernames && !provider.ManageUsernames {
 			errs = append(errs, prefix+".sync_usernames requires manage_usernames")
 		}
+		if provider.Type == AuthProviderTypeGoogle && provider.ManageUsernames {
+			// Explicit scopes replace the defaults selected by request_email.
+			emailRequested := provider.RequestEmailOrDefault()
+			if len(provider.Scopes) > 0 {
+				emailRequested = slices.Contains(provider.Scopes, "email") || slices.Contains(provider.Scopes, "https://www.googleapis.com/auth/userinfo.email")
+			}
+			if !emailRequested {
+				errs = append(errs, prefix+": managed Google usernames require email access; enable request_email or include email in explicit scopes")
+			}
+		}
 		if provider.UsernameClaim != "" && (provider.Type != AuthProviderTypeOpenIDConnect || strings.TrimSpace(provider.UsernameClaim) != provider.UsernameClaim) {
 			errs = append(errs, prefix+".username_claim requires OIDC and must not contain surrounding spaces")
 		}

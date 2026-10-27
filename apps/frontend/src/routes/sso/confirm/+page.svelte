@@ -22,7 +22,12 @@
   let actionError = $state('');
   let submitting = $state(false);
   let login = $derived(pending?.loginHint ?? '');
-  let displayName = $derived(pending?.displayNameHint || pending?.loginHint || '');
+  const usernameManaged = $derived(
+    pending?.chooseUsername === UsernameChoiceAvailability.PROVIDER_MANAGED
+  );
+  let displayName = $derived(
+    pending?.displayNameHint || (usernameManaged ? '' : pending?.loginHint) || ''
+  );
 
   const loginSchema = z
     .string()
@@ -44,7 +49,11 @@
   const canSubmit = $derived(
     pending &&
       !submitting &&
-      ((isCreate && login.trim() && displayName.trim() && !loginError && !displayNameError) ||
+      ((isCreate &&
+        login.trim() &&
+        (usernameManaged || displayName.trim()) &&
+        !loginError &&
+        !displayNameError) ||
         isLink)
   );
 
@@ -159,7 +168,7 @@
         bind:value={displayName}
         placeholder={m('settings.profile.display_name.placeholder')}
         disabled={submitting}
-        required
+        required={!usernameManaged}
         maxlength={32}
         autocomplete="name"
         error={displayNameError}

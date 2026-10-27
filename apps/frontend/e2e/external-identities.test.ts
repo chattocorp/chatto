@@ -66,6 +66,28 @@ test.describe('Managed provider accounts', () => {
       page.getByText('The server operator does not allow this provider to be disconnected.')
     ).toBeVisible();
   });
+
+  test('uses the assigned username as the display name after a preview collision', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `collision-${Date.now()}`,
+      providerUsername: 'e2eadmin'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByLabel('Display Name')).toHaveValue('');
+    await authPage.createUserViaApi('e2eadmin-2', 'password123');
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('e2eadmin-3');
+    await expect(page.getByPlaceholder('Enter your display name')).toHaveValue('e2eadmin-3');
+  });
 });
 
 test.describe('External identity confirmation flows', () => {
