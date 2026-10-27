@@ -915,7 +915,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
 
     const path = notificationPath(activeServerId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- notificationPath returns a resolved app path.
     await navigateNotification(stores, notification, () => goto(path));
   }
 </script>

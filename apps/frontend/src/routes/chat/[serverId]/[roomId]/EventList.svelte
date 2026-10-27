@@ -614,7 +614,9 @@
       },
       scroll: () => {
         if (!scrollContainer) return;
-        safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+        // This loop owns measurement retries and stops on user input. A virtua
+        // scrollToIndex request can keep retrying after that input and move the
+        // reader back to the bottom.
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
         scrollFader?.refresh();
       },

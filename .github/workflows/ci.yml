@@ -559,7 +559,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only browser tests need the image; other workspace tests use the host.
     container:
-      image: ${{ matrix.playwright && 'ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb' || '' }}
+      image: ${{ matrix.playwright && 'ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287' || '' }}
       options: --init --ipc=host
     defaults:
       run:
@@ -787,7 +787,7 @@ jobs:
     if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -836,7 +836,7 @@ jobs:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -918,7 +918,7 @@ jobs:
     runs-on: ubuntu-latest
     # Update this digest in a PR to verify a new image before changing main.
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -971,7 +971,7 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
