@@ -458,7 +458,9 @@ describe('MessageContent component', () => {
     await expect.poll(() => q(container, '.echoed-to-channel-marker')).toBeTruthy();
     const marker = q(container, '.echoed-to-channel-marker')!;
     expect(marker.parentElement?.tagName).toBe('P');
-    expect(marker.parentElement?.previousElementSibling?.tagName).toBe('PRE');
+    const frame = marker.parentElement?.previousElementSibling;
+    expect(frame?.classList.contains('markdown-code-frame')).toBe(true);
+    expect(frame?.querySelector('pre code')?.textContent).toBe('code');
   });
 
   it('renders message timestamp tokens as localized time elements', async () => {
