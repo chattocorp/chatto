@@ -11,30 +11,23 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "لا يبدو أن هذا هو خادم Chatto.",
     "directory": {
-      "your_servers": "خوادمك",
-      "introduction": "اختر خادمًا أو اتصل باستخدام عنوان.",
+      "added_by_you": "أضفته بنفسك",
+      "learn_more": "هل تريد معرفة المزيد؟",
+      "learn_more_description": "اكتشف إمكانات Chatto، وتعلّم كيفية تشغيل خادمك الخاص، أو احصل على المساعدة.",
+      "welcome_title": "الآن تبدأ الدردشة الحقيقية!",
       "title": "دليل الخوادم",
-      "subtitle": "اكتشف خوادم Chatto أخرى",
-      "lookup_description": "أدخل عنوان أي خادم Chatto للانضمام إليه.",
+      "lookup_description": "أدخل عنوان خادم لإضافته إلى دليلك وتحميل توصياته.",
       "find": "ابحث عن خادم",
       "connect_by_address": "الاتصال بالعنوان",
-      "servers_title": "الخوادم الموصى بها",
-      "servers_description": "توصيات من الخوادم التي انضممت إليها. النتائج غير مرتبة.",
       "recommended_by": "موصى به من {servers}",
-      "more_recommenders_count": {
-        "other": "{count} آخرين"
-      },
-      "joined": "تم الانضمام",
       "join": "انضمام",
       "open": "فتح",
       "open_in_new_tab": "فتح في علامة تبويب جديدة",
       "sign_in_unavailable": "تسجيل الدخول غير متاح",
       "profile_unavailable": "تعذر تحميل الملف التعريفي العام لهذا الخادم.",
-      "partial": "تعذر على بعض الخوادم التي انضممت إليها تقديم توصياتها.",
+      "partial": "تعذر على بعض الخوادم تقديم توصياتها.",
       "unavailable_title": "الدليل غير متاح",
-      "unavailable_body": "تعذر على الخوادم التي انضممت إليها تقديم توصياتها. لا يزال بإمكانك الاتصال مباشرة.",
-      "empty_title": "لا توجد خوادم موصى بها بعد",
-      "empty_body": "لا يزال بإمكانك الاتصال مباشرة باستخدام عنوان خادم."
+      "unavailable_body": "تعذر على الخوادم تقديم توصياتها. لا يزال بإمكانك الاتصال مباشرة."
     }
   }
 }

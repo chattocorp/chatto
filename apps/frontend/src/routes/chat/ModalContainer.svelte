@@ -9,6 +9,7 @@
   import HtmlViewerModal from './modals/HtmlViewerModal.svelte';
   import LeaveRoomModal from './modals/LeaveRoomModal.svelte';
   import RemoveServerModal from './modals/RemoveServerModal.svelte';
+  import ServerRecommendationModal from './modals/ServerRecommendationModal.svelte';
 
   const modal = $derived(page.state.modal);
 
@@ -26,6 +27,8 @@
       <AboutChattoModal onclose={closeModal} />
     {:else if modal.type === 'motd'}
       <MotdModal motd={modal.motd} onclose={closeModal} />
+    {:else if modal.type === 'serverRecommendation'}
+      <ServerRecommendationModal {modal} onclose={closeModal} />
     {:else if modal.type === 'leaveRoom'}
       <LeaveRoomModal {modal} onclose={closeModal} />
     {:else if modal.type === 'removeServer'}

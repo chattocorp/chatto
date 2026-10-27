@@ -23,6 +23,37 @@
   </div>
 </Story>
 
+<Story name="Equal-height descriptions" asChild>
+  <div class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3">
+    {#each ['', 'A short introduction.', 'A community for long conversations.\n\nThis description has several paragraphs so you can scroll through the complete introduction without changing the height of the card.\n\nEveryone is welcome.\n\nBring your questions and ideas.\n\nThere is always more to talk about.'] as description (description)}
+      {#snippet actions()}<Button fullWidth>Join</Button>{/snippet}
+      <ServerProfileCard
+        origin="https://community.example"
+        profile={{ ...profile, description }}
+        {actions}
+      />
+    {/each}
+  </div>
+</Story>
+
+<Story name="Saved server" asChild>
+  <div class="w-full max-w-sm p-4">
+    {#snippet actions()}
+      <Button variant="secondary" fullWidth>Open</Button>
+    {/snippet}
+    <ServerProfileCard origin="https://community.example" {profile} {actions} />
+  </div>
+</Story>
+
+<Story name="First-run preview" asChild>
+  <div class="mx-auto w-full max-w-md p-4 text-start">
+    {#snippet actions()}
+      <Button fullWidth>Join</Button>
+    {/snippet}
+    <ServerProfileCard origin="https://community.example" {profile} {actions} headingTag="h2" />
+  </div>
+</Story>
+
 <Story name="External handoff" asChild>
   <div class="w-full max-w-sm p-4">
     {#snippet actions()}

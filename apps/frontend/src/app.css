@@ -867,6 +867,9 @@
   &:has([data-pane-content='wide']) {
     --pane-header-max-width: calc(var(--container-pane-wide) - 1rem);
   }
+  &:has([data-pane-content='fluid']) {
+    --pane-header-max-width: 100%;
+  }
 }
 
 /* Panel/card shells provide the outer surface frame. Their content sits on a

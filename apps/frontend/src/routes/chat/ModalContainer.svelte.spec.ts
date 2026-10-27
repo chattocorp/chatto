@@ -266,6 +266,25 @@ describe('ModalContainer About Chatto modal', () => {
   });
 });
 
+describe('ModalContainer recommendation info', () => {
+  it('shows every cached recommendation source', () => {
+    mocks.modal = {
+      type: 'serverRecommendation',
+      name: 'Community',
+      origin: 'https://community.example',
+      sources: [
+        { name: 'First server', origin: 'https://first.example' },
+        { name: 'Second server', origin: 'https://second.example' },
+        { name: 'Third server', origin: 'https://third.example' }
+      ]
+    };
+    const { container } = render(ModalContainer);
+    expect(container.querySelector('dialog')?.getAttribute('aria-label')).toBe('About Community');
+    for (const host of ['first.example', 'second.example', 'third.example'])
+      expect(container.textContent).toContain(host);
+  });
+});
+
 describe('ModalContainer remove server modal', () => {
   it('removes an inactive selected server without navigating away from the active server', async () => {
     const remote = {

@@ -28,6 +28,18 @@
   </div>
 </Story>
 
+<Story name="Full-width browsing grid" asChild>
+  <div class="h-80 w-full bg-background">
+    <PaneContent fluid>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="surface-box p-6">Server one</div>
+        <div class="surface-box p-6">Server two</div>
+        <div class="surface-box p-6">Server three</div>
+      </div>
+    </PaneContent>
+  </div>
+</Story>
+
 <Story name="Edge to edge on narrow screens" asChild>
   <div class="h-80 w-full bg-background">
     <PaneContent fillHeight>

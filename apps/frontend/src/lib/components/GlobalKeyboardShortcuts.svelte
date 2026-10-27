@@ -9,8 +9,10 @@ once at the root layout level.
   the currently focused element
 - `Cmd+K` (Mac) / `Ctrl+K` (Windows/Linux): Open the quick switcher palette
 - `Alt+Shift+ArrowDown`: Open the next unread notification source
+- Production builds cancel reload shortcuts, including their hard-reload variants.
 -->
 <script lang="ts">
+  import { dev } from '$app/environment';
   import QuickSwitcher from './QuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { getAppUiState } from '$lib/state/appUi.svelte';
@@ -18,8 +20,17 @@ once at the root layout level.
 
   const nextUnread = createNextUnreadNavigation(getAppUiState());
 
-  // Claim this combination before the editor's duplicate-line binding can change the draft.
-  function handleNotificationShortcut(e: KeyboardEvent) {
+  // Capture reloads and notification navigation before editors or dialogs consume them.
+  function handleCapturedShortcut(e: KeyboardEvent) {
+    if (
+      !dev &&
+      !e.altKey &&
+      (e.key === 'F5' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'r'))
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.altKey && e.shiftKey && !e.metaKey && !e.ctrlKey && e.key === 'ArrowDown') {
       if (
         e.defaultPrevented ||
@@ -50,5 +61,5 @@ once at the root layout level.
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} onkeydowncapture={handleNotificationShortcut} />
+<svelte:window onkeydown={handleKeydown} onkeydowncapture={handleCapturedShortcut} />
 <QuickSwitcher onNextUnread={nextUnread} />

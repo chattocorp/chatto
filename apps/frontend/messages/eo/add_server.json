@@ -11,30 +11,23 @@
     "url_placeholder": "babilejo.ekzemplo.com",
     "not_chatto_server": "Ĉi tio ne ŝajnas esti Chatto-servilo.",
     "directory": {
-      "your_servers": "Viaj serviloj",
-      "introduction": "Elektu servilon aŭ konektiĝu per adreso.",
+      "added_by_you": "Aldonita de vi",
+      "learn_more": "Ĉu vi volas scii pli?",
+      "learn_more_description": "Malkovru la eblojn de Chatto, lernu funkciigi vian propran servilon aŭ ricevu helpon.",
+      "welcome_title": "Babilado ĵus fariĝis vera!",
       "title": "Servila katalogo",
-      "subtitle": "Malkovru aliajn Chatto-servilojn",
-      "lookup_description": "Enigu la adreson de iu ajn Chatto-servilo por aliĝi al ĝi.",
+      "lookup_description": "Enigu servilan adreson por aldoni ĝin al via dosierujo kaj ŝargi ĝiajn rekomendojn.",
       "find": "Trovi servilon",
       "connect_by_address": "Konekti per adreso",
-      "servers_title": "Rekomenditaj serviloj",
-      "servers_description": "Rekomendite de serviloj, al kiuj vi aliĝis. La rezultoj ne estas rangigitaj.",
       "recommended_by": "Rekomendita de {servers}",
-      "more_recommenders_count": {
-        "other": "{count} pliaj"
-      },
-      "joined": "Aliĝis",
       "join": "Aliĝi",
       "open": "Malfermi",
       "open_in_new_tab": "Malfermi en nova langeto",
       "sign_in_unavailable": "Ensaluto ne disponeblas",
       "profile_unavailable": "Ne eblis ŝargi la publikan profilon de ĉi tiu servilo.",
-      "partial": "Kelkaj serviloj, al kiuj vi aliĝis, ne povis doni siajn rekomendojn.",
+      "partial": "Kelkaj serviloj ne povis doni siajn rekomendojn.",
       "unavailable_title": "Katalogo ne disponeblas",
-      "unavailable_body": "La serviloj, al kiuj vi aliĝis, ne povis doni siajn rekomendojn. Vi ankoraŭ povas konekti rekte.",
-      "empty_title": "Ankoraŭ neniuj rekomenditaj serviloj",
-      "empty_body": "Vi ankoraŭ povas konekti rekte per servila adreso."
+      "unavailable_body": "La serviloj ne povis doni siajn rekomendojn. Vi ankoraŭ povas konekti rekte."
     }
   }
 }

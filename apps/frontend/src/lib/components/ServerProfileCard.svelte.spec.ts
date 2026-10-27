@@ -1,3 +1,4 @@
+import '../../app.css';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PublicServerInfo } from '@chatto/client/api/server';
@@ -26,6 +27,32 @@ afterEach(() => {
 });
 
 describe('ServerProfileCard public images', () => {
+  it('keeps long descriptions scrollable without increasing the card height', async () => {
+    const short = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({ iconUrl: null, bannerUrl: null })
+    });
+    const long = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({
+        iconUrl: null,
+        bannerUrl: null,
+        description: 'A long introduction with room for every detail.\n'.repeat(30)
+      })
+    });
+    const viewport = long.container.querySelector<HTMLElement>(
+      '[data-testid="server-card-description"]'
+    )!;
+    expect(viewport.getAttribute('tabindex')).toBe('0');
+    expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight);
+    expect(long.container.querySelector('article')!.getBoundingClientRect().height).toBe(
+      short.container.querySelector('article')!.getBoundingClientRect().height
+    );
+    viewport.focus();
+    expect(document.activeElement).toBe(viewport);
+    viewport.scrollTop = viewport.scrollHeight;
+    expect(viewport.scrollTop).toBeGreaterThan(0);
+  });
   it('loads same-origin images through the private public-image path', async () => {
     const png = Uint8Array.from(
       atob(

@@ -11,30 +11,23 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "这似乎不是 Chatto 服务器。",
     "directory": {
-      "your_servers": "你的服务器",
-      "introduction": "选择服务器或通过地址连接。",
+      "added_by_you": "由你添加",
+      "learn_more": "想了解更多？",
+      "learn_more_description": "探索 Chatto 的功能，了解如何运行自己的服务器，或获取帮助。",
+      "welcome_title": "聊天，现在来真的！",
       "title": "服务器目录",
-      "subtitle": "发现其他 Chatto 服务器",
-      "lookup_description": "输入任意 Chatto 服务器的地址以加入。",
+      "lookup_description": "输入服务器地址，将其添加到你的目录并加载它的推荐。",
       "find": "查找服务器",
       "connect_by_address": "通过地址连接",
-      "servers_title": "推荐的服务器",
-      "servers_description": "由你已加入的服务器推荐。结果未经排名。",
       "recommended_by": "由{servers}推荐",
-      "more_recommenders_count": {
-        "other": "另有{count}个"
-      },
-      "joined": "已加入",
       "join": "加入",
       "open": "打开",
       "open_in_new_tab": "在新标签页中打开",
       "sign_in_unavailable": "无法登录",
       "profile_unavailable": "无法加载此服务器的公开资料。",
-      "partial": "部分已加入的服务器无法提供推荐。",
+      "partial": "部分服务器无法提供推荐。",
       "unavailable_title": "目录不可用",
-      "unavailable_body": "已加入的服务器无法提供推荐。你仍可以直接连接。",
-      "empty_title": "暂无推荐的服务器",
-      "empty_body": "你仍可以使用服务器地址直接连接。"
+      "unavailable_body": "服务器无法提供推荐。你仍可以直接连接。"
     }
   }
 }

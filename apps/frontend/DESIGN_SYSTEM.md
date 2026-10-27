@@ -354,6 +354,7 @@ Follow these defaults:
 - Let `PaneContent` own scrolling, the `max-w-pane` content width, and page
   padding. Do not reproduce those constraints in each route. Set `wide` for a
   browsing grid, such as the room directory masonry, to use `max-w-pane-wide`.
+  Set `fluid` for server-card grids that fill the available pane width.
 - Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a
   deliberately dense surface, not as a page-by-page styling choice.
 - Give peer panels short, descriptive titles. A form panel names the task or

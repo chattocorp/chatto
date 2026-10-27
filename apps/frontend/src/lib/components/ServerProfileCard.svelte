@@ -20,7 +20,7 @@ card. Callers supply trusted badges and actions through explicit props.
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import { m } from '$lib/i18n/messages';
   import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
-  import { Pill } from '$lib/ui';
+  import { Pill, ScrollArea } from '$lib/ui';
   import { getGradientForName } from '$lib/utils/gradients';
 
   let {
@@ -60,10 +60,11 @@ card. Callers supply trusted badges and actions through explicit props.
     iconActionDisabled?: boolean;
     testId?: string;
     /** Heading level of the server name, one below the surrounding section. */
-    headingTag?: 'h3' | 'h4';
+    headingTag?: 'h2' | 'h3' | 'h4';
   } = $props();
 
   const hostname = $derived(serverHost(origin));
+  const titleId = $props.id();
   const logoServer = $derived({
     name: profile?.name ?? hostname,
     logoUrl: profile?.iconUrl
@@ -76,14 +77,14 @@ card. Callers supply trusted badges and actions through explicit props.
 </script>
 
 <article
-  class="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-surface"
+  class="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface text-start"
   data-testid={testId}
   data-origin={origin}
 >
   {#if bannerURL && failedBannerURL !== bannerURL}
     <img
       alt=""
-      class="h-24 w-full object-cover"
+      class="h-24 w-full shrink-0 object-cover"
       {@attach loadPublicServerImage(bannerURL)}
       onerror={() => (failedBannerURL = bannerURL)}
     />
@@ -99,7 +100,7 @@ card. Callers supply trusted badges and actions through explicit props.
   {/if}
 
   <div class="flex flex-1 flex-col gap-3 p-4">
-    <div class="flex min-w-0 items-start gap-3">
+    <div class="flex h-12 min-w-0 shrink-0 items-start gap-3">
       {#if iconHref}
         <!-- eslint-disable svelte/no-navigation-without-resolve -- iconHref is a caller-provided external URL -->
         <a
@@ -135,30 +136,44 @@ card. Callers supply trusted badges and actions through explicit props.
       {/if}
 
       <div class="min-w-0 flex-1">
-        <div class="flex min-w-0 flex-wrap items-center gap-2">
-          <svelte:element this={headingTag} class="min-w-0 truncate font-semibold text-text-top">
+        <div class="flex min-w-0 items-center gap-2">
+          <svelte:element
+            this={headingTag}
+            id={titleId}
+            class="min-w-0 truncate font-semibold text-text-top"
+          >
             <bdi dir="auto">{profile?.name ?? hostname}</bdi>
           </svelte:element>
           {#if badge}<Pill tone="success">{badge}</Pill>{/if}
         </div>
-        <p class="truncate text-sm text-muted" dir="ltr">{hostname}</p>
+        <p class="truncate text-muted" dir="ltr">{hostname}</p>
       </div>
     </div>
 
-    <div class="flex-1">
+    <!-- A fixed reading area keeps every card's actions aligned. The shared
+         scroll viewport makes long descriptions reachable by keyboard. -->
+    <ScrollArea
+      fill={false}
+      class="h-24 shrink-0"
+      aria-labelledby={titleId}
+      keyboardFocusable={!!profile?.description}
+      data-testid="server-card-description"
+    >
       {#if profile?.description}
-        <p class="line-clamp-2 text-sm text-muted"><bdi dir="auto">{profile.description}</bdi></p>
+        <p class="wrap-anywhere whitespace-pre-wrap text-text">
+          <bdi dir="auto">{profile.description}</bdi>
+        </p>
       {:else if profile === null}
-        <p class="text-sm text-muted">{m('add_server.directory.profile_unavailable')}</p>
+        <p class="text-text">{m('add_server.directory.profile_unavailable')}</p>
       {/if}
-    </div>
+    </ScrollArea>
 
     {#if details}
       {@render details()}
     {/if}
 
     {#if actions}
-      {@render actions()}
+      <div class="mt-auto">{@render actions()}</div>
     {/if}
   </div>
 </article>

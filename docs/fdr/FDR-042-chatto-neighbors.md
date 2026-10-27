@@ -46,18 +46,43 @@ recommendation, not a trust or reciprocal relationship.
   Static hosting and Desktop open this directory directly instead of a
   separate welcome screen. A server-hosted frontend retains its required
   origin registration and its normal local sign-in or chat landing page.
-- The directory shows **Your servers** first, including signed-out servers
-  and the origin server. Saved cards use existing registration and store data.
-  Recommendations exclude all registered servers, so each server appears
-  once. A **Connect by address** action opens the direct lookup. The lookup
-  shows immediately for an empty catalogue or when no recommendations remain.
+- The directory shows registered, explicitly discovered, and recommended servers in one grid without
+  section headings or introductory text. This includes signed-out servers and
+  the origin server. Saved cards use existing registration and store data.
+  Recommendations exclude all registered servers, so each server appears once.
+  A **Connect by address** action in the pane header opens the direct lookup
+  in a modal. Close or Back dismisses it without changing the server grid.
+  The lookup shows immediately for an empty catalogue.
+  An empty catalogue shows a welcome heading and an explanation of independent
+  communities above the address form, without a separate welcome step.
+  A successful address lookup remembers the server as a **known server** on
+  this device, closes the modal, and adds its card to the grid. First-run lookup
+  opens the directory instead of a preview. Known servers do not create a
+  registration, session, live connection, or sidebar entry. Join remains the
+  separate action that registers a server, with compatibility and sign-in checks.
+  Duplicate origins update the existing record instead of adding another card.
+  The welcome uses an open layout without panels and links to the Chatto
+  website at `https://chatto.run`. The link opens in a new tab without referrer
+  data. The website receives the user's IP address only when they open it.
   An empty standalone catalogue does not contact a default third-party directory.
-- The Server Directory loads the cached Neighborhood of each server that is
-  registered in the client. It contacts no other server to show results and
-  does not ask for consent. A registered server already knows the user's
-  network address.
-- The client removes duplicate canonical origins but does not rank or sort the
-  results. Each result identifies all sources whose recommendations are shown.
+- The directory and Neighbors administration share the server profile card.
+  Each card reserves the same description height and scrolls longer text.
+  The grids use the available page width with up to five columns on wide screens.
+  A quiet line above the actions shows **Added by you** or
+  **Recommended by** with the first source name and a count of extra sources.
+  Selecting the recommendation line opens all sources and their hostnames in
+  a dialog, using cached data only. Back or Close dismisses the dialog.
+  Registered servers have no status label; their action is **Open**.
+- The Server Directory loads the cached Neighborhood of each registered or
+  explicitly discovered server. These servers see the user's IP address when
+  the directory loads. The address form explains that lookup adds the server
+  and loads its recommendations. The client remembers public profile fields
+  and source origins in device storage, never credentials. It does not query
+  servers merely because they appear in a Neighborhood response. Their cached
+  images still come from the source server. Discovery does not crawl recursively.
+- The client removes duplicate canonical origins. Registered servers come
+  first, followed by explicitly added servers, then recommendations. Order
+  within each set stays stable; the page has no separate groups or headings.
   A direct Neighbor of a registered server names that registered server as a
   source.
 - The Server Directory shows its results as server profile cards in a grid. A

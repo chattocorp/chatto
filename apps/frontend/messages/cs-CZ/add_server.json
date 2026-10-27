@@ -11,30 +11,23 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Zdá se, že se nejedná o server Chatto.",
     "directory": {
-      "your_servers": "Vaše servery",
-      "introduction": "Vyberte server nebo se připojte pomocí adresy.",
+      "added_by_you": "Přidáno vámi",
+      "learn_more": "Chcete se dozvědět více?",
+      "learn_more_description": "Objevte možnosti Chatto, naučte se provozovat vlastní server nebo získejte pomoc.",
+      "welcome_title": "Teď se chatuje doopravdy!",
       "title": "Adresář serverů",
-      "subtitle": "Objevte další servery Chatto",
-      "lookup_description": "Zadejte adresu libovolného serveru Chatto a připojte se k němu.",
+      "lookup_description": "Zadejte adresu serveru, přidejte jej do svého adresáře a načtěte jeho doporučení.",
       "find": "Najít server",
       "connect_by_address": "Připojit podle adresy",
-      "servers_title": "Doporučené servery",
-      "servers_description": "Doporučují je servery, ke kterým jste se připojili. Výsledky nejsou seřazeny.",
       "recommended_by": "Doporučují {servers}",
-      "more_recommenders_count": {
-        "other": "dalších {count}"
-      },
-      "joined": "Připojeno",
       "join": "Připojit se",
       "open": "Otevřít",
       "open_in_new_tab": "Otevřít na nové kartě",
       "sign_in_unavailable": "Přihlášení není k dispozici",
       "profile_unavailable": "Veřejný profil tohoto serveru se nepodařilo načíst.",
-      "partial": "Některé servery, ke kterým jste se připojili, nemohly poskytnout svá doporučení.",
+      "partial": "Některé servery nemohly poskytnout svá doporučení.",
       "unavailable_title": "Adresář není k dispozici",
-      "unavailable_body": "Servery, ke kterým jste se připojili, nemohly poskytnout svá doporučení. Stále se můžete připojit přímo.",
-      "empty_title": "Zatím žádné doporučené servery",
-      "empty_body": "Stále se můžete připojit přímo pomocí adresy serveru."
+      "unavailable_body": "Servery nemohly poskytnout svá doporučení. Stále se můžete připojit přímo."
     }
   }
 }

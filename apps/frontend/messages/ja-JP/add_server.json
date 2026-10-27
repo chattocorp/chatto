@@ -11,30 +11,23 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "これは Chatto サーバーではないようです。",
     "directory": {
-      "your_servers": "あなたのサーバー",
-      "introduction": "サーバーを選択するか、アドレスを入力して接続してください。",
+      "added_by_you": "あなたが追加",
+      "learn_more": "もっと知りたいですか？",
+      "learn_more_description": "Chattoでできることや、自分のサーバーを運営する方法を調べたり、サポート情報を見つけたりできます。",
+      "welcome_title": "チャットが、もっとリアルに！",
       "title": "サーバーディレクトリ",
-      "subtitle": "ほかの Chatto サーバーを見つける",
-      "lookup_description": "参加したい Chatto サーバーのアドレスを入力してください。",
+      "lookup_description": "サーバーのアドレスを入力して一覧に追加し、おすすめを読み込みます。",
       "find": "サーバーを探す",
       "connect_by_address": "アドレスで接続",
-      "servers_title": "おすすめのサーバー",
-      "servers_description": "参加しているサーバーからのおすすめです。結果は順位付けされていません。",
       "recommended_by": "{servers} からのおすすめ",
-      "more_recommenders_count": {
-        "other": "他{count}件"
-      },
-      "joined": "参加済み",
       "join": "参加",
       "open": "開く",
       "open_in_new_tab": "新しいタブで開く",
       "sign_in_unavailable": "サインインできません",
       "profile_unavailable": "このサーバーの公開プロフィールを読み込めませんでした。",
-      "partial": "参加している一部のサーバーから、おすすめを取得できませんでした。",
+      "partial": "一部のサーバーから、おすすめを取得できませんでした。",
       "unavailable_title": "ディレクトリを利用できません",
-      "unavailable_body": "参加しているサーバーからおすすめを取得できませんでした。直接接続することはできます。",
-      "empty_title": "おすすめのサーバーはまだありません",
-      "empty_body": "サーバーのアドレスを使って直接接続することはできます。"
+      "unavailable_body": "サーバーからおすすめを取得できませんでした。直接接続することはできます。"
     }
   }
 }

@@ -11,30 +11,23 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "這似乎不是 Chatto 伺服器。",
     "directory": {
-      "your_servers": "你的伺服器",
-      "introduction": "選擇伺服器或透過位址連線。",
+      "added_by_you": "由你新增",
+      "learn_more": "想了解更多？",
+      "learn_more_description": "探索 Chatto 的功能，瞭解如何運作自己的伺服器，或取得協助。",
+      "welcome_title": "聊天，現在來真的！",
       "title": "伺服器目錄",
-      "subtitle": "探索其他 Chatto 伺服器",
-      "lookup_description": "輸入任何 Chatto 伺服器的位址即可加入。",
+      "lookup_description": "輸入伺服器位址，將其加入你的目錄並載入它的推薦。",
       "find": "尋找伺服器",
       "connect_by_address": "透過位址連線",
-      "servers_title": "推薦的伺服器",
-      "servers_description": "由你已加入的伺服器推薦。結果未經排名。",
       "recommended_by": "由{servers}推薦",
-      "more_recommenders_count": {
-        "other": "另有{count}個"
-      },
-      "joined": "已加入",
       "join": "加入",
       "open": "開啟",
       "open_in_new_tab": "在新分頁中開啟",
       "sign_in_unavailable": "無法登入",
       "profile_unavailable": "無法載入此伺服器的公開資料。",
-      "partial": "部分已加入的伺服器無法提供推薦。",
+      "partial": "部分伺服器無法提供推薦。",
       "unavailable_title": "目錄無法使用",
-      "unavailable_body": "已加入的伺服器無法提供推薦。你仍可以直接連線。",
-      "empty_title": "尚無推薦的伺服器",
-      "empty_body": "你仍可以使用伺服器位址直接連線。"
+      "unavailable_body": "伺服器無法提供推薦。你仍可以直接連線。"
     }
   }
 }
