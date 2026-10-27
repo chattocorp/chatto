@@ -589,6 +589,26 @@ describe('Server Directory page', () => {
     expect(mocks.goto).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores a lookup that completes after its modal closes', async () => {
+    let finishLookup!: (value: PublicServerInfo) => void;
+    mocks.getPublicServerInfo.mockImplementationOnce(
+      () => new Promise<PublicServerInfo>((resolve) => (finishLookup = resolve))
+    );
+    const { container } = render(Page);
+    await enterServerAddress(container, 'https://cancelled.example');
+    await vi.waitFor(() => expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce());
+    const signal = mocks.getPublicServerInfo.mock.calls[0]![1].signal as AbortSignal;
+    flushSync(() => mocks.pageState!.delete('modal'));
+    await vi.waitFor(() => expect(signal.aborted).toBe(true));
+    button(container, 'Connect by address')!.click();
+    flushSync();
+    finishLookup(profile('Cancelled'));
+    await vi.waitFor(() => expect(container.querySelector('form')).not.toBeNull());
+    await Promise.resolve();
+    expect(mocks.known!.servers).toHaveLength(0);
+    expect(mocks.pageState!.get('modal')).toEqual({ type: 'serverAddress' });
+  });
+
   it('adds a server found by address without another profile request', async () => {
     const customProfile = profile('Custom');
     mocks.getPublicServerInfo.mockResolvedValue(customProfile);

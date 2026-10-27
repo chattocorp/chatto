@@ -56,6 +56,7 @@ single directory surface for every host and the standalone start page. See FDR-0
   let pendingOrigin = $state<string | null>(null);
   let directory = $state<ServerDirectory | null>(null);
   let directoryController: AbortController | null = null;
+  let lookupController: AbortController | null = null;
   /** Current profiles that a join action loaded; they replace cached profiles. */
   const liveProfiles = new SvelteMap<string, PublicServerInfo>();
 
@@ -123,6 +124,7 @@ single directory surface for every host and the standalone start page. See FDR-0
   }
 
   async function probeCustomServer() {
+    if (probing) return;
     customError = '';
     const initialOrigin = canonicalServerOrigin(normalizeCustomInput(customInput));
     if (!initialOrigin) {
@@ -131,16 +133,21 @@ single directory surface for every host and the standalone start page. See FDR-0
     }
 
     probing = true;
+    const controller = new AbortController();
+    lookupController = controller;
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]);
     try {
       let origin = initialOrigin;
       let profile: PublicServerInfo;
       try {
-        profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+        profile = await getPublicServerInfo(origin, { signal });
       } catch (error) {
+        signal.throwIfAborted();
         if (hasScheme(customInput) || !origin.startsWith('https://')) throw error;
         origin = `http://${origin.slice('https://'.length)}`;
-        profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+        profile = await getPublicServerInfo(origin, { signal });
       }
+      signal.throwIfAborted();
       const wasFirstRun = firstRun;
       liveProfiles.set(origin, profile);
       knownServers.remember(origin, profile);
@@ -150,10 +157,22 @@ single directory surface for every host and the standalone start page. See FDR-0
       // An existing directory refreshes here without registering the server.
       if (!wasFirstRun) void refreshDirectory();
     } catch (error) {
-      customError = discoveryError(error);
+      if (!controller.signal.aborted) customError = discoveryError(error);
     } finally {
-      probing = false;
+      if (lookupController === controller) {
+        lookupController = null;
+        probing = false;
+      }
     }
+  }
+
+  /** Closing or replacing the address form cancels its pending lookup. */
+  function lookupLifetime() {
+    return () => {
+      lookupController?.abort();
+      lookupController = null;
+      probing = false;
+    };
   }
 
   function actionLabel(origin: string, profile: ServerVersionProfile): string {
@@ -297,6 +316,7 @@ single directory surface for every host and the standalone start page. See FDR-0
 
 {#snippet lookupForm(inDialog = false)}
   <section
+    {@attach lookupLifetime}
     aria-label={inDialog ? m('add_server.directory.connect_by_address') : undefined}
     aria-labelledby={inDialog ? undefined : 'server-directory-connect-title'}
   >
