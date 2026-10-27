@@ -319,7 +319,6 @@ describe('MarkdownEditor', () => {
     expect(container.querySelector('.hljs-keyword')?.textContent).toBe('const');
     expect(container.querySelector('.hljs-string')?.textContent).toBe('"yes"');
     expect(container.querySelector('.cm-code-fence-open')?.textContent).toBe('```js');
-    expect(container.querySelector('.cm-code-fence-body')?.getAttribute('data-line')).toBe('1');
     expect(container.querySelector('.cm-code-fence-body')?.textContent).toBe(
       'const answer = "yes";'
     );

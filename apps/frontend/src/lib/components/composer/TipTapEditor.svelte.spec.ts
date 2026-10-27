@@ -51,7 +51,7 @@ describe('Composer artifact controls', () => {
     );
   });
 
-  it('uses a top header and decorative line numbers while editing code', async () => {
+  it('uses a top header while keeping code editable', async () => {
     let api: ComposerEditorApi | undefined;
     const updates: string[] = [];
     const { container } = render(TipTapEditor, {
@@ -63,9 +63,6 @@ describe('Composer artifact controls', () => {
     const pre = container.querySelector('pre')!;
     const code = pre.querySelector('code')!;
     await userEvent.click(code);
-    const numbers = () => [...code.querySelectorAll<HTMLElement>('.code-line-number')];
-    expect(numbers().map((number) => number.dataset.line)).toEqual(['1', '2', '3']);
-    expect(numbers().every((number) => number.getAttribute('aria-hidden') === 'true')).toBe(true);
     expect(code.textContent).toBe('flowchart LR\n\nA-->B');
     expect(getComputedStyle(pre, '::before').height).toBe('24px');
     expect(getComputedStyle(pre).borderTopColor).toBe(
@@ -79,9 +76,8 @@ describe('Composer artifact controls', () => {
     ).toBeLessThan(2);
     await userEvent.keyboard('{Home}');
     api!.insertText('new\n');
-    await expect.poll(() => numbers().length).toBe(4);
+    await expect.poll(() => code.textContent).toContain('new\n');
     expect(updates.at(-1)).toContain('new\n');
-    expect(updates.at(-1)).not.toContain('data-line');
   });
 
   it.each(['svg', 'mermaid', 'ansi'])(

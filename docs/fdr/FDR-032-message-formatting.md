@@ -41,9 +41,9 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 ## Design Decisions
 
 Code blocks in both composer editors use the same frame colors and thin header as
-message code blocks. Both editors show line numbers without adding them to the
-message source. The visual editor places its language selector and Render by
-default toggle in the header. The Markdown editor keeps the fence text editable.
+message code blocks. Editors do not show line numbers. The visual editor places
+its language selector and Render by default toggle in the header. The Markdown
+editor keeps the fence text editable.
 
 ### 1. Plain-text Markdown is the interchange format
 

@@ -50,14 +50,6 @@
     line-height: 1.5;
   }
 
-  & .cm-code-fence-body::before {
-    @apply inline-block pe-3 text-end text-muted select-none;
-    content: attr(data-line) / '';
-    width: calc(var(--code-line-digits, 2) * 1ch + 0.75rem);
-    margin-inline-end: 0.75rem;
-    background: var(--message-code-surface, var(--color-surface));
-  }
-
   & .cm-code-fence-close {
     @apply mb-2 rounded-b-md border-b pb-1 font-mono text-xs text-muted;
     border-color: var(--message-code-surface, var(--color-surface));
