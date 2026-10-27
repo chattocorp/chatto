@@ -228,31 +228,37 @@ describe('external identity settings query lifecycle', () => {
     }
   );
 
-  it('refreshes a stale disconnect hint before asking for reauthentication', async () => {
-    const list = linkedIdentityList();
-    Object.assign(list.linkedIdentities[0], {
-      disconnectEligibility: DisconnectEligibility.ALLOWED
-    });
-    mocks.list.mockResolvedValue(list);
-    renderSettings();
-    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
-    const refreshed = linkedIdentityList();
-    Object.assign(refreshed.linkedIdentities[0], {
-      disconnectEligibility: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
-    });
-    mocks.list.mockResolvedValue(refreshed);
-    mocks.disconnect.mockRejectedValue(new ConnectError('last method', Code.FailedPrecondition));
-    await browserPage
-      .getByRole('dialog', { name: 'Disconnect provider' })
-      .getByRole('button', { name: 'Disconnect', exact: true })
-      .click();
-    await expect
-      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
-      .toBeVisible();
-    await expect
-      .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
-      .not.toBeInTheDocument();
-  });
+  it.each([
+    DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+    DisconnectEligibility.DISABLED_BY_OPERATOR
+  ])(
+    'refreshes a stale disconnect hint %s before asking for reauthentication',
+    async (disconnectEligibility) => {
+      const list = linkedIdentityList();
+      Object.assign(list.linkedIdentities[0], {
+        disconnectEligibility: DisconnectEligibility.ALLOWED
+      });
+      mocks.list.mockResolvedValue(list);
+      renderSettings();
+      await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+      const refreshed = linkedIdentityList();
+      Object.assign(refreshed.linkedIdentities[0], {
+        disconnectEligibility
+      });
+      mocks.list.mockResolvedValue(refreshed);
+      mocks.disconnect.mockRejectedValue(new ConnectError('last method', Code.FailedPrecondition));
+      await browserPage
+        .getByRole('dialog', { name: 'Disconnect provider' })
+        .getByRole('button', { name: 'Disconnect', exact: true })
+        .click();
+      await expect
+        .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+        .toBeVisible();
+      await expect
+        .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
+        .not.toBeInTheDocument();
+    }
+  );
 
   it('passes cancellation through and revalidates a cached callback snapshot', async () => {
     const first = renderSettings();

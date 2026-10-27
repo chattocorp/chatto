@@ -82,4 +82,15 @@ describe('SSO confirmation load', () => {
       loadError: 'failed'
     });
   });
+
+  it('identifies provider usernames that need operator action', async () => {
+    mocks.getPending.mockRejectedValue(
+      new ConnectError('unavailable username', Code.FailedPrecondition)
+    );
+    await expect(loadConfirmation('valid-token')).resolves.toEqual({
+      token: 'valid-token',
+      pending: null,
+      loadError: 'provider_username'
+    });
+  });
 });

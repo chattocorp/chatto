@@ -37,6 +37,8 @@ providers, and a bootstrap path for first-boot operator setup.
 - `allow_unlinking` defaults to true. A provider can disable user unlinking;
   settings show a disabled control and a notice. The operator API retains
   unlink access, subject to the existing last-enabled-method rule.
+- Hash-only legacy OIDC links conservatively inherit configured OIDC username
+  and unlink restrictions until a verified sign-in completes their metadata.
 
 - OIDC token authentication can use an explicit Basic, POST, or public-client
   method. Without an override, confidential clients prefer advertised Basic,

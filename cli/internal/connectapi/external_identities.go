@@ -31,7 +31,7 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
 			flow.LoginHint, err = s.api.core.SuggestProviderUsername(flow.ProviderUsername)
 			if err != nil {
-				return nil, err
+				return nil, core.ErrProviderUsernameUnavailable
 			}
 		} else {
 			flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)

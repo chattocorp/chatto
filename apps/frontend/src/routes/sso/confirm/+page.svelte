@@ -115,7 +115,11 @@
     </p>
   {:else if data.loadError}
     <Hint tone="danger">
-      {data.loadError === 'invalid' ? m('auth.sso.invalid') : m('auth.sso.load_failed')}
+      {data.loadError === 'provider_username'
+        ? m('settings.account.sso.username_unavailable')
+        : data.loadError === 'invalid'
+          ? m('auth.sso.invalid')
+          : m('auth.sso.load_failed')}
     </Hint>
     <p class="mt-6 text-center">
       <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>

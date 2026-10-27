@@ -438,6 +438,7 @@
         "already_set": "此帳號已有密碼。"
       },
       "sso": {
+        "username_unavailable": "無法指派登入供應商的使用者名稱。請聯絡伺服器營運者。",
         "username_managed": "你的使用者名稱由登入供應商管理，無法在此修改。",
         "unlink_disabled": "伺服器營運者不允許解除與此供應商的連結。",
         "popup_blocked": "請允許此網站的彈出式視窗，然後再試一次連結。",

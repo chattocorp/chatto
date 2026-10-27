@@ -441,9 +441,12 @@
         // the authoritative hint again before treating this as a freshness error.
         const refreshed = await identitiesQuery.refetch();
         if (!session.isCurrent(variables)) return;
+        const eligibility = refreshed.data?.linkedIdentities.find(
+          (identity) => identity.subjectHash === subjectHash
+        )?.disconnectEligibility;
         if (
-          refreshed.data?.linkedIdentities.find((identity) => identity.subjectHash === subjectHash)
-            ?.disconnectEligibility === DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
+          eligibility === DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD ||
+          eligibility === DisconnectEligibility.DISABLED_BY_OPERATOR
         ) {
           blockedDisconnectProviderLabel = providerLabel;
           blockedDisconnectSubjectHash = subjectHash;

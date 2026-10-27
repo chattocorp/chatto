@@ -118,6 +118,7 @@ var connectErrorCodes = []struct {
 		core.ErrExternalIdentityLastMethod,
 		core.ErrExternalIdentityUnlinkDisabled,
 		core.ErrUsernameManaged,
+		core.ErrProviderUsernameUnavailable,
 		core.ErrCannotDeleteSystemRole,
 		core.ErrRoomGroupHasRooms,
 		core.ErrRoomGroupOrderMismatch,

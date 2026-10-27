@@ -32,6 +32,12 @@ func TestManagedProviderAccountAPI(t *testing.T) {
 	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token, Login: "forged", DisplayName: "Person"}))
 	require.NoError(t, err)
 	require.Equal(t, "person-3", created.Msg.Login)
+	invalidToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID: "company", ProviderType: "github", Issuer: "company", Subject: "invalid-name", ProviderUsername: "invalid@name",
+	})
+	require.NoError(t, err)
+	_, err = env.externalAuth.GetPendingExternalIdentity(env.ctx, connect.NewRequest(&authv1.GetPendingExternalIdentityRequest{Token: invalidToken}))
+	require.Equal(t, connect.CodeFailedPrecondition, errorCode(err))
 	user, err := env.core.GetUser(env.ctx, created.Msg.UserId)
 	require.NoError(t, err)
 	ctx := withBearerCredential(env.ctx, user, created.Msg.Token)

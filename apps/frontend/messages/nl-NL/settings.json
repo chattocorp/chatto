@@ -438,6 +438,7 @@
         "already_set": "Dit account heeft al een wachtwoord."
       },
       "sso": {
+        "username_unavailable": "De gebruikersnaam van je aanmeldprovider kan niet worden toegewezen. Neem contact op met de serverbeheerder.",
         "username_managed": "Je gebruikersnaam wordt beheerd door je aanmeldprovider en kan hier niet worden gewijzigd.",
         "unlink_disabled": "De serverbeheerder staat niet toe dat deze provider wordt losgekoppeld.",
         "popup_blocked": "Sta pop-ups voor deze website toe en probeer opnieuw te koppelen.",

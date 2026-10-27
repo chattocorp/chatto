@@ -438,6 +438,7 @@
         "already_set": "Denne kontoen har allerede et passord."
       },
       "sso": {
+        "username_unavailable": "Brukernavnet fra innloggingsleverandøren kan ikke tildeles. Kontakt serveroperatøren.",
         "username_managed": "Brukernavnet ditt administreres av innloggingsleverandøren og kan ikke endres her.",
         "unlink_disabled": "Serveroperatøren tillater ikke at denne leverandøren kobles fra.",
         "popup_blocked": "Tillat sprettoppvinduer for dette nettstedet, og prøv å koble til igjen.",

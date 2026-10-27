@@ -2,6 +2,72 @@ import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import * as routes from './routes';
 
+test.describe('Managed provider accounts', () => {
+  test.use({
+    serverOptions: {
+      env: {
+        CHATTO_AUTH_PROVIDERS_0_ID: 'company',
+        CHATTO_AUTH_PROVIDERS_0_TYPE: 'github',
+        CHATTO_AUTH_PROVIDERS_0_LABEL: 'Company',
+        CHATTO_AUTH_PROVIDERS_0_CLIENT_ID: 'test-client',
+        CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET: 'test-secret',
+        CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION: 'true',
+        CHATTO_AUTH_PROVIDERS_0_MANAGE_USERNAMES: 'true',
+        CHATTO_AUTH_PROVIDERS_0_ALLOW_UNLINKING: 'false'
+      }
+    }
+  });
+
+  test('explains when the provider username cannot be assigned', async ({ page, authPage }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `invalid-${Date.now()}`,
+      providerUsername: 'invalid@name'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(
+      page.getByText(
+        'Your sign-in provider’s username cannot be assigned. Contact the server operator.'
+      )
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toHaveCount(0);
+  });
+
+  test('assigns a collision suffix and disables local username edits and unlinking', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      providerLabel: 'Company',
+      subject: `managed-${Date.now()}`,
+      providerUsername: 'e2eadmin',
+      displayNameHint: 'Managed Person'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByLabel('Display Name')).toBeEnabled();
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByTestId('settings-username')).toBeDisabled();
+    await expect(
+      page.getByText('Your username is managed by your sign-in provider and cannot be edited here.')
+    ).toBeVisible();
+    await page.goto(routes.settingsAccount);
+    await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toBeDisabled();
+    await expect(
+      page.getByText('The server operator does not allow this provider to be disconnected.')
+    ).toBeVisible();
+  });
+});
+
 test.describe('External identity confirmation flows', () => {
   test.use({
     serverOptions: {

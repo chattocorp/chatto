@@ -438,6 +438,7 @@
         "already_set": "Questo account ha già una password."
       },
       "sso": {
+        "username_unavailable": "Non è possibile assegnare il nome utente del provider di accesso. Contatta il gestore del server.",
         "username_managed": "Il tuo nome utente è gestito dal provider di accesso e non può essere modificato qui.",
         "unlink_disabled": "Il gestore del server non consente di scollegare questo provider.",
         "popup_blocked": "Consenti i popup per questo sito, poi riprova il collegamento.",

@@ -438,6 +438,7 @@
         "already_set": "Tento účet již má heslo."
       },
       "sso": {
+        "username_unavailable": "Uživatelské jméno od poskytovatele přihlášení nelze přiřadit. Kontaktujte provozovatele serveru.",
         "username_managed": "Vaše uživatelské jméno spravuje poskytovatel přihlášení a nelze je zde změnit.",
         "unlink_disabled": "Provozovatel serveru nepovoluje odpojení tohoto poskytovatele.",
         "popup_blocked": "Povol vyskakovací okna pro tento web a zkus propojení znovu.",

@@ -228,6 +228,9 @@ enabled sign-in method remains. If unlinking is allowed, removing the last
 managed provider restores local username editing. Removing a provider from the
 configuration or disabling `manage_usernames` also removes its edit restriction.
 
+For old OIDC links that contain only an identity hash, Chatto applies configured
+OIDC restrictions until the next verified OIDC sign-in identifies the provider.
+
 ## Restrict who can sign in
 
 By default, every user of a provider can sign in through it. To allow only the

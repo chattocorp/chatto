@@ -438,6 +438,7 @@
         "already_set": "Dieses Konto hat bereits ein Passwort."
       },
       "sso": {
+        "username_unavailable": "Der Benutzername deines Anmeldeanbieters kann nicht zugewiesen werden. Wende dich an den Serverbetreiber.",
         "username_managed": "Dein Benutzername wird von deinem Anmeldeanbieter verwaltet und kann hier nicht geändert werden.",
         "unlink_disabled": "Der Serverbetreiber erlaubt es nicht, diesen Anbieter zu trennen.",
         "popup_blocked": "Erlaube Pop-ups für diese Website und versuche die Verknüpfung erneut.",

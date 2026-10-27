@@ -328,17 +328,18 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	// without depending on a live OAuth/OIDC provider.
 	auth.POST("test/external-identity-flow", func(c *gin.Context) {
 		var req struct {
-			Kind            string `json:"kind" binding:"required"`
-			ProviderID      string `json:"providerId" binding:"required"`
-			ProviderType    string `json:"providerType" binding:"required"`
-			ProviderLabel   string `json:"providerLabel"`
-			Issuer          string `json:"issuer"`
-			Subject         string `json:"subject" binding:"required"`
-			VerifiedEmail   string `json:"verifiedEmail"`
-			LoginHint       string `json:"loginHint"`
-			DisplayNameHint string `json:"displayNameHint"`
-			BoundUserID     string `json:"boundUserId"`
-			RedirectPath    string `json:"redirectPath"`
+			Kind             string `json:"kind" binding:"required"`
+			ProviderID       string `json:"providerId" binding:"required"`
+			ProviderType     string `json:"providerType" binding:"required"`
+			ProviderLabel    string `json:"providerLabel"`
+			Issuer           string `json:"issuer"`
+			Subject          string `json:"subject" binding:"required"`
+			VerifiedEmail    string `json:"verifiedEmail"`
+			LoginHint        string `json:"loginHint"`
+			ProviderUsername string `json:"providerUsername"`
+			DisplayNameHint  string `json:"displayNameHint"`
+			BoundUserID      string `json:"boundUserId"`
+			RedirectPath     string `json:"redirectPath"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -349,15 +350,16 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 		}
 
 		flow := core.PendingExternalIdentityFlow{
-			ProviderID:      req.ProviderID,
-			ProviderType:    req.ProviderType,
-			ProviderLabel:   req.ProviderLabel,
-			Issuer:          req.Issuer,
-			Subject:         req.Subject,
-			VerifiedEmail:   req.VerifiedEmail,
-			LoginHint:       req.LoginHint,
-			DisplayNameHint: req.DisplayNameHint,
-			RedirectPath:    req.RedirectPath,
+			ProviderID:       req.ProviderID,
+			ProviderType:     req.ProviderType,
+			ProviderLabel:    req.ProviderLabel,
+			Issuer:           req.Issuer,
+			Subject:          req.Subject,
+			VerifiedEmail:    req.VerifiedEmail,
+			LoginHint:        req.LoginHint,
+			ProviderUsername: req.ProviderUsername,
+			DisplayNameHint:  req.DisplayNameHint,
+			RedirectPath:     req.RedirectPath,
 		}
 
 		var (

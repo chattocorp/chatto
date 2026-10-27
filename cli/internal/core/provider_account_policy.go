@@ -14,13 +14,21 @@ import (
 // ErrUsernameManaged reports that a linked provider controls username editing.
 var ErrUsernameManaged = errors.New("username is managed by a sign-in provider")
 
+// ErrProviderUsernameUnavailable identifies a provider configuration or naming
+// conflict that prevents managed account creation.
+var ErrProviderUsernameUnavailable = errors.New("provider username cannot be assigned; contact the server operator")
+
 // ErrExternalIdentityUnlinkDisabled reports an operator restriction on self-service.
 var ErrExternalIdentityUnlinkDisabled = errors.New("disconnecting this sign-in provider is disabled")
 
-// providerMatchesIdentity uses the issuer namespace, including historic provider
-// IDs for upgraded hash-only links which cannot yet expose their issuer.
+// providerMatchesIdentity uses the issuer namespace. A legacy hash-only OIDC
+// link cannot identify its provider, so OIDC restrictions apply conservatively
+// until a verified sign-in completes its metadata.
 func providerMatchesIdentity(provider config.AuthProviderConfig, identity ExternalIdentity) bool {
 	if identity.Issuer == "" {
+		if identity.ProviderType == config.AuthProviderTypeOpenIDConnect {
+			return provider.Type == config.AuthProviderTypeOpenIDConnect
+		}
 		return identity.ProviderID == provider.ID
 	}
 	issuer := provider.ID
@@ -182,7 +190,7 @@ func (c *ChattoCore) createProviderUser(ctx context.Context, login, displayName 
 	base := NormalizeProviderUsername(flow.ProviderUsername)
 	if managed {
 		if err := c.validateProviderUsername(base); err != nil {
-			return nil, err
+			return nil, ErrProviderUsernameUnavailable
 		}
 	}
 	for number := 1; number <= maxProviderUsernameCandidates; number++ {

@@ -832,13 +832,17 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 	if gothUser.UserID == "" {
 		return resolvedProviderIdentity{}, fmt.Errorf("provider returned empty user id")
 	}
+	providerUsername := ""
+	if r.config.ManageUsernames {
+		providerUsername = gothUser.NickName
+	}
 	return resolvedProviderIdentity{
 		issuer:           r.config.ID,
 		subject:          gothUser.UserID,
 		verifiedEmail:    r.verifiedEmailFromGothUser(c.Request.Context(), gothUser),
 		avatarURL:        gothUser.AvatarURL,
 		loginHint:        loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
-		providerUsername: gothUser.NickName,
+		providerUsername: providerUsername,
 		displayNameHint:  displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
 	}, nil
 }

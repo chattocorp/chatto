@@ -585,6 +585,7 @@ export class AuthPage {
     subject: string;
     verifiedEmail?: string;
     loginHint?: string;
+    providerUsername?: string;
     displayNameHint?: string;
     boundUserId?: string;
     redirectPath?: string;

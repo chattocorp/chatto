@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -148,4 +149,25 @@ func TestManagedProviderDoesNotRestrictBotUsername(t *testing.T) {
 	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "github", ManageUsernames: true}}
 	_, err = c.UpdateOwnUserProfile(ctx, bot.User.Id, new("renamed-bot"), nil, nil)
 	require.NoError(t, err)
+}
+
+func TestManagedProviderLegacyOIDCRestrictions(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "oidc", IssuerURL: "https://company.example", ManageUsernames: true, AllowUnlinking: new(false)}}
+	user, err := c.CreateUser(ctx, SystemActorID, "legacy-managed", "Legacy", "password123")
+	require.NoError(t, err)
+	hash := externalIdentityHash("https://company.example", "legacy-subject")
+	_, err = c.appendUserEvent(ctx, user.Id, newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserOidcSubjectLinked{
+		UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{UserId: user.Id, SubjectHash: hash},
+	}}), "", nil)
+	require.NoError(t, err)
+	_, err = c.UpdateOwnUserProfile(ctx, user.Id, new("bypass"), nil, nil)
+	require.ErrorIs(t, err, ErrUsernameManaged)
+	err = c.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
+	require.ErrorIs(t, err, ErrExternalIdentityUnlinkDisabled)
+	require.NoError(t, c.CompleteLegacyOIDCIdentityLink(ctx, user.Id, "company", "https://company.example", "legacy-subject"))
+	managed, err := c.UsernameManaged(ctx, user.Id)
+	require.NoError(t, err)
+	require.True(t, managed)
 }

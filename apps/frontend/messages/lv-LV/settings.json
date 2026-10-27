@@ -438,6 +438,7 @@
         "already_set": "Šim kontam jau ir parole."
       },
       "sso": {
+        "username_unavailable": "Nevar piešķirt pierakstīšanās pakalpojuma sniedzēja lietotājvārdu. Sazinies ar servera operatoru.",
         "username_managed": "Tavu lietotājvārdu pārvalda pierakstīšanās pakalpojuma sniedzējs, un to šeit nevar mainīt.",
         "unlink_disabled": "Servera operators neļauj atvienot šo pakalpojuma sniedzēju.",
         "popup_blocked": "Atļauj uznirstošos logus šai vietnei un mēģini saistīt vēlreiz.",
