@@ -33,7 +33,7 @@ test('custom instance instructions supplement main-agent rules and installed cap
     'add_reaction'
   ])
     expect(prompt).toContain(tool);
-  expect(prompt).toContain('chatto-formatting skill');
+  expect(prompt).toContain('\u001b[36mcyan\u001b[0m');
   expect(prompt.endsWith(`# Instance instructions\n\n${settings.systemPrompt}`)).toBe(true);
 });
 

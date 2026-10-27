@@ -83,8 +83,7 @@ task does not use the instance prompt.
 Put operator-maintained skills in `.agents/skills/` beside `botto.toml` (or the
 file selected by `BOTTO_CONFIG`). Each skill uses a directory with a `SKILL.md`
 file containing YAML `name` and `description` fields and Markdown instructions.
-The example includes `chatto-formatting` for ANSI artwork; copy that directory
-with your configuration if you want to use it elsewhere.
+Chatto formatting guidance is part of Botto's internal prompt and needs no skill.
 
 Main agents and subagents use Pi's skill catalog. They see names and descriptions
 and can load instructions when needed. Only this directory is discovered;
