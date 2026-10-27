@@ -111,11 +111,16 @@ export function activityLogRows(
           pending.get(event.activityId)?.delete(message);
           return;
         }
-        // Only suppress known lifecycle text when its structured agent row exists.
+        // Match lifecycle positions as well as text, so replies discussing usage stay visible.
+        const next = events[index + 1];
         if (
           summary &&
           event.source === 'agent' &&
-          /^(?:Agent started \(model: .*\)|Token usage: .*)$/.test(message)
+          ((summary.logs.length === 1 &&
+            message === `Agent started (model: ${summary.node.label})`) ||
+            (message.startsWith('Token usage: ') &&
+              next?.type === 'agent.finished' &&
+              next.agentId === event.sourceId))
         )
           return;
         if (event.level === 'debug') return;

@@ -130,7 +130,7 @@ test('agent metadata replaces lifecycle noise but retains replies and errors, in
     ...[
       'Agent started (model: provider/model)',
       'Here is the answer',
-      'Token usage: in 3, out 2'
+      'Token usage: the explanation you requested'
     ].map((message, index) => ({
       type: 'log' as const,
       source: 'agent' as const,
@@ -151,6 +151,16 @@ test('agent metadata replaces lifecycle noise but retains replies and errors, in
       color: 'red',
       timestamp: 4
     },
+    {
+      type: 'log',
+      source: 'agent',
+      sourceId: 'agent',
+      level: 'info',
+      message: '[agent] Token usage: in 3, out 2',
+      depth: 1,
+      color: 'blue',
+      timestamp: 4.5
+    },
     { type: 'agent.finished', agentId: 'agent', outcome: 'completed', usage, timestamp: 5 },
     { type: 'execution.finished', timestamp: 5 },
     {
@@ -168,12 +178,13 @@ test('agent metadata replaces lifecycle noise but retains replies and errors, in
   expect(rows.map((row) => row.event.message)).toEqual([
     'Agent',
     'Here is the answer',
+    'Token usage: the explanation you requested',
     'Tool failed',
     'Token usage: legacy'
   ]);
   expect(rows[0]!.summary!.node).toMatchObject({ usage, label: 'provider/model' });
   expect(rows[0]!.summary!.logs).toContain('Token usage: in 3, out 2');
-  expect(rows[2]!.event.level).toBe('error');
+  expect(rows[3]!.event.level).toBe('error');
 });
 
 test('shows structured warning fields without changing the journal message', () => {

@@ -381,7 +381,9 @@
                 <span
                   class={[
                     'block min-w-0 flex-1',
-                    !row.summary && 'max-h-20 overflow-y-clip overflow-x-visible'
+                    !row.summary &&
+                      (detailed || !row.event.fields) &&
+                      'max-h-20 overflow-y-clip overflow-x-visible'
                   ]}
                 >
                   {@render message(row)}
