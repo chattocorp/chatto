@@ -18,6 +18,7 @@ The sections share one scroll viewport and retain their disclosure preferences.
   import RoomPinsPanel from './RoomPinsPanel.svelte';
   import RoomNoticePanel from './RoomNoticePanel.svelte';
   import type { RoomNoticeStore } from '@chatto/client/room/notice';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
   let {
     serverId,
@@ -29,6 +30,7 @@ The sections share one scroll viewport and retain their disclosure preferences.
     pinsStore,
     noticeStore,
     canManageNotice = false,
+    noticeMentions,
     onOpenPin
   }: {
     serverId: string;
@@ -41,6 +43,7 @@ The sections share one scroll viewport and retain their disclosure preferences.
     pinsStore?: RoomPinsStore;
     noticeStore?: RoomNoticeStore;
     canManageNotice?: boolean;
+    noticeMentions?: MarkdownMentionOptions;
     onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
   } = $props();
   let now = $state(new Date());
@@ -98,7 +101,12 @@ The sections share one scroll viewport and retain their disclosure preferences.
       separated
     >
       {#snippet content()}
-        <RoomNoticePanel {serverId} store={noticeStore} canManage={canManageNotice} />
+        <RoomNoticePanel
+          {serverId}
+          store={noticeStore}
+          canManage={canManageNotice}
+          mentions={noticeMentions}
+        />
       {/snippet}
     </RoomGroupSection>
   {/if}

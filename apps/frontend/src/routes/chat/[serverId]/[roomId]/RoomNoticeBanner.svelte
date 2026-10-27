@@ -1,6 +1,7 @@
 <!-- @component A member-only notice banner with device-local, revision-scoped dismissal. -->
 <script lang="ts">
   import { scale } from 'svelte/transition';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
   import type { RoomNoticeStore } from '@chatto/client/room/notice';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import RoomNoticePanel from './RoomNoticePanel.svelte';
@@ -25,12 +26,14 @@
     serverId,
     viewerId,
     canManage = false,
+    mentions,
     timeSettings = timeFormatSettingsFor(undefined)
   }: {
     store: RoomNoticeStore;
     serverId: string;
     viewerId: string;
     canManage?: boolean;
+    mentions?: MarkdownMentionOptions;
     timeSettings?: TimeFormatSettings;
   } = $props();
   const key = $derived(roomNoticeDismissalKey(serverId, viewerId, store.roomId));
@@ -111,7 +114,13 @@
               aria-label={m('room.notice.title')}
               dir="auto"
             >
-              <MessageContent body={notice.body} />
+              <MessageContent
+                body={notice.body}
+                members={mentions?.members}
+                roleHandles={mentions?.roles?.map((role) => role.name)}
+                viewerLogin={mentions?.viewerLogin}
+                onMentionClick={mentions?.onMentionClick}
+              />
             </ScrollFader>
           </Panel>
         </div>
@@ -122,6 +131,6 @@
 
 <!-- Keep one render path across permission changes so Shield Mode does not
      remount the banner. The editor also outlives remote notice clears. -->
-<RoomNoticePanel {store} {serverId} {canManage}>
+<RoomNoticePanel {store} {serverId} {canManage} {mentions}>
   {#snippet trigger(open)}{@render banner(open)}{/snippet}
 </RoomNoticePanel>

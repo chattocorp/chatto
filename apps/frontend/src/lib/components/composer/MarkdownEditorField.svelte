@@ -17,6 +17,11 @@ external value changes, such as a successful save, update the mounted editor.
     ComposerFormattingState
   } from '$lib/components/composer/editorTypes';
   import { emptyComposerIndentState } from '$lib/components/composer/editorTypes';
+  import { AutocompleteState } from './autocomplete.svelte';
+  import MentionAutocomplete from './MentionAutocomplete.svelte';
+  import type { MarkdownMentionOptions } from './mentionOptions';
+  import type { RoomMember } from '$lib/state/room';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 
   let {
     value = $bindable(''),
@@ -29,7 +34,8 @@ external value changes, such as a successful save, update the mounted editor.
     testid,
     tooLongMessage,
     trimWhitespaceForCount = false,
-    oninput
+    oninput,
+    mentions
   }: {
     value?: string;
     editorKind: ComposerEditorKind;
@@ -48,6 +54,8 @@ external value changes, such as a successful save, update the mounted editor.
     /** Help text under the editor. */
     description?: string;
     oninput?: () => void;
+    /** Enables the chat mention picker without sending mention notifications. */
+    mentions?: MarkdownMentionOptions;
   } = $props();
 
   const loaders: Record<
@@ -62,6 +70,61 @@ external value changes, such as a successful save, update the mounted editor.
   const characterCount = $derived([...(trimWhitespaceForCount ? value.trim() : value)].length);
   let editorApi = $state.raw<ComposerEditorApi | null>(null);
   let lastEditorValue = '';
+  let searchResults = $state.raw<{ source: MarkdownMentionOptions; members: RoomMember[] } | null>(
+    null
+  );
+  const searchDebounce = useDebounce();
+  let searchGeneration = 0;
+  const candidates = $derived([
+    ...(mentions?.members ?? []),
+    ...(searchResults?.source === mentions ? (searchResults?.members ?? []) : []).filter(
+      (result) => !mentions?.members.some((member) => member.id === result.id)
+    )
+  ]);
+  const autocomplete = new AutocompleteState(
+    () => editorApi,
+    () => candidates,
+    () => mentions?.roles ?? [],
+    undefined,
+    { openOnAt: true, emojis: false }
+  );
+
+  function resetAutocomplete() {
+    searchGeneration++;
+    searchDebounce.cancel();
+    searchResults = null;
+    autocomplete.reset();
+  }
+
+  function updateMentions() {
+    if (!mentions || disabled) return;
+    autocomplete.update();
+    const generation = ++searchGeneration;
+    searchDebounce.cancel();
+    searchResults = null;
+    const query = autocomplete.mention?.query;
+    const source = mentions;
+    const search = source.searchMembers;
+    if (!query || !search) return;
+    searchDebounce.run(() => {
+      void search(query)
+        .then((results) => {
+          if (generation === searchGeneration && source === mentions && editorApi)
+            searchResults = { source, members: results };
+        })
+        .catch(() => {
+          // Loaded members remain available if directory search fails.
+        });
+    }, 150);
+  }
+
+  function handleKeyDown(event: KeyboardEvent): boolean {
+    if (!mentions || disabled || event.isComposing) return false;
+    if (autocomplete.mention && autocomplete.mentionRef?.handleKeyDown(event)) return true;
+    if (event.key === 'Tab' && autocomplete.handleTabCompletion(event)) return true;
+    if (event.key !== 'Tab') autocomplete.resetTabCompletion();
+    return false;
+  }
   let formattingState = $state<ComposerFormattingState>({
     bold: false,
     italic: false,
@@ -84,13 +147,16 @@ external value changes, such as a successful save, update the mounted editor.
   function update(markdown: string) {
     lastEditorValue = markdown;
     value = markdown;
+    updateMentions();
     oninput?.();
   }
 
   // Synchronize external draft changes with the imperative editor API. Local
   // editor updates already contain this value and must not reset the selection.
+  // Replacing the document also invalidates completion offsets and searches.
   $effect(() => {
     if (editorApi && value !== lastEditorValue) {
+      resetAutocomplete();
       lastEditorValue = value;
       editorApi.setContent(value);
     }
@@ -107,7 +173,17 @@ external value changes, such as a successful save, update the mounted editor.
     inputDisabled={disabled}
     animated={false}
   />
-  <div class="input min-w-0 [--composer-min-height:8rem] [&_.ProseMirror]:min-h-32">
+  <div class="relative input min-w-0 [--composer-min-height:8rem] [&_.ProseMirror]:min-h-32">
+    {#if mentions && !disabled && autocomplete.mention}
+      <MentionAutocomplete
+        bind:this={autocomplete.mentionRef}
+        query={autocomplete.mention.query}
+        members={candidates}
+        roles={mentions.roles}
+        onSelect={(handle, viaTab) => autocomplete.selectMention(handle, viaTab)}
+        onClose={resetAutocomplete}
+      />
+    {/if}
     {#key editorKind}
       {#await editorModule}
         <LoadingFog class="h-32 w-full" />
@@ -118,9 +194,13 @@ external value changes, such as a successful save, update the mounted editor.
           {testid}
           onReady={ready}
           onDestroy={(api) => {
-            if (editorApi === api) editorApi = null;
+            if (editorApi === api) {
+              editorApi = null;
+              resetAutocomplete();
+            }
           }}
           onUpdate={update}
+          onKeyDown={handleKeyDown}
           onFormattingStateChange={(state) => (formattingState = state)}
           onIndentStateChange={(state) => (indentState = state)}
         />

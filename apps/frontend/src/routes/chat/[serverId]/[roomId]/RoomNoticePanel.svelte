@@ -13,18 +13,21 @@
   import { ConfirmDialog, EmptyState, FormDialog, LoadingFog, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { errorMessage } from '$lib/utils/errorMessage';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
   let {
     store,
     serverId,
     canManage = false,
-    trigger
+    trigger,
+    mentions
   }: {
     store: RoomNoticeStore;
     serverId: string;
     canManage?: boolean;
     /** Stable custom view in place of the sidebar preview. Open is absent without editing access. */
     trigger?: Snippet<[open: (() => void) | undefined]>;
+    mentions?: MarkdownMentionOptions;
   } = $props();
   const editorId = $props.id();
   let draft = $state<{ roomId: string; epoch: number; body: string; version: string } | null>(null);
@@ -101,13 +104,21 @@
       {:else if !notice}
         <LoadingFog class="min-h-24" label={m('common.loading')} />
       {:else if notice.body}
-        <div class="min-w-0" dir="auto"><MessageContent body={notice.body} /></div>
+        <div class="min-w-0" dir="auto">
+          <MessageContent
+            body={notice.body}
+            members={mentions?.members}
+            roleHandles={mentions?.roles?.map((role) => role.name)}
+            viewerLogin={mentions?.viewerLogin}
+            onMentionClick={mentions?.onMentionClick}
+          />
+        </div>
       {:else}
         <EmptyState icon="icon-[uil--megaphone]" title={m('room.notice.empty')} />
       {/if}
       {#if canManage && notice}
         <div>
-          <Button variant="secondary" onclick={edit}>
+          <Button variant="secondary" fullWidth onclick={edit}>
             <span aria-hidden="true" class="iconify icon-[uil--edit]"></span>
             {m('room.notice.edit')}
           </Button>
@@ -128,6 +139,7 @@
       onclose={close}
     >
       <MarkdownEditorField
+        {mentions}
         editorKind={userPreferences.composerEditor}
         label={m('room.notice.body')}
         placeholder={m('room.notice.body')}

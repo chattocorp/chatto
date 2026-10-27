@@ -1,5 +1,6 @@
 <script lang="ts">
   import RoomNoticeBanner from './RoomNoticeBanner.svelte';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
   import { timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
@@ -146,6 +147,13 @@
       : null
   );
   const retainNotice: Attachment = () => roomNoticeStore?.retain();
+  const noticeMentions: MarkdownMentionOptions = $derived({
+    members: roomMembersStore.members,
+    roles: stores.mentionRoles.roles,
+    viewerLogin: stores.currentUser.user?.login,
+    searchMembers: (query: string) => roomMembersStore.searchMembers(query),
+    onMentionClick: (userId: string) => appUi.openMemberProfile(userId)
+  });
 
   $effect(() => {
     if (!stores.isAuthenticated) return;
@@ -360,6 +368,7 @@
     pinsStore: roomPinsStore ?? undefined,
     noticeStore: roomNoticeStore ?? undefined,
     canManageNotice: room.roomData?.canManageNotice ?? false,
+    noticeMentions,
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
     isUniversal: room.roomData?.room.isUniversal ?? false,
@@ -735,6 +744,7 @@
                 serverId={activeServerId}
                 viewerId={stores.viewerId}
                 canManage={room.roomData?.canManageNotice ?? false}
+                mentions={noticeMentions}
                 timeSettings={timeFormatSettingsFor(stores.currentUser.user?.settings)}
               />
             </div>

@@ -1,6 +1,14 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import MarkdownEditorField from './MarkdownEditorField.svelte';
+  import type { MarkdownMentionOptions } from './mentionOptions';
+
+  const mentions: MarkdownMentionOptions = {
+    members: [
+      { id: 'bob', login: 'bob', displayName: 'Bob Example', avatarUrl: null, presenceStatus: 0 }
+    ],
+    roles: [{ name: 'moderators', pingable: true }]
+  };
 
   const { Story } = defineMeta({
     title: 'Composer/Markdown form field',
@@ -42,5 +50,23 @@
     editorKind="visual"
     label="Room notice"
     disabled
+  />
+</Story>
+
+<Story name="Member mentions" asChild>
+  <MarkdownEditorField
+    editorKind="markdown"
+    label="Room notice"
+    placeholder="Type @ to choose a member"
+    {mentions}
+  />
+</Story>
+
+<Story name="Visual member mentions" asChild>
+  <MarkdownEditorField
+    editorKind="visual"
+    label="Room notice"
+    placeholder="Type @ to choose a member"
+    {mentions}
   />
 </Story>

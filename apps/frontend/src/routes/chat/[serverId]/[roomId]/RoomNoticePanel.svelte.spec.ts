@@ -1,7 +1,7 @@
 import '../../../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { signal } from '@chatto/client/reactivity';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
@@ -36,6 +36,88 @@ describe('RoomNoticePanel', () => {
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
+
+  it.each(['markdown', 'visual'] as const)(
+    'completes mentions with the %s composer and renders their display names',
+    async (editorKind) => {
+      userPreferences.composerEditor = editorKind;
+      const handlers = mockService(RoomService);
+      handlers.getNotice.mockReturnValue({
+        notice: { body: 'Ask @bob', version: 'v1', publicationId: 'p1' }
+      });
+      const config = fakeServer((router) => router.service(RoomService, handlers));
+      const store = new RoomNoticeStore(
+        {
+          getAPI: (factory: typeof createRoomNoticesAPI) => factory(config)
+        } as unknown as ServerConnection,
+        'R1'
+      );
+      await store.refresh();
+      const onMentionClick = vi.fn();
+      const mentions = {
+        members: [
+          {
+            id: 'bob-id',
+            login: 'bob',
+            displayName: 'Bob Example',
+            avatarUrl: null,
+            presenceStatus: 0
+          }
+        ],
+        viewerLogin: 'bob',
+        searchMembers: vi.fn(async () => [
+          {
+            id: 'alice-id',
+            login: 'alice',
+            displayName: 'Alice Remote',
+            avatarUrl: null,
+            presenceStatus: 0
+          }
+        ]),
+        onMentionClick
+      };
+      const view = render(RoomNoticePanel, {
+        store,
+        serverId: 'test-server',
+        canManage: true,
+        mentions
+      });
+      await expect
+        .element(page.getByText('@Bob Example', { exact: true }))
+        .toHaveClass('mention-self');
+      await page.getByText('@Bob Example', { exact: true }).click();
+      expect(onMentionClick).toHaveBeenCalledWith('bob-id', expect.any(DOMRect));
+      await page.getByRole('button', { name: 'Edit notice', exact: true }).click();
+      const editor = page.getByRole('textbox', { name: 'Notice (Markdown)', exact: true });
+      await editor.fill('@');
+      await expect
+        .element(page.getByTestId('mention-autocomplete'))
+        .toHaveTextContent('Bob Example');
+      await userEvent.keyboard('{Enter}');
+      await expect.element(editor).toHaveTextContent('@bob');
+      await expect.element(page.getByTestId('mention-autocomplete')).not.toBeInTheDocument();
+      await editor.fill('@ali');
+      await expect
+        .element(page.getByTestId('mention-autocomplete'))
+        .toHaveTextContent('Alice Remote');
+      expect(mentions.searchMembers).toHaveBeenCalledWith('ali');
+      await page.getByText('Alice Remote', { exact: true }).click();
+      await expect.element(editor).toHaveTextContent('@alice');
+      expect(handlers.publishNotice).not.toHaveBeenCalled();
+      await view.unmount();
+      const banner = render(RoomNoticeBanner, {
+        store,
+        serverId: 'test-server',
+        viewerId: 'bob-id',
+        mentions
+      });
+      await expect
+        .element(page.getByText('@Bob Example', { exact: true }))
+        .toHaveClass('mention-self');
+      await banner.unmount();
+      store.dispose();
+    }
+  );
 
   it('keeps a banner draft after a remote clear and counts trailing whitespace', async () => {
     userPreferences.composerEditor = 'markdown';

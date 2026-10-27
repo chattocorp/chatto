@@ -27,6 +27,10 @@ pins, and the room description.
   until the editor changes the text.
   The field uses the viewer's preferred visual or Markdown composer, with
   formatting controls. Switching composers preserves the current draft.
+  Typing `@` opens the shared member selector in either composer. Published
+  notices and Room information render mentions with member display names and
+  highlight mentions of the viewer, as chat messages do. Notice mentions do not
+  create message notifications.
 - **Update** changes the text without making a dismissed notice appear again.
   **Announce** publishes the text and makes it appear again. The empty editor
   also uses **Announce**. Publishing after a clear makes the notice appear again.
