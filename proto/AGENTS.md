@@ -105,14 +105,17 @@ For public API packages:
   solely for consistency. Reuse an existing enum when it already fits.
 - Permission grants describe authority. Action availability describes whether
   the viewer can attempt an operation now. Keep these contracts separate.
-- Only `ALLOWED` enables the action. Missing data may use the documented
+- Only `ALLOWED` with no pending time constraint enables the action. Missing data may use the documented
   compatibility fallback. An explicit `UNSPECIFIED` or unknown future state stays
   disabled with a generic notice, unless an existing published contract defines
   `UNSPECIFIED` as not evaluated (as `DisconnectEligibility` does). Never treat
   unknown future states as permission. Keep enums intact in client adapters and
   notice helpers; do not reconstruct `allowed`/`reason` objects.
-- Add `available_at` only to a cooldown decision; it tells clients when to
-  refresh, not when to grant permission automatically. Omit it for other states.
+- Use `available_at` as an independent earliest attempt time when an action has
+  a time constraint. Do not add a cooldown state. `ALLOWED` plus a future time
+  means allowed after that time; absent or past time means allowed now.
+  A blocking or unknown state remains disabled with any timestamp. Preserve
+  both fields in clients. Document the visible control's timer and cleanup.
 - Compute snapshots from the domain queries used by commands. Do not duplicate
   policy in clients. Input validation and fresh authentication remain command
   checks; an available action is not a guarantee that a submitted request succeeds.

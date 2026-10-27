@@ -14,12 +14,17 @@ func TestAccountActionAvailability(t *testing.T) {
 	lastChange := time.Now().Add(-time.Hour).UTC()
 	actions, err := accountActions(env.ctx, env.api, env.viewer, false, false, lastChange)
 	require.NoError(t, err)
-	require.Equal(t, apiv1.UsernameChangeAvailability_STATE_COOLDOWN, actions.ChangeUsername.State)
+	require.Equal(t, apiv1.UsernameChangeAvailability_STATE_ALLOWED, actions.ChangeUsername.State)
 	require.Equal(t, lastChange.Add(core.LoginChangeCooldown), actions.ChangeUsername.AvailableAt.AsTime())
 	require.Equal(t, apiv1.PasswordChangeAvailability_PASSWORD_CHANGE_AVAILABILITY_ALLOWED, actions.GetChangePassword())
 	require.Equal(t, apiv1.AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED, actions.GetDeleteAccount())
 
-	// Management takes precedence even when the caller can bypass cooldowns.
+	// Policy and timing are independent: management does not remove a cooldown.
+	actions, err = accountActions(env.ctx, env.api, env.viewer, true, false, lastChange)
+	require.NoError(t, err)
+	require.Equal(t, apiv1.UsernameChangeAvailability_STATE_PROVIDER_MANAGED, actions.ChangeUsername.State)
+	require.Equal(t, lastChange.Add(core.LoginChangeCooldown), actions.ChangeUsername.AvailableAt.AsTime())
+	// Management still blocks callers who can bypass cooldowns.
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageAccounts))
 	env.api.config.Auth.DirectLogin = new(false)
 	actions, err = accountActions(env.ctx, env.api, env.viewer, true, true, lastChange)

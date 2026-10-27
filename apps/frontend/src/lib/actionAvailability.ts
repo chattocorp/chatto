@@ -4,18 +4,22 @@ import {
   UsernameChoiceAvailability,
   PasswordChangeAvailability,
   DisconnectEligibility,
-  type UsernameChangeAvailability
+  type UsernameChangeAvailability,
+  canChangeUsername
 } from '@chatto/client/api/actionAvailability';
 import { m } from '$lib/i18n/messages';
 import { formatCooldownRemaining } from '$lib/validation/login';
 
 /** Explain why an existing account's username cannot change. */
-export function usernameChangeUnavailableMessage(action: UsernameChangeAvailability): string {
-  if (action.state === UsernameChangeState.ALLOWED) return '';
+export function usernameChangeUnavailableMessage(
+  action: UsernameChangeAvailability,
+  now = Date.now()
+): string {
+  if (canChangeUsername(action, now)) return '';
   if (action.state === UsernameChangeState.PROVIDER_MANAGED)
     return m('settings.account.sso.username_managed');
-  if (action.state === UsernameChangeState.COOLDOWN) {
-    const remaining = action.availableAt ? Date.parse(action.availableAt) - Date.now() : 0;
+  if (action.state === UsernameChangeState.ALLOWED) {
+    const remaining = action.availableAt ? Date.parse(action.availableAt) - now : 0;
     if (remaining > 0)
       return m('settings.profile.username.cooldown_notice', {
         remaining: formatCooldownRemaining(remaining)

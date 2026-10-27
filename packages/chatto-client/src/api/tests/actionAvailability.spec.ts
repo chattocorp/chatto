@@ -10,6 +10,7 @@ import {
   type UsernameChangeAvailability,
   usernameChangeAvailabilityFromAPI,
   legacyUsernameChangeAvailability,
+  canChangeUsername,
   disconnectEligibilityWithFallback,
   passwordChangeAvailabilityWithFallback,
   accountDeletionAvailabilityWithFallback
@@ -74,15 +75,25 @@ describe('action availability', () => {
     expect(decision?.state).not.toBe(UsernameChangeState.ALLOWED);
   });
 
-  it('requires refresh when a cooldown timestamp has expired', () => {
+  it('permits an allowed action when its time constraint expires', () => {
+    const deadline = Date.parse('2026-01-01T00:00:00Z');
+    const action = {
+      state: UsernameChangeState.ALLOWED,
+      availableAt: new Date(deadline).toISOString()
+    };
+    expect(canChangeUsername(action, deadline - 1)).toBe(false);
+    expect(canChangeUsername(action, deadline)).toBe(true);
+    expect(canChangeUsername(action, deadline + 1)).toBe(true);
+    expect(canChangeUsername({ state: UsernameChangeState.ALLOWED }, deadline)).toBe(true);
+    expect(canChangeUsername({ ...action, availableAt: 'invalid' }, deadline)).toBe(false);
     expect(
       usernameChangeAvailabilityFromAPI(
         new APIUsernameChangeAvailability({
-          state: UsernameChangeState.COOLDOWN,
+          state: UsernameChangeState.ALLOWED,
           availableAt: Timestamp.fromDate(new Date('2020-01-01T00:00:00Z'))
         })
       )
-    ).toEqual({ state: UsernameChangeState.COOLDOWN, availableAt: '2020-01-01T00:00:00.000Z' });
+    ).toEqual({ state: UsernameChangeState.ALLOWED, availableAt: '2020-01-01T00:00:00.000Z' });
   });
 
   it.each([
@@ -90,19 +101,26 @@ describe('action availability', () => {
     UsernameChangeState.PROVIDER_MANAGED,
     UsernameChangeState.UNSPECIFIED,
     99 as UsernameChangeState
-  ])('strips cooldown metadata from state %s', (state) => {
+  ])('preserves independent timing for state %s without overriding policy', (state) => {
+    const timestamp = Timestamp.fromDate(new Date('2026-01-01T00:00:00Z'));
     expect(
       usernameChangeAvailabilityFromAPI(
-        new APIUsernameChangeAvailability({ state, availableAt: Timestamp.now() })
+        new APIUsernameChangeAvailability({ state, availableAt: timestamp })
       )
-    ).toEqual({ state, availableAt: undefined });
+    ).toEqual({ state, availableAt: timestamp.toDate().toISOString() });
+    for (const availableAt of [undefined, '2020-01-01T00:00:00Z', '2030-01-01T00:00:00Z']) {
+      const allowed = canChangeUsername({ state, availableAt }, Date.parse('2026-01-01T00:00:00Z'));
+      expect(allowed).toBe(
+        state === UsernameChangeState.ALLOWED && availableAt !== '2030-01-01T00:00:00Z'
+      );
+    }
   });
 
   it('retains older-server username cooldown and permission bypass behavior', () => {
     const now = Date.parse('2026-01-02T00:00:00Z');
-    expect(legacyUsernameChangeAvailability('2026-01-01T00:00:00Z', false, now).state).toBe(
-      UsernameChangeState.COOLDOWN
-    );
+    const waiting = legacyUsernameChangeAvailability('2026-01-01T00:00:00Z', false, now);
+    expect(waiting.state).toBe(UsernameChangeState.ALLOWED);
+    expect(canChangeUsername(waiting, now)).toBe(false);
     expect(legacyUsernameChangeAvailability('2026-01-01T00:00:00Z', true, now).state).toBe(
       UsernameChangeState.ALLOWED
     );

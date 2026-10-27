@@ -929,12 +929,13 @@ Self-service decisions for the current viewer. Each action owns its states.
 ### UsernameChangeAvailability
 
 Snapshot for changing a username. Missing means not reported. Commands still
-check policy and input, including case-only exceptions. Only ALLOWED enables it.
+check policy and input, including case-only exceptions. ALLOWED enables it
+only when available_at is absent or has passed.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `state` | [`UsernameChangeAvailability.State`](#chatto-api-v1-UsernameChangeAvailability-State) | Unknown states remain disabled. Commands recheck authority and policy. |
-| `available_at` | `google.protobuf.Timestamp` | Earliest time to refresh a COOLDOWN decision. Expiry does not automatically enable the action. Absent for all other states. |
+| `available_at` | `google.protobuf.Timestamp` | Independent earliest attempt time. Absent means no time restriction. Clients enable ALLOWED when this time passes; they should update a visible control once per second while waiting and stop its timer when it is removed or no longer waiting. This time never overrides a blocking or unknown state. |
 
 <a id="chatto-api-v1-PrivilegedModeState"></a>
 
@@ -2210,9 +2211,8 @@ State of username self-service, including its primary blocking condition.
 | Name | Number | Description |
 | --- | --- | --- |
 | `STATE_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
-| `STATE_ALLOWED` | `1` | The user can attempt a username change. |
+| `STATE_ALLOWED` | `1` | Policy permits a username change, subject to available_at. |
 | `STATE_PROVIDER_MANAGED` | `2` | A linked provider manages the username. |
-| `STATE_COOLDOWN` | `3` | The username change cooldown has not expired. |
 
 <a id="chatto-api-v1-TimeFormat"></a>
 

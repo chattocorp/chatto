@@ -285,6 +285,32 @@ describe('Profile settings page', () => {
       .toHaveTextContent('You can change your username again in');
   });
 
+  it('enables an allowed username when its timestamp passes without refetching', async () => {
+    const load = vi.spyOn(server.currentUser, 'load');
+    server.currentUser.user!.actions = {
+      changeUsername: {
+        state: UsernameChangeState.ALLOWED,
+        availableAt: new Date(Date.now() + 2000).toISOString()
+      }
+    };
+    const { container } = render(ProfilePage);
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeDisabled();
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeEnabled();
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    UsernameChangeState.PROVIDER_MANAGED,
+    UsernameChangeState.UNSPECIFIED,
+    99 as UsernameChangeState
+  ])('does not enable policy state %s after its timestamp passes', async (state) => {
+    server.currentUser.user!.actions = {
+      changeUsername: { state, availableAt: '2020-01-01T00:00:00Z' }
+    };
+    const { container } = render(ProfilePage);
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeDisabled();
+  });
+
   it('disables managed usernames even for account managers', async () => {
     server.currentUser.user!.actions = {
       changeUsername: { state: UsernameChangeState.PROVIDER_MANAGED }

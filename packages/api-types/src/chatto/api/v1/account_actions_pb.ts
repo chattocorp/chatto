@@ -94,7 +94,8 @@ proto3.util.setEnumType(AccountDeletionAvailability, "chatto.api.v1.AccountDelet
 
 /**
  * Snapshot for changing a username. Missing means not reported. Commands still
- * check policy and input, including case-only exceptions. Only ALLOWED enables it.
+ * check policy and input, including case-only exceptions. ALLOWED enables it
+ * only when available_at is absent or has passed.
  *
  * @generated from message chatto.api.v1.UsernameChangeAvailability
  */
@@ -107,8 +108,10 @@ export class UsernameChangeAvailability extends Message<UsernameChangeAvailabili
   state = UsernameChangeAvailability_State.UNSPECIFIED;
 
   /**
-   * Earliest time to refresh a COOLDOWN decision. Expiry does not automatically
-   * enable the action. Absent for all other states.
+   * Independent earliest attempt time. Absent means no time restriction.
+   * Clients enable ALLOWED when this time passes; they should update a visible
+   * control once per second while waiting and stop its timer when it is removed
+   * or no longer waiting. This time never overrides a blocking or unknown state.
    *
    * @generated from field: google.protobuf.Timestamp available_at = 2;
    */
@@ -157,7 +160,7 @@ export enum UsernameChangeAvailability_State {
   UNSPECIFIED = 0,
 
   /**
-   * The user can attempt a username change.
+   * Policy permits a username change, subject to available_at.
    *
    * @generated from enum value: STATE_ALLOWED = 1;
    */
@@ -169,20 +172,12 @@ export enum UsernameChangeAvailability_State {
    * @generated from enum value: STATE_PROVIDER_MANAGED = 2;
    */
   PROVIDER_MANAGED = 2,
-
-  /**
-   * The username change cooldown has not expired.
-   *
-   * @generated from enum value: STATE_COOLDOWN = 3;
-   */
-  COOLDOWN = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(UsernameChangeAvailability_State)
 proto3.util.setEnumType(UsernameChangeAvailability_State, "chatto.api.v1.UsernameChangeAvailability.State", [
   { no: 0, name: "STATE_UNSPECIFIED" },
   { no: 1, name: "STATE_ALLOWED" },
   { no: 2, name: "STATE_PROVIDER_MANAGED" },
-  { no: 3, name: "STATE_COOLDOWN" },
 ]);
 
 /**

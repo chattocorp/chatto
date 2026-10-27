@@ -144,12 +144,10 @@ type UsernameChangeAvailability_State int32
 const (
 	// No decision is supplied. This does not grant permission.
 	UsernameChangeAvailability_STATE_UNSPECIFIED UsernameChangeAvailability_State = 0
-	// The user can attempt a username change.
+	// Policy permits a username change, subject to available_at.
 	UsernameChangeAvailability_STATE_ALLOWED UsernameChangeAvailability_State = 1
 	// A linked provider manages the username.
 	UsernameChangeAvailability_STATE_PROVIDER_MANAGED UsernameChangeAvailability_State = 2
-	// The username change cooldown has not expired.
-	UsernameChangeAvailability_STATE_COOLDOWN UsernameChangeAvailability_State = 3
 )
 
 // Enum value maps for UsernameChangeAvailability_State.
@@ -158,13 +156,11 @@ var (
 		0: "STATE_UNSPECIFIED",
 		1: "STATE_ALLOWED",
 		2: "STATE_PROVIDER_MANAGED",
-		3: "STATE_COOLDOWN",
 	}
 	UsernameChangeAvailability_State_value = map[string]int32{
 		"STATE_UNSPECIFIED":      0,
 		"STATE_ALLOWED":          1,
 		"STATE_PROVIDER_MANAGED": 2,
-		"STATE_COOLDOWN":         3,
 	}
 )
 
@@ -196,13 +192,16 @@ func (UsernameChangeAvailability_State) EnumDescriptor() ([]byte, []int) {
 }
 
 // Snapshot for changing a username. Missing means not reported. Commands still
-// check policy and input, including case-only exceptions. Only ALLOWED enables it.
+// check policy and input, including case-only exceptions. ALLOWED enables it
+// only when available_at is absent or has passed.
 type UsernameChangeAvailability struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unknown states remain disabled. Commands recheck authority and policy.
 	State UsernameChangeAvailability_State `protobuf:"varint,1,opt,name=state,proto3,enum=chatto.api.v1.UsernameChangeAvailability_State" json:"state,omitempty"`
-	// Earliest time to refresh a COOLDOWN decision. Expiry does not automatically
-	// enable the action. Absent for all other states.
+	// Independent earliest attempt time. Absent means no time restriction.
+	// Clients enable ALLOWED when this time passes; they should update a visible
+	// control once per second while waiting and stop its timer when it is removed
+	// or no longer waiting. This time never overrides a blocking or unknown state.
 	AvailableAt   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=available_at,json=availableAt,proto3" json:"available_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -320,15 +319,14 @@ var File_chatto_api_v1_account_actions_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_account_actions_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/api/v1/account_actions.proto\x12\rchatto.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x85\x02\n" +
+	"#chatto/api/v1/account_actions.proto\x12\rchatto.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x01\n" +
 	"\x1aUsernameChangeAvailability\x12E\n" +
 	"\x05state\x18\x01 \x01(\x0e2/.chatto.api.v1.UsernameChangeAvailability.StateR\x05state\x12=\n" +
-	"\favailable_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vavailableAt\"a\n" +
+	"\favailable_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vavailableAt\"M\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSTATE_ALLOWED\x10\x01\x12\x1a\n" +
-	"\x16STATE_PROVIDER_MANAGED\x10\x02\x12\x12\n" +
-	"\x0eSTATE_COOLDOWN\x10\x03\"\xbc\x02\n" +
+	"\x16STATE_PROVIDER_MANAGED\x10\x02\"\xbc\x02\n" +
 	"\x0eAccountActions\x12R\n" +
 	"\x0fchange_username\x18\x01 \x01(\v2).chatto.api.v1.UsernameChangeAvailabilityR\x0echangeUsername\x12W\n" +
 	"\x0fchange_password\x18\x02 \x01(\x0e2).chatto.api.v1.PasswordChangeAvailabilityH\x00R\x0echangePassword\x88\x01\x01\x12V\n" +

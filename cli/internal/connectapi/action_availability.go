@@ -17,13 +17,12 @@ func accountActions(ctx context.Context, api *API, user *readmodel.User, managed
 	if managed {
 		username.State = apiv1.UsernameChangeAvailability_STATE_PROVIDER_MANAGED
 	}
-	if !managed && !lastChange.IsZero() && time.Now().Before(lastChange.Add(core.LoginChangeCooldown)) {
+	if !lastChange.IsZero() && time.Now().Before(lastChange.Add(core.LoginChangeCooldown)) {
 		bypass, err := api.core.CanManageUserAccounts(ctx, user.Id)
 		if err != nil {
 			return nil, err
 		}
 		if !bypass {
-			username.State = apiv1.UsernameChangeAvailability_STATE_COOLDOWN
 			username.AvailableAt = timestamppb.New(lastChange.Add(core.LoginChangeCooldown))
 		}
 	}

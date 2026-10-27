@@ -2,9 +2,11 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
     UsernameChangeState,
+    canChangeUsername,
     legacyUsernameChangeAvailability
   } from '@chatto/client/api/actionAvailability';
   import { usernameChangeUnavailableMessage } from '$lib/actionAvailability';
+  import Interval from '$lib/lifecycle/Interval.svelte';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { UserAPI } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
@@ -47,6 +49,7 @@
   let pendingDisplayName = $state<string | undefined>(undefined);
   let pendingLogin = $state<string | undefined>(undefined);
   let pendingBio = $state<string | undefined>(undefined);
+  let now = $state(Date.now());
 
   const viewerLastLoginChange = $derived(
     currentUser.user?.lastLoginChange ? new Date(currentUser.user.lastLoginChange) : null
@@ -61,7 +64,12 @@
     currentUser.user?.actions?.changeUsername ??
       legacyUsernameChangeAvailability(lastLoginChange?.toISOString(), canBypassLoginCooldown)
   );
-  const canChangeLogin = $derived(usernameAvailability.state === UsernameChangeState.ALLOWED);
+  const canChangeLogin = $derived(canChangeUsername(usernameAvailability, now));
+  const waitingForUsername = $derived(
+    usernameAvailability.state === UsernameChangeState.ALLOWED &&
+      usernameAvailability.availableAt !== undefined &&
+      Date.parse(usernameAvailability.availableAt) > now
+  );
 
   function clearMessages() {
     error = '';
@@ -83,7 +91,7 @@
 
     let normalizedLogin: string | undefined;
     if (loginModified) {
-      if (!canChangeLogin) {
+      if (!canChangeUsername(usernameAvailability)) {
         error = usernameChangeUnavailableMessage(usernameAvailability);
         return;
       }
@@ -185,6 +193,10 @@
   }
 </script>
 
+{#if waitingForUsername}
+  <Interval milliseconds={1000} ontick={() => (now = Date.now())} />
+{/if}
+
 <Panel title={m('settings.profile.title')} icon="iconify icon-[uil--user]">
   <Form onsubmit={handleSubmit} maxWidth="max-w-md" {error}>
     <TextInput
@@ -205,10 +217,7 @@
     />
 
     {#if !canChangeLogin}
-      <Hint>{usernameChangeUnavailableMessage(usernameAvailability)}</Hint>
-      {#if currentUser.user?.actions?.changeUsername?.state === UsernameChangeState.COOLDOWN}
-        <Button variant="secondary" onclick={() => currentUser.load()}>{m('common.retry')}</Button>
-      {/if}
+      <Hint>{usernameChangeUnavailableMessage(usernameAvailability, now)}</Hint>
     {/if}
 
     <UserBioEditor

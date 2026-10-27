@@ -1,4 +1,4 @@
-/** Action-specific state enums. Only ALLOWED enables an action; commands remain authoritative. */
+/** Action-specific policy states with independent timing; commands remain authoritative. */
 import {
   UsernameChangeAvailability_State as UsernameChangeState,
   PasswordChangeAvailability,
@@ -15,25 +15,32 @@ export {
 };
 export { UsernameChoiceAvailability } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
 
-/** Username changes need a message because cooldowns carry a refresh timestamp. */
+/** Username policy and an independent earliest attempt time. */
 export type UsernameChangeAvailability = {
   state: UsernameChangeState;
-  /** Earliest cooldown refresh time, not an automatic permission grant. */
+  /** ALLOWED becomes usable at this time; blocked states remain blocked. */
   availableAt?: string;
 };
 
-/** Preserve absence and unknown states. Timing belongs only to COOLDOWN. */
+/** Preserve absence, unknown states, and the independent time constraint. */
 export function usernameChangeAvailabilityFromAPI(
   value?: APIUsernameChangeAvailability
 ): UsernameChangeAvailability | undefined {
   if (!value) return undefined;
   return {
     state: value.state,
-    availableAt:
-      value.state === UsernameChangeState.COOLDOWN
-        ? value.availableAt?.toDate().toISOString()
-        : undefined
+    availableAt: value.availableAt?.toDate().toISOString()
   };
+}
+
+/** Only ALLOWED with no pending time constraint permits an attempt.
+ * Invalid timestamps fail closed. Commands still recheck authority and policy.
+ */
+export function canChangeUsername(action: UsernameChangeAvailability, now = Date.now()): boolean {
+  return (
+    action.state === UsernameChangeState.ALLOWED &&
+    (action.availableAt === undefined || Date.parse(action.availableAt) <= now)
+  );
 }
 
 /** Compatibility for servers that do not report username action snapshots. */
@@ -45,7 +52,7 @@ export function legacyUsernameChangeAvailability(
   const availableAt = lastChange ? Date.parse(lastChange) + 30 * 24 * 60 * 60 * 1000 : 0;
   const blocked = !bypassCooldown && availableAt > now;
   return {
-    state: blocked ? UsernameChangeState.COOLDOWN : UsernameChangeState.ALLOWED,
+    state: UsernameChangeState.ALLOWED,
     availableAt: blocked ? new Date(availableAt).toISOString() : undefined
   };
 }
