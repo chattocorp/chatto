@@ -26,9 +26,9 @@ export function startSourceHost() {
     });
     const manager = new SourceManager(
       (name) =>
-        (task, { input }) =>
-          store.start(name, task, input, 'source'),
-      (name) => store.sourceRuns(name)
+        (task, { input, runId }) =>
+          store.start(name, task, input, 'source', runId),
+      (name, options) => store.sourceRuns(name, options)
     );
     let unsubscribe = () => {};
     // Release every owner even when the final snapshot cannot be saved. A later
