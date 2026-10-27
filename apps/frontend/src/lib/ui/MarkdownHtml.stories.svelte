@@ -41,7 +41,7 @@
       '\n</svg>\n```'
   );
   const ansiHtml = renderMarkdown(
-    '```ansi render\n' +
+    '```ansi rendered\n' +
       '\x1b[1;36m╔══════════════════════════════════════╗\n' +
       '║            C H A T T O                ║\n' +
       '╚══════════════════════════════════════╝\n\x1b[0m' +
@@ -51,7 +51,7 @@
       '```'
   );
   const svgHtml = renderMarkdown(
-    '```svg render\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 180" width="480" height="180">\n' +
+    '```svg rendered\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 180" width="480" height="180">\n' +
       '<rect width="480" height="180" rx="16" fill="#edf7f4"/>\n' +
       '<circle cx="90" cy="90" r="48" fill="#257d68"/>\n' +
       '<path d="M65 90l18 18 34-38" fill="none" stroke="white" stroke-width="8"/>\n' +
@@ -59,20 +59,22 @@
       '<text x="165" y="118" font-family="sans-serif" font-size="18" fill="#257d68">SVG from a bot message</text>\n</svg>\n```'
   );
   const mermaidHtml = renderMarkdown(
-    '```mermaid render\nflowchart LR\naccTitle: Orbital delivery\naccDescr: Survey the station, dock, trade cargo, then depart.\nA[Survey station] --> B{Docking clearance?}\nB -->|Granted| C[Trade cargo]\nB -->|Denied| D[Wait in orbit]\nD --> B\nC --> E[Depart]\n```'
+    '```mermaid rendered\nflowchart LR\naccTitle: Orbital delivery\naccDescr: Survey the station, dock, trade cargo, then depart.\nA[Survey station] --> B{Docking clearance?}\nB -->|Granted| C[Trade cargo]\nB -->|Denied| D[Wait in orbit]\nD --> B\nC --> E[Depart]\n```'
   );
-  const mermaidFallbackHtml = renderMarkdown('```mermaid render\nThis diagram is incomplete\n```');
+  const mermaidFallbackHtml = renderMarkdown(
+    '```mermaid rendered\nThis diagram is incomplete\n```'
+  );
   const mermaidTallHtml = renderMarkdown(
-    '```mermaid render\nflowchart TB\naccTitle: Launch checklist\nA[Clear customs] --> B[Load medicine]\nB --> C[Seal cargo hold]\nC --> D[Refuel tanks]\nD --> E[Test engines]\nE --> F[Upload flight plan]\nF --> G[Request clearance]\nG --> H[Release docking clamps]\nH --> I[Depart for Haven]\n```'
+    '```mermaid rendered\nflowchart TB\naccTitle: Launch checklist\nA[Clear customs] --> B[Load medicine]\nB --> C[Seal cargo hold]\nC --> D[Refuel tanks]\nD --> E[Test engines]\nE --> F[Upload flight plan]\nF --> G[Request clearance]\nG --> H[Release docking clamps]\nH --> I[Depart for Haven]\n```'
   );
   const mermaidGroupsHtml = renderMarkdown(
-    '```mermaid render\nflowchart TB\naccTitle: Flight operations\nsubgraph Trade\nA[Buy medicine] --> B[Seal manifest]\nend\nsubgraph Engineering\nC[Refuel tanks] --> D[Systems green]\nend\nB --> E{Launch clearance}\nD --> E\nE -->|Approved| F[Depart for Haven]\nE -.->|Hold| G[Wait at Kepler]\n```'
+    '```mermaid rendered\nflowchart TB\naccTitle: Flight operations\nsubgraph Trade\nA[Buy medicine] --> B[Seal manifest]\nend\nsubgraph Engineering\nC[Refuel tanks] --> D[Systems green]\nend\nB --> E{Launch clearance}\nD --> E\nE -->|Approved| F[Depart for Haven]\nE -.->|Hold| G[Wait at Kepler]\n```'
   );
   const mermaidThemeHtml = renderMarkdown(
     [
-      '```mermaid render\nsequenceDiagram\naccTitle: Docking handshake\nparticipant S as Kestrel\nparticipant P as Kepler Port\nS->>P: Request clearance\nP-->>S: Dock 04 is ready\nS->>P: Begin approach\n```',
-      '```mermaid render\npie title Cargo manifest\n"Medicine" : 42\n"Ore" : 28\n"Supplies" : 18\n"Fuel cells" : 12\n```',
-      '```mermaid render\nclassDiagram\nclass Ship {\n+String callsign\n+int cargoCapacity\n+dock()\n}\nclass Port {\n+String name\n+requestClearance()\n}\nShip --> Port : visits\n```'
+      '```mermaid rendered\nsequenceDiagram\naccTitle: Docking handshake\nparticipant S as Kestrel\nparticipant P as Kepler Port\nS->>P: Request clearance\nP-->>S: Dock 04 is ready\nS->>P: Begin approach\n```',
+      '```mermaid rendered\npie title Cargo manifest\n"Medicine" : 42\n"Ore" : 28\n"Supplies" : 18\n"Fuel cells" : 12\n```',
+      '```mermaid rendered\nclassDiagram\nclass Ship {\n+String callsign\n+int cargoCapacity\n+dock()\n}\nclass Port {\n+String name\n+requestClearance()\n}\nShip --> Port : visits\n```'
     ].join('\n\n')
   );
   const quoteHtml = renderMarkdown(`Text *marked with stars* and _marked with underscores_.

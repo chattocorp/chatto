@@ -88,7 +88,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   const activeArtifactHint = $derived(
-    /^(svg|mermaid|ansi)(\s+render)?$/i.exec(activeCodeBlockLanguage ?? '')
+    /^(svg|mermaid|ansi)(\s+rendered)?$/i.exec(activeCodeBlockLanguage ?? '')
   );
   const activeCodeLanguage = $derived(
     activeArtifactHint?.[1].toLowerCase() ?? activeCodeBlockLanguage
@@ -226,7 +226,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   function setCodeBlockLanguage(language: string, render = renderByDefault) {
     if (!editor) return;
-    const hint = render && /^(svg|mermaid|ansi)$/i.test(language) ? `${language} render` : language;
+    const hint =
+      render && /^(svg|mermaid|ansi)$/i.test(language) ? `${language} rendered` : language;
 
     editor
       .chain()

@@ -79,7 +79,7 @@ describe('Mermaid previews', () => {
 
   it('does not switch back to Render when a pending image finishes', async () => {
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```mermaid render\nflowchart LR\nA-->B\n```')
+      html: await renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```')
     });
     await expect
       .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
@@ -101,7 +101,7 @@ describe('Mermaid previews', () => {
           (_, i) => `A${i}[Checkpoint ${i}] --> A${i + 1}[Checkpoint ${i + 1}]`
         ).join('\n');
       const { container } = render(MarkdownHtml, {
-        html: await renderMarkdown('```mermaid render\n' + source + '\n```')
+        html: await renderMarkdown('```mermaid rendered\n' + source + '\n```')
       });
       container.classList.add('prose');
       container.style.width = '320px';
@@ -125,7 +125,7 @@ describe('Mermaid previews', () => {
     try {
       root.style.setProperty('--depth-level', '0');
       const { container } = render(MarkdownHtml, {
-        html: await renderMarkdown('```mermaid render\nflowchart LR\nA[Dock]-->B[Trade]\n```')
+        html: await renderMarkdown('```mermaid rendered\nflowchart LR\nA[Dock]-->B[Trade]\n```')
       });
       await expect
         .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
@@ -148,7 +148,7 @@ describe('Mermaid previews', () => {
   it('loads a real worker result as an image with accessible text and updates its theme', async () => {
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown(
-        '```mermaid render\nflowchart LR\naccTitle: Flight plan\naccDescr: Launch then orbit\nA[Launch] --> B[Orbit]\n```'
+        '```mermaid rendered\nflowchart LR\naccTitle: Flight plan\naccDescr: Launch then orbit\nA[Launch] --> B[Orbit]\n```'
       )
     });
     await expect
@@ -174,7 +174,7 @@ describe('Mermaid previews', () => {
   it('keeps invalid source copyable without blocking a valid sibling', async () => {
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown(
-        '```mermaid render\nnot a diagram\n```\n\n```mermaid render\nflowchart LR\nA-->B\n```'
+        '```mermaid rendered\nnot a diagram\n```\n\n```mermaid rendered\nflowchart LR\nA-->B\n```'
       )
     });
     await expect
@@ -187,7 +187,7 @@ describe('Mermaid previews', () => {
 
   it('cancels old work when the HTML changes', async () => {
     const view = render(MarkdownHtml, {
-      html: await renderMarkdown('```mermaid render\nflowchart LR\nOld-->Diagram\n```')
+      html: await renderMarkdown('```mermaid rendered\nflowchart LR\nOld-->Diagram\n```')
     });
     await view.rerender({ html: await renderMarkdown('Replacement message') });
     await expect.element(view.container).toHaveTextContent('Replacement message');
@@ -196,7 +196,7 @@ describe('Mermaid previews', () => {
 
   it('defers offscreen diagrams until they approach the viewport', async () => {
     const view = render(MarkdownHtml, {
-      html: await renderMarkdown('```mermaid render\nflowchart LR\nA-->B\n```')
+      html: await renderMarkdown('```mermaid rendered\nflowchart LR\nA-->B\n```')
     });
     const block = view.container.querySelector<HTMLElement>('[data-artifact="mermaid"]')!;
     block.style.marginTop = '10000px';
@@ -376,7 +376,7 @@ describe('MarkdownHtml code copy', () => {
 
   it('updates source and ANSI fades when switching tabs', async () => {
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```ansi render\n' + 'X'.repeat(70) + '\n```')
+      html: await renderMarkdown('```ansi rendered\n' + 'X'.repeat(70) + '\n```')
     });
     container.classList.add('prose');
     container.style.width = '240px';
@@ -416,7 +416,7 @@ describe('MarkdownHtml code copy', () => {
   it('numbers source lines without a background or changing copied text', async () => {
     const source = 'first\n\n' + 'long '.repeat(80) + '\nlast\n';
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```text\n' + source + '```\n\n```ansi render\nART\n```')
+      html: await renderMarkdown('```text\n' + source + '```\n\n```ansi rendered\nART\n```')
     });
     container.classList.add('prose');
     container.style.width = '320px';
@@ -519,7 +519,7 @@ describe('MarkdownHtml code copy', () => {
     const source =
       '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="red"/></svg>\n';
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```svg render\n' + source + '```')
+      html: await renderMarkdown('```svg rendered\n' + source + '```')
     });
     await expect
       .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
@@ -539,7 +539,7 @@ describe('MarkdownHtml code copy', () => {
 
   it('reveals malformed SVG source instead of a broken image', async () => {
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```svg render\n<svg broken\n```')
+      html: await renderMarkdown('```svg rendered\n<svg broken\n```')
     });
     await expect.element(container.querySelector('code')!).toBeVisible();
     expect(container.querySelector<HTMLElement>('[data-code-panel="render"]')?.hidden).toBe(true);
@@ -553,7 +553,7 @@ describe('MarkdownHtml code copy', () => {
       '<image href="https://svg-preview.invalid/probe.png" width="80" height="40"/>' +
       '<rect width="80" height="40" fill="red"/></svg>';
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```svg render\n' + source + '\n```')
+      html: await renderMarkdown('```svg rendered\n' + source + '\n```')
     });
     await expect
       .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
@@ -569,7 +569,7 @@ describe('MarkdownHtml code copy', () => {
 
   it('handles SVG failures after the message HTML changes', async () => {
     const rendered = render(MarkdownHtml, { html: await renderMarkdown('Original message') });
-    await rendered.rerender({ html: await renderMarkdown('```svg render\n<svg broken\n```') });
+    await rendered.rerender({ html: await renderMarkdown('```svg rendered\n<svg broken\n```') });
     await expect.element(rendered.container.querySelector('code')!).toBeVisible();
     await rendered.rerender({ html: await renderMarkdown('Updated message') });
     expect(rendered.container.querySelector('img, details')).toBeNull();
@@ -577,7 +577,7 @@ describe('MarkdownHtml code copy', () => {
 
   it('dims the foreground without fading the background of ANSI cells', async () => {
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```ansi render\n\x1b[2;44mDIM\n```')
+      html: await renderMarkdown('```ansi rendered\n\x1b[2;44mDIM\n```')
     });
     const span = container.querySelector('.markdown-ansi code span[style]')!;
     const style = getComputedStyle(span);
@@ -595,7 +595,7 @@ describe('MarkdownHtml code copy', () => {
   it('renders ANSI screen cells in the browser and copies the original escape codes', async () => {
     const source = '\x1b[31mwrong\rART\x1b[K\r\n';
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```ansi render\n' + source + '```')
+      html: await renderMarkdown('```ansi rendered\n' + source + '```')
     });
     container.classList.add('prose');
     const code = container.querySelector('.markdown-ansi code')!;

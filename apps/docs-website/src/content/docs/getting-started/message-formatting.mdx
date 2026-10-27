@@ -83,9 +83,9 @@ In the visual editor, paste into a code block without a language, or leave the b
 
 Each code block has a header with its language and **Copy to clipboard**. Copy retains the original source without the Markdown fence.
 
-SVG, Mermaid, and ANSI blocks also have **Source** and **Render** tabs. They start on **Source**. Add `render` after the language, such as `mermaid render`, to start on **Render**. You can switch tabs without changing the message.
+SVG, Mermaid, and ANSI blocks also have **Source** and **Render** tabs. They start on **Source**. Add `rendered` after the language, such as `mermaid rendered`, to start on **Render**. You can switch tabs without changing the message.
 
-In the visual editor, select an SVG, Mermaid, or ANSI code block and enable **Render by default** beside its language selector. This sets the same `render` hint. The editor continues to show source.
+In the visual editor, select an SVG, Mermaid, or ANSI code block and enable **Render by default** beside its language selector. This sets the same `rendered` hint. The editor continues to show source.
 
 Right-click a link in a message to open the message menu. Select **Copy Link** to copy that URL, or **Copy Message Link** to copy a link to the message.
 
@@ -107,7 +107,7 @@ erase commands can draw over earlier text. The composer shows the source.
 Bots can build a message body like this JavaScript example:
 
 ```js
-const body = '```ansi render\n\x1b[91mHello in red!\x1b[0m\n```';
+const body = '```ansi rendered\n\x1b[91mHello in red!\x1b[0m\n```';
 ```
 
 The JavaScript string contains an actual Escape character (`U+001B`). Typing the
@@ -126,10 +126,10 @@ copies the original code, including its escape characters.
 
 ### Mermaid diagrams
 
-Use a `mermaid render` code fence to show a diagram first:
+Use a `mermaid rendered` code fence to show a diagram first:
 
 ````text
-```mermaid render
+```mermaid rendered
 flowchart LR
   accTitle: Delivery status
   accDescr: A parcel moves from packing to shipping to delivery.
@@ -149,12 +149,12 @@ source instead. Editing or copying the message keeps the original Mermaid text.
 
 ### SVG previews
 
-Use a code fence labelled `svg render` to show an SVG image. A plain `svg`
+Use a code fence labelled `svg rendered` to show an SVG image. A plain `svg`
 fence starts on **Source**; select **Render** to view the image. Bots can send this Markdown in the normal
 message body:
 
 ````md
-```svg render
+```svg rendered
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60">
   <rect width="120" height="60" rx="12" fill="#257d68"/>
   <text x="60" y="36" text-anchor="middle" fill="white">Ready</text>

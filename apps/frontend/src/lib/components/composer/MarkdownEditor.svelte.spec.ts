@@ -345,7 +345,7 @@ describe('MarkdownEditor', () => {
       onReady: (api: ComposerEditorApi) => readyApis.push(api)
     });
     await vi.waitFor(() => expect(readyApis).toHaveLength(1));
-    const source = '```mermaid\nflowchart TD\n  A[Scan cargo] --> B{Ready?}\n```';
+    const source = '```mermaid rendered\nflowchart TD\n  A[Scan cargo] --> B{Ready?}\n```';
     readyApis[0].setContent(source);
     await expect
       .poll(() => container.querySelector('.hljs-keyword')?.textContent)

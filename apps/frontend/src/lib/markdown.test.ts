@@ -34,6 +34,27 @@ describe('renderInlineMarkdown', () => {
 });
 
 describe('renderMarkdown', () => {
+  it.each(['svg', 'mermaid', 'ansi'])(
+    'uses only the rendered modifier for %s',
+    async (language) => {
+      const source = language === 'mermaid' ? 'flowchart LR\nA-->B' : 'source';
+      for (const modifier of ['rendered', 'RENDERED']) {
+        const html = await renderMarkdown(
+          '```' + language + ' ' + modifier + '\n' + source + '\n```'
+        );
+        expect(html).toContain('data-code-panel="source" hidden');
+        expect(html).toContain(`data-artifact="${language}"`);
+      }
+      for (const modifier of ['render', 'rendered extra']) {
+        const html = await renderMarkdown(
+          '```' + language + ' ' + modifier + '\n' + source + '\n```'
+        );
+        expect(html).not.toContain('data-artifact=');
+        expect(html).not.toContain('data-code-panel="source" hidden');
+      }
+    }
+  );
+
   describe('Mermaid previews', () => {
     it('recognises only the complete language hint and escapes fallback source', async () => {
       const source = 'flowchart LR\nA["<img src=x onerror=alert(1)>"] --> B\n';
@@ -72,11 +93,11 @@ describe('renderMarkdown', () => {
   describe('SVG previews', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"><text>Hi &amp; bye</text></svg>\n';
 
-    it('uses the render hint only to select the initial tab and keeps source escaped', async () => {
-      for (const info of ['svg', 'xml', 'svg renderer', 'svg render extra']) {
+    it('uses the rendered hint only to select the initial tab and keeps source escaped', async () => {
+      for (const info of ['svg', 'xml', 'svg renderer', 'svg rendered extra']) {
         expect(await renderMarkdown('```' + info + '\n' + svg + '```')).not.toContain('<img');
       }
-      const html = await renderMarkdown('```svg render\n' + svg + '```');
+      const html = await renderMarkdown('```svg rendered\n' + svg + '```');
       expect(html).toContain('data-artifact="svg"');
       expect(html).not.toContain('<img');
       expect(html).not.toContain('<details>');
@@ -89,7 +110,7 @@ describe('renderMarkdown', () => {
     });
 
     it('supports nested fences and limits preview count and source length', async () => {
-      const fence = '```svg render\n' + svg + '```';
+      const fence = '```svg rendered\n' + svg + '```';
       expect(
         await renderMarkdown(
           fence
@@ -103,7 +124,7 @@ describe('renderMarkdown', () => {
           /data-code-panel="source" hidden/g
         )
       ).toHaveLength(4);
-      expect(await renderMarkdown('```svg render\n' + 'x'.repeat(100_001) + '\n```')).toContain(
+      expect(await renderMarkdown('```svg rendered\n' + 'x'.repeat(100_001) + '\n```')).toContain(
         ' disabled'
       );
     });

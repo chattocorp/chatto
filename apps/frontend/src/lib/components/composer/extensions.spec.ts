@@ -7,10 +7,10 @@ import { getSerializedMarkdown, parseMarkdownForEditor } from './markdown';
 
 describe('createComposerExtensions', () => {
   it.each([
-    '```svg render\n<svg xmlns="http://www.w3.org/2000/svg"/>\n```',
+    '```svg rendered\n<svg xmlns="http://www.w3.org/2000/svg"/>\n```',
     '```mermaid\nflowchart LR\nA[One] --> B[Two]\n```',
-    '```mermaid render\nflowchart LR\nA --> B\n```',
-    '```ansi render\nART\n```'
+    '```mermaid rendered\nflowchart LR\nA --> B\n```',
+    '```ansi rendered\nART\n```'
   ])('preserves diagram source through the visual editor (%#)', (source) => {
     const extensions = createComposerExtensions('');
     const manager = new MarkdownManager({ extensions });

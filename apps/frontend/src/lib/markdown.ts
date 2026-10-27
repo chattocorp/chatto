@@ -517,7 +517,7 @@ function initialize(): void {
   md.use(mentionPlugin);
   md.renderer.rules.fence = (tokens, index, _options, env) => {
     const token = tokens[index];
-    const hint = /^(svg|mermaid|ansi)(\s+render)?$/i.exec(token.info.trim());
+    const hint = /^(svg|mermaid|ansi)(\s+rendered)?$/i.exec(token.info.trim());
     const language = normalizeCodeLanguage(token.info);
     if (!hint) return renderCodeFrame(token.content, language);
     const render = !!hint[2];

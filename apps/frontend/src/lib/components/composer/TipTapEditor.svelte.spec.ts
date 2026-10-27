@@ -81,7 +81,7 @@ describe('Composer artifact controls', () => {
   });
 
   it.each(['svg', 'mermaid', 'ansi'])(
-    'sets the render hint from the visual %s controls',
+    'sets the rendered hint from the visual %s controls',
     async (language) => {
       let api: ComposerEditorApi | undefined;
       const updates: string[] = [];
@@ -96,7 +96,7 @@ describe('Composer artifact controls', () => {
       const toggle = page.getByRole('button', { name: 'Render by default' });
       await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
       await userEvent.click(toggle);
-      expect(updates.at(-1)?.trimEnd()).toBe('```' + language + ' render\n' + source + '\n```');
+      expect(updates.at(-1)?.trimEnd()).toBe('```' + language + ' rendered\n' + source + '\n```');
       await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
       expect(
         container.querySelector<HTMLSelectElement>('select[name="composer-code-language"]')?.value
@@ -108,7 +108,7 @@ describe('Composer artifact controls', () => {
       }
       await userEvent.click(toggle);
       expect(updates.at(-1)?.trimEnd()).toBe('```' + language + '\n' + source + '\n```');
-      api!.setContent('```' + language + ' render\n' + source + '\n```');
+      api!.setContent('```' + language + ' rendered\n' + source + '\n```');
       await userEvent.click(container.querySelector('pre code')!);
       await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
       const select = container.querySelector<HTMLSelectElement>(
@@ -117,7 +117,7 @@ describe('Composer artifact controls', () => {
       const otherArtifact = language === 'mermaid' ? 'svg' : 'mermaid';
       await userEvent.selectOptions(select, otherArtifact);
       expect(updates.at(-1)?.trimEnd()).toBe(
-        '```' + otherArtifact + ' render\n' + source + '\n```'
+        '```' + otherArtifact + ' rendered\n' + source + '\n```'
       );
       await userEvent.selectOptions(select, 'js');
       expect(updates.at(-1)?.trimEnd()).toBe('```js\n' + source + '\n```');

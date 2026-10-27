@@ -20,7 +20,7 @@
 <script lang="ts">
   let markdown = $state('**Welcome!** Please check the pinned messages before posting.');
   let visual = $state('**Welcome!** Please check the pinned messages before posting.');
-  let renderedMermaid = $state('```mermaid render\nflowchart LR\nA[Draft] --> B[Publish]\n```');
+  let renderedMermaid = $state('```mermaid rendered\nflowchart LR\nA[Draft] --> B[Publish]\n```');
   let mermaid = $state(
     '```mermaid\nflowchart TD\n  accTitle: Spaceport departure\n  %% Cargo inspection\n  subgraph Cargo\n    A[Scan cargo] --> B{Contraband?}\n    B -->|No| C[Seal the hold]\n    B -->|Yes| D[Pay a suspicious fee]\n    D --> C\n  end\n```'
   );
