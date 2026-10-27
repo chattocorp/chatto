@@ -37,6 +37,22 @@ still empty. Use it when the original input must not start an external action ag
 Runling does not restore the prior inbox. The root must decide how to reconnect
 resources, migrate its state, and reconcile actions whose outcome is uncertain.
 
+## Run titles
+
+Recorded workflows can set a descriptive title with
+`ctx.run?.setTitle('Compare JSON and SQLite')` and read it through `ctx.run?.title`.
+The setter normalizes whitespace and accepts 1–120 Unicode characters. It rejects
+empty values, other control characters, and updates after execution ends. Repeating
+the same title does not emit another event. Calls record updates through the host's
+normal journal path; they do not wait for disk persistence.
+
+The console displays the title instead of the workflow type as the main heading.
+The type and stable run reference remain unchanged. Titles survive restart and
+reactivation. They render as plain text and are visible in the run list, so exclude
+secrets and personal details. Older runs need no migration and fall back to their
+workflow type. Applications can wrap this operation in an agent tool; Runling has
+no automatic naming policy. See [FDR-013](fdr/FDR-013-run-titles.md).
+
 ## Reactivate a finished workflow
 
 A root return ends its execution. To reuse its identity and state, a router calls

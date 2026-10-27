@@ -16,6 +16,8 @@ export type RunSource = 'webhook' | 'web' | 'source' | 'cli';
 
 export interface RunSummary {
   id: string;
+  /** Optional plain-text display title, updated by run.title events. */
+  title?: string;
   /** Human-readable, journal-local reference. Older journals use their UUID. */
   reference?: string;
   /** Webhook or source name; `cli` for command-line runs. */

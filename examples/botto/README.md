@@ -519,6 +519,14 @@ the run journal; the agent continues from its saved transcript.
 
 ## Logs and development
 
+Botto's root agent can use `set_conversation_title` to give the Runling run a short
+descriptive title when a meaningful topic emerges. It sees the current title and
+is instructed to change it only when the overall topic changes. Greetings do not
+need titles. Titles describe the conversation rather than progress, and must not
+contain personal details or secrets. Delegated agents do not receive this tool.
+The title persists across turns and restarts; it does not rename the Chatto thread
+or post a message. The model chooses when to call the tool, so naming is not guaranteed.
+
 Runling owns all log output. Connection and intake messages use a `[source:chatto]`
 prefix. Work inside a conversation uses its run and task context and appears in
 the console and run journal. Context reads, model turns, reply posts, and memory

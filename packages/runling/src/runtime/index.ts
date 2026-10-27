@@ -6,6 +6,7 @@ export {
   createTaskContext,
   WorkflowAbortError,
   type RunIdentity,
+  type RunContext,
   type WorkflowState,
   type TaskContext
 } from './context.ts';
