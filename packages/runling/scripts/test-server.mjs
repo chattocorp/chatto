@@ -15,6 +15,7 @@ const originalDirectory = process.env.RUNLING_DATA_DIRECTORY;
 const originalSignals = process.listenerCount('SIGTERM');
 let id;
 let cleanup = 0;
+let priorEvents = [];
 try {
   for (let generation = 0; generation < 2; generation++) {
     const ready = Promise.withResolvers();
@@ -88,6 +89,7 @@ try {
       const page = await fetch(server.url);
       assert.equal(page.status, 200);
       let run;
+      const expectedItems = 2 * (generation + 1);
       const deadline = Date.now() + 5000;
       do {
         const response = await fetch(`${server.url}/api/runs/${id}`);
@@ -101,7 +103,7 @@ try {
               event.type === 'log' &&
               event.message === 'Application warning' &&
               event.fields?.items === 1
-          ).length === 2
+          ).length === expectedItems
         )
           break;
         await delay(25);
@@ -114,7 +116,7 @@ try {
             event.message === 'Application warning' &&
             event.fields?.items === 1
         ).length,
-        2
+        expectedItems
       );
       const diagnostics = (await readFile(join(directory, 'logs/server.jsonl'), 'utf8'))
         .trim()
@@ -137,14 +139,16 @@ try {
       assert.equal(
         run.events.filter((event) => event.type === 'step.started' && event.label === 'Work item')
           .length,
-        2
+        expectedItems
       );
       assert.equal(
         run.events.filter(
           (event) => event.type === 'step.started' && event.label === 'Application step'
         ).length,
-        2
+        expectedItems
       );
+      assert.deepEqual(run.events.slice(0, priorEvents.length), priorEvents);
+      priorEvents = run.events;
     } finally {
       await Promise.all([server.close(), server.close()]);
     }
