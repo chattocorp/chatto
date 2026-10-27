@@ -460,6 +460,11 @@ describe('MarkdownHtml code copy', () => {
       const root = document.documentElement;
       const previous = root.dataset.theme;
       const transition = root.style.transition;
+      // The body's center can overlap the message. Use a separate hit target
+      // so the normal-state assertion never depends on test viewport geometry.
+      const outside = document.createElement('div');
+      outside.style.cssText = 'position:fixed;top:0;left:0;width:4px;height:4px;z-index:9999';
+      document.body.append(outside);
       try {
         root.style.transition = 'none';
         root.dataset.theme = theme;
@@ -469,7 +474,8 @@ describe('MarkdownHtml code copy', () => {
         container.classList.add('prose', 'message-row');
         const frame = container.querySelector<HTMLElement>('.markdown-code-frame')!;
         const header = container.querySelector<HTMLElement>('.markdown-code-header')!;
-        await userEvent.hover(document.body);
+        await userEvent.hover(outside);
+        expect(container.matches(':hover')).toBe(false);
         const normal = getComputedStyle(header).backgroundColor;
         expect(getComputedStyle(frame).borderTopColor).toBe(normal);
         await userEvent.hover(header);
@@ -477,12 +483,13 @@ describe('MarkdownHtml code copy', () => {
         expect(highlighted).not.toBe(normal);
         expect(getComputedStyle(frame).borderTopColor).toBe(highlighted);
         container.classList.add('bg-surface');
-        await userEvent.hover(document.body);
+        await userEvent.hover(outside);
         expect(getComputedStyle(header).backgroundColor).toBe(highlighted);
         expect(getComputedStyle(frame).borderTopColor).toBe(highlighted);
         container.classList.remove('bg-surface');
         expect(getComputedStyle(header).backgroundColor).toBe(normal);
       } finally {
+        outside.remove();
         root.style.transition = transition;
         if (previous === undefined) delete root.dataset.theme;
         else root.dataset.theme = previous;
