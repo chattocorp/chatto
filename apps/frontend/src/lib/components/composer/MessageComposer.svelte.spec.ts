@@ -3381,7 +3381,8 @@ describe('MessageComposer', () => {
       await typeEditorKeys(editor, '`code`');
       await vi.waitFor(() => expect(editor.querySelector('p code')?.textContent).toBe('code'));
 
-      document.execCommand('selectAll');
+      // Let the editor process the selection before the browser deletes it.
+      await selectEditorContents(editor);
       document.execCommand('delete');
       await tick();
       await vi.waitFor(() => expect(editor.textContent).toBe(''));
