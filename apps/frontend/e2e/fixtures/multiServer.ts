@@ -558,7 +558,10 @@ export async function connectRemoteInstance(
   await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Find server' }).click();
-  const joinButton = page.getByRole('button', { name: /^(Join|Open)$/ });
+  const card = page.locator(`article[data-origin="${remoteOrigin}"]`);
+  const joinButton = card
+    .getByRole('button', { name: 'Join', exact: true })
+    .or(card.getByRole('link', { name: 'Open', exact: true }));
   await expect(joinButton).toBeVisible({ timeout: 30_000 });
   const popup = await joinServerAndStartSignIn(page, joinButton);
   await popup.waitForEvent('close');

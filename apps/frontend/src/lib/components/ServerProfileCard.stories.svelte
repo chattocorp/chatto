@@ -25,10 +25,10 @@
 
 <Story name="Equal-height descriptions" asChild>
   <div class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3">
-    {#each ['', 'A short introduction.', 'A community for long conversations.\n\nThis description has several paragraphs so you can scroll through the complete introduction without changing the height of the card.\n\nEveryone is welcome.\n\nBring your questions and ideas.\n\nThere is always more to talk about.'] as description (description)}
+    {#each ['', 'A short introduction.', 'A community for long conversations.\n\nThis description has several paragraphs so you can scroll through the complete introduction without changing the height of the card.\n\nEveryone is welcome.\n\nBring your questions and ideas.\n\nThere is always more to talk about.'] as description, index (description)}
       {#snippet actions()}<Button fullWidth>Join</Button>{/snippet}
       <ServerProfileCard
-        origin="https://community.example"
+        origin={`https://community-${index + 1}.example`}
         profile={{ ...profile, description }}
         {actions}
       />

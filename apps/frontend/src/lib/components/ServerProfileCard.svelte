@@ -146,7 +146,7 @@ card. Callers supply trusted badges and actions through explicit props.
           </svelte:element>
           {#if badge}<Pill tone="success">{badge}</Pill>{/if}
         </div>
-        <p class="truncate text-muted" dir="ltr">{hostname}</p>
+        <p id={`${titleId}-host`} class="truncate text-muted" dir="ltr">{hostname}</p>
       </div>
     </div>
 
@@ -155,7 +155,7 @@ card. Callers supply trusted badges and actions through explicit props.
     <ScrollArea
       fill={false}
       class="h-24 shrink-0"
-      aria-labelledby={titleId}
+      aria-labelledby={`${titleId} ${titleId}-host`}
       keyboardFocusable={!!profile?.description}
       data-testid="server-card-description"
     >
