@@ -137,11 +137,13 @@ test('an old waiting root closes on recovery and is reused without replaying its
   await original.store.close();
   stores.splice(stores.indexOf(original.store), 1);
   const restarted = await setup(original.directory);
-  await vi.waitFor(() => expect(restarted.store.sourceRuns('source')).toEqual([]));
-  expect((await restarted.store.get(legacy.id))?.status).toBe('completed');
   const callback = vi.fn(async (ctx) => expect(ctx.run?.id).toBe(legacy.id));
+  // Deliver immediately: recovery has launched the old root but need not have
+  // finished its journal and snapshot writes yet.
   await runTurn(restarted.source, 'legacy', callback);
   expect(callback).toHaveBeenCalledOnce();
+  expect(restarted.store.sourceRuns('source')).toEqual([]);
+  expect((await restarted.store.get(legacy.id))?.status).toBe('completed');
 });
 
 test('source cancellation reaches the task and waits for its cleanup', async () => {

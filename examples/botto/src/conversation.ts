@@ -53,6 +53,10 @@ export async function runTurn(
   const previous = source
     .runs({ includeFinished: true })
     .find((run) => run.workflow === 'bottoConversation' && run.input === key);
+  // Startup recovery can still be closing a legacy waiting root. Inbox already
+  // serializes ordinary batches, so this only waits for the prior execution owner.
+  await previous?.finished;
+  source.signal.throwIfAborted();
   let run: RunHandle | undefined;
   await source.dispatch(async (ctx) => {
     run = await ctx.start(conversation, { input: key, runId: previous?.id });
