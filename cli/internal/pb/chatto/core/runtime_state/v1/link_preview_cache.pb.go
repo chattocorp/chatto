@@ -112,7 +112,7 @@ var File_chatto_core_runtime_state_v1_link_preview_cache_proto protoreflect.File
 
 const file_chatto_core_runtime_state_v1_link_preview_cache_proto_rawDesc = "" +
 	"\n" +
-	"5chatto/core/runtime_state/v1/link_preview_cache.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\xf5\x01\n" +
+	"5chatto/core/runtime_state/v1/link_preview_cache.proto\x12\x1cchatto.core.runtime_state.v1\x1a%chatto/core/evt/v1/event_values.proto\"\xf5\x01\n" +
 	"\x11CachedLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
 	"\apreview\x18\x02 \x01(\v2\x1f.chatto.core.evt.v1.LinkPreviewR\apreview\x12!\n" +

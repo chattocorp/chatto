@@ -4,10 +4,11 @@ import (
 	"context"
 	"sort"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 )
 
@@ -67,8 +68,8 @@ func (s *operatorRoomService) AddMember(ctx context.Context, req *connect.Reques
 
 // operatorRoomPage retains every exact-name match, including archived rooms,
 // and applies offsets only after ordering by stable room ID.
-func operatorRoomPage(rooms []*evtv1.Room, name string, limit, offset int) ([]*evtv1.Room, int, bool) {
-	filtered := make([]*evtv1.Room, 0, len(rooms))
+func operatorRoomPage(rooms []*readmodel.Room, name string, limit, offset int) ([]*readmodel.Room, int, bool) {
+	filtered := make([]*readmodel.Room, 0, len(rooms))
 	for _, room := range rooms {
 		if name == "" || room.GetName() == name {
 			filtered = append(filtered, room)

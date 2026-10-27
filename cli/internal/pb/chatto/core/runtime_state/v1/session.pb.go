@@ -147,7 +147,7 @@ var File_chatto_core_runtime_state_v1_session_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\n" +
-	"*chatto/core/runtime_state/v1/session.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x04\n" +
+	"*chatto/core/runtime_state/v1/session.proto\x12\x1cchatto.core.runtime_state.v1\x1a%chatto/core/evt/v1/event_values.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x04\n" +
 	"\rCookieSession\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x129\n" +
 	"\n" +

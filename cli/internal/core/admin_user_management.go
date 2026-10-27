@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -282,7 +284,7 @@ func (c *ChattoCore) requireCanAssignAdminRole(ctx context.Context, actorID, tar
 	return nil
 }
 
-func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *evtv1.User, roles []string) (*AdminMember, error) {
+func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *readmodel.User, roles []string) (*AdminMember, error) {
 	avatarURL, err := c.GetUserAvatarURL(ctx, user.GetId(), nil, nil, "")
 	if err != nil {
 		return nil, err

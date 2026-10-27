@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -153,7 +155,7 @@ func TestRoomDirectoryReadModelSortsMemberDMsByActivityDespiteMessageReadDenial(
 	if err != nil {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
-	createDM := func(login string) (*evtv1.User, *evtv1.Room) {
+	createDM := func(login string) (*readmodel.User, *readmodel.Room) {
 		t.Helper()
 		other, err := chattoCore.CreateUser(ctx, SystemActorID, login, login, "password")
 		if err != nil {

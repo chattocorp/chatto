@@ -3,6 +3,8 @@ package connectapi
 import (
 	"context"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
@@ -287,19 +289,19 @@ func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, u
 	return apiGroups, nil
 }
 
-func (s *adminRoomLayoutService) channelRoomsByID(ctx context.Context) (map[string]*evtv1.Room, error) {
+func (s *adminRoomLayoutService) channelRoomsByID(ctx context.Context) (map[string]*readmodel.Room, error) {
 	rooms, err := s.api.core.ListRooms(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}
-	roomsByID := make(map[string]*evtv1.Room, len(rooms))
+	roomsByID := make(map[string]*readmodel.Room, len(rooms))
 	for _, room := range rooms {
 		roomsByID[room.GetId()] = room
 	}
 	return roomsByID, nil
 }
 
-func apiAdminRoomLayoutGroup(group *evtv1.RoomGroup, roomsByID map[string]*evtv1.Room) *adminv1.AdminRoomLayoutGroup {
+func apiAdminRoomLayoutGroup(group *readmodel.RoomGroup, roomsByID map[string]*readmodel.Room) *adminv1.AdminRoomLayoutGroup {
 	if group == nil {
 		return nil
 	}
@@ -308,7 +310,7 @@ func apiAdminRoomLayoutGroup(group *evtv1.RoomGroup, roomsByID map[string]*evtv1
 		Name:        group.GetName(),
 		Description: group.GetDescription(),
 	}
-	sidebarLinksByID := make(map[string]*evtv1.SidebarLink, len(group.GetSidebarLinks()))
+	sidebarLinksByID := make(map[string]*readmodel.SidebarLink, len(group.GetSidebarLinks()))
 	for _, link := range group.GetSidebarLinks() {
 		sidebarLinksByID[link.GetId()] = link
 	}

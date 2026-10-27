@@ -2,8 +2,9 @@ package core
 
 import (
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"time"
+
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -27,12 +28,14 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 	snapshot := &projectionv1.RoomDirectoryProjectionSnapshot{CatalogSequence: p.Catalog.seq}
 	for _, roomID := range sortedMapKeys(p.Catalog.rooms) {
 		entry := p.Catalog.rooms[roomID]
-		room := entryToRoom(roomID, entry)
-		// Persist the raw enum value. Runtime readers normalize unknown future
-		// values to Disabled, but snapshots must not erase information written by
-		// a newer binary during a rollback.
-		room.ThreadingMode = entry.threadingMode
-		snapshot.Rooms = append(snapshot.Rooms, room)
+		snapshot.Rooms = append(snapshot.Rooms, &projectionv1.RoomSnapshot{
+			Id: roomID, Name: entry.name, Description: entry.description,
+			Archived: entry.archived, Kind: entry.kind, Universal: entry.universal,
+			SlowModeSeconds: entry.slowModeSeconds,
+			// Keep the raw enum; runtime reads normalize unknown future values.
+			ThreadingMode: entry.threadingMode, ThreadSlowModeSeconds: entry.threadSlowModeSeconds,
+			CreatedAt: entry.createdAt, Purpose: entry.purpose, Notice: snapshotRoomNotice(entry.notice),
+		})
 	}
 	for _, roomID := range sortedMapKeys(p.Membership.byRoom) {
 		snapshot.Memberships = append(snapshot.Memberships, &projectionv1.RoomMembershipSnapshot{
@@ -76,7 +79,7 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 		}
 		rooms[room.GetId()] = &roomCatalogEntry{
 			createdAt: room.GetCreatedAt(),
-			notice:    room.GetNotice(),
+			notice:    restoreRoomNotice(room.GetNotice()),
 			purpose:   room.GetPurpose(),
 			name:      room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
 			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),

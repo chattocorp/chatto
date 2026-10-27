@@ -2,12 +2,12 @@ package core
 
 import (
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"slices"
 
-	"google.golang.org/protobuf/proto"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 var roomGroupLayoutSnapshotContractID = snapshotContractID("v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{})
@@ -25,7 +25,11 @@ func (p *RoomGroupLayoutProjection) Snapshot() ([]byte, error) {
 	for _, groupID := range sortedMapKeys(p.Groups.groups) {
 		entry := p.Groups.groups[groupID]
 		snapshot.Groups = append(snapshot.Groups, &projectionv1.RoomGroupStateSnapshot{
-			Group: entryToGroup(groupID, entry),
+			Group: &projectionv1.RoomGroupSnapshot{
+				Id: groupID, Name: entry.name, Description: entry.description,
+				RoomIds: slices.Clone(entry.roomIDs), Entries: entry.clonedEntries(),
+				SidebarLinks: snapshotSidebarLinks(entry),
+			},
 		})
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
@@ -47,7 +51,7 @@ func (p *RoomGroupLayoutProjection) Restore(data []byte) error {
 		if _, duplicate := groups[group.GetId()]; duplicate {
 			return fmt.Errorf("room group layout snapshot repeats group %q", group.GetId())
 		}
-		entry := &roomGroupEntry{name: group.GetName(), description: group.GetDescription(), roomIDs: slices.Clone(group.GetRoomIds()), entries: cloneSidebarEntries(group.GetEntries()), links: make(map[string]*evtv1.SidebarLink)}
+		entry := &roomGroupEntry{name: group.GetName(), description: group.GetDescription(), roomIDs: slices.Clone(group.GetRoomIds()), entries: cloneSidebarEntries(group.GetEntries()), links: make(map[string]*readmodel.SidebarLink)}
 		links := group.GetSidebarLinks()
 		for _, link := range links {
 			if link.GetId() == "" {
@@ -56,7 +60,7 @@ func (p *RoomGroupLayoutProjection) Restore(data []byte) error {
 			if _, duplicate := entry.links[link.GetId()]; duplicate {
 				return fmt.Errorf("room group layout snapshot repeats link %q", link.GetId())
 			}
-			entry.links[link.GetId()] = cloneSidebarLink(link)
+			entry.links[link.GetId()] = restoreSidebarLink(link)
 		}
 		groups[group.GetId()] = entry
 	}
@@ -77,4 +81,14 @@ func (p *RoomGroupLayoutProjection) Restore(data []byte) error {
 	p.Layout.Unlock()
 	p.Groups.Unlock()
 	return nil
+}
+
+// snapshotSidebarLinks serializes links by ID while the projection lock is held.
+// Display order is stored separately in the group's entries.
+func snapshotSidebarLinks(entry *roomGroupEntry) []*projectionv1.SidebarLinkSnapshot {
+	links := make([]*projectionv1.SidebarLinkSnapshot, 0, len(entry.links))
+	for _, id := range sortedMapKeys(entry.links) {
+		links = append(links, snapshotSidebarLink(entry.links[id]))
+	}
+	return links
 }

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -372,7 +374,7 @@ func (c *ChattoCore) IsEmailClaimed(ctx context.Context, email string) (bool, er
 
 // GetUserByVerifiedEmail looks up a user by their verified email address.
 // Returns the user if found, or an error if not found.
-func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*evtv1.User, error) {
+func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*readmodel.User, error) {
 	user, ok, err := c.userModel.userByEmail(ctx, email)
 	if err != nil {
 		return nil, err

@@ -3,12 +3,14 @@ package cmd
 import (
 	"context"
 	"errors"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"sync"
 	"testing"
 	"time"
+
+	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -115,7 +117,7 @@ func setupNotificationPushTestCore(t *testing.T) (*core.ChattoCore, context.Cont
 	return chattoCore, ctx
 }
 
-func notificationPushFixture(t *testing.T, messageCount int) (*core.ChattoCore, context.Context, *evtv1.User, *evtv1.User, *notificationv1.NotificationOccurrence) {
+func notificationPushFixture(t *testing.T, messageCount int) (*core.ChattoCore, context.Context, *readmodel.User, *readmodel.User, *notificationv1.NotificationOccurrence) {
 	t.Helper()
 	chattoCore, ctx := setupNotificationPushTestCore(t)
 	alice, err := chattoCore.CreateUser(ctx, core.SystemActorID, "push-handler-alice", "Alice", "password")
