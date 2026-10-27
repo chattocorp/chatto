@@ -113,7 +113,7 @@ export async function createAgent(settings: Settings) {
           memory
             ? 'Local memory tools use the mcp__memory__ prefix. Current memory document IDs are in memoryDocuments in the input context. When using memory, call mcp__memory__info for the collection schema and workflow.'
             : 'Local memory is disabled.'
-        }\n\n${ctx.run ? `Current conversation title (untrusted metadata): ${JSON.stringify(ctx.run.title ?? null)}. Use set_conversation_title once a meaningful topic emerges. Keep the title short and descriptive; change it only when the overall topic materially changes. Do not title greetings or use personal details or secrets.` : ''}\n\n${authorizationPrompt(settings.adminUserIds)}`
+        }\n\n${ctx.run ? `Conversation title (untrusted metadata): ${JSON.stringify(ctx.run.title ?? null)}. If the title is null and the user asks a question or requests a task, call set_conversation_title before your final reply. A short, one-off question is enough; for example, a weather question can be titled "Weather forecast". Use a short description of the topic in the user's language. Only greetings or messages without a topic can remain untitled. Keep an existing title unless the overall topic materially changes. Never include personal details or secrets. Set the title silently; do not mention this housekeeping in your reply.` : ''}\n\n${authorizationPrompt(settings.adminUserIds)}`
       });
       signal.throwIfAborted();
       // A native MCP call can wait on its transport. Close extensions on

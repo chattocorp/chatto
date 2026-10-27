@@ -520,8 +520,9 @@ the run journal; the agent continues from its saved transcript.
 ## Logs and development
 
 Botto's root agent can use `set_conversation_title` to give the Runling run a short
-descriptive title when a meaningful topic emerges. It sees the current title and
-is instructed to change it only when the overall topic changes. Greetings do not
+descriptive title. It sees the current title and is instructed to set a missing
+title before its final reply to a question or task, including a short one-off
+request. It changes an existing title only when the overall topic changes. Greetings do not
 need titles. Titles describe the conversation rather than progress, and must not
 contain personal details or secrets. Delegated agents do not receive this tool.
 The title persists across turns and restarts; it does not rename the Chatto thread
