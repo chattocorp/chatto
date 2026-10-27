@@ -68,6 +68,187 @@ def reaction_unicode(name, emojis):
     return value
 
 
+def complete_bot_catalog(plan, users):
+    """Resolve bot senders from stable source IDs, never from display names.
+
+    Legacy integrations can have bot_id/username but no user row. Slack's
+    USLACKBOT identity can also be referenced without appearing in users.json.
+    These historical identities carry no invented emails or credentials.
+    """
+    by_id = {u["id"]: u for u in users}
+    bot_authors = {}
+
+    def bind(bot_id, user_id):
+        if not isinstance(bot_id, str) or not bot_id:
+            raise ApplyError("Invalid bot identity.")
+        previous = bot_authors.get(bot_id)
+        if previous is not None and previous != user_id:
+            raise ApplyError("Conflicting bot identity references.")
+        bot_authors[bot_id] = user_id
+
+    if any(row["source_author_id"] == "USLACKBOT" for row in plan["messages"]) and "USLACKBOT" not in by_id:
+        user = {"id": "USLACKBOT", "username": "slackbot", "display_name": "Slackbot",
+                "kind": "bot", "status": "active", "emails": []}
+        users.append(user)
+        by_id[user["id"]] = user
+    for user in plan["users"]:
+        if user.get("source_bot_id") and by_id[user["source_id"]]["kind"] == "bot":
+            bind(user["source_bot_id"], user["source_id"])
+    for row in plan["messages"]:
+        bot_id, author = row["source"].get("bot_id"), row["source_author_id"]
+        if bot_id and author in by_id and by_id[author]["kind"] == "bot":
+            bind(bot_id, author)
+    for row in plan["messages"]:
+        message = row["source"]
+        bot_id = message.get("bot_id")
+        if row["source_author_id"] or not bot_id:
+            continue
+        if not isinstance(bot_id, str):
+            raise ApplyError("Invalid bot identity.")
+        if bot_id in bot_authors:
+            continue
+        name = message.get("username") or (message.get("bot_profile") or {}).get("name")
+        if not isinstance(name, str) or not name:
+            raise ApplyError("Bot identity lacks a source display name.")
+        identity = "slack-bot:" + bot_id
+        if identity in by_id:
+            raise ApplyError("Conflicting bot catalog identity.")
+        user = {"id": identity, "username": None, "display_name": name,
+                "kind": "bot", "status": "active", "emails": []}
+        users.append(user)
+        by_id[identity] = user
+        bind(bot_id, identity)
+    return bot_authors
+
+
+def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=False,
+                      allow_missing_files=False):
+    """Scan independent source records without downloads or destination writes.
+
+    References are one-based positions in the reader's ordered message list,
+    not bodies, names, URLs, or credentials. Later archive validation remains
+    authoritative: this diagnostic scan does not prove importability.
+    """
+    report = {"version": 1, "status": "scanned", "archive_written": False,
+              "file_checks": "not_run", "blockers": [], "omissions": [],
+              "transformations": [], "reference_order": "room ID, then Slack timestamp",
+              "source_sha256": plan["archive_sha256"]}
+    groups = {}
+
+    def add(section, code, count=1, position=None):
+        key = section, code
+        if key not in groups:
+            groups[key] = {"code": code, "count": 0, "source_records": []}
+            report[section].append(groups[key])
+        item = groups[key]
+        item["count"] += count
+        if position is not None and (not item["source_records"] or item["source_records"][-1] != position):
+            item["source_records"].append(position)
+
+    issues = plan["summary"]["issues"]
+    for code in ("unhandled_archive_entries", "unsupported_lists", "unsupported_huddle_transcripts",
+                 "unsupported_file_conversations", "missing_thread_root", "invalid_thread_root"):
+        if issues.get(code):
+            add("blockers", code, issues[code])
+    add("omissions", "incomplete_source_history")
+    for code, count in (("avatars", sum(u["has_avatar"] for u in plan["users"])),
+                        ("integration_logs", plan["ignored_integration_logs"]),
+                        ("incomplete_thread_replies", issues.get("incomplete_thread_replies", 0)),
+                        ("incomplete_reaction_users", issues.get("incomplete_reaction_users", 0))):
+        if count:
+            add("omissions", code, count)
+    if plan["canvases"]:
+        add("omissions" if skip_canvases else "blockers", "canvases", len(plan["canvases"]))
+    users = [{"id": u["source_id"], "kind": "bot" if u["bot"] or u["source_id"] == "USLACKBOT" else "human"}
+             for u in plan["users"]]
+    try:
+        bots = complete_bot_catalog(plan, users)
+    except ApplyError:
+        add("blockers", "bot_identity_conflict_or_missing_metadata")
+        bots = {}
+    logins = {u["source_id"]: u["proposed_login"] or u["source_id"] for u in plan["users"]}
+    logins.update({u["id"]: u.get("display_name", u["id"]) for u in users if u["id"] not in logins})
+    channels = {r["source_id"]: r["name"] for r in plan["rooms"]}
+    emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+    unknown_names = set()
+    introduced, membership = set(), {}
+    for position, row in enumerate(plan["messages"], 1):
+        original = row["source"]
+        subtype = original.get("subtype")
+        author = row["source_author_id"] or bots.get(original.get("bot_id"))
+        if author not in logins and (subtype not in CHANNEL_NOTICES or subtype in {"channel_join", "channel_leave"}):
+            add("blockers", "unresolved_author", position=position)
+        for reaction in original.get("reactions", []):
+            try:
+                reaction_unicode(reaction["name"], emojis)
+            except ApplyError:
+                add("blockers", "unsupported_reaction_emoji", position=position)
+                unknown_names.add(reaction["name"])
+            if any(user not in logins for user in reaction.get("users", [])):
+                add("blockers", "unresolved_reactor", position=position)
+        if subtype in CHANNEL_NOTICES:
+            if original.get("blocks") or file_references(original) or original.get("attachments") or original.get("reactions"):
+                add("blockers", "channel_event_content", position=position)
+            if subtype in {"channel_join", "channel_leave"}:
+                member = row["source_channel_id"], author
+                present = subtype == "channel_join"
+                if member in membership and membership[member] == present:
+                    add("blockers", "repeated_membership_transition", position=position)
+                membership[member] = present
+                if original.get("inviter") and original["inviter"] not in logins:
+                    add("blockers", "unresolved_membership_actor", position=position)
+            field = {"channel_name": "name", "channel_topic": "topic", "channel_purpose": "purpose"}.get(subtype)
+            if field and (not isinstance(original.get(field), str) or field == "name" and not original[field]):
+                add("blockers", "channel_metadata_missing", position=position)
+            continue
+        root = row["thread_root_key"]
+        if root and root != row["source_key"] and root not in introduced:
+            add("blockers", "thread_root_not_before_reply", position=position)
+        introduced.add(row["source_key"])
+        message = copy.deepcopy(original)
+        references = file_references(message)
+        message["files"] = []
+        attachments = []
+        for attachment in message.get("attachments", []):
+            had_files = bool(attachment.get("files"))
+            attachment["files"] = []
+            if not (had_files and set(attachment) <= {"files", "id"}):
+                attachments.append(attachment)
+        message["attachments"] = attachments
+        mentions = literal_mentions(message.get("blocks", []))
+        if mentions:
+            add("transformations", "literal_user_mentions", mentions, position)
+        if attachments:
+            add("transformations" if allow_attachment_summaries else "blockers",
+                "attachment_summaries", position=position)
+        if original.get("subtype") == "thread_broadcast":
+            add("transformations", "thread_broadcast_without_channel_echo", position=position)
+        if original.get("subtype") == "tombstone" and references:
+            add("blockers", "tombstone_content", position=position)
+        try:
+            convert(message, logins, False, allow_attachment_summaries, channels, bool(references))
+        except ApplyError:
+            add("blockers", "unsupported_message_content", position=position)
+    report["unsupported_emoji_names"] = len(unknown_names)
+    try:
+        inventory = file_inventory(plan)
+        report["source_assets"] = len(inventory)
+        for item in inventory.values():
+            mode = item.get("mode")
+            reason = None
+            if mode == "hidden_by_limit":
+                reason = "files_hidden_by_limit"
+            elif mode == "tombstone":
+                reason = "files_deleted"
+            elif item.get("is_external") or mode == "external" or item.get("filetype") == "remote":
+                reason = "external_files"
+            if reason:
+                add("omissions" if allow_missing_files else "blockers", reason)
+    except ApplyError:
+        add("blockers", "conflicting_file_metadata")
+    return report
+
+
 def build_archive(plan, downloads=None, *, allow_missing_files=False,
                   allow_attachment_summaries=False, skip_canvases=False):
     """Build portable records and a file-copy list. Never call a destination API.
@@ -97,6 +278,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                       "kind": "bot" if u["bot"] or u["source_id"] == "USLACKBOT" else "human",
                       "status": "deactivated" if u["deactivated"] else "active",
                       "emails": [email] if email else []})
+    bot_authors = complete_bot_catalog(plan, users)
     logins = {u["id"]: u["username"] or u["display_name"] for u in users}
     rooms = [{"id": r["source_id"], "kind": "channel", "name": r["name"], "topic": text(r["topic"]),
               "purpose": text(r["purpose"]), "visibility": "private" if r.get("private") else "public", "archived": r["archived"]}
@@ -137,6 +319,8 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
         event = {"id": "event:" + key, "room_id": room, "actor_id": None,
                  "occurred_at": None}
         author = row["source_author_id"]
+        if not author and original.get("bot_id"):
+            author = bot_authors.get(original["bot_id"])
         if subtype in CHANNEL_NOTICES:
             if original.get("blocks") or file_references(original) or original.get("attachments") or original.get("reactions"):
                 raise ApplyError("Channel event contains unsupported message content.")
@@ -304,6 +488,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--report", type=Path, help="new report file; default: OUTPUT.conversion-report.json")
+    parser.add_argument("--report-only", action="store_true", help="scan source gaps without downloads or archive creation")
     credentials = parser.add_mutually_exclusive_group()
     credentials.add_argument("--slack-token-file", type=Path)
     credentials.add_argument("--slack-token-stdin", action="store_true")
@@ -319,6 +505,10 @@ def main():
         parser.error("size limits must be positive")
     if args.skip_files and not args.allow_missing_files:
         parser.error("--skip-files requires --allow-missing-files")
+    report = {"version": 1, "status": "failed", "archive_written": False,
+              "file_checks": "not_run", "blockers": [], "omissions": [], "transformations": []}
+    report_file = None
+    stage = "setup"
     try:
         if args.output.exists() or args.output.is_symlink():
             raise ApplyError("Output already exists; use a new output directory.")
@@ -327,30 +517,72 @@ def main():
         if args.archive.is_dir() and args.output.resolve().is_relative_to(args.archive.resolve()):
             if not args.output.resolve().is_relative_to(source.progress_directory(args.archive)):
                 raise ApplyError("Output inside the source must be below .chatto-import/.")
+        report_path = args.report or args.output.with_name(args.output.name + ".conversion-report.json")
+        if report_path.resolve().is_relative_to(args.output.resolve()):
+            raise ApplyError("Report must be outside the archive output directory.")
+        if args.archive.is_dir() and report_path.resolve().is_relative_to(args.archive.resolve()):
+            if not report_path.resolve().is_relative_to(source.progress_directory(args.archive)):
+                raise ApplyError("Report inside the source must be below .chatto-import/.")
+        report_file = os.fdopen(os.open(report_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w")
+        stage = "source_read"
         plan = source.read_export(args.archive, args.max_source_mib * 1024**2,
                                   include_slack_identity=True, include_interchange=True)
+        stage = "account_enrichment"
         if args.slack_token_file or args.slack_token_stdin:
             enrich_users(plan, SlackAPI(read_token(args.slack_token_file, sys.stdin)))
+        stage = "source_scan"
+        report = conversion_report(plan, allow_attachment_summaries=args.allow_attachment_summaries,
+                                   skip_canvases=args.skip_canvases, allow_missing_files=args.allow_missing_files)
+        if report["blockers"]:
+            report["status"] = "blocked"
+            print("Conversion blocked; see conversion report.", file=sys.stderr)
+            return 1
+        if args.report_only:
+            return 0
         # Reject content and reference gaps before potentially expensive downloads.
+        stage = "archive_validation"
         build_archive(plan, allow_missing_files=True,
                       allow_attachment_summaries=args.allow_attachment_summaries, skip_canvases=args.skip_canvases)
         downloads = None
+        stage = "file_downloads"
         if not args.skip_files and file_inventory(plan):
             downloads = FileImports(plan, FileCache(source.progress_directory(args.archive),
                 args.max_file_mib * 1024**2, args.max_download_mib * 1024**2))
+        report["file_checks"] = "skipped" if args.skip_files else "complete"
+        if downloads:
+            report["file_failures"] = dict(collections.Counter(downloads.failures.values()))
+        stage = "archive_validation"
         records, copies = build_archive(plan, downloads, allow_missing_files=args.allow_missing_files,
             allow_attachment_summaries=args.allow_attachment_summaries, skip_canvases=args.skip_canvases)
+        report["archive_omissions"] = records["manifest"]["omissions"]
+        stage = "archive_write"
         write_archive(args.output, records, copies)
+        report.update(status="complete", archive_written=True)
         print(json.dumps({"users": len(records["users"]), "rooms": len(records["rooms"]),
                           "events": len(records["events"]), "assets": len(records["assets"]),
                           "file_bytes": sum(item["size"] for item in copies.values()),
                           "omissions": len(records["manifest"]["omissions"])}))
         return 0
     except (ApplyError, source.InvalidExport) as error:
+        report["status"] = "failed"
+        report["blockers"].append({"code": stage + "_failed", "count": 1, "source_records": []})
         print(str(error), file=sys.stderr)
     except Exception:
+        report["status"] = "failed"
+        report["blockers"].append({"code": stage + "_failed", "count": 1, "source_records": []})
         # Library exceptions can contain source names, URLs or credentials.
         print("Slack conversion failed. No source details are logged; incomplete output and download cache were retained.", file=sys.stderr)
+    finally:
+        if report_file is not None:
+            try:
+                with report_file:
+                    json.dump(report, report_file, indent=2, allow_nan=False)
+                    report_file.write("\n")
+                    report_file.flush()
+                    os.fsync(report_file.fileno())
+            except OSError:
+                print("Could not finish conversion report.", file=sys.stderr)
+                return 1
     return 1
 
 

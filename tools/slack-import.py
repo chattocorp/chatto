@@ -151,6 +151,8 @@ def read_export(path, max_bytes=256 * 1024 * 1024, include_slack_identity=False,
         })
         if include_slack_identity:
             planned_users[-1]["source_email"] = profile.get("email")
+        if include_interchange:
+            planned_users[-1]["source_bot_id"] = profile.get("bot_id")
         if user.get("deleted"):
             issues["deactivated_user_policy"] += 1
         if user.get("is_bot") or user.get("is_app_user"):
@@ -255,6 +257,8 @@ def read_export(path, max_bytes=256 * 1024 * 1024, include_slack_identity=False,
     known = {"users.json", "channels.json", "canvases.json", ".slack-manifest.json",
              "integration_logs.json", "lists.json", "huddle_transcripts.json", "file_conversations.json"}
     unhandled = sorted(set(filenames) - consumed - known)
+    if include_interchange:
+        unhandled = [name for name in unhandled if Path(name).name != ".DS_Store"]
     if unhandled:
         issues["unhandled_archive_entries"] = len(unhandled)
     for name in ("lists.json", "huddle_transcripts.json", "file_conversations.json"):

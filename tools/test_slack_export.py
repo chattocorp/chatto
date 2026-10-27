@@ -75,6 +75,117 @@ class SlackArchiveTests(unittest.TestCase):
         changed, _ = exporter.build_archive(self.plan())
         self.assertNotEqual(records["manifest"]["export_id"], changed["manifest"]["export_id"])
 
+    def test_source_bot_identities_complete_catalog(self):
+        rows = self.data["general/2020-01-01.json"]
+        rows[1].update(user="USLACKBOT", bot_id="B1", subtype="slackbot_response")
+        rows[3]["user"] = "USLACKBOT"
+        rows[2].pop("user")
+        rows[2].update(bot_id="B2", username="Legacy integration", subtype="bot_message")
+        records, _ = exporter.build_archive(self.plan())
+        validate_records(records)
+        bots = {u["id"]: u for u in records["users"] if u["kind"] == "bot"}
+        self.assertEqual(set(bots), {"USLACKBOT", "slack-bot:B2"})
+        self.assertEqual(bots["slack-bot:B2"]["display_name"], "Legacy integration")
+        self.assertTrue(all(not bot["emails"] for bot in bots.values()))
+        self.assertEqual(records, exporter.build_archive(self.plan())[0])
+
+    def test_bot_profile_reuses_existing_account(self):
+        self.data["users.json"][1].update(is_bot=True, deleted=True, profile={"bot_id": "B2"})
+        row = self.data["general/2020-01-01.json"][2]
+        row.pop("user")
+        row.update(bot_id="B2", username="Bot name", subtype="bot_message")
+        records, _ = exporter.build_archive(self.plan())
+        validate_records(records)
+        self.assertEqual(len(records["users"]), 2)
+        self.assertEqual(records["users"][1]["status"], "deactivated")
+
+    def test_conflicting_bot_references_fail(self):
+        for user in self.data["users.json"]:
+            user.update(is_bot=True, profile={"bot_id": "B1"})
+        with self.assertRaisesRegex(ApplyError, "Conflicting bot identity"):
+            exporter.build_archive(self.plan())
+
+    def test_finder_metadata_is_ignored_but_other_entries_fail(self):
+        self.plan()
+        for parent in (self.source, self.source / "general"):
+            (parent / ".DS_Store").write_bytes(b"Finder metadata")
+        records, _ = exporter.build_archive(self.plan())
+        validate_records(records)
+        (self.source / "unknown.bin").write_bytes(b"Unknown")
+        with self.assertRaisesRegex(ApplyError, "unsupported records"):
+            exporter.build_archive(self.plan())
+
+    def test_report_collects_independent_gaps_without_source_content(self):
+        rows = self.data["general/2020-01-01.json"]
+        rows[1]["reactions"] = [{"name": "private_custom_name", "users": ["U2"], "count": 1}]
+        rows[2]["blocks"] = [{"type": "unsupported_private_block"}]
+        rows[2]["text"] = "private message body"
+        report = exporter.conversion_report(self.plan())
+        blockers = {item["code"]: item for item in report["blockers"]}
+        self.assertEqual(blockers["unsupported_reaction_emoji"]["source_records"], [2])
+        self.assertEqual(blockers["unsupported_message_content"]["source_records"], [3])
+        self.assertEqual(report["unsupported_emoji_names"], 1)
+        self.assertNotIn("private", json.dumps(report))
+        self.assertNotIn("alice", json.dumps(report))
+
+    def test_failed_conversion_writes_private_report_without_archive(self):
+        self.data["general/2020-01-01.json"][1]["reactions"][0]["name"] = "custom"
+        self.plan()
+        output = self.root / "output"
+        report = self.root / "output.conversion-report.json"
+        with patch.object(sys, "argv", ["slack-export.py", str(self.source), "--output", str(output)]), \
+                patch.object(exporter, "FileCache") as cache, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(exporter.main(), 1)
+            cache.assert_not_called()
+        data = json.loads(report.read_text())
+        self.assertEqual(data["status"], "blocked")
+        self.assertFalse(data["archive_written"])
+        self.assertFalse(output.exists())
+        self.assertEqual(report.stat().st_mode & 0o777, 0o600)
+
+    def test_report_only_does_not_download_or_claim_archive_validation(self):
+        self.with_file()
+        self.plan()
+        output = self.root / "output"
+        report = self.root / "conversion-report.json"
+        args = ["slack-export.py", str(self.source), "--output", str(output), "--report", str(report), "--report-only"]
+        with patch.object(sys, "argv", args), patch.object(exporter, "FileCache") as cache:
+            self.assertEqual(exporter.main(), 0)
+            cache.assert_not_called()
+        data = json.loads(report.read_text())
+        self.assertEqual(data["status"], "scanned")
+        self.assertEqual(data["file_checks"], "not_run")
+        self.assertFalse(output.exists())
+        before = report.read_bytes()
+        with patch.object(sys, "argv", args), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(exporter.main(), 1)
+        self.assertEqual(report.read_bytes(), before)
+
+    def test_source_read_failure_still_has_report(self):
+        output = self.root / "output"
+        with patch.object(sys, "argv", ["slack-export.py", str(self.source), "--output", str(output)]), \
+                contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(exporter.main(), 1)
+        report = json.loads((self.root / "output.conversion-report.json").read_text())
+        self.assertEqual(report["blockers"][0]["code"], "source_read_failed")
+
+    def test_report_channel_metadata_and_membership_checks(self):
+        rows = self.data["general/2020-01-01.json"]
+        rows[-1].pop("user")  # Channel metadata permits an unknown actor.
+        report = exporter.conversion_report(self.plan())
+        self.assertEqual(report["blockers"], [])
+        rows[-1].pop("topic")
+        rows.append(dict(rows[0], ts="1577836806.000000"))
+        report = exporter.conversion_report(self.plan())
+        self.assertEqual({b["code"] for b in report["blockers"]},
+                         {"channel_metadata_missing", "repeated_membership_transition"})
+
+    def test_report_known_file_losses_follow_selected_policy(self):
+        self.data["general/2020-01-01.json"][1]["files"] = [{"id": "F1", "mode": "hidden_by_limit"}]
+        for allow, section in ((False, "blockers"), (True, "omissions")):
+            report = exporter.conversion_report(self.plan(), allow_missing_files=allow)
+            self.assertIn("files_hidden_by_limit", {r["code"] for r in report[section]})
+
     def with_file(self):
         item = {"id": "F1", "name": "hello.txt", "mimetype": "text/plain", "size": 5,
                 "url_private_download": "https://files.slack.com/private?token=do-not-copy"}
@@ -157,6 +268,10 @@ class SlackArchiveTests(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()) as stdout:
             self.assertEqual(exporter.main(), 0)
         self.assertEqual(json.loads(stdout.getvalue())["events"], 7)
+        report = json.loads((progress / "archive.conversion-report.json").read_text())
+        self.assertEqual(report["status"], "complete")
+        self.assertTrue(report["archive_written"])
+        self.assertEqual(report["archive_omissions"], json.loads((output / "manifest.json").read_text())["omissions"])
         # Output under the reserved directory does not change source identity.
         self.assertEqual(json.loads((output / "manifest.json").read_text())["export_id"],
                          exporter.build_archive(self.plan())[0]["manifest"]["export_id"])
@@ -220,6 +335,7 @@ class SlackArchiveTests(unittest.TestCase):
         self.plan()
         legacy = exporter.source.read_export(self.source, include_slack_identity=True)
         self.assertNotIn("private", legacy["rooms"][0])
+        self.assertNotIn("source_bot_id", legacy["users"][0])
 
 
 if __name__ == "__main__":

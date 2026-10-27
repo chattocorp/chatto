@@ -18,6 +18,32 @@ restrictions, size limits, bounded retries, and checksum validation. Use
 per file and 1024 MiB of download traffic per run. Cached files are reused.
 It does not use the Slack app token to download files.
 
+## Inspect conversion gaps
+
+Each run writes a private report beside the archive, at
+`OUTPUT.conversion-report.json`. Use `--report PATH` to select another new file.
+Existing reports are never overwritten. The report must be outside the output
+archive and, if inside the source directory, below `.chatto-import/`.
+
+Use `--report-only` to scan source records without downloading files or writing
+an archive. The report groups blockers, planned omissions, and transformations
+with counts. `source_records` contains one-based message positions in reader
+order: room ID, then Slack timestamp. It contains no message bodies, account
+names, emoji names, download URLs, or credentials. Keep the report private.
+
+The scan collects independent content, reaction, identity, and file-metadata
+gaps instead of stopping at the first such gap. It does not prove that an
+archive can be imported. File downloads, full archive validation, and destination
+checks can find additional errors. `file_checks` distinguishes checks not run
+from completed checks. Later failures record the failed stage. Failures before
+the report file can be created cannot produce a report.
+
+A blocked run returns a nonzero exit code and writes no archive. A successful
+report-only run has status `scanned`; a completed conversion has status
+`complete` and `archive_written: true`. The report of a completed conversion
+also includes the exact `archive_omissions` from the manifest. The manifest
+remains the authoritative record of losses in the completed archive.
+
 The converter reads source metadata in place. It never extracts ZIP entries.
 Metadata parsing uses memory, with a default uncompressed source limit of
 256 MiB; change it with `--max-source-mib`. Original files are copied from the
@@ -59,6 +85,12 @@ Source user IDs, usernames, display names, emails, bot status, and deactivation
 state are retained. The converter does not rename accounts or merge identities.
 Chatto performs email matching during import. Source channel names, visibility,
 topic, purpose, and archived status are retained separately.
+
+When messages refer to Slackbot without a user catalog entry, the converter adds
+its standard Slack identity. Legacy integrations without a user entry use their
+bot ID and source display name. These bot entries have no invented email address.
+Existing bot accounts are matched by their source bot ID. Finder `.DS_Store`
+files are ignored.
 
 Use `--slack-token-file PATH` or `--slack-token-stdin` to add missing emails from
 Slack. See [Slack app setup](slack-import.md#obtain-account-emails-from-slack).
@@ -102,7 +134,7 @@ unresolved references, unsupported blocks, and ambiguous history stop conversion
 
 Avatars, integration logs, and thread-broadcast channel echoes are declared
 omissions. Missing exported replies and incomplete reactor lists are reported
-as history omissions. No missing users or thread roots are fabricated.
+as history omissions. Unknown human users and missing thread roots stop conversion.
 
 ## Import the result
 
