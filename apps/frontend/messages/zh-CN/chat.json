@@ -31,12 +31,6 @@
         "room_invitation": "{actor} 邀请你加入房间"
       }
     },
-    "sign_out": {
-      "title": "退出登录",
-      "current_server": "当前服务器",
-      "all_servers": "所有服务器",
-      "description": "仅退出所选服务器，或断开此客户端与所有服务器的连接。"
-    },
     "overview": {
       "title": "概览"
     },

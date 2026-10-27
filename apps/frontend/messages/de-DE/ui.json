@@ -7,7 +7,6 @@
     "realtime_paused": "Echtzeitaktualisierungen pausiert. Verbindung wird wiederhergestellt...",
     "update_available": "Eine neue Version ist verfügbar",
     "reload": "Neu laden",
-    "sign_out": "Abmelden",
     "close": "Schließen",
     "auth_status": {
       "origin_title": "Sitzung abgelaufen",

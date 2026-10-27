@@ -141,7 +141,7 @@ test.describe('supported release baseline', () => {
       await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1\//);
       await roomPage.expectMessageVisible(sentMessage);
       await roomPage.expectMessageVisible(receivedMessage);
-      await expect(page.getByTitle('Sign out')).toBeVisible();
+      await expect(page.locator('a[href$="/settings"]')).toBeVisible();
     } finally {
       if (remoteServer) {
         await stopServer(remoteServer);
