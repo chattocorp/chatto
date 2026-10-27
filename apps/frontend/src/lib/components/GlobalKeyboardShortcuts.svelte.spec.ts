@@ -132,7 +132,7 @@ describe('global keyboard shortcuts', () => {
       expect(dialog.textContent).toContain('Go to next unread source');
       expect(draft.value).toBe('Keep my draft');
       const close = [...dialog.querySelectorAll('button')].find(
-        (button) => button.textContent?.trim() === 'Close'
+        (button) => button.getAttribute('aria-label') === 'Close'
       )!;
       close.click();
       await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
@@ -158,7 +158,7 @@ describe('global keyboard shortcuts', () => {
     };
     const close = async (dialog: Element) => {
       [...dialog.querySelectorAll('button')]
-        .find((button) => button.textContent?.trim() === 'Close')!
+        .find((button) => button.getAttribute('aria-label') === 'Close')!
         .click();
       await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
     };

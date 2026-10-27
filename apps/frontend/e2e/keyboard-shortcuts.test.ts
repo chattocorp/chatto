@@ -41,8 +41,22 @@ test('shortcut help preserves editor text, selection, and focus', async ({
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
 
   await page.keyboard.press('ControlOrMeta+k');
+  const paletteStyle = await page.locator('dialog[open] .command-palette').evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { width: style.width, font: style.font, padding: style.padding };
+  });
   await page.getByRole('button', { name: 'Keyboard shortcuts', exact: true }).click();
   await expect(dialog).toBeVisible();
+  expect(
+    await dialog.locator('.command-palette').evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        width: style.width,
+        font: style.font,
+        padding: style.padding
+      };
+    })
+  ).toEqual(paletteStyle);
   await expect(dialog.getByText('Go to next unread source', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).not.toBeVisible();
