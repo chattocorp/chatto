@@ -5118,7 +5118,7 @@ var File_chatto_core_projection_v1_projection_snapshots_proto protoreflect.FileD
 
 const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\n" +
-	"4chatto/core/projection/v1/projection_snapshots.proto\x12\x19chatto.core.projection.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a\x1echatto/core/evt/v1/event.proto\x1a\x1fchatto/core/evt/v1/models.proto\x1a,chatto/core/evt/v1/notification_policy.proto\x1a.chatto/core/notification/v1/notification.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a)chatto/core/evt/v1/user_preferences.proto\"\xd2\x03\n" +
+	"4chatto/core/projection/v1/projection_snapshots.proto\x12\x19chatto.core.projection.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a\x1echatto/core/evt/v1/event.proto\x1a%chatto/core/evt/v1/event_values.proto\x1a,chatto/core/evt/v1/notification_policy.proto\x1a.chatto/core/notification/v1/notification.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a)chatto/core/evt/v1/user_preferences.proto\"\xd2\x03\n" +
 	"\x1cProjectionSnapshotGeneration\x12#\n" +
 	"\rgeneration_id\x18\x01 \x01(\tR\fgenerationId\x12\x1f\n" +
 	"\vstream_name\x18\x02 \x01(\tR\n" +

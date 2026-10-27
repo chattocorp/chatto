@@ -1,31 +1,34 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isReadModelDeletion } from './check-storage-proto-breaking.mjs';
+import { isReviewedStorageRelocation } from './check-storage-proto-breaking.mjs';
 
-test('read-model exception accepts only the reviewed deletions', () => {
-  const deletion = {
-    path: 'chatto/core/evt/v1/models.proto',
-    type: 'MESSAGE_NO_DELETE',
-    message: 'Previously present message "Room" was deleted from file.'
+test('storage exceptions accept only the reviewed file and field relocations', () => {
+  const file = {
+    type: 'FILE_NO_DELETE',
+    message: 'Previously present file "chatto/core/evt/v1/models.proto" was deleted.'
   };
-  for (const name of ['Role', 'Room', 'RoomMembership', 'RoomNotice', 'User']) {
-    assert.equal(
-      isReadModelDeletion({
-        ...deletion,
-        message: `Previously present message "${name}" was deleted from file.`
-      }),
-      true
-    );
-  }
+  const field = {
+    path: 'chatto/core/runtime_state/v1/legacy_state.proto',
+    type: 'FIELD_SAME_TYPE',
+    message:
+      'Field "1" with name "legacy_sections" on message "RoomLayout" changed type from "chatto.core.evt.v1.RoomGroup" to "chatto.core.runtime_state.v1.RoomGroup".'
+  };
+  assert.equal(isReviewedStorageRelocation(file), true);
+  assert.equal(isReviewedStorageRelocation(field), true);
   for (const diagnostic of [
-    { ...deletion, path: 'chatto/api/v1/rooms.proto' },
-    { ...deletion, type: 'FIELD_NO_DELETE' },
-    { ...deletion, message: 'Previously present message "RoomGroup" was deleted from file.' },
-    { ...deletion, message: 'Previously present message "SidebarLink" was deleted from file.' },
-    { ...deletion, message: 'Previously present message "Event" was deleted from file.' },
-    { ...deletion, message: 'Unexpected Buf output' }
+    { ...file, path: 'chatto/core/evt/v1/event.proto' },
+    { ...file, message: 'Previously present file "chatto/core/evt/v1/event.proto" was deleted.' },
+    { ...file, type: 'MESSAGE_NO_DELETE' },
+    { ...field, path: 'chatto/api/v1/rooms.proto' },
+    { ...field, type: 'FIELD_NO_DELETE' },
+    { ...field, message: field.message.replace('Field "1"', 'Field "2"') },
+    {
+      ...field,
+      message: field.message.replace('runtime_state.v1.RoomGroup', 'runtime_state.v1.SidebarLink')
+    },
+    { ...field, message: 'Unexpected Buf output' }
   ]) {
-    assert.equal(isReadModelDeletion(diagnostic), false);
+    assert.equal(isReviewedStorageRelocation(diagnostic), false);
   }
 });

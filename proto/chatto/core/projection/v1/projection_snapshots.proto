@@ -5,7 +5,7 @@ package chatto.core.projection.v1;
 import "google/protobuf/timestamp.proto";
 import "chatto/core/evt/v1/asset_events.proto";
 import "chatto/core/evt/v1/event.proto";
-import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/event_values.proto";
 import "chatto/core/evt/v1/notification_policy.proto";
 import "chatto/core/notification/v1/notification.proto";
 import "chatto/core/evt/v1/rbac_events.proto";

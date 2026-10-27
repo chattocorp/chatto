@@ -2,26 +2,25 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// These runtime-only messages were removed by the read-model split (ADR-084).
-// The historical stored-schema fixtures must pass before this exception applies.
-// Keep all other changes in models.proto subject to the normal Buf checks.
-const removedReadModels = new Set(['Role', 'Room', 'RoomMembership', 'RoomNotice', 'User']);
+// ADR-084 renames the event-value file and relocates the retained RoomLayout
+// values to runtime_state. Historical and current-main descriptor fixtures must
+// pass first; they check the stored fields even when Buf sees a deleted file.
+const oldEventValuesPath = 'chatto/core/evt/v1/models.proto';
 
 /**
- * Accept only the exact source deletions from the internal read-model split.
- * @param {{path: string, type: string, message: string}} diagnostic Buf diagnostic.
+ * Accept only the two reviewed source changes from the storage-contract cleanup.
+ * @param {{path?: string, type: string, message: string}} diagnostic Buf diagnostic.
  */
-export function isReadModelDeletion(diagnostic) {
-  if (
-    diagnostic.path !== 'chatto/core/evt/v1/models.proto' ||
-    diagnostic.type !== 'MESSAGE_NO_DELETE'
-  ) {
-    return false;
-  }
-  const match = /^Previously present message "([^"]+)" was deleted from file\.$/.exec(
-    diagnostic.message
+export function isReviewedStorageRelocation(diagnostic) {
+  return (
+    (diagnostic.type === 'FILE_NO_DELETE' &&
+      (diagnostic.path === undefined || diagnostic.path === oldEventValuesPath) &&
+      diagnostic.message === `Previously present file "${oldEventValuesPath}" was deleted.`) ||
+    (diagnostic.path === 'chatto/core/runtime_state/v1/legacy_state.proto' &&
+      diagnostic.type === 'FIELD_SAME_TYPE' &&
+      diagnostic.message ===
+        'Field "1" with name "legacy_sections" on message "RoomLayout" changed type from "chatto.core.evt.v1.RoomGroup" to "chatto.core.runtime_state.v1.RoomGroup".')
   );
-  return match !== null && removedReadModels.has(match[1]);
 }
 
 function runCompatibilityTest(repoDir) {
@@ -86,10 +85,10 @@ function main() {
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
-    const failures = diagnostics.filter((diagnostic) => !isReadModelDeletion(diagnostic));
+    const failures = diagnostics.filter((diagnostic) => !isReviewedStorageRelocation(diagnostic));
     for (const diagnostic of diagnostics) {
-      if (isReadModelDeletion(diagnostic)) {
-        console.log(`Accepted internal read-model deletion: ${diagnostic.message}`);
+      if (isReviewedStorageRelocation(diagnostic)) {
+        console.log(`Accepted storage-contract relocation: ${diagnostic.message}`);
       }
     }
     for (const diagnostic of failures) console.error(JSON.stringify(diagnostic));

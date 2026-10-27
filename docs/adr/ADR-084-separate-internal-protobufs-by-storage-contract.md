@@ -62,11 +62,19 @@ in the surrounding profile snapshot.
 
 The former EVT `Room`, `RoomNotice`, `RoomMembership`, `User`, and `Role`
 messages have no supported durable storage dependency and are removed. The
-storage check accepts only these five source deletions after the historical
-compatibility fixtures pass. `RoomGroup` and `SidebarLink` stay in their existing
-EVT file for retained `RoomLayout` decoding. `SidebarGroupEntry` remains an EVT
-value because sidebar reorder events contain it. Current layout models and
-snapshots do not use the retained legacy group or link records.
+remaining event-owned values live in `evt/v1/event_values.proto`, which replaces
+the generic `models.proto` file without changing their protobuf full names.
+`RoomGroup` and `SidebarLink` move to `runtime_state/v1/legacy_state.proto`, beside
+their retained `RoomLayout` owner. Their field numbers and wire shapes stay the
+same. `SidebarGroupEntry` remains an EVT value because sidebar reorder events
+contain it. Current layout models and snapshots do not use the legacy records.
+
+The storage check accepts only the old file deletion and the exact relocated
+type reference on `RoomLayout.legacy_sections`. Before applying these exceptions,
+it tests the historical fixtures and a descriptor fixture from main at
+`25716bf633`. The latter covers current event and legacy-layout fields, including
+field and enum names, and decodes and re-encodes representative payloads without
+changing their bytes. No fixture is rewritten to permit the relocation.
 
 The read-model split changes the Room Directory, Room Group Layout, RBAC, and
 User Profile snapshot schemas. It also changes composite contracts that reach
