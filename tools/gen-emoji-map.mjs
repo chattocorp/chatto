@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Generates cli/internal/core/emoji_gen.go from the gemoji npm package.
+ * Generates cli/internal/core/emoji_gen.go and tools/emoji-map.json from gemoji.
  * This ensures the Go backend uses the same emoji data as the frontend,
  * preventing version mismatches where newer emojis work in the picker
  * but fail validation on the backend.
@@ -53,4 +53,9 @@ ${goEntries.join('\n')}
 `;
 
 writeFileSync(outputPath, goSource);
+// Python platform converters use the same names without parsing Go source.
+writeFileSync(
+  resolve(__dirname, 'emoji-map.json'),
+  JSON.stringify(Object.fromEntries(entries), null, 2) + '\n'
+);
 console.log(`Generated ${outputPath} with ${entries.length} emoji entries`);

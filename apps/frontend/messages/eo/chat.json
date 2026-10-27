@@ -31,12 +31,6 @@
         "room_invitation": "{actor} invitis vin al ĉambro"
       }
     },
-    "sign_out": {
-      "title": "Eliru",
-      "current_server": "Nuna Servilo",
-      "all_servers": "Ĉiuj Serviloj",
-      "description": "Elsaluti nur de la elektita servilo, aŭ malkonekti ĉiun servilon de ĉi tiu kliento."
-    },
     "overview": {
       "title": "Superrigardo"
     },

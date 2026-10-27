@@ -31,12 +31,6 @@
         "room_invitation": "{actor} vous a invité dans un salon"
       }
     },
-    "sign_out": {
-      "title": "Se déconnecter",
-      "current_server": "Serveur actuel",
-      "all_servers": "Tous les serveurs",
-      "description": "Déconnectez-vous uniquement du serveur sélectionné ou déconnectez tous les serveurs de ce client."
-    },
     "overview": {
       "title": "Présentation"
     },

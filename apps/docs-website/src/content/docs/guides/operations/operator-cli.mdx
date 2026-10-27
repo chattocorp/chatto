@@ -38,26 +38,34 @@ chatto operator import ./archive --accept-omissions \
   --channel-prefix old- --username-suffix -imported
 ```
 
-Validation checks local files and destination compatibility without writes.
+Validation checks local files and destination compatibility without server writes.
 The server must be running with the Operator API enabled. Both commands use the
 same naming options. Channel and username prefixes and suffixes are optional;
 defaults preserve source names. Invalid names and collisions stop validation.
 
-Start with a destination that has no messages. Existing accounts are permitted.
-Existing empty channels are permitted if their names do not collide. Keep the
-destination unused until import completes. To resume after a failure, repeat
-the command with the same archive and options. Progress is stored on the server
-without an expiry. Changed input cannot resume an existing import. Unrelated
-server changes stop an unfinished import. A completed import can be repeated
-without duplicates.
+The importer creates new channels; it does not merge existing channel history.
+Keep imported channels unused until completion. To resume after a failure,
+repeat the command with the same archive and options. The CLI saves a private
+progress journal in your user cache directory. Use `--progress PATH` to select
+another file. Preserve the journal for retries, including after completion.
+Changed input cannot use the same journal. Do not reuse a journal with a
+replacement server at the same socket path. The journal contains IDs and hashes,
+not message bodies or copies of files. The CLI sends individual resource
+requests to the Operator API; it does not send the archive as one request.
 
 The first version supports public channels, active human users, known message
 creation times, and available local files. New accounts require usernames.
 It preserves edits, threads, reactions, tombstone snapshots, and membership
-history. Final membership does not create invented join notices. Files must
-belong to one message; original bytes are stored without starting derivative
-media processing. Unsupported data fails validation. The initial limits are
-64 MiB total, 20,000 JSON records, and 1 MiB per record.
+history. Final membership does not create invented join notices. Shared source
+files are uploaded separately for each message. Uploads use normal server media
+processing and per-file policies. Unsupported record types fail validation;
+server policy or media errors can still stop a partial import. No automatic
+rollback occurs. There is no total archive size or record-count limit. The CLI
+streams event bodies and file bytes, but keeps reference indexes in memory.
+One JSON record is limited to 1 MiB. Normal upload expiry still applies.
+
+The old archive RPC is removed. Update the CLI and server together. Local
+journals cannot resume imports that used the old server-side archive progress.
 
 Email addresses match existing accounts after trimming whitespace and ignoring
 case. Matched accounts keep their usernames, profiles, and credentials; naming

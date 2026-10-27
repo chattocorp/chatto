@@ -31,12 +31,6 @@
         "room_invitation": "{actor} 邀請你加入房間"
       }
     },
-    "sign_out": {
-      "title": "登出",
-      "current_server": "目前的伺服器",
-      "all_servers": "所有伺服器",
-      "description": "僅登出所選伺服器，或中斷此用戶端與所有伺服器的連線。"
-    },
     "overview": {
       "title": "總覽"
     },

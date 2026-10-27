@@ -1,5 +1,9 @@
 # Import a Slack export
 
+For new migrations, use the [portable Slack converter](slack-export.md), then
+`chatto operator import`. This direct importer remains available for existing
+runs and recovery journals.
+
 Import a Slack ZIP or extracted directory into a **blank Chatto instance** through its local operator
 socket. Python 3.11 or later is required; there are no external dependencies.
 The server must support historical threads, reactions, and import idempotency keys.
@@ -284,7 +288,7 @@ avatar import remain separate work.
 ## Tests
 
 ```sh
-mise x -- python3 -B -m unittest discover -s tools -p 'test_slack*.py'
+mise test-slack
 mise x -- pnpm --dir apps/frontend exec tsx ../../tools/test-slack-markdown.mjs
 ```
 

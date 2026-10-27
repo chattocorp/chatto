@@ -8,7 +8,6 @@ type RoomModalTarget = {
 
 /** The complete set of shallow-routed global modals and their required payloads. */
 export type ChatModal =
-  | { type: 'logout' }
   | { type: 'aboutChatto' }
   | { type: 'addServer' }
   | { type: 'motd'; motd: string }

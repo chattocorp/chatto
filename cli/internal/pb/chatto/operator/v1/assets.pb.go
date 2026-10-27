@@ -37,7 +37,9 @@ type CreateUploadRequest struct {
 	// Total file size in bytes.
 	Size int64 `protobuf:"varint,5,opt,name=size,proto3" json:"size,omitempty"`
 	// SHA-256 of the complete file, in lowercase hexadecimal.
-	Sha256        string `protobuf:"bytes,6,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Sha256 string `protobuf:"bytes,6,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	// Permit upload into an archived channel when importing historical content.
+	Historical    bool `protobuf:"varint,7,opt,name=historical,proto3" json:"historical,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -112,6 +114,13 @@ func (x *CreateUploadRequest) GetSha256() string {
 		return x.Sha256
 	}
 	return ""
+}
+
+func (x *CreateUploadRequest) GetHistorical() bool {
+	if x != nil {
+		return x.Historical
+	}
+	return false
 }
 
 // State of the new operator upload.
@@ -467,14 +476,17 @@ var File_chatto_operator_v1_assets_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_assets_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/operator/v1/assets.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/asset_uploads.proto\"\xf1\x01\n" +
+	"\x1fchatto/operator/v1/assets.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/asset_uploads.proto\"\x91\x02\n" +
 	"\x13CreateUploadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12$\n" +
 	"\tauthor_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bauthorId\x12#\n" +
 	"\bfilename\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bfilename\x12!\n" +
 	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12\x1b\n" +
 	"\x04size\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x04size\x12-\n" +
-	"\x06sha256\x18\x06 \x01(\tB\x15\xbaH\x12r\x102\x0e^[a-f0-9]{64}$R\x06sha256\"J\n" +
+	"\x06sha256\x18\x06 \x01(\tB\x15\xbaH\x12r\x102\x0e^[a-f0-9]{64}$R\x06sha256\x12\x1e\n" +
+	"\n" +
+	"historical\x18\a \x01(\bR\n" +
+	"historical\"J\n" +
 	"\x14CreateUploadResponse\x122\n" +
 	"\x06upload\x18\x01 \x01(\v2\x1a.chatto.api.v1.AssetUploadR\x06upload\"\xb8\x01\n" +
 	"\x12UploadChunkRequest\x12$\n" +

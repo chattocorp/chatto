@@ -31,12 +31,6 @@
         "room_invitation": "{actor} があなたをルームに招待しました"
       }
     },
-    "sign_out": {
-      "title": "サインアウト",
-      "current_server": "現在のサーバー",
-      "all_servers": "すべてのサーバー",
-      "description": "選択したサーバーのみからサインアウトするか、すべてのサーバーをこのクライアントから切断します。"
-    },
     "overview": {
       "title": "概要"
     },

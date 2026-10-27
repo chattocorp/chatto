@@ -237,4 +237,12 @@ func TestOperatorAssetUploadTargetsAndCancellation(t *testing.T) {
 	if _, err := chatto.AssetUploads().CreateUpload(ctx, input); !errors.Is(err, ErrRoomArchived) {
 		t.Fatalf("CreateUpload archived room = %v, want archived", err)
 	}
+	input.Historical = true
+	if _, err := chatto.AssetUploads().CreateUpload(ctx, input); err != nil {
+		t.Fatalf("historical operator upload: %v", err)
+	}
+	input.Operator = false
+	if _, err := chatto.AssetUploads().CreateUpload(ctx, input); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("public historical upload = %v, want denied", err)
+	}
 }

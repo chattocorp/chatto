@@ -31,12 +31,6 @@
         "room_invitation": "{actor} heeft je uitgenodigd voor een ruimte"
       }
     },
-    "sign_out": {
-      "title": "Uitloggen",
-      "current_server": "Huidige server",
-      "all_servers": "Alle servers",
-      "description": "Meld u alleen af bij de geselecteerde server, of ontkoppel elke server van deze client."
-    },
     "overview": {
       "title": "Overzicht"
     },

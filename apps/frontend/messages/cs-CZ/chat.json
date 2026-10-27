@@ -31,12 +31,6 @@
         "room_invitation": "{actor} vás pozval do místnosti"
       }
     },
-    "sign_out": {
-      "title": "Odhlásit se",
-      "current_server": "Aktuální server",
-      "all_servers": "Všechny servery",
-      "description": "Odhlaste se pouze z vybraného serveru nebo odpojte všechny servery od tohoto klienta."
-    },
     "overview": {
       "title": "Přehled"
     },

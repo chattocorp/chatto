@@ -164,7 +164,7 @@ jobs:
             cd cli
             # Chatto does not expose Gin's MessagePack binding; omit its large codec.
             CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
-              -tags=nomsgpack \
+              -tags=nomsgpack,nodynamic \
               -ldflags="-s -w -X main.Version=${VERSION}" \
               -o "$context/chatto" .
           )
@@ -542,7 +542,19 @@ jobs:
           helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
           test -x "$helper"
           codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
-          xcrun stapler validate "apps/desktop/dist/Chatto Desktop.app"
+          # Validation contacts Apple even after the ticket is stapled. Retry
+          # CloudKit failures, but keep other validation failures fatal.
+          for attempt in 1 2 3; do
+            if xcrun stapler validate "apps/desktop/dist/Chatto Desktop.app"; then
+              break
+            else
+              status=$?
+            fi
+            if [[ "$status" -ne 68 || "$attempt" -eq 3 ]]; then
+              exit "$status"
+            fi
+            sleep "$((attempt * 10))"
+          done
           spctl --assess --type execute --verbose=4 "apps/desktop/dist/Chatto Desktop.app"
           mkdir -p .context/desktop-release
           ditto -c -k --sequesterRsrc --keepParent \

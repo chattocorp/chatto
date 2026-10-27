@@ -31,12 +31,6 @@
         "room_invitation": "{actor} ti ha invitato in una stanza"
       }
     },
-    "sign_out": {
-      "title": "Esci",
-      "current_server": "Server corrente",
-      "all_servers": "Tutti i server",
-      "description": "Esci solo dal server selezionato o disconnetti tutti i server da questo client."
-    },
     "overview": {
       "title": "Panoramica"
     },

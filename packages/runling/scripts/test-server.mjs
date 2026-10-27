@@ -93,9 +93,14 @@ try {
         const response = await fetch(`${server.url}/api/runs/${id}`);
         assert.equal(response.status, 200);
         run = await response.json();
+        // Journal appends are asynchronous. A step's start can be visible before
+        // its application log; wait for the records asserted below.
         if (
           run.events.filter(
-            (event) => event.type === 'step.started' && event.label === 'Application step'
+            (event) =>
+              event.type === 'log' &&
+              event.message === 'Application warning' &&
+              event.fields?.items === 1
           ).length === 2
         )
           break;

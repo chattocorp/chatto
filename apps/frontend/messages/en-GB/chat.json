@@ -31,12 +31,6 @@
         "room_invitation": "{actor} invited you to a room"
       }
     },
-    "sign_out": {
-      "title": "Sign Out",
-      "current_server": "Current Server",
-      "all_servers": "All Servers",
-      "description": "Sign out of only the selected server, or disconnect every server from this client."
-    },
     "overview": {
       "title": "Overview"
     },

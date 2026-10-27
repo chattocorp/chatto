@@ -5,8 +5,11 @@ E2E job. The job checks out and builds the application source as before.
 The image uses the official Playwright Ubuntu Noble image. Its version comes
 from the installed frontend dependency, which the pnpm lockfile selects.
 
-The `build media E2E image` workflow builds and checks the image on pull
-requests. On main, or on a same-repository pull request with the
+The `build media E2E image` workflow builds and checks the image when a pull
+request changes the image directory or its build workflow. Changes to package
+manifests or the shared lockfile alone do not build the image. On main, changes
+to the image directory or build workflow also build and publish the image.
+On main, or on a same-repository pull request with the
 `ci:publish-media-image` label, it publishes the checked image to
 `ghcr.io/chattocorp/media-e2e`. A weekly build refreshes the base image and
 OS packages. Manual builds also refresh these packages. Each publication
@@ -16,7 +19,8 @@ Adding an unrelated pull request label does not run the image build.
 ## Publication and updates
 
 1. Add `ci:publish-media-image` to a same-repository pull request to publish
-   and verify an image before merge, or use the main-branch build. Fork pull
+   and verify an image before merge, including for a Playwright upgrade, or
+   manually run the workflow on main. Fork pull
    requests cannot publish images. Remove the label after publication to
    stop subsequent commits from publishing more images.
 2. Make the GHCR package public so fork pull requests can pull it without

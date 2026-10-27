@@ -14,8 +14,8 @@ message ImportContext {
   optional string source_actor_id = 4;
 }
 
-// ImportProgressedEvent commits with each imported operation. Its immutable
-// fingerprint includes archive bytes and naming options. Progress has no TTL.
+// Legacy server-side archive progress, retained for persisted compatibility.
+// New imports use individual operator operations and a CLI-owned journal.
 // Tag 952 belongs to this fact; evt.import.server.import_progressed is its lane.
 message ImportProgressedEvent {
   string fingerprint = 1;
@@ -23,4 +23,13 @@ message ImportProgressedEvent {
   // Allocated resource identity, or the destination namespace at index zero.
   string resource_id = 3;
   bool complete = 4;
+}
+
+// A permanent result for one keyed operator operation, committed atomically
+// with its domain facts. This contains no archive state or source references.
+message OperatorOperationCompletedEvent {
+  // HMAC of the method and exact operation arguments; contains no plaintext PII.
+  string fingerprint = 1;
+  // Allocated or affected destination resource ID.
+  string resource_id = 2;
 }

@@ -31,12 +31,6 @@
         "room_invitation": "{actor} sizi bir odaya davet etti"
       }
     },
-    "sign_out": {
-      "title": "Oturumu Kapat",
-      "current_server": "Mevcut Sunucu",
-      "all_servers": "Tüm Sunucular",
-      "description": "Yalnızca seçilen sunucudaki oturumu kapatın veya bu istemcideki tüm sunucuların bağlantısını kesin."
-    },
     "overview": {
       "title": "Genel Bakış"
     },

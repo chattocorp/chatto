@@ -49,7 +49,9 @@ type AssetUploadCreateInput struct {
 	// owner for an operator upload. The operator fact uses SystemActorID.
 	ActorID string
 	// Operator is set only by the private Operator API handler.
-	Operator    bool
+	Operator bool
+	// Historical permits archived channels only on the private operator path.
+	Historical  bool
 	RoomID      string
 	Filename    string
 	ContentType string
@@ -86,7 +88,9 @@ type AssetUploadSession struct {
 	// ActorID owns the asset, including when the upload was started by an operator.
 	ActorID string `json:"actor_id"`
 	// Operator prevents public upload calls from using this session.
-	Operator        bool              `json:"operator,omitempty"`
+	Operator bool `json:"operator,omitempty"`
+	// Historical is fixed at creation and never grants access to a public caller.
+	Historical      bool              `json:"historical,omitempty"`
 	RoomID          string            `json:"room_id"`
 	Filename        string            `json:"filename"`
 	ContentType     string            `json:"content_type"`
@@ -123,7 +127,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 	if err := m.checkUploadSize(input.Size); err != nil {
 		return nil, err
 	}
-	if err := m.authorizeUploadForSession(ctx, input.ActorID, input.RoomID, input.Operator); err != nil {
+	if err := m.authorizeUploadForSession(ctx, input.ActorID, input.RoomID, input.Operator, input.Historical); err != nil {
 		return nil, err
 	}
 
@@ -132,6 +136,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 		UploadID:     NewAssetID(),
 		ActorID:      input.ActorID,
 		Operator:     input.Operator,
+		Historical:   input.Historical,
 		RoomID:       input.RoomID,
 		Filename:     filename,
 		ContentType:  contentType,
@@ -235,7 +240,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	if session.CommittedOffset != session.Size {
 		return nil, nil, invalidArgument("upload is incomplete")
 	}
-	if err := m.authorizeUploadForSession(ctx, session.ActorID, session.RoomID, session.Operator); err != nil {
+	if err := m.authorizeUploadForSession(ctx, session.ActorID, session.RoomID, session.Operator, session.Historical); err != nil {
 		return nil, nil, err
 	}
 	tmp, err := m.materializeUpload(ctx, session)
@@ -470,8 +475,11 @@ func (m *AssetUploadModel) authorizeUpload(ctx context.Context, actorID, roomID 
 
 // authorizeUploadForSession keeps operator uploads separate from user uploads.
 // The private operator listener is the authority for the bypass path.
-func (m *AssetUploadModel) authorizeUploadForSession(ctx context.Context, actorID, roomID string, operator bool) error {
+func (m *AssetUploadModel) authorizeUploadForSession(ctx context.Context, actorID, roomID string, operator, historical bool) error {
 	if !operator {
+		if historical {
+			return ErrPermissionDenied
+		}
 		return m.authorizeUpload(ctx, actorID, roomID)
 	}
 	if _, err := m.core.GetUser(ctx, actorID); err != nil {
@@ -481,7 +489,7 @@ func (m *AssetUploadModel) authorizeUploadForSession(ctx context.Context, actorI
 	if err != nil {
 		return err
 	}
-	if room.Archived {
+	if room.Archived && !historical {
 		return ErrRoomArchived
 	}
 	return nil

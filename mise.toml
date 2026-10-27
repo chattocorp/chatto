@@ -207,6 +207,10 @@ run = "node --test tools/release-policy.test.mjs"
 description = "Validate draft interchange schemas and synthetic conformance fixtures"
 run = "uv run --script tools/test_interchange.py"
 
+[tasks.test-slack]
+description = "Test Slack conversion and legacy import with synthetic exports"
+run = "uv run --with 'jsonschema[format]==4.26.0' python -B -m unittest discover -s tools -p 'test_slack*.py'"
+
 # =============================================================================
 # Code Generation
 # =============================================================================

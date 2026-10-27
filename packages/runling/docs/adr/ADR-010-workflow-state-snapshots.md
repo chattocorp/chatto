@@ -1,6 +1,6 @@
 # ADR-010: Periodic workflow state snapshots
 
-**Status:** Accepted
+**Status:** Amended by ADR-012
 **Date:** 2026-10-18
 
 Amends [ADR-001](ADR-001-process-local-workflows.md) and
@@ -13,6 +13,9 @@ JavaScript execution or a complete task hierarchy would make Runling more comple
 The application can decide how to recover if it receives its previous state.
 
 ## Decision
+
+[ADR-012](ADR-012-router-controlled-reactivation.md) adds explicit reactivation
+of finished workflows and a final state save when each execution ends.
 
 The server owns one plain object with the original input, a recovery key, an open
 flag, and application state for each workflow. It writes the complete object to

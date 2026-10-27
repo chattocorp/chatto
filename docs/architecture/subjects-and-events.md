@@ -34,11 +34,13 @@ storage boundary accepts only `Event`.
 Durable variants keep their existing field numbers. `PubSubEvent` field
 numbers are local to its NATS wire shape.
 
-`evt.import.server.import_progressed` stores `ImportProgressedEvent` receipts.
-Each receipt commits with one import operation and binds its immutable archive
-fingerprint, ordinal, optional allocated resource ID, and completion status.
-The importer reads this lane directly for recovery; it adds no projector or KV
-family. Receipts follow EVT retention and backup policy.
+`evt.operator_operation.{uuid}.operator_operation_completed` stores
+`OperatorOperationCompletedEvent`. Each receipt commits atomically with one
+operation and contains an HMAC of its arguments and its result ID. An exact
+subject guard prevents concurrent reuse of a UUID. Core reads receipts directly;
+there is no receipt projector or KV family. Receipts have no TTL and follow EVT
+backup policy. The old `evt.import.server.import_progressed` lane remains
+decodable for existing data but receives no new writes.
 
 `ImportContext` marks native historical facts, including hidden final-state
 reconciliation and unknown source times. Room creation and update facts also

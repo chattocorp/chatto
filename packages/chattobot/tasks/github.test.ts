@@ -133,7 +133,7 @@ test('the worker uses an isolated gh agent and returns its result to its parent'
   const h = await setup();
   expect(
     await h.worker(
-      { ...createTaskContext(), run: { id: 'test', filesDirectory: h.sessions } },
+      { ...createTaskContext(), run: { id: 'test', filesDirectory: h.sessions, setTitle: vi.fn() } },
       {
         task: request,
         evidence: 'Steps from the investigation'
