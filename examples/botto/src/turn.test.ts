@@ -92,6 +92,32 @@ test('posts the reply while naming is pending and joins naming before the turn e
   expect(ended).toBe(true);
 });
 
+test('joins naming even when posting the reply fails', async () => {
+  const { turn, one, history, server } = setup();
+  history.mockResolvedValue(page([row('root', 'Root'), row('one', 'First')]));
+  let finish!: () => void;
+  naming.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+  );
+  server.postMessage.mockRejectedValueOnce(new Error('Post failed'));
+  let ended = false;
+  const pending = turn([one]).catch((error: unknown) => {
+    ended = true;
+    return error;
+  });
+  try {
+    await vi.waitFor(() => expect(server.postMessage).toHaveBeenCalledOnce());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ended).toBe(false);
+  } finally {
+    finish();
+  }
+  expect(await pending).toBeInstanceOf(Error);
+});
+
 test('passes image-only message pixels as request context, not persisted prompt text', async () => {
   const { turn, one, history, server, agent } = setup();
   const image = row('one', '');

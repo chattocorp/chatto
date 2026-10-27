@@ -162,7 +162,9 @@ export function createTurnHandler(
           // Runling also returns the final text. Post it only if no callback supplied it.
           if (answer.trim() !== lastText) onText(answer);
         } finally {
-          await Promise.all([delivery, naming]);
+          // Naming handles its own errors. Join it even if delivery has failed.
+          await naming;
+          await delivery;
         }
       },
       { signal }
