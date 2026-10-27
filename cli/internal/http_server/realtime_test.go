@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -1088,6 +1089,46 @@ func TestRealtimeAccountDeactivationUpdatesOtherViewersAndReplays(t *testing.T) 
 	event = readPublicRealtimeEvent(t, resumed)
 	if event.GetUserAccountDeactivationChanged().GetUserId() != target.Id || event.GetUserAccountDeactivationChanged().GetDeactivated() {
 		t.Fatalf("unexpected reactivation replay: %v", event)
+	}
+}
+
+func TestRealtimeAccountWatchRejectsCredentialAfterReactivation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "watch-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "watch-manager", "Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.Id, core.PermUserManageAccounts); err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := authctx.WithCredential(env.ctx, authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindBearerToken, UserID: viewer.Id, Handle: token,
+	})
+	s := &HTTPServer{core: env.core}
+	if _, err := s.revalidateRealtimeCredential(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Model a complete account transition after initial authentication but
+	// before the long-lived connection registers its invalidation watch.
+	for _, deactivated := range []bool{true, false} {
+		if err := env.core.SetUserDeactivated(env.ctx, manager.Id, viewer.Id, deactivated); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, stop, err := s.watchRealtimeAccountAccess(ctx, viewer.Id)
+	if stop != nil {
+		stop()
+	}
+	if !errors.Is(err, core.ErrNotAuthenticated) {
+		t.Fatalf("old credential accepted after reactivation: %v", err)
 	}
 }
 

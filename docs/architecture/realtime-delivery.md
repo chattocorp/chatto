@@ -709,6 +709,8 @@ user-auth projection. A deactivation transition closes human connections and
 connections of their owned bots with `AUTHENTICATION_REQUIRED`, without a
 reconnect instruction. Registration and the active-state check share the
 projection lock. This path does not depend on a transient session signal.
+Human credentials are validated again after watch registration, so a completed
+deactivation and reactivation before registration cannot revive an old session.
 
 Other viewers receive `UserAccountDeactivationChangedEvent` through the same
 durable live and replay path. Its payload contains the user ID and access flag;
