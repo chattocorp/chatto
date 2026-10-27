@@ -3,10 +3,11 @@ package connectapi
 import (
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,6 +33,6 @@ func TestRoomNoticeAPIAndDirectoryPrivacy(t *testing.T) {
 	require.Nil(t, cleared.Msg.Notice.PublishedAt)
 	require.NotEmpty(t, cleared.Msg.Notice.Version)
 	// Generic room assembly must never copy member-only notice content.
-	public := apiRoom(&evtv1.Room{Id: room.Id, Notice: &evtv1.RoomNotice{Body: "private"}})
+	public := apiRoom(&readmodel.Room{Id: room.Id, Notice: &readmodel.RoomNotice{Body: "private"}})
 	require.NotContains(t, public.String(), "private")
 }

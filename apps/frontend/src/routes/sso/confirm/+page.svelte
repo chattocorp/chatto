@@ -1,5 +1,7 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
+  import { usernameChoiceUnavailableMessage } from '$lib/actionAvailability';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
@@ -20,7 +22,12 @@
   let actionError = $state('');
   let submitting = $state(false);
   let login = $derived(pending?.loginHint ?? '');
-  let displayName = $derived(pending?.displayNameHint || pending?.loginHint || '');
+  const usernameManaged = $derived(
+    pending?.chooseUsername === UsernameChoiceAvailability.PROVIDER_MANAGED
+  );
+  let displayName = $derived(
+    pending?.displayNameHint || (usernameManaged ? '' : pending?.loginHint) || ''
+  );
 
   const loginSchema = z
     .string()
@@ -30,7 +37,8 @@
     .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
     .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
 
-  const loginError = $derived(login ? validate(loginSchema, login) : undefined);
+  // Managed names are assigned and validated by the server; this field is a preview.
+  const loginError = $derived(!usernameManaged && login ? validate(loginSchema, login) : undefined);
   const displayNameError = $derived.by(() => {
     if (!displayName) return undefined;
     return validateDisplayName(displayName).valid
@@ -42,7 +50,11 @@
   const canSubmit = $derived(
     pending &&
       !submitting &&
-      ((isCreate && login.trim() && displayName.trim() && !loginError && !displayNameError) ||
+      ((isCreate &&
+        (usernameManaged || login.trim()) &&
+        (usernameManaged || displayName.trim()) &&
+        !loginError &&
+        !displayNameError) ||
         isLink)
   );
 
@@ -115,7 +127,11 @@
     </p>
   {:else if data.loadError}
     <Hint tone="danger">
-      {data.loadError === 'invalid' ? m('auth.sso.invalid') : m('auth.sso.load_failed')}
+      {data.loadError === 'provider_username'
+        ? m('settings.account.sso.username_unavailable')
+        : data.loadError === 'invalid'
+          ? m('auth.sso.invalid')
+          : m('auth.sso.load_failed')}
     </Hint>
     <p class="mt-6 text-center">
       <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>
@@ -136,11 +152,16 @@
         label={m('common.username')}
         bind:value={login}
         placeholder={m('common.username_placeholder')}
-        disabled={submitting}
+        disabled={submitting ||
+          (pending.chooseUsername !== undefined &&
+            pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED)}
         required
         autocomplete="username"
         error={loginError}
       />
+      {#if pending.chooseUsername !== undefined && pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED}
+        <Hint>{usernameChoiceUnavailableMessage(pending.chooseUsername)}</Hint>
+      {/if}
 
       <TextInput
         id="sso-display-name"
@@ -148,7 +169,7 @@
         bind:value={displayName}
         placeholder={m('settings.profile.display_name.placeholder')}
         disabled={submitting}
-        required
+        required={!usernameManaged}
         maxlength={32}
         autocomplete="name"
         error={displayNameError}

@@ -26,7 +26,8 @@ Public external identity authentication operations.
 
 Reads safe metadata for a pending create/link flow. This public RPC
 requires a valid pending-flow capability token and returns NOT_FOUND when
-the token is unknown or expired.
+the token is unknown or expired. Returns FAILED_PRECONDITION when a managed
+provider username cannot be assigned; the user must contact the operator.
 
 ```http
 POST /api/connect/chatto.auth.v1.ExternalIdentityAuthService/GetPendingExternalIdentity
@@ -74,8 +75,8 @@ Request to create a new passwordless account from a pending provider identity.
 | Field | Type | Description |
 | --- | --- | --- |
 | `token` | `string` | Raw pending create token from the provider callback redirect. |
-| `login` | `string` | Desired username. |
-| `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the requested username. |
+| `login` | `string` | Desired username. Ignored when choose_username is externally managed; the server assigns a name from the verified provider claim in that case. Otherwise, it must contain 2 to 32 characters and use a valid username format. |
+| `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the assigned username. |
 
 
 <a id="chatto-auth-v1-CreateExternalIdentityAccountResponse"></a>
@@ -257,6 +258,7 @@ exposed; clients only need user-facing provider/profile hints.
 | `display_name_hint` | `string` | Suggested display name derived from provider profile hints. |
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
+| `choose_username` | optional [`UsernameChoiceAvailability`](#chatto-auth-v1-UsernameChoiceAvailability) | Whether the user can choose a username. When externally managed, the server assigns it and ignores client input. The login hint is not a reservation. |
 
 
 
@@ -274,3 +276,17 @@ Mode of a pending external identity confirmation flow.
 | `EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED` | `0` | The flow kind was not specified. |
 | `EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT` | `1` | Create a new passwordless account and link the provider identity. |
 | `EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT` | `2` | Link the provider identity to the authenticated account. |
+
+
+<a id="chatto-auth-v1-UsernameChoiceAvailability"></a>
+
+### UsernameChoiceAvailability
+
+State of choosing a username during account creation. Only ALLOWED enables
+choice; creation still checks policy and input. Unknown states remain disabled.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `USERNAME_CHOICE_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `USERNAME_CHOICE_AVAILABILITY_ALLOWED` | `1` | The user can choose a username, subject to validation and uniqueness. |
+| `USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED` | `2` | The provider supplies the username; the server resolves collisions. |

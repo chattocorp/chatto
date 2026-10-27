@@ -36,6 +36,7 @@ export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
   if (record.type === 'event') {
     return {
       ...run,
+      ...(record.event.type === 'run.title' ? { title: record.event.title } : {}),
       events: [...run.events, record.event],
       usage: record.event.type === 'usage.updated' ? runUsage(run, record.event.usage) : run.usage
     };

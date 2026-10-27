@@ -438,6 +438,9 @@
         "already_set": "Esta conta já tem uma palavra-passe."
       },
       "sso": {
+        "username_unavailable": "Não é possível atribuir o nome de utilizador do fornecedor de início de sessão. Contacta o operador do servidor.",
+        "username_managed": "O teu nome de utilizador é gerido pelo fornecedor de início de sessão e não pode ser alterado aqui.",
+        "unlink_disabled": "O operador do servidor não permite desvincular este fornecedor.",
         "popup_blocked": "Permite janelas pop-up para este site e tenta associar novamente.",
         "account_mismatch": "Inicia sessão na conta correta neste servidor e volta a iniciar a associação a partir da janela original.",
         "provider_unavailable": "Este fornecedor de início de sessão já não está disponível.",

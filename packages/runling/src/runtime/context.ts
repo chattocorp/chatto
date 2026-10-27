@@ -1,4 +1,5 @@
 import { invoke } from './invocation.ts';
+import { bindRunlingContext, emitRunlingEvent } from './events.ts';
 import type { AnyTask, TaskInput, TaskInvocation } from './task.ts';
 import {
   accumulateTokenUsage,
@@ -22,11 +23,21 @@ export interface RunIdentity {
   id: string;
   /** The run's human-readable name, such as `funky-comics-8426`. Older runs have none. */
   reference?: string;
+  /** Optional display title. Does not change the workflow type or stable reference. */
+  title?: string;
   /** The server re-entered an open root from a snapshot. No prior input is replayed by the host. */
   resumed?: boolean;
   /** Host-owned files for this run. The server removes this directory with expired history.
    * Absent when the host does not provide persistent run storage. */
   filesDirectory?: string;
+}
+
+/** Run metadata and operations available during its current execution. */
+export interface RunContext extends RunIdentity {
+  readonly title?: string;
+  /** Set a plain-text title of 1–120 characters. Whitespace is normalized.
+   * Records an event; persistence follows the host's normal journal writes. */
+  setTitle(title: string): void;
 }
 
 /**
@@ -53,7 +64,7 @@ export interface TaskContext<Steering = unknown, Output = unknown> {
 
   /** The run of this context. Child tasks share their parent's run. Absent for direct task
    * calls and for hosts that do not record runs. */
-  readonly run?: RunIdentity;
+  readonly run?: RunContext;
 
   /** Abort the workflow run and throw its abort error. The first reason is retained. */
   abort(reason?: string): never;
@@ -77,13 +88,35 @@ export function createTaskContext(): TaskContext<never, unknown> {
 export function createRootContext(
   onUsage?: (usage: TokenUsage) => void,
   cancellation?: AbortSignal,
-  run?: RunIdentity
+  run?: RunIdentity,
+  metadataLifetime?: AbortSignal
 ): TaskContext<never, unknown> {
   const total = emptyTokenUsage();
   const controller = new AbortController();
   const signal = cancellation
     ? AbortSignal.any([controller.signal, cancellation])
     : controller.signal;
+  let title = run?.title;
+  const recordTitle = bindRunlingContext((next: string) =>
+    emitRunlingEvent({ type: 'run.title', title: next })
+  );
+  const runContext: RunContext | undefined = run && {
+    ...run,
+    get title() {
+      return title;
+    },
+    setTitle(value) {
+      signal.throwIfAborted();
+      metadataLifetime?.throwIfAborted();
+      if (typeof value !== 'string') throw new TypeError('Run title must be text');
+      const next = value.trim().replace(/\s+/gu, ' ');
+      if (!next || Array.from(next).length > 120 || /[\u0000-\u001f\u007f-\u009f]/u.test(next))
+        throw new TypeError('Run title must contain 1–120 plain-text characters');
+      if (next === title) return;
+      title = next;
+      recordTitle(next);
+    }
+  };
 
   const usage: Readonly<TokenUsage> = Object.freeze({
     get input() {
@@ -115,7 +148,7 @@ export function createRootContext(
     steering: { async *[Symbol.asyncIterator]() {} },
     async emit() {},
     signal,
-    ...(run ? { run } : {}),
+    ...(runContext ? { run: runContext } : {}),
     usage,
 
     abort(reason) {

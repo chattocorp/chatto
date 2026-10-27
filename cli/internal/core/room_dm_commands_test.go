@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -81,7 +83,7 @@ func TestRoomCommandModelDMConflictWaitsAndChecksMembership(t *testing.T) {
 			_, err := harness.publisher.AppendBatch(ctx, entries)
 			require.NoError(t, err)
 			type result struct {
-				room    *evtv1.Room
+				room    *readmodel.Room
 				created bool
 				err     error
 			}

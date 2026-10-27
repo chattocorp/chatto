@@ -3,18 +3,11 @@ name: build media E2E image
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
-    paths:
-      - '.github/images/media-e2e/**'
-      - '.github/workflows/build-media-e2e-image.yml'
-      - 'apps/frontend/package.json'
-      - 'pnpm-lock.yaml'
   push:
     branches: [main]
     paths:
       - '.github/images/media-e2e/**'
       - '.github/workflows/build-media-e2e-image.yml'
-      - 'apps/frontend/package.json'
-      - 'pnpm-lock.yaml'
   schedule:
     - cron: '23 5 * * 1'
   workflow_dispatch:
@@ -27,9 +20,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    if: github.event_name == 'pull_request' && github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      image: ${{ steps.select.outputs.image }}
+    steps:
+      - name: Select image changes
+        id: select
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          filters: |
+            image:
+              - '.github/images/media-e2e/**'
+              - '.github/workflows/build-media-e2e-image.yml'
+
   image:
-    # Only the publication label requests another build without a code change.
-    if: github.event.action != 'labeled' || github.event.label.name == 'ci:publish-media-image'
+    needs: changes
+    # Dependency updates request an image explicitly with the publication label.
+    # Keep label events outside path filters so Playwright upgrades can publish.
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'ci:publish-media-image') ||
+      (github.event.action != 'labeled' &&
+      (needs.changes.outputs.image == 'true' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:publish-media-image'))))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

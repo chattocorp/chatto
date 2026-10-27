@@ -298,6 +298,12 @@ message UserAccountCreatedEvent {
   bool is_bot = 2;
 }
 
+// Reports a reversible account access change. Administrative details are private.
+message UserAccountDeactivationChangedEvent {
+  string user_id = 1;
+  bool deactivated = 2;
+}
+
 // UserAccountDeletedEvent reports a deleted user account.
 message UserAccountDeletedEvent {
   string user_id = 1;

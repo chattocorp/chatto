@@ -19,19 +19,14 @@ func TestSyntheticArchive(t *testing.T) {
 	require.NoError(t, schemaErr)
 	a, err := ReadDirectory(exampleDirectory)
 	require.NoError(t, err)
-	require.Len(t, a.Events, 10)
+	defer a.Close()
+	require.Equal(t, 10, a.EventCount)
 	require.Len(t, a.Users, 2)
-	require.Len(t, a.Files, 1)
-	digest := a.Digest()
-	raw, err := json.Marshal(a)
+	require.Len(t, a.Assets, 1)
+	b, err := ReadDirectory(exampleDirectory)
 	require.NoError(t, err)
-	var copy Archive
-	require.NoError(t, json.Unmarshal(raw, &copy))
-	require.NoError(t, copy.Validate())
-	require.Equal(t, digest, copy.Digest())
-	copy.Metadata["users.jsonl"] = append(copy.Metadata["users.jsonl"], []byte("\n")...)
-	require.NotEqual(t, digest, copy.Digest())
-	require.Error(t, copy.Validate())
+	defer b.Close()
+	require.Equal(t, a.Digest(), b.Digest())
 }
 
 func TestSchemasMatchSource(t *testing.T) {
@@ -54,20 +49,19 @@ func TestStrictJSON(t *testing.T) {
 }
 
 func TestArchiveRejectsBrokenReferencesAndIntegrityWithoutContentInErrors(t *testing.T) {
-	for _, mutate := range []func(*Archive){
-		func(a *Archive) { a.Files["files/asset-1.txt"] = []byte("private content") },
-		func(a *Archive) { a.Files["../private"] = []byte("private content") },
-		func(a *Archive) {
-			a.Metadata["events.jsonl"] = []byte(strings.ReplaceAll(string(a.Metadata["events.jsonl"]), `"user-2"`, `"private-user"`))
-		},
-		func(a *Archive) {
-			a.Metadata["manifest.json"] = []byte(strings.ReplaceAll(string(a.Metadata["manifest.json"]), `"version": 1`, `"version": 2`))
-		},
+	for _, tc := range []struct {
+		name   string
+		change func([]byte) []byte
+	}{
+		{"files/asset-1.txt", func([]byte) []byte { return []byte("private content") }},
+		{"events.jsonl", func(b []byte) []byte { return []byte(strings.ReplaceAll(string(b), `"user-2"`, `"private-user"`)) }},
+		{"manifest.json", func(b []byte) []byte { return []byte(strings.ReplaceAll(string(b), `"version": 1`, `"version": 2`)) }},
 	} {
-		a, err := ReadDirectory(exampleDirectory)
+		dir := copyExample(t)
+		raw, err := os.ReadFile(filepath.Join(dir, tc.name))
 		require.NoError(t, err)
-		mutate(a)
-		err = a.Validate()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, tc.name), tc.change(raw), 0600))
+		_, err = ReadDirectory(dir)
 		require.Error(t, err)
 		require.NotContains(t, err.Error(), "private")
 	}
@@ -127,10 +121,11 @@ func TestArchiveHistoryRules(t *testing.T) {
 		}, "mutation precedes creation"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			a, err := ReadDirectory(exampleDirectory)
+			dir := copyExample(t)
+			raw, err := os.ReadFile(filepath.Join(dir, "events.jsonl"))
 			require.NoError(t, err)
 			var events []map[string]any
-			for line := range bytes.SplitSeq(bytes.TrimSpace(a.Metadata["events.jsonl"]), []byte{'\n'}) {
+			for line := range bytes.SplitSeq(bytes.TrimSpace(raw), []byte{'\n'}) {
 				var event map[string]any
 				require.NoError(t, json.Unmarshal(line, &event))
 				events = append(events, event)
@@ -139,17 +134,25 @@ func TestArchiveHistoryRules(t *testing.T) {
 			for _, event := range tc.mutate(events) {
 				require.NoError(t, json.NewEncoder(&output).Encode(event))
 			}
-			a.Metadata["events.jsonl"] = output.Bytes()
-			require.ErrorContains(t, a.Validate(), tc.want)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "events.jsonl"), output.Bytes(), 0600))
+			_, err = ReadDirectory(dir)
+			require.ErrorContains(t, err, tc.want)
 		})
 	}
 }
 
-func TestArchiveRejectsRecordFloodBeforeSplitting(t *testing.T) {
-	a, err := ReadDirectory(exampleDirectory)
-	require.NoError(t, err)
-	a.Metadata["events.jsonl"] = bytes.Repeat([]byte{'\n'}, MaxRecords+1)
-	require.ErrorContains(t, a.Validate(), "record limit")
+func copyExample(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS(exampleDirectory)))
+	return dir
+}
+
+func TestArchiveRejectsBlankRecord(t *testing.T) {
+	dir := copyExample(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "events.jsonl"), []byte("\n"), 0600))
+	_, err := ReadDirectory(dir)
+	require.ErrorContains(t, err, "record 1 violates")
 }
 
 func FuzzStrictJSON(f *testing.F) {

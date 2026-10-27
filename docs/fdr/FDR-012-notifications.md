@@ -20,6 +20,17 @@ targets, unread counts, read state, or deletion semantics.
 
 ## Behavior
 
+- Option/Alt+Shift+Down opens the next unread notification source across signed-in
+  servers. The quick switcher offers the same action. Important notifications
+  come before Ambient notifications; plain Unread dots are excluded. Sources
+  follow server order, room-group order, and stable room/thread IDs for remaining
+  ties. The newest unread occurrence at that priority opens in the selected
+  conversation. Existing view and read rules apply, so each use selects from
+  the sources that still need attention. There is no Previous action. The shortcut
+  works in the composer and leaves drafts intact, but does not run while a modal
+  is open. When no source remains, it shows “No unread notifications”. A failed
+  load shows an error instead.
+
 - The notification page is one newest-activity-first chronological list that
   contains both Unread and Read activity. Unread reactions are Ambient and use
   a neutral treatment. Every other current cause is Important and uses Chatto's

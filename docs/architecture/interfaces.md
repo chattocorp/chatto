@@ -263,6 +263,12 @@ rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
 
+`AdminUserService.SetUserDeactivated` delegates access changes to the
+[account lifecycle operation](../../cli/internal/core/user_deactivation.go).
+`AdminMember` exposes the flag and the caller's authority to change it.
+The public user profile exposes the deactivation flag. Administrative details
+remain private.
+
 `AdminRoleService` separates role details from explicit membership pages.
 Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs
 before bounded user-profile hydration. It does not require `admin.view-users`.
@@ -370,10 +376,11 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 
 ## Mounted operator services
 
-`OperatorImportService.ImportArchive` is mounted only on the operator socket.
-It accepts bounded archive bytes and naming options, then delegates validation
-and recovery to [the core importer](../../cli/internal/core/interchange_import.go).
-It is not a public HTTP service. See [FDR-053](../fdr/FDR-053-history-import-export.md).
+The operator socket serves individual user, room, message, and upload APIs.
+It does not accept archives. `ImportRoomEvent` and `ImportMessageChange` apply
+typed historical transitions. Optional operation keys on creation and message
+import provide permanent exact retry protection. See
+[FDR-053](../fdr/FDR-053-history-import-export.md).
 
 | Package              | Service                  | Access policy                                                                                      |
 | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |

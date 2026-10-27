@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -43,7 +45,7 @@ func (s *UserContentSnapshot) Deleted() bool {
 // HydratedUserContent contains the public user state that was captured in one
 // UserContentSnapshot. Presence is runtime state and is not included.
 type HydratedUserContent struct {
-	User        *evtv1.User
+	User        *readmodel.User
 	Avatar      *evtv1.AssetRecord
 	Preferences *evtv1.ServerUserPreferences
 }
@@ -130,7 +132,7 @@ func (m *UserModel) contentKeyAtEpoch(userID string, purpose evtv1.UserDEKPurpos
 	return event, ok, nil
 }
 
-func (m *UserModel) user(ctx context.Context, userID string) (*evtv1.User, bool, error) {
+func (m *UserModel) user(ctx context.Context, userID string) (*readmodel.User, bool, error) {
 	return m.users.Projection().GetContext(ctx, userID)
 }
 
@@ -170,23 +172,23 @@ func (c *ChattoCore) HydrateUserContentSnapshot(ctx context.Context, snapshot *U
 	return result, true, nil
 }
 
-func (m *UserModel) userReference(ctx context.Context, userID string) (*evtv1.User, bool, error) {
+func (m *UserModel) userReference(ctx context.Context, userID string) (*readmodel.User, bool, error) {
 	return m.users.Projection().GetReferenceContext(ctx, userID)
 }
 
-func (m *UserModel) userReferences(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
+func (m *UserModel) userReferences(ctx context.Context, userIDs []string) ([]*readmodel.User, error) {
 	return m.users.Projection().GetReferencesContext(ctx, userIDs)
 }
 
-func (m *UserModel) userByLogin(ctx context.Context, login string) (*evtv1.User, bool, error) {
+func (m *UserModel) userByLogin(ctx context.Context, login string) (*readmodel.User, bool, error) {
 	return m.users.Projection().GetByLoginContext(ctx, login)
 }
 
-func (m *UserModel) userByEmail(ctx context.Context, email string) (*evtv1.User, bool, error) {
+func (m *UserModel) userByEmail(ctx context.Context, email string) (*readmodel.User, bool, error) {
 	return m.users.Projection().GetByEmailContext(ctx, email)
 }
 
-func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject string) (*evtv1.User, bool, error) {
+func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject string) (*readmodel.User, bool, error) {
 	userID, ok := m.auth.Projection().ExternalIdentityOwnerID(issuer, subject)
 	if !ok {
 		return nil, false, nil
@@ -194,7 +196,7 @@ func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject 
 	return m.users.Projection().GetContext(ctx, userID)
 }
 
-func (m *UserModel) userByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*evtv1.User, uint64, bool, error) {
+func (m *UserModel) userByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*readmodel.User, uint64, bool, error) {
 	userID, authGeneration, ok := m.auth.Projection().ExternalIdentityAuthentication(issuer, subject)
 	if !ok {
 		return nil, 0, false, nil
@@ -282,21 +284,21 @@ func (m *UserModel) loginChangedAt(userID string) time.Time {
 	return m.users.Projection().LoginChangedAt(userID)
 }
 
-func (m *UserModel) allUsers(ctx context.Context) ([]*evtv1.User, error) {
+func (m *UserModel) allUsers(ctx context.Context) ([]*readmodel.User, error) {
 	return m.users.Projection().UsersContext(ctx)
 }
 
 // adminDirectoryCandidates avoids profile reads for timestamp-ordered users.
 // Legacy users without timestamps still need their login for the fallback sort.
-func (m *UserModel) adminDirectoryCandidates(ctx context.Context, search string) ([]*evtv1.User, error) {
+func (m *UserModel) adminDirectoryCandidates(ctx context.Context, search string) ([]*readmodel.User, error) {
 	if strings.TrimSpace(search) != "" {
 		return m.allUsers(ctx)
 	}
 	ctx = WithDEKRequestCache(ctx)
 	entries := m.users.Projection().ActiveDirectoryMetadata()
-	users := make([]*evtv1.User, 0, len(entries))
+	users := make([]*readmodel.User, 0, len(entries))
 	for _, entry := range entries {
-		user := &evtv1.User{Id: entry.ID, CreatedAt: entry.CreatedAt}
+		user := &readmodel.User{Id: entry.ID, CreatedAt: entry.CreatedAt}
 		if entry.CreatedAt == nil {
 			legacy, ok, err := m.users.Projection().GetContext(ctx, entry.ID)
 			if err != nil {
@@ -334,6 +336,10 @@ func (m *UserModel) verifiedAccountIDs() []string {
 
 func (m *UserModel) userCount() int {
 	return m.users.Projection().Count()
+}
+
+func (m *UserModel) deactivated(userID string) bool {
+	return m.users.Projection().Deactivated(userID)
 }
 
 func (m *UserModel) botIDsOwnedBy(ownerUserID string) []string {

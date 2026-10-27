@@ -206,6 +206,8 @@ function imageFile(name = 'paste.png'): File {
   return new File([new Uint8Array([1, 2, 3])], name, { type: 'image/png' });
 }
 
+let deactivatedMentionUserId = $state('');
+
 function roomMember(login: string, displayName = login): RoomMember {
   return {
     id: `user_${login}`,
@@ -393,7 +395,11 @@ describe('MessageComposer', () => {
         projection: {
           rooms: new Map(),
           activeCalls: [],
-          users: { isDeleted: () => false, view: () => null }
+          users: {
+            isDeleted: () => false,
+            isDeactivated: (id: string) => id === deactivatedMentionUserId,
+            view: () => null
+          }
         },
         get mentionRoles() {
           return mentionRolesStore;
@@ -1114,6 +1120,22 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.textContent).toBe('@alicia '));
       expect(document.activeElement).toBe(editor);
       expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('updates an open mention picker on deactivation and reactivation', async () => {
+      roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
+      const { container } = renderMessageComposer({ roomId: 'markdown-live-mention' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '@ali');
+      const handles = () =>
+        [...container.querySelectorAll('[data-testid="mention-autocomplete"] bdi[dir="ltr"]')].map(
+          (element) => element.textContent
+        );
+      await vi.waitFor(() => expect(handles()).toEqual(['@alice', '@alicia']));
+      deactivatedMentionUserId = roomMember('alice').id;
+      await vi.waitFor(() => expect(handles()).toEqual(['@alicia']));
+      deactivatedMentionUserId = '';
+      await vi.waitFor(() => expect(handles()).toEqual(['@alice', '@alicia']));
     });
 
     it('ranks prioritized users first in the mention popup and Tab completion', async () => {

@@ -7,7 +7,6 @@
     "realtime_paused": "Reāllaika atjauninājumi ir apturēti. Notiek savienojuma atjaunošana...",
     "update_available": "Ir pieejama jauna versija",
     "reload": "Pārlādēt",
-    "sign_out": "Izrakstīties",
     "close": "Aizvērt",
     "auth_status": {
       "origin_title": "Sesija beidzās",

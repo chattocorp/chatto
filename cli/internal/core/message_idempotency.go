@@ -40,6 +40,7 @@ func (e *MessagePostAppliedError) Unwrap() error { return e.Cause }
 // messagePostClaim is request-local. Its immutable KV record reserves an ID,
 // while committed is populated only from the authoritative EVT identity.
 type messagePostClaim struct {
+	operation *operatorOperation
 	messageID string
 	expiresAt time.Time
 	committed *evtstream.SubjectEvent

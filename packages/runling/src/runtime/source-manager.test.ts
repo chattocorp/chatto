@@ -28,6 +28,34 @@ const untilAbort = (signal: AbortSignal) =>
     else signal.addEventListener('abort', () => resolve(), { once: true });
   });
 
+test('passes retained-run discovery and explicit reactivation through source routing', async () => {
+  const started = vi.fn(async () => runHandle('retained'));
+  const listed = vi.fn(() => []);
+  const ready = Promise.withResolvers<void>();
+  const manager = new SourceManager(() => started, listed);
+  try {
+    await manager.replace(
+      defineWebConfig({
+        sources: {
+          source: async (ctx) => {
+            ctx.runs({ includeFinished: true });
+            await ctx.dispatch(async (route) => {
+              await route.start(noop, { input: null, runId: 'retained' });
+            }, null);
+            ready.resolve();
+            await untilAbort(ctx.signal);
+          }
+        }
+      })
+    );
+    await ready.promise;
+    expect(listed).toHaveBeenCalledWith('source', { includeFinished: true });
+    expect(started).toHaveBeenCalledWith(noop, { input: null, runId: 'retained' });
+  } finally {
+    await manager.close();
+  }
+});
+
 test('starts eagerly, waits for cleanup, and retains source state across generations', async () => {
   const calls: string[] = [];
   const manager = new SourceManager(() => async () => runHandle('run'));

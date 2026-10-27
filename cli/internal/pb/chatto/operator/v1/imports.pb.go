@@ -21,7 +21,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Optional literal name decorations. Defaults preserve source names.
+// Legacy archive naming fields, retained only for wire compatibility.
+//
+// Deprecated: Marked as deprecated in chatto/operator/v1/imports.proto.
 type ImportNaming struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ChannelPrefix  string                 `protobuf:"bytes,1,opt,name=channel_prefix,json=channelPrefix,proto3" json:"channel_prefix,omitempty"`
@@ -90,8 +92,9 @@ func (x *ImportNaming) GetUsernameSuffix() string {
 	return ""
 }
 
-// One bounded directory archive. Keys are relative archive paths. Values are
-// exact file bytes. The server validates all files before the first write.
+// Legacy archive request. No server endpoint accepts this payload.
+//
+// Deprecated: Marked as deprecated in chatto/operator/v1/imports.proto.
 type ImportArchiveRequest struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Metadata     map[string][]byte      `protobuf:"bytes,1,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -169,7 +172,9 @@ func (x *ImportArchiveRequest) GetAcceptOmissions() bool {
 	return false
 }
 
-// Counts contain no source identities or content.
+// Legacy archive response, retained only for wire compatibility.
+//
+// Deprecated: Marked as deprecated in chatto/operator/v1/imports.proto.
 type ImportArchiveResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Users         uint32                 `protobuf:"varint,1,opt,name=users,proto3" json:"users,omitempty"`
@@ -258,12 +263,12 @@ var File_chatto_operator_v1_imports_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_imports_proto_rawDesc = "" +
 	"\n" +
-	" chatto/operator/v1/imports.proto\x12\x12chatto.operator.v1\"\xae\x01\n" +
+	" chatto/operator/v1/imports.proto\x12\x12chatto.operator.v1\"\xb2\x01\n" +
 	"\fImportNaming\x12%\n" +
 	"\x0echannel_prefix\x18\x01 \x01(\tR\rchannelPrefix\x12%\n" +
 	"\x0echannel_suffix\x18\x02 \x01(\tR\rchannelSuffix\x12'\n" +
 	"\x0fusername_prefix\x18\x03 \x01(\tR\x0eusernamePrefix\x12'\n" +
-	"\x0fusername_suffix\x18\x04 \x01(\tR\x0eusernameSuffix\"\xb6\x03\n" +
+	"\x0fusername_suffix\x18\x04 \x01(\tR\x0eusernameSuffix:\x02\x18\x01\"\xba\x03\n" +
 	"\x14ImportArchiveRequest\x12R\n" +
 	"\bmetadata\x18\x01 \x03(\v26.chatto.operator.v1.ImportArchiveRequest.MetadataEntryR\bmetadata\x12I\n" +
 	"\x05files\x18\x02 \x03(\v23.chatto.operator.v1.ImportArchiveRequest.FilesEntryR\x05files\x128\n" +
@@ -276,16 +281,16 @@ const file_chatto_operator_v1_imports_proto_rawDesc = "" +
 	"\n" +
 	"FilesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"\xad\x01\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01:\x02\x18\x01\"\xb1\x01\n" +
 	"\x15ImportArchiveResponse\x12\x14\n" +
 	"\x05users\x18\x01 \x01(\rR\x05users\x12\x14\n" +
 	"\x05rooms\x18\x02 \x01(\rR\x05rooms\x12\x16\n" +
 	"\x06assets\x18\x03 \x01(\rR\x06assets\x12\x16\n" +
 	"\x06events\x18\x04 \x01(\rR\x06events\x12\x1c\n" +
 	"\tomissions\x18\x05 \x01(\rR\tomissions\x12\x1a\n" +
-	"\bcomplete\x18\x06 \x01(\bR\bcomplete2}\n" +
-	"\x15OperatorImportService\x12d\n" +
-	"\rImportArchive\x12(.chatto.operator.v1.ImportArchiveRequest\x1a).chatto.operator.v1.ImportArchiveResponseB\xdc\x01\n" +
+	"\bcomplete\x18\x06 \x01(\bR\bcomplete:\x02\x18\x012\x87\x01\n" +
+	"\x15OperatorImportService\x12i\n" +
+	"\rImportArchive\x12(.chatto.operator.v1.ImportArchiveRequest\x1a).chatto.operator.v1.ImportArchiveResponse\"\x03\x88\x02\x01\x1a\x03\x88\x02\x01B\xdc\x01\n" +
 	"\x16com.chatto.operator.v1B\fImportsProtoP\x01ZJgithub.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
 
 var (

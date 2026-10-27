@@ -77,6 +77,13 @@ recover from [workflow state](workflow-state.md). Sources start after recovery a
 can use `ctx.runs()` to rebuild routing from each live run's original input and
 handle. Runling provides no durable inbox. Batch queue deduplication is process-local.
 
+For finite roots, use `ctx.runs({ includeFinished: true })` to find retained
+workflows, including after restart. Select by application identity in their
+latest input, then call `routerContext.start(task, { input, runId: previous.id })`
+inside `dispatch`. Omit `runId` when there is no retained workflow. This ends each
+execution after its work without keeping a root waiting for future events.
+Only one execution can be active per run; sources own serialization.
+
 ## Keyed batching
 
 Use `BatchQueue` from `runling` to collect input before executing work.

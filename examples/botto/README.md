@@ -60,30 +60,54 @@ restart after changing them. `pnpm dev` restarts the complete host after source
 or configuration changes. Use this full restart for development rather than
 `runling serve --watch`: Botto's task and source share process-local admission state.
 
-| Setting                         | Default                  | Purpose                                                                       |
-| ------------------------------- | ------------------------ | ----------------------------------------------------------------------------- |
-| `chatto.url`                    | Required                 | Chatto server URL                                                             |
-| `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`       |
-| `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                       |
-| `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                               |
-| `chatto.respond_to`             | See below                | Which messages address Botto                                                  |
-| `memory.enabled`                | `false`                  | Enable local Means memory                                                     |
-| `memory.command`                | `means`                  | Means executable name or absolute path                                        |
-| `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                               |
-| `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server             |
-| `web.exa_api_key`               | Unset                    | Optional Exa API key; use an environment reference such as `${EXA_API_KEY}`   |
-| `chatto.allowed_user_id`        | Unset                    | Restrict requests to one Chatto user ID                                       |
-| `agent.model`                   | Required                 | Pi model in `provider/model` format                                           |
-| `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                  |
-| `agent.system_prompt`           | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings            |
-| `runtime.data_directory`        | `.botto`                 | Private transcripts, delivery ledger, and Runling history                     |
-| `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it             |
-| `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds |
-| `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds  |
-| `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                      |
-| `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                        |
-| `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                   |
-| `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                       |
+### System prompts
+
+Botto builds each agent's system prompt from two parts. Botto supplies the role,
+Chatto behavior, and instructions for the tools available in that session.
+`agent.system_prompt` adds the instance's identity, personality, and workflow
+instructions. It does not replace Botto's instructions or enable tools.
+
+Main agents and subagents both receive the instance instructions. Subagents keep
+their assignment role and return results to the main agent. They receive web
+instructions when web access is enabled, but no Chatto, memory, image, or
+delegation tool instructions. Main agents receive the modules for their enabled
+tools, plus conversation, formatting, and authorization rules.
+
+Existing TOML files still work. You can remove copied Chatto, memory, and tool
+rules from `agent.system_prompt`; Botto now supplies these rules. Keep instructions
+specific to your bot. Restart Botto after changes. The separate title-description
+task does not use the instance prompt.
+
+| Setting                         | Default                  | Purpose                                                                        |
+| ------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| `chatto.url`                    | Required                 | Chatto server URL                                                              |
+| `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`        |
+| `chatto.mcp`                    | `false`                  | Give Pi all tools advertised by the Chatto MCP endpoint                        |
+| `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                                |
+| `chatto.respond_to`             | See below                | Which messages address Botto                                                   |
+| `memory.enabled`                | `false`                  | Enable local Means memory                                                      |
+| `memory.command`                | `means`                  | Means executable name or absolute path                                         |
+| `memory.path`                   | `memory`                 | Collection directory, relative to the TOML file                                |
+| `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server              |
+| `web.exa_api_key`               | Unset                    | Optional Exa API key; use an environment reference such as `${EXA_API_KEY}`    |
+| `chatto.allowed_user_id`        | Unset                    | Restrict requests to one Chatto user ID                                        |
+| `agent.model`                   | Required                 | Pi model in `provider/model` format                                            |
+| `agent.reasoning_level`         | Pi/session default       | Reasoning effort: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max` |
+| `agent.name`                    | `Botto`                  | Name given to the model and used to label its thread context                   |
+| `agent.system_prompt`           | Helpful assistant prompt | Persona and response instructions; supports TOML multiline strings             |
+| `runtime.data_directory`        | `.botto`                 | Private transcripts, delivery ledger, and Runling history                      |
+| `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it              |
+| `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds  |
+| `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds   |
+| `runtime.turn_timeout_ms`       | `900000`                 | Turn deadline (15-minute default), 1000–3600000 milliseconds                   |
+| `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                         |
+| `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                    |
+| `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                        |
+
+`agent.reasoning_level` applies to the root agent and delegated agents. Set it to
+`low` to request less reasoning effort. An explicit value overrides the level in
+saved sessions. If omitted, Pi uses its defaults or the saved session level.
+Pi adjusts unsupported levels to the model's supported levels.
 
 `chatto.respond_to` lists the reasons that address a message to Botto:
 `direct_message`, `mention` (by name), `role_mention`, `here_mention`,
@@ -196,10 +220,20 @@ an acknowledgement, not a completion indicator.
 The model can also use `add_reaction` for agreement, appreciation, or humor. This
 native Pi tool uses the Chatto client and works without Chatto MCP. It can react
 only to messages in the current batch or supplied thread context. The default
-prompt tells the model not to duplicate the automatic acknowledgement.
+prompt tells the model not to duplicate the automatic acknowledgement reaction.
 
-Botto shows a typing indicator and posts the
-final answer in the thread, referencing the last message in the batch.
+Botto shows a typing indicator and posts completed parent assistant messages in
+the thread, referencing the last message in the batch. These include interim
+updates and the final answer. The prompt asks the model to send a brief update
+before its first tool call, including memory lookups. Tools stay available
+throughout the turn. The model decides when to send text; the prompt does not
+guarantee an early update.
+Updates are agent-written; there is no timed or fixed host message. They arrive
+when the model completes a text message, not token by token. Child-agent text,
+reasoning, and tool results are not forwarded directly.
+Posts are serialized, and the final answer is not posted a second time when its
+callback already supplied it. A failed post stops model work without retrying an
+uncertain write. An update already delivered remains visible if later work fails.
 The live Pi session closes after each turn; its transcript stays on disk.
 On the next message in that thread, including after a restart, Botto reopens the
 same transcript. It does not preload all transcripts at process startup.
@@ -225,8 +259,8 @@ Each turn closes its connections when it ends, including on cancellation.
 Pi waits up to 10 seconds for tools before the first model request. If a server
 fails or is still connecting, Pi can continue with the available tools; its
 request context includes server status. Botto does not retry tool calls.
-Normal thread context and final replies still use `@chatto/client`.
-The model is told that its final reply is posted automatically, so it should use
+Normal thread context and assistant messages still use `@chatto/client`.
+The model is told that its text messages are posted automatically, so it should use
 the posting tool only for additional messages required by the task.
 
 ## Optional web access
@@ -324,8 +358,10 @@ Pi receives matching document IDs per scope and user in the request-only input
 context, plus the full Means tool catalog with a `mcp__memory__` prefix. Means
 serves the collection schema and workflow through its `info` tool; Botto does not
 copy that workflow into its system prompt. The default
-system prompt tells it to read global and participant memory before answering,
-create separate documents for new memories, and update existing related facts.
+system prompt tells it to read relevant global and participant memory when a task
+needs prior decisions, preferences, or facts, and to skip memory lookups for
+self-contained questions. It also tells it to create separate documents for new
+memories and update existing related facts. Read-before-update checks still apply.
 Memory updates are model-driven. If you supply a custom `agent.system_prompt`, include
 your desired memory behavior there. Edit the collection's `MEANS.md` to change
 its workflow; Botto can read the current version through MCP `info`.
@@ -358,7 +394,10 @@ selected image attachments. Image-only DMs and replies in active threads can
 trigger a turn under the same participation rules as text.
 
 Botto reads up to four images per turn, prioritizing the current batch, then
-recent thread images. Chatto resizes each image to fit within 2048 pixels on each
+recent thread images. In model requests, each image stays with its original
+message batch when that batch is retained. Images from additional thread context
+have a separate context label and their source message and attachment IDs.
+Chatto resizes each image to fit within 2048 pixels on each
 side. Each download is limited to 4 MiB and 30 seconds, within the turn deadline.
 The client fetches images only from the configured Chatto origin, with current
 room authorization and without following redirects. No image URL or access ticket
@@ -368,8 +407,9 @@ model metadata. It downloads images only when that metadata includes image input
 no separate Botto capability setting is needed. Downloads are reused within a turn.
 The model receives a note when an image is unavailable, unsupported, or omitted.
 
-When an overview is too small to read, the model can call `view_image` with a
-message ID and attachment ID from the current context. An optional `crop` has
+When an overview is too small to read, the root agent can call `view_image`
+directly with an attachment ID from the tool's allowed choices. Botto resolves
+the owning message from the thread context. An optional `crop` has
 `x`, `y`, `width`, and `height` values from 0 to 1. Coordinates refer to the full
 original image after orientation correction, with the origin at the top left.
 For example, `{ "x": 0.5, "y": 0, "width": 0.5, "height": 1 }` selects the right
@@ -377,22 +417,52 @@ half. Omitting `crop` selects the full image. Crops always use the original,
 not the resized overview or a previous crop. Animated images use the first frame.
 
 The tool rechecks attachment membership and room access. It permits four attempts
-per turn, in addition to the automatic overviews. Each original is limited to
+per turn, in addition to its automatic overviews. Each original is limited to
 16 MiB and 40 million decoded pixels. Processing has a ten-second timeout; the
 download and processing also share the turn deadline. Output is PNG, at most
 2048 pixels on each side and 4 MiB, without enlarging small images. The tool
 rejects calls for models whose Pi metadata does not include image input.
+After the fourth crop attempt, the crop tool is removed. Receipts
+show the remaining crop allowance; excess calls already queued in the same batch
+return a no-crops-remaining notice instead of starting more downloads.
 
-Crop bytes stay in memory for the turn and are added only to model requests.
-The transcript stores tool arguments and text receipts, including crop dimensions,
-but no crop bytes. Later turns can request the image again if it is still in
-context and accessible. This tool contacts only the configured Chatto server;
-the configured model provider receives the selected pixels.
+Crop bytes stay in memory for the turn. Tool arguments and text receipts enter
+the private transcript; crop bytes do not.
+Later turns can request the image again if it is still in context and accessible.
+This tool contacts only the configured Chatto server; the configured model provider
+receives the selected pixels.
 
 Image bytes are added to the current model request. They are not stored in Pi
 transcripts, delivery files, or Runling journals. Later turns read images again
 from current thread context; images outside that window are not retained. Model
 responses can describe images, and those responses remain in the transcript.
+
+### Subagents
+
+The root agent can call `delegate` with a self-contained `task` and optional text
+`context`. Each call starts an ordinary Runling child task and a fresh agent session
+using Botto's configured model. The root waits for the result and decides how to
+use it in its answer. Delegation is optional; image inspection stays with the root.
+
+Children receive only the supplied task and context. They do not inherit chat
+history, images, memory, or the root's tools. When web access is enabled, children
+can use the same Exa search and fetch tools. They cannot post messages, change
+memory, use file or shell tools, or delegate further. Ambient Pi resources are
+disabled. The task and context go to the configured model provider; web queries
+and fetch requests go to Exa when those tools are used.
+
+Each child shares the turn deadline and cancellation. Cancelling its tool call
+also cancels the child and closes its session. There is no separate child timeout,
+background execution, automatic retry, or saved child transcript. Concurrent calls
+use separate sessions. Results are limited to 16,000 characters, with a notice
+when truncated, and are treated as untrusted evidence. Task arguments and results
+remain in the root's private transcript. Child text is not posted directly to Chatto.
+
+Runling's existing `taskTool` and agent-session APIs provide child execution,
+activity, and combined usage and cost. Journal entries omit task/context and reply
+content. Delegation adds model calls and can increase latency and cost.
+
+### External services and storage
 
 With MCP enabled, the provider also receives tool definitions and tool results,
 which can include messages from other rooms the bot can access. Tool calls and
@@ -446,19 +516,43 @@ Separate instances must use separate data directories.
 Existing transcript filenames and delivery files need no
 migration.
 
-Runling snapshots open conversations every 60 seconds and on graceful shutdown.
+Each message batch runs as one finite root execution. After the answer and task
+cleanup, the root returns. A later batch reactivates the retained workflow ID;
+there is no idle conversation task to interrupt on shutdown. The inbox serializes
+batches for each thread.
+
+Runling saves workflow state after execution, every 60 seconds, and on graceful shutdown.
 After a crash, a newly created run can be absent from the snapshot; later input
 then starts a new run for the same Chatto thread. The delivery ledger remains
 the authority for queued, completed, and uncertain work. A recovered workflow
-waits for the source to admit queued work; it never repeats its original input.
+returns without repeating its original input. This also closes old waiting roots
+on the first restart after upgrade. The source admits later work through reactivation.
 Runling keeps open runs and removes closed runs after its 30-day retention
 period. Botto's existing transcript files are separate and have no automatic
-retention limit. A failed turn does not close its conversation run.
+retention limit. A failed turn ends its execution; a later batch can reactivate
+the same retained run. After retention removes a run, a new batch starts a new ID.
 After restart, Runling's console shows the latest execution attempt's activity
 and total token usage and cost across all attempts. Earlier attempts remain in
 the run journal; the agent continues from its saved transcript.
 
 ## Logs and development
+
+Botto names an untitled run with Runling's `createDescription()` task, alongside
+the main reply. The task receives up to 8,000 characters of current message text,
+without author IDs, memory, history, or attachments. It is instructed to omit
+greetings and to exclude personal details and secrets. Its result sets the run
+title; the main agent has no title tool. A saved title stays unchanged across
+turns and restarts. It does not rename the Chatto thread or post a message.
+
+Set `titles.model` to use a small model with your configured provider credentials.
+It defaults to `agent.model`; `titles.reasoning_level` defaults to `off`. The selected
+provider receives the text and the connection's IP address. This adds one model
+request per naming attempt, with usage and cost recorded under the run. No tools
+or external resources are available to the description task. The reply can be
+posted while naming runs, but the turn joins naming before it ends. Naming has a
+30-second deadline, bounded further by the turn deadline. A failure or empty
+description leaves the run untitled and does not prevent the reply; a later turn
+can try again. Model output can be imperfect. There is no automatic renaming.
 
 Runling owns all log output. Connection and intake messages use a `[source:chatto]`
 prefix. Work inside a conversation uses its run and task context and appears in
@@ -487,9 +581,10 @@ mise x -- pnpm --filter @chatto/example-botto test
 recoverable conversation task. The Runling CLI owns serving, signal handling, and shutdown.
 `src/source.ts` owns connectivity and the durable message ledger.
 `src/conversation.ts` defines an ordinary Runling root task for each Chatto
-thread. Its source routing finds or starts that root and waits for each child
-task and its cleanup. The inbox admits one turn per thread at a time, so the
-root awaits a single child and routing reads Runling's source-owned runs directly.
+thread. Its source routing starts or reactivates that root for one batch and waits
+for its execution and cleanup. Routing reads Runling's retained source-owned runs
+directly. Only a private, process-local ticket admits work; console messages and
+recovery cannot replay callbacks.
 Runling's batch queue owns ordering, capacity, and timers. `src/threads.ts`
 keeps Botto's routing keys and transcript identities consistent.
 `src/messages.ts` selects addressed

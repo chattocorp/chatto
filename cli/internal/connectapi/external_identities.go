@@ -28,10 +28,22 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		return nil, err
 	}
 	if flow.Kind == core.ExternalIdentityFlowKindCreate {
-		flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
+		if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
+			flow.LoginHint, err = s.api.core.SuggestProviderUsername(flow.ProviderUsername)
+			if err != nil {
+				return nil, core.ErrProviderUsernameUnavailable
+			}
+		} else {
+			flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
+		}
+	}
+	pending := apiPendingExternalIdentity(flow)
+	pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_ALLOWED.Enum()
+	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
+		pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED.Enum()
 	}
 	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
-		Pending: apiPendingExternalIdentity(flow),
+		Pending: pending,
 	}), nil
 }
 
@@ -70,7 +82,13 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		// now, and never redeem an invitation while the server is open.
 		flow.InvitationID = ""
 	}
-	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), req.Msg.GetDisplayName(), flow.DisplayNameHint)
+	// Leave the fallback empty for managed names. Core uses the actual assigned
+	// username, including any collision suffix, when it creates the account.
+	fallbackLogin := req.Msg.GetLogin()
+	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
+		fallbackLogin = ""
+	}
+	displayName := externalIdentityCreateDisplayName(fallbackLogin, req.Msg.GetDisplayName(), flow.DisplayNameHint)
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {
 		return nil, err
@@ -184,13 +202,9 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	if err != nil {
 		return nil, err
 	}
-	policy := s.api.externalIdentitySignInPolicy()
 	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
-	for _, identity := range linked {
-		identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD
-		if policy.CanDisconnect(identity.SubjectHash, identities, hasPassword) {
-			identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED
-		}
+	for index, identity := range linked {
+		identity.DisconnectEligibility = disconnectAvailability(s.api, identities[index], identities, hasPassword)
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),

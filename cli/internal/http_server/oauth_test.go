@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -64,6 +66,7 @@ func setupOAuthServerWithAuth(t *testing.T, auth config.AuthConfig) *HTTPServer 
 
 	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
 		AuthTokenTTL:              auth.TokenTTL.Duration(),
+		AuthProviders:             auth.Providers,
 		AuthLoopbackClientEnabled: auth.LoopbackClientEnabled,
 		SkipSetupWizard:           true,
 	})
@@ -162,7 +165,7 @@ func TestInjectUserIntoContextDoesNotRenewCookieCredential(t *testing.T) {
 	}
 }
 
-func loginOAuthTestUser(t *testing.T, s *HTTPServer, login string) ([]*http.Cookie, *evtv1.User) {
+func loginOAuthTestUser(t *testing.T, s *HTTPServer, login string) ([]*http.Cookie, *readmodel.User) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

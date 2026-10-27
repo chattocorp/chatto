@@ -438,6 +438,9 @@
         "already_set": "Esta cuenta ya tiene contraseña."
       },
       "sso": {
+        "username_unavailable": "No se puede asignar el nombre de usuario de tu proveedor de inicio de sesión. Contacta con el operador del servidor.",
+        "username_managed": "Tu nombre de usuario lo gestiona tu proveedor de inicio de sesión y no se puede editar aquí.",
+        "unlink_disabled": "El operador del servidor no permite desvincular este proveedor.",
         "popup_blocked": "Permite las ventanas emergentes de este sitio y vuelve a intentar la vinculación.",
         "account_mismatch": "Inicia sesión en la cuenta correcta de este servidor y vuelve a iniciar la vinculación desde la ventana original.",
         "provider_unavailable": "Este proveedor de inicio de sesión ya no está disponible.",

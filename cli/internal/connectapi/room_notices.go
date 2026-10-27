@@ -3,13 +3,14 @@ package connectapi
 import (
 	"context"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-func apiRoomNotice(notice *evtv1.RoomNotice) *apiv1.RoomNotice {
+func apiRoomNotice(notice *readmodel.RoomNotice) *apiv1.RoomNotice {
 	return &apiv1.RoomNotice{Body: notice.GetBody(), Version: notice.GetVersion(), PublicationId: notice.GetPublicationId(), PublishedAt: notice.GetPublishedAt()}
 }
 

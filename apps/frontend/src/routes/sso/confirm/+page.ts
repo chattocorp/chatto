@@ -12,7 +12,7 @@ export type SSOConfirmLoadData = {
   /** Pending confirmation flow, when the token is valid. */
   pending: PendingExternalIdentityInfo | null;
   /** Stable error code for the confirmation page, if loading did not succeed. */
-  loadError: 'invalid' | 'failed' | null;
+  loadError: 'invalid' | 'failed' | 'provider_username' | null;
 };
 
 /** Load the pending external-identity flow before the confirmation page renders. */
@@ -32,7 +32,11 @@ export const load: PageLoad = async ({ url }): Promise<SSOConfirmLoadData> => {
       token,
       pending: null,
       loadError:
-        error instanceof ConnectError && error.code === Code.NotFound ? 'invalid' : 'failed'
+        error instanceof ConnectError && error.code === Code.NotFound
+          ? 'invalid'
+          : error instanceof ConnectError && error.code === Code.FailedPrecondition
+            ? 'provider_username'
+            : 'failed'
     };
   }
 };

@@ -34,7 +34,10 @@ scope can have zero or more documents. The host searches these frontmatter field
 and supplies all matching document IDs for each turn. It does not create empty
 documents. Do not change the schema.
 
-Read the global documents and the current participants' documents before answering.
+Read memory when prior decisions, preferences, or facts are relevant to the task.
+Skip memory lookups for self-contained questions. Read only relevant global or
+current-participant documents; the supplied IDs do not require you to read every
+document on every turn.
 Keep shared project facts and general knowledge in global memory, without a
 `user_id`. Choose the scope by what the fact is about, not by who supplied it.
 For example, a project's release schedule is global knowledge even when one

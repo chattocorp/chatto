@@ -3,6 +3,7 @@
     "code_source": "Kaynak",
     "code_render": "Görünüm",
     "code_render_failed": "Önizleme kullanılamıyor. Kaynak hâlâ kullanılabilir.",
+    "action_unavailable": "Bu işlem şu anda kullanılamıyor.",
     "edit": "Düzenle",
     "copy_failed": "Panoya kopyalanamadı. Metni seçin ve elle kopyalayın.",
     "cancel": "İptal",

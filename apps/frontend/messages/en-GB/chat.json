@@ -6,6 +6,8 @@
       "confirmation": "For 15 minutes, this enables the additional permissions assigned to you on this server."
     },
     "notifications": {
+      "next_unread_source": "Go to next unread source",
+      "no_unread": "No unread notifications",
       "title": "Notifications",
       "subtitle": "Here's what's new",
       "clear_read": "Dismiss read",
@@ -28,12 +30,6 @@
         "activity": "{actor} sent you a notification",
         "room_invitation": "{actor} invited you to a room"
       }
-    },
-    "sign_out": {
-      "title": "Sign Out",
-      "current_server": "Current Server",
-      "all_servers": "All Servers",
-      "description": "Sign out of only the selected server, or disconnect every server from this client."
     },
     "overview": {
       "title": "Overview"

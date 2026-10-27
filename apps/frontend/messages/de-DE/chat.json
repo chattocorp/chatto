@@ -6,6 +6,8 @@
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {
+      "next_unread_source": "Zur nächsten ungelesenen Quelle",
+      "no_unread": "Keine ungelesenen Benachrichtigungen",
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
       "clear_read": "Gelesene löschen",
@@ -28,12 +30,6 @@
         "activity": "{actor} hat dir eine Benachrichtigung gesendet",
         "room_invitation": "{actor} hat dich in einen Raum eingeladen"
       }
-    },
-    "sign_out": {
-      "title": "Abmelden",
-      "current_server": "Aktueller Server",
-      "all_servers": "Alle Server",
-      "description": "Melde dich nur vom ausgewählten Server ab oder trenne alle Server von diesem Client."
     },
     "overview": {
       "title": "Übersicht"

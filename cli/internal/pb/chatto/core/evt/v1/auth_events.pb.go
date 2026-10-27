@@ -1311,7 +1311,7 @@ var File_chatto_core_evt_v1_auth_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_auth_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/auth_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/evt/v1/models.proto\"\xc7\x01\n" +
+	"$chatto/core/evt/v1/auth_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/evt/v1/event_values.proto\"\xc7\x01\n" +
 	"'RegistrationVerificationCodeIssuedEvent\x12\x1d\n" +
 	"\n" +
 	"email_hash\x18\x01 \x01(\tR\temailHash\x129\n" +
@@ -1500,7 +1500,7 @@ func file_chatto_core_evt_v1_auth_events_proto_init() {
 	if File_chatto_core_evt_v1_auth_events_proto != nil {
 		return
 	}
-	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_event_values_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -287,6 +287,7 @@
     "unread_separator": "Nieuwe berichten",
     "close_extras": "Kamerextra's sluiten",
     "dm": {
+      "deactivated_user_notice": "Dit account is gedeactiveerd. Deze gebruiker kan berichten niet lezen of beantwoorden.",
       "deleted_user_notice": "De andere gebruiker is verwijderd."
     },
     "management": {

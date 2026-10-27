@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse } from "./members_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ChangeUserPasswordRequest, ChangeUserPasswordResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserDeactivatedRequest, SetUserDeactivatedResponse } from "./members_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -108,6 +108,21 @@ export const AdminUserService = {
       name: "DeleteUser",
       I: DeleteUserRequest,
       O: DeleteUserResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deactivates or reactivates a human account. Requires user.manage-accounts.
+     * The caller cannot target their own account or an owner account.
+     * Deactivation immediately invalidates existing sessions and prevents sign-in.
+     * Reactivation permits new sign-ins; old sessions remain invalid.
+     * Repeating the current state succeeds without changing it.
+     *
+     * @generated from rpc chatto.admin.v1.AdminUserService.SetUserDeactivated
+     */
+    setUserDeactivated: {
+      name: "SetUserDeactivated",
+      I: SetUserDeactivatedRequest,
+      O: SetUserDeactivatedResponse,
       kind: MethodKind.Unary,
     },
   }

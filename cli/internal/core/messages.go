@@ -403,6 +403,7 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 		if err != nil {
 			return 0, err
 		}
+		entries = appendOperatorReceipt(entries, claim)
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			messageSeq := seqs[1]
@@ -525,6 +526,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 		if err != nil {
 			return 0, err
 		}
+		entries = appendOperatorReceipt(entries, claim)
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			messageSeq := seqs[messageIndex]

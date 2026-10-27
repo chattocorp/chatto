@@ -59,6 +59,10 @@ COPY LICENSES/AGPL-3.0-or-later.txt /usr/share/doc/chatto/LICENSE
 COPY NOTICE /usr/share/doc/chatto/NOTICE
 RUN chmod +x /chatto /usr/local/bin/docker-entrypoint.sh /usr/local/bin/nats
 
+# Check the real binary in the runtime image before publishing it. A missing
+# dynamic loader can prevent startup even when the binary is executable.
+RUN /chatto --version
+
 WORKDIR /
 EXPOSE 4000
 

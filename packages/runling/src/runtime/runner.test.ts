@@ -718,7 +718,11 @@ test('ctx.run identifies the run in the workflow and its started tasks', async (
     ]),
     { input: null, run }
   );
-  expect(execution.output).toEqual([run, run, run]);
+  expect(execution.output).toEqual([
+    expect.objectContaining(run),
+    expect.objectContaining(run),
+    expect.objectContaining(run)
+  ]);
   expect(createTaskContext().run).toBeUndefined();
 });
 

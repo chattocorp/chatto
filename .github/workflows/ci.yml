@@ -28,10 +28,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
-      desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
+      desktop: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
       authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
       translatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.translatto == 'true' }}
       runling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
@@ -39,11 +40,19 @@ jobs:
       botto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.botto == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
     steps:
+      # Push filters use git; pull request filters use the GitHub API.
+      - name: Checkout for push change detection
+        if: github.event_name == 'push'
+        uses: actions/checkout@v6
+
       - name: Select affected products
-        if: github.event_name == 'pull_request'
         id: select
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
+          # Compare the exact push endpoints, including multi-commit pushes.
+          # Pull requests use the API and do not need these git inputs.
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          ref: ${{ github.event_name == 'push' && github.sha || '' }}
           predicate-quantifier: some-with-excludes
           # Release-please writes changelogs and the release manifest. Only
           # release tooling reads the changelogs, so they do not select product
@@ -250,7 +259,7 @@ jobs:
               cd cli
               # Chatto does not expose Gin's MessagePack binding; omit its large codec.
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
-                -tags=nomsgpack \
+                -tags=nomsgpack,nodynamic \
                 -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )
@@ -433,7 +442,7 @@ jobs:
         run: mise x -- node --test tools/check-server-compatibility.test.mjs
 
       - name: Test Slack importer
-        run: mise x -- python3 -B -m unittest discover -s tools -p 'test_slack*.py'
+        run: mise test-slack
 
       - name: Check server compatibility threshold labels
         if: github.event_name == 'pull_request'
@@ -460,6 +469,7 @@ jobs:
       - name: Check storage, internal, and Operator protobuf breaking changes
         if: github.event_name == 'pull_request'
         run: |
+          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           base_ref="${GITHUB_BASE_REF}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"

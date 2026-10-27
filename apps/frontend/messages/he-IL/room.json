@@ -291,6 +291,7 @@
     "unread_separator": "הודעות חדשות",
     "close_extras": "סגור את תוספות החדר",
     "dm": {
+      "deactivated_user_notice": "החשבון הזה מושבת. המשתמש אינו יכול לקרוא הודעות או להשיב להן.",
       "deleted_user_notice": "המשתמש השני נמחק."
     },
     "management": {

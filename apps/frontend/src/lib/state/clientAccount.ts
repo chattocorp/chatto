@@ -2,8 +2,7 @@ import {
   beginExplicitSignOutRedirect,
   cancelExplicitSignOutRedirect,
   ServerLogoutRejectedError,
-  signOutServer,
-  signOutServers
+  signOutServer
 } from '@chatto/client/auth/signOut';
 import { notifyLogout } from '$lib/auth/sessionChannel';
 import { clearLastRoom } from '$lib/storage/lastRoom';
@@ -58,19 +57,6 @@ class ClientAccountCoordinator {
       kind: 'soft',
       serverId: firstAuthenticatedServerId(serverId)
     };
-  }
-
-  async signOutAllServers(): Promise<ClientAccountNavigation> {
-    for (const server of serverRegistry.servers) {
-      await unsubscribePushBeforeLeaving(server.id);
-    }
-    beginExplicitSignOutRedirect();
-    await signOutServers([...serverRegistry.servers], (serverId) =>
-      serverRegistry.isOriginServer(serverId)
-    );
-    serverRegistry.resetToOrigin();
-    notifyLogout();
-    return { kind: 'hard' };
   }
 }
 
