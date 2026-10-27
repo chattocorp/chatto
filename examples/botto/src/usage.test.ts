@@ -32,7 +32,7 @@ vi.mock(sdkPath, async () => {
       agent.getApiKey = () => 'offline-test';
       agent.streamFunction = (_model, context) => {
         const child = result.session.systemPrompt.includes('You are a subagent');
-        if (child) expect(result.session.getActiveToolNames()).toEqual([]);
+        if (child) expect(result.session.getActiveToolNames()).toEqual(['read']);
         const lastMessage = context.messages.at(-1);
         const needsCrop = !child && lastMessage?.role === 'user';
         const needsDelegate =
