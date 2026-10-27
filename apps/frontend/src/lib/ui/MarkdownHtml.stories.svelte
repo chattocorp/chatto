@@ -113,6 +113,16 @@
   </div>
 </Story>
 
+<Story name="Highlighted code frame" asChild>
+  <div class="message-row bg-surface">
+    <div class="prose w-xl max-w-full">
+      {#await sourceTabsHtml then html}
+        <MarkdownHtml {html} />
+      {/await}
+    </div>
+  </div>
+</Story>
+
 <Story name="Blockquote emphasis" asChild>
   <div class="w-xl max-w-full rounded-md border border-border bg-surface p-3">
     <div class="prose max-w-none min-w-0">

@@ -342,6 +342,42 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it.each(['light', 'dark'])(
+    'keeps code chrome above the message surface in %s mode',
+    async (theme) => {
+      const root = document.documentElement;
+      const previous = root.dataset.theme;
+      const transition = root.style.transition;
+      try {
+        root.style.transition = 'none';
+        root.dataset.theme = theme;
+        const { container } = render(MarkdownHtml, {
+          html: await renderMarkdown('```ruby\nputs "Hello"\n```')
+        });
+        container.classList.add('prose', 'message-row');
+        const frame = container.querySelector<HTMLElement>('.markdown-code-frame')!;
+        const header = container.querySelector<HTMLElement>('.markdown-code-header')!;
+        await userEvent.hover(document.body);
+        const normal = getComputedStyle(header).backgroundColor;
+        expect(getComputedStyle(frame).borderTopColor).toBe(normal);
+        await userEvent.hover(header);
+        const highlighted = getComputedStyle(header).backgroundColor;
+        expect(highlighted).not.toBe(normal);
+        expect(getComputedStyle(frame).borderTopColor).toBe(highlighted);
+        container.classList.add('bg-surface');
+        await userEvent.hover(document.body);
+        expect(getComputedStyle(header).backgroundColor).toBe(highlighted);
+        expect(getComputedStyle(frame).borderTopColor).toBe(highlighted);
+        container.classList.remove('bg-surface');
+        expect(getComputedStyle(header).backgroundColor).toBe(normal);
+      } finally {
+        root.style.transition = transition;
+        if (previous === undefined) delete root.dataset.theme;
+        else root.dataset.theme = previous;
+      }
+    }
+  );
+
   it('consumes header control gestures and labels the source, preview and copy icons', async () => {
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown('```ansi\nART\n```')

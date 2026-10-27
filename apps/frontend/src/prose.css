@@ -162,11 +162,13 @@
   }
 
   & .markdown-code-frame {
-    @apply my-2 min-w-0 overflow-hidden rounded-md border border-surface shadow-xs;
+    @apply my-2 min-w-0 overflow-hidden rounded-md border shadow-xs;
+    border-color: var(--message-code-surface, var(--color-surface));
   }
 
   & .markdown-code-header {
-    @apply flex items-center justify-end gap-1 bg-surface px-2 py-0.5 font-sans text-xs leading-4 text-muted;
+    @apply flex items-center justify-end gap-1 px-2 py-0.5 font-sans text-xs leading-4 text-muted;
+    background-color: var(--message-code-surface, var(--color-surface));
   }
 
   & .markdown-code-header [role='tablist'] {

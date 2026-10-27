@@ -1856,6 +1856,14 @@
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {
   @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface desktop-presentation:mx-2 desktop-presentation:rounded-md desktop-presentation:pe-8;
+  /* Code chrome stays one surface above its message, including held menus. */
+  --message-code-surface: var(--color-surface);
+  @variant hover {
+    --message-code-surface: var(--color-surface-emphasized);
+  }
+  &.bg-surface {
+    --message-code-surface: var(--color-surface-emphasized);
+  }
 }
 
 @utility inline-end-overlay-shadow {
