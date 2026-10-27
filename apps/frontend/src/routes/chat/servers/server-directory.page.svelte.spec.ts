@@ -395,7 +395,14 @@ describe('Server Directory page', () => {
   );
 
   it('stops a join when the current version is no longer compatible', async () => {
-    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote', { version: '0.4.19' }));
+    const fetchImage = vi.fn().mockResolvedValue(new Response('', { status: 404 }));
+    vi.stubGlobal('fetch', fetchImage);
+    mocks.getPublicServerInfo.mockResolvedValue(
+      profile('Remote', {
+        version: '0.4.19',
+        bannerUrl: 'https://remote.example/banner.png'
+      })
+    );
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'))],
       failedSourceCount: 0,
@@ -408,6 +415,13 @@ describe('Server Directory page', () => {
 
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Sign-in unavailable'));
     await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+    // A refreshed profile uses the destination's images, not the cached source's.
+    await vi.waitFor(() =>
+      expect(fetchImage).toHaveBeenCalledWith(
+        'https://remote.example/banner.png',
+        expect.any(Object)
+      )
+    );
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 

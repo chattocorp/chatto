@@ -415,7 +415,7 @@ single directory surface for every host and the standalone start page. See FDR-0
     {/snippet}
     <ServerProfileCard
       origin={entry.origin}
-      imageOrigin={entry.imageOrigin}
+      imageOrigin={liveProfiles.has(entry.origin) ? entry.origin : entry.imageOrigin}
       {profile}
       iconHref={external ? entry.origin : undefined}
       iconOpensInNewTab={external}
