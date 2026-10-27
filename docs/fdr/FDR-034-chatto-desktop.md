@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-10-27
 
 ## Overview
 
@@ -54,6 +54,11 @@ system-browser authentication, and clean-machine media behavior are hardened.
 - Desktop downloads are attached to the Chatto release. Signing failures can
   delay those downloads, but do not block server publication. Matching desktop
   and server versions are not required; existing compatibility rules apply.
+- macOS users can download a signed, notarised disk image and drag the app to
+  Applications. The ZIP remains available. To update, users quit the app and
+  replace it with the newer version. Both downloads use the same profile;
+  replacement preserves registrations, sessions, and preferences. Removing the
+  app does not erase the profile or sign out registered servers.
 - Windows users can install through a self-contained installer without
   administrator rights. It adds a Start menu shortcut and a Windows Settings
   uninstall entry. Running a newer installer updates the application while
@@ -292,6 +297,13 @@ need a small server-side fan-out abstraction when Desktop background delivery
 is implemented. That work is deferred; current Desktop notifications still
 depend on the renderer being alive.
 
+### 10. Use a drag-to-Applications disk image on macOS
+
+**Decision:** Provide a signed and notarised DMG alongside the ZIP download.
+**Why:** The app is self-contained. A disk image gives users a familiar way to
+install it without installation scripts or additional system services.
+**Tradeoff:** Updates require users to quit and replace the app manually.
+
 ## Related
 
 The iOS shell shares the frontend but uses native system authentication. See
@@ -305,8 +317,8 @@ The iOS shell shares the frontend but uses native system authentication. See
 
 - How system-browser OAuth callbacks and normal external links should return to
   or focus the application on every platform.
-- Which automatic-update strategy and macOS/Linux installers should follow the
-  Windows installer and downloadable archives.
+- Which automatic-update strategy and Linux installers should follow the
+  Windows installer, macOS disk image, and downloadable archives.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
 - Which higher native screen-share quality profiles should be offered once representative

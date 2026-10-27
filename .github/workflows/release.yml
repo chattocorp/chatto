@@ -561,6 +561,14 @@ jobs:
             "apps/desktop/dist/Chatto Desktop.app" \
             ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${RUNNER_ARCH}.zip"
 
+      - name: Build and test signed macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mise x -- pnpm --filter chatto-desktop build:macos-dmg --release 2>&1 | tee -a "$RUNNER_TEMP/chatto-macos-notarization.log"
+          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+          cp apps/desktop/dist/dmg/*.dmg .context/desktop-release/
+
       - name: Upload macOS notarisation log
         if: runner.os == 'macOS' && always()
         uses: actions/upload-artifact@v7
