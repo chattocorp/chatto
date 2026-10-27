@@ -153,7 +153,7 @@ export class MessageComponent {
    */
   async toggleReaction(emoji: string): Promise<void> {
     const reactionButton = this.locator.getByRole('button', {
-      name: new RegExp(`${emoji} reaction`)
+      name: new RegExp(`${emoji} \\d+$`)
     });
     await reactionButton.click();
   }
@@ -383,7 +383,8 @@ export class MessageComponent {
    */
   async expectReaction(emoji: string, count: number): Promise<void> {
     const reactionButton = this.locator.getByRole('button', {
-      name: new RegExp(`${emoji} reaction \\(${count}\\)`)
+      name: `${emoji} ${count}`,
+      exact: true
     });
     await expect(reactionButton).toBeVisible();
   }
@@ -393,13 +394,13 @@ export class MessageComponent {
    */
   async expectNoReaction(emoji: string): Promise<void> {
     const reactionButton = this.locator.getByRole('button', {
-      name: new RegExp(`${emoji} reaction`)
+      name: new RegExp(`${emoji} \\d+$`)
     });
     await expect(reactionButton).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 
   private getReactionButton(emoji: string): Locator {
-    return this.locator.getByRole('button', { name: new RegExp(`${emoji} reaction`) });
+    return this.locator.getByRole('button', { name: new RegExp(`${emoji} \\d+$`) });
   }
 
   /**
