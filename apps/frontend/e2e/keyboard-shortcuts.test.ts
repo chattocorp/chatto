@@ -19,7 +19,7 @@ test('shortcut help preserves editor text, selection, and focus', async ({
   await roomPage.messageInput.press('ControlOrMeta+A');
   const selected = await page.evaluate(() => window.getSelection()?.toString());
 
-  await page.keyboard.press('ControlOrMeta+Shift+Slash');
+  await page.keyboard.press('ControlOrMeta+Slash');
   const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Open quick switcher', { exact: true })).toBeVisible();
@@ -38,6 +38,15 @@ test('shortcut help preserves editor text, selection, and focus', async ({
   await expect(dialog).not.toBeVisible();
   await expect(roomPage.messageInput).toBeFocused();
   await expect(roomPage.messageInput).toHaveText('Keep this selected draft');
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
+
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.getByRole('button', { name: 'Keyboard shortcuts', exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Go to next unread source', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(roomPage.messageInput).toBeFocused();
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
 
   await page.keyboard.press('ControlOrMeta+b');

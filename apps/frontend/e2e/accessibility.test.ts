@@ -245,7 +245,7 @@ test.describe('Route accessibility', () => {
     await expectNoAccessibilityViolations(page, 'quick switcher', 'dialog[open]');
     await page.keyboard.press('Escape');
 
-    await page.keyboard.press('ControlOrMeta+Shift+Slash');
+    await page.keyboard.press('ControlOrMeta+Slash');
     await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
     await expectNoAccessibilityViolations(page, 'keyboard shortcut help', 'dialog[open]');
     await page.keyboard.press('Escape');

@@ -117,13 +117,13 @@ beforeEach(() => {
 
 describe('global keyboard shortcuts', () => {
   it.each(['metaKey', 'ctrlKey'] as const)(
-    'opens shortcut help with %s+? without changing a draft',
+    'opens shortcut help with %s+/ without changing a draft',
     async (modifier) => {
       render(Harness);
       const draft = document.querySelector('textarea')!;
       draft.value = 'Keep my draft';
       draft.focus();
-      const event = press({ key: '?', altKey: false, shiftKey: true, [modifier]: true });
+      const event = press({ key: '/', altKey: false, shiftKey: false, [modifier]: true });
       expect(event.defaultPrevented).toBe(true);
       flushSync();
       const dialog = document.querySelector('dialog[open]')!;
@@ -146,10 +146,14 @@ describe('global keyboard shortcuts', () => {
     userPreferences.composerSendMode = 'modifier-enter';
     userPreferences.composerEditor = 'visual';
     const view = render(Harness, { showFilter: true, showEditor: true });
-    const help = () => {
+    const help = async () => {
       document.querySelector('textarea')!.focus();
-      press({ key: '?', altKey: false, shiftKey: true, ctrlKey: true });
+      quickSwitcher.open();
       flushSync();
+      document.querySelector<HTMLButtonElement>('button[aria-label="Keyboard shortcuts"]')!.click();
+      await expect
+        .poll(() => document.querySelector('dialog[open]')?.textContent)
+        .toContain('Keyboard shortcuts');
       return document.querySelector('dialog[open]')!;
     };
     const close = async (dialog: Element) => {
@@ -159,7 +163,7 @@ describe('global keyboard shortcuts', () => {
       await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
     };
     try {
-      let dialog = help();
+      let dialog = await help();
       expect(dialog.textContent).toContain('Filter permissions');
       expect(dialog.textContent).toContain('Bold');
       expect(dialog.textContent).toContain('Undo');
@@ -170,12 +174,12 @@ describe('global keyboard shortcuts', () => {
       await close(dialog);
       userPreferences.composerSendMode = 'enter';
       userPreferences.composerEditor = 'markdown';
-      dialog = help();
+      dialog = await help();
       expect(sendKeys().querySelectorAll('kbd')).toHaveLength(1);
       expect(dialog.textContent).not.toContain('Heading');
       await close(dialog);
       await view.rerender({ showFilter: false, showEditor: false });
-      dialog = help();
+      dialog = await help();
       expect(dialog.textContent).not.toContain('Filter permissions');
       expect(dialog.textContent).not.toContain('Bold');
     } finally {
@@ -226,6 +230,8 @@ describe('global keyboard shortcuts', () => {
       expect(document.activeElement).toBe(filter);
       expect(filter.selectionStart).toBe(0);
       expect(filter.selectionEnd).toBe(filter.value.length);
+      flushSync();
+      expect(document.querySelector('dialog[open]')).toBeNull();
     }
   );
 

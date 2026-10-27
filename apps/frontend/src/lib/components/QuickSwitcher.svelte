@@ -2,7 +2,7 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { LoadingFog } from '$lib/ui';
@@ -10,9 +10,22 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
 
-  let { onNextUnread }: { onNextUnread?: () => Promise<void> } = $props();
+  let {
+    onNextUnread,
+    onShortcutHelp
+  }: {
+    onNextUnread?: () => Promise<void>;
+    onShortcutHelp?: () => void;
+  } = $props();
   const model = new QuickSwitcherModel(() => onNextUnread?.());
   let dialogEl: HTMLDialogElement | undefined;
+
+  async function openShortcutHelp() {
+    quickSwitcher.close();
+    // Restore the previous view and focus before help takes its snapshot.
+    await tick();
+    onShortcutHelp?.();
+  }
 
   function syncQuickSwitcherDialog(node: HTMLDialogElement) {
     dialogEl = node;
@@ -99,6 +112,15 @@
               class="iconify sidebar-icon icon-[uil--spinner-alt] animate-spin text-muted"
               aria-hidden="true"
             ></span>
+          {/if}
+          {#if onShortcutHelp}
+            <button
+              type="button"
+              class="keycap"
+              aria-label={m('common.keyboard_shortcuts.title')}
+              title={m('common.keyboard_shortcuts.title')}
+              onclick={openShortcutHelp}>?</button
+            >
           {/if}
           <kbd class="keycap">Esc</kbd>
         </div>

@@ -79,7 +79,6 @@ typing should immediately replace the current query.
 <KeyboardShortcut
   key={shortcutKey}
   command
-  capture={false}
   description={label}
   when={() => !!inputForShortcut() && !inputForShortcut()?.disabled}
   ontrigger={focusInput}

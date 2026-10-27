@@ -10,9 +10,10 @@ It lets users discover shortcuts without leaving their draft or changing setting
 
 ## Behavior
 
-- Cmd+? on Apple platforms, or Ctrl+? elsewhere, opens help. Use Shift to type
-  the question mark where the keyboard layout requires it.
-- Cmd/Ctrl+/ keeps its existing function: focus the filter in views that have one.
+- Cmd+/ on Apple platforms, or Ctrl+/ elsewhere, opens help. In views with a
+  filter shortcut, that filter takes priority.
+- The Cmd/Ctrl+K palette also has a Keyboard shortcuts button to open help
+  from any view, including views with filters.
 - Help lists registered app shortcuts and filters in the current view. A form's
   submit shortcut appears when the focused field belongs to a form.
 - When a message composer is available, help also lists sending, newlines,
@@ -32,9 +33,11 @@ It lets users discover shortcuts without leaving their draft or changing setting
 
 ### 1. Keep the filter shortcut
 
-**Decision:** Use Cmd/Ctrl+? for help and retain Cmd/Ctrl+/ for filters.
+**Decision:** Use Cmd/Ctrl+/ for help, with existing filters taking priority.
+Also provide a help button in the quick switcher.
 **Why:** Users can continue to reach filters with the existing shortcut.
-**Tradeoff:** Typing the question mark depends on the keyboard layout.
+Cmd+Shift+/ can open a native browser menu before the page receives the key.
+**Tradeoff:** On filter pages, users open help through the quick switcher.
 
 ### 2. Describe the current view
 

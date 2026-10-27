@@ -43,9 +43,9 @@ once at the root layout level.
   ontrigger={() => quickSwitcher.open()}
 />
 <KeyboardShortcut
-  key="?"
+  key="/"
   command
-  shift
+  capture={false}
   description={m('common.keyboard_shortcuts.title')}
   ontrigger={openHelp}
 />
@@ -65,5 +65,5 @@ once at the root layout level.
   when={() => !!focusedForm()}
   ontrigger={() => focusedForm()?.requestSubmit()}
 />
-<QuickSwitcher onNextUnread={nextUnread} />
+<QuickSwitcher onNextUnread={nextUnread} onShortcutHelp={openHelp} />
 <KeyboardShortcutHelp bind:visible={helpVisible} shortcuts={helpEntries} />
