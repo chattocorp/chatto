@@ -222,7 +222,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
-    await expect(page.getByTitle('Sign out')).toBeVisible();
+    await expect(page.locator('a[href$="/settings"]')).toBeVisible();
   });
 
   test('token exchange rejects invalid code_verifier', async () => {

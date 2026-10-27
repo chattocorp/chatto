@@ -19,13 +19,26 @@ func (s *operatorUserService) CreateUser(ctx context.Context, req *connect.Reque
 	if strings.TrimSpace(req.Msg.GetLogin()) == "" {
 		return nil, invalidArgument("login is required")
 	}
-	created, err := s.api.core.AdminCreateUserAs(ctx, core.SystemActorID, core.AdminCreateUserRequest{
-		Login:         req.Msg.GetLogin(),
-		DisplayName:   req.Msg.GetDisplayName(),
-		Password:      req.Msg.GetPassword(),
-		VerifiedEmail: req.Msg.GetVerifiedEmail(),
-		RoleNames:     req.Msg.GetRoleNames(),
-	})
+	var created *core.AdminUserView
+	var err error
+	if req.Msg.GetOperationKey() != "" {
+		if req.Msg.GetPassword() != "" || len(req.Msg.GetRoleNames()) != 0 {
+			return nil, invalidArgument("keyed historical creation cannot set passwords or roles")
+		}
+		user, createErr := s.api.core.CreateHistoricalOperatorUser(ctx, req.Msg.GetOperationKey(), req.Msg.GetLogin(), req.Msg.GetDisplayName(), req.Msg.GetVerifiedEmail())
+		err = createErr
+		if err == nil {
+			created, err = s.api.core.AdminGetUser(ctx, user.Id)
+		}
+	} else {
+		created, err = s.api.core.AdminCreateUserAs(ctx, core.SystemActorID, core.AdminCreateUserRequest{
+			Login:         req.Msg.GetLogin(),
+			DisplayName:   req.Msg.GetDisplayName(),
+			Password:      req.Msg.GetPassword(),
+			VerifiedEmail: req.Msg.GetVerifiedEmail(),
+			RoleNames:     req.Msg.GetRoleNames(),
+		})
+	}
 	if err != nil {
 		return nil, err
 	}

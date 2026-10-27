@@ -31,12 +31,6 @@
         "room_invitation": "{actor} inviterte deg til et rom"
       }
     },
-    "sign_out": {
-      "title": "Logg av",
-      "current_server": "Nåværende server",
-      "all_servers": "Alle servere",
-      "description": "Logg av kun den valgte serveren, eller koble hver server fra denne klienten."
-    },
     "overview": {
       "title": "Oversikt"
     },

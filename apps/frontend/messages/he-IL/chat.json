@@ -31,12 +31,6 @@
         "room_invitation": "{actor} הזמין אותך לחדר"
       }
     },
-    "sign_out": {
-      "title": "צא",
-      "current_server": "שרת נוכחי",
-      "all_servers": "כל השרתים",
-      "description": "צא רק מהשרת שנבחר, או נתק את כל השרתים מהלקוח הזה."
-    },
     "overview": {
       "title": "סקירה כללית"
     },

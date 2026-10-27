@@ -131,6 +131,17 @@ class DownloadTests(unittest.TestCase):
         with self.assertRaisesRegex(ApplyError, "metadata conflicts"):
             file_inventory(plan)
 
+    def test_deleted_file_observations_keep_complete_metadata(self):
+        full = dict(file_record(), mode="hosted")
+        deleted = {"id": full["id"], "mode": "tombstone"}
+        hidden = {"id": full["id"], "mode": "hidden_by_limit"}
+        for references in ([deleted, full, hidden], [full, deleted], [hidden, deleted, full]):
+            plan = {"messages": [{"source": {"files": references}}]}
+            self.assertEqual(file_inventory(plan), {full["id"]: full})
+        with self.assertRaisesRegex(FileUnavailable, "file_deleted"):
+            self.cache.get(deleted)
+        self.cache.opener.open.assert_not_called()
+
     def test_hidden_files_and_tombstones_stay_explicit(self):
         plan = {"messages": [{"source": {"files": [{"id": "F1", "mode": "hidden_by_limit"}]}}]}
         files = FileImports(plan, self.cache)

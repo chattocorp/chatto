@@ -52,6 +52,12 @@ in user-scoped documents, not global memory. Do not disclose private user facts 
 other participants. Never store credentials.
 """
 
+[titles]
+# Optional independent model for short run titles. Defaults to agent.model.
+# Choose a small model from a provider whose credentials are configured.
+# model = "provider/small-model"
+reasoning_level = "off"
+
 [memory]
 # Requires the means executable. Relative paths use this TOML file's directory.
 enabled = false
@@ -71,7 +77,7 @@ data_directory = ".botto"
 # Quiet periods after the latest message or typing signal; minimum 2000ms.
 debounce_ms = 2000
 passive_debounce_ms = 5000
-turn_timeout_ms = 120000
+turn_timeout_ms = 900000
 context_messages = 30
 max_pending_messages = 100
 max_threads = 8

@@ -3,6 +3,51 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.22](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.21...v0.5.0-beta.22) (2026-10-27)
+
+
+### Features
+
+* **accounts:** add reversible account deactivation ([#3224](https://github.com/chattocorp/chatto/issues/3224)) ([581934d](https://github.com/chattocorp/chatto/commit/581934d711fec059079e959d9ffb30858e7ec215))
+* **assets:** support HEIC uploads and server previews ([#3192](https://github.com/chattocorp/chatto/issues/3192)) ([2732223](https://github.com/chattocorp/chatto/commit/2732223e506ab0cd6f0bf0f291963dab32daaf51))
+* **auth:** disable password self-service on SSO-only servers ([#3207](https://github.com/chattocorp/chatto/issues/3207)) ([507c2e0](https://github.com/chattocorp/chatto/commit/507c2e0c20a02594877576a81c34eb5fbbbdde8f))
+* **botto:** inspect image crops with view_image ([#3220](https://github.com/chattocorp/chatto/issues/3220)) ([bd4edd9](https://github.com/chattocorp/chatto/commit/bd4edd9ad34f06f52bfa765331d42e1728807ca9))
+* **botto:** read image attachments in model context ([#3217](https://github.com/chattocorp/chatto/issues/3217)) ([51ad0d0](https://github.com/chattocorp/chatto/commit/51ad0d0be679eecc1143054d35662e3e8444d388))
+* **botto:** run conversations as Runling workflows ([#3206](https://github.com/chattocorp/chatto/issues/3206)) ([d3ae9fb](https://github.com/chattocorp/chatto/commit/d3ae9fbc232af96678e4e6f349060453acc377ef))
+* **client:** adapt upload chunks to connection speed ([#3181](https://github.com/chattocorp/chatto/issues/3181)) ([bf769cf](https://github.com/chattocorp/chatto/commit/bf769cf82403a337409b7ea8c11d993357692bcc))
+* **desktop:** add a signed per-user Windows installer ([#3182](https://github.com/chattocorp/chatto/issues/3182)) ([e57416a](https://github.com/chattocorp/chatto/commit/e57416aacfa628a43d0535a1e135edf5e684ffa7))
+* **desktop:** improve game sharing with tuned H.264 VBR ([#3187](https://github.com/chattocorp/chatto/issues/3187)) ([4b471f1](https://github.com/chattocorp/chatto/commit/4b471f18035f812fef6a6f8e31c25291e4081dcc))
+* **frontend:** add copy action to member email details ([#3203](https://github.com/chattocorp/chatto/issues/3203)) ([aab4596](https://github.com/chattocorp/chatto/commit/aab459693edab3e7835d9afa167cd596a3157327))
+* **frontend:** navigate to the next unread notification source ([#3225](https://github.com/chattocorp/chatto/issues/3225)) ([b515cfc](https://github.com/chattocorp/chatto/commit/b515cfccda88be548cdacd45145634f121b1845c))
+* **frontend:** render ANSI art in message code blocks ([#3214](https://github.com/chattocorp/chatto/issues/3214)) ([8865ab1](https://github.com/chattocorp/chatto/commit/8865ab1d2eaef373703fd2e7970e68462943fd1d))
+* **frontend:** support underline Markdown in both composers ([#3175](https://github.com/chattocorp/chatto/issues/3175)) ([6da5e1f](https://github.com/chattocorp/chatto/commit/6da5e1fe4e5c16783b7305a7877762fc93378e53))
+* **import:** add portable history format and native operator importer ([#3215](https://github.com/chattocorp/chatto/issues/3215)) ([adde3c1](https://github.com/chattocorp/chatto/commit/adde3c1ba190db11feeb3a7ae577e5bd2c62b8df))
+* **import:** expand Slack history, identity, and attachment support ([#3198](https://github.com/chattocorp/chatto/issues/3198)) ([4be142b](https://github.com/chattocorp/chatto/commit/4be142b70e57a225f6883d45c3324a02d2d0196a))
+* **mcp:** add optional message search tool ([#3208](https://github.com/chattocorp/chatto/issues/3208)) ([ce78938](https://github.com/chattocorp/chatto/commit/ce78938efdab4cc794d0816ff986289d4327fc14))
+* **rooms:** add member-only room notices with explicit announcements ([#3213](https://github.com/chattocorp/chatto/issues/3213)) ([25716bf](https://github.com/chattocorp/chatto/commit/25716bf6334c8f8b8ff93afe35677c8fa7ddc69a))
+
+
+### Bug Fixes
+
+* **assets:** bound source buffering before image transforms ([#3185](https://github.com/chattocorp/chatto/issues/3185)) ([636a4df](https://github.com/chattocorp/chatto/commit/636a4dfa05fc3e340ad9925bdf13a8aa6623198e))
+* **auth:** preserve the last enabled sign-in method ([#3210](https://github.com/chattocorp/chatto/issues/3210)) ([f96d5e9](https://github.com/chattocorp/chatto/commit/f96d5e986dcf0a4b9c871d3c6eeeb356c39a0032))
+* **build:** keep HEIC-enabled release binaries static ([#3228](https://github.com/chattocorp/chatto/issues/3228)) ([f3a1408](https://github.com/chattocorp/chatto/commit/f3a1408aa953d9db582901c019ecff424f605daf))
+* **desktop:** allow clipboard writes from the app origin ([#3178](https://github.com/chattocorp/chatto/issues/3178)) ([c4b6e80](https://github.com/chattocorp/chatto/commit/c4b6e8004a54b5cf127096f64c84d5c30b039b58))
+* **desktop:** allow fullscreen from the app origin ([#3184](https://github.com/chattocorp/chatto/issues/3184)) ([17c6698](https://github.com/chattocorp/chatto/commit/17c669870ab49d8201824e3a3d5d8c34d4e98c14))
+* **desktop:** identify YouTube embeds to prevent error 153 ([#3209](https://github.com/chattocorp/chatto/issues/3209)) ([4ffa567](https://github.com/chattocorp/chatto/commit/4ffa567d4b367262c1641045c92115ea0fa928fa))
+* **frontend:** allow text selection by default ([#3201](https://github.com/chattocorp/chatto/issues/3201)) ([181767e](https://github.com/chattocorp/chatto/commit/181767ecc7a94fed4e55a16085dea139b6fdb20e))
+* **frontend:** dismiss thread overlays after context menus ([#3226](https://github.com/chattocorp/chatto/issues/3226)) ([8567f65](https://github.com/chattocorp/chatto/commit/8567f6563f84f0fecfaf8b31e37278faad78ad0b))
+* **frontend:** use a dark PWA launch background ([#3193](https://github.com/chattocorp/chatto/issues/3193)) ([77edae7](https://github.com/chattocorp/chatto/commit/77edae777c2e595e0e98fef64fefe25fe150fa0a))
+* **rbac:** align permission explanations and role roster access ([#3202](https://github.com/chattocorp/chatto/issues/3202)) ([8adfba1](https://github.com/chattocorp/chatto/commit/8adfba1ad496bfdf2823dea8e258503b39d170c8))
+* **release:** reserve Latest for stable Chatto releases ([#3176](https://github.com/chattocorp/chatto/issues/3176)) ([a2978a7](https://github.com/chattocorp/chatto/commit/a2978a76d28e7b2a33979962bb4046ea6245e603))
+* **release:** synchronize client versions with Chatto ([#3199](https://github.com/chattocorp/chatto/issues/3199)) ([975525f](https://github.com/chattocorp/chatto/commit/975525fb1b894d8cc7ff5eb711759bbc0f857e34))
+* **search:** restore standalone readiness signal ([#3195](https://github.com/chattocorp/chatto/issues/3195)) ([f58ea70](https://github.com/chattocorp/chatto/commit/f58ea70d2d15ed9fb5c6136097f5f865565b322f))
+
+
+### Performance Improvements
+
+* **assets:** bound upload and image transform memory ([#3173](https://github.com/chattocorp/chatto/issues/3173)) ([ac52837](https://github.com/chattocorp/chatto/commit/ac528374206439426eee64c65bac9177832185b3))
+
 ## [0.5.0-beta.21](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.20...v0.5.0-beta.21) (2026-10-25)
 
 

@@ -286,9 +286,9 @@ test.describe('Route accessibility', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toBeHidden();
 
-    await page.getByTitle('Sign out').first().click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expectNoAccessibilityViolations(page, 'sign-out dialog', 'dialog[open]');
+    await page.locator('[data-testid="server-icon"][href$="/chat/-"]').click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Sign out of server' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'server sign-out menu', '[role="menu"]');
   });
 
   test('right-to-left layouts meet WCAG A and AA rules', async ({ page, chatPage }) => {

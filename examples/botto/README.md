@@ -81,7 +81,7 @@ or configuration changes. Use this full restart for development rather than
 | `runtime.acknowledgement_emoji` | `eyes`                   | Reaction when a new conversation starts; empty string disables it              |
 | `runtime.debounce_ms`           | `2000`                   | Quiet period for mentions, replies to Botto, and DMs, 2000–60000 milliseconds  |
 | `runtime.passive_debounce_ms`   | `5000`                   | Quiet period for other text in active room threads, 2000–600000 milliseconds   |
-| `runtime.turn_timeout_ms`       | `120000`                 | Turn deadline, 1000–3600000 milliseconds                                       |
+| `runtime.turn_timeout_ms`       | `900000`                 | Turn deadline (15-minute default), 1000–3600000 milliseconds                   |
 | `runtime.context_messages`      | `30`                     | Recent thread replies to include, 1–50                                         |
 | `runtime.max_pending_messages`  | `100`                    | Accepted messages across queued and active batches, 1–10000                    |
 | `runtime.max_threads`           | `8`                      | Maximum active or queued threads, 1–100                                        |
@@ -498,19 +498,43 @@ Separate instances must use separate data directories.
 Existing transcript filenames and delivery files need no
 migration.
 
-Runling snapshots open conversations every 60 seconds and on graceful shutdown.
+Each message batch runs as one finite root execution. After the answer and task
+cleanup, the root returns. A later batch reactivates the retained workflow ID;
+there is no idle conversation task to interrupt on shutdown. The inbox serializes
+batches for each thread.
+
+Runling saves workflow state after execution, every 60 seconds, and on graceful shutdown.
 After a crash, a newly created run can be absent from the snapshot; later input
 then starts a new run for the same Chatto thread. The delivery ledger remains
 the authority for queued, completed, and uncertain work. A recovered workflow
-waits for the source to admit queued work; it never repeats its original input.
+returns without repeating its original input. This also closes old waiting roots
+on the first restart after upgrade. The source admits later work through reactivation.
 Runling keeps open runs and removes closed runs after its 30-day retention
 period. Botto's existing transcript files are separate and have no automatic
-retention limit. A failed turn does not close its conversation run.
+retention limit. A failed turn ends its execution; a later batch can reactivate
+the same retained run. After retention removes a run, a new batch starts a new ID.
 After restart, Runling's console shows the latest execution attempt's activity
 and total token usage and cost across all attempts. Earlier attempts remain in
 the run journal; the agent continues from its saved transcript.
 
 ## Logs and development
+
+Botto names an untitled run with Runling's `createDescription()` task, alongside
+the main reply. The task receives up to 8,000 characters of current message text,
+without author IDs, memory, history, or attachments. It is instructed to omit
+greetings and to exclude personal details and secrets. Its result sets the run
+title; the main agent has no title tool. A saved title stays unchanged across
+turns and restarts. It does not rename the Chatto thread or post a message.
+
+Set `titles.model` to use a small model with your configured provider credentials.
+It defaults to `agent.model`; `titles.reasoning_level` defaults to `off`. The selected
+provider receives the text and the connection's IP address. This adds one model
+request per naming attempt, with usage and cost recorded under the run. No tools
+or external resources are available to the description task. The reply can be
+posted while naming runs, but the turn joins naming before it ends. Naming has a
+30-second deadline, bounded further by the turn deadline. A failure or empty
+description leaves the run untitled and does not prevent the reply; a later turn
+can try again. Model output can be imperfect. There is no automatic renaming.
 
 Runling owns all log output. Connection and intake messages use a `[source:chatto]`
 prefix. Work inside a conversation uses its run and task context and appears in
@@ -539,9 +563,10 @@ mise x -- pnpm --filter @chatto/example-botto test
 recoverable conversation task. The Runling CLI owns serving, signal handling, and shutdown.
 `src/source.ts` owns connectivity and the durable message ledger.
 `src/conversation.ts` defines an ordinary Runling root task for each Chatto
-thread. Its source routing finds or starts that root and waits for each child
-task and its cleanup. The inbox admits one turn per thread at a time, so the
-root awaits a single child and routing reads Runling's source-owned runs directly.
+thread. Its source routing starts or reactivates that root for one batch and waits
+for its execution and cleanup. Routing reads Runling's retained source-owned runs
+directly. Only a private, process-local ticket admits work; console messages and
+recovery cannot replay callbacks.
 Runling's batch queue owns ordering, capacity, and timers. `src/threads.ts`
 keeps Botto's routing keys and transcript identities consistent.
 `src/messages.ts` selects addressed

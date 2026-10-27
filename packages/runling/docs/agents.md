@@ -1,5 +1,33 @@
 # Agents
 
+## Describe supplied content
+
+Use `createDescription()` for an isolated description of text. The caller chooses
+the model and instructions. This is an ordinary task, with normal usage and cost
+tracking; it does not set workflow metadata itself.
+
+```ts
+import { createDescription } from 'runling';
+
+const describe = createDescription({
+  name: 'Describe report',
+  model: 'provider/model', // Select a model for which you have credentials.
+  thinkingLevel: 'off',
+  instructions: 'Write one short sentence about the report.'
+});
+// Inside a task:
+const description = await describe(ctx, reportText);
+```
+
+Each invocation uses a fresh, tool-free session without local instructions or
+saved history. The selected model provider receives the supplied text. Content
+logging is disabled. The task has a 30-second deadline and propagates errors and
+cancellation without retries. It returns trimmed text; instructions can permit
+an empty result when no description is useful. The parent decides whether failure
+is fatal and whether to save or display the result. See [FDR-001](fdr/FDR-001-agent-interactions.md).
+
+## Agent tasks
+
 `agent(options)` defines a task. It does not create a live session until the
 task runs. The default input is a string prompt. The result is the final text
 of the agent.

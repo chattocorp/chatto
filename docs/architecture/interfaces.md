@@ -381,10 +381,11 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 
 ## Mounted operator services
 
-`OperatorImportService.ImportArchive` is mounted only on the operator socket.
-It accepts bounded archive bytes and naming options, then delegates validation
-and recovery to [the core importer](../../cli/internal/core/interchange_import.go).
-It is not a public HTTP service. See [FDR-053](../fdr/FDR-053-history-import-export.md).
+The operator socket serves individual user, room, message, and upload APIs.
+It does not accept archives. `ImportRoomEvent` and `ImportMessageChange` apply
+typed historical transitions. Optional operation keys on creation and message
+import provide permanent exact retry protection. See
+[FDR-053](../fdr/FDR-053-history-import-export.md).
 
 | Package              | Service                  | Access policy                                                                                      |
 | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |

@@ -142,12 +142,14 @@ async function captureExecution(
   }
 ): Promise<WorkflowExecution> {
   const deadline = createTimeout(timeout, 'Workflow');
+  const lifetime = new AbortController();
   const root = createRootContext(
     bindRunlingContext((usage: TokenUsage) => emitRunlingEvent({ type: 'usage.updated', usage })),
     signal && deadline.signal
       ? AbortSignal.any([signal, deadline.signal])
       : (signal ?? deadline.signal),
-    identity
+    identity,
+    lifetime.signal
   );
   const start = performance.now();
   let output: unknown = null;
@@ -177,6 +179,7 @@ async function captureExecution(
     // A cancelled result settles at once. Wait for the task's cooperative cleanup, such as
     // `finally` blocks, so that a host does not stop while it runs.
     await invocation?.[Symbol.asyncDispose]();
+    lifetime.abort(new Error('Workflow execution finished'));
     deadline.dispose();
   }
 
