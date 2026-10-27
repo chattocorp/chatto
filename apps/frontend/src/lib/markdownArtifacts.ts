@@ -94,6 +94,7 @@ export function attachCodeFrames(html: string, scope: string) {
         tab.addEventListener(
           'click',
           (event) => {
+            event.preventDefault();
             event.stopPropagation();
             select(i);
           },
@@ -112,6 +113,7 @@ export function attachCodeFrames(html: string, scope: string) {
                     : undefined;
             if (next === undefined || tabs[next].disabled) return;
             event.preventDefault();
+            event.stopPropagation();
             select(next);
             tabs[next].focus();
           },

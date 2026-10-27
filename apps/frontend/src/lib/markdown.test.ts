@@ -492,7 +492,7 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<pre class="hljs markdown-code" data-language="js"');
       expect(html).toContain('language-js');
       expect(html).toContain('hljs-keyword');
-      expect(html).toContain('<span class="markdown-code-language">js</span><button');
+      expect(html).toContain('<span class="markdown-code-language">js</span>');
       expect(html).toContain('data-markdown-copy');
     });
 
@@ -552,7 +552,7 @@ describe('renderMarkdown', () => {
       const html = await renderMarkdown('    first\n    second\n\n`inline`');
 
       expect(html).toContain('data-copy-source="first\nsecond\n"');
-      expect(html).toContain('<span class="markdown-code-language">text</span><button');
+      expect(html).toContain('<span class="markdown-code-language">text</span>');
       expect(html.match(/data-markdown-copy/g)).toHaveLength(1);
       expect(html).toContain('<code>inline</code>');
     });

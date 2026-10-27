@@ -26,10 +26,19 @@
     `Short list\n\n${shortOrderedList}\n\nLong list\n\n${longOrderedList}`
   );
   const codeHtml = renderMarkdown(
-    '```js\nconst answer = 42;\n\nconsole.log("A long line of code stays inside its block and scrolls horizontally", answer);\n```\n\n    Indented code'
+    '```ruby\nIO.puts("this is a test")\n```\n\n```js\nconst answer = 42;\n\nconsole.log("A long line of code stays inside its block and scrolls horizontally", answer);\n```\n\n    Indented code'
   );
   const sourceTabsHtml = renderMarkdown(
     'README example:\n\n```mermaid\nflowchart LR\nA[Source first] --> B[Select Render]\n```'
+  );
+  const longSourceHtml = renderMarkdown(
+    '```svg\n<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">\n' +
+      Array.from(
+        { length: 64 },
+        (_, i) =>
+          `  <circle cx="${38 + (i % 8) * 75}" cy="${38 + Math.floor(i / 8) * 75}" r="24" fill="#55aabb" />`
+      ).join('\n') +
+      '\n</svg>\n```'
   );
   const ansiHtml = renderMarkdown(
     '```ansi render\n' +
@@ -96,6 +105,14 @@
   </div>
 </Story>
 
+<Story name="Scrollable source" asChild>
+  <div class="prose w-2xl max-w-full">
+    {#await longSourceHtml then html}
+      <MarkdownHtml {html} />
+    {/await}
+  </div>
+</Story>
+
 <Story name="Blockquote emphasis" asChild>
   <div class="w-xl max-w-full rounded-md border border-border bg-surface p-3">
     <div class="prose max-w-none min-w-0">
@@ -136,7 +153,7 @@
 </Story>
 
 <Story name="Copy code blocks" asChild>
-  <div class="w-96 rounded-md border border-border bg-surface p-3">
+  <div class="w-2xl max-w-full">
     <div class="prose max-w-none min-w-0">
       {#await codeHtml}
         <span class="text-muted">Rendering code…</span>

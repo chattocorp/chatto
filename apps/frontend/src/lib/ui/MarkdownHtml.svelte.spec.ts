@@ -342,6 +342,51 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it('consumes header control gestures and labels the source, preview and copy icons', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```ansi\nART\n```')
+    });
+    const parentGesture = vi.fn();
+    const events = [
+      'click',
+      'pointerdown',
+      'pointerup',
+      'mousedown',
+      'mouseup',
+      'touchstart',
+      'touchend',
+      'dblclick'
+    ];
+    for (const type of events) container.addEventListener(type, parentGesture);
+    const header = container.querySelector('.markdown-code-header')!;
+    expect(header.firstElementChild?.textContent).toBe('ansi');
+    expect(header.lastElementChild?.hasAttribute('data-markdown-copy')).toBe(true);
+    const buttons = header.querySelectorAll<HTMLButtonElement>('button');
+    expect([...buttons].map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Source',
+      'Render',
+      'Copy to clipboard'
+    ]);
+    for (const button of buttons) {
+      expect(button.title).toBe(button.getAttribute('aria-label'));
+      expect(button.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    }
+    for (const button of buttons) {
+      await userEvent.click(button);
+      for (const type of ['touchstart', 'touchend', 'dblclick']) {
+        button.dispatchEvent(new Event(type, { bubbles: true }));
+      }
+      button.focus();
+      await userEvent.keyboard('{Enter}');
+    }
+    expect(parentGesture).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith('ART\n');
+    // Ordinary message content must still reach the message's handlers.
+    container.querySelector('code')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(parentGesture).toHaveBeenCalledOnce();
+    for (const type of events) container.removeEventListener(type, parentGesture);
+  });
+
   it('renders SVG inside a shared frame with source and copy controls', async () => {
     const source =
       '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="red"/></svg>\n';
@@ -440,8 +485,8 @@ describe('MarkdownHtml code copy', () => {
     const buttons = container.querySelectorAll<HTMLButtonElement>('button[data-markdown-copy]');
 
     expect(buttons).toHaveLength(2);
-    expect(buttons[0].previousElementSibling?.textContent).toBe('text');
-    expect(buttons[1].previousElementSibling?.textContent).toBe('text');
+    expect(buttons[0].parentElement?.firstElementChild?.textContent).toBe('text');
+    expect(buttons[1].parentElement?.firstElementChild?.textContent).toBe('text');
     expect(buttons[0].getAttribute('aria-label')).toBe('Copy to clipboard');
     expect(container.querySelector('p code')?.textContent).toBe('inline');
     await userEvent.click(buttons[0]);
