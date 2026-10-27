@@ -266,7 +266,8 @@ private snapshots. Pagination advances by returned IDs, not hydrated rows.
 `AdminUserService.SetUserDeactivated` delegates access changes to the
 [account lifecycle operation](../../cli/internal/core/user_deactivation.go).
 `AdminMember` exposes the flag and the caller's authority to change it.
-The public user profile does not expose administrative access state.
+The public user profile exposes the deactivation flag. Administrative details
+remain private.
 
 `AdminRoleService` separates role details from explicit membership pages.
 Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs

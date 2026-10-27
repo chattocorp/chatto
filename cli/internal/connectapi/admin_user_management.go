@@ -268,6 +268,7 @@ func adminMemberUserWithPresence(member core.AdminMember, presence string) *apiv
 		Login:          member.Login,
 		DisplayName:    member.DisplayName,
 		Deleted:        member.Deleted,
+		Deactivated:    member.Deactivated,
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
 	}
