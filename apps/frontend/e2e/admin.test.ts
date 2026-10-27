@@ -840,8 +840,8 @@ test.describe('Identity Editing', () => {
     await withServerUser(browser, serverURL, async ({ user }) => {
       await adminPage.gotoUserManagement(user.id!);
       await adminPage.openMemberSection('Account');
-      await page.getByRole('link', { name: 'Delete account', exact: true }).click();
-      await expect(page).toHaveURL(routes.serverAdminMemberDelete(user.id!));
+      await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
 
       await page.locator('#member-delete-confirm').fill(user.login);
       const [response] = await Promise.all([
