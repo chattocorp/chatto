@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "Προβολή από προεπιλογή",
     "attach_file": "Επισύναψη αρχείου",
     "formatting_options": "Επιλογές μορφοποίησης",
     "send": "Αποστολή μηνύματος",

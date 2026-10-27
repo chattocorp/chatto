@@ -27,7 +27,7 @@ import Link from '@tiptap/extension-link';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
-import { lowlight } from '$lib/codeHighlighting';
+import { lowlight, normalizeCodeLanguage, resolveCodeLanguage } from '$lib/codeHighlighting';
 import { createCodeLanguageDetectionPlugin } from './codeLanguageDetection';
 import { isDefaultEmptyDocument, isHttpMarkdownAutolink } from './markdown';
 import { FootnoteDefinition, FootnoteReference } from './footnotes';
@@ -80,6 +80,9 @@ const ComposerUnderline = Underline.extend({
 /** Tiptap must only decorate saved languages, never guess during rendering. */
 const editorCodeHighlighting = {
   ...lowlight,
+  registered: (language: string) => lowlight.registered(resolveCodeLanguage(language) ?? language),
+  highlight: (language: string, value: string) =>
+    lowlight.highlight(resolveCodeLanguage(language) ?? language, value),
   highlightAuto: () => ({ type: 'root' as const, children: [] })
 };
 
@@ -88,7 +91,7 @@ export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
     return [...(this.parent?.() ?? []), createCodeLanguageDetectionPlugin()];
   },
   renderHTML({ node, HTMLAttributes }) {
-    const language = node.attrs.language || 'text';
+    const language = normalizeCodeLanguage(node.attrs.language);
 
     return [
       'pre',

@@ -86,7 +86,7 @@ Allow at most four diagrams per message and 10,000 source characters per diagram
 
 Default flowchart groups use the menu frame treatment: a solid surface, a title band, and an inset content area. Frame lighting follows UI Depth and the current theme. Groups with author-specified styles keep their original presentation.
 
-Both editors highlight labelled Mermaid source with a shared, lazily loaded grammar. The visual editor includes Mermaid in its language selector. Mermaid is excluded from automatic language detection so a guess cannot enable diagram rendering. Highlighting does not validate the diagram; Pele validates it when rendering.
+Both editors highlight labelled Mermaid source with a shared, lazily loaded grammar. The visual editor includes Mermaid in its language selector. Mermaid is excluded from automatic language detection so a guess cannot enable diagram rendering. Highlighting does not validate the diagram; Pele validates it when rendering. The visual editor offers a Render by default toggle for SVG, Mermaid and ANSI blocks. It writes or removes the render hint without changing source. Changing between artifact languages preserves the setting; choosing another language removes it.
 
 **Why:** Pele supports Mermaid syntax without a remote rendering service. The image boundary also used for SVG prevents active content from entering the application document. Worker termination bounds expensive layout work.
 

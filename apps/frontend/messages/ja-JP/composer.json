@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "既定でプレビューを表示",
     "attach_file": "ファイルを添付",
     "formatting_options": "書式設定オプション",
     "send": "メッセージを送信",

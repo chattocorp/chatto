@@ -20,6 +20,7 @@
 <script lang="ts">
   let markdown = $state('**Welcome!** Please check the pinned messages before posting.');
   let visual = $state('**Welcome!** Please check the pinned messages before posting.');
+  let renderedMermaid = $state('```mermaid render\nflowchart LR\nA[Draft] --> B[Publish]\n```');
   let mermaid = $state(
     '```mermaid\nflowchart TD\n  accTitle: Spaceport departure\n  %% Cargo inspection\n  subgraph Cargo\n    A[Scan cargo] --> B{Contraband?}\n    B -->|No| C[Seal the hold]\n    B -->|Yes| D[Pay a suspicious fee]\n    D --> C\n  end\n```'
   );
@@ -62,6 +63,10 @@
 
 <Story name="Mermaid visual editor" asChild>
   <MarkdownEditorField bind:value={mermaid} editorKind="visual" label="Flight plan" />
+</Story>
+
+<Story name="Render by default" asChild>
+  <MarkdownEditorField bind:value={renderedMermaid} editorKind="visual" label="Diagram" />
 </Story>
 
 <Story name="Member mentions" asChild>

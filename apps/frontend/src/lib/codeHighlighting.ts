@@ -58,6 +58,8 @@ const preferredCodeLanguageValues = new Set(
 
 export const CODE_LANGUAGE_OPTIONS = [
   ...preferredCodeLanguageOptions,
+  { value: 'svg', label: 'SVG' },
+  { value: 'ansi', label: 'ANSI' },
   ...[...languageImporters.keys()]
     .filter((language) => !preferredCodeLanguageValues.has(language))
     .sort()

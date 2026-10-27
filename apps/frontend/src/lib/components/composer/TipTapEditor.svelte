@@ -87,8 +87,15 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let settingContent = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
+  const activeArtifactHint = $derived(
+    /^(svg|mermaid|ansi)(\s+render)?$/i.exec(activeCodeBlockLanguage ?? '')
+  );
+  const activeCodeLanguage = $derived(
+    activeArtifactHint?.[1].toLowerCase() ?? activeCodeBlockLanguage
+  );
+  const renderByDefault = $derived(!!activeArtifactHint?.[2]);
   let activeCodeBlockLanguageLabel = $derived(
-    CODE_LANGUAGE_OPTIONS.find((language) => language.value === activeCodeBlockLanguage)?.label ??
+    CODE_LANGUAGE_OPTIONS.find((language) => language.value === activeCodeLanguage)?.label ??
       activeCodeBlockLanguage?.toUpperCase() ??
       'TEXT'
   );
@@ -212,13 +219,14 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     }
   }
 
-  function setCodeBlockLanguage(language: string) {
+  function setCodeBlockLanguage(language: string, render = renderByDefault) {
     if (!editor) return;
+    const hint = render && /^(svg|mermaid|ansi)$/i.test(language) ? `${language} render` : language;
 
     editor
       .chain()
       .focus()
-      .updateAttributes('codeBlock', { language: language || null })
+      .updateAttributes('codeBlock', { language: hint || null })
       .run();
     updateActiveControls(editor);
     ensureEditorCodeLanguages(editor);
@@ -670,7 +678,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   ></div>
 
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
-    <div class="absolute z-10" style={codeLanguageSelectStyle}>
+    <div
+      class="absolute z-10 inline-flex items-center rounded-tl-md rounded-br-md bg-surface-emphasized"
+      style={codeLanguageSelectStyle}
+    >
       <div
         class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
       >
@@ -680,7 +691,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           name="composer-code-language"
           aria-label={m('composer.code_language')}
           title={m('composer.code_language')}
-          value={activeCodeBlockLanguage}
+          value={activeCodeLanguage}
           disabled={!editable || readOnly}
           onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}
           class="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
@@ -690,6 +701,19 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           {/each}
         </select>
       </div>
+      {#if activeArtifactHint}
+        <button
+          type="button"
+          class="code-render-toggle mini-icon-action size-6"
+          title={m('composer.render_by_default')}
+          aria-label={m('composer.render_by_default')}
+          aria-pressed={renderByDefault}
+          disabled={!editable || readOnly}
+          onclick={() => setCodeBlockLanguage(activeCodeLanguage!, !renderByDefault)}
+        >
+          <span aria-hidden="true" class="iconify icon-[uil--eye] text-sm"></span>
+        </button>
+      {/if}
     </div>
   {/if}
 </div>
@@ -697,6 +721,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 <style>
   /* ProseMirror needs explicit outline removal and placeholder styling
 	   that can't be achieved with Tailwind alone (pseudo-elements) */
+  /* The selected state also overrides the shared icon's hover colour. */
+  .code-render-toggle[aria-pressed='true'] {
+    color: var(--color-action);
+  }
+
   :global(.tiptap-editor .ProseMirror) {
     outline: none;
     word-break: break-word;

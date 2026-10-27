@@ -1,5 +1,6 @@
 {
   "composer": {
+    "render_by_default": "הצגת תצוגה מקדימה כברירת מחדל",
     "attach_file": "צרף קובץ",
     "formatting_options": "אפשרויות עיצוב",
     "send": "שלח הודעה",
