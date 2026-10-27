@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -216,7 +218,7 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	}, nil
 }
 
-func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerUser, error) {
+func viewerUser(ctx context.Context, api *API, user *readmodel.User) (*apiv1.ViewerUser, error) {
 	var (
 		hasVerifiedEmail bool
 		settings         *evtv1.ServerUserPreferences

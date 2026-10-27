@@ -11,12 +11,13 @@ import (
 	"sort"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // realtimeSnapshotUserHydrationConcurrency bounds the concurrent key-store and
@@ -42,7 +43,7 @@ type realtimeSnapshotUserCapture struct {
 }
 
 type realtimeSnapshotCallCapture struct {
-	room     *evtv1.Room
+	room     *readmodel.Room
 	snapshot core.CallRoomSnapshot
 }
 

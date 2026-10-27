@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -312,7 +314,7 @@ func mcpMessageResult(ctx context.Context, chattoCore *core.ChattoCore, event *e
 	return result, nil
 }
 
-func roomResultFromRoom(room *evtv1.Room, isMember bool) roomResult {
+func roomResultFromRoom(room *readmodel.Room, isMember bool) roomResult {
 	return roomResult{
 		ID: room.GetId(), Name: room.GetName(), Description: room.GetDescription(),
 		Kind: roomKind(room.GetKind()), Archived: room.GetArchived(), IsMember: isMember,

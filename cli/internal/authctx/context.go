@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 )
 
 // contextKey is an unexported type for context keys to prevent collisions.
@@ -48,13 +48,13 @@ type RuntimeCredential struct {
 
 // ForContext extracts the authenticated user from the request context.
 // Returns nil if no user is authenticated.
-func ForContext(ctx context.Context) *evtv1.User {
-	raw, _ := ctx.Value(userCtxKey).(*evtv1.User)
+func ForContext(ctx context.Context) *readmodel.User {
+	raw, _ := ctx.Value(userCtxKey).(*readmodel.User)
 	return raw
 }
 
 // WithUser returns a new context with the authenticated user injected.
-func WithUser(ctx context.Context, user *evtv1.User) context.Context {
+func WithUser(ctx context.Context, user *readmodel.User) context.Context {
 	return context.WithValue(ctx, userCtxKey, user)
 }
 

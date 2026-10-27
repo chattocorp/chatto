@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
@@ -28,7 +30,6 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
@@ -998,7 +999,7 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 	})
 
 	t.Run("returns narrow Connect caller", func(t *testing.T) {
-		info, err := authenticateConnectRequest(authctx.WithUser(context.Background(), &evtv1.User{
+		info, err := authenticateConnectRequest(authctx.WithUser(context.Background(), &readmodel.User{
 			Id:          "user-123",
 			Login:       "should-not-leak",
 			DisplayName: "Should Not Leak",
@@ -1259,7 +1260,7 @@ func TestConnectAPIReportsCredentialUserLookupFailureAsUnavailable(t *testing.T)
 		return err
 	}
 
-	s.credentialUserLookup = func(context.Context, string) (*evtv1.User, error) {
+	s.credentialUserLookup = func(context.Context, string) (*readmodel.User, error) {
 		return nil, errors.New("key store unavailable")
 	}
 	if err := getViewer(); connect.CodeOf(err) != connect.CodeUnavailable {

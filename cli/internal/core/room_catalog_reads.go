@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 )
 
 // Catalog reads do not authorize callers. Shared-view callers retain the
@@ -48,7 +48,7 @@ func (m *RoomModel) lastPostedMessageTimes(roomID string) (time.Time, time.Time)
 }
 
 // GetRoom returns a detached room with its current group. A missing room or kind mismatch returns ErrNotFound.
-func (m *RoomModel) GetRoom(ctx context.Context, kind RoomKind, roomID string) (*evtv1.Room, error) {
+func (m *RoomModel) GetRoom(ctx context.Context, kind RoomKind, roomID string) (*readmodel.Room, error) {
 	room, ok := m.room(roomID)
 	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
 		return nil, fmt.Errorf("room %s: %w", roomID, ErrNotFound)
@@ -60,7 +60,7 @@ func (m *RoomModel) GetRoom(ctx context.Context, kind RoomKind, roomID string) (
 }
 
 // FindRoomByID returns a detached room with its current group, without a kind filter.
-func (m *RoomModel) FindRoomByID(ctx context.Context, roomID string) (*evtv1.Room, error) {
+func (m *RoomModel) FindRoomByID(ctx context.Context, roomID string) (*readmodel.Room, error) {
 	room, ok := m.room(roomID)
 	if !ok {
 		return nil, ErrNotFound
@@ -81,7 +81,7 @@ func (m *RoomModel) FindRoomKind(ctx context.Context, roomID string) (RoomKind, 
 }
 
 // ListRooms returns detached rooms of the requested kind with their current groups.
-func (m *RoomModel) ListRooms(ctx context.Context, kind RoomKind) ([]*evtv1.Room, error) {
+func (m *RoomModel) ListRooms(ctx context.Context, kind RoomKind) ([]*readmodel.Room, error) {
 	rooms := m.roomsByKind(ProtoKindForRoomKind(kind))
 	for _, r := range rooms {
 		if gid := m.roomGroupForRoom(r.Id); gid != "" {
@@ -92,7 +92,7 @@ func (m *RoomModel) ListRooms(ctx context.Context, kind RoomKind) ([]*evtv1.Room
 }
 
 // GetRoomGroup returns a detached group, or ErrRoomGroupNotFound.
-func (m *RoomModel) GetRoomGroup(_ context.Context, groupID string) (*evtv1.RoomGroup, error) {
+func (m *RoomModel) GetRoomGroup(_ context.Context, groupID string) (*readmodel.RoomGroup, error) {
 	g, ok := m.roomGroup(groupID)
 	if !ok {
 		return nil, ErrRoomGroupNotFound
@@ -101,19 +101,19 @@ func (m *RoomModel) GetRoomGroup(_ context.Context, groupID string) (*evtv1.Room
 }
 
 // ListRoomGroupsOrdered returns channel groups in layout order, followed by orphan groups in ID order.
-func (m *RoomModel) ListRoomGroupsOrdered(_ context.Context, kind RoomKind) ([]*evtv1.RoomGroup, error) {
+func (m *RoomModel) ListRoomGroupsOrdered(_ context.Context, kind RoomKind) ([]*readmodel.RoomGroup, error) {
 	if kind != KindChannel {
 		return nil, nil
 	}
 
 	order := m.roomLayoutOrder()
 	all := m.roomGroups()
-	docs := make(map[string]*evtv1.RoomGroup, len(all))
+	docs := make(map[string]*readmodel.RoomGroup, len(all))
 	for _, g := range all {
 		docs[g.Id] = g
 	}
 
-	out := make([]*evtv1.RoomGroup, 0, len(docs))
+	out := make([]*readmodel.RoomGroup, 0, len(docs))
 	used := make(map[string]struct{}, len(order))
 	for _, id := range order {
 		if _, dup := used[id]; dup {

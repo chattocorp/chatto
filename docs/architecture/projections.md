@@ -239,6 +239,17 @@ in place. Unreadable indexes without a rebuild marker are never deleted.
 
 ## Snapshot support
 
+Room, notice, membership, user, role, and room-layout read results use
+[`internal/readmodel`](../../cli/internal/readmodel/models.go) Go types.
+Snapshot codecs map projection state to dedicated `projection/v1` records;
+transport adapters map read results to public API records. The
+[`snapshot adapters`](../../cli/internal/core/read_model_snapshots.go) exclude
+hydrated login, display name, and bio structurally. Room snapshots retain raw
+threading enum values before read-time normalization. Legacy group and link
+records live with `RoomLayout` in `runtime_state/v1/legacy_state.proto`. Event-owned
+values stay in `evt/v1/event_values.proto`. See
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
+
 `core.projection_snapshots` enables ADR-050 encrypted projection snapshots.
 Every eligible projection owns one opaque, projection-scoped contract ID and
 generation prefix. The contract covers serialized state, replay semantics,
@@ -252,7 +263,7 @@ attention.
 
 Room Timeline `v11` excludes hidden import reconciliation facts from its visible
 timeline index. Room Directory retains the separate imported purpose through
-the `Room` protobuf in its snapshots; that field changes the schema fingerprint.
+the `RoomSnapshot` protobuf in its snapshots.
 
 Room Timeline `v9` retains a historical-import bit on each message reference.
 Unread and room-activity reads omit these messages, while timeline reads keep

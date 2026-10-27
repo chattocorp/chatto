@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/charmbracelet/log"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -120,7 +122,7 @@ type RoomBanListInput struct {
 	RoomID  *string
 }
 
-func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput) (*evtv1.Room, error) {
+func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput) (*readmodel.Room, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
@@ -143,14 +145,14 @@ func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput
 
 // UpdateRoom commits all supplied fields atomically. Omitted fields retain
 // their latest values, including after a concurrent update forces a retry.
-func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput) (*evtv1.Room, error) {
+func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput) (*readmodel.Room, error) {
 	return s.updateRoom(ctx, input, nil)
 }
 
 // updateRoom rebuilds the complete sparse patch after each OCC conflict. A
 // name patch guards the room catalog for uniqueness; other patches guard only
 // the target room. attemptPrepared is a test seam immediately before commit.
-func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput, attemptPrepared func(context.Context) error) (*evtv1.Room, error) {
+func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput, attemptPrepared func(context.Context) error) (*readmodel.Room, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -254,7 +256,7 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 	return nil, fmt.Errorf("room update retries exhausted: %w", events.ErrConflict)
 }
 
-func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
+func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (*readmodel.Room, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -262,7 +264,7 @@ func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (
 	return s.archiveRoom(ctx, input.ActorID, kind, input.RoomID)
 }
 
-func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
+func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput) (*readmodel.Room, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -270,7 +272,7 @@ func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput)
 	return s.unarchiveRoom(ctx, input.ActorID, kind, input.RoomID)
 }
 
-func (s *RoomCommandModel) JoinRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
+func (s *RoomCommandModel) JoinRoom(ctx context.Context, input RoomIDInput) (*readmodel.Room, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
@@ -309,7 +311,7 @@ func (s *RoomCommandModel) LeaveRoom(ctx context.Context, input RoomIDInput) err
 // Bot managers without either override need their own effective room.join.
 // The bot's join grant applies only to self-service joins. Bans and room
 // lifecycle restrictions still apply.
-func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (*evtv1.RoomMembership, error) {
+func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (*readmodel.RoomMembership, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
@@ -394,7 +396,7 @@ func (s *RoomCommandModel) authorizeMembershipChange(ctx context.Context, input 
 	return nil
 }
 
-func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*evtv1.Room, bool, error) {
+func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*readmodel.Room, bool, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, false, err
 	}
@@ -572,13 +574,13 @@ func validateRoomRemovalReason(reason string) error {
 
 // roomCommandAuthorization supplies authorization operations used by the room model.
 type roomCommandAuthorization interface {
-	requireRoomMember(context.Context, string, string) (*evtv1.Room, RoomKind, error)
+	requireRoomMember(context.Context, string, string) (*readmodel.Room, RoomKind, error)
 	CanReadMessage(context.Context, string, RoomKind, string, string) (bool, error)
 	CanCreateRoom(ctx context.Context, userID string, kind RoomKind, groupID string) (bool, error)
 	authorizeAtStableInputs(ctx context.Context, check func() error) error
 	CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error)
 	CanManageUserAccounts(ctx context.Context, userID string) (bool, error)
-	requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error)
+	requireBotManager(ctx context.Context, actorID, botID string) (*readmodel.User, error)
 	CanStartDM(ctx context.Context, userID string) (bool, error)
 	HasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error)
 }
@@ -586,13 +588,13 @@ type roomCommandAuthorization interface {
 // roomCommandMemberships supplies membership operations used by the room model.
 type roomCommandMemberships interface {
 	RoomMembershipExists(context.Context, RoomKind, string, string) (bool, error)
-	addMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string, authorize func() error) (*evtv1.RoomMembership, error)
+	addMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string, authorize func() error) (*readmodel.RoomMembership, error)
 	removeMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string, authorize func() error) (bool, error)
 	banMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, expiresAt *time.Time, authorize func() error) (*RoomBan, error)
 	removeUserWithoutSuspension(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, authorize func() error) error
 	UnbanMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string) error
 	ListActiveRoomBans(_ context.Context, roomID *string) ([]RoomBan, error)
-	JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error)
+	JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*readmodel.RoomMembership, error)
 	LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error
 }
 

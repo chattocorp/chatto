@@ -8,10 +8,11 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/gin-gonic/gin"
 )
 
@@ -174,7 +175,7 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 // temporarily unavailable instead of unauthenticated. A client that cannot
 // renew its credential, such as a cookie session, would otherwise ask the
 // user to sign in again.
-func (s *HTTPServer) credentialUser(ctx context.Context, userID string) (*evtv1.User, error) {
+func (s *HTTPServer) credentialUser(ctx context.Context, userID string) (*readmodel.User, error) {
 	lookup := s.core.GetUser
 	if s.credentialUserLookup != nil {
 		lookup = s.credentialUserLookup

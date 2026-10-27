@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -15,11 +17,11 @@ func requireAuthenticatedActor(actorID string) error {
 	return nil
 }
 
-func (a *AuthorizationModel) requireRoomMember(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireRoomMember(ctx context.Context, actorID, roomID string) (*readmodel.Room, RoomKind, error) {
 	if a.view == nil {
 		return a.requireRoomMemberInView(ctx, actorID, roomID)
 	}
-	var room *evtv1.Room
+	var room *readmodel.Room
 	var kind RoomKind
 	err := a.view.ReadContext(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
@@ -29,7 +31,7 @@ func (a *AuthorizationModel) requireRoomMember(ctx context.Context, actorID, roo
 	return room, kind, err
 }
 
-func (a *AuthorizationModel) requireRoomMemberInView(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireRoomMemberInView(ctx context.Context, actorID, roomID string) (*readmodel.Room, RoomKind, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, KindChannel, err
 	}
@@ -56,11 +58,11 @@ func (a *AuthorizationModel) requireRoomMemberInView(ctx context.Context, actorI
 // then requires at least one configured room message-read mode. A caller that
 // has only interaction-scoped access must still filter or authorize the target
 // thread or message.
-func (a *AuthorizationModel) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*readmodel.Room, RoomKind, error) {
 	if a.view == nil {
 		return a.requireRoomMessageReaderInView(ctx, actorID, roomID)
 	}
-	var room *evtv1.Room
+	var room *readmodel.Room
 	var kind RoomKind
 	err := a.view.ReadContext(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
@@ -70,7 +72,7 @@ func (a *AuthorizationModel) requireRoomMessageReader(ctx context.Context, actor
 	return room, kind, err
 }
 
-func (a *AuthorizationModel) requireRoomMessageReaderInView(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireRoomMessageReaderInView(ctx context.Context, actorID, roomID string) (*readmodel.Room, RoomKind, error) {
 	room, kind, err := a.requireRoomMemberInView(ctx, actorID, roomID)
 	if err != nil {
 		return nil, KindChannel, err
@@ -85,11 +87,11 @@ func (a *AuthorizationModel) requireRoomMessageReaderInView(ctx context.Context,
 	return room, kind, nil
 }
 
-func (a *AuthorizationModel) requireThreadMessageReader(ctx context.Context, actorID, roomID, threadRootEventID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireThreadMessageReader(ctx context.Context, actorID, roomID, threadRootEventID string) (*readmodel.Room, RoomKind, error) {
 	if a.view == nil {
 		return a.requireThreadMessageReaderInView(ctx, actorID, roomID, threadRootEventID)
 	}
-	var room *evtv1.Room
+	var room *readmodel.Room
 	var kind RoomKind
 	err := a.view.ReadContext(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
@@ -99,7 +101,7 @@ func (a *AuthorizationModel) requireThreadMessageReader(ctx context.Context, act
 	return room, kind, err
 }
 
-func (a *AuthorizationModel) requireThreadMessageReaderInView(ctx context.Context, actorID, roomID, threadRootEventID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireThreadMessageReaderInView(ctx context.Context, actorID, roomID, threadRootEventID string) (*readmodel.Room, RoomKind, error) {
 	room, kind, err := a.requireRoomMemberInView(ctx, actorID, roomID)
 	if err != nil {
 		return nil, KindChannel, err
@@ -114,11 +116,11 @@ func (a *AuthorizationModel) requireThreadMessageReaderInView(ctx context.Contex
 	return room, kind, nil
 }
 
-func (a *AuthorizationModel) requireMessageReader(ctx context.Context, actorID, roomID, messageEventID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireMessageReader(ctx context.Context, actorID, roomID, messageEventID string) (*readmodel.Room, RoomKind, error) {
 	if a.view == nil {
 		return a.requireMessageReaderInView(ctx, actorID, roomID, messageEventID)
 	}
-	var room *evtv1.Room
+	var room *readmodel.Room
 	var kind RoomKind
 	err := a.view.ReadContext(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
@@ -128,7 +130,7 @@ func (a *AuthorizationModel) requireMessageReader(ctx context.Context, actorID, 
 	return room, kind, err
 }
 
-func (a *AuthorizationModel) requireMessageReaderInView(ctx context.Context, actorID, roomID, messageEventID string) (*evtv1.Room, RoomKind, error) {
+func (a *AuthorizationModel) requireMessageReaderInView(ctx context.Context, actorID, roomID, messageEventID string) (*readmodel.Room, RoomKind, error) {
 	room, kind, err := a.requireRoomMemberInView(ctx, actorID, roomID)
 	if err != nil {
 		return nil, KindChannel, err

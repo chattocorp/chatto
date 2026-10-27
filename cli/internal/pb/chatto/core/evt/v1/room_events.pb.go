@@ -1235,7 +1235,7 @@ var File_chatto_core_evt_v1_room_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/evt/v1/models.proto\"c\n" +
+	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/evt/v1/event_values.proto\"c\n" +
 	"\x16RoomNoticeChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12\x1c\n" +
@@ -1379,7 +1379,7 @@ func file_chatto_core_evt_v1_room_events_proto_init() {
 	if File_chatto_core_evt_v1_room_events_proto != nil {
 		return
 	}
-	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_event_values_proto_init()
 	file_chatto_core_evt_v1_room_events_proto_msgTypes[2].OneofWrappers = []any{}
 	file_chatto_core_evt_v1_room_events_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}

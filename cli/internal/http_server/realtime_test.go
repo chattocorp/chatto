@@ -17,6 +17,7 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 	"github.com/chattocorp/chatto/cli/internal/publiccursor"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 )
@@ -1318,7 +1319,7 @@ func TestRealtimeWebSocketReportsCookieUserLookupFailureAsTemporary(t *testing.T
 		t.Fatalf("CreateUser: %v", err)
 	}
 	env.login(t, "rt-cookie-lookup", "password123")
-	env.httpServer.credentialUserLookup = func(context.Context, string) (*evtv1.User, error) {
+	env.httpServer.credentialUserLookup = func(context.Context, string) (*readmodel.User, error) {
 		return nil, errors.New("key store unavailable")
 	}
 

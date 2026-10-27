@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -757,7 +759,7 @@ func (s *HTTPServer) watchRealtimeClient(ctx context.Context, cancel context.Can
 	}
 }
 
-func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *realtimev1.RealtimeSubscribe) (context.Context, *evtv1.User, error) {
+func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *realtimev1.RealtimeSubscribe) (context.Context, *readmodel.User, error) {
 	if token := strings.TrimSpace(subscribe.GetBearerToken()); token != "" {
 		credential, ok, err := s.bearerPresentedCredential(ctx, token)
 		if err != nil {

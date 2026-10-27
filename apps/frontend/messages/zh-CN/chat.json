@@ -6,6 +6,8 @@
       "confirmation": "这会在 15 分钟内启用你在此服务器上获得的额外权限。"
     },
     "notifications": {
+      "next_unread_source": "前往下一个未读通知来源",
+      "no_unread": "没有未读通知",
       "title": "通知",
       "subtitle": "最新动态",
       "clear_read": "清除已读",

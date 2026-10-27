@@ -6,6 +6,8 @@
       "confirmation": "Tas uz 15 minūtēm aktivizē tev šajā serverī piešķirtās papildu atļaujas."
     },
     "notifications": {
+      "next_unread_source": "Pāriet uz nākamo nelasīto avotu",
+      "no_unread": "Nav nelasītu paziņojumu",
       "title": "Paziņojumi",
       "subtitle": "Lūk, kas jauns",
       "clear_read": "Dzēst izlasītos",
