@@ -187,7 +187,7 @@
 
   /* Source panes scroll independently; rendered artifacts keep their full height. */
   & pre.markdown-code {
-    @apply m-0 overflow-hidden rounded-none px-3 py-2;
+    @apply relative m-0 overflow-hidden rounded-none px-3 py-2;
     background: transparent;
     color: var(--composer-code-text);
     line-height: 1.5;
@@ -203,6 +203,31 @@
     @apply max-h-96 overflow-auto;
   }
 
+  & .markdown-code-scroll-content {
+    @apply block min-w-max;
+  }
+
+  & .markdown-code-fade {
+    @apply scroll-edge-fade;
+    --tw-gradient-from: var(--message-code-background, var(--color-background));
+  }
+
+  & .markdown-code-fade-top {
+    @apply inset-x-3 top-2 h-8 bg-gradient-to-b;
+  }
+
+  & .markdown-code-fade-bottom {
+    @apply inset-x-3 bottom-2 h-8 bg-gradient-to-t;
+  }
+
+  & .markdown-code-fade-left {
+    @apply inset-y-2 left-3 w-8 bg-gradient-to-r;
+  }
+
+  & .markdown-code-fade-right {
+    @apply inset-y-2 right-3 w-8 bg-gradient-to-l;
+  }
+
   & .markdown-svg-preview:not([hidden]),
   & .markdown-mermaid-preview:not([hidden]) {
     @apply mx-auto my-0 block h-auto max-w-full object-contain;
@@ -212,6 +237,7 @@
 
   /* ANSI art uses terminal cell spacing and a fixed palette in both themes. */
   & pre.markdown-ansi {
+    --message-code-background: #000;
     background: #000;
     color: #aaa;
     line-height: 1;

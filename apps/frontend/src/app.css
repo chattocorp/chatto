@@ -1852,6 +1852,11 @@
   @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
 }
 
+/* Non-interactive overlays shared by native scroll viewports. */
+@utility scroll-edge-fade {
+  @apply pointer-events-none absolute z-30 to-transparent transition-opacity;
+}
+
 /* Shared code chrome for messages and both composer implementations. */
 @utility code-frame {
   @apply min-w-0 overflow-hidden rounded-md border shadow-xs;
@@ -1878,11 +1883,14 @@
   @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface desktop-presentation:mx-2 desktop-presentation:rounded-md desktop-presentation:pe-8;
   /* Code chrome stays one surface above its message, including held menus. */
   --message-code-surface: var(--color-surface);
+  --message-code-background: var(--color-background);
   @variant hover {
     --message-code-surface: var(--color-surface-emphasized);
+    --message-code-background: var(--color-surface);
   }
   &.bg-surface {
     --message-code-surface: var(--color-surface-emphasized);
+    --message-code-background: var(--color-surface);
   }
 }
 

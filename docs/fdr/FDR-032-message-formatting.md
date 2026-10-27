@@ -45,6 +45,10 @@ message code blocks. Editors do not show line numbers. The visual editor places
 its language selector and Render by default toggle in the header. The Markdown
 editor keeps the fence text editable.
 
+Scrollable message code blocks use the shared edge gradients. Fades show only
+where more content is available, including horizontal ANSI output. They follow
+the message background and stay below the code header.
+
 ### 1. Plain-text Markdown is the interchange format
 
 **Decision:** Message formatting is represented by Markdown in the existing plain-text body rather than by a client-specific rich-text document.

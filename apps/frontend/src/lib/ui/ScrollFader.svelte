@@ -81,7 +81,7 @@ scroll container; children render inside the scroll container.
     <div
       aria-hidden="true"
       class={[
-        'pointer-events-none absolute inset-x-0 z-30 bg-gradient-to-b to-transparent transition-opacity',
+        'scroll-edge-fade inset-x-0 bg-gradient-to-b',
         fadeColorClass,
         topFadeOffset,
         fadeHeight,
@@ -93,7 +93,7 @@ scroll container; children render inside the scroll container.
     <div
       aria-hidden="true"
       class={[
-        'pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t to-transparent transition-opacity',
+        'scroll-edge-fade inset-x-0 bottom-0 bg-gradient-to-t',
         fadeColorClass,
         fadeHeight,
         !edges.end && 'opacity-0'

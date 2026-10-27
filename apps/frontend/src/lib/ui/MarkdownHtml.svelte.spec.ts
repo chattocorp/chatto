@@ -344,6 +344,54 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it('shows scroll fades only at overflowing edges and refreshes them after resize and replacement', async () => {
+    const source = Array.from({ length: 60 }, () => 'wide '.repeat(40)).join('\n');
+    const view = render(MarkdownHtml, {
+      html: await renderMarkdown('```text\n' + source + '\n```')
+    });
+    const { container } = view;
+    container.classList.add('prose');
+    container.style.width = '320px';
+    const code = container.querySelector<HTMLElement>('pre > code')!;
+    const visible = (edge: string) =>
+      !container.querySelector(`.markdown-code-fade-${edge}`)!.classList.contains('opacity-0');
+    await expect.poll(() => visible('bottom') && visible('right')).toBe(true);
+    expect(visible('top')).toBe(false);
+    expect(visible('left')).toBe(false);
+    const fade = container.querySelector('.markdown-code-fade-bottom')!;
+    expect(getComputedStyle(fade).pointerEvents).toBe('none');
+    expect(getComputedStyle(fade).backgroundImage).toContain('linear-gradient');
+    code.scrollTop = code.scrollHeight;
+    code.scrollLeft = code.scrollWidth;
+    await expect.poll(() => visible('top') && visible('left')).toBe(true);
+    expect(visible('bottom')).toBe(false);
+    expect(visible('right')).toBe(false);
+    container.style.width = '4000px';
+    await expect.poll(() => visible('left') || visible('right')).toBe(false);
+    await view.rerender({ html: await renderMarkdown('```text\nshort\n```') });
+    await expect.poll(() => ['top', 'bottom', 'left', 'right'].some(visible)).toBe(false);
+    expect(container.querySelectorAll('.markdown-code-fade')).toHaveLength(4);
+    expect(container.querySelectorAll('.markdown-code-scroll-content')).toHaveLength(1);
+  });
+
+  it('updates source and ANSI fades when switching tabs', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```ansi render\n' + 'X'.repeat(70) + '\n```')
+    });
+    container.classList.add('prose');
+    container.style.width = '240px';
+    const renderedFade = container.querySelector('.markdown-ansi .markdown-code-fade-right')!;
+    await expect.poll(() => renderedFade.classList.contains('opacity-0')).toBe(false);
+    expect(getComputedStyle(renderedFade).getPropertyValue('--tw-gradient-from').trim()).toBe(
+      getComputedStyle(container.querySelector('.markdown-ansi')!).backgroundColor
+    );
+    await userEvent.click(container.querySelector('[data-code-tab="source"]')!);
+    const sourceFade = container.querySelector(
+      '[data-code-panel="source"] .markdown-code-fade-right'
+    )!;
+    await expect.poll(() => sourceFade.classList.contains('opacity-0')).toBe(false);
+  });
+
   it.each(['source', 'render', 'copy'])(
     'dismisses an open popover when pressing %s',
     async (control) => {
@@ -531,7 +579,7 @@ describe('MarkdownHtml code copy', () => {
     const { container } = render(MarkdownHtml, {
       html: await renderMarkdown('```ansi render\n\x1b[2;44mDIM\n```')
     });
-    const span = container.querySelector('.markdown-ansi code span')!;
+    const span = container.querySelector('.markdown-ansi code span[style]')!;
     const style = getComputedStyle(span);
     expect(style.opacity).toBe('1');
     expect(style.backgroundColor).toBe('rgb(0, 0, 170)');
@@ -552,7 +600,7 @@ describe('MarkdownHtml code copy', () => {
     container.classList.add('prose');
     const code = container.querySelector('.markdown-ansi code')!;
     expect(code.textContent?.trim()).toBe('ART');
-    expect(getComputedStyle(code.querySelector('span')!).color).toBe('rgb(170, 0, 0)');
+    expect(getComputedStyle(code.querySelector('span[style]')!).color).toBe('rgb(170, 0, 0)');
     expect(getComputedStyle(code.parentElement!).backgroundColor).toBe('rgb(0, 0, 0)');
     expect(getComputedStyle(code).whiteSpace).toBe('pre');
     await userEvent.click(container.querySelector('button[data-markdown-copy]')!);

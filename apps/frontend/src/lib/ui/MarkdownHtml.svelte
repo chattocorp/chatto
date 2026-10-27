@@ -17,6 +17,7 @@ targets are unique to each component, including when callers reuse rendered HTML
   import { toast } from '$lib/ui/toast';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
   import { attachCodeFrames } from '$lib/markdownArtifacts';
+  import { attachCodeScrollFades } from '$lib/markdownCodeScroll';
 
   let {
     html
@@ -114,6 +115,7 @@ targets are unique to each component, including when callers reuse rendered HTML
   class="markdown-html contents"
   {@attach attachMarkdownActions}
   {@attach attachCodeFrames(html, footnoteScope)}
+  {@attach attachCodeScrollFades(html)}
 >
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- rendered markdown from `$lib/markdown`; see component docs above -->
   {@html trusted}
