@@ -19,7 +19,14 @@ import type { AnyTask, Channel, WorkflowExecution } from 'runling';
 
 import { runtime } from './runtime.ts';
 const { createChannel, runWorkflow } = runtime;
-import { runUsage, type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
+import {
+  continueRun,
+  projectRecord,
+  runUsage,
+  type RunDetail,
+  type RunRecord,
+  type RunSummary
+} from '../runs.ts';
 
 import { summarizeRunActivity } from '../run-activity.ts';
 import { WorkflowStateStore } from '../../runtime/workflow-state.ts';
@@ -38,6 +45,7 @@ function summary(run: RunDetail): RunSummary {
 
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
+  record = projectRecord(run, record);
   if (record.type === 'event') {
     if (record.event.type === 'run.title') run.title = record.event.title;
     if (includeDetails) run.events.push(record.event);
@@ -47,6 +55,7 @@ function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = t
     Object.assign(run, result, { usage: runUsage(run, result.usage) });
     if (includeDetails) Object.assign(run, { output, error });
   }
+  return record;
 }
 
 /** Keeps the run history of one journal directory. The server writes its own runs; runs that
@@ -235,6 +244,7 @@ export class RunStore {
         pid: process.pid,
         status: 'running',
         startedAt: Date.now(),
+        executionStartedAt: undefined,
         finishedAt: undefined,
         durationMs: undefined,
         output: null,
@@ -244,13 +254,13 @@ export class RunStore {
         usage: previous.usage
       };
       this.journals.set(id, await createRunJournal(this.directory, run, true));
-      this.launch(run, task, saved.input, true);
+      this.launch(continueRun(previous, run), task, saved.input, true);
     }
   }
 
   list(): RunSummary[] {
     return [...this.runs.values()]
-      .sort((a, b) => b.startedAt - a.startedAt)
+      .sort((a, b) => (b.executionStartedAt ?? b.startedAt) - (a.executionStartedAt ?? a.startedAt))
       .slice(0, 100)
       .map((run) => {
         const detail = this.details.get(run.id);
@@ -346,6 +356,7 @@ export class RunStore {
         // Derive older journals' baseline too. A started record contains no work
         // from its new attempt, even when it carries totals from prior attempts.
         const previousUsage = run?.usage ?? record.run.previousUsage;
+        const previous = run;
         run = includeDetails
           ? { ...record.run }
           : {
@@ -355,6 +366,8 @@ export class RunStore {
               error: null,
               events: []
             };
+        if (previous) run = continueRun(previous, run);
+        if (!includeDetails) run.events = [];
         run.previousUsage = previousUsage;
         run.usage = { ...(previousUsage ?? record.run.usage) };
       } else {
@@ -385,9 +398,9 @@ export class RunStore {
       .append(record)
       .then(() => {
         const run = this.details.get(id)!;
-        applyStoredRecord(run, record);
+        const projected = applyStoredRecord(run, record);
         this.runs.set(id, summary(run));
-        this.publish(id, record);
+        this.publish(id, projected);
         if (record.type === 'finished') this.details.delete(id);
       });
   }
@@ -446,6 +459,7 @@ export class RunStore {
         pid: process.pid,
         status: 'running',
         startedAt: Date.now(),
+        executionStartedAt: undefined,
         finishedAt: undefined,
         durationMs: undefined,
         output: null,
@@ -458,7 +472,7 @@ export class RunStore {
       this.journals.set(id, await createRunJournal(this.directory, run, true));
       saved.input = input === undefined ? undefined : run.input;
       saved.open = true;
-      return this.launch(run, workflow, input);
+      return this.launch(continueRun(previous, run), workflow, input);
     } finally {
       this.reactivating.delete(id);
     }
@@ -627,9 +641,9 @@ export class RunStore {
         error: `Cannot save run history: ${cause instanceof Error ? cause.message : String(cause)}`
       };
       const run = this.details.get(id)!;
-      applyStoredRecord(run, record);
+      const projected = applyStoredRecord(run, record);
       this.runs.set(id, summary(run));
-      this.publish(id, record);
+      this.publish(id, projected);
       throw new Error(record.error!);
     } finally {
       this.journals.delete(id);

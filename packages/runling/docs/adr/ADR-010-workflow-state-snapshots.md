@@ -35,8 +35,8 @@ missing key leaves the workflow interrupted and preserves its state.
 
 After restart, the server calls open, registered roots again with their original
 input and saved state. It keeps the run ID and reference, and records a new
-execution attempt in the existing journal. The console shows the latest attempt's
-activity and the total token usage and cost across all attempts.
+execution attempt in the existing journal. The console retains activity and logs
+from all attempts, with total token usage and cost across all attempts.
 A newer terminal journal record prevents recovery from a stale open snapshot.
 Runling does not rebuild child tasks or restore message queues, local variables,
 connections, or agent sessions. The root owns those decisions.

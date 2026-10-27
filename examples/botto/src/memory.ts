@@ -86,7 +86,7 @@ async function findDocuments(
 ): Promise<string[]> {
   const call = async (name: string, args: Record<string, unknown>) =>
     safeStep(
-      'MCP tool',
+      `mcp__memory__${name}`,
       async () => {
         const result = await client.callTool(name, args, { signal });
         if (

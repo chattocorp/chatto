@@ -187,7 +187,12 @@
       liveRuns = JSON.parse(event.data);
       listConnected = true;
       const latest = liveRuns?.find((run) => run.id === selected);
-      if (detail && latest && latest.startedAt !== detail.startedAt) {
+      if (
+        detail &&
+        latest &&
+        (latest.executionStartedAt ?? latest.startedAt) !==
+          (detail.executionStartedAt ?? detail.startedAt)
+      ) {
         // Reactivation starts a new detail stream, even if the prior execution
         // was cached as completed. This also refreshes its live title.
         const id = selected;
