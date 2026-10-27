@@ -91,7 +91,10 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
               signal: ctx.signal,
               context: {
                 messages: [],
-                olderContextOmitted: false,
+                olderContextOmitted: false
+              },
+              loadImages: async () => ({
+                imageNotes: [],
                 images: [
                   {
                     messageId: 'message',
@@ -100,7 +103,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
                     data: 'AQID'
                   }
                 ]
-              }
+              })
             })
           ).toBe('private-answer');
         }

@@ -2,6 +2,7 @@
 import { expect, test, vi } from 'vitest';
 import type { Server } from '@chatto/client';
 import { readImages } from './images.ts';
+import { includeCurrentMessages } from './context.ts';
 import { mergeThreadContext, type ThreadContext } from './context-messages.ts';
 
 const message = (id: string) => ({
@@ -29,7 +30,7 @@ test('prioritizes the current batch, bounds downloads, and labels real image blo
   const original = structuredClone(snapshot);
   const signal = new AbortController().signal;
   const result = await readImages(api, 'room', snapshot, ['current'], signal);
-  expect(result.images?.map((image) => image.messageId)).toEqual([
+  expect(result.images.map((image) => image.messageId)).toEqual([
     'current',
     'four',
     'three',
@@ -48,7 +49,7 @@ test('prioritizes the current batch, bounds downloads, and labels real image blo
       timestamp: 1
     }
   ];
-  const request = mergeThreadContext(history, result);
+  const request = mergeThreadContext(history, { ...snapshot, ...result });
   const first = request[0]!;
   if (first.role !== 'user') throw new Error('Expected user request');
   const content = first.content;
@@ -76,7 +77,7 @@ test('unavailable and unsupported images produce safe notes; cancellation stops 
     ['one', 'two'],
     new AbortController().signal
   );
-  expect(result.images).toBeUndefined();
+  expect(result.images).toEqual([]);
   expect(result.imageNotes).toHaveLength(2);
   expect(JSON.stringify(result)).not.toContain('private');
   const controller = new AbortController();
@@ -92,30 +93,32 @@ test('unavailable and unsupported images produce safe notes; cancellation stops 
 test('unavailable batch members do not block other images or expose raw lookup errors', async () => {
   const api = server();
   api.getMessage.mockRejectedValue(new Error('private service details'));
-  const result = await readImages(
+  const context = await includeCurrentMessages(
     api,
     'room',
     { messages: [message('visible')], olderContextOmitted: true },
     ['removed'],
     new AbortController().signal
   );
-  expect(result.images?.map((image) => image.messageId)).toEqual(['visible']);
-  expect(result.imageNotes).toEqual([
+  const result = await readImages(api, 'room', context, ['removed'], new AbortController().signal);
+  expect(result.images.map((image) => image.messageId)).toEqual(['visible']);
+  expect(context.imageNotes).toEqual([
     'Images for message removed could not be checked. Do not infer their contents.'
   ]);
-  expect(JSON.stringify(result)).not.toContain('private');
+  expect(JSON.stringify(context)).not.toContain('private');
 });
 
 test('loads current batch images outside the recent window and deduplicates attachment IDs', async () => {
   const api = server();
   api.getMessage.mockResolvedValue({ roomId: 'room', authorId: 'human', ...message('current') });
-  const result = await readImages(
+  const context = await includeCurrentMessages(
     api,
     'room',
     { messages: [message('other'), message('other')], olderContextOmitted: true },
     ['current'],
     new AbortController().signal
   );
-  expect(result.images?.map((image) => image.messageId)).toEqual(['current', 'other']);
+  const result = await readImages(api, 'room', context, ['current'], new AbortController().signal);
+  expect(result.images.map((image) => image.messageId)).toEqual(['current', 'other']);
   expect(api.getMessage).toHaveBeenCalledOnce();
 });

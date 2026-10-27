@@ -35,6 +35,42 @@ export async function readContext(
   return selectContext(store, server.accountId, location, limit);
 }
 
+/** Include batch members outside the recent window. Unavailable messages produce safe notes. */
+export async function includeCurrentMessages(
+  server: Pick<Server, 'getMessage'>,
+  roomId: string,
+  context: ThreadContext,
+  currentIds: readonly string[],
+  signal: AbortSignal
+): Promise<ThreadContext> {
+  const messages = [...context.messages];
+  const additional: ThreadContext['messages'] = [];
+  const imageNotes = [...(context.imageNotes ?? [])];
+  const represented = new Set(messages.map((message) => message.id));
+  for (const id of currentIds) {
+    if (represented.has(id)) continue;
+    represented.add(id);
+    signal.throwIfAborted();
+    try {
+      const message = await server.getMessage({ roomId, messageId: id }, { signal });
+      signal.throwIfAborted();
+      if (!message) throw new Error('Message unavailable');
+      additional.push({
+        id,
+        author: message.authorId,
+        text: message.body ?? '',
+        attachments: message.attachments
+      });
+    } catch {
+      signal.throwIfAborted();
+      imageNotes.push(
+        `Images for message ${id} could not be checked. Do not infer their contents.`
+      );
+    }
+  }
+  return { ...context, messages: [...additional, ...messages], imageNotes };
+}
+
 type LoadState = 'current' | 'failed' | 'disposed';
 
 /** Resolve when the timeline is current, its read failed, or the client disposed it. */

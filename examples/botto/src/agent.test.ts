@@ -117,7 +117,8 @@ test('refreshes private memory context per batch without changing system instruc
     expect(options.toolExecution).toBe('sequential');
     expect(options.systemPrompt).toContain('Configured admin user IDs: ["admin"]');
     expect(threadContextExtension).toHaveBeenLastCalledWith(
-      expect.objectContaining({ memoryDocuments: documents })
+      expect.objectContaining({ memoryDocuments: documents }),
+      undefined
     );
     expect(open).toHaveBeenLastCalledWith('thread', [user], signal);
   }
@@ -136,7 +137,7 @@ test('passes fresh thread context through the request hook, not the persisted pr
     signal: new AbortController().signal,
     context
   });
-  expect(threadContextExtension).toHaveBeenCalledWith(context);
+  expect(threadContextExtension).toHaveBeenCalledWith(context, undefined);
   expect(session.run.mock.calls[0]?.[1]).toBe('accepted batch');
 });
 

@@ -9,38 +9,14 @@ const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif
 /** Prioritize the current batch, then recent thread images. Bytes exist for this turn only.
  * Failed downloads are reported to the model without exposing URLs or external errors. */
 export async function readImages(
-  server: Pick<Server, 'readAttachment' | 'getMessage'>,
+  server: Pick<Server, 'readAttachment'>,
   roomId: string,
   context: ThreadContext,
   currentIds: readonly string[],
   signal: AbortSignal
-): Promise<ThreadContext> {
+): Promise<Required<Pick<ThreadContext, 'images' | 'imageNotes'>>> {
   const current = new Set(currentIds);
-  // A debounced batch can exceed the recent context window. Read missing batch members
-  // through the client so their images still have priority and current authorization.
-  const additional: ThreadContext['messages'] = [];
   const imageNotes: string[] = [];
-  for (const id of currentIds) {
-    if (context.messages.some((message) => message.id === id)) continue;
-    signal.throwIfAborted();
-    try {
-      const message = await server.getMessage({ roomId, messageId: id }, { signal });
-      signal.throwIfAborted();
-      if (!message) throw new Error('Message unavailable');
-      additional.push({
-        id,
-        author: message.authorId,
-        text: message.body ?? '',
-        attachments: message.attachments
-      });
-    } catch {
-      signal.throwIfAborted();
-      imageNotes.push(
-        `Images for message ${id} could not be checked. Do not infer their contents.`
-      );
-    }
-  }
-  context = { ...context, messages: [...additional, ...context.messages] };
   const messages = [
     ...context.messages.filter((message) => current.has(message.id)),
     ...context.messages.filter((message) => !current.has(message.id)).reverse()
@@ -89,9 +65,5 @@ export async function readImages(
       }
     }
   }
-  return {
-    ...context,
-    ...(images.length ? { images } : {}),
-    ...(imageNotes.length ? { imageNotes } : {})
-  };
+  return { images, imageNotes };
 }

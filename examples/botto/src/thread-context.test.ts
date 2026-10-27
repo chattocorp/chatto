@@ -1,7 +1,7 @@
 /** Use real Pi session storage and context hooks to detect snapshot accumulation. */
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import {
   createAgentSession,
   DefaultResourceLoader,
@@ -25,6 +25,12 @@ test('fresh snapshots reach requests but never enter saved history across turns 
     });
     const model = runtime.getModel('anthropic', 'claude-sonnet-4-6');
     if (!model) throw new Error('Test requires the built-in model catalog');
+    const loadImages = vi.fn(async () => ({
+      images: [
+        { messageId: 'ordinary', attachmentId: 'image', data: 'AQID', mimeType: 'image/png' }
+      ],
+      imageNotes: []
+    }));
     const open = async (snapshot: ThreadContext, vision = true) => {
       const settingsManager = SettingsManager.inMemory();
       const resourceLoader = new DefaultResourceLoader({
@@ -36,7 +42,7 @@ test('fresh snapshots reach requests but never enter saved history across turns 
         noPromptTemplates: true,
         noThemes: true,
         noContextFiles: true,
-        extensionFactories: [threadContextExtension(snapshot)]
+        extensionFactories: [threadContextExtension(snapshot, loadImages)]
       });
       await resourceLoader.reload();
       return createAgentSession({
@@ -84,10 +90,12 @@ test('fresh snapshots reach requests but never enter saved history across turns 
       expect(await first.session.extensionRunner.emitContext(first.session.messages)).toEqual(
         request
       );
+      expect(loadImages).toHaveBeenCalledOnce();
     } finally {
       first.session.dispose();
     }
 
+    loadImages.mockClear();
     const textOnly = await open(
       {
         messages: [],
@@ -104,6 +112,7 @@ test('fresh snapshots reach requests but never enter saved history across turns 
       );
       expect(request).not.toContain('AQID');
       expect(request).toContain('cannot read images');
+      expect(loadImages).not.toHaveBeenCalled();
     } finally {
       textOnly.session.dispose();
     }

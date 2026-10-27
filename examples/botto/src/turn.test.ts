@@ -80,7 +80,8 @@ test('passes image-only message pixels as request context, not persisted prompt 
   });
   await turn([{ ...one, body: '' }]);
   const input = agent.reply.mock.calls[0]![1];
-  expect(input.context?.images).toEqual([
+  expect(server.readAttachment).not.toHaveBeenCalled();
+  expect((await input.loadImages!()).images).toEqual([
     { messageId: 'one', attachmentId: 'image', mimeType: 'image/png', data: 'AQID' }
   ]);
   expect(input.prompt).not.toContain('AQID');
@@ -175,6 +176,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
         ]
       }),
       signal: expect.any(AbortSignal),
+      loadImages: expect.any(Function),
       context: {
         messages: [
           { id: 'root', author: 'human', text: 'Root', fromViewer: false },
@@ -187,7 +189,8 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
           { id: 'one', author: 'human', text: 'First', fromViewer: false },
           { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
         ],
-        olderContextOmitted: false
+        olderContextOmitted: false,
+        imageNotes: []
       },
       userIds: ['human', 'another'],
       tools: [expect.any(Function)]

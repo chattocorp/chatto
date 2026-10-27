@@ -363,7 +363,9 @@ side. Each download is limited to 4 MiB and 30 seconds, within the turn deadline
 The client fetches images only from the configured Chatto origin, with current
 room authorization and without following redirects. No image URL or access ticket
 is sent to the model provider. PNG, JPEG, WebP, and GIF responses are supported;
-other file types are not loaded. Images are sent only to image-capable models.
+other file types are not loaded. Botto checks the active model's input types in Pi's
+model metadata. It downloads images only when that metadata includes image input;
+no separate Botto capability setting is needed. Downloads are reused within a turn.
 The model receives a note when an image is unavailable, unsupported, or omitted.
 
 Image bytes are added to the current model request. They are not stored in Pi

@@ -24,6 +24,8 @@ export interface ReplyOptions {
   prompt: string;
   signal: AbortSignal;
   context?: ThreadContext;
+  /** Deferred until Pi exposes the active model's image capability. */
+  loadImages?: Parameters<typeof threadContextExtension>[1];
   userIds?: readonly string[];
   tools?: ExtensionFactory[];
 }
@@ -43,7 +45,7 @@ export async function createAgent(settings: Settings) {
     /** The caller serializes turns for one identity; idle conversations hold no live agent. */
     async reply(
       ctx: TaskContext,
-      { identity, prompt, signal, context, userIds = [], tools = [] }: ReplyOptions
+      { identity, prompt, signal, context, loadImages, userIds = [], tools = [] }: ReplyOptions
     ): Promise<string> {
       signal.throwIfAborted();
       const memory = settings.memory
@@ -71,14 +73,17 @@ export async function createAgent(settings: Settings) {
           ...tools,
           mcpExtension(settings, memory?.directory),
           memoryLockExtension(signal, memory?.acquire),
-          ...(context || memory
+          ...(context || memory || loadImages
             ? [
-                threadContextExtension({
-                  ...context,
-                  messages: context?.messages ?? [],
-                  olderContextOmitted: context?.olderContextOmitted ?? false,
-                  ...(memory ? { memoryDocuments: memory.documents } : {})
-                })
+                threadContextExtension(
+                  {
+                    ...context,
+                    messages: context?.messages ?? [],
+                    olderContextOmitted: context?.olderContextOmitted ?? false,
+                    ...(memory ? { memoryDocuments: memory.documents } : {})
+                  },
+                  loadImages
+                )
               ]
             : [])
         ],

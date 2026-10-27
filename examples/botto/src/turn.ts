@@ -4,7 +4,7 @@ import type { createAgent } from './agent.ts';
 import type { Settings } from './settings.ts';
 import { safeStep } from './steps.ts';
 import { log } from 'runling';
-import { readContext, type ContextSource } from './context.ts';
+import { includeCurrentMessages, readContext, type ContextSource } from './context.ts';
 import { reactionExtension } from './reactions.ts';
 import { hasTranscript } from './messages.ts';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -45,19 +45,15 @@ export function createTurnHandler(
       destination,
       async () => {
         // Read-only failures remain queued and can be retried after reconnect.
-        const snapshot = await safeStep(
-          'Thread context read',
-          () => readContext(server, destination, settings.contextMessages, signal),
-          metrics
-        );
+        const currentIds = messages.map((item) => item.id);
         const context = await safeStep(
-          'Read images',
-          () =>
-            readImages(
+          'Thread context read',
+          async () =>
+            includeCurrentMessages(
               server,
               destination.roomId,
-              snapshot,
-              messages.map((item) => item.id),
+              await readContext(server, destination, settings.contextMessages, signal),
+              currentIds,
               signal
             ),
           metrics
@@ -107,6 +103,12 @@ export function createTurnHandler(
               prompt,
               signal,
               context,
+              loadImages: () =>
+                safeStep(
+                  'Read images',
+                  () => readImages(server, destination.roomId, context, currentIds, signal),
+                  metrics
+                ),
               userIds: [...new Set(messages.map((item) => item.authorId))],
               tools: [
                 reactionExtension(
