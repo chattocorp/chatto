@@ -79,7 +79,7 @@ OAuth flow with the selected provider; passwords use the native host request.
 
 <PageTitle title={m('auth.login.title')} />
 <div class="pane-page" data-testid="desktop-server-login">
-  <AuthLayout serverInfo={branding} title={m('auth.login.title')}>
+  <AuthLayout serverInfo={branding} title={m('auth.login.title')} titleOnlyWithSideBranding>
     <div class="w-full text-start">
       {#if providers.length > 0}
         <div class="flex flex-col gap-3">
@@ -151,7 +151,7 @@ OAuth flow with the selected provider; passwords use the native host request.
       <div class="mt-6 text-center">
         <button
           type="button"
-          class="link disabled:opacity-50"
+          class="cursor-pointer text-sm text-muted hover:text-text hover:underline focus-visible:underline disabled:cursor-default disabled:opacity-50"
           title={m('auth.desktop.server_login_hint')}
           disabled={busy}
           aria-busy={!signingUp &&
@@ -160,7 +160,6 @@ OAuth flow with the selected provider; passwords use the native host request.
           onclick={() => void signInOnServer()}
         >
           {m('auth.desktop.server_login')}
-          <span aria-hidden="true" class="iconify ms-1 icon-[mdi--open-in-new]"></span>
         </button>
       </div>
     </div>

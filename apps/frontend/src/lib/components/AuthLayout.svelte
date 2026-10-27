@@ -9,6 +9,7 @@
   let {
     children,
     title,
+    titleOnlyWithSideBranding = false,
     compact = false,
     showBranding = true,
     centerContent = false,
@@ -17,6 +18,8 @@
     children: Snippet;
     /** Visible page heading, rendered as the form column's `h1` above the content. */
     title?: string;
+    /** Keep the heading accessible, but show it only beside a separate branding pane. */
+    titleOnlyWithSideBranding?: boolean;
     compact?: boolean;
     showBranding?: boolean;
     centerContent?: boolean;
@@ -73,7 +76,20 @@
       {/if}
 
       {#if title}
-        <h1 class={[compact ? 'mb-4' : 'mb-6', 'text-center text-2xl font-bold']}>{title}</h1>
+        <h1
+          class={[
+            'text-center text-2xl font-bold',
+            titleOnlyWithSideBranding
+              ? showBranding && hasBranding && !compact
+                ? 'sr-only md:not-sr-only md:mb-6'
+                : 'sr-only'
+              : compact
+                ? 'mb-4'
+                : 'mb-6'
+          ]}
+        >
+          {title}
+        </h1>
       {/if}
 
       {@render children()}
