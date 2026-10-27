@@ -159,6 +159,13 @@ export class ViewerUser extends Message<ViewerUser> {
    */
   hasPassword = false;
 
+  /**
+   * A linked provider prevents local username edits. Absent on older servers.
+   *
+   * @generated from field: optional bool username_managed = 13;
+   */
+  usernameManaged?: boolean;
+
   constructor(data?: PartialMessage<ViewerUser>) {
     super();
     proto3.util.initPartial(data, this);
@@ -173,6 +180,7 @@ export class ViewerUser extends Message<ViewerUser> {
     { no: 10, name: "last_login_change", kind: "message", T: Timestamp },
     { no: 11, name: "profile", kind: "message", T: User },
     { no: 12, name: "has_password", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "username_managed", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerUser {

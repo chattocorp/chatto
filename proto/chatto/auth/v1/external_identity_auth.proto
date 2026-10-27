@@ -36,6 +36,9 @@ message PendingExternalIdentity {
   string bound_user_id = 8;
   // Internal path the client should return to after confirmation.
   string redirect_path = 9;
+  // The server assigns the username; client-supplied names are ignored. The
+  // login hint is a preview and can change if another account claims it first.
+  bool username_managed = 10;
 }
 
 // Request to inspect a pending external identity flow.
@@ -54,7 +57,8 @@ message GetPendingExternalIdentityResponse {
 message CreateExternalIdentityAccountRequest {
   // Raw pending create token from the provider callback redirect.
   string token = 1 [(buf.validate.field).string.min_len = 1];
-  // Desired username.
+  // Desired username. Ignored when the pending flow has username_managed set;
+  // the server assigns a name from the verified provider claim in that case.
   string login = 2 [(buf.validate.field).string = {
     min_len: 2
     max_len: 32

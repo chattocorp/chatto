@@ -34,12 +34,20 @@ export enum DisconnectEligibility {
    * @generated from enum value: DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD = 2;
    */
   LAST_ENABLED_SIGN_IN_METHOD = 2,
+
+  /**
+   * The operator disabled user-initiated unlinking for this provider.
+   *
+   * @generated from enum value: DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR = 3;
+   */
+  DISABLED_BY_OPERATOR = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(DisconnectEligibility)
 proto3.util.setEnumType(DisconnectEligibility, "chatto.api.v1.DisconnectEligibility", [
   { no: 0, name: "DISCONNECT_ELIGIBILITY_UNSPECIFIED" },
   { no: 1, name: "DISCONNECT_ELIGIBILITY_ALLOWED" },
   { no: 2, name: "DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD" },
+  { no: 3, name: "DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR" },
 ]);
 
 /**

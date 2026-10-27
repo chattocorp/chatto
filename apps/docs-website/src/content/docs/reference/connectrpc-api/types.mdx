@@ -32,6 +32,7 @@ exposed; clients only need user-facing provider/profile hints.
 | `display_name_hint` | `string` | Suggested display name derived from provider profile hints. |
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
+| `username_managed` | `bool` | The server assigns the username; client-supplied names are ignored. The login hint is a preview and can change if another account claims it first. |
 
 <a id="chatto-discovery-v1-NeighborhoodServer"></a>
 
@@ -966,6 +967,7 @@ Current authenticated user's public profile plus self-only settings.
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+| `username_managed` | `optional bool` | A linked provider prevents local username edits. Absent on older servers. |
 
 <a id="chatto-api-v1-VerifiedEmail"></a>
 
@@ -2114,6 +2116,7 @@ This does not replace fresh authentication or the mutation's eligibility check.
 | `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
 | `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
 | `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
+| `DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR` | `3` | The operator disabled user-initiated unlinking for this provider. |
 
 <a id="chatto-api-v1-TimeFormat"></a>
 

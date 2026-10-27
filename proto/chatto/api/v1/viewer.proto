@@ -49,6 +49,8 @@ message ViewerUser {
   User profile = 11;
   // Whether this account currently has a password sign-in credential.
   bool has_password = 12;
+  // A linked provider prevents local username edits. Absent on older servers.
+  optional bool username_managed = 13;
 }
 
 // Permission-derived capabilities for the authenticated user.

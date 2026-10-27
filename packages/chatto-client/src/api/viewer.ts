@@ -31,6 +31,8 @@ export type CurrentUser = {
   presenceStatus: PresenceStatus;
   hasVerifiedEmail: boolean;
   hasPassword: boolean;
+  /** A linked provider prevents local username edits. Unknown on older servers. */
+  usernameManaged?: boolean;
   viewerCanDeleteAccount: boolean;
   lastLoginChange?: string | null;
   settings?: {
@@ -179,6 +181,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       presenceStatus: presenceStatusOrOffline(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       hasPassword: response.user.hasPassword ?? false,
+      usernameManaged: response.user.usernameManaged,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
       lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
       settings: response.user.settings

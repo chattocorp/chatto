@@ -24,6 +24,7 @@ export type PendingExternalIdentityInfo = {
   providerLabel: string;
   verifiedEmail: string | null;
   loginHint: string;
+  usernameManaged?: boolean;
   displayNameHint: string;
   boundUserId: string | null;
   redirectPath: string | null;
@@ -148,6 +149,7 @@ function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalI
     providerLabel: pending.providerLabel,
     verifiedEmail: pending.verifiedEmail || null,
     loginHint: pending.loginHint,
+    usernameManaged: pending.usernameManaged,
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
     redirectPath: pending.redirectPath || null

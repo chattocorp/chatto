@@ -353,6 +353,12 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, prefix+".allowed_groups, groups_claim, and group_roles are only supported for OIDC")
 		}
 		groupRoles, err := ParseGroupRoles(provider.GroupRoles)
+		if provider.SyncUsernames && !provider.ManageUsernames {
+			errs = append(errs, prefix+".sync_usernames requires manage_usernames")
+		}
+		if provider.UsernameClaim != "" && (provider.Type != AuthProviderTypeOpenIDConnect || strings.TrimSpace(provider.UsernameClaim) != provider.UsernameClaim) {
+			errs = append(errs, prefix+".username_claim requires OIDC and must not contain surrounding spaces")
+		}
 		if err != nil {
 			errs = append(errs, prefix+"."+err.Error())
 		}

@@ -438,6 +438,8 @@
         "already_set": "Sellel kontol on juba parool."
       },
       "sso": {
+        "username_managed": "Sinu kasutajanime haldab sisselogimisteenuse pakkuja ja seda ei saa siin muuta.",
+        "unlink_disabled": "Serveri haldaja ei luba seda teenusepakkujat lahti ühendada.",
         "popup_blocked": "Luba selle saidi hüpikaknad ja proovi uuesti siduda.",
         "account_mismatch": "Logi selles serveris sisse õigesse kontosse ja alusta sidumist uuesti algsest aknast.",
         "provider_unavailable": "See sisselogimisteenuse pakkuja pole enam saadaval.",

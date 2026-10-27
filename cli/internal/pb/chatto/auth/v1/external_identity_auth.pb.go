@@ -97,9 +97,12 @@ type PendingExternalIdentity struct {
 	// User ID this link flow is bound to. Empty for create flows.
 	BoundUserId string `protobuf:"bytes,8,opt,name=bound_user_id,json=boundUserId,proto3" json:"bound_user_id,omitempty"`
 	// Internal path the client should return to after confirmation.
-	RedirectPath  string `protobuf:"bytes,9,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RedirectPath string `protobuf:"bytes,9,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
+	// The server assigns the username; client-supplied names are ignored. The
+	// login hint is a preview and can change if another account claims it first.
+	UsernameManaged bool `protobuf:"varint,10,opt,name=username_managed,json=usernameManaged,proto3" json:"username_managed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PendingExternalIdentity) Reset() {
@@ -193,6 +196,13 @@ func (x *PendingExternalIdentity) GetRedirectPath() string {
 		return x.RedirectPath
 	}
 	return ""
+}
+
+func (x *PendingExternalIdentity) GetUsernameManaged() bool {
+	if x != nil {
+		return x.UsernameManaged
+	}
+	return false
 }
 
 // Request to inspect a pending external identity flow.
@@ -292,7 +302,8 @@ type CreateExternalIdentityAccountRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Raw pending create token from the provider callback redirect.
 	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// Desired username.
+	// Desired username. Ignored when the pending flow has username_managed set;
+	// the server assigns a name from the verified provider claim in that case.
 	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
 	// Desired display name. When omitted, the server uses a valid provider hint
 	// and otherwise falls back to the requested username.
@@ -623,7 +634,7 @@ var File_chatto_auth_v1_external_identity_auth_proto protoreflect.FileDescriptor
 
 const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\n" +
-	"+chatto/auth/v1/external_identity_auth.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\"\xff\x02\n" +
+	"+chatto/auth/v1/external_identity_auth.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\"\xaa\x03\n" +
 	"\x17PendingExternalIdentity\x12<\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.chatto.auth.v1.ExternalIdentityFlowKindR\x04kind\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -635,7 +646,9 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"login_hint\x18\x06 \x01(\tR\tloginHint\x12*\n" +
 	"\x11display_name_hint\x18\a \x01(\tR\x0fdisplayNameHint\x12\"\n" +
 	"\rbound_user_id\x18\b \x01(\tR\vboundUserId\x12#\n" +
-	"\rredirect_path\x18\t \x01(\tR\fredirectPath\"B\n" +
+	"\rredirect_path\x18\t \x01(\tR\fredirectPath\x12)\n" +
+	"\x10username_managed\x18\n" +
+	" \x01(\bR\x0fusernameManaged\"B\n" +
 	"!GetPendingExternalIdentityRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"g\n" +
 	"\"GetPendingExternalIdentityResponse\x12A\n" +

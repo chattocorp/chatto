@@ -224,8 +224,17 @@ func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerU
 		canDeleteAccount bool
 		lastLoginChange  time.Time
 		hasPassword      bool
+		usernameManaged  bool
 	)
 	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		if user.GetIsBot() {
+			return nil
+		}
+		var err error
+		usernameManaged, err = api.core.UsernameManaged(groupCtx, user.GetId())
+		return err
+	})
 	group.Go(func() error {
 		var err error
 		hasVerifiedEmail, err = api.core.HasVerifiedEmail(groupCtx, user.GetId())
@@ -263,6 +272,7 @@ func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerU
 	response := &apiv1.ViewerUser{
 		HasVerifiedEmail:       hasVerifiedEmail,
 		HasPassword:            hasPassword,
+		UsernameManaged:        &usernameManaged,
 		Settings:               coreUserSettingsToAPI(settings),
 		ViewerCanDeleteAccount: canDeleteAccount,
 		Profile:                apiUser,

@@ -438,6 +438,8 @@
         "already_set": "此账号已有密码。"
       },
       "sso": {
+        "username_managed": "你的用户名由登录提供商管理，无法在此修改。",
+        "unlink_disabled": "服务器运营者不允许解除与此提供商的关联。",
         "popup_blocked": "请允许此网站的弹出窗口，然后重试关联。",
         "account_mismatch": "请在此服务器上登录正确的账户，然后从原来的窗口重新开始关联。",
         "provider_unavailable": "此登录服务提供商已不可用。",

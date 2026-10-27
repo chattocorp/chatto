@@ -136,11 +136,14 @@
         label={m('common.username')}
         bind:value={login}
         placeholder={m('common.username_placeholder')}
-        disabled={submitting}
+        disabled={submitting || pending.usernameManaged}
         required
         autocomplete="username"
         error={loginError}
       />
+      {#if pending.usernameManaged}
+        <p class="text-sm text-muted">{m('settings.account.sso.username_managed')}</p>
+      {/if}
 
       <TextInput
         id="sso-display-name"

@@ -111,6 +111,14 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
    */
   redirectPath = "";
 
+  /**
+   * The server assigns the username; client-supplied names are ignored. The
+   * login hint is a preview and can change if another account claims it first.
+   *
+   * @generated from field: bool username_managed = 10;
+   */
+  usernameManaged = false;
+
   constructor(data?: PartialMessage<PendingExternalIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -128,6 +136,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
     { no: 7, name: "display_name_hint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "bound_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "username_managed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PendingExternalIdentity {
@@ -243,7 +252,8 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
   token = "";
 
   /**
-   * Desired username.
+   * Desired username. Ignored when the pending flow has username_managed set;
+   * the server assigns a name from the verified provider claim in that case.
    *
    * @generated from field: string login = 2;
    */

@@ -30,6 +30,8 @@ enum DisconnectEligibility {
   DISCONNECT_ELIGIBILITY_ALLOWED = 1;
   // Disconnecting would leave no enabled sign-in method.
   DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD = 2;
+  // The operator disabled user-initiated unlinking for this provider.
+  DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR = 3;
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.

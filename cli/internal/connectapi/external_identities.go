@@ -28,10 +28,19 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		return nil, err
 	}
 	if flow.Kind == core.ExternalIdentityFlowKindCreate {
-		flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
+		if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
+			flow.LoginHint, err = s.api.core.SuggestProviderUsername(flow.ProviderUsername)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
+		}
 	}
+	pending := apiPendingExternalIdentity(flow)
+	pending.UsernameManaged = s.api.core.ProviderUsernameManaged(flow.ProviderID)
 	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
-		Pending: apiPendingExternalIdentity(flow),
+		Pending: pending,
 	}), nil
 }
 
@@ -186,10 +195,13 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	}
 	policy := s.api.externalIdentitySignInPolicy()
 	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
-	for _, identity := range linked {
+	for index, identity := range linked {
 		identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD
 		if policy.CanDisconnect(identity.SubjectHash, identities, hasPassword) {
 			identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED
+		}
+		if s.api.core.IdentityUnlinkDisabled(identities[index]) {
+			identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR
 		}
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{

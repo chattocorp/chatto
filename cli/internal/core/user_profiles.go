@@ -133,6 +133,15 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 }
 
 func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts, enforceCooldown bool) (*evtv1.User, error) {
+	if actorID == userID && login != nil {
+		managed, err := c.UsernameManaged(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if managed {
+			return nil, ErrUsernameManaged
+		}
+	}
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -250,6 +259,9 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	}
 
 	checkUserExists := func() error {
+		if actorID == userID && login != nil && c.usernameManaged(userID) {
+			return ErrUsernameManaged
+		}
 		if err := checkCooldown(); err != nil {
 			return err
 		}
@@ -418,6 +430,21 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 // true, the 30-day cooldown is checked before changing and a new timestamp is
 // recorded after a successful change.
 func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*evtv1.User, error) {
+	return c.applyLoginChangeChecked(ctx, actorID, userID, newLogin, enforceCooldown, nil)
+}
+
+// applyLoginChangeChecked rechecks an optional source policy under the same
+// user guard as the rename, so unlinking cannot race provider synchronization.
+func (c *ChattoCore) applyLoginChangeChecked(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool, check func() error) (*evtv1.User, error) {
+	if actorID == userID {
+		managed, err := c.UsernameManaged(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if managed {
+			return nil, ErrUsernameManaged
+		}
+	}
 	// Trim (preserve original casing).
 	newLogin = strings.TrimSpace(newLogin)
 
@@ -483,6 +510,14 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	}
 	if !caseOnly {
 		_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			if check != nil {
+				if err := check(); err != nil {
+					return err
+				}
+			}
+			if actorID == userID && c.usernameManaged(userID) {
+				return ErrUsernameManaged
+			}
 			if _, err := c.GetUser(ctx, userID); err != nil {
 				return fmt.Errorf("user not found: %w", err)
 			}
@@ -490,6 +525,14 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 		})
 	} else {
 		_, err = c.appendUserBatch(ctx, userID, entries, evtstream.UserSubjectFilter(), func() error {
+			if check != nil {
+				if err := check(); err != nil {
+					return err
+				}
+			}
+			if actorID == userID && c.usernameManaged(userID) {
+				return ErrUsernameManaged
+			}
 			if _, err := c.GetUser(ctx, userID); err != nil {
 				return fmt.Errorf("user not found: %w", err)
 			}

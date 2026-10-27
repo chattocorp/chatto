@@ -109,6 +109,7 @@
         )
       ) {
         providerLinkWindow = null;
+        await currentUser.load();
         // The remote window closes itself. A detached cross-origin window
         // cannot be closed by its former opener in Chromium.
       }
@@ -217,6 +218,7 @@
   let disconnectCurrentPassword = $state('');
   let disconnectFreshAuthError = $state('');
   let blockedDisconnectProviderLabel = $state('');
+  let blockedDisconnectSubjectHash = $state('');
   let showDisconnectBlockedModal = $state(false);
 
   // Track requests in flight here, not with mutation state: an observer reports
@@ -247,6 +249,8 @@
       (identity) => identity.subjectHash === subjectHash
     )?.disconnectEligibility;
     switch (eligibility) {
+      case DisconnectEligibility.DISABLED_BY_OPERATOR:
+        return false;
       case DisconnectEligibility.ALLOWED:
         return true;
       case DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD:
@@ -273,6 +277,14 @@
       default:
         return 'icon-[mdi--shield-account]';
     }
+  }
+
+  function unlinkDisabled(subjectHash: string | null) {
+    return linkedIdentities.some(
+      (identity) =>
+        identity.subjectHash === subjectHash &&
+        identity.disconnectEligibility === DisconnectEligibility.DISABLED_BY_OPERATOR
+    );
   }
 
   async function startProviderLink(
@@ -359,6 +371,7 @@
     actionError = '';
     if (!canDisconnectIdentity(subjectHash)) {
       blockedDisconnectProviderLabel = providerLabel;
+      blockedDisconnectSubjectHash = subjectHash;
       showDisconnectBlockedModal = true;
       return;
     }
@@ -380,6 +393,7 @@
   function closeDisconnectBlockedModal() {
     showDisconnectBlockedModal = false;
     blockedDisconnectProviderLabel = '';
+    blockedDisconnectSubjectHash = '';
   }
 
   async function confirmDisconnectIdentity(currentPassword?: string) {
@@ -412,6 +426,7 @@
       disconnectCurrentPassword = '';
       disconnectFreshAuthError = '';
       await identitiesQuery.refetch();
+      await currentUser.load();
     } catch (err) {
       if (!session.isCurrent(variables)) {
         return;
@@ -431,6 +446,7 @@
             ?.disconnectEligibility === DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
         ) {
           blockedDisconnectProviderLabel = providerLabel;
+          blockedDisconnectSubjectHash = subjectHash;
           showDisconnectBlockedModal = true;
           return;
         }
@@ -506,6 +522,9 @@
                   <div class="text-xs text-muted">
                     {#if provider.linked}
                       {m('settings.account.sso.linked')}
+                      {#if unlinkDisabled(provider.linkedIdentitySubjectHash)}
+                        <p>{m('settings.account.sso.unlink_disabled')}</p>
+                      {/if}
                     {:else}
                       {m('settings.account.sso.not_linked')}
                     {/if}
@@ -518,7 +537,9 @@
                     variant="danger-secondary"
                     size="sm"
                     loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
-                    disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                    disabled={unlinkDisabled(provider.linkedIdentitySubjectHash) ||
+                      linkingProviderId !== '' ||
+                      disconnectingSubjectHash !== ''}
                     onclick={() => openDisconnectProvider(provider)}
                   >
                     <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
@@ -632,9 +653,11 @@
   onclose={closeDisconnectBlockedModal}
 >
   <Hint tone="warning">
-    {m('settings.account.sso.disconnect_blocked_modal.body', {
-      provider: blockedDisconnectProviderLabel
-    })}
+    {unlinkDisabled(blockedDisconnectSubjectHash)
+      ? m('settings.account.sso.unlink_disabled')
+      : m('settings.account.sso.disconnect_blocked_modal.body', {
+          provider: blockedDisconnectProviderLabel
+        })}
   </Hint>
 
   {#snippet dismissAction()}

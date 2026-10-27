@@ -161,9 +161,11 @@ type ViewerUser struct {
 	// Public user fields for the authenticated user.
 	Profile *User `protobuf:"bytes,11,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Whether this account currently has a password sign-in credential.
-	HasPassword   bool `protobuf:"varint,12,opt,name=has_password,json=hasPassword,proto3" json:"has_password,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	HasPassword bool `protobuf:"varint,12,opt,name=has_password,json=hasPassword,proto3" json:"has_password,omitempty"`
+	// A linked provider prevents local username edits. Absent on older servers.
+	UsernameManaged *bool `protobuf:"varint,13,opt,name=username_managed,json=usernameManaged,proto3,oneof" json:"username_managed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ViewerUser) Reset() {
@@ -234,6 +236,13 @@ func (x *ViewerUser) GetProfile() *User {
 func (x *ViewerUser) GetHasPassword() bool {
 	if x != nil {
 		return x.HasPassword
+	}
+	return false
+}
+
+func (x *ViewerUser) GetUsernameManaged() bool {
+	if x != nil && x.UsernameManaged != nil {
+		return *x.UsernameManaged
 	}
 	return false
 }
@@ -782,7 +791,7 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"timeFormat\x12*\n" +
 	"\x0eshare_timezone\x18\x03 \x01(\bH\x01R\rshareTimezone\x88\x01\x01B\v\n" +
 	"\t_timezoneB\x11\n" +
-	"\x0f_share_timezone\"\x93\x03\n" +
+	"\x0f_share_timezone\"\xd8\x03\n" +
 	"\n" +
 	"ViewerUser\x12,\n" +
 	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +
@@ -791,7 +800,9 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\x11last_login_change\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12-\n" +
 	"\aprofile\x18\v \x01(\v2\x13.chatto.api.v1.UserR\aprofile\x12!\n" +
-	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"\fhas_password\x18\f \x01(\bR\vhasPassword\x12.\n" +
+	"\x10username_managed\x18\r \x01(\bH\x00R\x0fusernameManaged\x88\x01\x01B\x13\n" +
+	"\x11_username_managedJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
 	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8b\x01\n" +
 	"\x12ViewerCapabilities\x126\n" +
 	"\x06grants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CapabilityGrantR\x06grants\x12=\n" +
@@ -907,6 +918,7 @@ func file_chatto_api_v1_viewer_proto_init() {
 	file_chatto_api_v1_permissions_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_viewer_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_viewer_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

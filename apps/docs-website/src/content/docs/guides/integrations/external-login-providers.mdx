@@ -187,6 +187,47 @@ account.
 With [invite-only account creation](/guides/operations/identity-login/#invite-only-account-creation),
 new accounts also need an invite link.
 
+## Manage usernames and account links
+
+For a company provider, you can assign usernames and prevent users from
+disconnecting the provider:
+
+```toml
+[[auth.providers]]
+# ...
+manage_usernames = true
+sync_usernames = false
+allow_unlinking = false
+# OIDC only; the default is preferred_username.
+username_claim = "preferred_username"
+```
+
+`manage_usernames` defaults to `false`. When enabled, Chatto assigns the username
+at account creation. Users still confirm account creation and can edit their
+display name. Chatto trims spaces, converts the username to lowercase, and
+checks its format. It does not use an email address or display name as a fallback.
+OIDC uses `username_claim`; other providers use their username field.
+If the name is taken, Chatto tries `name-2`, `name-3`, and further numbers, up to
+1,000 candidates. It shortens the base when needed to fit the suffix. Missing,
+invalid, or reserved names prevent account creation; correct the provider claim.
+
+Existing usernames stay unchanged by default. Set `sync_usernames = true` to
+update them at subsequent sign-ins. This requires `manage_usernames = true`.
+An existing numeric suffix stays unchanged while it matches the provider name.
+If synchronization fails, the existing name stays and sign-in continues. The
+server logs a synchronization warning without the username.
+
+Users cannot edit their username while any linked provider manages usernames.
+Display names remain editable. If multiple providers synchronize usernames,
+the provider used at sign-in determines the name. Configure those providers
+consistently to avoid repeated renames.
+
+`allow_unlinking` defaults to `true`. Set it to `false` to disable user-initiated
+unlinking. Operators can still unlink through the operator API, provided another
+enabled sign-in method remains. If unlinking is allowed, removing the last
+managed provider restores local username editing. Removing a provider from the
+configuration or disabling `manage_usernames` also removes its edit restriction.
+
 ## Restrict who can sign in
 
 By default, every user of a provider can sign in through it. To allow only the

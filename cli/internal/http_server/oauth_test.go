@@ -64,6 +64,7 @@ func setupOAuthServerWithAuth(t *testing.T, auth config.AuthConfig) *HTTPServer 
 
 	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
 		AuthTokenTTL:              auth.TokenTTL.Duration(),
+		AuthProviders:             auth.Providers,
 		AuthLoopbackClientEnabled: auth.LoopbackClientEnabled,
 		SkipSetupWizard:           true,
 	})

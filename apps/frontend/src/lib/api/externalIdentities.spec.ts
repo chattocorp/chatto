@@ -51,6 +51,7 @@ describe('createExternalIdentityFlowAPI', () => {
       providerLabel: 'GitHub',
       verifiedEmail: null,
       loginHint: 'octo',
+      usernameManaged: false,
       displayNameHint: 'Octo',
       boundUserId: null,
       redirectPath: '/chat/-/settings/account'
@@ -92,6 +93,7 @@ describe('createExternalIdentityAPI', () => {
   it.each([
     DisconnectEligibility.ALLOWED,
     DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+    DisconnectEligibility.DISABLED_BY_OPERATOR,
     DisconnectEligibility.UNSPECIFIED,
     99
   ])('preserves disconnect eligibility: %s', async (disconnectEligibility) => {

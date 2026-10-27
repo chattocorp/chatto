@@ -54,7 +54,10 @@
   const isModified = $derived(displayNameModified || loginModified || bioModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const canBypassLoginCooldown = $derived(serverScope.store.permissions.canAdminManageAccounts);
-  const canChangeLogin = $derived(canBypassLoginCooldown || cooldownRemaining === 0);
+  const usernameManaged = $derived(currentUser.user?.usernameManaged ?? false);
+  const canChangeLogin = $derived(
+    !usernameManaged && (canBypassLoginCooldown || cooldownRemaining === 0)
+  );
 
   function clearMessages() {
     error = '';
@@ -77,9 +80,11 @@
     let normalizedLogin: string | undefined;
     if (loginModified) {
       if (!canChangeLogin) {
-        error = m('settings.profile.username.cooldown_error', {
-          remaining: formatCooldownRemaining(cooldownRemaining)
-        });
+        error = usernameManaged
+          ? m('settings.account.sso.username_managed')
+          : m('settings.profile.username.cooldown_error', {
+              remaining: formatCooldownRemaining(cooldownRemaining)
+            });
         return;
       }
       const validation = validateAndNormalizeLogin(login);
@@ -189,6 +194,16 @@
       oninput={clearMessages}
     />
 
+    {#if usernameManaged}
+      <Hint>{m('settings.account.sso.username_managed')}</Hint>
+    {:else if !canChangeLogin}
+      <p class="text-sm text-muted">
+        {m('settings.profile.username.cooldown_notice', {
+          remaining: formatCooldownRemaining(cooldownRemaining)
+        })}
+      </p>
+    {/if}
+
     <UserBioEditor
       bind:value={bio}
       editorKind={userPreferences.composerEditor}
@@ -196,14 +211,6 @@
       disabled={isSaving}
       oninput={clearMessages}
     />
-
-    {#if !canChangeLogin}
-      <p class="text-sm text-muted">
-        {m('settings.profile.username.cooldown_notice', {
-          remaining: formatCooldownRemaining(cooldownRemaining)
-        })}
-      </p>
-    {/if}
 
     {#if successMessage}
       <Hint tone="success">{successMessage}</Hint>

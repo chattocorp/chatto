@@ -284,6 +284,20 @@ describe('Profile settings page', () => {
       .toHaveTextContent('You can change your username again in');
   });
 
+  it('disables managed usernames even for account managers', async () => {
+    server.currentUser.user!.usernameManaged = true;
+    server.permissions.canAdminManageAccounts = true;
+    const { container } = render(ProfilePage);
+    await settle();
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeDisabled();
+    await expect
+      .element(q(container, 'form'))
+      .toHaveTextContent(
+        'Your username is managed by your sign-in provider and cannot be edited here.'
+      );
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
+  });
+
   it('lets an account manager bypass their own username cooldown', async () => {
     const lastLoginChange = new Date().toISOString();
     server.currentUser.user!.lastLoginChange = lastLoginChange;

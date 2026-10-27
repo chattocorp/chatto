@@ -98,6 +98,7 @@ vi.mock('$lib/auth/signOutRedirect', () => ({
 vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 
 const currentUser = {
+  load: vi.fn().mockResolvedValue(undefined),
   user: { id: 'user-alice', hasPassword: true }
 } as unknown as CurrentUserState;
 
@@ -188,6 +189,26 @@ describe('external identity settings query lifecycle', () => {
     await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).first().click();
     await expect
       .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+      .toBeVisible();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('disables unlinking when the operator forbids it', async () => {
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], {
+      disconnectEligibility: DisconnectEligibility.DISABLED_BY_OPERATOR
+    });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeDisabled();
+    await expect
+      .element(
+        browserPage.getByText(
+          'The server operator does not allow this provider to be disconnected.'
+        )
+      )
       .toBeVisible();
     expect(mocks.disconnect).not.toHaveBeenCalled();
   });
