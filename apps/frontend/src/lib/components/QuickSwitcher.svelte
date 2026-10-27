@@ -5,7 +5,7 @@
   import { tick, untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingFog, MenuSection } from '$lib/ui';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
@@ -92,7 +92,7 @@
 >
   {#if quickSwitcher.visible}
     <div class="command-palette">
-      <div class="menu-section">
+      <MenuSection>
         <div class="flex min-h-10 items-center gap-2 px-3 py-1.5">
           <span class="iconify sidebar-icon icon-[uil--search] text-muted" aria-hidden="true"
           ></span>
@@ -124,9 +124,9 @@
           {/if}
           <kbd class="keycap">Esc</kbd>
         </div>
-      </div>
+      </MenuSection>
 
-      <div class="max-h-[min(20rem,55dvh)] overflow-y-auto menu-section">
+      <MenuSection class="max-h-[min(20rem,55dvh)] overflow-y-auto">
         <nav class="sidebar-nav">
           {#if model.loading && model.filtered.length === 0}
             <LoadingFog class="m-2 h-24" />
@@ -256,7 +256,7 @@
             {/each}
           {/if}
         </nav>
-      </div>
+      </MenuSection>
     </div>
   {/if}
 </dialog>
