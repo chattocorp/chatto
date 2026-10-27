@@ -284,17 +284,13 @@ test.describe('External identity confirmation flows', () => {
       }
     );
 
-    await githubRow.getByRole('button', { name: 'Disconnect' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'Provider cannot be disconnected' })
-    ).toBeVisible();
+    await expect(githubRow.getByRole('button', { name: 'Disconnect' })).toBeDisabled();
     await expect(
       page.getByText(
         'Set up another sign-in method supported by this server before disconnecting GitHub.'
       )
     ).toBeVisible();
     expect(disconnectRequestCount).toBe(0);
-    await page.getByRole('dialog').getByText('Close').click();
     await expect(githubRow.getByText('Linked')).toBeVisible();
     await expect(githubRow.locator('[class~="icon-[uil--link-broken]"]')).toBeVisible();
 
@@ -304,6 +300,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByLabel('Current Password')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change password' })).toBeVisible();
 
+    await expect(githubRow.getByRole('button', { name: 'Disconnect' })).toBeEnabled();
     await githubRow.getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await expect(page.getByText('Disconnect GitHub from this account?')).toBeVisible();
