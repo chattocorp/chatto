@@ -1,7 +1,7 @@
 <!--
 @component
 
-Room metadata, description, and pins in independently collapsible sidebar sections.
+Room details, notices, and pins in independently collapsible sidebar sections.
 The sections share one scroll viewport and retain their disclosure preferences.
 -->
 <script lang="ts">
@@ -16,6 +16,9 @@ The sections share one scroll viewport and retain their disclosure preferences.
   import type { RoomPinsStore } from '$lib/state/room';
   import { ScrollFader } from '$lib/ui';
   import RoomPinsPanel from './RoomPinsPanel.svelte';
+  import RoomNoticePanel from './RoomNoticePanel.svelte';
+  import type { RoomNoticeStore } from '@chatto/client/room/notice';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
   let {
     serverId,
@@ -25,6 +28,9 @@ The sections share one scroll viewport and retain their disclosure preferences.
     memberCount = null,
     isUniversal = false,
     pinsStore,
+    noticeStore,
+    canManageNotice = false,
+    noticeMentions,
     onOpenPin
   }: {
     serverId: string;
@@ -35,6 +41,9 @@ The sections share one scroll viewport and retain their disclosure preferences.
     memberCount?: number | null;
     isUniversal?: boolean;
     pinsStore?: RoomPinsStore;
+    noticeStore?: RoomNoticeStore;
+    canManageNotice?: boolean;
+    noticeMentions?: MarkdownMentionOptions;
     onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
   } = $props();
   let now = $state(new Date());
@@ -55,6 +64,11 @@ The sections share one scroll viewport and retain their disclosure preferences.
     {#snippet content()}
       <div class="space-y-2 px-2 py-3">
         <p class="font-semibold"><RoomName name={roomName} {isUniversal} /></p>
+        {#if roomDescription.trim()}
+          <div class="min-w-0 text-muted">
+            <MessageContent body={roomDescription} />
+          </div>
+        {/if}
         <dl class="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-2 pt-3 text-sm">
           <dt class="text-muted">{m('room.information.created')}</dt>
           <dd class="min-w-0 text-end">
@@ -79,17 +93,20 @@ The sections share one scroll viewport and retain their disclosure preferences.
       </div>
     {/snippet}
   </RoomGroupSection>
-  {#if roomDescription.trim()}
+  {#if noticeStore?.supported && (canManageNotice || noticeStore.notice?.body)}
     <RoomGroupSection
-      label={m('room.information.description')}
+      label={m('room.notice.title')}
       items={[]}
-      persistKey={serverStorageKey(serverId, 'collapsible:room-information:description')}
+      persistKey={serverStorageKey(serverId, 'collapsible:room-information:notice')}
       separated
     >
       {#snippet content()}
-        <div class="min-w-0 px-2 py-3 text-muted">
-          <MessageContent body={roomDescription} />
-        </div>
+        <RoomNoticePanel
+          {serverId}
+          store={noticeStore}
+          canManage={canManageNotice}
+          mentions={noticeMentions}
+        />
       {/snippet}
     </RoomGroupSection>
   {/if}

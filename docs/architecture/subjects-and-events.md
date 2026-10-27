@@ -246,35 +246,36 @@ cursors are trusted integration coordinates and are not public API cursors.
 
 ## Durable EVT event inventory
 
-| Subject pattern                                 | Protobuf event message                                                                                                     |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `evt.room.{roomId}.room_created`                | `RoomCreatedEvent`                                                                                                         |
-| `evt.room.{roomId}.room_updated`                | `RoomUpdatedEvent`                                                                                                         |
-| `evt.room.{roomId}.room_archived`               | `RoomArchivedEvent`                                                                                                        |
-| `evt.room.{roomId}.room_unarchived`             | `RoomUnarchivedEvent`                                                                                                      |
-| `evt.room.{roomId}.room_universal_changed`      | `RoomUniversalChangedEvent`                                                                                                |
-| `evt.room.{roomId}.room_slow_mode_changed`      | `RoomSlowModeChangedEvent`                                                                                                 |
-| `evt.room.{roomId}.room_threading_mode_changed` | `RoomThreadingModeChangedEvent`                                                                                            |
-| `evt.room.{roomId}.room_deleted`                | `RoomDeletedEvent`                                                                                                         |
-| `evt.room.{roomId}.user_joined`                 | `UserJoinedRoomEvent`                                                                                                      |
-| `evt.room.{roomId}.user_left`                   | `UserLeftRoomEvent`                                                                                                        |
-| `evt.room.{roomId}.call_started`                | `CallStartedEvent`                                                                                                         |
-| `evt.room.{roomId}.call_joined`                 | `CallParticipantJoinedEvent`                                                                                               |
-| `evt.room.{roomId}.call_left`                   | `CallParticipantLeftEvent`                                                                                                 |
-| `evt.room.{roomId}.call_ended`                  | `CallEndedEvent`                                                                                                           |
-| `evt.room.{roomId}.room_member_banned`          | `RoomMemberBannedEvent` (stored suspension)                                                                                |
-| `evt.room.{roomId}.room_member_unbanned`        | `RoomMemberUnbannedEvent` (suspension lifted)                                                                              |
-| `evt.room.{roomId}.room_member_added`           | `RoomMemberAddedEvent`                                                                                                     |
-| `evt.room.{roomId}.room_member_removed`         | `RoomMemberRemovedEvent` (optional reason)                                                                                 |
-| `evt.room.{roomId}.message_body`                | `MessageBodyEvent`; encrypted message text and separately encrypted attachment descriptions, plus non-PII content metadata |
-| `evt.room.{roomId}.message_posted`              | `MessagePostedEvent`                                                                                                       |
-| `evt.room.{roomId}.message_edited`              | `MessageEditedEvent`                                                                                                       |
-| `evt.room.{roomId}.message_retracted`           | `MessageRetractedEvent`                                                                                                    |
-| `evt.room.{roomId}.message_pinned`              | `MessagePinnedEvent`                                                                                                       |
-| `evt.room.{roomId}.message_unpinned`            | `MessageUnpinnedEvent`                                                                                                     |
-| `evt.room.{roomId}.thread_created`              | `ThreadCreatedEvent`                                                                                                       |
-| `evt.room.{roomId}.thread_followed`             | `ThreadFollowedEvent`                                                                                                      |
-| `evt.room.{roomId}.thread_unfollowed`           | `ThreadUnfollowedEvent`                                                                                                    |
+| Subject pattern                                 | Protobuf event message                                                                                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `evt.room.{roomId}.room_created`                | `RoomCreatedEvent`                                                                                                                                            |
+| `evt.room.{roomId}.room_updated`                | `RoomUpdatedEvent`                                                                                                                                            |
+| `evt.room.{roomId}.room_archived`               | `RoomArchivedEvent`                                                                                                                                           |
+| `evt.room.{roomId}.room_unarchived`             | `RoomUnarchivedEvent`                                                                                                                                         |
+| `evt.room.{roomId}.room_universal_changed`      | `RoomUniversalChangedEvent`                                                                                                                                   |
+| `evt.room.{roomId}.room_slow_mode_changed`      | `RoomSlowModeChangedEvent`                                                                                                                                    |
+| `evt.room.{roomId}.room_threading_mode_changed` | `RoomThreadingModeChangedEvent`                                                                                                                               |
+| `evt.room.{roomId}.room_notice_changed`         | `RoomNoticeChangedEvent`: current Markdown and an announcement flag; the envelope supplies publication identity and time, and an empty body clears the notice |
+| `evt.room.{roomId}.room_deleted`                | `RoomDeletedEvent`                                                                                                                                            |
+| `evt.room.{roomId}.user_joined`                 | `UserJoinedRoomEvent`                                                                                                                                         |
+| `evt.room.{roomId}.user_left`                   | `UserLeftRoomEvent`                                                                                                                                           |
+| `evt.room.{roomId}.call_started`                | `CallStartedEvent`                                                                                                                                            |
+| `evt.room.{roomId}.call_joined`                 | `CallParticipantJoinedEvent`                                                                                                                                  |
+| `evt.room.{roomId}.call_left`                   | `CallParticipantLeftEvent`                                                                                                                                    |
+| `evt.room.{roomId}.call_ended`                  | `CallEndedEvent`                                                                                                                                              |
+| `evt.room.{roomId}.room_member_banned`          | `RoomMemberBannedEvent` (stored suspension)                                                                                                                   |
+| `evt.room.{roomId}.room_member_unbanned`        | `RoomMemberUnbannedEvent` (suspension lifted)                                                                                                                 |
+| `evt.room.{roomId}.room_member_added`           | `RoomMemberAddedEvent`                                                                                                                                        |
+| `evt.room.{roomId}.room_member_removed`         | `RoomMemberRemovedEvent` (optional reason)                                                                                                                    |
+| `evt.room.{roomId}.message_body`                | `MessageBodyEvent`; encrypted message text and separately encrypted attachment descriptions, plus non-PII content metadata                                    |
+| `evt.room.{roomId}.message_posted`              | `MessagePostedEvent`                                                                                                                                          |
+| `evt.room.{roomId}.message_edited`              | `MessageEditedEvent`                                                                                                                                          |
+| `evt.room.{roomId}.message_retracted`           | `MessageRetractedEvent`                                                                                                                                       |
+| `evt.room.{roomId}.message_pinned`              | `MessagePinnedEvent`                                                                                                                                          |
+| `evt.room.{roomId}.message_unpinned`            | `MessageUnpinnedEvent`                                                                                                                                        |
+| `evt.room.{roomId}.thread_created`              | `ThreadCreatedEvent`                                                                                                                                          |
+| `evt.room.{roomId}.thread_followed`             | `ThreadFollowedEvent`                                                                                                                                         |
+| `evt.room.{roomId}.thread_unfollowed`           | `ThreadUnfollowedEvent`                                                                                                                                       |
 
 An operator historical import uses the existing message-body and message-post
 subjects. The body and post commit with any asset claims in one batch. The

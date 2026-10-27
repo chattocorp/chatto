@@ -1,5 +1,6 @@
 {
   "common": {
+    "edit": "Edytuj",
     "copy_failed": "Nie udało się skopiować do schowka. Zaznacz tekst i skopiuj go ręcznie.",
     "cancel": "Anuluj",
     "close_sidebar": "Zamknij pasek boczny",

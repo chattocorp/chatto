@@ -147,6 +147,7 @@
       "call": "Calls"
     },
     "permission_help": {
+      "room_manage_notice": "Allows a member to manage the notice in an active channel room. It does not grant general room management. New instances grant it only to Admin; upgrades keep existing grants.",
       "server_manage": "Allows an account to change the server name, description, logo, and other server settings. It also allows changes to the public Neighbor directory. Give it only to people who can speak for the whole server.",
       "server_manage_neighbors": "Allows an account to add, change, and remove entries in the public Neighbor directory. It does not allow changes to other server settings.",
       "room_create": "Allows an account to create channel rooms. At Room group scope, it allows new rooms only in that group.",

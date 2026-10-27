@@ -1,7 +1,7 @@
 /** Use real Pi session storage and context hooks to detect snapshot accumulation. */
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import {
   createAgentSession,
   DefaultResourceLoader,
@@ -25,7 +25,13 @@ test('fresh snapshots reach requests but never enter saved history across turns 
     });
     const model = runtime.getModel('anthropic', 'claude-sonnet-4-6');
     if (!model) throw new Error('Test requires the built-in model catalog');
-    const open = async (snapshot: ThreadContext) => {
+    const loadImages = vi.fn(async () => ({
+      images: [
+        { messageId: 'ordinary', attachmentId: 'image', data: 'AQID', mimeType: 'image/png' }
+      ],
+      imageNotes: []
+    }));
+    const open = async (snapshot: ThreadContext, vision = true) => {
       const settingsManager = SettingsManager.inMemory();
       const resourceLoader = new DefaultResourceLoader({
         cwd: directory,
@@ -36,14 +42,14 @@ test('fresh snapshots reach requests but never enter saved history across turns 
         noPromptTemplates: true,
         noThemes: true,
         noContextFiles: true,
-        extensionFactories: [threadContextExtension(snapshot)]
+        extensionFactories: [threadContextExtension(snapshot, loadImages)]
       });
       await resourceLoader.reload();
       return createAgentSession({
         cwd: directory,
         agentDir: directory,
         modelRuntime: runtime,
-        model,
+        model: vision ? model : { ...model, input: ['text'] },
         settingsManager,
         resourceLoader,
         tools: [],
@@ -65,6 +71,9 @@ test('fresh snapshots reach requests but never enter saved history across turns 
     const first = await open({
       messages: [{ id: 'ordinary', author: 'human', text: 'snapshot version one' }],
       memoryDocuments: { global: ['old-global-memory'], users: { human: ['old-user-memory'] } },
+      images: [
+        { messageId: 'ordinary', attachmentId: 'image', data: 'AQID', mimeType: 'image/png' }
+      ],
       olderContextOmitted: false
     });
     try {
@@ -72,6 +81,8 @@ test('fresh snapshots reach requests but never enter saved history across turns 
       expect(JSON.stringify(request)).toContain('snapshot version one');
       expect(JSON.stringify(request)).toContain('old-global-memory');
       expect(JSON.stringify(request)).toContain('old-user-memory');
+      expect(JSON.stringify(request)).toContain('"type":"image"');
+      expect(await readFile(file, 'utf8')).not.toContain('AQID');
       expect(await readFile(file, 'utf8')).not.toContain('old-global-memory');
       expect(JSON.stringify(first.session.messages)).not.toContain('snapshot version one');
       expect(await readFile(file, 'utf8')).not.toContain('snapshot version one');
@@ -79,10 +90,32 @@ test('fresh snapshots reach requests but never enter saved history across turns 
       expect(await first.session.extensionRunner.emitContext(first.session.messages)).toEqual(
         request
       );
+      expect(loadImages).toHaveBeenCalledOnce();
     } finally {
       first.session.dispose();
     }
 
+    loadImages.mockClear();
+    const textOnly = await open(
+      {
+        messages: [],
+        olderContextOmitted: false,
+        images: [
+          { messageId: 'ordinary', attachmentId: 'image', data: 'AQID', mimeType: 'image/png' }
+        ]
+      },
+      false
+    );
+    try {
+      const request = JSON.stringify(
+        await textOnly.session.extensionRunner.emitContext(textOnly.session.messages)
+      );
+      expect(request).not.toContain('AQID');
+      expect(request).toContain('cannot read images');
+      expect(loadImages).not.toHaveBeenCalled();
+    } finally {
+      textOnly.session.dispose();
+    }
     const reopened = SessionManager.open(file, directory, directory);
     reopened.appendMessage({
       role: 'assistant',

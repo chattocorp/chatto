@@ -39,7 +39,8 @@ export class AutocompleteState {
     private readonly getMembers: () => RoomMember[],
     private readonly getRoles: () => MentionRole[] = () => [],
     /** Users that rank first among matches, such as thread participants. */
-    private readonly getPrioritizedUserIds?: () => ReadonlySet<string> | undefined
+    private readonly getPrioritizedUserIds?: () => ReadonlySet<string> | undefined,
+    private readonly options: { openOnAt?: boolean; emojis?: boolean } = {}
   ) {}
 
   reset(): void {
@@ -144,6 +145,7 @@ export class AutocompleteState {
   }
 
   private updateEmoji(): void {
+    if (this.options.emojis === false) return;
     const partial = this.getEmojiPartialAtCursor();
     if (partial && searchEmojis(partial.query, 1).length > 0) {
       this.emoji = {
@@ -201,8 +203,9 @@ export class AutocompleteState {
     if (!editorApi) return null;
 
     const textBefore = editorApi.getTextBeforeCursor();
-    const match = textBefore.match(/(?:^|[\s])@([a-zA-Z0-9_.-]+)$/);
+    const match = textBefore.match(/(?:^|[\s])@([a-zA-Z0-9_.-]*)$/);
     if (!match) return null;
+    if (!match[1] && !this.options.openOnAt) return null;
 
     return {
       partial: match[1],

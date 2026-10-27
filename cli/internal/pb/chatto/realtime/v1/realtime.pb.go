@@ -644,6 +644,7 @@ type RealtimeEvent struct {
 	//	*RealtimeEvent_RoomInvitationCreated
 	//	*RealtimeEvent_RoomInvitationAccepted
 	//	*RealtimeEvent_RoomInvitationDeclined
+	//	*RealtimeEvent_RoomNoticeChanged
 	Event         isRealtimeEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1173,6 +1174,15 @@ func (x *RealtimeEvent) GetRoomInvitationDeclined() *RoomInvitationDeclinedEvent
 	return nil
 }
 
+func (x *RealtimeEvent) GetRoomNoticeChanged() *RoomNoticeChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RealtimeEvent_RoomNoticeChanged); ok {
+			return x.RoomNoticeChanged
+		}
+	}
+	return nil
+}
+
 type isRealtimeEvent_Event interface {
 	isRealtimeEvent_Event()
 }
@@ -1381,6 +1391,10 @@ type RealtimeEvent_RoomInvitationDeclined struct {
 	RoomInvitationDeclined *RoomInvitationDeclinedEvent `protobuf:"bytes,71,opt,name=room_invitation_declined,json=roomInvitationDeclined,proto3,oneof"`
 }
 
+type RealtimeEvent_RoomNoticeChanged struct {
+	RoomNoticeChanged *RoomNoticeChangedEvent `protobuf:"bytes,72,opt,name=room_notice_changed,json=roomNoticeChanged,proto3,oneof"`
+}
+
 func (*RealtimeEvent_RoomCreated) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomUpdated) isRealtimeEvent_Event() {}
@@ -1482,6 +1496,8 @@ func (*RealtimeEvent_RoomInvitationCreated) isRealtimeEvent_Event() {}
 func (*RealtimeEvent_RoomInvitationAccepted) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomInvitationDeclined) isRealtimeEvent_Event() {}
+
+func (*RealtimeEvent_RoomNoticeChanged) isRealtimeEvent_Event() {}
 
 // Application-level heartbeat.
 type RealtimeHeartbeat struct {
@@ -1632,7 +1648,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"l\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12@\n" +
-	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xc5)\n" +
+	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xa3*\n" +
 	"\rRealtimeEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1691,7 +1707,8 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\"viewer_presence_preference_changed\x18D \x01(\v28.chatto.realtime.v1.ViewerPresencePreferenceChangedEventH\x00R\x1fviewerPresencePreferenceChanged\x12h\n" +
 	"\x17room_invitation_created\x18E \x01(\v2..chatto.realtime.v1.RoomInvitationCreatedEventH\x00R\x15roomInvitationCreated\x12k\n" +
 	"\x18room_invitation_accepted\x18F \x01(\v2/.chatto.realtime.v1.RoomInvitationAcceptedEventH\x00R\x16roomInvitationAccepted\x12k\n" +
-	"\x18room_invitation_declined\x18G \x01(\v2/.chatto.realtime.v1.RoomInvitationDeclinedEventH\x00R\x16roomInvitationDeclinedB\a\n" +
+	"\x18room_invitation_declined\x18G \x01(\v2/.chatto.realtime.v1.RoomInvitationDeclinedEventH\x00R\x16roomInvitationDeclined\x12\\\n" +
+	"\x13room_notice_changed\x18H \x01(\v2*.chatto.realtime.v1.RoomNoticeChangedEventH\x00R\x11roomNoticeChangedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idB\t\n" +
 	"\a_cursorJ\x04\b#\x10.R\x12room_group_createdR\x12room_group_updatedR\x12room_group_deletedR\x13room_added_to_groupR\x17room_removed_from_groupR\x18rooms_in_group_reorderedR\x1bsidebar_link_added_to_groupR\x14sidebar_link_updatedR\x1fsidebar_link_removed_from_groupR\x1fsidebar_group_entries_reorderedR\x15room_groups_reordered\";\n" +
@@ -1807,7 +1824,8 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*RoomInvitationCreatedEvent)(nil),           // 64: chatto.realtime.v1.RoomInvitationCreatedEvent
 	(*RoomInvitationAcceptedEvent)(nil),          // 65: chatto.realtime.v1.RoomInvitationAcceptedEvent
 	(*RoomInvitationDeclinedEvent)(nil),          // 66: chatto.realtime.v1.RoomInvitationDeclinedEvent
-	(*durationpb.Duration)(nil),                  // 67: google.protobuf.Duration
+	(*RoomNoticeChangedEvent)(nil),               // 67: chatto.realtime.v1.RoomNoticeChangedEvent
+	(*durationpb.Duration)(nil),                  // 68: google.protobuf.Duration
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	0,  // 0: chatto.realtime.v1.RealtimeSubscribe.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
@@ -1874,13 +1892,14 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	64, // 61: chatto.realtime.v1.RealtimeEvent.room_invitation_created:type_name -> chatto.realtime.v1.RoomInvitationCreatedEvent
 	65, // 62: chatto.realtime.v1.RealtimeEvent.room_invitation_accepted:type_name -> chatto.realtime.v1.RoomInvitationAcceptedEvent
 	66, // 63: chatto.realtime.v1.RealtimeEvent.room_invitation_declined:type_name -> chatto.realtime.v1.RoomInvitationDeclinedEvent
-	2,  // 64: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
-	67, // 65: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
-	66, // [66:66] is the sub-list for method output_type
-	66, // [66:66] is the sub-list for method input_type
-	66, // [66:66] is the sub-list for extension type_name
-	66, // [66:66] is the sub-list for extension extendee
-	0,  // [0:66] is the sub-list for field type_name
+	67, // 64: chatto.realtime.v1.RealtimeEvent.room_notice_changed:type_name -> chatto.realtime.v1.RoomNoticeChangedEvent
+	2,  // 65: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
+	68, // 66: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
+	67, // [67:67] is the sub-list for method output_type
+	67, // [67:67] is the sub-list for method input_type
+	67, // [67:67] is the sub-list for extension type_name
+	67, // [67:67] is the sub-list for extension extendee
+	0,  // [0:67] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -1949,6 +1968,7 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeEvent_RoomInvitationCreated)(nil),
 		(*RealtimeEvent_RoomInvitationAccepted)(nil),
 		(*RealtimeEvent_RoomInvitationDeclined)(nil),
+		(*RealtimeEvent_RoomNoticeChanged)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

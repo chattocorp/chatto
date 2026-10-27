@@ -4,18 +4,24 @@ import type { createAgent } from './agent.ts';
 import type { Settings } from './settings.ts';
 import { safeStep } from './steps.ts';
 import { log } from 'runling';
-import { readContext, type ContextSource } from './context.ts';
+import { includeCurrentMessages, readContext, type ContextSource } from './context.ts';
 import { reactionExtension } from './reactions.ts';
 import { hasTranscript } from './messages.ts';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { TaskContext } from 'runling';
 import { conversationIdentity } from './threads.ts';
+import { readImages } from './images.ts';
+import { viewImageExtension } from './view-image.ts';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
   settings: Settings,
   botId: string,
-  server: Pick<Server, 'postMessage' | 'withTyping' | 'addReaction' | 'getMessage'> & ContextSource,
+  server: Pick<
+    Server,
+    'postMessage' | 'withTyping' | 'addReaction' | 'getMessage' | 'readAttachment'
+  > &
+    ContextSource,
   agent: Awaited<ReturnType<typeof createAgent>>,
   shutdown: AbortSignal,
   beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
@@ -40,9 +46,17 @@ export function createTurnHandler(
       destination,
       async () => {
         // Read-only failures remain queued and can be retried after reconnect.
+        const currentIds = messages.map((item) => item.id);
         const context = await safeStep(
           'Thread context read',
-          () => readContext(server, destination, settings.contextMessages, signal),
+          async () =>
+            includeCurrentMessages(
+              server,
+              destination.roomId,
+              await readContext(server, destination, settings.contextMessages, signal),
+              currentIds,
+              signal
+            ),
           metrics
         );
         // Resolve reply authors before starting effects. Targets can be outside
@@ -90,8 +104,15 @@ export function createTurnHandler(
               prompt,
               signal,
               context,
+              loadImages: () =>
+                safeStep(
+                  'Read images',
+                  () => readImages(server, destination.roomId, context, currentIds, signal),
+                  metrics
+                ),
               userIds: [...new Set(messages.map((item) => item.authorId))],
               tools: [
+                viewImageExtension(server, destination.roomId, context, signal),
                 reactionExtension(
                   server,
                   destination.roomId,

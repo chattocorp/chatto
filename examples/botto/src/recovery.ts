@@ -96,7 +96,9 @@ export async function recover(
       throw error;
     }
     if (
-      !message?.body?.trim() ||
+      !message ||
+      (!message.body?.trim() &&
+        !message.attachments?.some((attachment) => attachment.contentType.startsWith('image/'))) ||
       message.authorId === server.accountId ||
       (allowedUserId && message.authorId !== allowedUserId)
     )
@@ -108,7 +110,7 @@ export async function recover(
     )
       continue;
     if (!(await isHumanAuthor(server, message.authorId, signal))) continue;
-    delivery.accept({ ...message, body: message.body, reasons: candidate.reasons });
+    delivery.accept({ ...message, body: message.body ?? '', reasons: candidate.reasons });
   }
   delivery.prune();
 }

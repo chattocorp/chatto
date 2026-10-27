@@ -733,6 +733,19 @@ Public room metadata returned by room commands.
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 | `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
 
+<a id="chatto-api-v1-RoomNotice"></a>
+
+### RoomNotice
+
+Current member-only notice in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `body` | `string` | Markdown source. Empty means the notice has been cleared. |
+| `version` | `string` | Opaque write version. Send it with every mutation. Empty before first publish. |
+| `publication_id` | `string` | Opaque dismissal revision. Corrections preserve it; publish and republish replace it. Empty when there is no published notice. |
+| `published_at` | `google.protobuf.Timestamp` | Time of publication or explicit republishing. Corrections preserve it. Absent when cleared or unavailable on an older server. |
+
 <a id="chatto-api-v1-RoomSummary"></a>
 
 ### RoomSummary

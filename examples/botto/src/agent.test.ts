@@ -19,6 +19,7 @@ vi.mock('./thread-context.ts', () => ({ threadContextExtension: vi.fn(() => () =
 
 const directories: string[] = [];
 afterEach(async () => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true }))
@@ -76,6 +77,22 @@ test('uses Runling with explicit extensions, no ambient resources, and the origi
   expect(transcriptName(identity)).not.toBe(transcriptName(['server', 'other', 'room', 'thread']));
 });
 
+test('refreshes the current UTC date when a later turn opens its session', async () => {
+  const { agent } = await setup();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  for (const date of ['2026-10-26', '2026-10-27']) {
+    vi.setSystemTime(new Date(`${date}T00:00:01Z`));
+    await agent.reply(createTaskContext(), {
+      identity: ['server', 'bot', 'room', 'thread'],
+      prompt: 'What is in this image?',
+      signal: new AbortController().signal
+    });
+    expect(mock.create.mock.calls.at(-1)![0].systemPrompt).toContain(
+      `Current date (UTC): ${date}.`
+    );
+  }
+});
+
 test('refreshes private memory context per batch without changing system instructions', async () => {
   let documents = { global: ['one'], users: { human: ['two'] } };
   const open = vi.fn(async () => ({
@@ -100,7 +117,8 @@ test('refreshes private memory context per batch without changing system instruc
     expect(options.toolExecution).toBe('sequential');
     expect(options.systemPrompt).toContain('Configured admin user IDs: ["admin"]');
     expect(threadContextExtension).toHaveBeenLastCalledWith(
-      expect.objectContaining({ memoryDocuments: documents })
+      expect.objectContaining({ memoryDocuments: documents }),
+      undefined
     );
     expect(open).toHaveBeenLastCalledWith('thread', [user], signal);
   }
@@ -119,7 +137,7 @@ test('passes fresh thread context through the request hook, not the persisted pr
     signal: new AbortController().signal,
     context
   });
-  expect(threadContextExtension).toHaveBeenCalledWith(context);
+  expect(threadContextExtension).toHaveBeenCalledWith(context, undefined);
   expect(session.run.mock.calls[0]?.[1]).toBe('accepted batch');
 });
 

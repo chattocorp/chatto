@@ -1,5 +1,6 @@
 {
   "common": {
+    "edit": "Muuda",
     "copy_failed": "Lõikelauale kopeerimine ebaõnnestus. Valige tekst ja kopeerige see käsitsi.",
     "cancel": "Tühista",
     "close_sidebar": "Sule külgriba",

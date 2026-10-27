@@ -262,6 +262,13 @@ vi.mock('./RoomSidebarToggle.svelte', async () => {
   return { default: EmptyMock };
 });
 
+// The banner has its own browser tests; keep this room-layout fixture isolated
+// from its Markdown renderer and editor dependencies, like the other panels.
+vi.mock('./RoomNoticeBanner.svelte', async () => {
+  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
+  return { default: EmptyMock };
+});
+
 vi.mock('$lib/dom/DropZoneOverlay.svelte', async () => {
   const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
   return { default: EmptyMock };

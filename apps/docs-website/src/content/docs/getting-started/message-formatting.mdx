@@ -94,6 +94,32 @@ current client. Unknown servers open externally.
 
 Right-click an image attachment in a message and select **Copy Image** to paste the image into another app. Use **Download** in the attachment viewer to save the original file.
 
+### ANSI art
+
+Put ANSI text inside a fenced code block labelled `ansi`. After you send the
+message, Chatto shows its colors and final screen layout. Cursor movement and
+erase commands can draw over earlier text. The composer shows the source.
+
+Bots can build a message body like this JavaScript example:
+
+```js
+const body = '```ansi\n\x1b[91mHello in red!\x1b[0m\n```';
+```
+
+The JavaScript string contains an actual Escape character (`U+001B`). Typing the
+literal text `\x1b` into the message editor does not create that character. Use
+Unicode text for block and box-drawing characters; raw CP437 files are not imported.
+
+Art uses 80 columns and up to 100 screen rows, with no scrollback. Content that
+scrolls above the screen is discarded. Wide or tall art scrolls inside its block.
+The background stays black in both themes. Chatto supports 16-color, 256-color,
+and true-color text. It does not play animations or blink text, and terminal
+links and clipboard commands have no effect.
+
+The first four ANSI blocks in a message render as art. Additional blocks show
+their source. The normal message size limit still applies. **Copy to clipboard**
+copies the original code, including its escape characters.
+
 ### Footnotes
 
 Use `[^note]` to refer to a note. Add its definition on a separate line:

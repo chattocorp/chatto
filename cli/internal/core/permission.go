@@ -70,6 +70,10 @@ const (
 	// PermRoomManage allows updating or deleting channel rooms.
 	PermRoomManage Permission = "room.manage"
 
+	// PermRoomManageNotice allows members to publish, correct, republish, and
+	// clear channel notices. It is independent of general room management.
+	PermRoomManageNotice Permission = "room.manage-notice"
+
 	// PermRoomMemberRemove allows moderated removal from channel rooms,
 	// with an optional suspension that prevents rejoining.
 	PermRoomMemberRemove Permission = "room.remove-member"
@@ -214,6 +218,7 @@ var allPermissions = []PermissionMetadata{
 	{Permission: PermRoomInvite, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
+	{Permission: PermRoomManageNotice, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomMemberRemove, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 
 	// Calls
@@ -445,6 +450,7 @@ func DefaultAdminPermissions() []Permission {
 		PermRoomJoin,
 		PermRoomList,
 		PermRoomManage,
+		PermRoomManageNotice,
 		PermRoomInvite,
 		PermRoomMemberRemove,
 		PermMessageManage,

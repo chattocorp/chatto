@@ -1,5 +1,6 @@
 {
   "common": {
+    "edit": "Modifica",
     "copy_failed": "Impossibile copiare negli appunti. Seleziona il testo e copialo manualmente.",
     "cancel": "Annulla",
     "close_sidebar": "Chiudi la barra laterale",
