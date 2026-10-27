@@ -16,6 +16,55 @@ function fixture() {
 }
 
 describe('room notice state', () => {
+  it('preserves content and the draft epoch while reconnect refreshes retained state', async () => {
+    const { api, store } = fixture();
+    const initial = new RoomNotice({ body: 'Initial', version: 'v1' });
+    api.get.mockResolvedValue(initial);
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.notice).toBe(initial));
+    const epoch = store.accessEpoch;
+    let finish!: (notice: RoomNotice) => void;
+    api.get.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    store.reset();
+    expect(store.notice).toBe(initial);
+    expect(store.accessEpoch).toBe(epoch);
+    expect(api.get).toHaveBeenCalledTimes(2);
+    const refreshed = new RoomNotice({ body: 'Current', version: 'v2' });
+    finish(refreshed);
+    await vi.waitFor(() => expect(store.notice).toBe(refreshed));
+    expect(store.accessEpoch).toBe(epoch);
+    release();
+    store.dispose();
+  });
+
+  it('does not restore revoked access during a reconnect reset', async () => {
+    const { api, store } = fixture();
+    api.get.mockResolvedValue(new RoomNotice({ body: 'Private', version: 'v1' }));
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.notice?.version).toBe('v1'));
+    store.reset(true);
+    const epoch = store.accessEpoch;
+    store.reset();
+    await store.refresh();
+    expect(store.notice).toBeNull();
+    expect(store.accessEpoch).toBe(epoch);
+    expect(api.get).toHaveBeenCalledTimes(1);
+    await expect(store.publish('Blocked', 'v1', false)).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
+    await expect(store.clear('v1')).rejects.toMatchObject({ code: Code.PermissionDenied });
+    store.restoreAccess();
+    await vi.waitFor(() => expect(store.notice?.version).toBe('v1'));
+    expect(api.get).toHaveBeenCalledTimes(2);
+    release();
+    store.dispose();
+  });
+
   it('keeps a completed live read fenced until a delayed write response arrives', async () => {
     const { api, store } = fixture();
     api.get.mockResolvedValueOnce(new RoomNotice({ body: 'Initial', version: 'v1' }));

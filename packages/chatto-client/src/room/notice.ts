@@ -140,18 +140,25 @@ export class RoomNoticeStore {
     if (this.#minimumCursor && this.#retained) void this.refresh();
   }
 
-  /** Invalidates pending reads before removing private content. */
+  /**
+   * Reconciles a realtime reset without discarding the displayed notice or drafts.
+   * Only access loss clears private content and advances the draft epoch. A
+   * reconnect cannot unblock a revoked store; restoreAccess owns that boundary.
+   */
   reset(accessRevoked = false): void {
     this.#generation++;
     this.#request?.abort();
     this.#minimumCursor = undefined;
-    this.#blocked = accessRevoked;
+    if (!accessRevoked) {
+      if (this.#retained) void this.refresh();
+      return;
+    }
+    this.#blocked = true;
     batch(() => {
       this.#accessEpoch.set(this.#accessEpoch.get() + 1);
       this.#notice.set(null);
       this.#error.set(null);
     });
-    if (!accessRevoked && this.#retained) void this.refresh();
   }
 
   /** Reopens a store only after the registry confirms membership again. */

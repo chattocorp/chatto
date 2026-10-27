@@ -119,7 +119,7 @@ describe('RoomNoticePanel', () => {
     }
   );
 
-  it('keeps a banner draft after a remote clear and counts trailing whitespace', async () => {
+  it('keeps a banner draft across reconnect and remote clear and counts trailing whitespace', async () => {
     userPreferences.composerEditor = 'markdown';
     const handlers = mockService(RoomService);
     handlers.getNotice.mockReturnValue({
@@ -152,6 +152,15 @@ describe('RoomNoticePanel', () => {
       .toBeDisabled();
     await expect.element(page.getByRole('button', { name: 'Update', exact: true })).toBeDisabled();
     await editor.fill('Unsaved draft');
+    const surface = document.querySelector('.origin-top');
+    const modalState = route.state.get();
+    store.reset();
+    await expect.element(editor).toHaveTextContent('Unsaved draft');
+    expect(document.querySelector('.origin-top')).toBe(surface);
+    expect(route.state.get()).toBe(modalState);
+    await store.refresh();
+    await expect.element(editor).toHaveTextContent('Unsaved draft');
+    expect(document.querySelector('.origin-top')).toBe(surface);
     handlers.getNotice.mockReturnValue({ notice: { body: '', version: 'v2' } });
     await store.refresh();
     await expect
