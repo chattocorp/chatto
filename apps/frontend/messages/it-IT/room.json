@@ -3,7 +3,6 @@
     "notice": {
       "title": "Avviso della stanza",
       "dismiss": "Chiudi",
-      "reopen": "Mostra avviso",
       "body": "Avviso (Markdown)",
       "too_long": "Gli avvisi possono contenere al massimo {max} caratteri, inclusi gli spazi.",
       "help": "Salva le correzioni senza mostrare di nuovo l’avviso. Annuncialo per mostrarlo di nuovo ai membri che lo hanno chiuso sui propri dispositivi.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Cancellare l’avviso della stanza?",
       "clear_confirm_description": "Questo rimuove subito l’avviso attivo per tutti nella stanza. Le tue modifiche non salvate non verranno pubblicate.",
       "empty": "Non è stato pubblicato alcun avviso.",
-      "edit": "Modifica avviso",
-      "retry": "Riprova"
+      "edit": "Modifica avviso"
     },
     "information": {
       "description": "Descrizione",

@@ -3,7 +3,6 @@
     "notice": {
       "title": "房间公告",
       "dismiss": "关闭",
-      "reopen": "显示公告",
       "body": "公告（Markdown）",
       "too_long": "公告最多可包含 {max} 个字符，包括空白。",
       "help": "保存修正不会再次显示公告。选择公告可向已在设备上关闭公告的成员再次显示。",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "清除房间公告？",
       "clear_confirm_description": "这会立即为房间内所有人移除当前公告。你尚未保存的更改不会发布。",
       "empty": "尚未发布任何公告。",
-      "edit": "编辑公告",
-      "retry": "重试"
+      "edit": "编辑公告"
     },
     "information": {
       "description": "描述",

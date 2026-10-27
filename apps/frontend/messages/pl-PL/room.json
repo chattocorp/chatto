@@ -3,7 +3,6 @@
     "notice": {
       "title": "Ogłoszenie pokoju",
       "dismiss": "Zamknij",
-      "reopen": "Pokaż ogłoszenie",
       "body": "Ogłoszenie (Markdown)",
       "too_long": "Ogłoszenia mogą zawierać najwyżej {max} znaków, w tym białe znaki.",
       "help": "Zapisz poprawki bez ponownego wyświetlania ogłoszenia. Ogłoś je, aby pokazać je ponownie osobom, które zamknęły je na swoich urządzeniach.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Usunąć ogłoszenie pokoju?",
       "clear_confirm_description": "To natychmiast usuwa aktywne ogłoszenie dla wszystkich osób w pokoju. Twoje niezapisane zmiany nie zostaną opublikowane.",
       "empty": "Nie opublikowano żadnego ogłoszenia.",
-      "edit": "Edytuj ogłoszenie",
-      "retry": "Spróbuj ponownie"
+      "edit": "Edytuj ogłoszenie"
     },
     "information": {
       "description": "Opis",

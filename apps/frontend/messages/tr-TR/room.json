@@ -3,7 +3,6 @@
     "notice": {
       "title": "Oda duyurusu",
       "dismiss": "Kapat",
-      "reopen": "Duyuruyu göster",
       "body": "Duyuru (Markdown)",
       "too_long": "Duyurular, boşluklar dahil en fazla {max} karakter içerebilir.",
       "help": "Düzeltmeleri duyuruyu yeniden göstermeden kaydedin. Cihazlarında kapatan üyelere yeniden göstermek için duyurun.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Oda duyurusu temizlensin mi?",
       "clear_confirm_description": "Bu işlem etkin duyuruyu odadaki herkes için hemen kaldırır. Kaydedilmemiş değişiklikleriniz yayımlanmaz.",
       "empty": "Henüz bir duyuru yayımlanmadı.",
-      "edit": "Duyuruyu düzenle",
-      "retry": "Yeniden dene"
+      "edit": "Duyuruyu düzenle"
     },
     "information": {
       "description": "Açıklama",

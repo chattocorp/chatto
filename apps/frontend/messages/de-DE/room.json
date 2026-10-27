@@ -3,7 +3,6 @@
     "notice": {
       "title": "Raumhinweis",
       "dismiss": "Ausblenden",
-      "reopen": "Hinweis anzeigen",
       "body": "Hinweis (Markdown)",
       "too_long": "Hinweise dürfen höchstens {max} Zeichen einschließlich Leerzeichen enthalten.",
       "help": "Speichere Korrekturen, ohne den Hinweis erneut anzuzeigen. Veröffentliche ihn erneut, damit Mitglieder ihn auf Geräten wieder sehen, auf denen sie ihn ausgeblendet haben.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Raumhinweis entfernen?",
       "clear_confirm_description": "Der aktive Hinweis wird sofort für alle im Raum entfernt. Deine ungespeicherten Änderungen werden nicht veröffentlicht.",
       "empty": "Es wurde kein Hinweis veröffentlicht.",
-      "edit": "Hinweis bearbeiten",
-      "retry": "Erneut versuchen"
+      "edit": "Hinweis bearbeiten"
     },
     "information": {
       "description": "Beschreibung",

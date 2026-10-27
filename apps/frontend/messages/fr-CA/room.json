@@ -3,7 +3,6 @@
     "notice": {
       "title": "Annonce du salon",
       "dismiss": "Fermer",
-      "reopen": "Afficher l’annonce",
       "body": "Annonce (Markdown)",
       "too_long": "Les annonces peuvent contenir au maximum {max} caractères, espaces compris.",
       "help": "Enregistrez les corrections sans afficher à nouveau l’annonce. Annoncez-la pour la montrer à nouveau aux membres qui l’ont fermée sur leurs appareils.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Effacer l’annonce du salon ?",
       "clear_confirm_description": "Cela supprime immédiatement l’annonce active pour tous les membres du salon. Vos modifications non enregistrées ne seront pas publiées.",
       "empty": "Aucune annonce n’a été publiée.",
-      "edit": "Modifier l’annonce",
-      "retry": "Réessayer"
+      "edit": "Modifier l’annonce"
     },
     "information": {
       "description": "Description",

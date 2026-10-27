@@ -3,7 +3,6 @@
     "notice": {
       "title": "Telpas paziņojums",
       "dismiss": "Aizvērt",
-      "reopen": "Rādīt paziņojumu",
       "body": "Paziņojums (Markdown)",
       "too_long": "Paziņojumā var būt ne vairāk kā {max} rakstzīmes, ieskaitot atstarpes.",
       "help": "Saglabājiet labojumus, nerādot paziņojumu vēlreiz. Izziņojiet to, lai atkal parādītu dalībniekiem, kuri to aizvēra savās ierīcēs.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Notīrīt telpas paziņojumu?",
       "clear_confirm_description": "Tas nekavējoties noņem aktīvo paziņojumu visiem telpā. Jūsu nesaglabātās izmaiņas netiks publicētas.",
       "empty": "Neviens paziņojums nav publicēts.",
-      "edit": "Rediģēt paziņojumu",
-      "retry": "Mēģināt vēlreiz"
+      "edit": "Rediģēt paziņojumu"
     },
     "information": {
       "description": "Apraksts",

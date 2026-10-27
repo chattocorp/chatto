@@ -3,7 +3,6 @@
     "notice": {
       "title": "Aviso de la sala",
       "dismiss": "Cerrar",
-      "reopen": "Mostrar aviso",
       "body": "Aviso (Markdown)",
       "too_long": "Los avisos pueden contener como máximo {max} caracteres, incluidos los espacios en blanco.",
       "help": "Guarda las correcciones sin volver a mostrar el aviso. Anúncialo para mostrarlo de nuevo a quienes lo cerraron en sus dispositivos.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "¿Borrar el aviso de la sala?",
       "clear_confirm_description": "Esto elimina de inmediato el aviso activo para todos los miembros de la sala. Tus cambios sin guardar no se publicarán.",
       "empty": "No se ha publicado ningún aviso.",
-      "edit": "Editar aviso",
-      "retry": "Reintentar"
+      "edit": "Editar aviso"
     },
     "information": {
       "description": "Descripción",

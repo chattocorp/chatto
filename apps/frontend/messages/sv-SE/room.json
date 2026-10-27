@@ -3,7 +3,6 @@
     "notice": {
       "title": "Rumsmeddelande",
       "dismiss": "Stäng",
-      "reopen": "Visa meddelande",
       "body": "Meddelande (Markdown)",
       "too_long": "Meddelanden får innehålla högst {max} tecken, inklusive blanksteg.",
       "help": "Spara rättelser utan att visa meddelandet igen. Tillkännage det för att visa det igen för medlemmar som stängt det på sina enheter.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Rensa rumsmeddelandet?",
       "clear_confirm_description": "Detta tar omedelbart bort det aktiva meddelandet för alla i rummet. Dina osparade ändringar publiceras inte.",
       "empty": "Inget meddelande har publicerats.",
-      "edit": "Redigera meddelande",
-      "retry": "Försök igen"
+      "edit": "Redigera meddelande"
     },
     "information": {
       "description": "Beskrivning",

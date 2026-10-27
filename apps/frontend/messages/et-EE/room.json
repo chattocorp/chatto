@@ -3,7 +3,6 @@
     "notice": {
       "title": "Ruumi teade",
       "dismiss": "Sulge",
-      "reopen": "Näita teadet",
       "body": "Teade (Markdown)",
       "too_long": "Teated võivad sisaldada kuni {max} märki, sealhulgas tühimärke.",
       "help": "Salvestage parandused teadet uuesti näitamata. Kuulutage see välja, et näidata seda uuesti liikmetele, kes selle oma seadmetes sulgesid.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Eemaldada ruumi teade?",
       "clear_confirm_description": "See eemaldab aktiivse teate kohe kõigi ruumis viibijate jaoks. Teie salvestamata muudatusi ei avaldata.",
       "empty": "Ühtegi teadet pole avaldatud.",
-      "edit": "Muuda teadet",
-      "retry": "Proovi uuesti"
+      "edit": "Muuda teadet"
     },
     "information": {
       "description": "Kirjeldus",

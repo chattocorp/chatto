@@ -3,7 +3,6 @@
     "notice": {
       "title": "Romkunngjøring",
       "dismiss": "Lukk",
-      "reopen": "Vis kunngjøring",
       "body": "Kunngjøring (Markdown)",
       "too_long": "Kunngjøringer kan inneholde høyst {max} tegn, inkludert mellomrom.",
       "help": "Lagre rettelser uten å vise kunngjøringen igjen. Kunngjør den for å vise den på nytt til medlemmer som har lukket den på enhetene sine.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Fjerne romkunngjøringen?",
       "clear_confirm_description": "Dette fjerner straks den aktive kunngjøringen for alle i rommet. Endringene du ikke har lagret, blir ikke publisert.",
       "empty": "Ingen kunngjøring er publisert.",
-      "edit": "Rediger kunngjøring",
-      "retry": "Prøv igjen"
+      "edit": "Rediger kunngjøring"
     },
     "information": {
       "description": "Beskrivelse",

@@ -3,7 +3,6 @@
     "notice": {
       "title": "Oznámení místnosti",
       "dismiss": "Zavřít",
-      "reopen": "Zobrazit oznámení",
       "body": "Oznámení (Markdown)",
       "too_long": "Oznámení mohou obsahovat nejvýše {max} znaků včetně bílých znaků.",
       "help": "Uložte opravy bez opětovného zobrazení oznámení. Oznamte je znovu, aby se zobrazilo členům, kteří je na svých zařízeních zavřeli.",
@@ -15,8 +14,7 @@
       "clear_confirm_title": "Smazat oznámení místnosti?",
       "clear_confirm_description": "Tím okamžitě odstraníte aktivní oznámení pro všechny v místnosti. Vaše neuložené změny nebudou zveřejněny.",
       "empty": "Nebylo zveřejněno žádné oznámení.",
-      "edit": "Upravit oznámení",
-      "retry": "Zkusit znovu"
+      "edit": "Upravit oznámení"
     },
     "information": {
       "description": "Popis",
