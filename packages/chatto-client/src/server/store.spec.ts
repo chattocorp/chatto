@@ -66,6 +66,7 @@ import {
   MessageRetractedEvent,
   ReactionAddedEvent,
   UserAccountDeletedEvent,
+  UserAccountDeactivationChangedEvent,
   UserProfileChangedEvent,
   PresenceChangedEvent,
   NotificationUnreadStateChangedEvent,
@@ -2286,6 +2287,28 @@ describe('ServerStateStore unified realtime resources', () => {
 
     expect(store.serverInfo.name).toBe('Canonical Server');
     expect(store.serverInfo.version).toBe('0.5.0');
+  });
+
+  it('applies deactivation and reactivation events without removing the profile', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.projection.users.set(
+      'U2',
+      new DirectoryMember({ user: new User({ id: 'U2', login: 'bob' }) })
+    );
+    for (const deactivated of [true, false]) {
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            event: {
+              case: 'userAccountDeactivationChanged',
+              value: new UserAccountDeactivationChangedEvent({ userId: 'U2', deactivated })
+            }
+          })
+        })
+      );
+      expect(store.projection.users.isDeactivated('U2')).toBe(deactivated);
+      expect(store.projection.users.view('U2')?.login).toBe('bob');
+    }
   });
 
   it('scrubs a removed user before its authoritative resource refresh completes', () => {

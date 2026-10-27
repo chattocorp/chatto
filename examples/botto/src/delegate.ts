@@ -32,6 +32,7 @@ export function delegateExtension(
           await using session = await createAgentSession({
             cwd: settings.directory,
             model: `${settings.provider}/${settings.modelId}`,
+            thinkingLevel: settings.reasoningLevel,
             label: 'Subagent',
             output: 'text',
             logContent: false,

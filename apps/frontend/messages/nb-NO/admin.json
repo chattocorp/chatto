@@ -52,6 +52,11 @@
       "subtitle": "Serveridentitet, merkevarebygging og meldinger"
     },
     "members": {
+      "deactivate": "Deaktiver konto",
+      "reactivate": "Aktiver konto igjen",
+      "deactivate_description": "Brukeren vil ikke lenger kunne bruke denne serveren. Alle økter avsluttes umiddelbart. Alle data beholdes. Du kan aktivere kontoen igjen senere.",
+      "deactivated_description": "Denne kontoen er deaktivert. Når den aktiveres igjen, kan brukeren logge inn på nytt. Gamle økter forblir ugyldige.",
+      "deactivation_failed": "Kunne ikke endre kontotilgangen.",
       "title": "Medlemmer",
       "subtitle": "Se og administrer tjenermedlemmer og deres roller",
       "search": "Søk etter medlemmer",

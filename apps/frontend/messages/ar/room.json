@@ -303,6 +303,7 @@
     "unread_separator": "رسائل جديدة",
     "close_extras": "إغلاق إضافات الغرفة",
     "dm": {
+      "deactivated_user_notice": "هذا الحساب معطّل. لا يستطيع المستخدم قراءة الرسائل أو الرد عليها.",
       "deleted_user_notice": "تم حذف المستخدم الآخر."
     },
     "management": {

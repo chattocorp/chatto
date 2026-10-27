@@ -52,6 +52,11 @@
       "subtitle": "Serveridentiteit, branding en berichten"
     },
     "members": {
+      "deactivate": "Account deactiveren",
+      "reactivate": "Account heractiveren",
+      "deactivate_description": "De gebruiker kan deze server niet meer gebruiken. Alle sessies eindigen onmiddellijk. De gegevens blijven bewaard. Je kunt het account later heractiveren.",
+      "deactivated_description": "Dit account is gedeactiveerd. Na heractivering kan de gebruiker weer inloggen. Oude sessies blijven ongeldig.",
+      "deactivation_failed": "De accounttoegang kon niet worden gewijzigd.",
       "title": "Leden",
       "subtitle": "Bekijk en beheer serverleden en hun rollen",
       "search": "Leden zoeken",

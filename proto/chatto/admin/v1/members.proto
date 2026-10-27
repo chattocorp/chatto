@@ -36,6 +36,11 @@ message AdminMember {
   // Selected primary verified email visible to the caller. Absence can mean
   // that no primary email exists or that the field is not visible.
   optional string primary_verified_email = 13;
+  // Deactivated accounts retain their data but cannot use the server.
+  bool deactivated = 14;
+  // Whether the caller may deactivate or reactivate this account.
+  // Absent on servers that do not support account deactivation.
+  optional bool viewer_can_change_deactivation = 15;
 }
 
 // Request server-admin member IDs.
@@ -199,6 +204,17 @@ message DeleteUserResponse {
   reserved "deleted";
 }
 
+// Set account access without deleting user data.
+message SetUserDeactivatedRequest {
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  bool deactivated = 2;
+}
+
+message SetUserDeactivatedResponse {
+  // Updated administrative member record.
+  AdminMember member = 1;
+}
+
 // Server-admin user management commands and member-detail reads.
 service AdminUserService {
   // Lists server members for the admin members screen. Requires
@@ -225,4 +241,10 @@ service AdminUserService {
   // Deletes a user account as an admin action. Requires user.delete-any for
   // other users or user.delete-self for the caller.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  // Deactivates or reactivates a human account. Requires user.manage-accounts.
+  // The caller cannot target their own account or an owner account.
+  // Deactivation immediately invalidates existing sessions and prevents sign-in.
+  // Reactivation permits new sign-ins; old sessions remain invalid.
+  // Repeating the current state succeeds without changing it.
+  rpc SetUserDeactivated(SetUserDeactivatedRequest) returns (SetUserDeactivatedResponse);
 }

@@ -287,6 +287,7 @@
     "unread_separator": "Neue Nachrichten",
     "close_extras": "Raumdetails schließen",
     "dm": {
+      "deactivated_user_notice": "Dieses Konto ist deaktiviert. Das Mitglied kann Nachrichten weder lesen noch beantworten.",
       "deleted_user_notice": "Der andere Benutzer wurde gelöscht."
     },
     "management": {

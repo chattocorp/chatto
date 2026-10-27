@@ -112,6 +112,8 @@ type MessageComposerDependencies = {
   onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
   getMembers: () => RoomMember[];
+  /** Read current account access state when rendering or selecting a mention. */
+  isUserDeactivated?: (userId: string) => boolean;
   getMentionPriorityUserIds: () => ReadonlySet<string> | undefined;
   membersStore: RoomMembersStore;
   mentionRolesStore: MentionRolesStore;
@@ -221,10 +223,15 @@ export class MessageComposerState {
   }
 
   get mentionCandidates(): RoomMember[] {
-    const members = this.#dependencies.getMembers();
+    const active = (member: RoomMember) =>
+      !(this.#dependencies.isUserDeactivated?.(member.id) ?? member.deactivated);
+    const members = this.#dependencies.getMembers().filter(active);
     if (this.mentionSearchMembers.length === 0) return members;
     const loadedIds = new SvelteSet(members.map((member) => member.id));
-    return [...members, ...this.mentionSearchMembers.filter((member) => !loadedIds.has(member.id))];
+    return [
+      ...members,
+      ...this.mentionSearchMembers.filter((member) => !loadedIds.has(member.id) && active(member))
+    ];
   }
 
   get draftKey(): string {

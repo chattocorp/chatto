@@ -224,6 +224,12 @@ message UserAccountDeletedEvent {
   string user_id = 1;
 }
 
+// Changes account access without deleting account data or credentials.
+message UserAccountDeactivationChangedEvent {
+  string user_id = 1;
+  bool deactivated = 2;
+}
+
 message UserCustomStatusSetEvent {
   string user_id = 1;
   CustomUserStatus status = 2;

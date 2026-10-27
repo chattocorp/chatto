@@ -52,6 +52,11 @@
       "subtitle": "Server identity, branding, and messages"
     },
     "members": {
+      "deactivate": "Deactivate Account",
+      "reactivate": "Reactivate Account",
+      "deactivate_description": "The user will no longer be able to use this server. All sessions will end immediately. Their data will remain intact. You can reactivate the account later.",
+      "deactivated_description": "This account is deactivated. Reactivation lets the user sign in again. Old sessions stay invalid.",
+      "deactivation_failed": "Could not change account access.",
       "title": "Members",
       "subtitle": "View and manage server members and their roles",
       "search": "Search members",

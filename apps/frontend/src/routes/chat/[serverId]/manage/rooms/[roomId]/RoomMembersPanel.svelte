@@ -137,7 +137,14 @@
   const loadingMore = $derived(membersQuery.isFetchingNextPage);
   const loadError = $derived(membersQuery.error ? errorMessage(membersQuery.error) : null);
   const directoryResults = $derived(
-    activeDirectorySearch && !directoryDebouncePending ? (eligibleMembersQuery.data ?? []) : []
+    activeDirectorySearch && !directoryDebouncePending
+      ? (eligibleMembersQuery.data ?? []).filter(
+          (user) =>
+            !(
+              serverScope.store.projection.users.get(user.id)?.user?.deactivated ?? user.deactivated
+            )
+        )
+      : []
   );
   const directoryLoading = $derived(
     directoryDebouncePending || (!!activeDirectorySearch && eligibleMembersQuery.isFetching)

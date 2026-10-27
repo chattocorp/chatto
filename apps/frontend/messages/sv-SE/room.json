@@ -287,6 +287,7 @@
     "unread_separator": "Nya meddelanden",
     "close_extras": "Stäng extra rum",
     "dm": {
+      "deactivated_user_notice": "Det här kontot är inaktiverat. Användaren kan inte läsa eller svara på meddelanden.",
       "deleted_user_notice": "Den andra användaren har raderats."
     },
     "management": {

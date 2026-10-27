@@ -249,6 +249,8 @@ type User struct {
 	// Current public bio, hydrated at read boundaries from encrypted projected
 	// state. Never persisted in plaintext here.
 	Bio string
+	// Deactivated accounts retain their data but cannot authenticate.
+	Deactivated bool
 }
 
 // GetId returns the field value, or its zero value for a nil receiver.
@@ -289,6 +291,11 @@ func (x *User) GetDeleted() bool {
 		return x.Deleted
 	}
 	return false
+}
+
+// GetDeactivated reports whether account access is disabled.
+func (x *User) GetDeactivated() bool {
+	return x != nil && x.Deactivated
 }
 
 // GetCustomStatus returns the field value, or its zero value for a nil receiver.

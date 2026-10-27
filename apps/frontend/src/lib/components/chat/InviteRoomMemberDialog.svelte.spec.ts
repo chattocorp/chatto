@@ -11,6 +11,10 @@ import { mockService, receivedRequest } from '$lib/test-utils';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import type { RoomsListItem } from '$lib/state/server/navigation';
 import InviteRoomMemberDialog from './InviteRoomMemberDialog.svelte';
+import { UserStore } from '@chatto/client/server/users';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+
+let profiles: UserStore;
 
 vi.mock(
   '$lib/state/server/scope.svelte',
@@ -36,7 +40,9 @@ const room: RoomsListItem = {
 beforeEach(() => {
   vi.clearAllMocks();
   toast.clear();
+  profiles = new UserStore();
   createTestServerScope({
+    store: { projection: { users: profiles } },
     routes: (router) => {
       router.service(RoomInvitationService, invitations);
       router.service(UserService, users);
@@ -52,6 +58,16 @@ beforeEach(() => {
 });
 
 describe('Invite room member dialog', () => {
+  it('hides and restores cached candidates on account status changes', async () => {
+    render(InviteRoomMemberDialog, { room, onclose: vi.fn() });
+    await page.getByRole('combobox', { name: 'Members' }).fill('bob');
+    await expect.element(page.getByRole('option')).toBeVisible();
+    profiles.set('recipient-1', new DirectoryMember({ user: { id: 'recipient-1', login: 'bob' } }));
+    profiles.setDeactivated('recipient-1', true);
+    await expect.element(page.getByRole('option')).not.toBeInTheDocument();
+    profiles.setDeactivated('recipient-1', false);
+    await expect.element(page.getByRole('option')).toBeVisible();
+  });
   it('searches existing members and submits the selected recipient', async () => {
     const onclose = vi.fn();
     render(InviteRoomMemberDialog, { room, onclose });

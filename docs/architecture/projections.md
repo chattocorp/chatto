@@ -529,6 +529,14 @@ external-identity, consent, and auth-generation state from
 `UserAuthProjection`, giving domain callers one user boundary while snapshot
 serialization cannot reach authentication state.
 
+Both user projections consume `UserAccountDeactivationChangedEvent`.
+The profile projection retains the flag in its user value and snapshot.
+The auth projection advances the auth generation on both transitions and
+rejects credentials while deactivated. Its process-local access watchers close
+realtime connections as the durable fact reaches each replica. They have no
+external effect or separate recovery store. See
+[account deactivation](../../cli/internal/core/user_deactivation.go).
+
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for
 management, reassignment, and cascade deletion. `UserAuthProjection` replays

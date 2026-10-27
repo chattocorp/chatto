@@ -287,6 +287,7 @@
     "unread_separator": "Yeni mesajlar",
     "close_extras": "Oda ekstralarını kapat",
     "dm": {
+      "deactivated_user_notice": "Bu hesap devre dışı. Kullanıcı mesajları okuyamaz veya yanıtlayamaz.",
       "deleted_user_notice": "Diğer kullanıcı silindi."
     },
     "management": {

@@ -1910,6 +1910,51 @@ export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
 }
 
 /**
+ * Reports a reversible account access change. Administrative details are private.
+ *
+ * @generated from message chatto.realtime.v1.UserAccountDeactivationChangedEvent
+ */
+export class UserAccountDeactivationChangedEvent extends Message<UserAccountDeactivationChangedEvent> {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * @generated from field: bool deactivated = 2;
+   */
+  deactivated = false;
+
+  constructor(data?: PartialMessage<UserAccountDeactivationChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.UserAccountDeactivationChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "deactivated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserAccountDeactivationChangedEvent {
+    return new UserAccountDeactivationChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserAccountDeactivationChangedEvent {
+    return new UserAccountDeactivationChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserAccountDeactivationChangedEvent {
+    return new UserAccountDeactivationChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UserAccountDeactivationChangedEvent | PlainMessage<UserAccountDeactivationChangedEvent> | undefined, b: UserAccountDeactivationChangedEvent | PlainMessage<UserAccountDeactivationChangedEvent> | undefined): boolean {
+    return proto3.util.equals(UserAccountDeactivationChangedEvent, a, b);
+  }
+}
+
+/**
  * UserAccountDeletedEvent reports a deleted user account.
  *
  * @generated from message chatto.realtime.v1.UserAccountDeletedEvent

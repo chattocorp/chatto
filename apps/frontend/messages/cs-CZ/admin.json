@@ -52,6 +52,11 @@
       "subtitle": "Identita serveru, branding a zprávy"
     },
     "members": {
+      "deactivate": "Deaktivovat účet",
+      "reactivate": "Znovu aktivovat účet",
+      "deactivate_description": "Uživatel již nebude moci používat tento server. Všechny relace okamžitě skončí. Data zůstanou zachována. Účet můžete později znovu aktivovat.",
+      "deactivated_description": "Tento účet je deaktivovaný. Po opětovné aktivaci se uživatel může znovu přihlásit. Staré relace zůstanou neplatné.",
+      "deactivation_failed": "Přístup k účtu se nepodařilo změnit.",
       "title": "členové",
       "subtitle": "Zobrazení a správa členů serveru a jejich rolí",
       "search": "Hledat členy",
