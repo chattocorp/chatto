@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Tastatūras īsinājumtaustiņi",
       "app": "Lietotne",
-      "editor_note": "Redaktora īsinājumtaustiņi darbojas rakstīšanas laikā. Dažiem nepieciešams atlasīts teksts vai tukšs melnraksts.",
       "undo": "Atsaukt",
       "redo": "Atcelt atsaukšanu",
       "new_line": "Jauna rinda",

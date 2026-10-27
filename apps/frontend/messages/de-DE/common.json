@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Tastenkürzel",
       "app": "App",
-      "editor_note": "Editor-Tastenkürzel gelten beim Schreiben. Einige benötigen ausgewählten Text oder einen leeren Entwurf.",
       "undo": "Rückgängig",
       "redo": "Wiederholen",
       "new_line": "Neue Zeile",

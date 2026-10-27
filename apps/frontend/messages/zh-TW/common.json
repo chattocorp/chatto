@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "鍵盤快捷鍵",
       "app": "應用程式",
-      "editor_note": "編輯器快捷鍵適用於輸入時。部分需要選取文字或空白草稿。",
       "undo": "復原",
       "redo": "重做",
       "new_line": "換行",

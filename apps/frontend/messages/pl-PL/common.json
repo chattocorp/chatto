@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Skróty klawiszowe",
       "app": "Aplikacja",
-      "editor_note": "Skróty edytora działają podczas pisania. Niektóre wymagają zaznaczonego tekstu lub pustego szkicu.",
       "undo": "Cofnij",
       "redo": "Ponów",
       "new_line": "Nowy wiersz",

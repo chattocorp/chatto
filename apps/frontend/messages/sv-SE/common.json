@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Kortkommandon",
       "app": "App",
-      "editor_note": "Redigerarens kortkommandon gäller när du skriver. Vissa kräver markerad text eller ett tomt utkast.",
       "undo": "Ångra",
       "redo": "Gör om",
       "new_line": "Ny rad",

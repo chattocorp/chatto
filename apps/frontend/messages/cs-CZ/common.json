@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Klávesové zkratky",
       "app": "Aplikace",
-      "editor_note": "Zkratky editoru platí při psaní. Některé vyžadují vybraný text nebo prázdný koncept.",
       "undo": "Zpět",
       "redo": "Znovu",
       "new_line": "Nový řádek",

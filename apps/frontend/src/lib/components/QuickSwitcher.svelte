@@ -5,7 +5,7 @@
   import { tick, untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
-  import { LoadingFog, MenuSection } from '$lib/ui';
+  import { LoadingFog, MenuSection, PaletteSearch } from '$lib/ui';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
@@ -46,10 +46,6 @@
   $effect(() => model.syncCatalog());
   // Fence transient message plaintext at every server's search privacy boundary.
   $effect(() => model.syncPrivacy());
-
-  function registerInput(node: HTMLInputElement) {
-    queueMicrotask(() => node.focus());
-  }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -92,39 +88,25 @@
 >
   {#if quickSwitcher.visible}
     <div class="command-palette">
-      <MenuSection>
-        <div class="flex min-h-10 items-center gap-2 px-3 py-1.5">
-          <span class="iconify sidebar-icon icon-[uil--search] text-muted" aria-hidden="true"
-          ></span>
-          <!-- Keep input text at 16px to prevent iOS zoom on focus. -->
-          <input
-            {@attach registerInput}
-            value={model.query}
-            oninput={(event) => model.setQuery(event.currentTarget.value)}
-            onkeydown={handleKeydown}
-            type="text"
-            placeholder={m('quick_switcher.placeholder')}
-            aria-label={m('quick_switcher.placeholder')}
-            class="min-w-0 flex-1 bg-transparent text-[16px] text-text outline-none placeholder:text-muted"
-          />
-          {#if model.loading}
-            <span
-              class="iconify sidebar-icon icon-[uil--spinner-alt] animate-spin text-muted"
-              aria-hidden="true"
-            ></span>
-          {/if}
-          {#if onShortcutHelp}
-            <button
-              type="button"
-              class="keycap"
-              aria-label={m('common.keyboard_shortcuts.title')}
-              title={m('common.keyboard_shortcuts.title')}
-              onclick={openShortcutHelp}>?</button
-            >
-          {/if}
-          <kbd class="keycap">Esc</kbd>
-        </div>
-      </MenuSection>
+      <PaletteSearch
+        value={model.query}
+        onvaluechange={(value) => model.setQuery(value)}
+        onkeydown={handleKeydown}
+        label={m('quick_switcher.placeholder')}
+        loading={model.loading}
+        focusOnMount
+      >
+        {#if onShortcutHelp}
+          <button
+            type="button"
+            class="keycap"
+            aria-label={m('common.keyboard_shortcuts.title')}
+            title={m('common.keyboard_shortcuts.title')}
+            onclick={openShortcutHelp}>?</button
+          >
+        {/if}
+        <kbd class="keycap">Esc</kbd>
+      </PaletteSearch>
 
       <MenuSection class="max-h-[min(20rem,55dvh)] overflow-y-auto">
         <nav class="sidebar-nav">
@@ -144,7 +126,7 @@
               {@const header = model.groupHeader(index)}
 
               {#if header}
-                <div class="px-3 pt-2 pb-0.5 text-xs font-medium text-muted uppercase">
+                <div class="command-palette-heading">
                   {header}
                 </div>
               {/if}

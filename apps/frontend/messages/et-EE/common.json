@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Klaviatuuri otseteed",
       "app": "Rakendus",
-      "editor_note": "Redaktori otseteed toimivad kirjutamise ajal. Mõned vajavad valitud teksti või tühja mustandit.",
       "undo": "Võta tagasi",
       "redo": "Tee uuesti",
       "new_line": "Uus rida",

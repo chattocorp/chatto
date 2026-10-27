@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Keyboard shortcuts",
       "app": "App",
-      "editor_note": "Editor shortcuts apply while typing. Some need selected text or an empty draft.",
       "undo": "Undo",
       "redo": "Redo",
       "new_line": "New line",

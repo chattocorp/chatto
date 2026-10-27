@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "键盘快捷键",
       "app": "应用",
-      "editor_note": "编辑器快捷键适用于输入时。部分需要选中文字或空白草稿。",
       "undo": "撤销",
       "redo": "重做",
       "new_line": "换行",

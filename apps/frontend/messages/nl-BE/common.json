@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Sneltoetsen",
       "app": "App",
-      "editor_note": "Editorsneltoetsen gelden tijdens het typen. Sommige vereisen geselecteerde tekst of een leeg concept.",
       "undo": "Ongedaan maken",
       "redo": "Opnieuw uitvoeren",
       "new_line": "Nieuwe regel",

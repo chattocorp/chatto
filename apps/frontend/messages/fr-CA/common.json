@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Raccourcis clavier",
       "app": "Application",
-      "editor_note": "Les raccourcis de l’éditeur s’appliquent pendant la saisie. Certains nécessitent du texte sélectionné ou un brouillon vide.",
       "undo": "Annuler",
       "redo": "Rétablir",
       "new_line": "Nouvelle ligne",

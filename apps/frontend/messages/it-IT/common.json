@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Scorciatoie da tastiera",
       "app": "App",
-      "editor_note": "Le scorciatoie dell’editor si applicano durante la scrittura. Alcune richiedono testo selezionato o una bozza vuota.",
       "undo": "Annulla",
       "redo": "Ripristina",
       "new_line": "Nuova riga",

@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Hurtigtaster",
       "app": "App",
-      "editor_note": "Hurtigtastene i redigereren gjelder mens du skriver. Noen krever merket tekst eller et tomt utkast.",
       "undo": "Angre",
       "redo": "Gjør om",
       "new_line": "Ny linje",

@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Atajos de teclado",
       "app": "Aplicación",
-      "editor_note": "Los atajos del editor se aplican al escribir. Algunos requieren texto seleccionado o un borrador vacío.",
       "undo": "Deshacer",
       "redo": "Rehacer",
       "new_line": "Nueva línea",

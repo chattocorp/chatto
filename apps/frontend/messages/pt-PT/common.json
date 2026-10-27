@@ -3,7 +3,6 @@
     "keyboard_shortcuts": {
       "title": "Atalhos de teclado",
       "app": "Aplicação",
-      "editor_note": "Os atalhos do editor aplicam-se ao escrever. Alguns exigem texto selecionado ou um rascunho vazio.",
       "undo": "Anular",
       "redo": "Refazer",
       "new_line": "Nova linha",
