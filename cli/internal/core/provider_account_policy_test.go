@@ -17,7 +17,7 @@ func TestManagedProviderAccountPolicy(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "oidc", IssuerURL: "https://company.example", ManageUsernames: true, AllowUnlinking: new(false)}}
-	_, err := c.CreateUser(ctx, SystemActorID, "alice", "Existing", "password123")
+	existing, err := c.CreateUser(ctx, SystemActorID, "alice", "Existing", "password123")
 	require.NoError(t, err)
 	flow := &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "company", ProviderType: "oidc", Issuer: "https://company.example", Subject: "new-subject", ProviderUsername: " Alice "}
 	user, err := c.CreateUserForExternalIdentity(ctx, "forged", "Alice", flow)
@@ -37,7 +37,13 @@ func TestManagedProviderAccountPolicy(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "alice-2", unchanged.Login)
 	c.config.AuthProviders[0].SyncUsernames = true
+	// Releasing the base name must not make a later sign-in drop the suffix.
+	_, err = c.AdminUpdateUserLogin(ctx, existing.Id, "previous-alice")
+	require.NoError(t, err)
 	require.NoError(t, c.SyncProviderUsername(ctx, user.Id, "company", "alice"))
+	unchanged, err = c.GetUser(ctx, user.Id)
+	require.NoError(t, err)
+	require.Equal(t, "alice-2", unchanged.Login, "sync must retain the existing collision suffix")
 	require.NoError(t, c.SyncProviderUsername(ctx, user.Id, "company", "changed"))
 	changed, err := c.GetUser(ctx, user.Id)
 	require.NoError(t, err)
