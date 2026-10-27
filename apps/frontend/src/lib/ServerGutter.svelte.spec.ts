@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { prefersReducedMotion } from 'svelte/motion';
@@ -67,6 +67,8 @@ beforeEach(() => {
   mocks.pageState = {};
   mocks.pushState.mockReset();
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('ServerGutter', () => {
   function register(...ids: string[]) {
