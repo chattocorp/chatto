@@ -6143,6 +6143,35 @@ Linked provider identity metadata for the authenticated user's settings UI.
 
 
 
+<a id="chatto-api-v1-AccountActions"></a>
+
+### AccountActions
+
+Self-service decisions for the current viewer. Each action owns its states.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `change_username` | [`UsernameChangeAvailability`](#chatto-api-v1-UsernameChangeAvailability) | Changing the username, excluding input-specific exceptions such as case-only edits. |
+| `change_password` | optional [`PasswordChangeAvailability`](#chatto-api-v1-PasswordChangeAvailability) | Setting an initial password or changing an existing password. Absent on older servers. |
+| `delete_account` | optional [`AccountDeletionAvailability`](#chatto-api-v1-AccountDeletionAvailability) | Starting self-service account deletion. Absent on older servers. |
+
+
+
+<a id="chatto-api-v1-UsernameChangeAvailability"></a>
+
+### UsernameChangeAvailability
+
+Snapshot for changing a username. Missing means not reported. Commands still
+check policy and input, including case-only exceptions. ALLOWED enables it
+only when available_at is absent or has passed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`UsernameChangeAvailability.State`](#chatto-api-v1-UsernameChangeAvailability-State) | Unknown states remain disabled. Commands recheck authority and policy. |
+| `available_at` | `google.protobuf.Timestamp` | Independent earliest attempt time. Absent means no time restriction. Clients enable ALLOWED when this time passes; they should update a visible control once per second while waiting and stop its timer when it is removed or no longer waiting. This time never overrides a blocking or unknown state. |
+
+
+
 <a id="chatto-api-v1-PrivilegedModeState"></a>
 
 ### PrivilegedModeState
@@ -6218,10 +6247,11 @@ Current authenticated user's public profile plus self-only settings.
 | --- | --- | --- |
 | `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
+| `viewer_can_delete_account` | `bool` | **Deprecated.** Whether the authenticated user may delete this account. New clients use actions.delete_account and fall back to this field only when that action is absent. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+| `actions` | [`AccountActions`](#chatto-api-v1-AccountActions) | Self-service account action snapshots. Absent on older servers. |
 
 
 
@@ -6894,7 +6924,9 @@ Policy controlling whether self-service account creation requires an invitation.
 
 ### DisconnectEligibility
 
-Eligibility to disconnect an identity at the time it is listed.
+State of disconnecting a linked identity. Only ALLOWED enables the action.
+UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
+Unknown future states remain disabled.
 This does not replace fresh authentication or the mutation's eligibility check.
 
 | Name | Number | Description |
@@ -6902,6 +6934,50 @@ This does not replace fresh authentication or the mutation's eligibility check.
 | `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
 | `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
 | `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
+| `DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR` | `3` | The operator disabled user-initiated unlinking for this provider. |
+
+
+<a id="chatto-api-v1-AccountDeletionAvailability"></a>
+
+### AccountDeletionAvailability
+
+State of self-service account deletion. Only ALLOWED enables the action;
+commands still check authority and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `ACCOUNT_DELETION_AVAILABILITY_ALLOWED` | `1` | The user can attempt to start account deletion. |
+| `ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED` | `2` | The viewer lacks permission to delete this account. |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support self-service deletion. |
+
+
+<a id="chatto-api-v1-PasswordChangeAvailability"></a>
+
+### PasswordChangeAvailability
+
+State of setting or changing a password. Only ALLOWED enables the action;
+commands still validate passwords and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `PASSWORD_CHANGE_AVAILABILITY_ALLOWED` | `1` | The user can attempt to set or change a password. |
+| `PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED` | `2` | The operator disabled direct login and password self-service. |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support password self-service. |
+
+
+<a id="chatto-api-v1-UsernameChangeAvailability-State"></a>
+
+### UsernameChangeAvailability.State
+
+State of username self-service, including its primary blocking condition.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `STATE_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `STATE_ALLOWED` | `1` | Policy permits a username change, subject to available_at. |
+| `STATE_PROVIDER_MANAGED` | `2` | A linked provider manages the username. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

@@ -30,6 +30,12 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 
 ## KV buckets
 
+Pending external identity creation records include the verified provider username
+for managed assignment. Core evaluates the serving replica's provider policy at
+confirmation. The username shares the existing pending-flow TTL and storage
+boundary; no provider-ownership record is added. See
+[provider account policy](../../cli/internal/core/provider_account_policy.go).
+
 Message-post claims use `message_post.{actorId}.{uuid}` in `RUNTIME_STATE`.
 The immutable protobuf `runtime_state.v1.MessagePostClaim` contains a
 server-generated message event ID and a request HMAC. Interactive sends and

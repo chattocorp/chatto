@@ -17,7 +17,8 @@ export const ExternalIdentityAuthService = {
     /**
      * Reads safe metadata for a pending create/link flow. This public RPC
      * requires a valid pending-flow capability token and returns NOT_FOUND when
-     * the token is unknown or expired.
+     * the token is unknown or expired. Returns FAILED_PRECONDITION when a managed
+     * provider username cannot be assigned; the user must contact the operator.
      *
      * @generated from rpc chatto.auth.v1.ExternalIdentityAuthService.GetPendingExternalIdentity
      */

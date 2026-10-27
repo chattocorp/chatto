@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "Questa azione non è attualmente disponibile.",
     "edit": "Modifica",
     "copy_failed": "Impossibile copiare negli appunti. Seleziona il testo e copialo manualmente.",
     "cancel": "Annulla",

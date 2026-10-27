@@ -15,6 +15,17 @@ enum ExternalIdentityFlowKind {
   EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT = 2;
 }
 
+// State of choosing a username during account creation. Only ALLOWED enables
+// choice; creation still checks policy and input. Unknown states remain disabled.
+enum UsernameChoiceAvailability {
+  // No decision is supplied. This does not grant permission.
+  USERNAME_CHOICE_AVAILABILITY_UNSPECIFIED = 0;
+  // The user can choose a username, subject to validation and uniqueness.
+  USERNAME_CHOICE_AVAILABILITY_ALLOWED = 1;
+  // The provider supplies the username; the server resolves collisions.
+  USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED = 2;
+}
+
 // Metadata about a pending external identity flow. The provider subject is not
 // exposed; clients only need user-facing provider/profile hints.
 message PendingExternalIdentity {
@@ -36,6 +47,9 @@ message PendingExternalIdentity {
   string bound_user_id = 8;
   // Internal path the client should return to after confirmation.
   string redirect_path = 9;
+  // Whether the user can choose a username. When externally managed, the server
+  // assigns it and ignores client input. The login hint is not a reservation.
+  optional UsernameChoiceAvailability choose_username = 10;
 }
 
 // Request to inspect a pending external identity flow.
@@ -54,13 +68,12 @@ message GetPendingExternalIdentityResponse {
 message CreateExternalIdentityAccountRequest {
   // Raw pending create token from the provider callback redirect.
   string token = 1 [(buf.validate.field).string.min_len = 1];
-  // Desired username.
-  string login = 2 [(buf.validate.field).string = {
-    min_len: 2
-    max_len: 32
-  }];
+  // Desired username. Ignored when choose_username is externally managed;
+  // the server assigns a name from the verified provider claim in that case.
+  // Otherwise, it must contain 2 to 32 characters and use a valid username format.
+  string login = 2;
   // Desired display name. When omitted, the server uses a valid provider hint
-  // and otherwise falls back to the requested username.
+  // and otherwise falls back to the assigned username.
   string display_name = 3 [(buf.validate.field).string.max_len = 32];
 }
 
@@ -109,7 +122,8 @@ message ConfirmExternalIdentityLinkResponse {
 service ExternalIdentityAuthService {
   // Reads safe metadata for a pending create/link flow. This public RPC
   // requires a valid pending-flow capability token and returns NOT_FOUND when
-  // the token is unknown or expired.
+  // the token is unknown or expired. Returns FAILED_PRECONDITION when a managed
+  // provider username cannot be assigned; the user must contact the operator.
   rpc GetPendingExternalIdentity(GetPendingExternalIdentityRequest) returns (GetPendingExternalIdentityResponse);
   // Creates a passwordless account from a pending provider identity. This
   // public RPC requires a valid create-flow capability token.

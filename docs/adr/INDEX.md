@@ -134,3 +134,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-117](ADR-117-message-post-idempotency.md)                           | Message Post Idempotency in Runtime State                        | Accepted             | 2026-10-08 |
 | [ADR-118](ADR-118-synchronized-chatto-desktop-releases.md)               | Synchronize Chatto and Desktop Releases                          | Accepted             | 2026-10-25 |
 | [ADR-119](ADR-119-portable-history-interchange.md)                       | Portable History Interchange                                    | Accepted             | 2026-10-26 |
+| [ADR-120](ADR-120-resource-action-availability.md)                       | Resource Action Availability                                    | Accepted             | 2026-10-27 |

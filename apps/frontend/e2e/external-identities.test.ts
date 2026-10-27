@@ -2,6 +2,115 @@ import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import * as routes from './routes';
 
+test.describe('Managed provider accounts', () => {
+  test.use({
+    serverOptions: {
+      env: {
+        CHATTO_AUTH_PROVIDERS_0_ID: 'company',
+        CHATTO_AUTH_PROVIDERS_0_TYPE: 'github',
+        CHATTO_AUTH_PROVIDERS_0_LABEL: 'Company',
+        CHATTO_AUTH_PROVIDERS_0_CLIENT_ID: 'test-client',
+        CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET: 'test-secret',
+        CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION: 'true',
+        CHATTO_AUTH_PROVIDERS_0_MANAGE_USERNAMES: 'true',
+        CHATTO_AUTH_PROVIDERS_0_ALLOW_UNLINKING: 'false'
+      }
+    }
+  });
+
+  test('explains when the provider username cannot be assigned', async ({ page, authPage }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `invalid-${Date.now()}`,
+      providerUsername: 'invalid@name'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(
+      page.getByText(
+        'Your sign-in provider’s username cannot be assigned. Contact the server operator.'
+      )
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toHaveCount(0);
+  });
+
+  test('assigns a collision suffix and disables local username edits and unlinking', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      providerLabel: 'Company',
+      subject: `managed-${Date.now()}`,
+      providerUsername: 'e2eadmin',
+      displayNameHint: 'Managed Person'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByLabel('Display Name')).toBeEnabled();
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByTestId('settings-username')).toBeDisabled();
+    await expect(
+      page.getByText('Your username is managed by your sign-in provider and cannot be edited here.')
+    ).toBeVisible();
+    await page.goto(routes.settingsAccount);
+    await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toBeDisabled();
+    await expect(
+      page.getByText('The server operator does not allow this provider to be disconnected.')
+    ).toBeVisible();
+  });
+
+  test('uses the assigned username as the display name after a preview collision', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `collision-${Date.now()}`,
+      providerUsername: 'e2eadmin'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByLabel('Display Name')).toHaveValue('');
+    await authPage.createUserViaApi('e2eadmin-2', 'password123');
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('e2eadmin-3');
+    await expect(page.getByPlaceholder('Enter your display name')).toHaveValue('e2eadmin-3');
+  });
+
+  test('accepts a server-assigned username with consecutive periods', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `periods-${Date.now()}`,
+      providerUsername: 'john..doe'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('john..doe');
+    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('john..doe');
+  });
+});
+
 test.describe('External identity confirmation flows', () => {
   test.use({
     serverOptions: {
@@ -19,6 +128,22 @@ test.describe('External identity confirmation flows', () => {
         CHATTO_AUTH_PROVIDERS_1_CLIENT_SECRET: 'discord-secret'
       }
     }
+  });
+
+  test('still validates usernames when the user can edit them', async ({ page, authPage }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'github-main',
+      providerType: 'github',
+      subject: `editable-periods-${Date.now()}`,
+      loginHint: 'john..doe',
+      displayNameHint: 'John'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeDisabled();
+    await page.getByLabel('Username').fill('john.doe');
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
   });
 
   test('shows immediate feedback while starting provider sign-in', async ({ page, context }) => {
@@ -218,17 +343,13 @@ test.describe('External identity confirmation flows', () => {
       }
     );
 
-    await githubRow.getByRole('button', { name: 'Disconnect' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'Provider cannot be disconnected' })
-    ).toBeVisible();
+    await expect(githubRow.getByRole('button', { name: 'Disconnect' })).toBeDisabled();
     await expect(
       page.getByText(
         'Set up another sign-in method supported by this server before disconnecting GitHub.'
       )
     ).toBeVisible();
     expect(disconnectRequestCount).toBe(0);
-    await page.getByRole('dialog').getByText('Close').click();
     await expect(githubRow.getByText('Linked')).toBeVisible();
     await expect(githubRow.locator('[class~="icon-[uil--link-broken]"]')).toBeVisible();
 
@@ -238,6 +359,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByLabel('Current Password')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change password' })).toBeVisible();
 
+    await expect(githubRow.getByRole('button', { name: 'Disconnect' })).toBeEnabled();
     await githubRow.getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await expect(page.getByText('Disconnect GitHub from this account?')).toBeVisible();

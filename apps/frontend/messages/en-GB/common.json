@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "This action is currently unavailable.",
     "edit": "Edit",
     "copy_failed": "Could not copy to clipboard. Select the text and copy it manually.",
     "cancel": "Cancel",
