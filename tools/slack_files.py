@@ -45,14 +45,18 @@ def file_inventory(plan):
             if not isinstance(key, str) or not key:
                 raise ApplyError("Slack file reference has no ID.")
             previous = result.get(key)
-            if previous and previous.get("mode") != "hidden_by_limit" and item.get("mode") != "hidden_by_limit":
+            # A deleted/hidden observation can coexist with a complete file
+            # reference. Keep the complete metadata so cached bytes survive.
+            partial_modes = {"hidden_by_limit", "tombstone"}
+            if previous and previous.get("mode") not in partial_modes and item.get("mode") not in partial_modes:
                 for field in ("size", "name", "mimetype", "mode", "is_external", "filetype"):
                     if previous.get(field) not in (None, "") and item.get(field) not in (None, "") and previous[field] != item[field]:
                         raise ApplyError("Slack file metadata conflicts across references.")
                 for field, value in item.items():
                     if previous.get(field) in (None, ""):
                         previous[field] = value
-            if previous is None or previous.get("mode") == "hidden_by_limit":
+            if (previous is None or previous.get("mode") == "hidden_by_limit"
+                    or previous.get("mode") == "tombstone" and item.get("mode") not in partial_modes):
                 result[key] = dict(item)
     return result
 
@@ -100,6 +104,8 @@ class FileCache:
         raise FileUnavailable("too_many_download_redirects")
 
     def get(self, item):
+        if item.get("mode") == "tombstone":
+            raise FileUnavailable("file_deleted")
         if item.get("mode") == "hidden_by_limit":
             raise FileUnavailable("hidden_by_limit")
         if item.get("is_external") or item.get("mode") == "external" or item.get("filetype") == "remote":

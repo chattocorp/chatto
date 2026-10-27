@@ -39,9 +39,12 @@ const (
 )
 
 // OperatorImportServiceClient is a client for the chatto.operator.v1.OperatorImportService service.
+//
+// Deprecated: do not use.
 type OperatorImportServiceClient interface {
-	// Validate or resume an immutable archive. Retrying after an interrupted
-	// response is safe. Changed input or naming options cannot resume an import.
+	// Removed endpoint. The import CLI now calls individual resource APIs.
+	//
+	// Deprecated: do not use.
 	ImportArchive(context.Context, *connect.Request[v1.ImportArchiveRequest]) (*connect.Response[v1.ImportArchiveResponse], error)
 }
 
@@ -52,6 +55,8 @@ type OperatorImportServiceClient interface {
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
+//
+// Deprecated: do not use.
 func NewOperatorImportServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) OperatorImportServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	operatorImportServiceMethods := v1.File_chatto_operator_v1_imports_proto.Services().ByName("OperatorImportService").Methods()
@@ -71,15 +76,20 @@ type operatorImportServiceClient struct {
 }
 
 // ImportArchive calls chatto.operator.v1.OperatorImportService.ImportArchive.
+//
+// Deprecated: do not use.
 func (c *operatorImportServiceClient) ImportArchive(ctx context.Context, req *connect.Request[v1.ImportArchiveRequest]) (*connect.Response[v1.ImportArchiveResponse], error) {
 	return c.importArchive.CallUnary(ctx, req)
 }
 
 // OperatorImportServiceHandler is an implementation of the chatto.operator.v1.OperatorImportService
 // service.
+//
+// Deprecated: do not use.
 type OperatorImportServiceHandler interface {
-	// Validate or resume an immutable archive. Retrying after an interrupted
-	// response is safe. Changed input or naming options cannot resume an import.
+	// Removed endpoint. The import CLI now calls individual resource APIs.
+	//
+	// Deprecated: do not use.
 	ImportArchive(context.Context, *connect.Request[v1.ImportArchiveRequest]) (*connect.Response[v1.ImportArchiveResponse], error)
 }
 
@@ -88,6 +98,8 @@ type OperatorImportServiceHandler interface {
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
+//
+// Deprecated: do not use.
 func NewOperatorImportServiceHandler(svc OperatorImportServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	operatorImportServiceMethods := v1.File_chatto_operator_v1_imports_proto.Services().ByName("OperatorImportService").Methods()
 	operatorImportServiceImportArchiveHandler := connect.NewUnaryHandler(
