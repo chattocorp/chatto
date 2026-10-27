@@ -338,7 +338,9 @@ describe('server route authentication privacy', () => {
 
     await expect.element(page.getByTestId('server-signed-out')).toBeVisible();
     await expect.element(page.getByRole('button', { name: 'Continue on server' })).toBeVisible();
-    await expect.element(page.getByRole('button', { name: 'Remove server' })).toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: 'Remove server' }))
+      .not.toBeInTheDocument();
     expect(container.querySelector('[data-testid="server-chrome"]')).toBeNull();
     expect(container.querySelector('[data-testid="private-route"]')).toBeNull();
   });
