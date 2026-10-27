@@ -648,6 +648,21 @@
       Boolean(recoveryViewport(messageStore))
   });
 
+  function handleVirtualizerResize(): void {
+    // Font changes and late media measurements can grow rows without resizing
+    // the scroll container. Reuse the cancellable convergence loop for them.
+    if (
+      viewport.shouldScrollToBottom &&
+      !isJumpedMode &&
+      !isLoadingMore &&
+      !scrollToEventId &&
+      !pendingHighlightId &&
+      !viewport.isUnreadEntryLandingRunning
+    ) {
+      void requestBottomScroll();
+    }
+  }
+
   // Auto-scroll to bottom when new events arrive or existing events update.
   // shouldScrollToBottom is read via untrack() so toggling it doesn't re-trigger
   // this effect — it only gates whether we scroll when new data arrives.
@@ -1007,6 +1022,7 @@
           {keepMounted}
           itemProps={({ item }) => ({ [TIMELINE_ITEM_KEY_ATTRIBUTE]: item?.key })}
           onscroll={handleVirtuaScroll}
+          onresize={handleVirtualizerResize}
         >
           {#snippet children(item: VirtualItem)}
             {#if !item}
