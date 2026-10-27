@@ -6,6 +6,8 @@
       "confirmation": "See aktiveerib 15 minutiks sulle selles serveris määratud lisaõigused."
     },
     "notifications": {
+      "next_unread_source": "Mine järgmise lugemata allika juurde",
+      "no_unread": "Lugemata teavitusi pole",
       "title": "Märguanded",
       "subtitle": "Siin on, mis on uut",
       "clear_read": "Kustuta loetud",

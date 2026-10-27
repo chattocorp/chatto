@@ -6,6 +6,8 @@
       "confirmation": "Pendant 15 minutes, ceci active les autorisations supplémentaires qui te sont attribuées sur ce serveur."
     },
     "notifications": {
+      "next_unread_source": "Accéder à la prochaine source non lue",
+      "no_unread": "Aucune notification non lue",
       "title": "Notifications",
       "subtitle": "Voici les nouveautés",
       "clear_read": "Effacer les notifications lues",
