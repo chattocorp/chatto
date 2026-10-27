@@ -87,6 +87,20 @@ describe('EventList media retention', () => {
     document.getSelection()?.removeAllRanges();
   });
 
+  it('follows the bottom when a measured row grows after initial scrolling', async () => {
+    const { scroller } = renderTimeline('msg-last');
+    await vi.waitFor(() => expect(row('msg-last')).toBeTruthy());
+    // Outlast the bounded initial convergence loop so it cannot mask a later resize.
+    for (let frame = 0; frame < 35; frame++) await nextFrame();
+    const previousHeight = scroller.scrollHeight;
+    row('msg-last')!.style.height = '600px';
+    await vi.waitFor(() => expect(scroller.scrollHeight).toBeGreaterThan(previousHeight));
+
+    await vi.waitFor(() =>
+      expect(scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight).toBeLessThan(10)
+    );
+  });
+
   it.each([
     ['audio', false],
     ['video', false],

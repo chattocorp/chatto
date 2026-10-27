@@ -49,7 +49,7 @@
 </Story>
 
 <Story name="Custom trigger" asChild>
-  <HelpTooltip label="Slow mode cooldown" triggerClass="cursor-help text-text">
+  <HelpTooltip label="0:30 slow mode cooldown" triggerClass="cursor-help text-text">
     {#snippet triggerContent()}<span>0:30</span>{/snippet}
     Send again in 0:30.
   </HelpTooltip>

@@ -293,11 +293,7 @@ Rows are notification causes. Columns follow the current navigation layout.
       <span
         class={[
           column.kind === 'server' ? 'font-semibold' : '',
-          highlighted
-            ? 'text-action'
-            : column.kind === 'roomGroup'
-              ? 'text-neutral-action'
-              : 'text-muted'
+          highlighted ? 'text-action' : column.kind === 'roomGroup' ? 'text-text' : 'text-muted'
         ]}
         title={column.label}
       >

@@ -374,8 +374,7 @@ describe('MessageMetaBar', () => {
       }
     });
 
-    const wrapper = q(container, 'button[aria-label="Add 👍 reaction (2)"]')!
-      .parentElement as HTMLElement;
+    const wrapper = q(container, 'button[aria-label="👍 2"]')!.parentElement as HTMLElement;
 
     wrapper.dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
@@ -418,8 +417,7 @@ describe('MessageMetaBar', () => {
       }
     });
 
-    const wrapper = q(container, 'button[aria-label="Add 👍 reaction (72)"]')!
-      .parentElement as HTMLElement;
+    const wrapper = q(container, 'button[aria-label="👍 72"]')!.parentElement as HTMLElement;
 
     wrapper.dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
@@ -456,7 +454,7 @@ describe('MessageMetaBar', () => {
       }
     });
 
-    const button = q(container, 'button[aria-label="Add ❤️ reaction (1)"]')! as HTMLButtonElement;
+    const button = q(container, 'button[aria-label="❤️ 1"]')! as HTMLButtonElement;
     const wrapper = button.parentElement as HTMLElement;
 
     expect(button.disabled).toBe(true);
@@ -483,7 +481,7 @@ describe('MessageMetaBar', () => {
       }
     });
 
-    (q(container, 'button[aria-label="Remove 👍 reaction (2)"]') as HTMLButtonElement).click();
+    (q(container, 'button[aria-label="👍 2"]') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
       expect(mocks.actions.toggleReaction).toHaveBeenCalledWith(
