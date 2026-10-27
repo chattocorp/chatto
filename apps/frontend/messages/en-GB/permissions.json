@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publish, correct, republish, and clear room notices",
       "server_manage": "Update server settings (name, description, logo)",
       "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Create new rooms",

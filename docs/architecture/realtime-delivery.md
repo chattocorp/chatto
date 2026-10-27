@@ -67,6 +67,11 @@ are `event`, `heartbeat`, and `close`. All terminal protocol results use
 
 ## Public events
 
+`room_notice_changed` identifies a channel whose current notice changed. It is
+delivered to current members after Room Directory projection readiness. The
+public mapper omits notice text and storage state; recipients read the canonical
+notice through `RoomService.GetNotice` with the event's minimum cursor.
+
 `chatto.core.evt.v1.Event` contains durable EVT facts.
 `chatto.core.pubsub.v1.PubSubEvent` contains a restricted set of NATS Core
 pubsub events. Client-facing variants reference the public payload messages

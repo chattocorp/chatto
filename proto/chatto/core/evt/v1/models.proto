@@ -69,6 +69,21 @@ message Room {
   google.protobuf.Timestamp created_at = 13;
   // Separate room purpose retained by history interchange.
   string purpose = 14;
+  // Member-only notice state. Never expose this through room discovery.
+  RoomNotice notice = 15;
+}
+
+// RoomNotice retains the latest write version even after clear, so stale
+// editors cannot overwrite a later publication.
+message RoomNotice {
+  // ID of the latest notice-change event, including clear operations.
+  string version = 1;
+  // ID of the last announcement event. Empty after clear.
+  string publication_id = 2;
+  // Current Markdown source. Empty after clear.
+  string body = 3;
+  // Source event time of the current publication; corrections preserve it.
+  google.protobuf.Timestamp published_at = 4;
 }
 
 // User represents a user account

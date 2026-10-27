@@ -1,4 +1,7 @@
 <script lang="ts">
+  import RoomNoticeBanner from './RoomNoticeBanner.svelte';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
+  import { timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -138,6 +141,19 @@
   const roomPinsStore = $derived(
     room.roomData && canReadMessages && !room.isDM ? stores.rooms.pins(roomId) : null
   );
+  const roomNoticeStore = $derived(
+    room.roomData && !room.isDM && stores.projection.rooms.get(roomId)?.viewerState?.isMember
+      ? stores.rooms.notice(roomId)
+      : null
+  );
+  const retainNotice: Attachment = () => roomNoticeStore?.retain();
+  const noticeMentions: MarkdownMentionOptions = $derived({
+    members: roomMembersStore.members,
+    roles: stores.mentionRoles.roles,
+    viewerLogin: stores.currentUser.user?.login,
+    searchMembers: (query: string) => roomMembersStore.searchMembers(query),
+    onMentionClick: (userId: string) => appUi.openMemberProfile(userId)
+  });
 
   $effect(() => {
     if (!stores.isAuthenticated) return;
@@ -350,6 +366,9 @@
     searchStore: roomMessageSearchStore,
     filesStore: roomFilesStore,
     pinsStore: roomPinsStore ?? undefined,
+    noticeStore: roomNoticeStore ?? undefined,
+    canManageNotice: room.roomData?.canManageNotice ?? false,
+    noticeMentions,
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
     isUniversal: room.roomData?.room.isUniversal ?? false,
@@ -718,6 +737,18 @@
               {/if}
             {/snippet}
           </PaneHeader>
+          {#if roomNoticeStore && stores.viewerId}
+            <div class="flex min-h-0 flex-col" {@attach retainNotice}>
+              <RoomNoticeBanner
+                store={roomNoticeStore}
+                serverId={activeServerId}
+                viewerId={stores.viewerId}
+                canManage={room.roomData?.canManageNotice ?? false}
+                mentions={noticeMentions}
+                timeSettings={timeFormatSettingsFor(stores.currentUser.user?.settings)}
+              />
+            </div>
+          {/if}
         {/snippet}
       </ConversationPane>
 

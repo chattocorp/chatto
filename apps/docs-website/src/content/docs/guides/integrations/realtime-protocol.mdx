@@ -115,7 +115,13 @@ event cursor:
 | `ViewerPreferencesChangedEvent` | Your preferences                            |
 | `ServerProfileChangedEvent`     | The server profile                          |
 | `RoomLayoutChangedEvent`        | `RoomDirectoryService.ListRoomGroups`       |
+| `RoomNoticeChangedEvent`        | `RoomService.GetNotice` for `room_id`       |
 | Asset processing or deletion    | The message in `message_event_id`           |
+
+Room notice events contain only the room ID. Current room members can read
+the notice. Refresh notices after reconnecting, and discard stored notice
+content when room membership ends. A correction keeps `publication_id`;
+explicit republishing changes it so a dismissed notice becomes visible again.
 
 ## Refresh presence and typing
 
@@ -163,7 +169,7 @@ contains these complete resource families:
 | Repeated `ActiveCall`          | Complete visible active-call state                    |
 
 The snapshot does not contain the complete user directory, message or thread
-history, search results, files, pins, notifications, presence, read markers,
+history, search results, files, pins, room notices, notifications, presence, read markers,
 or account-security state. Read these through ConnectRPC when you need them.
 
 Do not show the new state as current before `caught_up`. If the socket closes
