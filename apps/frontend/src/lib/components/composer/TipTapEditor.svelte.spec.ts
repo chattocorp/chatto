@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import '../../../app.css';
 import TipTapEditor from './TipTapEditor.svelte';
 import MarkdownEditor from './MarkdownEditor.svelte';
+import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
 import type { ComposerEditorApi } from './editorTypes';
 import { renderInlineMarkdown } from '$lib/markdown';
 const navigation = vi.hoisted(() => ({ goto: vi.fn() }));
@@ -16,6 +17,58 @@ vi.mock('$lib/client', async () => ({
     getServer: () => ({ id: 'remote', url: 'https://bar.com' })
   }
 }));
+
+describe('Composer text effects', () => {
+  it.each([TipTapEditor, MarkdownEditor])(
+    'applies an effect to the selection and preserves it on reopen',
+    async (component) => {
+      let api: ComposerEditorApi | undefined;
+      const updates: string[] = [];
+      const { container } = render(component, {
+        placeholder: 'Effects editor',
+        onReady: (ready) => (api = ready),
+        onUpdate: (value) => updates.push(value)
+      });
+      await vi.waitFor(() => expect(api).toBeDefined());
+      api!.setContent('Hello captain');
+      const editor = page.getByRole('textbox', { name: 'Effects editor' });
+      await userEvent.click(editor);
+      await userEvent.keyboard('{End}{Shift>}{Home}{/Shift}');
+      render(ComposerFormattingToolbar, {
+        id: 'effect-controls',
+        animated: false,
+        editorApi: api!,
+        inputDisabled: false,
+        formattingState: {
+          bold: false,
+          italic: false,
+          underline: false,
+          inlineCode: false,
+          heading: false,
+          bulletList: false,
+          orderedList: false,
+          blockquote: false,
+          codeBlock: false
+        },
+        indentState: { canIndent: true, canOutdent: false }
+      });
+      await page.getByRole('combobox', { name: 'Text effects' }).selectOptions('text-wave');
+      await vi.waitFor(() =>
+        expect(updates.at(-1)).toContain('<text-wave>Hello captain</text-wave>')
+      );
+      api!.setContent(updates.at(-1)!);
+      if (component === TipTapEditor) {
+        await expect
+          .poll(() => container.querySelector('.text-wave')?.textContent)
+          .toBe('Hello captain');
+        expect(getComputedStyle(container.querySelector('.text-wave')!).animationName).toBe(
+          matchMedia('(prefers-reduced-motion: reduce)').matches ? 'none' : 'chatto-text-wave'
+        );
+      }
+      expect(api!.getText()).toContain('Hello captain');
+    }
+  );
+});
 
 it('opens a registered Chatto link from the composer through local routing', async () => {
   const readyApis: ComposerEditorApi[] = [];

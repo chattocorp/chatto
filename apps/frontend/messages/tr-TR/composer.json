@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Metin efektleri",
+      "color-red": "Kırmızı",
+      "color-orange": "Turuncu",
+      "color-yellow": "Sarı",
+      "color-green": "Yeşil",
+      "color-blue": "Mavi",
+      "color-purple": "Mor",
+      "text-glow": "Parıltı",
+      "text-rainbow": "Gökkuşağı",
+      "text-wave": "Dalga",
+      "text-shake": "Titreme"
+    },
     "attach_file": "Dosya ekle",
     "formatting_options": "Biçimlendirme seçenekleri",
     "send": "Mesaj gönder",

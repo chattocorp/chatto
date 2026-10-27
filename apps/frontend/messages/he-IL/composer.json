@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "אפקטים לטקסט",
+      "color-red": "אדום",
+      "color-orange": "כתום",
+      "color-yellow": "צהוב",
+      "color-green": "ירוק",
+      "color-blue": "כחול",
+      "color-purple": "סגול",
+      "text-glow": "זוהר",
+      "text-rainbow": "קשת",
+      "text-wave": "גל",
+      "text-shake": "רעד"
+    },
     "attach_file": "צרף קובץ",
     "formatting_options": "אפשרויות עיצוב",
     "send": "שלח הודעה",

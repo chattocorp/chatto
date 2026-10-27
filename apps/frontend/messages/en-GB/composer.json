@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Text effects",
+      "color-red": "Red",
+      "color-orange": "Orange",
+      "color-yellow": "Yellow",
+      "color-green": "Green",
+      "color-blue": "Blue",
+      "color-purple": "Purple",
+      "text-glow": "Glow",
+      "text-rainbow": "Rainbow",
+      "text-wave": "Wave",
+      "text-shake": "Shake"
+    },
     "attach_file": "Attach file",
     "formatting_options": "Formatting options",
     "send": "Send message",

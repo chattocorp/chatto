@@ -24,6 +24,52 @@ vi.mock('$lib/ui/toast', () => ({ toast: toastMocks }));
 import MarkdownHtml from './MarkdownHtml.svelte';
 
 let originalClipboard: PropertyDescriptor | undefined;
+
+describe('inline text effects', () => {
+  it('keeps text selectable and wrapping, with finite motion and theme-aware colors', async () => {
+    const text = 'Hello 👩🏽‍🚀 مرحبا '.repeat(12);
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown(
+        `<color-blue>blue</color-blue> <text-wave>${text}</text-wave> <text-rainbow>rainbow</text-rainbow>`
+      )
+    });
+    container.classList.add('prose');
+    container.style.width = '180px';
+    const wave = container.querySelector<HTMLElement>('.text-wave')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(wave);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    expect(selection.toString()).toBe(text);
+    selection.removeAllRanges();
+    expect(wave.getClientRects().length).toBeGreaterThan(1);
+    expect(container.scrollWidth).toBeLessThanOrEqual(181);
+    const style = getComputedStyle(wave);
+    expect(style.animationName).toBe(
+      matchMedia('(prefers-reduced-motion: reduce)').matches ? 'none' : 'chatto-text-wave'
+    );
+    if (style.animationName !== 'none') {
+      expect(style.animationIterationCount).toBe('3');
+      const animation = wave.getAnimations()[0];
+      animation.finish();
+      expect(animation.playState).toBe('finished');
+      expect(getComputedStyle(wave).top).toBe('0px');
+    }
+    const blue = container.querySelector('.color-blue')!;
+    const root = document.documentElement;
+    const original = root.dataset.theme;
+    try {
+      root.dataset.theme = 'light';
+      const light = getComputedStyle(blue).color;
+      root.dataset.theme = 'dark';
+      expect(getComputedStyle(blue).color).not.toBe(light);
+    } finally {
+      if (original === undefined) delete root.dataset.theme;
+      else root.dataset.theme = original;
+    }
+  });
+});
 const writeText = vi.fn<(_: string) => Promise<void>>();
 
 beforeEach(() => {

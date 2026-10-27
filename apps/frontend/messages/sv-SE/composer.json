@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Texteffekter",
+      "color-red": "Röd",
+      "color-orange": "Orange",
+      "color-yellow": "Gul",
+      "color-green": "Grön",
+      "color-blue": "Blå",
+      "color-purple": "Lila",
+      "text-glow": "Glöd",
+      "text-rainbow": "Regnbåge",
+      "text-wave": "Våg",
+      "text-shake": "Skaka"
+    },
     "attach_file": "Bifoga fil",
     "formatting_options": "Formateringsalternativ",
     "send": "Skicka meddelande",

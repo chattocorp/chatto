@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Текстовые эффекты",
+      "color-red": "Красный",
+      "color-orange": "Оранжевый",
+      "color-yellow": "Жёлтый",
+      "color-green": "Зелёный",
+      "color-blue": "Синий",
+      "color-purple": "Фиолетовый",
+      "text-glow": "Свечение",
+      "text-rainbow": "Радуга",
+      "text-wave": "Волна",
+      "text-shake": "Дрожание"
+    },
     "attach_file": "Прикрепить файл",
     "formatting_options": "Параметры форматирования",
     "send": "Отправить сообщение",

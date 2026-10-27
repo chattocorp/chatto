@@ -4,6 +4,18 @@ import { describe, expect, it } from 'vitest';
 import { applySourceFormatting, getSourceFormattingState } from './sourceFormatting';
 
 describe('applySourceFormatting', () => {
+  it('keeps decoration pairs on one source line and preserves the selection direction', () => {
+    const result = applySourceFormatting('one\ntwo', { anchor: 7, head: 0 }, 'text-wave');
+    expect(result.text).toBe('<text-wave>one</text-wave>\n<text-wave>two</text-wave>');
+    expect(result.anchor).toBe(result.text.length);
+    expect(result.head).toBe(0);
+  });
+
+  it('wraps and unwraps a decorated selection', () => {
+    const result = applySourceFormatting('blue', { anchor: 0, head: 4 }, 'color-blue');
+    expect(result.text).toBe('<color-blue>blue</color-blue>');
+    expect(applySourceFormatting(result.text, result, 'color-blue').text).toBe('blue');
+  });
   it('inserts a unique footnote after selected text and focuses its definition', () => {
     const source = 'Hello[^1].\n\n[^1]: Existing note.';
     const result = applySourceFormatting(source, { anchor: 0, head: 5 }, 'footnote');

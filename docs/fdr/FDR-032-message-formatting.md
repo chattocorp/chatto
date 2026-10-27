@@ -16,7 +16,8 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
 - Both composer editors can insert a footnote from the formatting toolbar. The visual editor shows numbered markers and editable notes, supports repeated references, and retains the named syntax when switching modes or editing a message. Typing `[^label]` in the visual editor creates a note or refers to its existing definition.
 - Wide tables scroll horizontally inside the message instead of widening or clipping the conversation layout.
-- Message source HTML, horizontal rules, reference-style links, and setext headings render as literal text rather than active formatting. Image syntax never loads or displays an image; its label and destination can fall back to an ordinary link.
+- Messages support a fixed set of paired inline tags for six theme-aware text colors and glow, rainbow, wave, and shake effects. Each pair stays on one source line, accepts no attributes, and can contain Markdown. Up to four tags can nest. Code keeps the tags literal. Unsupported HTML, horizontal rules, reference-style links, and setext headings render as literal text rather than active formatting. Image syntax never loads or displays an image; its label and destination can fall back to an ordinary link.
+- Both composers offer text colors and effects in the formatting toolbar. The visual editor previews them and retains them when editing or switching modes. The source editor shows the tags. Wave and shake move whole phrases without changing line layout, stop within three seconds, and stay still when the device requests reduced motion. Glow and rainbow are static.
 - Backslashes normally remain literal so common chat text such as Windows paths and kaomoji is not unexpectedly changed. An escaped pipe inside a GFM table cell is still interpreted as cell content rather than a column boundary.
 - Inline timestamp tokens render in the viewer's locale and timezone when supported by the client.
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
@@ -46,7 +47,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ### 2. The supported syntax is deliberately constrained
 
-**Decision:** The bundled renderer enables common conversational structure, GFM tables, and named footnotes while keeping source HTML, images, and several lower-value block constructs disabled.
+**Decision:** The bundled renderer enables common conversational structure, GFM tables, named footnotes, and a fixed vocabulary of inline decoration tags. General source HTML, images, and several lower-value block constructs stay disabled.
 **Why:** A small reviewed output surface is easier to keep predictable and safe in user-authored messages. File attachments already provide the supported path for images.
 **Tradeoff:** Markdown copied from other applications may contain valid constructs that Chatto intentionally shows as literal text.
 
@@ -67,6 +68,12 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 **Decision:** Interpret terminal drawing commands only in `ansi` fences and show the final screen as selectable text. Use fixed screen dimensions and a limit on the number of rendered blocks.
 **Why:** People and bots can share colored art and cursor-based drawings through the existing message body. Fixed limits keep each message's display work bounded. Static output needs no active terminal session.
 **Tradeoff:** Terminal animations and raw CP437 file imports are not supported. Send Unicode text with actual escape characters. The composer shows source. Other clients can show the source if they do not support ANSI art.
+
+### 6. Inline effects use a fixed vocabulary
+
+**Decision:** Use readable, attribute-free tags in the existing message body. Colors adapt to the reader's theme. Motion is short and applies to complete phrases.
+**Why:** People and bots can add expression without arbitrary styles, external resources, or a new message format. Moving complete phrases preserves connected scripts and emoji sequences. Finite motion limits distraction.
+**Tradeoff:** Tags must fit on one source line. Unsupported clients show the source. Typing tags in the visual editor does not immediately convert them into marks; the toolbar provides visual authoring. Reopening the body or switching from source mode parses the tags.
 
 ## Related
 

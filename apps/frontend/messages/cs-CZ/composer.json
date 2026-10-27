@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Textové efekty",
+      "color-red": "Červená",
+      "color-orange": "Oranžová",
+      "color-yellow": "Žlutá",
+      "color-green": "Zelená",
+      "color-blue": "Modrá",
+      "color-purple": "Fialová",
+      "text-glow": "Záře",
+      "text-rainbow": "Duha",
+      "text-wave": "Vlna",
+      "text-shake": "Chvění"
+    },
     "attach_file": "Připojit soubor",
     "formatting_options": "Možnosti formátování",
     "send": "Odeslat zprávu",

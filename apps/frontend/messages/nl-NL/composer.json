@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Teksteffecten",
+      "color-red": "Rood",
+      "color-orange": "Oranje",
+      "color-yellow": "Geel",
+      "color-green": "Groen",
+      "color-blue": "Blauw",
+      "color-purple": "Paars",
+      "text-glow": "Gloed",
+      "text-rainbow": "Regenboog",
+      "text-wave": "Golf",
+      "text-shake": "Schudden"
+    },
     "attach_file": "Bestand bijvoegen",
     "formatting_options": "Opmaakopties",
     "send": "Bericht verzenden",

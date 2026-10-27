@@ -1,5 +1,18 @@
 {
   "composer": {
+    "effects": {
+      "title": "Εφέ κειμένου",
+      "color-red": "Κόκκινο",
+      "color-orange": "Πορτοκαλί",
+      "color-yellow": "Κίτρινο",
+      "color-green": "Πράσινο",
+      "color-blue": "Μπλε",
+      "color-purple": "Μοβ",
+      "text-glow": "Λάμψη",
+      "text-rainbow": "Ουράνιο τόξο",
+      "text-wave": "Κύμα",
+      "text-shake": "Τρέμουλο"
+    },
     "attach_file": "Επισύναψη αρχείου",
     "formatting_options": "Επιλογές μορφοποίησης",
     "send": "Αποστολή μηνύματος",

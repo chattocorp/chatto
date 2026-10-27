@@ -31,6 +31,7 @@ import { lowlight } from '$lib/codeHighlighting';
 import { createCodeLanguageDetectionPlugin } from './codeLanguageDetection';
 import { isDefaultEmptyDocument, isHttpMarkdownAutolink } from './markdown';
 import { FootnoteDefinition, FootnoteReference } from './footnotes';
+import { textDecorationMarks } from './textDecorations';
 
 const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
 const markdownAutolinkInputRegex = /(^|\s)<(https?:\/\/[^\s<>]+)>$/i;
@@ -585,6 +586,7 @@ export function createComposerExtensions(placeholder: string) {
     }),
     ComposerBold.configure(),
     ComposerUnderline.configure(),
+    ...textDecorationMarks.map((mark) => mark.configure()),
     ComposerLink.configure({
       autolink: true,
       shouldAutoLink: hasAutoLinkPrefix,
