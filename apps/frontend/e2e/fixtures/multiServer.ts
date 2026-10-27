@@ -472,7 +472,7 @@ export async function joinServerAndStartSignIn(
   await join.click();
   const logIn = page
     .getByTestId('server-signed-out')
-    .getByRole('button', { name: 'Log in to server' });
+    .getByRole('button', { name: 'Continue on server' });
   await expect(logIn).toBeVisible({ timeout: 30_000 });
   page.off('popup', countPopup);
   expect(popupsFromJoin).toBe(0);

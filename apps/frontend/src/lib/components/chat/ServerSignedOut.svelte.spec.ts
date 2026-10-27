@@ -58,7 +58,7 @@ describe('ServerSignedOut', () => {
     [false, true],
     [false, false]
   ])(
-    'offers signup for desktop=%s only when registration is enabled=%s',
+    'offers separate signup only with desktop=%s and registration enabled=%s',
     async (desktop, enabled) => {
       mocks.desktop = desktop;
       mocks.startRemoteReauthentication.mockResolvedValue(undefined);
@@ -68,7 +68,7 @@ describe('ServerSignedOut', () => {
       });
       render(ServerSignedOut, { props: { registration } });
       const signup = page.getByRole('button', { name: 'Create Account', exact: true });
-      if (!enabled) {
+      if (!desktop || !enabled) {
         await expect.element(signup).not.toBeInTheDocument();
         return;
       }
@@ -156,7 +156,7 @@ describe('ServerSignedOut', () => {
     await expect
       .element(
         page.getByText(
-          'Sign-in opens a separate window at chat.example.test:8443. Enter your credentials there, not in this app.'
+          'A new window will open at chat.example.test:8443, where you can sign in or create an account.'
         )
       )
       .toBeVisible();
@@ -170,11 +170,11 @@ describe('ServerSignedOut', () => {
     expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
   });
 
-  it('starts sign-in only from the log-in button', async () => {
+  it('starts sign-in only from the continue button', async () => {
     mocks.startRemoteReauthentication.mockResolvedValue(undefined);
     render(ServerSignedOut, { props: { registration } });
 
-    await page.getByRole('button', { name: 'Log in to server' }).click();
+    await page.getByRole('button', { name: 'Continue on server' }).click();
 
     expect(mocks.startRemoteReauthentication).toHaveBeenCalledExactlyOnceWith(registration);
     expect(toastError).not.toHaveBeenCalled();
@@ -184,9 +184,9 @@ describe('ServerSignedOut', () => {
     mocks.startRemoteReauthentication.mockRejectedValue(new Error('blocked'));
     render(ServerSignedOut, { props: { registration } });
 
-    await page.getByRole('button', { name: 'Log in to server' }).click();
+    await page.getByRole('button', { name: 'Continue on server' }).click();
 
     await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
-    await expect.element(page.getByRole('button', { name: 'Log in to server' })).toBeEnabled();
+    await expect.element(page.getByRole('button', { name: 'Continue on server' })).toBeEnabled();
   });
 });

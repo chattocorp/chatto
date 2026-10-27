@@ -402,7 +402,7 @@ test.describe('Leave Server', () => {
     await expect(page.getByRole('menuitem', { name: 'Log in to server' })).toHaveCount(0);
     expect(openedPopups).toBe(0);
     const popupPromise = page.waitForEvent('popup');
-    await signedOutView.getByRole('button', { name: 'Log in to server' }).click();
+    await signedOutView.getByRole('button', { name: 'Continue on server' }).click();
     const popup = await popupPromise;
     expect(openedPopups).toBe(1);
     await popup.close();

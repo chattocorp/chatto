@@ -39,7 +39,7 @@ window; an optional native host capability enables inline password submission.
     inlinePasswordLogin && !store.serverInfo.loading && store.serverInfo.directLoginEnabled
   );
   const showRegistration = $derived(
-    !store.serverInfo.loading && store.serverInfo.directRegistrationEnabled
+    inlinePasswordLogin && !store.serverInfo.loading && store.serverInfo.directRegistrationEnabled
   );
   const branding = $derived({
     name: serverDisplayName(store.serverInfo, registration.name),
@@ -100,7 +100,7 @@ window; an optional native host capability enables inline password submission.
           onclick={() => void signInOnServer()}
         >
           <span aria-hidden="true" class="iconify icon-[mdi--open-in-new]"></span>
-          {m('chat.server_gutter.log_in')}
+          {m('auth.remote.continue_on_server')}
         </Button>
       {/if}
       {#if inlinePasswordLogin && providers.length > 0}
@@ -158,9 +158,7 @@ window; an optional native host capability enables inline password submission.
         </Form>
       {/if}
       {#if showRegistration}
-        {#if !inlinePasswordLogin || showPassword || providers.length > 0}<Divider
-            label={m('common.or')}
-          />{/if}
+        {#if showPassword || providers.length > 0}<Divider label={m('common.or')} />{/if}
         <Button
           variant="secondary"
           size="lg"
