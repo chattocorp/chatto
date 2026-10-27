@@ -9,6 +9,7 @@ import { nextUnreadSource } from '$lib/notifications/nextUnreadSource';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 import { flushSync } from 'svelte';
 import Harness from './GlobalKeyboardShortcutsTestHarness.svelte';
+import ShortcutTextInput from '$lib/ui/form/ShortcutTextInput.svelte';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn().mockResolvedValue(undefined),
@@ -113,7 +114,52 @@ beforeEach(() => {
   quickSwitcher.close();
 });
 
-describe('next unread source', () => {
+describe('global keyboard shortcuts', () => {
+  it('leaves editor and navigation keys available to their local handlers', () => {
+    render(Harness);
+    const draft = document.querySelector('textarea')!;
+    const localHandler = vi.fn();
+    draft.addEventListener('keydown', localHandler);
+    draft.focus();
+    const keys: KeyboardEventInit[] = [
+      { key: 'Escape' },
+      { key: 'Tab' },
+      { key: 'ArrowUp' },
+      { key: 'ArrowDown' },
+      { key: 'ArrowLeft', altKey: true },
+      { key: 'Enter', shiftKey: true },
+      { key: 'b', metaKey: true },
+      { key: 'b', ctrlKey: true },
+      { key: 'z', metaKey: true },
+      { key: 'z', ctrlKey: true }
+    ];
+    for (const key of keys) {
+      expect(press({ altKey: false, shiftKey: false, ...key }).defaultPrevented).toBe(false);
+    }
+    expect(localHandler).toHaveBeenCalledTimes(keys.length);
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(document.querySelector('dialog[open]')).toBeNull();
+  });
+
+  it.each(['metaKey', 'ctrlKey'] as const)(
+    'preserves the filter input shortcut with %s',
+    (modifier) => {
+      render(Harness);
+      render(ShortcutTextInput, {
+        id: 'shortcut-filter',
+        label: 'Filter',
+        value: 'Find me',
+        shortcutKey: '/'
+      });
+      document.querySelector('textarea')!.focus();
+      press({ key: '/', altKey: false, shiftKey: false, [modifier]: true });
+      const filter = document.getElementById('shortcut-filter') as HTMLInputElement;
+      expect(document.activeElement).toBe(filter);
+      expect(filter.selectionStart).toBe(0);
+      expect(filter.selectionEnd).toBe(filter.value.length);
+    }
+  );
+
   it.each(['metaKey', 'ctrlKey'] as const)(
     'opens the palette before editor bindings with %s',
     (modifier) => {
@@ -131,30 +177,33 @@ describe('next unread source', () => {
     }
   );
 
-  it('submits forms only after local handlers have declined the shortcut', () => {
-    render(Harness);
-    const form = document.createElement('form');
-    const input = document.createElement('input');
-    form.append(input);
-    document.body.append(form);
-    const submit = vi.fn((event: Event) => event.preventDefault());
-    form.addEventListener('submit', submit);
-    input.focus();
-    const shortcut = { key: 'Enter', altKey: false, shiftKey: false, metaKey: true };
-    try {
-      press(shortcut);
-      expect(submit).toHaveBeenCalledTimes(1);
-      press({ ...shortcut, repeat: true });
-      press({ ...shortcut, isComposing: true });
-      press({ ...shortcut, shiftKey: true });
-      expect(submit).toHaveBeenCalledTimes(1);
-      input.addEventListener('keydown', (event) => event.preventDefault());
-      press(shortcut);
-      expect(submit).toHaveBeenCalledTimes(1);
-    } finally {
-      form.remove();
+  it.each(['metaKey', 'ctrlKey'] as const)(
+    'submits forms only after local handlers decline %s+Enter',
+    (modifier) => {
+      render(Harness);
+      const form = document.createElement('form');
+      const input = document.createElement('input');
+      form.append(input);
+      document.body.append(form);
+      const submit = vi.fn((event: Event) => event.preventDefault());
+      form.addEventListener('submit', submit);
+      input.focus();
+      const shortcut = { key: 'Enter', altKey: false, shiftKey: false, [modifier]: true };
+      try {
+        press(shortcut);
+        expect(submit).toHaveBeenCalledTimes(1);
+        press({ ...shortcut, repeat: true });
+        press({ ...shortcut, isComposing: true });
+        press({ ...shortcut, shiftKey: true });
+        expect(submit).toHaveBeenCalledTimes(1);
+        input.addEventListener('keydown', (event) => event.preventDefault());
+        press(shortcut);
+        expect(submit).toHaveBeenCalledTimes(1);
+      } finally {
+        form.remove();
+      }
     }
-  });
+  );
 
   it('prioritises Important across servers, then room order and newest activity in a source', () => {
     const ambient = occurrence('ambient', 'a', {
