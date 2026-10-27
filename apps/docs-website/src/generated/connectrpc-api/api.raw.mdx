@@ -6111,6 +6111,36 @@ Public server profile, identity, and branding fields.
 
 
 
+<a id="chatto-api-v1-AccountActions"></a>
+
+### AccountActions
+
+Availability of self-service account actions for the current viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `change_username` | [`ActionAvailability`](#chatto-api-v1-ActionAvailability) | Changing the username, excluding input-specific exceptions such as case-only edits. |
+| `change_password` | [`ActionAvailability`](#chatto-api-v1-ActionAvailability) | Setting an initial password or changing an existing password. |
+| `delete_account` | [`ActionAvailability`](#chatto-api-v1-ActionAvailability) | Starting self-service account deletion. |
+
+
+
+<a id="chatto-api-v1-ActionAvailability"></a>
+
+### ActionAvailability
+
+Snapshot of whether the viewer can attempt an action on this resource.
+Missing messages mean not reported, not denied. This is UI guidance, not an
+authorization grant: mutations recheck policy, input and fresh authentication.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `allowed` | `bool` | Whether the action can be attempted. Unknown reasons never override false. |
+| `reason` | [`ActionUnavailableReason`](#chatto-api-v1-ActionUnavailableReason) | Primary blocking reason. Unspecified when allowed is true. |
+| `available_at` | `google.protobuf.Timestamp` | Earliest time to refresh a cooldown decision, not a promise of permission. Present only for a blocked cooldown. Clients must refresh before enabling. |
+
+
+
 <a id="chatto-api-v1-ExternalIdentityProvider"></a>
 
 ### ExternalIdentityProvider
@@ -6138,7 +6168,8 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_type` | `string` | Provider type recorded when the identity was linked. |
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
-| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
+| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | **Deprecated.** Disconnect eligibility evaluated by ListExternalIdentities. New clients use disconnect_availability and fall back to this field only when that action is absent. |
+| `disconnect_availability` | [`ActionAvailability`](#chatto-api-v1-ActionAvailability) | Snapshot for disconnecting this identity. Absent on older servers. |
 
 
 
@@ -6217,11 +6248,11 @@ Current authenticated user's public profile plus self-only settings.
 | --- | --- | --- |
 | `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
+| `viewer_can_delete_account` | `bool` | **Deprecated.** Whether the authenticated user may delete this account. New clients use actions.delete_account and fall back to this field only when that action is absent. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
-| `username_managed` | `optional bool` | A linked provider prevents local username edits. Absent on older servers. |
+| `actions` | [`AccountActions`](#chatto-api-v1-AccountActions) | Self-service account action snapshots. Absent on older servers. |
 
 
 
@@ -6890,11 +6921,29 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
 
 
+<a id="chatto-api-v1-ActionUnavailableReason"></a>
+
+### ActionUnavailableReason
+
+The primary reason an action is unavailable. Clients must use a generic
+unavailable message for reasons they do not recognise.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACTION_UNAVAILABLE_REASON_UNSPECIFIED` | `0` | No reason is supplied. Used when allowed, or when a reason is unknown. |
+| `ACTION_UNAVAILABLE_REASON_EXTERNALLY_MANAGED` | `1` | An external identity provider manages this account attribute. |
+| `ACTION_UNAVAILABLE_REASON_DISABLED_BY_OPERATOR` | `2` | Server configuration disables the action. |
+| `ACTION_UNAVAILABLE_REASON_LAST_SIGN_IN_METHOD` | `3` | The action would remove the last enabled sign-in method. |
+| `ACTION_UNAVAILABLE_REASON_COOLDOWN` | `4` | The action is subject to a cooldown. |
+| `ACTION_UNAVAILABLE_REASON_PERMISSION_DENIED` | `5` | The viewer lacks the required permission. |
+| `ACTION_UNAVAILABLE_REASON_UNSUPPORTED_ACCOUNT` | `6` | This account type does not support the action. |
+
+
 <a id="chatto-api-v1-DisconnectEligibility"></a>
 
 ### DisconnectEligibility
 
-Eligibility to disconnect an identity at the time it is listed.
+Legacy disconnect hint. New clients use disconnect_availability.
 This does not replace fresh authentication or the mutation's eligibility check.
 
 | Name | Number | Description |

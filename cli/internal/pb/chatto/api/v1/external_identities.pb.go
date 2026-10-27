@@ -22,8 +22,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Eligibility to disconnect an identity at the time it is listed.
+// Legacy disconnect hint. New clients use disconnect_availability.
 // This does not replace fresh authentication or the mutation's eligibility check.
+//
+// Deprecated: Marked as deprecated in chatto/api/v1/external_identities.proto.
 type DisconnectEligibility int32
 
 const (
@@ -166,9 +168,15 @@ type LinkedExternalIdentity struct {
 	// Stable one-way subject hash, useful only as a UI/list key.
 	SubjectHash string `protobuf:"bytes,4,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
 	// Disconnect eligibility evaluated by ListExternalIdentities.
+	// New clients use disconnect_availability and fall back to this field only
+	// when that action is absent.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/external_identities.proto.
 	DisconnectEligibility DisconnectEligibility `protobuf:"varint,5,opt,name=disconnect_eligibility,json=disconnectEligibility,proto3,enum=chatto.api.v1.DisconnectEligibility" json:"disconnect_eligibility,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Snapshot for disconnecting this identity. Absent on older servers.
+	DisconnectAvailability *ActionAvailability `protobuf:"bytes,6,opt,name=disconnect_availability,json=disconnectAvailability,proto3" json:"disconnect_availability,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *LinkedExternalIdentity) Reset() {
@@ -229,11 +237,19 @@ func (x *LinkedExternalIdentity) GetSubjectHash() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in chatto/api/v1/external_identities.proto.
 func (x *LinkedExternalIdentity) GetDisconnectEligibility() DisconnectEligibility {
 	if x != nil {
 		return x.DisconnectEligibility
 	}
 	return DisconnectEligibility_DISCONNECT_ELIGIBILITY_UNSPECIFIED
+}
+
+func (x *LinkedExternalIdentity) GetDisconnectAvailability() *ActionAvailability {
+	if x != nil {
+		return x.DisconnectAvailability
+	}
+	return nil
 }
 
 // Request to list configured and linked external identities for the current user.
@@ -536,19 +552,20 @@ var File_chatto_api_v1_external_identities_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\"\xed\x01\n" +
+	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\x1a'chatto/api/v1/action_availability.proto\"\xed\x01\n" +
 	"\x18ExternalIdentityProvider\x12\x19\n" +
 	"\blink_url\x18\x05 \x01(\tR\alinkUrl\x12\x16\n" +
 	"\x06linked\x18\x06 \x01(\bR\x06linked\x12?\n" +
 	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\x12;\n" +
-	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\x85\x02\n" +
+	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xe5\x02\n" +
 	"\x16LinkedExternalIdentity\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +
 	"\rprovider_type\x18\x02 \x01(\tR\fproviderType\x12%\n" +
 	"\x0eprovider_label\x18\x03 \x01(\tR\rproviderLabel\x12!\n" +
-	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\x12[\n" +
-	"\x16disconnect_eligibility\x18\x05 \x01(\x0e2$.chatto.api.v1.DisconnectEligibilityR\x15disconnectEligibility\"\x1f\n" +
+	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\x12_\n" +
+	"\x16disconnect_eligibility\x18\x05 \x01(\x0e2$.chatto.api.v1.DisconnectEligibilityB\x02\x18\x01R\x15disconnectEligibility\x12Z\n" +
+	"\x17disconnect_availability\x18\x06 \x01(\v2!.chatto.api.v1.ActionAvailabilityR\x16disconnectAvailability\"\x1f\n" +
 	"\x1dListExternalIdentitiesRequest\"\xbb\x01\n" +
 	"\x1eListExternalIdentitiesResponse\x12E\n" +
 	"\tproviders\x18\x01 \x03(\v2'.chatto.api.v1.ExternalIdentityProviderR\tproviders\x12R\n" +
@@ -563,12 +580,12 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"!DisconnectExternalIdentityRequest\x12*\n" +
 	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"8\n" +
-	"\"DisconnectExternalIdentityResponseJ\x04\b\x01\x10\x02R\fdisconnected*\xcc\x01\n" +
+	"\"DisconnectExternalIdentityResponseJ\x04\b\x01\x10\x02R\fdisconnected*\xd0\x01\n" +
 	"\x15DisconnectEligibility\x12&\n" +
 	"\"DISCONNECT_ELIGIBILITY_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eDISCONNECT_ELIGIBILITY_ALLOWED\x10\x01\x126\n" +
 	"2DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD\x10\x02\x12/\n" +
-	"+DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR\x10\x03B\xc4\x01\n" +
+	"+DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR\x10\x03\x1a\x02\x18\x01B\xc4\x01\n" +
 	"\x11com.chatto.api.v1B\x17ExternalIdentitiesProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -596,17 +613,19 @@ var file_chatto_api_v1_external_identities_proto_goTypes = []any{
 	(*DisconnectExternalIdentityRequest)(nil),  // 7: chatto.api.v1.DisconnectExternalIdentityRequest
 	(*DisconnectExternalIdentityResponse)(nil), // 8: chatto.api.v1.DisconnectExternalIdentityResponse
 	(*ProviderMetadata)(nil),                   // 9: chatto.api.v1.ProviderMetadata
+	(*ActionAvailability)(nil),                 // 10: chatto.api.v1.ActionAvailability
 }
 var file_chatto_api_v1_external_identities_proto_depIdxs = []int32{
-	9, // 0: chatto.api.v1.ExternalIdentityProvider.provider:type_name -> chatto.api.v1.ProviderMetadata
-	0, // 1: chatto.api.v1.LinkedExternalIdentity.disconnect_eligibility:type_name -> chatto.api.v1.DisconnectEligibility
-	1, // 2: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
-	2, // 3: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	9,  // 0: chatto.api.v1.ExternalIdentityProvider.provider:type_name -> chatto.api.v1.ProviderMetadata
+	0,  // 1: chatto.api.v1.LinkedExternalIdentity.disconnect_eligibility:type_name -> chatto.api.v1.DisconnectEligibility
+	10, // 2: chatto.api.v1.LinkedExternalIdentity.disconnect_availability:type_name -> chatto.api.v1.ActionAvailability
+	1,  // 3: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
+	2,  // 4: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
+	5,  // [5:5] is the sub-list for method output_type
+	5,  // [5:5] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_external_identities_proto_init() }
@@ -615,6 +634,7 @@ func file_chatto_api_v1_external_identities_proto_init() {
 		return
 	}
 	file_chatto_api_v1_common_proto_init()
+	file_chatto_api_v1_action_availability_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -89,6 +89,34 @@ For public API packages:
 
 ## Presence And API Shape
 
+### Action Availability
+
+- Use the shared `chatto.api.v1.ActionAvailability` for a resource action that
+  combines permissions, server policy, lifecycle state, or a cooldown. See
+  [ADR-120](../docs/adr/ADR-120-resource-action-availability.md).
+- Put it on the resource as an explicit action field, or in a typed group of
+  related actions. Do not add new `can_*` flags, policy-specific booleans,
+  action-specific eligibility enums, or string-keyed action maps for this purpose.
+- Permission grants describe authority. Action availability describes whether
+  the viewer can attempt an operation now. Keep these contracts separate.
+- Missing messages mean not reported. `allowed = true` has no reason or time.
+  `allowed = false` has one primary typed reason. An unknown reason stays blocked
+  and gets a generic client notice. A cooldown may include `available_at`; this
+  tells clients when to refresh, not when to grant permission automatically.
+- Compute snapshots from the domain queries used by commands. Do not duplicate
+  policy in clients. Input validation and fresh authentication remain command
+  checks; an available action is not a guarantee that a submitted request succeeds.
+- Commands must recheck authorization and policy under their existing concurrency
+  guards. Refetch the affected snapshots after mutations and stale-hint failures.
+- Scope each decision to its resource: for example, each identity has its own
+  disconnect decision. Do not add every resource's actions to the viewer response.
+- For published contracts, keep deprecated fields as compatibility output derived
+  from the canonical decision. Remove unmerged alternatives without reservations.
+  Keep older-server fallbacks in client adapters; do not raise the connection floor
+  solely to adopt this pattern.
+
+### Resource And Field Shape
+
 - Public ConnectRPC and realtime surfaces are product APIs, not adapters for the
   current frontend. Define the natural public, administrative, auth, discovery,
   or realtime operation even when the bundled frontend does not call every RPC

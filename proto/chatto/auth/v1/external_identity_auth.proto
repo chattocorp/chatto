@@ -4,6 +4,7 @@ package chatto.auth.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/external_identities.proto";
+import "chatto/api/v1/action_availability.proto";
 
 // Mode of a pending external identity confirmation flow.
 enum ExternalIdentityFlowKind {
@@ -36,9 +37,9 @@ message PendingExternalIdentity {
   string bound_user_id = 8;
   // Internal path the client should return to after confirmation.
   string redirect_path = 9;
-  // The server assigns the username; client-supplied names are ignored. The
-  // login hint is a preview and can change if another account claims it first.
-  bool username_managed = 10;
+  // Whether the user can choose a username. When externally managed, the server
+  // assigns it and ignores client input. The login hint is not a reservation.
+  chatto.api.v1.ActionAvailability choose_username = 10;
 }
 
 // Request to inspect a pending external identity flow.
@@ -57,7 +58,7 @@ message GetPendingExternalIdentityResponse {
 message CreateExternalIdentityAccountRequest {
   // Raw pending create token from the provider callback redirect.
   string token = 1 [(buf.validate.field).string.min_len = 1];
-  // Desired username. Ignored when the pending flow has username_managed set;
+  // Desired username. Ignored when choose_username is externally managed;
   // the server assigns a name from the verified provider claim in that case.
   // Otherwise, it must contain 2 to 32 characters and use a valid username format.
   string login = 2;

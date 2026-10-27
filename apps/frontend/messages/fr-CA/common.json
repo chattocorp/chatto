@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "Cette action est actuellement indisponible.",
     "edit": "Modifier",
     "copy_failed": "Impossible de copier dans le presse-papiers. Sélectionnez le texte et copiez-le manuellement.",
     "cancel": "Annuler",

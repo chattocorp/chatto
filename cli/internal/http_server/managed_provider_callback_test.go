@@ -94,7 +94,7 @@ func TestManagedOAuthCallbackCreatesAccount(t *testing.T) {
 			api := authv1connect.NewExternalIdentityAuthServiceClient(client, ts.URL+connectapi.Prefix)
 			pending, err := api.GetPendingExternalIdentity(t.Context(), connect.NewRequest(&authv1.GetPendingExternalIdentityRequest{Token: token}))
 			require.NoError(t, err)
-			require.True(t, pending.Msg.Pending.UsernameManaged)
+			require.False(t, pending.Msg.Pending.ChooseUsername.Allowed)
 			require.Equal(t, tc.wantBase+"-2", pending.Msg.Pending.LoginHint)
 			created, err := api.CreateExternalIdentityAccount(t.Context(), connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token}))
 			require.NoError(t, err)

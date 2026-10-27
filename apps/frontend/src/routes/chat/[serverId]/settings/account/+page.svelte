@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { queryClient } from '$lib/query/queryClient';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '@chatto/client/api/account';
@@ -54,13 +56,23 @@
         {currentUser}
         directLoginEnabled={serverScope.store.serverInfo.directLoginEnabled}
         getAccountAPI={accountAPI}
+        onPasswordSet={() =>
+          queryClient.invalidateQueries({
+            queryKey: settingsQueryKeys.externalIdentities(
+              serverScope.serverId,
+              serverScope.connection,
+              serverScope.store.accountId ?? ''
+            )
+          })}
       />
       {#key serverScope.store.accountId ?? ''}
         <VerifiedEmailSettings />
       {/key}
       <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
       <DeleteAccountSection
-        canDeleteAccount={currentUser.user?.viewerCanDeleteAccount ?? false}
+        canDeleteAccount={currentUser.user?.actions?.deleteAccount?.allowed ??
+          currentUser.user?.viewerCanDeleteAccount ??
+          false}
         getAccountAPI={accountAPI}
       />
     </div>

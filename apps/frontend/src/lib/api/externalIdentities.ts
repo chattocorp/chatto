@@ -1,5 +1,9 @@
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
+import {
+  actionAvailabilityFromAPI,
+  type ActionAvailability
+} from '@chatto/client/api/actionAvailability';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
   ExternalIdentityFlowKind,
@@ -24,7 +28,7 @@ export type PendingExternalIdentityInfo = {
   providerLabel: string;
   verifiedEmail: string | null;
   loginHint: string;
-  usernameManaged?: boolean;
+  chooseUsername?: ActionAvailability;
   displayNameHint: string;
   boundUserId: string | null;
   redirectPath: string | null;
@@ -37,6 +41,7 @@ export type LinkedExternalIdentityInfo = {
   subjectHash: string;
   /** Listing-time eligibility; unspecified on older servers. */
   disconnectEligibility: DisconnectEligibility;
+  disconnectAvailability?: ActionAvailability;
 };
 
 export type ExternalIdentityProviderInfo = {
@@ -149,7 +154,7 @@ function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalI
     providerLabel: pending.providerLabel,
     verifiedEmail: pending.verifiedEmail || null,
     loginHint: pending.loginHint,
-    usernameManaged: pending.usernameManaged,
+    chooseUsername: actionAvailabilityFromAPI(pending.chooseUsername),
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
     redirectPath: pending.redirectPath || null
@@ -192,7 +197,8 @@ function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIde
     providerType: identity.providerType,
     providerLabel: identity.providerLabel,
     subjectHash: identity.subjectHash,
-    disconnectEligibility: identity.disconnectEligibility
+    disconnectEligibility: identity.disconnectEligibility,
+    disconnectAvailability: actionAvailabilityFromAPI(identity.disconnectAvailability)
   };
 }
 

@@ -271,12 +271,16 @@ func viewerUser(ctx context.Context, api *API, user *readmodel.User) (*apiv1.Vie
 		return nil, err
 	}
 
+	actions, err := accountActions(ctx, api, user, usernameManaged, canDeleteAccount, lastLoginChange)
+	if err != nil {
+		return nil, err
+	}
 	response := &apiv1.ViewerUser{
 		HasVerifiedEmail:       hasVerifiedEmail,
 		HasPassword:            hasPassword,
-		UsernameManaged:        &usernameManaged,
+		Actions:                actions,
 		Settings:               coreUserSettingsToAPI(settings),
-		ViewerCanDeleteAccount: canDeleteAccount,
+		ViewerCanDeleteAccount: actions.DeleteAccount.Allowed,
 		Profile:                apiUser,
 	}
 	if !lastLoginChange.IsZero() {

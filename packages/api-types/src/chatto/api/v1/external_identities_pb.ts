@@ -6,12 +6,14 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { ProviderMetadata } from "./common_pb.js";
+import { ActionAvailability } from "./action_availability_pb.js";
 
 /**
- * Eligibility to disconnect an identity at the time it is listed.
+ * Legacy disconnect hint. New clients use disconnect_availability.
  * This does not replace fresh authentication or the mutation's eligibility check.
  *
  * @generated from enum chatto.api.v1.DisconnectEligibility
+ * @deprecated
  */
 export enum DisconnectEligibility {
   /**
@@ -152,10 +154,20 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
 
   /**
    * Disconnect eligibility evaluated by ListExternalIdentities.
+   * New clients use disconnect_availability and fall back to this field only
+   * when that action is absent.
    *
-   * @generated from field: chatto.api.v1.DisconnectEligibility disconnect_eligibility = 5;
+   * @generated from field: chatto.api.v1.DisconnectEligibility disconnect_eligibility = 5 [deprecated = true];
+   * @deprecated
    */
   disconnectEligibility = DisconnectEligibility.UNSPECIFIED;
+
+  /**
+   * Snapshot for disconnecting this identity. Absent on older servers.
+   *
+   * @generated from field: chatto.api.v1.ActionAvailability disconnect_availability = 6;
+   */
+  disconnectAvailability?: ActionAvailability;
 
   constructor(data?: PartialMessage<LinkedExternalIdentity>) {
     super();
@@ -170,6 +182,7 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
     { no: 3, name: "provider_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "disconnect_eligibility", kind: "enum", T: proto3.getEnumType(DisconnectEligibility) },
+    { no: 6, name: "disconnect_availability", kind: "message", T: ActionAvailability },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkedExternalIdentity {

@@ -1,5 +1,11 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import {
+    ActionUnavailableReason,
+    legacyUsernameChangeAvailability
+  } from '@chatto/client/api/actionAvailability';
+  import { actionUnavailableMessage } from '$lib/actionAvailability';
+  import { Code, ConnectError } from '@connectrpc/connect';
   import type { UserAPI } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
@@ -8,8 +14,6 @@
   import { m } from '$lib/i18n/messages';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import {
-    formatCooldownRemaining,
-    getLoginChangeCooldownRemaining,
     MAX_BIO_LENGTH,
     startsLoginCooldown,
     validateAndNormalizeBio,
@@ -52,12 +56,12 @@
   const loginModified = $derived(login !== baseline.login);
   const bioModified = $derived(bio !== baseline.bio);
   const isModified = $derived(displayNameModified || loginModified || bioModified);
-  const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const canBypassLoginCooldown = $derived(serverScope.store.permissions.canAdminManageAccounts);
-  const usernameManaged = $derived(currentUser.user?.usernameManaged ?? false);
-  const canChangeLogin = $derived(
-    !usernameManaged && (canBypassLoginCooldown || cooldownRemaining === 0)
+  const usernameAvailability = $derived(
+    currentUser.user?.actions?.changeUsername ??
+      legacyUsernameChangeAvailability(lastLoginChange?.toISOString(), canBypassLoginCooldown)
   );
+  const canChangeLogin = $derived(usernameAvailability.allowed);
 
   function clearMessages() {
     error = '';
@@ -80,11 +84,7 @@
     let normalizedLogin: string | undefined;
     if (loginModified) {
       if (!canChangeLogin) {
-        error = usernameManaged
-          ? m('settings.account.sso.username_managed')
-          : m('settings.profile.username.cooldown_error', {
-              remaining: formatCooldownRemaining(cooldownRemaining)
-            });
+        error = actionUnavailableMessage(usernameAvailability, 'username');
         return;
       }
       const validation = validateAndNormalizeLogin(login);
@@ -142,6 +142,7 @@
     successMessage = '';
 
     try {
+      const refreshActions = !!normalizedLogin && !!currentUser.user?.actions;
       const updated = await getUserAPI().updateUserProfile(userId, {
         displayName: normalizedDisplayName,
         login: normalizedLogin,
@@ -152,7 +153,8 @@
         displayName: updated.displayName,
         login: updated.login,
         bio: updated.bio ?? '',
-        lastLoginChange: startedCooldown ? new Date().toISOString() : user.lastLoginChange
+        lastLoginChange: startedCooldown ? new Date().toISOString() : user.lastLoginChange,
+        actions: normalizedLogin ? undefined : user.actions
       }));
 
       baseline = {
@@ -166,8 +168,16 @@
 
       if (startedCooldown) localLastLoginChange = new Date();
 
+      if (refreshActions) await currentUser.load();
+
       successMessage = m('settings.profile.saved');
     } catch (saveError) {
+      if (
+        saveError instanceof ConnectError &&
+        (saveError.code === Code.FailedPrecondition || saveError.code === Code.PermissionDenied)
+      ) {
+        await currentUser.load();
+      }
       error = profileSaveErrorMessage(saveError, m('settings.profile.save_failed'));
     } finally {
       isSaving = false;
@@ -194,14 +204,11 @@
       oninput={clearMessages}
     />
 
-    {#if usernameManaged}
-      <Hint>{m('settings.account.sso.username_managed')}</Hint>
-    {:else if !canChangeLogin}
-      <p class="text-sm text-muted">
-        {m('settings.profile.username.cooldown_notice', {
-          remaining: formatCooldownRemaining(cooldownRemaining)
-        })}
-      </p>
+    {#if !canChangeLogin}
+      <Hint>{actionUnavailableMessage(usernameAvailability, 'username')}</Hint>
+      {#if currentUser.user?.actions?.changeUsername?.reason === ActionUnavailableReason.COOLDOWN}
+        <Button variant="secondary" onclick={() => currentUser.load()}>{m('common.retry')}</Button>
+      {/if}
     {/if}
 
     <UserBioEditor

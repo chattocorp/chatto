@@ -15,6 +15,7 @@ import {
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import type { CustomUserStatus } from './userSummary.js';
 import { timeFormatOrAuto } from './timeFormat.js';
+import { actionAvailabilityFromAPI, type ActionAvailability } from './actionAvailability.js';
 
 export type CurrentUser = {
   id: string;
@@ -31,8 +32,13 @@ export type CurrentUser = {
   presenceStatus: PresenceStatus;
   hasVerifiedEmail: boolean;
   hasPassword: boolean;
-  /** A linked provider prevents local username edits. Unknown on older servers. */
-  usernameManaged?: boolean;
+  /** Resource-scoped account action snapshots, absent on older servers. */
+  actions?: {
+    changeUsername?: ActionAvailability;
+    changePassword?: ActionAvailability;
+    deleteAccount?: ActionAvailability;
+  };
+  /** Legacy fallback for servers without actions.deleteAccount. */
   viewerCanDeleteAccount: boolean;
   lastLoginChange?: string | null;
   settings?: {
@@ -181,7 +187,13 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       presenceStatus: presenceStatusOrOffline(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       hasPassword: response.user.hasPassword ?? false,
-      usernameManaged: response.user.usernameManaged,
+      actions: response.user.actions
+        ? {
+            changeUsername: actionAvailabilityFromAPI(response.user.actions.changeUsername),
+            changePassword: actionAvailabilityFromAPI(response.user.actions.changePassword),
+            deleteAccount: actionAvailabilityFromAPI(response.user.actions.deleteAccount)
+          }
+        : undefined,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
       lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
       settings: response.user.settings

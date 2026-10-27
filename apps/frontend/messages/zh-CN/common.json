@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "此操作目前不可用。",
     "edit": "编辑",
     "copy_failed": "无法复制到剪贴板。请选择文本并手动复制。",
     "cancel": "取消",

@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// The primary reason an action is unavailable. Clients must use a generic
+// unavailable message for reasons they do not recognise.
+enum ActionUnavailableReason {
+  // No reason is supplied. Used when allowed, or when a reason is unknown.
+  ACTION_UNAVAILABLE_REASON_UNSPECIFIED = 0;
+  // An external identity provider manages this account attribute.
+  ACTION_UNAVAILABLE_REASON_EXTERNALLY_MANAGED = 1;
+  // Server configuration disables the action.
+  ACTION_UNAVAILABLE_REASON_DISABLED_BY_OPERATOR = 2;
+  // The action would remove the last enabled sign-in method.
+  ACTION_UNAVAILABLE_REASON_LAST_SIGN_IN_METHOD = 3;
+  // The action is subject to a cooldown.
+  ACTION_UNAVAILABLE_REASON_COOLDOWN = 4;
+  // The viewer lacks the required permission.
+  ACTION_UNAVAILABLE_REASON_PERMISSION_DENIED = 5;
+  // This account type does not support the action.
+  ACTION_UNAVAILABLE_REASON_UNSUPPORTED_ACCOUNT = 6;
+}
+
+// Snapshot of whether the viewer can attempt an action on this resource.
+// Missing messages mean not reported, not denied. This is UI guidance, not an
+// authorization grant: mutations recheck policy, input and fresh authentication.
+message ActionAvailability {
+  // Whether the action can be attempted. Unknown reasons never override false.
+  bool allowed = 1;
+  // Primary blocking reason. Unspecified when allowed is true.
+  ActionUnavailableReason reason = 2;
+  // Earliest time to refresh a cooldown decision, not a promise of permission.
+  // Present only for a blocked cooldown. Clients must refresh before enabling.
+  google.protobuf.Timestamp available_at = 3;
+}
+
+// Availability of self-service account actions for the current viewer.
+message AccountActions {
+  // Changing the username, excluding input-specific exceptions such as case-only edits.
+  ActionAvailability change_username = 1;
+  // Setting an initial password or changing an existing password.
+  ActionAvailability change_password = 2;
+  // Starting self-service account deletion.
+  ActionAvailability delete_account = 3;
+}

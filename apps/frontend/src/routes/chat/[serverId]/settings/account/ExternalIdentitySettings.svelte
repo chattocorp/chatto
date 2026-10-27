@@ -2,6 +2,8 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
+  import { legacyDisconnectAvailability } from '@chatto/client/api/actionAvailability';
+  import { actionUnavailableMessage } from '$lib/actionAvailability';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
     openAuthorizationWindow,
@@ -245,23 +247,19 @@
   // Account state can reflect a newly set password before this list refreshes.
   // Older servers lack the hint, so retain their count-based fallback.
   function canDisconnectIdentity(subjectHash: string) {
-    const eligibility = linkedIdentities.find(
-      (identity) => identity.subjectHash === subjectHash
-    )?.disconnectEligibility;
-    switch (eligibility) {
-      case DisconnectEligibility.DISABLED_BY_OPERATOR:
-        return false;
-      case DisconnectEligibility.ALLOWED:
-        return true;
-      case DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD:
-        return canUsePasswordProof;
-      case DisconnectEligibility.UNSPECIFIED:
-      case undefined:
-        return canUsePasswordProof || linkedIdentities.length > 1;
-      default:
-        // A newer server can explain an unknown restriction when the user tries.
-        return true;
-    }
+    return disconnectAvailability(subjectHash).allowed;
+  }
+
+  function disconnectAvailability(subjectHash: string | null) {
+    const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
+    return (
+      identity?.disconnectAvailability ??
+      legacyDisconnectAvailability(
+        identity?.disconnectEligibility,
+        canUsePasswordProof,
+        linkedIdentities.length
+      )
+    );
   }
 
   function providerIcon(type: string): string {
@@ -283,7 +281,9 @@
     return linkedIdentities.some(
       (identity) =>
         identity.subjectHash === subjectHash &&
-        identity.disconnectEligibility === DisconnectEligibility.DISABLED_BY_OPERATOR
+        (identity.disconnectAvailability
+          ? !identity.disconnectAvailability.allowed
+          : identity.disconnectEligibility === DisconnectEligibility.DISABLED_BY_OPERATOR)
     );
   }
 
@@ -431,26 +431,29 @@
       if (!session.isCurrent(variables)) {
         return;
       }
-      if (
-        err instanceof ConnectError &&
-        err.code === Code.FailedPrecondition &&
-        currentPassword === undefined
-      ) {
+      if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
         disconnectTarget = null;
         // Another session can remove a method after the list was loaded. Read
         // the authoritative hint again before treating this as a freshness error.
         const refreshed = await identitiesQuery.refetch();
         if (!session.isCurrent(variables)) return;
-        const eligibility = refreshed.data?.linkedIdentities.find(
+        const identity = refreshed.data?.linkedIdentities.find(
           (identity) => identity.subjectHash === subjectHash
-        )?.disconnectEligibility;
+        );
         if (
-          eligibility === DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD ||
-          eligibility === DisconnectEligibility.DISABLED_BY_OPERATOR
+          identity?.disconnectAvailability
+            ? !identity.disconnectAvailability.allowed
+            : identity?.disconnectEligibility ===
+                DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD ||
+              identity?.disconnectEligibility === DisconnectEligibility.DISABLED_BY_OPERATOR
         ) {
           blockedDisconnectProviderLabel = providerLabel;
           blockedDisconnectSubjectHash = subjectHash;
           showDisconnectBlockedModal = true;
+          return;
+        }
+        if (currentPassword !== undefined) {
+          disconnectFreshAuthError = errorMessage(err, m('settings.account.sso.disconnect_failed'));
           return;
         }
         if (canUsePasswordProof) {
@@ -526,7 +529,13 @@
                     {#if provider.linked}
                       {m('settings.account.sso.linked')}
                       {#if unlinkDisabled(provider.linkedIdentitySubjectHash)}
-                        <p>{m('settings.account.sso.unlink_disabled')}</p>
+                        <p>
+                          {actionUnavailableMessage(
+                            disconnectAvailability(provider.linkedIdentitySubjectHash),
+                            'disconnect',
+                            provider.label
+                          )}
+                        </p>
                       {/if}
                     {:else}
                       {m('settings.account.sso.not_linked')}
@@ -579,6 +588,15 @@
                   <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
                   <div class="text-xs text-muted">
                     {m('settings.account.sso.provider_unconfigured')}
+                    {#if unlinkDisabled(identity.subjectHash)}
+                      <p>
+                        {actionUnavailableMessage(
+                          disconnectAvailability(identity.subjectHash),
+                          'disconnect',
+                          identity.providerLabel
+                        )}
+                      </p>
+                    {/if}
                   </div>
                 </div>
               </div>
@@ -586,7 +604,9 @@
                 variant="danger-secondary"
                 size="sm"
                 loading={disconnectingSubjectHash === identity.subjectHash}
-                disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                disabled={unlinkDisabled(identity.subjectHash) ||
+                  linkingProviderId !== '' ||
+                  disconnectingSubjectHash !== ''}
                 onclick={() => openDisconnectIdentity(identity)}
               >
                 <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
@@ -656,11 +676,11 @@
   onclose={closeDisconnectBlockedModal}
 >
   <Hint tone="warning">
-    {unlinkDisabled(blockedDisconnectSubjectHash)
-      ? m('settings.account.sso.unlink_disabled')
-      : m('settings.account.sso.disconnect_blocked_modal.body', {
-          provider: blockedDisconnectProviderLabel
-        })}
+    {actionUnavailableMessage(
+      disconnectAvailability(blockedDisconnectSubjectHash),
+      'disconnect',
+      blockedDisconnectProviderLabel
+    )}
   </Hint>
 
   {#snippet dismissAction()}

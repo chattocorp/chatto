@@ -38,7 +38,7 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		}
 	}
 	pending := apiPendingExternalIdentity(flow)
-	pending.UsernameManaged = s.api.core.ProviderUsernameManaged(flow.ProviderID)
+	pending.ChooseUsername = actionAvailability(!s.api.core.ProviderUsernameManaged(flow.ProviderID), apiv1.ActionUnavailableReason_ACTION_UNAVAILABLE_REASON_EXTERNALLY_MANAGED)
 	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
 		Pending: pending,
 	}), nil
@@ -199,16 +199,10 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	if err != nil {
 		return nil, err
 	}
-	policy := s.api.externalIdentitySignInPolicy()
 	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
 	for index, identity := range linked {
-		identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD
-		if policy.CanDisconnect(identity.SubjectHash, identities, hasPassword) {
-			identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED
-		}
-		if s.api.core.IdentityUnlinkDisabled(identities[index]) {
-			identity.DisconnectEligibility = apiv1.DisconnectEligibility_DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR
-		}
+		identity.DisconnectAvailability = disconnectAvailability(s.api, identities[index], identities, hasPassword)
+		identity.DisconnectEligibility = legacyDisconnectEligibility(identity.DisconnectAvailability)
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),

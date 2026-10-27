@@ -5,6 +5,7 @@ import ProfilePage from './+page.svelte';
 import { q } from '$lib/test-utils';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import { ActionUnavailableReason } from '@chatto/client/api/actionAvailability';
 
 const avatarDataUrl = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
 
@@ -285,7 +286,9 @@ describe('Profile settings page', () => {
   });
 
   it('disables managed usernames even for account managers', async () => {
-    server.currentUser.user!.usernameManaged = true;
+    server.currentUser.user!.actions = {
+      changeUsername: { allowed: false, reason: ActionUnavailableReason.EXTERNALLY_MANAGED }
+    };
     server.permissions.canAdminManageAccounts = true;
     const { container } = render(ProfilePage);
     await settle();

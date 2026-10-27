@@ -7,6 +7,7 @@
 
 export * from '@chatto/api-types/api/v1/account_connect';
 export * from '@chatto/api-types/api/v1/account_pb';
+export * from '@chatto/api-types/api/v1/action_availability_pb';
 export * from '@chatto/api-types/api/v1/asset_uploads_connect';
 export * from '@chatto/api-types/api/v1/asset_uploads_pb';
 export * from '@chatto/api-types/api/v1/attachments_connect';

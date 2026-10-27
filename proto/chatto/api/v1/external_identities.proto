@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/common.proto";
+import "chatto/api/v1/action_availability.proto";
 
 // Public metadata for a configured external login provider.
 message ExternalIdentityProvider {
@@ -21,9 +22,10 @@ message ExternalIdentityProvider {
   ProviderMetadata provider = 8;
 }
 
-// Eligibility to disconnect an identity at the time it is listed.
+// Legacy disconnect hint. New clients use disconnect_availability.
 // This does not replace fresh authentication or the mutation's eligibility check.
 enum DisconnectEligibility {
+  option deprecated = true;
   // Eligibility was not evaluated, including responses from older servers.
   DISCONNECT_ELIGIBILITY_UNSPECIFIED = 0;
   // Another enabled sign-in method would remain.
@@ -45,7 +47,11 @@ message LinkedExternalIdentity {
   // Stable one-way subject hash, useful only as a UI/list key.
   string subject_hash = 4;
   // Disconnect eligibility evaluated by ListExternalIdentities.
-  DisconnectEligibility disconnect_eligibility = 5;
+  // New clients use disconnect_availability and fall back to this field only
+  // when that action is absent.
+  DisconnectEligibility disconnect_eligibility = 5 [deprecated = true];
+  // Snapshot for disconnecting this identity. Absent on older servers.
+  ActionAvailability disconnect_availability = 6;
 }
 
 // Request to list configured and linked external identities for the current user.

@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "See toiming pole praegu saadaval.",
     "edit": "Muuda",
     "copy_failed": "Lõikelauale kopeerimine ebaõnnestus. Valige tekst ja kopeerige see käsitsi.",
     "cancel": "Tühista",

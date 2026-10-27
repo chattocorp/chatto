@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { ActionAvailability } from "../../api/v1/action_availability_pb.js";
 import { LinkedExternalIdentity } from "../../api/v1/external_identities_pb.js";
 
 /**
@@ -112,12 +113,12 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
   redirectPath = "";
 
   /**
-   * The server assigns the username; client-supplied names are ignored. The
-   * login hint is a preview and can change if another account claims it first.
+   * Whether the user can choose a username. When externally managed, the server
+   * assigns it and ignores client input. The login hint is not a reservation.
    *
-   * @generated from field: bool username_managed = 10;
+   * @generated from field: chatto.api.v1.ActionAvailability choose_username = 10;
    */
-  usernameManaged = false;
+  chooseUsername?: ActionAvailability;
 
   constructor(data?: PartialMessage<PendingExternalIdentity>) {
     super();
@@ -136,7 +137,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
     { no: 7, name: "display_name_hint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "bound_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "username_managed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "choose_username", kind: "message", T: ActionAvailability },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PendingExternalIdentity {
@@ -252,7 +253,7 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
   token = "";
 
   /**
-   * Desired username. Ignored when the pending flow has username_managed set;
+   * Desired username. Ignored when choose_username is externally managed;
    * the server assigns a name from the verified provider claim in that case.
    * Otherwise, it must contain 2 to 32 characters and use a valid username format.
    *

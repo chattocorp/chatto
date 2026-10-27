@@ -51,7 +51,7 @@ describe('createExternalIdentityFlowAPI', () => {
       providerLabel: 'GitHub',
       verifiedEmail: null,
       loginHint: 'octo',
-      usernameManaged: false,
+      chooseUsername: undefined,
       displayNameHint: 'Octo',
       boundUserId: null,
       redirectPath: '/chat/-/settings/account'

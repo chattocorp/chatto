@@ -1,5 +1,6 @@
 {
   "common": {
+    "action_unavailable": "Ĉi tiu ago nuntempe ne disponeblas.",
     "edit": "Redakti",
     "copy_failed": "Ne eblis kopii al la tondujo. Elektu la tekston kaj kopiu ĝin permane.",
     "cancel": "Nuligi",

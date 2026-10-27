@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { actionUnavailableMessage } from '$lib/actionAvailability';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
@@ -140,13 +141,13 @@
         label={m('common.username')}
         bind:value={login}
         placeholder={m('common.username_placeholder')}
-        disabled={submitting || pending.usernameManaged}
+        disabled={submitting || pending.chooseUsername?.allowed === false}
         required
         autocomplete="username"
         error={loginError}
       />
-      {#if pending.usernameManaged}
-        <Hint>{m('settings.account.sso.username_managed')}</Hint>
+      {#if pending.chooseUsername?.allowed === false}
+        <Hint>{actionUnavailableMessage(pending.chooseUsername, 'username')}</Hint>
       {/if}
 
       <TextInput
