@@ -1,6 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
-import { IdentityDisconnectReason } from '@chatto/client/api/actionAvailability';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { page as browserPage } from 'vitest/browser';
 import { flushSync } from 'svelte';
@@ -165,10 +164,9 @@ describe('external identity settings query lifecycle', () => {
   it('blocks the last SSO provider despite a stored password on older servers', async () => {
     mocks.directLoginEnabled = false;
     renderSettings();
-    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
     await expect
-      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
-      .toBeVisible();
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeDisabled();
     expect(mocks.disconnect).not.toHaveBeenCalled();
   });
 
@@ -187,36 +185,31 @@ describe('external identity settings query lifecycle', () => {
     });
     mocks.list.mockResolvedValue(list);
     renderSettings();
-    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).first().click();
     await expect
-      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
-      .toBeVisible();
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }).first())
+      .toBeDisabled();
     expect(mocks.disconnect).not.toHaveBeenCalled();
   });
 
   it.each([
-    { reason: 99 as IdentityDisconnectReason, notice: 'This action is currently unavailable.' },
+    { reason: 99 as DisconnectEligibility, notice: 'This action is currently unavailable.' },
     {
-      reason: IdentityDisconnectReason.LAST_SIGN_IN_METHOD,
+      reason: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
       notice: 'Set up another sign-in method supported by this server before disconnecting GitHub.'
     }
-  ])(
-    'shows the disconnect-specific notice for reason $reason despite a legacy allowed hint',
-    async ({ reason, notice }) => {
-      const list = linkedIdentityList();
-      Object.assign(list.linkedIdentities[0], {
-        disconnectEligibility: DisconnectEligibility.ALLOWED,
-        disconnectAvailability: { allowed: false, reason }
-      });
-      mocks.list.mockResolvedValue(list);
-      renderSettings();
-      await expect
-        .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
-        .toBeDisabled();
-      await expect.element(browserPage.getByText(notice)).toBeVisible();
-      expect(mocks.disconnect).not.toHaveBeenCalled();
-    }
-  );
+  ])('shows the disconnect-specific notice for state $reason', async ({ reason, notice }) => {
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], {
+      disconnectEligibility: reason
+    });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeDisabled();
+    await expect.element(browserPage.getByText(notice)).toBeVisible();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
 
   it('disables unlinking when the operator forbids it', async () => {
     const list = linkedIdentityList();
@@ -238,7 +231,7 @@ describe('external identity settings query lifecycle', () => {
     expect(mocks.disconnect).not.toHaveBeenCalled();
   });
 
-  it.each([DisconnectEligibility.ALLOWED, 99])(
+  it.each([DisconnectEligibility.ALLOWED])(
     'allows the server to check eligibility %s',
     async (disconnectEligibility) => {
       mocks.directLoginEnabled = false;
@@ -257,8 +250,7 @@ describe('external identity settings query lifecycle', () => {
     { disconnectEligibility: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD },
     { disconnectEligibility: DisconnectEligibility.DISABLED_BY_OPERATOR },
     {
-      disconnectEligibility: DisconnectEligibility.ALLOWED,
-      disconnectAvailability: { allowed: false, reason: 99 as IdentityDisconnectReason }
+      disconnectEligibility: 99 as DisconnectEligibility
     }
   ])(
     'refreshes a stale disconnect hint %s before asking for reauthentication',

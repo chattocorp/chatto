@@ -38,9 +38,9 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		}
 	}
 	pending := apiPendingExternalIdentity(flow)
-	pending.ChooseUsername = &authv1.UsernameChoiceAvailability{Allowed: !s.api.core.ProviderUsernameManaged(flow.ProviderID)}
-	if !pending.ChooseUsername.Allowed {
-		pending.ChooseUsername.Reason = authv1.UsernameChoiceAvailability_REASON_PROVIDER_MANAGED
+	pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_ALLOWED.Enum()
+	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
+		pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED.Enum()
 	}
 	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
 		Pending: pending,
@@ -204,8 +204,7 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	}
 	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
 	for index, identity := range linked {
-		identity.DisconnectAvailability = disconnectAvailability(s.api, identities[index], identities, hasPassword)
-		identity.DisconnectEligibility = legacyDisconnectEligibility(identity.DisconnectAvailability)
+		identity.DisconnectEligibility = disconnectAvailability(s.api, identities[index], identities, hasPassword)
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),

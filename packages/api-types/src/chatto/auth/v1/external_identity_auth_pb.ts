@@ -42,79 +42,38 @@ proto3.util.setEnumType(ExternalIdentityFlowKind, "chatto.auth.v1.ExternalIdenti
 ]);
 
 /**
- * Snapshot for choosing a username during account creation. Missing means not
- * reported. Creation still checks policy and input. Unknown reasons stay blocked.
+ * State of choosing a username during account creation. Only ALLOWED enables
+ * choice; creation still checks policy and input. Unknown states remain disabled.
  *
- * @generated from message chatto.auth.v1.UsernameChoiceAvailability
+ * @generated from enum chatto.auth.v1.UsernameChoiceAvailability
  */
-export class UsernameChoiceAvailability extends Message<UsernameChoiceAvailability> {
+export enum UsernameChoiceAvailability {
   /**
-   * Whether the user can choose a username, not a guarantee of name availability.
+   * No decision is supplied. This does not grant permission.
    *
-   * @generated from field: bool allowed = 1;
-   */
-  allowed = false;
-
-  /**
-   * Unspecified when allowed is true.
-   *
-   * @generated from field: chatto.auth.v1.UsernameChoiceAvailability.Reason reason = 2;
-   */
-  reason = UsernameChoiceAvailability_Reason.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<UsernameChoiceAvailability>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.auth.v1.UsernameChoiceAvailability";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "allowed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(UsernameChoiceAvailability_Reason) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UsernameChoiceAvailability {
-    return new UsernameChoiceAvailability().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UsernameChoiceAvailability {
-    return new UsernameChoiceAvailability().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UsernameChoiceAvailability {
-    return new UsernameChoiceAvailability().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UsernameChoiceAvailability | PlainMessage<UsernameChoiceAvailability> | undefined, b: UsernameChoiceAvailability | PlainMessage<UsernameChoiceAvailability> | undefined): boolean {
-    return proto3.util.equals(UsernameChoiceAvailability, a, b);
-  }
-}
-
-/**
- * Primary reason the user cannot choose the account username.
- *
- * @generated from enum chatto.auth.v1.UsernameChoiceAvailability.Reason
- */
-export enum UsernameChoiceAvailability_Reason {
-  /**
-   * No blocking reason is supplied.
-   *
-   * @generated from enum value: REASON_UNSPECIFIED = 0;
+   * @generated from enum value: USERNAME_CHOICE_AVAILABILITY_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * The user can choose a username, subject to validation and uniqueness.
+   *
+   * @generated from enum value: USERNAME_CHOICE_AVAILABILITY_ALLOWED = 1;
+   */
+  ALLOWED = 1,
+
+  /**
    * The provider supplies the username; the server resolves collisions.
    *
-   * @generated from enum value: REASON_PROVIDER_MANAGED = 1;
+   * @generated from enum value: USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED = 2;
    */
-  PROVIDER_MANAGED = 1,
+  PROVIDER_MANAGED = 2,
 }
-// Retrieve enum metadata with: proto3.getEnumType(UsernameChoiceAvailability_Reason)
-proto3.util.setEnumType(UsernameChoiceAvailability_Reason, "chatto.auth.v1.UsernameChoiceAvailability.Reason", [
-  { no: 0, name: "REASON_UNSPECIFIED" },
-  { no: 1, name: "REASON_PROVIDER_MANAGED" },
+// Retrieve enum metadata with: proto3.getEnumType(UsernameChoiceAvailability)
+proto3.util.setEnumType(UsernameChoiceAvailability, "chatto.auth.v1.UsernameChoiceAvailability", [
+  { no: 0, name: "USERNAME_CHOICE_AVAILABILITY_UNSPECIFIED" },
+  { no: 1, name: "USERNAME_CHOICE_AVAILABILITY_ALLOWED" },
+  { no: 2, name: "USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED" },
 ]);
 
 /**
@@ -191,7 +150,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
    * Whether the user can choose a username. When externally managed, the server
    * assigns it and ignores client input. The login hint is not a reservation.
    *
-   * @generated from field: chatto.auth.v1.UsernameChoiceAvailability choose_username = 10;
+   * @generated from field: optional chatto.auth.v1.UsernameChoiceAvailability choose_username = 10;
    */
   chooseUsername?: UsernameChoiceAvailability;
 
@@ -212,7 +171,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
     { no: 7, name: "display_name_hint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "bound_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "choose_username", kind: "message", T: UsernameChoiceAvailability },
+    { no: 10, name: "choose_username", kind: "enum", T: proto3.getEnumType(UsernameChoiceAvailability), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PendingExternalIdentity {

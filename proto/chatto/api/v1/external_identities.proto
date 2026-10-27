@@ -21,10 +21,11 @@ message ExternalIdentityProvider {
   ProviderMetadata provider = 8;
 }
 
-// Legacy disconnect hint. New clients use disconnect_availability.
+// State of disconnecting a linked identity. Only ALLOWED enables the action.
+// UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
+// Unknown future states remain disabled.
 // This does not replace fresh authentication or the mutation's eligibility check.
 enum DisconnectEligibility {
-  option deprecated = true;
   // Eligibility was not evaluated, including responses from older servers.
   DISCONNECT_ELIGIBILITY_UNSPECIFIED = 0;
   // Another enabled sign-in method would remain.
@@ -33,24 +34,6 @@ enum DisconnectEligibility {
   DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD = 2;
   // The operator disabled user-initiated unlinking for this provider.
   DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR = 3;
-}
-
-// Snapshot for disconnecting one linked identity. Missing means not reported.
-// Commands still check policy and fresh authentication. Unknown reasons stay blocked.
-message IdentityDisconnectAvailability {
-  // Primary reason this identity cannot be disconnected.
-  enum Reason {
-    // No blocking reason is supplied.
-    REASON_UNSPECIFIED = 0;
-    // The operator forbids unlinking this provider.
-    REASON_DISABLED_BY_OPERATOR = 1;
-    // Disconnecting would remove the last enabled sign-in method.
-    REASON_LAST_SIGN_IN_METHOD = 2;
-  }
-  // Whether the action can be attempted, not an authorization grant.
-  bool allowed = 1;
-  // Unspecified when allowed is true.
-  Reason reason = 2;
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.
@@ -64,11 +47,7 @@ message LinkedExternalIdentity {
   // Stable one-way subject hash, useful only as a UI/list key.
   string subject_hash = 4;
   // Disconnect eligibility evaluated by ListExternalIdentities.
-  // New clients use disconnect_availability and fall back to this field only
-  // when that action is absent.
-  DisconnectEligibility disconnect_eligibility = 5 [deprecated = true];
-  // Snapshot for disconnecting this identity. Absent on older servers.
-  IdentityDisconnectAvailability disconnect_availability = 6;
+  DisconnectEligibility disconnect_eligibility = 5;
 }
 
 // Request to list configured and linked external identities for the current user.

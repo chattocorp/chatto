@@ -7,31 +7,110 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * State of setting or changing a password. Only ALLOWED enables the action;
+ * commands still validate passwords and authentication.
+ *
+ * @generated from enum chatto.api.v1.PasswordChangeAvailability
+ */
+export enum PasswordChangeAvailability {
+  /**
+   * No decision is supplied. This does not grant permission.
+   *
+   * @generated from enum value: PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The user can attempt to set or change a password.
+   *
+   * @generated from enum value: PASSWORD_CHANGE_AVAILABILITY_ALLOWED = 1;
+   */
+  ALLOWED = 1,
+
+  /**
+   * The operator disabled direct login and password self-service.
+   *
+   * @generated from enum value: PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED = 2;
+   */
+  DIRECT_LOGIN_DISABLED = 2,
+
+  /**
+   * This account type does not support password self-service.
+   *
+   * @generated from enum value: PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT = 3;
+   */
+  UNSUPPORTED_ACCOUNT = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(PasswordChangeAvailability)
+proto3.util.setEnumType(PasswordChangeAvailability, "chatto.api.v1.PasswordChangeAvailability", [
+  { no: 0, name: "PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED" },
+  { no: 1, name: "PASSWORD_CHANGE_AVAILABILITY_ALLOWED" },
+  { no: 2, name: "PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED" },
+  { no: 3, name: "PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT" },
+]);
+
+/**
+ * State of self-service account deletion. Only ALLOWED enables the action;
+ * commands still check authority and authentication.
+ *
+ * @generated from enum chatto.api.v1.AccountDeletionAvailability
+ */
+export enum AccountDeletionAvailability {
+  /**
+   * No decision is supplied. This does not grant permission.
+   *
+   * @generated from enum value: ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The user can attempt to start account deletion.
+   *
+   * @generated from enum value: ACCOUNT_DELETION_AVAILABILITY_ALLOWED = 1;
+   */
+  ALLOWED = 1,
+
+  /**
+   * The viewer lacks permission to delete this account.
+   *
+   * @generated from enum value: ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED = 2;
+   */
+  PERMISSION_DENIED = 2,
+
+  /**
+   * This account type does not support self-service deletion.
+   *
+   * @generated from enum value: ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT = 3;
+   */
+  UNSUPPORTED_ACCOUNT = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AccountDeletionAvailability)
+proto3.util.setEnumType(AccountDeletionAvailability, "chatto.api.v1.AccountDeletionAvailability", [
+  { no: 0, name: "ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED" },
+  { no: 1, name: "ACCOUNT_DELETION_AVAILABILITY_ALLOWED" },
+  { no: 2, name: "ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED" },
+  { no: 3, name: "ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT" },
+]);
+
+/**
  * Snapshot for changing a username. Missing means not reported. Commands still
- * check policy and input, including case-only exceptions. Unknown reasons stay blocked.
+ * check policy and input, including case-only exceptions. Only ALLOWED enables it.
  *
  * @generated from message chatto.api.v1.UsernameChangeAvailability
  */
 export class UsernameChangeAvailability extends Message<UsernameChangeAvailability> {
   /**
-   * Whether the action can be attempted, not an authorization grant.
+   * Unknown states remain disabled. Commands recheck authority and policy.
    *
-   * @generated from field: bool allowed = 1;
+   * @generated from field: chatto.api.v1.UsernameChangeAvailability.State state = 1;
    */
-  allowed = false;
+  state = UsernameChangeAvailability_State.UNSPECIFIED;
 
   /**
-   * Unspecified when allowed is true.
+   * Earliest time to refresh a COOLDOWN decision. Expiry does not automatically
+   * enable the action. Absent for all other states.
    *
-   * @generated from field: chatto.api.v1.UsernameChangeAvailability.Reason reason = 2;
-   */
-  reason = UsernameChangeAvailability_Reason.UNSPECIFIED;
-
-  /**
-   * Earliest time to refresh a blocked cooldown decision. Expiry does not grant
-   * permission automatically. Absent for other reasons and allowed actions.
-   *
-   * @generated from field: google.protobuf.Timestamp available_at = 3;
+   * @generated from field: google.protobuf.Timestamp available_at = 2;
    */
   availableAt?: Timestamp;
 
@@ -43,9 +122,8 @@ export class UsernameChangeAvailability extends Message<UsernameChangeAvailabili
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UsernameChangeAvailability";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "allowed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(UsernameChangeAvailability_Reason) },
-    { no: 3, name: "available_at", kind: "message", T: Timestamp },
+    { no: 1, name: "state", kind: "enum", T: proto3.getEnumType(UsernameChangeAvailability_State) },
+    { no: 2, name: "available_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UsernameChangeAvailability {
@@ -66,209 +144,49 @@ export class UsernameChangeAvailability extends Message<UsernameChangeAvailabili
 }
 
 /**
- * Primary reason this username change cannot be attempted.
+ * State of username self-service, including its primary blocking condition.
  *
- * @generated from enum chatto.api.v1.UsernameChangeAvailability.Reason
+ * @generated from enum chatto.api.v1.UsernameChangeAvailability.State
  */
-export enum UsernameChangeAvailability_Reason {
+export enum UsernameChangeAvailability_State {
   /**
-   * No blocking reason is supplied.
+   * No decision is supplied. This does not grant permission.
    *
-   * @generated from enum value: REASON_UNSPECIFIED = 0;
+   * @generated from enum value: STATE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
+
+  /**
+   * The user can attempt a username change.
+   *
+   * @generated from enum value: STATE_ALLOWED = 1;
+   */
+  ALLOWED = 1,
 
   /**
    * A linked provider manages the username.
    *
-   * @generated from enum value: REASON_PROVIDER_MANAGED = 1;
+   * @generated from enum value: STATE_PROVIDER_MANAGED = 2;
    */
-  PROVIDER_MANAGED = 1,
+  PROVIDER_MANAGED = 2,
 
   /**
    * The username change cooldown has not expired.
    *
-   * @generated from enum value: REASON_COOLDOWN = 2;
+   * @generated from enum value: STATE_COOLDOWN = 3;
    */
-  COOLDOWN = 2,
+  COOLDOWN = 3,
 }
-// Retrieve enum metadata with: proto3.getEnumType(UsernameChangeAvailability_Reason)
-proto3.util.setEnumType(UsernameChangeAvailability_Reason, "chatto.api.v1.UsernameChangeAvailability.Reason", [
-  { no: 0, name: "REASON_UNSPECIFIED" },
-  { no: 1, name: "REASON_PROVIDER_MANAGED" },
-  { no: 2, name: "REASON_COOLDOWN" },
+// Retrieve enum metadata with: proto3.getEnumType(UsernameChangeAvailability_State)
+proto3.util.setEnumType(UsernameChangeAvailability_State, "chatto.api.v1.UsernameChangeAvailability.State", [
+  { no: 0, name: "STATE_UNSPECIFIED" },
+  { no: 1, name: "STATE_ALLOWED" },
+  { no: 2, name: "STATE_PROVIDER_MANAGED" },
+  { no: 3, name: "STATE_COOLDOWN" },
 ]);
 
 /**
- * Snapshot for setting or changing a password. Missing means not reported.
- * Commands still validate passwords and authentication. Unknown reasons stay blocked.
- *
- * @generated from message chatto.api.v1.PasswordChangeAvailability
- */
-export class PasswordChangeAvailability extends Message<PasswordChangeAvailability> {
-  /**
-   * Whether the action can be attempted, not an authorization grant.
-   *
-   * @generated from field: bool allowed = 1;
-   */
-  allowed = false;
-
-  /**
-   * Unspecified when allowed is true.
-   *
-   * @generated from field: chatto.api.v1.PasswordChangeAvailability.Reason reason = 2;
-   */
-  reason = PasswordChangeAvailability_Reason.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<PasswordChangeAvailability>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.PasswordChangeAvailability";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "allowed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(PasswordChangeAvailability_Reason) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PasswordChangeAvailability {
-    return new PasswordChangeAvailability().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PasswordChangeAvailability {
-    return new PasswordChangeAvailability().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PasswordChangeAvailability {
-    return new PasswordChangeAvailability().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: PasswordChangeAvailability | PlainMessage<PasswordChangeAvailability> | undefined, b: PasswordChangeAvailability | PlainMessage<PasswordChangeAvailability> | undefined): boolean {
-    return proto3.util.equals(PasswordChangeAvailability, a, b);
-  }
-}
-
-/**
- * Primary reason password self-service cannot be attempted.
- *
- * @generated from enum chatto.api.v1.PasswordChangeAvailability.Reason
- */
-export enum PasswordChangeAvailability_Reason {
-  /**
-   * No blocking reason is supplied.
-   *
-   * @generated from enum value: REASON_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The operator disabled direct login and password self-service.
-   *
-   * @generated from enum value: REASON_DIRECT_LOGIN_DISABLED = 1;
-   */
-  DIRECT_LOGIN_DISABLED = 1,
-
-  /**
-   * This account type does not support password self-service.
-   *
-   * @generated from enum value: REASON_UNSUPPORTED_ACCOUNT = 2;
-   */
-  UNSUPPORTED_ACCOUNT = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(PasswordChangeAvailability_Reason)
-proto3.util.setEnumType(PasswordChangeAvailability_Reason, "chatto.api.v1.PasswordChangeAvailability.Reason", [
-  { no: 0, name: "REASON_UNSPECIFIED" },
-  { no: 1, name: "REASON_DIRECT_LOGIN_DISABLED" },
-  { no: 2, name: "REASON_UNSUPPORTED_ACCOUNT" },
-]);
-
-/**
- * Snapshot for starting self-service account deletion. Missing means not reported.
- * Commands still check authority and authentication. Unknown reasons stay blocked.
- *
- * @generated from message chatto.api.v1.AccountDeletionAvailability
- */
-export class AccountDeletionAvailability extends Message<AccountDeletionAvailability> {
-  /**
-   * Whether the action can be attempted, not an authorization grant.
-   *
-   * @generated from field: bool allowed = 1;
-   */
-  allowed = false;
-
-  /**
-   * Unspecified when allowed is true.
-   *
-   * @generated from field: chatto.api.v1.AccountDeletionAvailability.Reason reason = 2;
-   */
-  reason = AccountDeletionAvailability_Reason.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<AccountDeletionAvailability>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.AccountDeletionAvailability";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "allowed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(AccountDeletionAvailability_Reason) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountDeletionAvailability {
-    return new AccountDeletionAvailability().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountDeletionAvailability {
-    return new AccountDeletionAvailability().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountDeletionAvailability {
-    return new AccountDeletionAvailability().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AccountDeletionAvailability | PlainMessage<AccountDeletionAvailability> | undefined, b: AccountDeletionAvailability | PlainMessage<AccountDeletionAvailability> | undefined): boolean {
-    return proto3.util.equals(AccountDeletionAvailability, a, b);
-  }
-}
-
-/**
- * Primary reason self-service deletion cannot be attempted.
- *
- * @generated from enum chatto.api.v1.AccountDeletionAvailability.Reason
- */
-export enum AccountDeletionAvailability_Reason {
-  /**
-   * No blocking reason is supplied.
-   *
-   * @generated from enum value: REASON_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The viewer lacks permission to delete this account.
-   *
-   * @generated from enum value: REASON_PERMISSION_DENIED = 1;
-   */
-  PERMISSION_DENIED = 1,
-
-  /**
-   * This account type does not support self-service deletion.
-   *
-   * @generated from enum value: REASON_UNSUPPORTED_ACCOUNT = 2;
-   */
-  UNSUPPORTED_ACCOUNT = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(AccountDeletionAvailability_Reason)
-proto3.util.setEnumType(AccountDeletionAvailability_Reason, "chatto.api.v1.AccountDeletionAvailability.Reason", [
-  { no: 0, name: "REASON_UNSPECIFIED" },
-  { no: 1, name: "REASON_PERMISSION_DENIED" },
-  { no: 2, name: "REASON_UNSUPPORTED_ACCOUNT" },
-]);
-
-/**
- * Self-service decisions for the current viewer. Each action owns its reasons.
+ * Self-service decisions for the current viewer. Each action owns its states.
  *
  * @generated from message chatto.api.v1.AccountActions
  */
@@ -281,16 +199,16 @@ export class AccountActions extends Message<AccountActions> {
   changeUsername?: UsernameChangeAvailability;
 
   /**
-   * Setting an initial password or changing an existing password.
+   * Setting an initial password or changing an existing password. Absent on older servers.
    *
-   * @generated from field: chatto.api.v1.PasswordChangeAvailability change_password = 2;
+   * @generated from field: optional chatto.api.v1.PasswordChangeAvailability change_password = 2;
    */
   changePassword?: PasswordChangeAvailability;
 
   /**
-   * Starting self-service account deletion.
+   * Starting self-service account deletion. Absent on older servers.
    *
-   * @generated from field: chatto.api.v1.AccountDeletionAvailability delete_account = 3;
+   * @generated from field: optional chatto.api.v1.AccountDeletionAvailability delete_account = 3;
    */
   deleteAccount?: AccountDeletionAvailability;
 
@@ -303,8 +221,8 @@ export class AccountActions extends Message<AccountActions> {
   static readonly typeName = "chatto.api.v1.AccountActions";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "change_username", kind: "message", T: UsernameChangeAvailability },
-    { no: 2, name: "change_password", kind: "message", T: PasswordChangeAvailability },
-    { no: 3, name: "delete_account", kind: "message", T: AccountDeletionAvailability },
+    { no: 2, name: "change_password", kind: "enum", T: proto3.getEnumType(PasswordChangeAvailability), opt: true },
+    { no: 3, name: "delete_account", kind: "enum", T: proto3.getEnumType(AccountDeletionAvailability), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountActions {

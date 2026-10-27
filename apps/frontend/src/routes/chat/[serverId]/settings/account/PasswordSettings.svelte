@@ -2,7 +2,7 @@
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { passwordChangeUnavailableMessage } from '$lib/actionAvailability';
-  import { PasswordChangeReason } from '@chatto/client/api/actionAvailability';
+  import { PasswordChangeAvailability } from '@chatto/client/api/actionAvailability';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '@chatto/client/api/account';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
@@ -33,12 +33,10 @@
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
   const passwordAvailability = $derived(
-    currentUser.user?.actions?.changePassword ?? {
-      allowed: directLoginEnabled,
-      reason: directLoginEnabled
-        ? PasswordChangeReason.UNSPECIFIED
-        : PasswordChangeReason.DIRECT_LOGIN_DISABLED
-    }
+    currentUser.user?.actions?.changePassword ??
+      (directLoginEnabled
+        ? PasswordChangeAvailability.ALLOWED
+        : PasswordChangeAvailability.DIRECT_LOGIN_DISABLED)
   );
   const passwordValidationError = $derived(password ? validateNewPassword(password) : undefined);
   const currentPasswordError = $derived(
@@ -52,7 +50,7 @@
       : undefined
   );
   const canChangePassword = $derived(
-    passwordAvailability.allowed &&
+    passwordAvailability === PasswordChangeAvailability.ALLOWED &&
       password !== '' &&
       confirmPassword !== '' &&
       (!hasPassword || currentPassword !== '') &&
@@ -64,7 +62,7 @@
 
   async function handleChangePassword(e: Event) {
     e.preventDefault();
-    if (!passwordAvailability.allowed) return;
+    if (passwordAvailability !== PasswordChangeAvailability.ALLOWED) return;
     if (!canChangePassword) {
       passwordError =
         passwordValidationError ||
@@ -116,7 +114,7 @@
 
 <Panel title={m('settings.account.password.title')} icon="iconify icon-[uil--key-skeleton]">
   <form class="flex max-w-md flex-col gap-4" onsubmit={handleChangePassword}>
-    {#if !passwordAvailability.allowed}
+    {#if passwordAvailability !== PasswordChangeAvailability.ALLOWED}
       <Hint>{passwordChangeUnavailableMessage(passwordAvailability)}</Hint>
     {:else}
       <p class="text-sm text-muted">
@@ -131,7 +129,7 @@
         label={m('settings.account.password.current_label')}
         type="password"
         bind:value={currentPassword}
-        disabled={!passwordAvailability.allowed || passwordSubmitting}
+        disabled={passwordAvailability !== PasswordChangeAvailability.ALLOWED || passwordSubmitting}
         autocomplete="current-password"
         error={currentPasswordError}
       />
@@ -142,7 +140,7 @@
       type="password"
       bind:value={password}
       placeholder={m('common.password_bytes_placeholder')}
-      disabled={!passwordAvailability.allowed || passwordSubmitting}
+      disabled={passwordAvailability !== PasswordChangeAvailability.ALLOWED || passwordSubmitting}
       autocomplete="new-password"
       error={passwordValidationError}
     />
@@ -152,7 +150,7 @@
       type="password"
       bind:value={confirmPassword}
       placeholder={m('common.password_confirm_placeholder')}
-      disabled={!passwordAvailability.allowed || passwordSubmitting}
+      disabled={passwordAvailability !== PasswordChangeAvailability.ALLOWED || passwordSubmitting}
       autocomplete="new-password"
       error={confirmPasswordError}
     />

@@ -6,7 +6,10 @@ import { adminQueryKeys } from '$lib/query/admin';
 import { settingsQueryKeys } from '$lib/query/settings';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import AccountPage from './+page.svelte';
-import { PasswordChangeReason } from '@chatto/client/api/actionAvailability';
+import {
+  PasswordChangeAvailability,
+  AccountDeletionAvailability
+} from '@chatto/client/api/actionAvailability';
 
 const mocks = vi.hoisted(() => ({
   listExternalIdentities: vi.fn(),
@@ -92,11 +95,15 @@ describe('Account settings page', () => {
     await expect.element(getByText('U123abcetc.')).toBeVisible();
   });
 
-  it.each([PasswordChangeReason.UNSUPPORTED_ACCOUNT, 99 as PasswordChangeReason])(
+  it.each([
+    PasswordChangeAvailability.UNSPECIFIED,
+    PasswordChangeAvailability.UNSUPPORTED_ACCOUNT,
+    99 as PasswordChangeAvailability
+  ])(
     'keeps password restriction %s disabled without borrowing another action reason',
     async (reason) => {
       server.currentUser.user!.actions = {
-        changePassword: { allowed: false, reason }
+        changePassword: reason
       };
       const { getByLabelText, getByText } = render(AccountPage);
       await settle();
@@ -117,6 +124,35 @@ describe('Account settings page', () => {
       .element(getByRole('button', { name: 'Change password', exact: true }))
       .toBeDisabled();
   });
+
+  it.each([AccountDeletionAvailability.UNSPECIFIED, 99 as AccountDeletionAvailability])(
+    'does not use the legacy deletion grant for explicit state %s',
+    async (deleteAccount) => {
+      server.currentUser.user!.viewerCanDeleteAccount = true;
+      server.currentUser.user!.actions = { deleteAccount };
+      const { getByRole } = render(AccountPage);
+      await settle();
+      await expect
+        .element(getByRole('button', { name: 'Delete account', exact: true }))
+        .not.toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    { deleteAccount: undefined, legacy: true },
+    { deleteAccount: AccountDeletionAvailability.ALLOWED, legacy: false }
+  ])(
+    'uses the deletion decision, with a legacy fallback only for absence: $deleteAccount',
+    async ({ deleteAccount, legacy }) => {
+      server.currentUser.user!.viewerCanDeleteAccount = legacy;
+      server.currentUser.user!.actions = { deleteAccount };
+      const { getByRole } = render(AccountPage);
+      await settle();
+      await expect
+        .element(getByRole('button', { name: 'Delete account', exact: true }))
+        .toBeVisible();
+    }
+  );
 
   it('allows password input when direct login is enabled', async () => {
     const { getByLabelText, getByText } = render(AccountPage);

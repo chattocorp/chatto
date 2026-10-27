@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
   import { usernameChoiceUnavailableMessage } from '$lib/actionAvailability';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -141,12 +142,14 @@
         label={m('common.username')}
         bind:value={login}
         placeholder={m('common.username_placeholder')}
-        disabled={submitting || pending.chooseUsername?.allowed === false}
+        disabled={submitting ||
+          (pending.chooseUsername !== undefined &&
+            pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED)}
         required
         autocomplete="username"
         error={loginError}
       />
-      {#if pending.chooseUsername?.allowed === false}
+      {#if pending.chooseUsername !== undefined && pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED}
         <Hint>{usernameChoiceUnavailableMessage(pending.chooseUsername)}</Hint>
       {/if}
 

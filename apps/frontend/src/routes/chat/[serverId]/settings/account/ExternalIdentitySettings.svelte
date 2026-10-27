@@ -2,7 +2,7 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
-  import { legacyDisconnectAvailability } from '@chatto/client/api/actionAvailability';
+  import { disconnectEligibilityWithFallback } from '@chatto/client/api/actionAvailability';
   import { identityDisconnectUnavailableMessage } from '$lib/actionAvailability';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
@@ -244,21 +244,18 @@
     )
   );
   const hasRows = $derived(providers.length > 0 || unconfiguredLinkedIdentities.length > 0);
-  // Account state can reflect a newly set password before this list refreshes.
   // Older servers lack the hint, so retain their count-based fallback.
+  // Explicit decisions remain authoritative until the list refreshes.
   function canDisconnectIdentity(subjectHash: string) {
-    return disconnectAvailability(subjectHash).allowed;
+    return disconnectAvailability(subjectHash) === DisconnectEligibility.ALLOWED;
   }
 
   function disconnectAvailability(subjectHash: string | null) {
     const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
-    return (
-      identity?.disconnectAvailability ??
-      legacyDisconnectAvailability(
-        identity?.disconnectEligibility,
-        canUsePasswordProof,
-        linkedIdentities.length
-      )
+    return disconnectEligibilityWithFallback(
+      identity?.disconnectEligibility,
+      canUsePasswordProof,
+      linkedIdentities.length
     );
   }
 
@@ -278,13 +275,7 @@
   }
 
   function unlinkDisabled(subjectHash: string | null) {
-    return linkedIdentities.some(
-      (identity) =>
-        identity.subjectHash === subjectHash &&
-        (identity.disconnectAvailability
-          ? !identity.disconnectAvailability.allowed
-          : identity.disconnectEligibility === DisconnectEligibility.DISABLED_BY_OPERATOR)
-    );
+    return disconnectAvailability(subjectHash) !== DisconnectEligibility.ALLOWED;
   }
 
   async function startProviderLink(
@@ -441,11 +432,12 @@
           (identity) => identity.subjectHash === subjectHash
         );
         if (
-          identity?.disconnectAvailability
-            ? !identity.disconnectAvailability.allowed
-            : identity?.disconnectEligibility ===
-                DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD ||
-              identity?.disconnectEligibility === DisconnectEligibility.DISABLED_BY_OPERATOR
+          identity &&
+          disconnectEligibilityWithFallback(
+            identity.disconnectEligibility,
+            canUsePasswordProof,
+            refreshed.data?.linkedIdentities.length ?? 0
+          ) !== DisconnectEligibility.ALLOWED
         ) {
           blockedDisconnectProviderLabel = providerLabel;
           blockedDisconnectSubjectHash = subjectHash;

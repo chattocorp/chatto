@@ -1,7 +1,7 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
-    UsernameChangeReason,
+    UsernameChangeState,
     legacyUsernameChangeAvailability
   } from '@chatto/client/api/actionAvailability';
   import { usernameChangeUnavailableMessage } from '$lib/actionAvailability';
@@ -61,7 +61,7 @@
     currentUser.user?.actions?.changeUsername ??
       legacyUsernameChangeAvailability(lastLoginChange?.toISOString(), canBypassLoginCooldown)
   );
-  const canChangeLogin = $derived(usernameAvailability.allowed);
+  const canChangeLogin = $derived(usernameAvailability.state === UsernameChangeState.ALLOWED);
 
   function clearMessages() {
     error = '';
@@ -206,7 +206,7 @@
 
     {#if !canChangeLogin}
       <Hint>{usernameChangeUnavailableMessage(usernameAvailability)}</Hint>
-      {#if currentUser.user?.actions?.changeUsername?.reason === UsernameChangeReason.COOLDOWN}
+      {#if currentUser.user?.actions?.changeUsername?.state === UsernameChangeState.COOLDOWN}
         <Button variant="secondary" onclick={() => currentUser.load()}>{m('common.retry')}</Button>
       {/if}
     {/if}

@@ -280,7 +280,7 @@ func viewerUser(ctx context.Context, api *API, user *readmodel.User) (*apiv1.Vie
 		HasPassword:            hasPassword,
 		Actions:                actions,
 		Settings:               coreUserSettingsToAPI(settings),
-		ViewerCanDeleteAccount: actions.DeleteAccount.Allowed,
+		ViewerCanDeleteAccount: actions.GetDeleteAccount() == apiv1.AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_ALLOWED,
 		Profile:                apiUser,
 	}
 	if !lastLoginChange.IsZero() {

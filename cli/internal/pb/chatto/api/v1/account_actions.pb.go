@@ -22,176 +22,188 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Primary reason this username change cannot be attempted.
-type UsernameChangeAvailability_Reason int32
+// State of setting or changing a password. Only ALLOWED enables the action;
+// commands still validate passwords and authentication.
+type PasswordChangeAvailability int32
 
 const (
-	// No blocking reason is supplied.
-	UsernameChangeAvailability_REASON_UNSPECIFIED UsernameChangeAvailability_Reason = 0
-	// A linked provider manages the username.
-	UsernameChangeAvailability_REASON_PROVIDER_MANAGED UsernameChangeAvailability_Reason = 1
-	// The username change cooldown has not expired.
-	UsernameChangeAvailability_REASON_COOLDOWN UsernameChangeAvailability_Reason = 2
+	// No decision is supplied. This does not grant permission.
+	PasswordChangeAvailability_PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED PasswordChangeAvailability = 0
+	// The user can attempt to set or change a password.
+	PasswordChangeAvailability_PASSWORD_CHANGE_AVAILABILITY_ALLOWED PasswordChangeAvailability = 1
+	// The operator disabled direct login and password self-service.
+	PasswordChangeAvailability_PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED PasswordChangeAvailability = 2
+	// This account type does not support password self-service.
+	PasswordChangeAvailability_PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT PasswordChangeAvailability = 3
 )
 
-// Enum value maps for UsernameChangeAvailability_Reason.
+// Enum value maps for PasswordChangeAvailability.
 var (
-	UsernameChangeAvailability_Reason_name = map[int32]string{
-		0: "REASON_UNSPECIFIED",
-		1: "REASON_PROVIDER_MANAGED",
-		2: "REASON_COOLDOWN",
+	PasswordChangeAvailability_name = map[int32]string{
+		0: "PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED",
+		1: "PASSWORD_CHANGE_AVAILABILITY_ALLOWED",
+		2: "PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED",
+		3: "PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT",
 	}
-	UsernameChangeAvailability_Reason_value = map[string]int32{
-		"REASON_UNSPECIFIED":      0,
-		"REASON_PROVIDER_MANAGED": 1,
-		"REASON_COOLDOWN":         2,
+	PasswordChangeAvailability_value = map[string]int32{
+		"PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED":           0,
+		"PASSWORD_CHANGE_AVAILABILITY_ALLOWED":               1,
+		"PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED": 2,
+		"PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT":   3,
 	}
 )
 
-func (x UsernameChangeAvailability_Reason) Enum() *UsernameChangeAvailability_Reason {
-	p := new(UsernameChangeAvailability_Reason)
+func (x PasswordChangeAvailability) Enum() *PasswordChangeAvailability {
+	p := new(PasswordChangeAvailability)
 	*p = x
 	return p
 }
 
-func (x UsernameChangeAvailability_Reason) String() string {
+func (x PasswordChangeAvailability) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (UsernameChangeAvailability_Reason) Descriptor() protoreflect.EnumDescriptor {
+func (PasswordChangeAvailability) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_api_v1_account_actions_proto_enumTypes[0].Descriptor()
 }
 
-func (UsernameChangeAvailability_Reason) Type() protoreflect.EnumType {
+func (PasswordChangeAvailability) Type() protoreflect.EnumType {
 	return &file_chatto_api_v1_account_actions_proto_enumTypes[0]
 }
 
-func (x UsernameChangeAvailability_Reason) Number() protoreflect.EnumNumber {
+func (x PasswordChangeAvailability) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use UsernameChangeAvailability_Reason.Descriptor instead.
-func (UsernameChangeAvailability_Reason) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{0, 0}
+// Deprecated: Use PasswordChangeAvailability.Descriptor instead.
+func (PasswordChangeAvailability) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{0}
 }
 
-// Primary reason password self-service cannot be attempted.
-type PasswordChangeAvailability_Reason int32
+// State of self-service account deletion. Only ALLOWED enables the action;
+// commands still check authority and authentication.
+type AccountDeletionAvailability int32
 
 const (
-	// No blocking reason is supplied.
-	PasswordChangeAvailability_REASON_UNSPECIFIED PasswordChangeAvailability_Reason = 0
-	// The operator disabled direct login and password self-service.
-	PasswordChangeAvailability_REASON_DIRECT_LOGIN_DISABLED PasswordChangeAvailability_Reason = 1
-	// This account type does not support password self-service.
-	PasswordChangeAvailability_REASON_UNSUPPORTED_ACCOUNT PasswordChangeAvailability_Reason = 2
+	// No decision is supplied. This does not grant permission.
+	AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED AccountDeletionAvailability = 0
+	// The user can attempt to start account deletion.
+	AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_ALLOWED AccountDeletionAvailability = 1
+	// The viewer lacks permission to delete this account.
+	AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED AccountDeletionAvailability = 2
+	// This account type does not support self-service deletion.
+	AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT AccountDeletionAvailability = 3
 )
 
-// Enum value maps for PasswordChangeAvailability_Reason.
+// Enum value maps for AccountDeletionAvailability.
 var (
-	PasswordChangeAvailability_Reason_name = map[int32]string{
-		0: "REASON_UNSPECIFIED",
-		1: "REASON_DIRECT_LOGIN_DISABLED",
-		2: "REASON_UNSUPPORTED_ACCOUNT",
+	AccountDeletionAvailability_name = map[int32]string{
+		0: "ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED",
+		1: "ACCOUNT_DELETION_AVAILABILITY_ALLOWED",
+		2: "ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED",
+		3: "ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT",
 	}
-	PasswordChangeAvailability_Reason_value = map[string]int32{
-		"REASON_UNSPECIFIED":           0,
-		"REASON_DIRECT_LOGIN_DISABLED": 1,
-		"REASON_UNSUPPORTED_ACCOUNT":   2,
+	AccountDeletionAvailability_value = map[string]int32{
+		"ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED":         0,
+		"ACCOUNT_DELETION_AVAILABILITY_ALLOWED":             1,
+		"ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED":   2,
+		"ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT": 3,
 	}
 )
 
-func (x PasswordChangeAvailability_Reason) Enum() *PasswordChangeAvailability_Reason {
-	p := new(PasswordChangeAvailability_Reason)
+func (x AccountDeletionAvailability) Enum() *AccountDeletionAvailability {
+	p := new(AccountDeletionAvailability)
 	*p = x
 	return p
 }
 
-func (x PasswordChangeAvailability_Reason) String() string {
+func (x AccountDeletionAvailability) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (PasswordChangeAvailability_Reason) Descriptor() protoreflect.EnumDescriptor {
+func (AccountDeletionAvailability) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_api_v1_account_actions_proto_enumTypes[1].Descriptor()
 }
 
-func (PasswordChangeAvailability_Reason) Type() protoreflect.EnumType {
+func (AccountDeletionAvailability) Type() protoreflect.EnumType {
 	return &file_chatto_api_v1_account_actions_proto_enumTypes[1]
 }
 
-func (x PasswordChangeAvailability_Reason) Number() protoreflect.EnumNumber {
+func (x AccountDeletionAvailability) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use PasswordChangeAvailability_Reason.Descriptor instead.
-func (PasswordChangeAvailability_Reason) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{1, 0}
+// Deprecated: Use AccountDeletionAvailability.Descriptor instead.
+func (AccountDeletionAvailability) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{1}
 }
 
-// Primary reason self-service deletion cannot be attempted.
-type AccountDeletionAvailability_Reason int32
+// State of username self-service, including its primary blocking condition.
+type UsernameChangeAvailability_State int32
 
 const (
-	// No blocking reason is supplied.
-	AccountDeletionAvailability_REASON_UNSPECIFIED AccountDeletionAvailability_Reason = 0
-	// The viewer lacks permission to delete this account.
-	AccountDeletionAvailability_REASON_PERMISSION_DENIED AccountDeletionAvailability_Reason = 1
-	// This account type does not support self-service deletion.
-	AccountDeletionAvailability_REASON_UNSUPPORTED_ACCOUNT AccountDeletionAvailability_Reason = 2
+	// No decision is supplied. This does not grant permission.
+	UsernameChangeAvailability_STATE_UNSPECIFIED UsernameChangeAvailability_State = 0
+	// The user can attempt a username change.
+	UsernameChangeAvailability_STATE_ALLOWED UsernameChangeAvailability_State = 1
+	// A linked provider manages the username.
+	UsernameChangeAvailability_STATE_PROVIDER_MANAGED UsernameChangeAvailability_State = 2
+	// The username change cooldown has not expired.
+	UsernameChangeAvailability_STATE_COOLDOWN UsernameChangeAvailability_State = 3
 )
 
-// Enum value maps for AccountDeletionAvailability_Reason.
+// Enum value maps for UsernameChangeAvailability_State.
 var (
-	AccountDeletionAvailability_Reason_name = map[int32]string{
-		0: "REASON_UNSPECIFIED",
-		1: "REASON_PERMISSION_DENIED",
-		2: "REASON_UNSUPPORTED_ACCOUNT",
+	UsernameChangeAvailability_State_name = map[int32]string{
+		0: "STATE_UNSPECIFIED",
+		1: "STATE_ALLOWED",
+		2: "STATE_PROVIDER_MANAGED",
+		3: "STATE_COOLDOWN",
 	}
-	AccountDeletionAvailability_Reason_value = map[string]int32{
-		"REASON_UNSPECIFIED":         0,
-		"REASON_PERMISSION_DENIED":   1,
-		"REASON_UNSUPPORTED_ACCOUNT": 2,
+	UsernameChangeAvailability_State_value = map[string]int32{
+		"STATE_UNSPECIFIED":      0,
+		"STATE_ALLOWED":          1,
+		"STATE_PROVIDER_MANAGED": 2,
+		"STATE_COOLDOWN":         3,
 	}
 )
 
-func (x AccountDeletionAvailability_Reason) Enum() *AccountDeletionAvailability_Reason {
-	p := new(AccountDeletionAvailability_Reason)
+func (x UsernameChangeAvailability_State) Enum() *UsernameChangeAvailability_State {
+	p := new(UsernameChangeAvailability_State)
 	*p = x
 	return p
 }
 
-func (x AccountDeletionAvailability_Reason) String() string {
+func (x UsernameChangeAvailability_State) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (AccountDeletionAvailability_Reason) Descriptor() protoreflect.EnumDescriptor {
+func (UsernameChangeAvailability_State) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_api_v1_account_actions_proto_enumTypes[2].Descriptor()
 }
 
-func (AccountDeletionAvailability_Reason) Type() protoreflect.EnumType {
+func (UsernameChangeAvailability_State) Type() protoreflect.EnumType {
 	return &file_chatto_api_v1_account_actions_proto_enumTypes[2]
 }
 
-func (x AccountDeletionAvailability_Reason) Number() protoreflect.EnumNumber {
+func (x UsernameChangeAvailability_State) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use AccountDeletionAvailability_Reason.Descriptor instead.
-func (AccountDeletionAvailability_Reason) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{2, 0}
+// Deprecated: Use UsernameChangeAvailability_State.Descriptor instead.
+func (UsernameChangeAvailability_State) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{0, 0}
 }
 
 // Snapshot for changing a username. Missing means not reported. Commands still
-// check policy and input, including case-only exceptions. Unknown reasons stay blocked.
+// check policy and input, including case-only exceptions. Only ALLOWED enables it.
 type UsernameChangeAvailability struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the action can be attempted, not an authorization grant.
-	Allowed bool `protobuf:"varint,1,opt,name=allowed,proto3" json:"allowed,omitempty"`
-	// Unspecified when allowed is true.
-	Reason UsernameChangeAvailability_Reason `protobuf:"varint,2,opt,name=reason,proto3,enum=chatto.api.v1.UsernameChangeAvailability_Reason" json:"reason,omitempty"`
-	// Earliest time to refresh a blocked cooldown decision. Expiry does not grant
-	// permission automatically. Absent for other reasons and allowed actions.
-	AvailableAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=available_at,json=availableAt,proto3" json:"available_at,omitempty"`
+	// Unknown states remain disabled. Commands recheck authority and policy.
+	State UsernameChangeAvailability_State `protobuf:"varint,1,opt,name=state,proto3,enum=chatto.api.v1.UsernameChangeAvailability_State" json:"state,omitempty"`
+	// Earliest time to refresh a COOLDOWN decision. Expiry does not automatically
+	// enable the action. Absent for all other states.
+	AvailableAt   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=available_at,json=availableAt,proto3" json:"available_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -226,18 +238,11 @@ func (*UsernameChangeAvailability) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *UsernameChangeAvailability) GetAllowed() bool {
+func (x *UsernameChangeAvailability) GetState() UsernameChangeAvailability_State {
 	if x != nil {
-		return x.Allowed
+		return x.State
 	}
-	return false
-}
-
-func (x *UsernameChangeAvailability) GetReason() UsernameChangeAvailability_Reason {
-	if x != nil {
-		return x.Reason
-	}
-	return UsernameChangeAvailability_REASON_UNSPECIFIED
+	return UsernameChangeAvailability_STATE_UNSPECIFIED
 }
 
 func (x *UsernameChangeAvailability) GetAvailableAt() *timestamppb.Timestamp {
@@ -247,134 +252,22 @@ func (x *UsernameChangeAvailability) GetAvailableAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Snapshot for setting or changing a password. Missing means not reported.
-// Commands still validate passwords and authentication. Unknown reasons stay blocked.
-type PasswordChangeAvailability struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the action can be attempted, not an authorization grant.
-	Allowed bool `protobuf:"varint,1,opt,name=allowed,proto3" json:"allowed,omitempty"`
-	// Unspecified when allowed is true.
-	Reason        PasswordChangeAvailability_Reason `protobuf:"varint,2,opt,name=reason,proto3,enum=chatto.api.v1.PasswordChangeAvailability_Reason" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PasswordChangeAvailability) Reset() {
-	*x = PasswordChangeAvailability{}
-	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PasswordChangeAvailability) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PasswordChangeAvailability) ProtoMessage() {}
-
-func (x *PasswordChangeAvailability) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PasswordChangeAvailability.ProtoReflect.Descriptor instead.
-func (*PasswordChangeAvailability) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *PasswordChangeAvailability) GetAllowed() bool {
-	if x != nil {
-		return x.Allowed
-	}
-	return false
-}
-
-func (x *PasswordChangeAvailability) GetReason() PasswordChangeAvailability_Reason {
-	if x != nil {
-		return x.Reason
-	}
-	return PasswordChangeAvailability_REASON_UNSPECIFIED
-}
-
-// Snapshot for starting self-service account deletion. Missing means not reported.
-// Commands still check authority and authentication. Unknown reasons stay blocked.
-type AccountDeletionAvailability struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the action can be attempted, not an authorization grant.
-	Allowed bool `protobuf:"varint,1,opt,name=allowed,proto3" json:"allowed,omitempty"`
-	// Unspecified when allowed is true.
-	Reason        AccountDeletionAvailability_Reason `protobuf:"varint,2,opt,name=reason,proto3,enum=chatto.api.v1.AccountDeletionAvailability_Reason" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AccountDeletionAvailability) Reset() {
-	*x = AccountDeletionAvailability{}
-	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AccountDeletionAvailability) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AccountDeletionAvailability) ProtoMessage() {}
-
-func (x *AccountDeletionAvailability) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AccountDeletionAvailability.ProtoReflect.Descriptor instead.
-func (*AccountDeletionAvailability) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *AccountDeletionAvailability) GetAllowed() bool {
-	if x != nil {
-		return x.Allowed
-	}
-	return false
-}
-
-func (x *AccountDeletionAvailability) GetReason() AccountDeletionAvailability_Reason {
-	if x != nil {
-		return x.Reason
-	}
-	return AccountDeletionAvailability_REASON_UNSPECIFIED
-}
-
-// Self-service decisions for the current viewer. Each action owns its reasons.
+// Self-service decisions for the current viewer. Each action owns its states.
 type AccountActions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Changing the username, excluding input-specific exceptions such as case-only edits.
 	ChangeUsername *UsernameChangeAvailability `protobuf:"bytes,1,opt,name=change_username,json=changeUsername,proto3" json:"change_username,omitempty"`
-	// Setting an initial password or changing an existing password.
-	ChangePassword *PasswordChangeAvailability `protobuf:"bytes,2,opt,name=change_password,json=changePassword,proto3" json:"change_password,omitempty"`
-	// Starting self-service account deletion.
-	DeleteAccount *AccountDeletionAvailability `protobuf:"bytes,3,opt,name=delete_account,json=deleteAccount,proto3" json:"delete_account,omitempty"`
+	// Setting an initial password or changing an existing password. Absent on older servers.
+	ChangePassword *PasswordChangeAvailability `protobuf:"varint,2,opt,name=change_password,json=changePassword,proto3,enum=chatto.api.v1.PasswordChangeAvailability,oneof" json:"change_password,omitempty"`
+	// Starting self-service account deletion. Absent on older servers.
+	DeleteAccount *AccountDeletionAvailability `protobuf:"varint,3,opt,name=delete_account,json=deleteAccount,proto3,enum=chatto.api.v1.AccountDeletionAvailability,oneof" json:"delete_account,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AccountActions) Reset() {
 	*x = AccountActions{}
-	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -386,7 +279,7 @@ func (x *AccountActions) String() string {
 func (*AccountActions) ProtoMessage() {}
 
 func (x *AccountActions) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_account_actions_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -399,7 +292,7 @@ func (x *AccountActions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountActions.ProtoReflect.Descriptor instead.
 func (*AccountActions) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_account_actions_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *AccountActions) GetChangeUsername() *UsernameChangeAvailability {
@@ -409,51 +302,49 @@ func (x *AccountActions) GetChangeUsername() *UsernameChangeAvailability {
 	return nil
 }
 
-func (x *AccountActions) GetChangePassword() *PasswordChangeAvailability {
-	if x != nil {
-		return x.ChangePassword
+func (x *AccountActions) GetChangePassword() PasswordChangeAvailability {
+	if x != nil && x.ChangePassword != nil {
+		return *x.ChangePassword
 	}
-	return nil
+	return PasswordChangeAvailability_PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED
 }
 
-func (x *AccountActions) GetDeleteAccount() *AccountDeletionAvailability {
-	if x != nil {
-		return x.DeleteAccount
+func (x *AccountActions) GetDeleteAccount() AccountDeletionAvailability {
+	if x != nil && x.DeleteAccount != nil {
+		return *x.DeleteAccount
 	}
-	return nil
+	return AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED
 }
 
 var File_chatto_api_v1_account_actions_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_account_actions_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/api/v1/account_actions.proto\x12\rchatto.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x02\n" +
-	"\x1aUsernameChangeAvailability\x12\x18\n" +
-	"\aallowed\x18\x01 \x01(\bR\aallowed\x12H\n" +
-	"\x06reason\x18\x02 \x01(\x0e20.chatto.api.v1.UsernameChangeAvailability.ReasonR\x06reason\x12=\n" +
-	"\favailable_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vavailableAt\"R\n" +
-	"\x06Reason\x12\x16\n" +
-	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17REASON_PROVIDER_MANAGED\x10\x01\x12\x13\n" +
-	"\x0fREASON_COOLDOWN\x10\x02\"\xe4\x01\n" +
-	"\x1aPasswordChangeAvailability\x12\x18\n" +
-	"\aallowed\x18\x01 \x01(\bR\aallowed\x12H\n" +
-	"\x06reason\x18\x02 \x01(\x0e20.chatto.api.v1.PasswordChangeAvailability.ReasonR\x06reason\"b\n" +
-	"\x06Reason\x12\x16\n" +
-	"\x12REASON_UNSPECIFIED\x10\x00\x12 \n" +
-	"\x1cREASON_DIRECT_LOGIN_DISABLED\x10\x01\x12\x1e\n" +
-	"\x1aREASON_UNSUPPORTED_ACCOUNT\x10\x02\"\xe2\x01\n" +
-	"\x1bAccountDeletionAvailability\x12\x18\n" +
-	"\aallowed\x18\x01 \x01(\bR\aallowed\x12I\n" +
-	"\x06reason\x18\x02 \x01(\x0e21.chatto.api.v1.AccountDeletionAvailability.ReasonR\x06reason\"^\n" +
-	"\x06Reason\x12\x16\n" +
-	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18REASON_PERMISSION_DENIED\x10\x01\x12\x1e\n" +
-	"\x1aREASON_UNSUPPORTED_ACCOUNT\x10\x02\"\x8b\x02\n" +
+	"#chatto/api/v1/account_actions.proto\x12\rchatto.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x85\x02\n" +
+	"\x1aUsernameChangeAvailability\x12E\n" +
+	"\x05state\x18\x01 \x01(\x0e2/.chatto.api.v1.UsernameChangeAvailability.StateR\x05state\x12=\n" +
+	"\favailable_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vavailableAt\"a\n" +
+	"\x05State\x12\x15\n" +
+	"\x11STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rSTATE_ALLOWED\x10\x01\x12\x1a\n" +
+	"\x16STATE_PROVIDER_MANAGED\x10\x02\x12\x12\n" +
+	"\x0eSTATE_COOLDOWN\x10\x03\"\xbc\x02\n" +
 	"\x0eAccountActions\x12R\n" +
-	"\x0fchange_username\x18\x01 \x01(\v2).chatto.api.v1.UsernameChangeAvailabilityR\x0echangeUsername\x12R\n" +
-	"\x0fchange_password\x18\x02 \x01(\v2).chatto.api.v1.PasswordChangeAvailabilityR\x0echangePassword\x12Q\n" +
-	"\x0edelete_account\x18\x03 \x01(\v2*.chatto.api.v1.AccountDeletionAvailabilityR\rdeleteAccountB\xc0\x01\n" +
+	"\x0fchange_username\x18\x01 \x01(\v2).chatto.api.v1.UsernameChangeAvailabilityR\x0echangeUsername\x12W\n" +
+	"\x0fchange_password\x18\x02 \x01(\x0e2).chatto.api.v1.PasswordChangeAvailabilityH\x00R\x0echangePassword\x88\x01\x01\x12V\n" +
+	"\x0edelete_account\x18\x03 \x01(\x0e2*.chatto.api.v1.AccountDeletionAvailabilityH\x01R\rdeleteAccount\x88\x01\x01B\x12\n" +
+	"\x10_change_passwordB\x11\n" +
+	"\x0f_delete_account*\xe2\x01\n" +
+	"\x1aPasswordChangeAvailability\x12,\n" +
+	"(PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED\x10\x00\x12(\n" +
+	"$PASSWORD_CHANGE_AVAILABILITY_ALLOWED\x10\x01\x126\n" +
+	"2PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED\x10\x02\x124\n" +
+	"0PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT\x10\x03*\xe3\x01\n" +
+	"\x1bAccountDeletionAvailability\x12-\n" +
+	")ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED\x10\x00\x12)\n" +
+	"%ACCOUNT_DELETION_AVAILABILITY_ALLOWED\x10\x01\x123\n" +
+	"/ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED\x10\x02\x125\n" +
+	"1ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT\x10\x03B\xc0\x01\n" +
 	"\x11com.chatto.api.v1B\x13AccountActionsProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -469,30 +360,26 @@ func file_chatto_api_v1_account_actions_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_account_actions_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_chatto_api_v1_account_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_account_actions_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_api_v1_account_actions_proto_goTypes = []any{
-	(UsernameChangeAvailability_Reason)(0),  // 0: chatto.api.v1.UsernameChangeAvailability.Reason
-	(PasswordChangeAvailability_Reason)(0),  // 1: chatto.api.v1.PasswordChangeAvailability.Reason
-	(AccountDeletionAvailability_Reason)(0), // 2: chatto.api.v1.AccountDeletionAvailability.Reason
-	(*UsernameChangeAvailability)(nil),      // 3: chatto.api.v1.UsernameChangeAvailability
-	(*PasswordChangeAvailability)(nil),      // 4: chatto.api.v1.PasswordChangeAvailability
-	(*AccountDeletionAvailability)(nil),     // 5: chatto.api.v1.AccountDeletionAvailability
-	(*AccountActions)(nil),                  // 6: chatto.api.v1.AccountActions
-	(*timestamppb.Timestamp)(nil),           // 7: google.protobuf.Timestamp
+	(PasswordChangeAvailability)(0),       // 0: chatto.api.v1.PasswordChangeAvailability
+	(AccountDeletionAvailability)(0),      // 1: chatto.api.v1.AccountDeletionAvailability
+	(UsernameChangeAvailability_State)(0), // 2: chatto.api.v1.UsernameChangeAvailability.State
+	(*UsernameChangeAvailability)(nil),    // 3: chatto.api.v1.UsernameChangeAvailability
+	(*AccountActions)(nil),                // 4: chatto.api.v1.AccountActions
+	(*timestamppb.Timestamp)(nil),         // 5: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_account_actions_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.UsernameChangeAvailability.reason:type_name -> chatto.api.v1.UsernameChangeAvailability.Reason
-	7, // 1: chatto.api.v1.UsernameChangeAvailability.available_at:type_name -> google.protobuf.Timestamp
-	1, // 2: chatto.api.v1.PasswordChangeAvailability.reason:type_name -> chatto.api.v1.PasswordChangeAvailability.Reason
-	2, // 3: chatto.api.v1.AccountDeletionAvailability.reason:type_name -> chatto.api.v1.AccountDeletionAvailability.Reason
-	3, // 4: chatto.api.v1.AccountActions.change_username:type_name -> chatto.api.v1.UsernameChangeAvailability
-	4, // 5: chatto.api.v1.AccountActions.change_password:type_name -> chatto.api.v1.PasswordChangeAvailability
-	5, // 6: chatto.api.v1.AccountActions.delete_account:type_name -> chatto.api.v1.AccountDeletionAvailability
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	2, // 0: chatto.api.v1.UsernameChangeAvailability.state:type_name -> chatto.api.v1.UsernameChangeAvailability.State
+	5, // 1: chatto.api.v1.UsernameChangeAvailability.available_at:type_name -> google.protobuf.Timestamp
+	3, // 2: chatto.api.v1.AccountActions.change_username:type_name -> chatto.api.v1.UsernameChangeAvailability
+	0, // 3: chatto.api.v1.AccountActions.change_password:type_name -> chatto.api.v1.PasswordChangeAvailability
+	1, // 4: chatto.api.v1.AccountActions.delete_account:type_name -> chatto.api.v1.AccountDeletionAvailability
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_account_actions_proto_init() }
@@ -500,13 +387,14 @@ func file_chatto_api_v1_account_actions_proto_init() {
 	if File_chatto_api_v1_account_actions_proto != nil {
 		return
 	}
+	file_chatto_api_v1_account_actions_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_account_actions_proto_rawDesc), len(file_chatto_api_v1_account_actions_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   4,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

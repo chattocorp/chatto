@@ -272,7 +272,7 @@ Authentication itself doesn't have a permission gate (you're either authenticate
 ## Related
 
 - **Action availability:** [ADR-120](../adr/ADR-120-resource-action-availability.md)
-  defines common conventions and action-specific reasons for username choice,
+  defines common conventions and action-specific states for username choice,
   username and password changes,
   account deletion, and identity disconnection. Commands still enforce all rules.
 

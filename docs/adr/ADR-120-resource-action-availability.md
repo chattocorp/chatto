@@ -16,14 +16,19 @@ domain types.
 
 ## Decision
 
-Use action-specific decision messages that follow the same convention:
-`allowed` and one primary typed blocking `reason`. Each message owns its nested
-`Reason` enum. Add metadata only to the action that needs it. An allowed action
-has no blocking metadata. A missing message means that the server did not report
-a decision. Unknown blocking reasons
-remain blocked and use a generic notice.
+Use one state enum per action: `UNSPECIFIED`, `ALLOWED`, and its blocking states.
+Do not pair an `allowed` boolean with a `reason`; that permits contradictory
+combinations. Only `ALLOWED` enables an action. Unknown future states remain
+disabled and use a generic notice.
 
-| Decision | Reasons | Extra metadata |
+Use optional enum fields to distinguish absence from an explicit `UNSPECIFIED`.
+Absence means not reported and can use the documented older-server fallback.
+Explicit `UNSPECIFIED` stays disabled. The published `DisconnectEligibility`
+contract is an exception: its `UNSPECIFIED` means not evaluated, so it retains
+the count-based fallback. Explicit disconnect denials and unknown future values
+are never overridden by a stored password or an identity count.
+
+| Decision | Blocking states | Extra metadata |
 | --- | --- | --- |
 | Username change | Provider-managed, cooldown | Cooldown refresh time |
 | Password change | Direct login disabled, unsupported account | None |
@@ -31,10 +36,11 @@ remain blocked and use a generic notice.
 | Identity disconnect | Operator restriction, last sign-in method | None |
 | Signup username choice | Provider-managed | None |
 
-Keep the decision near its resource schema. Do not build a global reason enum,
-reason union, or generic protobuf envelope. Client adapters and notice helpers
-keep these types distinct. A private structural mapping helper may share code
-without combining the reason types or their policies.
+Keep each enum near its resource schema. Reuse `DisconnectEligibility` instead
+of adding a second disconnect field. Username changes alone need a message:
+it contains a state enum and `available_at` for the cooldown. Do not add wrappers
+to actions without metadata, a global state enum, a state union, or a universal
+envelope. Client adapters and notice helpers use the distinct enum values directly.
 
 Resources expose explicit action fields. The viewer groups username changes,
 password changes, and account deletion in `AccountActions`. Each linked identity
@@ -53,19 +59,19 @@ changes, external management takes precedence over a cooldown. For disconnects,
 an operator restriction takes precedence over the last-sign-in-method restriction.
 
 Keep published legacy fields as deprecated compatibility output derived from the
-new decision. New clients prefer the action-specific message and use existing
-older-server behavior only when it is absent. Remove alternatives introduced within the same
-unmerged branch. Do not change persisted events or the connection floor for this
+new decision. New clients prefer the action-specific decision and use the
+documented fallback only when it was not reported. Remove unmerged alternatives
+without reservations. Do not change persisted events or the connection floor for this
 presentation contract.
 
 ## Consequences
 
 Clients follow one decision convention and can show a specific disabled-state
-notice without copying server policy. New actions define their own reasons.
-The repeated fields are a small cost for preventing unrelated policies from
-sharing one type. Permissions, inputs, and mutation errors stay explicit.
+notice without copying server policy. New actions define their own states.
+Enums cannot express contradictory allowed/blocked combinations. Permissions,
+inputs, and mutation errors stay explicit.
 
 Deprecated output remains during the compatibility period. This is migration
-support, not permission to add parallel policy representations. New reasons must
+support, not permission to add parallel policy representations. New states must
 belong to their action and have documented precedence and tests. A similarly named
-reason in another action does not by itself justify sharing an enum.
+state in another action does not by itself justify sharing an enum.

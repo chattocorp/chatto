@@ -17,8 +17,6 @@ import type { CustomUserStatus } from './userSummary.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 import {
   usernameChangeAvailabilityFromAPI,
-  passwordChangeAvailabilityFromAPI,
-  accountDeletionAvailabilityFromAPI,
   type UsernameChangeAvailability,
   type PasswordChangeAvailability,
   type AccountDeletionAvailability
@@ -197,8 +195,8 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       actions: response.user.actions
         ? {
             changeUsername: usernameChangeAvailabilityFromAPI(response.user.actions.changeUsername),
-            changePassword: passwordChangeAvailabilityFromAPI(response.user.actions.changePassword),
-            deleteAccount: accountDeletionAvailabilityFromAPI(response.user.actions.deleteAccount)
+            changePassword: response.user.actions.changePassword,
+            deleteAccount: response.user.actions.deleteAccount
           }
         : undefined,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
