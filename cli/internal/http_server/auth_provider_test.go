@@ -403,6 +403,37 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	}
 
 	issuer.SetSubject("subject-conflict")
+	// Failed account-link authorization must notify the original popup owner.
+	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+	for _, tc := range []struct{ providerError, wantError string }{
+		{"access_denied", "provider_denied"},
+		{"", "provider_failed"},
+	} {
+		failedStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", popupReturn, linkUser.Id)
+		if err != nil {
+			t.Fatalf("create failed link start: %v", err)
+		}
+		failedLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-no-email", url.Values{
+			"intent": {"link"}, "link_start": {failedStart},
+		})
+		issuer.tokenCheck = func(*http.Request) bool { return false }
+		failedResponse, err := client.Get(ts.URL + "/auth/providers/oidc-no-email/callback?" + url.Values{
+			"state": {authStateFromLocation(t, failedLocation)}, "error": {tc.providerError}, "code": {"test-code"},
+		}.Encode())
+		if err != nil {
+			t.Fatalf("fail provider authorization: %v", err)
+		}
+		failedResponse.Body.Close()
+		issuer.tokenCheck = nil
+		failedReturn, err := url.Parse(failedResponse.Header.Get("Location"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if failedReturn.Path != "/servers/callback" || failedReturn.Query().Get("state") != "popup-state" || failedReturn.Query().Get("mode") != "provider" || failedReturn.Query().Get("error") != tc.wantError {
+			t.Fatalf("failed link return = %q, want popup callback with %s", failedReturn, tc.wantError)
+		}
+	}
+
 	conflictToken, err := chattoCore.CreatePendingExternalIdentityCreateFlow(t.Context(), core.PendingExternalIdentityFlow{
 		ProviderID:    "oidc-no-email",
 		ProviderType:  config.AuthProviderTypeOpenIDConnect,
