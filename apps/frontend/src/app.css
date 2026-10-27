@@ -2404,7 +2404,7 @@
 }
 
 @utility command-palette-heading {
-  @apply px-3 pt-2 pb-0.5 text-xs font-medium text-muted uppercase;
+  @apply px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase touch-input:px-3;
 }
 
 @utility command-palette-result-active {
