@@ -454,7 +454,7 @@ describe('remote server OAuth popup', () => {
     vi.stubGlobal('window', owner);
 
     const { startRemoteReauthentication } = await import('./reauth');
-    await expect(startRemoteReauthentication(remote)).rejects.toThrow('could not be opened');
+    await expect(startRemoteReauthentication(remote)).rejects.toMatchObject({ reason: 'blocked' });
 
     expect(gotoMock).not.toHaveBeenCalled();
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
@@ -500,6 +500,19 @@ describe('remote server OAuth popup', () => {
 
     process.off('unhandledRejection', unhandled);
     expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it('identifies a closed remote sign-in window as cancellation', async () => {
+    const popup = fakePopup();
+    const { owner } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+    const { startRemoteReauthentication } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
+    const rejected = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
+    (popup as unknown as { closed: boolean }).closed = true;
+    await rejected;
+    expect(gotoMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 });
 

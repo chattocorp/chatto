@@ -13,8 +13,11 @@ window; an optional native host capability enables inline password submission.
     startRemoteSignIn
   } from '$lib/auth/remoteSignIn.svelte';
   import { m } from '$lib/i18n/messages';
-  import { Button, Form, TextInput } from '$lib/ui/form';
-  import { Divider, Hint, PageTitle } from '$lib/ui';
+  import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
+  import PasswordSignInForm from '$lib/components/auth/PasswordSignInForm.svelte';
+  import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
+  import { Button } from '$lib/ui/form';
+  import { Divider, PageTitle } from '$lib/ui';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { serverHost } from '$lib/serverUrl';
   import { serverDisplayName } from '@chatto/client/server/state';
@@ -104,58 +107,23 @@ window; an optional native host capability enables inline password submission.
         </Button>
       {/if}
       {#if inlinePasswordLogin && providers.length > 0}
-        <div class="flex flex-col gap-3">
-          {#each providers as provider (provider.id)}
-            <Button
-              fullWidth
-              size="lg"
-              variant="secondary"
-              disabled={busy}
-              loading={selectedProviderId === provider.id && isRemoteSignInPending(registration.id)}
-              loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
-              onclick={() => void signInOnServer(provider.id)}
-            >
-              <span aria-hidden="true" class="iconify icon-[mdi--shield-account] text-lg"></span>
-              {m('auth.login.continue_with_provider', { provider: provider.label })}
-            </Button>
-          {/each}
-        </div>
+        <AuthProviderButtons
+          {providers}
+          {selectedProviderId}
+          disabled={busy}
+          onclick={(_event, provider) => void signInOnServer(provider.id)}
+        />
         {#if showPassword}<Divider label={m('common.or')} />{/if}
       {/if}
       {#if showPassword}
-        <Form onsubmit={submit}>
-          <TextInput
-            id="desktop-identifier"
-            label={m('auth.login.identifier_label')}
-            bind:value={identifier}
-            autocomplete="username"
-            placeholder={m('common.email_placeholder')}
-            required
-            disabled={busy}
-          />
-          <TextInput
-            id="desktop-password"
-            label={m('common.password')}
-            type="password"
-            bind:value={password}
-            autocomplete="current-password"
-            placeholder={m('common.password_placeholder')}
-            required
-            disabled={busy}
-          />
-          {#if failed}<Hint tone="danger">{m('auth.login.failed')}</Hint>{/if}
-          <Button
-            type="submit"
-            size="lg"
-            fullWidth
-            loading={submitting}
-            loadingText={m('auth.login.signing_in')}
-            disabled={busy || !identifier.trim() || !password}
-          >
-            <span aria-hidden="true" class="iconify icon-[mdi--login]"></span>
-            {m('common.sign_in')}
-          </Button>
-        </Form>
+        <PasswordSignInForm
+          bind:identifier
+          bind:password
+          disabled={busy}
+          loading={submitting}
+          error={failed ? m('auth.login.failed') : ''}
+          onsubmit={submit}
+        />
       {/if}
       {#if showRegistration}
         {#if showPassword || providers.length > 0}<Divider label={m('common.or')} />{/if}
@@ -186,6 +154,7 @@ window; an optional native host capability enables inline password submission.
           </button>
         </div>
       {/if}
+      <AuthPopupNotice pending={isRemoteSignInPending(registration.id)} />
     </div>
     {#if store.realtimeSync.hasDisplayableView}
       <div class="mt-4 text-center">

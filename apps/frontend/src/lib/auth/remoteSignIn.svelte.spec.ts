@@ -24,6 +24,7 @@ vi.mock('$lib/auth/reauth', () => ({
 }));
 
 import { toast } from '$lib/ui/toast';
+import { OAuthPopupError } from '$lib/oauth/popupError';
 import {
   closeInlineSignIn,
   isInlineSignInRequested,
@@ -100,5 +101,28 @@ describe('startRemoteSignIn', () => {
     mocks.startRemoteReauthentication.mockResolvedValueOnce(undefined);
     await startRemoteSignIn(server);
     expect(mocks.startRemoteReauthentication).toHaveBeenCalledTimes(2);
+  });
+
+  it('quietly cancels a closed window and permits another attempt', async () => {
+    mocks.startRemoteReauthentication.mockRejectedValueOnce(
+      new OAuthPopupError('closed', 'cancelled')
+    );
+    await startRemoteSignIn(server);
+    expect(toastError).not.toHaveBeenCalled();
+    expect(isRemoteSignInPending(server.id)).toBe(false);
+    mocks.startRemoteReauthentication.mockResolvedValueOnce(undefined);
+    await startRemoteSignIn(server);
+    expect(mocks.startRemoteReauthentication).toHaveBeenCalledTimes(2);
+  });
+
+  it('explains how to retry a blocked window', async () => {
+    mocks.startRemoteReauthentication.mockRejectedValueOnce(
+      new OAuthPopupError('blocked', 'blocked')
+    );
+    await startRemoteSignIn(server);
+    expect(toastError).toHaveBeenCalledWith(
+      'The sign-in window was blocked. Allow popups for this site and try again.'
+    );
+    expect(isRemoteSignInPending(server.id)).toBe(false);
   });
 });

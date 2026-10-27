@@ -1,3 +1,4 @@
+import { OAuthPopupError } from '$lib/oauth/popupError';
 import { openAuthorizationWindow, type AuthorizationWindow } from './authorizationWindow';
 
 export const OAUTH_POPUP_RESPONSE_TYPE = 'chatto:oauth-popup-response';
@@ -52,7 +53,7 @@ export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
   };
 }
 
-export class OAuthPopupError extends Error {}
+export { OAuthPopupError } from './popupError';
 
 export type OAuthPopup = {
   response: Promise<OAuthPopupResponse>;
@@ -66,7 +67,8 @@ export function openOAuthPopup(state: string): OAuthPopup {
     `chatto-oauth-${state.slice(0, 12)}`,
     popupFeatures(window)
   );
-  if (!authorizationWindow) throw new OAuthPopupError('The sign-in window could not be opened.');
+  if (!authorizationWindow)
+    throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
 
   const channel =
     typeof BroadcastChannel === 'undefined'
@@ -114,12 +116,12 @@ function waitForPopupResponse(
       resolve(response);
     };
 
-    const fail = (message: string) => {
+    const fail = (message: string, reason: 'failed' | 'cancelled' = 'failed') => {
       if (settled) return;
       settled = true;
       cleanup();
       void authorizationWindow.close();
-      reject(new OAuthPopupError(message));
+      reject(new OAuthPopupError(message, reason));
     };
 
     const handleWindowMessage = (event: MessageEvent) => {
@@ -140,7 +142,7 @@ function waitForPopupResponse(
 
     const closePoll = window.setInterval(async () => {
       if (await authorizationWindow.isClosed()) {
-        fail('The sign-in window was closed before authorization completed.');
+        fail('The sign-in window was closed before authorization completed.', 'cancelled');
       }
     }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(

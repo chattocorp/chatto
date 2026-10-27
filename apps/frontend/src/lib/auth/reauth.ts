@@ -1,3 +1,4 @@
+import { OAuthPopupError } from '$lib/oauth/popupError';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';
@@ -40,8 +41,6 @@ const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const DESKTOP_CLIENT_ID = 'chatto://desktop';
 const FRONTEND_CIMD_PATH = '/oauth/frontend-client-metadata.json';
-
-class OAuthPopupError extends Error {}
 
 /** Sign-in completed for a server that is no longer registered. */
 class ServerNotRegisteredError extends Error {
@@ -114,7 +113,7 @@ async function runServerOAuthFlow(
     loadAndClearFlowState();
     // The blocked window replaces any later server-data error.
     serverInfo.catch(() => {});
-    throw new OAuthPopupError('The sign-in window could not be opened.');
+    throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
   }
 
   const responseChannel = createResponseChannel(state);
@@ -215,11 +214,11 @@ function waitForPopupResponse(
       resolveResponse(response);
     };
 
-    const fail = (message: string) => {
+    const fail = (message: string, reason: 'failed' | 'cancelled' = 'failed') => {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new OAuthPopupError(message));
+      reject(new OAuthPopupError(message, reason));
     };
 
     cancel = () => {
@@ -251,7 +250,7 @@ function waitForPopupResponse(
       polling = true;
       try {
         if (await authorizationWindow.isClosed()) {
-          fail('The sign-in window was closed before authorization completed.');
+          fail('The sign-in window was closed before authorization completed.', 'cancelled');
         }
       } catch {
         fail('The sign-in window could not be inspected.');

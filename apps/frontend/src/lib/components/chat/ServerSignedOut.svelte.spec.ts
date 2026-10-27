@@ -180,6 +180,24 @@ describe('ServerSignedOut', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
+  it('shows where to continue while a window is open and clears the notice afterward', async () => {
+    let finish!: () => void;
+    mocks.startRemoteReauthentication.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+    );
+    render(ServerSignedOut, { props: { registration } });
+    await page.getByRole('button', { name: 'Continue on server' }).click();
+    await expect
+      .element(page.getByRole('status'))
+      .toHaveTextContent('Continue in the other window.');
+    await expect.element(page.getByRole('button', { name: 'Continue on server' })).toBeDisabled();
+    finish();
+    await expect.element(page.getByRole('status')).not.toBeInTheDocument();
+    await expect.element(page.getByRole('button', { name: 'Continue on server' })).toBeEnabled();
+  });
+
   it('shows an error when sign-in cannot start', async () => {
     mocks.startRemoteReauthentication.mockRejectedValue(new Error('blocked'));
     render(ServerSignedOut, { props: { registration } });

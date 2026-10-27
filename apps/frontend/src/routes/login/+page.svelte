@@ -6,11 +6,15 @@
   import type { OAuthPopup } from '$lib/oauth/popup';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
+  import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
+  import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
+  import { popupErrorMessage } from '$lib/oauth/popupError';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { Divider, Hint, PageTitle } from '$lib/ui';
-  import { TextInput, Button, Form } from '$lib/ui/form';
+  import PasswordSignInForm from '$lib/components/auth/PasswordSignInForm.svelte';
+  import { Button } from '$lib/ui/form';
 
   const { data } = $props();
 
@@ -29,7 +33,6 @@
 
   const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
 
-  const canSubmit = $derived(identifier.trim() && password);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
@@ -45,21 +48,6 @@
   const isStandalone = $derived(
     !data.serverInfo && data.serverInfoLoaded && data.redirectUrl === '/'
   );
-
-  function providerIcon(type: string): string {
-    switch (type) {
-      case 'github':
-        return 'icon-[mdi--github]';
-      case 'gitlab':
-        return 'icon-[mdi--gitlab]';
-      case 'google':
-        return 'icon-[mdi--google]';
-      case 'discord':
-        return 'icon-[mdi--discord]';
-      default:
-        return 'icon-[mdi--shield-account]';
-    }
-  }
 
   function providerLoginHref(provider: PublicAuthProvider): string {
     return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
@@ -107,7 +95,7 @@
       const resumed = await completeOriginAuthentication();
       if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
-      if (active) error = errorMessage(err, m('auth.login.failed'));
+      if (active) error = popupErrorMessage(err, m('auth.login.failed'));
     } finally {
       providerPopup = null;
       selectedProviderId = null;
@@ -199,28 +187,15 @@
 
     <!-- SSO providers -->
     {#if authProviders.length > 0}
-      <div class="flex flex-col gap-3">
-        {#each authProviders as provider (provider.id)}
-          <Button
-            variant="secondary"
-            size={compact ? 'md' : 'lg'}
-            fullWidth
-            href={providerLoginHref(provider)}
-            disabled={selectedProviderId !== null && selectedProviderId !== provider.id}
-            loading={selectedProviderId === provider.id}
-            loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
-            onclick={(e) => handleProviderClick(e, provider)}
-          >
-            <span aria-hidden="true" class={['iconify text-lg', providerIcon(provider.type)]}
-            ></span>
-            {m('auth.login.continue_with_provider', { provider: provider.label })}
-          </Button>
-        {/each}
-
-        {#if directLoginEnabled}
-          <Divider label={m('common.or')} />
-        {/if}
-      </div>
+      <AuthProviderButtons
+        providers={authProviders}
+        {selectedProviderId}
+        {compact}
+        href={providerLoginHref}
+        onclick={handleProviderClick}
+      />
+      <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+      {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
     {/if}
 
     {#if !directLoginEnabled && displayedError}
@@ -228,44 +203,16 @@
     {/if}
 
     {#if directLoginEnabled}
-      <Form onsubmit={handleSubmit}>
-        <TextInput
-          id="identifier"
-          label={m('auth.login.identifier_label')}
-          bind:value={identifier}
-          placeholder={m('common.email_placeholder')}
-          disabled={isAuthenticating}
-          required
-          autocomplete="username"
-          autofocus
-        />
-
-        <TextInput
-          id="password"
-          label={m('common.password')}
-          type="password"
-          bind:value={password}
-          placeholder={m('common.password_placeholder')}
-          disabled={isAuthenticating}
-          required
-          autocomplete="current-password"
-        />
-
-        {#if displayedError}
-          <Hint tone="danger">{displayedError}</Hint>
-        {/if}
-
-        <Button
-          type="submit"
-          size={compact ? 'md' : 'lg'}
-          disabled={!canSubmit || isAuthenticating}
-          loading={isLoading}
-          loadingText={m('auth.login.signing_in')}
-        >
-          <span aria-hidden="true" class="iconify icon-[mdi--login]"></span>
-          {m('common.sign_in')}
-        </Button>
-      </Form>
+      <PasswordSignInForm
+        bind:identifier
+        bind:password
+        disabled={isAuthenticating}
+        loading={isLoading}
+        error={displayedError}
+        {compact}
+        autofocus
+        onsubmit={handleSubmit}
+      />
 
       <div class="mt-4 text-center">
         <a href={resolve('/forgot-password')} class="link">{m('auth.login.forgot_password')}</a>

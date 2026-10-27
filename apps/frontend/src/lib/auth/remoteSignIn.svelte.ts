@@ -1,3 +1,4 @@
+import { popupErrorMessage } from '$lib/oauth/popupError';
 import { SvelteSet } from 'svelte/reactivity';
 import type { RegisteredServer } from '@chatto/client/server/registry';
 import { startRemoteReauthentication } from '$lib/auth/reauth';
@@ -61,8 +62,9 @@ export async function startRemoteSignIn(
     else if (options.providerId) await startRemoteReauthentication(server, options.providerId);
     else await startRemoteReauthentication(server);
     closeInlineSignIn(server.id);
-  } catch {
-    toast.error(m('add_server.start_failed'));
+  } catch (error) {
+    const message = popupErrorMessage(error, m('add_server.start_failed'));
+    if (message) toast.error(message);
   } finally {
     pendingServerIds.delete(server.id);
   }
