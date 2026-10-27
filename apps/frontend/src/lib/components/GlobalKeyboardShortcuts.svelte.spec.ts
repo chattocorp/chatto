@@ -80,12 +80,15 @@ function makeStore(rows: NotificationOccurrenceItem[]) {
     onSessionEnded: vi.fn((_callback: () => void) => vi.fn()),
     onReset: vi.fn((_callback: (reset: { privacy: boolean }) => void) => vi.fn()),
     notifications: {
+      occurrences: rows,
       hasLoaded: true,
       fetchPage: vi.fn(),
       fetchAllPages: vi.fn().mockResolvedValue(undefined),
       markOccurrenceRead: vi.fn().mockResolvedValue(undefined)
     },
-    attention: { occurrences: rows },
+    attention: { needsAttention: (row: NotificationOccurrenceItem) => row.unread },
+    roomUnread: { roomIsUnread: vi.fn().mockReturnValue(false) },
+    readViews: { covers: vi.fn().mockReturnValue(false) },
     navigation: { roomGroups: [{ roomIds: ['a', 'b'] }], rooms: [], isInitialLoading: false },
     pendingHighlights: { set: vi.fn() }
   };
@@ -111,6 +114,48 @@ beforeEach(() => {
 });
 
 describe('next unread source', () => {
+  it.each(['metaKey', 'ctrlKey'] as const)(
+    'opens the palette before editor bindings with %s',
+    (modifier) => {
+      render(Harness);
+      const draft = document.querySelector('textarea')!;
+      const editorShortcut = vi.fn();
+      draft.addEventListener('keydown', editorShortcut);
+      draft.focus();
+      expect(
+        press({ key: 'k', altKey: false, shiftKey: false, [modifier]: true }).defaultPrevented
+      ).toBe(true);
+      flushSync();
+      expect(document.querySelector('dialog[open]')).not.toBeNull();
+      expect(editorShortcut).not.toHaveBeenCalled();
+    }
+  );
+
+  it('submits forms only after local handlers have declined the shortcut', () => {
+    render(Harness);
+    const form = document.createElement('form');
+    const input = document.createElement('input');
+    form.append(input);
+    document.body.append(form);
+    const submit = vi.fn((event: Event) => event.preventDefault());
+    form.addEventListener('submit', submit);
+    input.focus();
+    const shortcut = { key: 'Enter', altKey: false, shiftKey: false, metaKey: true };
+    try {
+      press(shortcut);
+      expect(submit).toHaveBeenCalledTimes(1);
+      press({ ...shortcut, repeat: true });
+      press({ ...shortcut, isComposing: true });
+      press({ ...shortcut, shiftKey: true });
+      expect(submit).toHaveBeenCalledTimes(1);
+      input.addEventListener('keydown', (event) => event.preventDefault());
+      press(shortcut);
+      expect(submit).toHaveBeenCalledTimes(1);
+    } finally {
+      form.remove();
+    }
+  });
+
   it('prioritises Important across servers, then room order and newest activity in a source', () => {
     const ambient = occurrence('ambient', 'a', {
       attentionLevel: NotificationAttentionLevel.AMBIENT
@@ -118,12 +163,24 @@ describe('next unread source', () => {
     const old = occurrence('old', 'b', { createdAt: '2026-10-26T12:00:00Z' });
     const newest = occurrence('new', 'b');
     const servers = [
-      { serverId: 'first', roomIds: ['a', 'b'], occurrences: [ambient] },
-      { serverId: 'second', roomIds: ['b', 'a'], occurrences: [occurrence('a'), old, newest] }
+      { serverId: 'first', roomIds: ['a', 'b'], occurrences: [ambient], unreadRoomIds: ['a'] },
+      {
+        serverId: 'second',
+        roomIds: ['b', 'a'],
+        occurrences: [occurrence('a'), old, newest],
+        unreadRoomIds: []
+      }
     ];
-    expect(nextUnreadSource(servers)?.occurrence.id).toBe('new');
+    expect(nextUnreadSource(servers)?.occurrence?.id).toBe('new');
     servers[1]!.occurrences = [];
-    expect(nextUnreadSource(servers)?.occurrence.id).toBe('ambient');
+    expect(nextUnreadSource(servers)?.occurrence?.id).toBe('ambient');
+    servers[0]!.occurrences = [];
+    expect(nextUnreadSource(servers)).toEqual({
+      serverId: 'first',
+      roomId: 'a',
+      threadRootId: null,
+      occurrence: null
+    });
   });
 
   it('excludes read and unsupported occurrences and keeps separate threads', () => {
@@ -134,7 +191,9 @@ describe('next unread source', () => {
       occurrence('thread-a', 'a', { threadRootId: 'a' })
     ];
     expect(
-      nextUnreadSource([{ serverId: 'origin', roomIds: ['a'], occurrences: rows }])?.occurrence.id
+      nextUnreadSource([
+        { serverId: 'origin', roomIds: ['a'], occurrences: rows, unreadRoomIds: [] }
+      ])?.occurrence?.id
     ).toBe('thread-a');
   });
 
@@ -155,13 +214,13 @@ describe('next unread source', () => {
       .toEqual({ navigations: 1, errors: [] });
     expect(store.pendingHighlights.set).toHaveBeenCalledWith('a', null, 'event-a', 'a');
     expect(store.notifications.markOccurrenceRead).not.toHaveBeenCalled();
-    store.attention.occurrences = [occurrence('b')];
+    store.notifications.occurrences = [occurrence('b')];
     press();
     await expect.poll(() => mocks.goto.mock.calls.length).toBe(2);
     expect(store.pendingHighlights.set).toHaveBeenLastCalledWith('b', null, 'event-b', 'b');
     expect(draft.value).toBe('Keep my draft');
     expect(editorShortcut).not.toHaveBeenCalled();
-    store.attention.occurrences = [];
+    store.notifications.occurrences = [];
     press();
     await expect.poll(() => mocks.info.mock.calls.length).toBe(1);
     expect(mocks.goto).toHaveBeenCalledTimes(2);
@@ -184,38 +243,72 @@ describe('next unread source', () => {
     expect(store.notifications.fetchAllPages).not.toHaveBeenCalled();
   });
 
-  it('reports a failed page load without claiming the inbox is empty', async () => {
-    const store = makeStore([]);
-    store.notifications.fetchAllPages.mockRejectedValue(new Error('offline'));
+  it('uses local notifications without loading pages, even before initial loading completes', async () => {
+    const store = makeStore([occurrence('a')]);
+    store.notifications.hasLoaded = false;
     mocks.stores.set('origin', store);
     render(Harness);
     press();
-    await expect.poll(() => mocks.error.mock.calls.length).toBe(1);
+    await expect.poll(() => mocks.goto.mock.calls.length).toBe(1);
+    expect(store.notifications.fetchPage).not.toHaveBeenCalled();
+    expect(store.notifications.fetchAllPages).not.toHaveBeenCalled();
     expect(mocks.info).not.toHaveBeenCalled();
-    expect(mocks.goto).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])('waits for older pages and fences privacy resets: %s', async (reset) => {
+  it('opens badge-only rooms in sidebar order and skips viewed rooms', async () => {
     const store = makeStore([]);
-    let finish!: () => void;
-    store.notifications.fetchAllPages.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        })
-    );
+    store.roomUnread.roomIsUnread.mockReturnValue(true);
+    store.readViews.covers.mockImplementation((roomId: string) => roomId === 'a');
     mocks.stores.set('origin', store);
     render(Harness);
     press();
+    await expect.poll(() => mocks.goto.mock.calls.length).toBe(1);
+    expect(mocks.goto.mock.calls[0]![0]).toMatch(/\/b$/);
+    expect(store.notifications.fetchAllPages).not.toHaveBeenCalled();
+    expect(store.notifications.markOccurrenceRead).not.toHaveBeenCalled();
+    expect(store.pendingHighlights.set).not.toHaveBeenCalled();
+    expect(mocks.info).not.toHaveBeenCalled();
+  });
+
+  it('continues through badge sources across servers as local read state changes', async () => {
+    const first = makeStore([]);
+    const second = makeStore([]);
+    first.roomUnread.roomIsUnread.mockImplementation((roomId: string) => roomId === 'a');
+    second.roomUnread.roomIsUnread.mockImplementation((roomId: string) => roomId === 'b');
+    mocks.stores.set('first', first);
+    mocks.stores.set('second', second);
+    render(Harness);
     press();
-    expect(store.notifications.fetchAllPages).toHaveBeenCalledTimes(1);
-    expect(mocks.info).not.toHaveBeenCalled();
-    if (reset) store.onReset.mock.calls[0]![0]({ privacy: true });
-    store.attention.occurrences = [occurrence('older-page')];
-    finish();
-    await expect.poll(() => store.onReset.mock.results[0]!.value.mock.calls.length).toBe(1);
-    expect(mocks.goto).toHaveBeenCalledTimes(reset ? 0 : 1);
-    expect(mocks.info).not.toHaveBeenCalled();
+    await expect.poll(() => mocks.goto.mock.calls.length).toBe(1);
+    expect(mocks.goto.mock.calls[0]![0]).toBe('/chat/first.example.test/a');
+    first.roomUnread.roomIsUnread.mockReturnValue(false);
+    press();
+    await expect.poll(() => mocks.goto.mock.calls.length).toBe(2);
+    expect(mocks.goto.mock.calls[1]![0]).toBe('/chat/second.example.test/b');
+    expect(first.notifications.fetchAllPages).not.toHaveBeenCalled();
+    expect(second.notifications.fetchAllPages).not.toHaveBeenCalled();
+  });
+
+  it('selects Important notifications beyond the first 50 local rows before badge rooms', async () => {
+    const store = makeStore([
+      ...Array.from({ length: 50 }, (_, index) =>
+        occurrence(`ambient-${index}`, 'a', {
+          attentionLevel: NotificationAttentionLevel.AMBIENT
+        })
+      ),
+      occurrence('important', 'b')
+    ]);
+    store.roomUnread.roomIsUnread.mockReturnValue(true);
+    mocks.stores.set('origin', store);
+    render(Harness);
+    press();
+    await expect.poll(() => mocks.goto.mock.calls.length).toBe(1);
+    expect(store.pendingHighlights.set).toHaveBeenCalledWith(
+      'b',
+      null,
+      'event-important',
+      'important'
+    );
   });
 
   it('offers the action in the quick switcher and closes the dialog before navigation', async () => {

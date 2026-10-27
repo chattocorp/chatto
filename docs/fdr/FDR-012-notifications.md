@@ -22,14 +22,15 @@ targets, unread counts, read state, or deletion semantics.
 
 - Option/Alt+Shift+Down opens the next unread notification source across signed-in
   servers. The quick switcher offers the same action. Important notifications
-  come before Ambient notifications; plain Unread dots are excluded. Sources
+  come before Ambient notifications, followed by rooms with plain Unread dots. Sources
   follow server order, room-group order, and stable room/thread IDs for remaining
   ties. The newest unread occurrence at that priority opens in the selected
   conversation. Existing view and read rules apply, so each use selects from
   the sources that still need attention. There is no Previous action. The shortcut
   works in the composer and leaves drafts intact, but does not run while a modal
-  is open. When no source remains, it shows “No unread notifications”. A failed
-  load shows an error instead.
+  is open. Selection uses only data already held by the frontend and does not
+  fetch notification pages. Unread dots open the room without a message jump.
+  When no source remains, it shows “No unread notifications”.
 
 - The notification page is one newest-activity-first chronological list that
   contains both Unread and Read activity. Unread reactions are Ambient and use

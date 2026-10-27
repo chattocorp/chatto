@@ -1,4 +1,4 @@
-/** Cross-server navigation to the next conversation that needs notification attention. */
+/** Select and open unread conversations from local frontend state. */
 import { goto } from '$app/navigation';
 import {
   NotificationAttentionLevel,
@@ -8,6 +8,7 @@ import { notificationTarget } from '@chatto/client/server/notifications';
 import { serverRegistry } from '$lib/client';
 import { m } from '$lib/i18n/messages';
 import { notificationPath } from '$lib/notificationPath';
+import { conversationPath } from '$lib/navigation/conversationPath';
 import type { AppUiState } from '$lib/state/appUi.svelte';
 import { serverUi } from '$lib/state/server/serverUi';
 import { toast } from '$lib/ui/toast';
@@ -19,10 +20,19 @@ export type UnreadSourceServer = {
   serverId: string;
   roomIds: string[];
   occurrences: NotificationOccurrenceItem[];
+  unreadRoomIds: string[];
 };
 
-/** Select Important before Ambient, then a stable room/thread order and its newest occurrence. */
-export function nextUnreadSource(servers: UnreadSourceServer[]) {
+/** A notification jump, or a badge-only room with no message target. */
+export type UnreadSource = {
+  serverId: string;
+  roomId: string;
+  threadRootId: string | null;
+  occurrence: NotificationOccurrenceItem | null;
+};
+
+/** Select Important, then Ambient, then badge-only rooms, in stable sidebar order. */
+export function nextUnreadSource(servers: UnreadSourceServer[]): UnreadSource | undefined {
   const candidates = servers.flatMap((server, serverIndex) =>
     server.occurrences
       .filter((row) => row.unread && row.targetSupported && row.room)
@@ -49,78 +59,78 @@ export function nextUnreadSource(servers: UnreadSourceServer[]) {
       b.occurrence.createdAt.localeCompare(a.occurrence.createdAt) ||
       a.occurrence.id.localeCompare(b.occurrence.id)
   );
-  return candidates[0];
+  const first = candidates[0];
+  if (first) {
+    return {
+      serverId: first.serverId,
+      roomId: first.target.roomId!,
+      threadRootId: first.target.threadRootId,
+      occurrence: first.occurrence
+    };
+  }
+  for (const server of servers) {
+    const roomId = server.unreadRoomIds[0];
+    if (roomId) return { serverId: server.serverId, roomId, threadRootId: null, occurrence: null };
+  }
+}
+
+/** Snapshot eligible sources once per invocation; this does not load server data. */
+function localUnreadSources(): UnreadSourceServer[] {
+  const sources: UnreadSourceServer[] = [];
+  for (const { id } of serverRegistry.servers) {
+    const store = serverRegistry.tryGetStore(id);
+    if (!store?.isAuthenticated) continue;
+    const ui = serverUi(store);
+    const roomIds = ui.navigation.roomGroups.flatMap((group) => group.roomIds);
+    const badgeRoomIds = new Set([...roomIds, ...store.projection.rooms.keys()]);
+    sources.push({
+      serverId: id,
+      roomIds,
+      // The indicator helper limits its list to 50; navigation uses all local rows.
+      occurrences: store.notifications.occurrences.filter((row) =>
+        ui.attention.needsAttention(row)
+      ),
+      unreadRoomIds: [...badgeRoomIds].filter(
+        (roomId) => ui.roomUnread.roomIsUnread(roomId) && !ui.readViews.covers(roomId)
+      )
+    });
+  }
+  return sources;
 }
 
 /** One app-shell action shared by the shortcut and palette; overlapping invocations are ignored. */
 export function createNextUnreadNavigation(appUi: AppUiState): () => Promise<void> {
   let pending = false;
   return async () => {
-    if (pending) return;
+    if (pending || document.querySelector('dialog[open], [aria-modal="true"]')) return;
     pending = true;
-    const location = window.location.href;
-    let current = true;
-    const stores = serverRegistry.servers.flatMap(({ id }) => {
-      const store = serverRegistry.tryGetStore(id);
-      return store?.isAuthenticated ? [{ id, store }] : [];
-    });
-    const cleanup = stores.flatMap(({ store }) => [
-      store.onSessionEnded(() => {
-        current = false;
-      }),
-      store.onReset((reset) => {
-        if (reset.privacy) current = false;
-      })
-    ]);
     try {
-      // Complete the finite view so older Important sources cannot be hidden by pagination.
-      await Promise.all(
-        stores.map(async ({ store }) => {
-          if (!store.notifications.hasLoaded) await store.notifications.fetchPage(0);
-          await store.notifications.fetchAllPages();
-        })
-      );
-      if (
-        !current ||
-        window.location.href !== location ||
-        document.querySelector('dialog[open], [aria-modal="true"]')
-      )
-        return;
-      const selected = nextUnreadSource(
-        stores.flatMap(({ id, store }) => {
-          if (!store.isAuthenticated || serverRegistry.tryGetStore(id) !== store) return [];
-          const ui = serverUi(store);
-          return [
-            {
-              serverId: id,
-              roomIds: ui.navigation.roomGroups.flatMap((group) => group.roomIds),
-              occurrences: ui.attention.occurrences
-            }
-          ];
-        })
-      );
+      const selected = nextUnreadSource(localUnreadSources());
       if (!selected) {
         toast.info(m('chat.notifications.no_unread'), 2500);
         return;
       }
-      const store = serverRegistry.getStore(selected.serverId);
-      const { occurrence, target } = selected;
-      prepareUiForNotificationTarget(appUi, selected.serverId, target);
-      if (target.roomId && occurrence.eventId) {
+      const { serverId, roomId, threadRootId, occurrence } = selected;
+      prepareUiForNotificationTarget(appUi, serverId, selected);
+      if (!occurrence) {
+        await goto(conversationPath(serverId, roomId));
+        return;
+      }
+      const store = serverRegistry.getStore(serverId);
+      if (occurrence.eventId) {
         serverUi(store).pendingHighlights.set(
-          target.roomId,
-          target.threadRootId,
+          roomId,
+          threadRootId,
           occurrence.eventId,
           occurrence.id
         );
       }
       await navigateNotification(store, occurrence, () =>
-        goto(notificationPath(selected.serverId, occurrence))
+        goto(notificationPath(serverId, occurrence))
       );
     } catch (error) {
-      if (current) toastError(error, m('common.error.network'));
+      toastError(error, m('common.error.network'));
     } finally {
-      cleanup.forEach((stop) => stop());
       pending = false;
     }
   };
