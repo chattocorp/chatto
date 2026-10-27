@@ -6,7 +6,7 @@
       "confirmation": "Bu işlem, bu sunucuda sana atanmış ek izinleri 15 dakika boyunca etkinleştirir."
     },
     "notifications": {
-      "next_unread_source": "Sonraki okunmamış kaynağa git",
+      "next_unread_source": "Sonraki okunmamış kaynağa gidin",
       "no_unread": "Okunmamış bildirim yok",
       "title": "Bildirimler",
       "subtitle": "İşte yenilikler",
