@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { createServeCommand } from '../runtime/cli.ts';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -24,7 +24,7 @@ test('development server uses the same server options', () => {
 });
 
 test('development server serves the app from outside the repository', async () => {
-  const directory = await mkdtemp(resolve(tmpdir(), 'runling-dev-'));
+  const directory = await realpath(await mkdtemp(resolve(tmpdir(), 'runling-dev-')));
   const appRoot = resolve(import.meta.dirname, '../..');
   const portServer = createServer();
   portServer.listen(0, '127.0.0.1');
@@ -34,14 +34,26 @@ test('development server serves the app from outside the repository', async () =
   await new Promise<void>((resolve, reject) =>
     portServer.close((error) => (error ? reject(error) : resolve()))
   );
-  await writeFile(resolve(directory, 'external.config.ts'), 'export default { webhooks: {} };\n');
+  await writeFile(
+    resolve(directory, 'external.config.ts'),
+    `
+    import { writeFile } from 'node:fs/promises';
+    const expected = ${JSON.stringify(directory)};
+    if (process.cwd() !== expected) throw new Error('Configuration cwd changed');
+    export default { webhooks: {}, sources: { probe: async (ctx) => {
+      if (process.cwd() !== expected) throw new Error('Source cwd changed');
+      await new Promise(resolve => ctx.signal.addEventListener('abort', resolve, { once: true }));
+      await writeFile(${JSON.stringify(resolve(directory, 'stopped'))}, 'stopped');
+    } } };
+  `
+  );
   const server = spawn(
     process.execPath,
     [
       '--import',
       pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href,
-      '--conditions=runling-source',
-      resolve(appRoot, 'src/bin/runling-web.ts'),
+      resolve(appRoot, 'bin/runling.js'),
+      'serve',
       '--config',
       'external.config.ts',
       '--host',
@@ -79,6 +91,8 @@ test('development server serves the app from outside the repository', async () =
   } finally {
     server.kill('SIGTERM');
     await closed;
+    const stopped = await readFile(resolve(directory, 'stopped'), 'utf8').catch(() => undefined);
     await rm(directory, { recursive: true, force: true });
+    expect(stopped, output).toBe('stopped');
   }
 }, 60_000);

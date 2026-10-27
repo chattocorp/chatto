@@ -1,4 +1,5 @@
-import { ChannelClosedError, ChannelFullError } from 'runling';
+import { runtime } from '$lib/server/runtime.ts';
+const { ChannelClosedError, ChannelFullError } = runtime;
 import { getRunStore, RunNotActiveError } from '$lib/server/run-store.ts';
 import type { RequestHandler } from './$types';
 

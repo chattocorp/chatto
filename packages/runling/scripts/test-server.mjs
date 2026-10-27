@@ -1,4 +1,4 @@
-/** Verify the built programmatic host, shared event runtime, recovery, and cleanup over HTTP. */
+/** Verify the workspace programmatic host, shared event runtime, recovery, and cleanup over HTTP. */
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, readFile, writeFile, access } from 'node:fs/promises';
 import { resolve, join } from 'node:path';

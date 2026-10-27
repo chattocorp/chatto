@@ -195,7 +195,6 @@ test('shutdown keeps Node alive until cooperative cleanup and journal flush fini
   await promisify(execFile)(
     process.execPath,
     [
-      '--conditions=runling-source',
       '--import',
       'tsx',
       '--input-type=module',
