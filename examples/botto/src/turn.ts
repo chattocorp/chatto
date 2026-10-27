@@ -11,6 +11,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import type { TaskContext } from 'runling';
 import { conversationIdentity } from './threads.ts';
 import { readImages } from './images.ts';
+import { viewImageExtension } from './view-image.ts';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
@@ -111,6 +112,7 @@ export function createTurnHandler(
                 ),
               userIds: [...new Set(messages.map((item) => item.authorId))],
               tools: [
+                viewImageExtension(server, destination.roomId, context, signal),
                 reactionExtension(
                   server,
                   destination.roomId,

@@ -368,6 +368,27 @@ model metadata. It downloads images only when that metadata includes image input
 no separate Botto capability setting is needed. Downloads are reused within a turn.
 The model receives a note when an image is unavailable, unsupported, or omitted.
 
+When an overview is too small to read, the model can call `view_image` with a
+message ID and attachment ID from the current context. An optional `crop` has
+`x`, `y`, `width`, and `height` values from 0 to 1. Coordinates refer to the full
+original image after orientation correction, with the origin at the top left.
+For example, `{ "x": 0.5, "y": 0, "width": 0.5, "height": 1 }` selects the right
+half. Omitting `crop` selects the full image. Crops always use the original,
+not the resized overview or a previous crop. Animated images use the first frame.
+
+The tool rechecks attachment membership and room access. It permits four attempts
+per turn, in addition to the automatic overviews. Each original is limited to
+16 MiB and 40 million decoded pixels. Processing has a ten-second timeout; the
+download and processing also share the turn deadline. Output is PNG, at most
+2048 pixels on each side and 4 MiB, without enlarging small images. The tool
+rejects calls for models whose Pi metadata does not include image input.
+
+Crop bytes stay in memory for the turn and are added only to model requests.
+The transcript stores tool arguments and text receipts, including crop dimensions,
+but no crop bytes. Later turns can request the image again if it is still in
+context and accessible. This tool contacts only the configured Chatto server;
+the configured model provider receives the selected pixels.
+
 Image bytes are added to the current model request. They are not stored in Pi
 transcripts, delivery files, or Runling journals. Later turns read images again
 from current thread context; images outside that window are not retained. Model

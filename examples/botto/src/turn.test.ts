@@ -193,7 +193,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
         imageNotes: []
       },
       userIds: ['human', 'another'],
-      tools: [expect.any(Function)]
+      tools: [expect.any(Function), expect.any(Function)]
     }
   );
   expect(history).toHaveBeenCalledOnce();
