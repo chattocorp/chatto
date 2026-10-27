@@ -29,8 +29,10 @@ their heading.
 ## Design decisions
 
 Runling provides a generic metadata operation. Applications choose whether a
-title comes from deterministic code or an agent tool. Runling does not add a
-model request, automatic naming policy, or conversation-specific primitive.
+title comes from deterministic code, a description task, or an agent tool. Setting
+a title does not itself make a model request. Runling has no automatic naming
+policy or conversation-specific primitive. Applications can use
+[`createDescription`](../agents.md#describe-supplied-content) to produce descriptions.
 
 ## Related
 

@@ -13,6 +13,7 @@ import { conversationIdentity } from './threads.ts';
 import { readImages } from './images.ts';
 import { delegateExtension } from './delegate.ts';
 import { viewImageExtension } from './view-image.ts';
+import { createTitleWriter } from './title.ts';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
@@ -27,6 +28,7 @@ export function createTurnHandler(
   shutdown: AbortSignal,
   beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
 ) {
+  const writeTitle = createTitleWriter(settings);
   return async (ctx: TaskContext, messages: readonly AddressedMessage[]): Promise<void> => {
     shutdown.throwIfAborted();
     const message = messages.at(-1);
@@ -117,6 +119,11 @@ export function createTurnHandler(
           });
           void delivery.catch((error) => deliveryFailure.abort(error));
         };
+        const naming = writeTitle(
+          ctx,
+          currentMessages.map((message) => message.text).join('\n\n'),
+          signal
+        );
         try {
           const answer = await safeStep(
             'Model turn',
@@ -155,7 +162,7 @@ export function createTurnHandler(
           // Runling also returns the final text. Post it only if no callback supplied it.
           if (answer.trim() !== lastText) onText(answer);
         } finally {
-          await delivery;
+          await Promise.all([delivery, naming]);
         }
       },
       { signal }

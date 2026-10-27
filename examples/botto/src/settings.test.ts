@@ -19,6 +19,20 @@ test('reasoning is optional, supports Pi levels, and rejects unknown values with
   }
 });
 
+test('title model defaults to the main model and accepts independent model and reasoning settings', () => {
+  expect(parse()).toMatchObject({
+    titleModel: 'openrouter/anthropic/claude-sonnet-4-6',
+    titleReasoningLevel: 'off'
+  });
+  expect(parse(`${source}\n[titles]\nmodel="test/small"\nreasoning_level="minimal"`)).toMatchObject(
+    { titleModel: 'test/small', titleReasoningLevel: 'minimal' }
+  );
+  expect(() => parse(`${source}\n[titles]\nmodel="invalid"`)).toThrow('titles.model');
+  expect(() => parse(`${source}\n[titles]\nreasoning_level="invalid"`)).toThrow(
+    'titles.reasoning_level'
+  );
+});
+
 test('admin IDs default to none and must be explicit nonempty strings', () => {
   expect(parse().adminUserIds).toEqual([]);
   const withAdmins = (value: string) =>

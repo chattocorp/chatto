@@ -52,6 +52,12 @@ in user-scoped documents, not global memory. Do not disclose private user facts 
 other participants. Never store credentials.
 """
 
+[titles]
+# Optional independent model for short run titles. Defaults to agent.model.
+# Choose a small model from a provider whose credentials are configured.
+# model = "provider/small-model"
+reasoning_level = "off"
+
 [memory]
 # Requires the means executable. Relative paths use this TOML file's directory.
 enabled = false

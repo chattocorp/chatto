@@ -29,6 +29,7 @@ export { type Invocation } from './invocation.ts';
 export { agentSessionFile } from './agent-sessions.ts';
 export { AgentSessionStore, type AgentSessionLease } from './agent-session-store.ts';
 export { createClassifier } from './classifier.ts';
+export { createDescription } from './description.ts';
 export { createChoiceClassifier } from './choice-classifier.ts';
 export { usePrivateTempDirectory } from './private-temp.ts';
 export { taskTool, type TaskToolOptions } from './task-tool.ts';

@@ -7,10 +7,15 @@ import { parseSettings } from './settings.ts';
 import { contextFixture, page, row } from './context.fixture.ts';
 import { hasTranscript } from './messages.ts';
 import { createTaskContext } from 'runling';
+import { createTitleWriter } from './title.ts';
+
+const naming = vi.hoisted(() => vi.fn<ReturnType<typeof createTitleWriter>>());
+vi.mock('./title.ts', () => ({ createTitleWriter: () => naming }));
 
 vi.mock('./messages.ts', () => ({ hasTranscript: vi.fn() }));
 
 beforeEach(() => {
+  naming.mockReset().mockResolvedValue(undefined);
   vi.mocked(hasTranscript).mockReset().mockResolvedValue(false);
   vi.useFakeTimers();
   vi.spyOn(console, 'info').mockImplementation(() => {});
@@ -64,6 +69,28 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
   const two: AddressedMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
   return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
+
+test('posts the reply while naming is pending and joins naming before the turn ends', async () => {
+  const { turn, one, history, server } = setup();
+  history.mockResolvedValue(page([row('root', 'Root'), row('one', 'First')]));
+  let finish!: () => void;
+  naming.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+  );
+  let ended = false;
+  const pending = turn([one]).then(() => {
+    ended = true;
+  });
+  await vi.waitFor(() => expect(server.postMessage).toHaveBeenCalledOnce());
+  expect(ended).toBe(false);
+  expect(naming.mock.calls[0]![1]).toBe('First');
+  finish();
+  await pending;
+  expect(ended).toBe(true);
+});
 
 test('passes image-only message pixels as request context, not persisted prompt text', async () => {
   const { turn, one, history, server, agent } = setup();

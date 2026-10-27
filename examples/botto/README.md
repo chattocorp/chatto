@@ -519,14 +519,22 @@ the run journal; the agent continues from its saved transcript.
 
 ## Logs and development
 
-Botto's root agent can use `set_conversation_title` to give the Runling run a short
-descriptive title. It sees the current title and is instructed to set a missing
-title before its final reply to a question or task, including a short one-off
-request. It changes an existing title only when the overall topic changes. Greetings do not
-need titles. Titles describe the conversation rather than progress, and must not
-contain personal details or secrets. Delegated agents do not receive this tool.
-The title persists across turns and restarts; it does not rename the Chatto thread
-or post a message. The model chooses when to call the tool, so naming is not guaranteed.
+Botto names an untitled run with Runling's `createDescription()` task, alongside
+the main reply. The task receives up to 8,000 characters of current message text,
+without author IDs, memory, history, or attachments. It is instructed to omit
+greetings and to exclude personal details and secrets. Its result sets the run
+title; the main agent has no title tool. A saved title stays unchanged across
+turns and restarts. It does not rename the Chatto thread or post a message.
+
+Set `titles.model` to use a small model with your configured provider credentials.
+It defaults to `agent.model`; `titles.reasoning_level` defaults to `off`. The selected
+provider receives the text and the connection's IP address. This adds one model
+request per naming attempt, with usage and cost recorded under the run. No tools
+or external resources are available to the description task. The reply can be
+posted while naming runs, but the turn joins naming before it ends. Naming has a
+30-second deadline, bounded further by the turn deadline. A failure or empty
+description leaves the run untitled and does not prevent the reply; a later turn
+can try again. Model output can be imperfect. There is no automatic renaming.
 
 Runling owns all log output. Connection and intake messages use a `[source:chatto]`
 prefix. Work inside a conversation uses its run and task context and appears in

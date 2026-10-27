@@ -1,31 +1,54 @@
-/** Verify root-only title registration and cancellation without a model call. */
-import { expect, test, vi } from 'vitest';
-import type { ExtensionAPI, ExtensionToolContext } from '@earendil-works/pi-coding-agent';
+/** Check naming ownership, retained titles, input bounds, and non-fatal failures. */
+import { beforeEach, expect, test, vi } from 'vitest';
 import { createTaskContext } from 'runling';
-import { titleExtension } from './title.ts';
+import { createTitleWriter } from './title.ts';
+import { parseSettings } from './settings.ts';
 
-test('registers only for a recorded root and forwards titles without posting messages', async () => {
+const mock = vi.hoisted(() => ({ describe: vi.fn() }));
+vi.mock('runling', async (original) => ({
+  ...(await original<typeof import('runling')>()),
+  createDescription: () => mock.describe
+}));
+beforeEach(() => mock.describe.mockReset().mockResolvedValue('Weather forecast'));
+const settings = parseSettings(
+  '[chatto]\nurl="https://chat.example.com"\napi_key="unused"\n[agent]\nmodel="test/model"',
+  'botto.toml'
+);
+
+test('names an untitled run once and skips unrecorded, empty, and already named inputs', async () => {
+  const write = createTitleWriter(settings);
   const ctx = createTaskContext();
-  const registerTool = vi.fn<ExtensionAPI['registerTool']>();
-  const api = { registerTool } as unknown as ExtensionAPI;
+  const signal = new AbortController().signal;
+  await write(ctx, 'weather', signal);
+  const run = {
+    id: 'run',
+    title: undefined as string | undefined,
+    setTitle: vi.fn((title: string) => {
+      run.title = title;
+    })
+  };
+  await write({ ...ctx, run }, ' ', signal);
+  expect(mock.describe).not.toHaveBeenCalled();
+  await write({ ...ctx, run }, 'x'.repeat(9000), signal);
+  expect(mock.describe.mock.calls[0]![1]).toHaveLength(8000);
+  expect(run.setTitle).toHaveBeenCalledExactlyOnceWith('Weather forecast');
+  await write({ ...ctx, run }, 'different topic', signal);
+  expect(mock.describe).toHaveBeenCalledOnce();
+});
+
+test('empty descriptions, failures, and cancelled late results do not set a title', async () => {
+  const write = createTitleWriter(settings);
   const controller = new AbortController();
-  await titleExtension(ctx, controller.signal)(api);
-  expect(registerTool).not.toHaveBeenCalled();
   const setTitle = vi.fn();
-  await titleExtension({ ...ctx, run: { id: 'run', setTitle } }, controller.signal)(api);
-  const tool = registerTool.mock.calls[0]![0];
-  expect(tool.name).toBe('set_conversation_title');
-  const call = () =>
-    tool.execute(
-      'call',
-      { title: 'Settings storage' },
-      undefined,
-      undefined,
-      {} as ExtensionToolContext
-    );
-  await call();
-  expect(setTitle).toHaveBeenCalledExactlyOnceWith('Settings storage');
-  controller.abort();
-  await expect(call()).rejects.toThrow();
-  expect(setTitle).toHaveBeenCalledTimes(1);
+  const ctx = { ...createTaskContext(), run: { id: 'run', setTitle } };
+  mock.describe.mockResolvedValueOnce('');
+  await write(ctx, 'hello', controller.signal);
+  mock.describe.mockRejectedValueOnce(new Error('private provider error'));
+  await expect(write(ctx, 'question', controller.signal)).resolves.toBeUndefined();
+  mock.describe.mockImplementationOnce(async () => {
+    controller.abort();
+    return 'Late';
+  });
+  await write(ctx, 'question', controller.signal);
+  expect(setTitle).not.toHaveBeenCalled();
 });
