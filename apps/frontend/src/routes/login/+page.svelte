@@ -6,6 +6,7 @@
   import type { OAuthPopup } from '$lib/oauth/popup';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
+  import { isProviderContinuation } from '$lib/auth/providerContinuation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
@@ -93,9 +94,9 @@
     error = '';
     pageErrorDismissed = true;
     selectedProviderId = provider.id;
-    // Remote authorization already owns a popup and must keep its server-side
-    // OAuth continuation in that window.
-    if (compact) {
+    // Remote authorization and existing-account linking already own this window.
+    // Keep their continuation here instead of opening another provider popup.
+    if (compact || isProviderContinuation(data.redirectUrl)) {
       window.location.href = providerLoginHref(provider);
       return;
     }
@@ -140,7 +141,9 @@
 
       // Session completion is only needed after a successful password login.
       const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
-      const resumedReturnNavigation = await completeOriginAuthentication();
+      const resumedReturnNavigation = await completeOriginAuthentication({
+        resumeReturnNavigation: !isProviderContinuation(data.redirectUrl)
+      });
       if (!resumedReturnNavigation) {
         await navigateAfterAuthentication(data.redirectUrl);
       }

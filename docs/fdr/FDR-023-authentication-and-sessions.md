@@ -201,6 +201,22 @@ For the 0.5 upgrade only, a dedicated same-origin route migrates the typed cooki
 
 ### 8b. External provider registry and identity links
 
+**Existing-account sign-in from provider confirmation:** The confirmation page
+preserves its pending flow when the user chooses an existing account. After
+sign-in, the user confirms linking to the displayed account. The client starts
+the existing authenticated link operation, which binds the provider flow to
+that account, and continues provider authorization in the same window. A create
+token does not authorize linking. The client cancels the old create token after
+the server accepts the link start; if cancellation fails, the token expires.
+
+In a provider popup, the original callback and its state survive this sequence.
+An inherited app return path cannot replace the explicit continuation. Successful
+linking returns to the callback; the opening window verifies its cookie session
+and resumes its own destination. Cancellation and provider link denial return an
+error instead of reporting successful sign-in. The external provider receives
+another authorization request, including the user's IP address, as it does for
+linking from account settings.
+
 **Legacy OIDC links:** Older `UserOIDCSubjectLinked` events contain only a
 subject hash. A verified OIDC sign-in that matches the account fills in the
 issuer, subject, and provider metadata, even without group-role mappings or a

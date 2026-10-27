@@ -5,9 +5,11 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { isProviderCallback } from '$lib/auth/providerContinuation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
     createExternalIdentityFlowAPI,
+    createExternalIdentityAPI,
     ExternalIdentityFlowKind
   } from '$lib/api/externalIdentities';
   import { m } from '$lib/i18n/messages';
@@ -45,8 +47,15 @@
       ? undefined
       : m('settings.profile.display_name.invalid');
   });
-  const isCreate = $derived(pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT);
-  const isLink = $derived(pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT);
+  const isCreate = $derived(
+    pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT && !data.existingAccount
+  );
+  const isLink = $derived(
+    pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT || data.existingAccount
+  );
+  const existingAccountHref = $derived(
+    `${resolve('/sso/confirm')}?token=${encodeURIComponent(data.token)}&existing=1`
+  );
   const canSubmit = $derived(
     pending &&
       !submitting &&
@@ -70,10 +79,7 @@
     try {
       await flowAPI.createAccount({ token: data.token, login, displayName });
       const returnURL = new URL(redirectPath, window.location.origin);
-      if (
-        returnURL.pathname === resolve('/servers/callback') &&
-        returnURL.searchParams.get('mode') === 'provider'
-      ) {
+      if (isProviderCallback(returnURL)) {
         // The opening tab owns its saved return navigation. Complete this
         // popup before any copied sessionStorage return path can take over.
         await goto(resolve(redirectPath as '/'), { replaceState: true });
@@ -96,6 +102,24 @@
     submitting = true;
     actionError = '';
     try {
+      if (data.existingAccount) {
+        // A create token cannot authorize a link. Start a fresh provider flow
+        // bound by the server to the account that just authenticated.
+        const startUrl = await createExternalIdentityAPI({
+          baseUrl: '/api/connect',
+          bearerToken: null
+        }).startLink({
+          providerId: pending.providerId,
+          redirectPath
+        });
+        try {
+          await flowAPI.cancel(data.token);
+        } catch {
+          // The accepted link-start is independent; the old create token expires.
+        }
+        window.location.href = startUrl;
+        return;
+      }
       await flowAPI.confirmLink(data.token);
       goto(resolve(redirectPath as '/'), { replaceState: true });
     } catch (err) {
@@ -113,7 +137,11 @@
         // Cancelling is best-effort; leaving the page is enough for the user.
       }
     }
-    goto(resolve((pending?.redirectPath || '/login') as '/login'), { replaceState: true });
+    const returnURL = new URL(pending?.redirectPath || '/login', window.location.origin);
+    if (isProviderCallback(returnURL)) returnURL.searchParams.set('error', 'access_denied');
+    goto(resolve((returnURL.pathname + returnURL.search + returnURL.hash) as '/login'), {
+      replaceState: true
+    });
   }
 </script>
 
@@ -190,7 +218,7 @@
     </form>
 
     <div class="mt-3">
-      <Button variant="secondary" fullWidth href={resolve('/login')} disabled={submitting}>
+      <Button variant="secondary" fullWidth href={existingAccountHref} disabled={submitting}>
         <span aria-hidden="true" class="iconify icon-[mdi--login]"></span>
         {m('auth.sso.sign_in_existing')}
       </Button>
@@ -206,6 +234,9 @@
       <p class="text-sm text-muted">
         {m('auth.sso.link_intro', { provider: pending.providerLabel })}
       </p>
+      {#if data.existingAccount && data.user}
+        <p><bdi>{data.user.displayName}</bdi> (<bdi>@{data.user.login}</bdi>)</p>
+      {/if}
       {#if pending.verifiedEmail}
         <p class="text-sm">{pending.verifiedEmail}</p>
       {/if}
