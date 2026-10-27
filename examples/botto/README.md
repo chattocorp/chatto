@@ -317,8 +317,8 @@ guarantee an early update.
 Updates are agent-written; there is no timed or fixed host message. They arrive
 when the model completes a text message, not token by token. Child-agent text,
 reasoning, and tool results are not forwarded directly.
-Posts are serialized, and the final answer is not posted a second time when its
-callback already supplied it. A failed post stops model work without retrying an
+Interim posts are serialized. The final answer is posted once, after the model
+finishes and typing refreshes stop. A failed post stops model work without retrying an
 uncertain write. An update already delivered remains visible if later work fails.
 The live Pi session closes after each turn; its transcript stays on disk.
 On the next message in that thread, including after a restart, Botto reopens the

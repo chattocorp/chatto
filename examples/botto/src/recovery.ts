@@ -75,7 +75,11 @@ export async function recover(
         { signal }
       );
       // Apply the live reply rules to retained notifications too.
-      if (message?.threadRootId && message.inReplyTo) {
+      if (
+        message?.threadRootId &&
+        message.inReplyTo &&
+        !candidate.reasons.includes('direct_message')
+      ) {
         if (!respondTo.includes('reply')) continue;
         const target = await server.getMessage(
           { roomId: message.roomId, messageId: message.inReplyTo },
