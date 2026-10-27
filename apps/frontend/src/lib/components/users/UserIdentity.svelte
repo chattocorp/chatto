@@ -76,7 +76,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     ]}
     data-testid="user-identity"
     aria-haspopup="dialog"
-    aria-label={m('room.sidebar.view_profile', {
+    title={m('room.sidebar.view_profile', {
       name: formatAccountName(profileUser.displayName || profileUser.login, profileUser)
     })}
     onclick={(event) => profileMenu.open(user.id, event)}
