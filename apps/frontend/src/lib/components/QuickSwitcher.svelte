@@ -10,7 +10,8 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
 
-  const model = new QuickSwitcherModel();
+  let { onNextUnread }: { onNextUnread?: () => Promise<void> } = $props();
+  const model = new QuickSwitcherModel(() => onNextUnread?.());
   let dialogEl: HTMLDialogElement | undefined;
 
   function syncQuickSwitcherDialog(node: HTMLDialogElement) {
@@ -224,7 +225,9 @@
                   </span>
                 {/if}
 
-                {#if index === model.selectedIndex}
+                {#if item.id === 'next-unread'}
+                  <kbd class="keycap">Alt ⇧ ↓</kbd>
+                {:else if index === model.selectedIndex}
                   <span class="shrink-0 text-muted" aria-hidden="true">↵</span>
                 {/if}
               </button>

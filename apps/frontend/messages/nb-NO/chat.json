@@ -6,6 +6,8 @@
       "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
     },
     "notifications": {
+      "next_unread_source": "Gå til neste uleste kilde",
+      "no_unread": "Ingen uleste varsler",
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",
       "clear_read": "Fjern leste",

@@ -6,6 +6,8 @@
       "confirmation": "Tímto na 15 minut zapnete další oprávnění, která vám byla na tomto serveru přidělena."
     },
     "notifications": {
+      "next_unread_source": "Přejít na další nepřečtený zdroj",
+      "no_unread": "Žádná nepřečtená oznámení",
       "title": "Oznámení",
       "subtitle": "Zde je novinka",
       "clear_read": "Odstranit přečtené",

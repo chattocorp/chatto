@@ -1,4 +1,5 @@
 import { resolve } from '$app/paths';
+import type { ResolvedPathname } from '$app/types';
 import type { NotificationOccurrenceItem } from '@chatto/client/api/notifications';
 import { notificationTarget } from '@chatto/client/server/notifications';
 import { serverIdToSegment } from '$lib/navigation';
@@ -12,7 +13,7 @@ import { conversationPath } from '$lib/navigation/conversationPath';
 export function notificationPath(
   serverId: string,
   notification: NotificationOccurrenceItem
-): string {
+): ResolvedPathname {
   const serverSegment = serverIdToSegment(serverId);
   const target = notificationTarget(notification);
 
