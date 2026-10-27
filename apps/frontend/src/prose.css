@@ -185,7 +185,7 @@
     @apply m-0 px-3 py-2 text-sm text-muted;
   }
 
-  /* Source panes scroll independently; rendered artifacts keep their full height. */
+  /* Code scrolls inside its pane; image artifacts own a separate pan/zoom stage. */
   & pre.markdown-code {
     @apply relative m-0 overflow-hidden rounded-none px-3 py-2;
     background: transparent;
