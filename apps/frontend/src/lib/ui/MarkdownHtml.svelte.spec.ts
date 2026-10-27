@@ -54,7 +54,11 @@ describe('Mermaid previews', () => {
       await expect.element(tabs[1]).toHaveFocus();
       if (language !== 'ansi')
         await expect
-          .poll(() => first.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          // The first Mermaid job also loads its worker chunk. The assertion's
+          // default one-second timeout is shorter than the three-second job limit.
+          .poll(() => first.querySelector<HTMLImageElement>('img')?.naturalWidth, {
+            timeout: 5_000
+          })
           .toBeGreaterThan(0);
       await userEvent.click(first.querySelector('[data-markdown-copy]')!);
       expect(writeText).toHaveBeenCalledWith(source);
@@ -67,7 +71,8 @@ describe('Mermaid previews', () => {
       await expect
         .element(first.querySelector<HTMLElement>('[data-code-panel="render"]')!)
         .not.toBeVisible();
-    }
+    },
+    10_000
   );
 
   it('does not switch back to Render when a pending image finishes', async () => {
