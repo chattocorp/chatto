@@ -193,13 +193,22 @@
             class="max-w-48 truncate text-xs text-base-content/50"
             title={item.node.label}>{item.node.label.split('/').at(-1)}</span
           >{/if}
-        <span class="text-xs text-base-content/50">{activityStatus(item.node)}</span>
+        <span
+          class={activityStatus(item.node) === 'completed'
+            ? 'sr-only'
+            : 'text-xs text-base-content/70'}>{activityStatus(item.node)}</span
+        >
         {#if item.node.durationMs !== undefined}<span
             class="text-xs tabular-nums text-base-content/60">{duration(item.node.durationMs)}</span
           >{/if}
-        {#if item.node.usage}<Usage usage={item.node.usage} compact />{/if}
+        {#if item.node.kind === 'agent' && item.node.usage}<Usage
+            usage={item.node.usage}
+            compact
+          />{/if}
       </summary>
       <div class="my-2 ml-6 space-y-3 border-l border-base-300 pl-4 text-xs">
+        <p class="m-0 text-base-content/70">Started at {logTime(row.event.timestamp)}</p>
+        {#if item.node.usage}<Usage usage={item.node.usage} detail />{/if}
         {#if item.node.kind === 'agent'}<p class="m-0 text-base-content/60">
             Model: {item.node.label}
           </p>{/if}
@@ -295,12 +304,7 @@
 {/snippet}
 
 <section class="flex min-h-0 flex-1 flex-col" aria-label="Run log">
-  <div
-    class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 bg-base-200/35 px-4 py-1.5 sm:px-6"
-  >
-    <span class="text-xs text-base-content/50 tabular-nums"
-      >{rows.length} {rows.length === 1 ? 'line' : 'lines'}</span
-    >
+  <div class="flex shrink-0 items-center justify-end gap-3 px-4 py-1.5 sm:px-6">
     <div class="flex items-center gap-1">
       <button
         class="btn btn-ghost btn-xs"
@@ -345,12 +349,19 @@
       <ol class="m-0 list-none p-0 font-mono text-[13px] leading-5">
         {#each treeRows as { row, depth, joinsAbove, continuesBelow } (row.id)}
           <li
-            class="grid grid-cols-[4.5rem_1rem_minmax(0,1fr)] gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55 sm:grid-cols-[5rem_1rem_minmax(0,1fr)]"
+            class={[
+              'grid gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55',
+              detailed
+                ? 'grid-cols-[4.5rem_1rem_minmax(0,1fr)] sm:grid-cols-[5rem_1rem_minmax(0,1fr)]'
+                : 'grid-cols-[1rem_minmax(0,1fr)]'
+            ]}
             data-log-row={row.id}
+            title={!detailed ? `At ${logTime(row.event.timestamp)}` : undefined}
           >
-            <time class="select-none text-base-content/40 tabular-nums" title="Elapsed run time"
-              >{logTime(row.event.timestamp)}</time
-            >
+            {#if detailed}<time
+                class="select-none text-base-content/40 tabular-nums"
+                title="Elapsed run time">{logTime(row.event.timestamp)}</time
+              >{/if}
             <span
               class={markerClass(row.event.level)}
               title={row.event.level}
