@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "El proveedor no se puede desconectar",
-          "body": "{provider} es su único método de inicio de sesión. Agregue una contraseña o vincule otro proveedor primero."
+          "body": "Configura otro método de inicio de sesión compatible con este servidor antes de desconectar {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmar contraseña",

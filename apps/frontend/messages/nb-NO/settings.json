@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Leverandøren kan ikke kobles fra",
-          "body": "{provider} er din eneste påloggingsmetode. Legg til et passord eller koble til en annen leverandør først."
+          "body": "Sett opp en annen påloggingsmetode som denne serveren støtter, før du kobler fra {provider}."
         },
         "fresh_auth_modal": {
           "title": "Bekreft passord",

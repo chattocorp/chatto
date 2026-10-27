@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Leverantören kan inte kopplas bort",
-          "body": "{provider} är din enda inloggningsmetod. Lägg till ett lösenord eller länka till en annan leverantör först."
+          "body": "Konfigurera en annan inloggningsmetod som den här servern stöder innan du kopplar bort {provider}."
         },
         "fresh_auth_modal": {
           "title": "Bekräfta lösenord",

@@ -464,7 +464,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Sağlayıcının bağlantısı kesilemez",
-          "body": "{provider} tek oturum açma yönteminizdir. Önce bir şifre ekleyin veya başka bir sağlayıcıyı bağlayın."
+          "body": "{provider} bağlantısını kesmeden önce bu sunucunun desteklediği başka bir oturum açma yöntemi ayarlayın."
         },
         "fresh_auth_modal": {
           "title": "Şifreyi onayla",
