@@ -11,6 +11,8 @@
     "url_placeholder": "babilejo.ekzemplo.com",
     "not_chatto_server": "Ĉi tio ne ŝajnas esti Chatto-servilo.",
     "directory": {
+      "your_servers": "Viaj serviloj",
+      "introduction": "Elektu servilon aŭ konektiĝu per adreso.",
       "title": "Servila katalogo",
       "subtitle": "Malkovru aliajn Chatto-servilojn",
       "lookup_description": "Enigu la adreson de iu ajn Chatto-servilo por aliĝi al ĝi.",

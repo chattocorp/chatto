@@ -11,6 +11,8 @@
     "url_placeholder": "sohbet.example.com",
     "not_chatto_server": "Bu bir Chatto sunucusu gibi görünmüyor.",
     "directory": {
+      "your_servers": "Sunucularınız",
+      "introduction": "Bir sunucu seçin veya adresle bağlanın.",
       "title": "Sunucu Dizini",
       "subtitle": "Diğer Chatto sunucularını keşfedin",
       "lookup_description": "Katılmak için herhangi bir Chatto sunucusunun adresini girin.",

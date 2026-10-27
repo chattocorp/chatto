@@ -92,20 +92,22 @@ test.describe('Server Directory (sidebar entry point)', () => {
       .toEqual(['/chat/-', '/chat/order-b.localhost', '/chat/order-a.localhost']);
   });
 
-  test('sidebar "+" opens the Server Directory in a dialog', async ({ page, chatPage }) => {
+  test('sidebar "+" opens the shared directory page and Back returns to chat', async ({
+    page,
+    chatPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const chatURL = page.url();
 
     await page.getByTitle('Add Server').click();
-    const dialog = page.getByRole('dialog', { name: 'Add Server' });
-    await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await expect(dialog.getByLabel('Server URL')).toBeVisible();
-    expect(page.url()).toBe(chatURL);
+    await expect(page).toHaveURL(/\/chat\/servers$/);
+    await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible();
+    await expect(page.getByLabel('Server URL')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 
     await page.goBack();
-    await expect(dialog).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
-    expect(page.url()).toBe(chatURL);
+    await expect(page).toHaveURL(chatURL);
   });
 
   test('the Server Directory route shows the directory as a page', async ({ page }) => {

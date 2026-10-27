@@ -41,13 +41,17 @@ recommendation, not a trust or reciprocal relationship.
   another public HTTP or HTTPS host than the advertised origin. The
   `ListNeighborhoodServers` response gives each copy as a server-relative path
   on the called server.
-- The Add Server action in the Server Gutter opens the Server Directory in a
-  history-backed dialog. The browser Back action closes it. The
-  `/chat/servers` route shows the same directory as a page. The standalone
-  client uses this page before it registers a server.
-- The Server Directory starts with the recommendations. A **Connect by
-  address** action opens the direct server-address lookup. The lookup shows
-  immediately when the directory has no recommendations.
+- The Add Server action in the Server Gutter opens `/chat/servers`. This is
+  the only Server Directory surface. Back returns to the previous page.
+  Static hosting and Desktop open this directory directly instead of a
+  separate welcome screen. A server-hosted frontend retains its required
+  origin registration and its normal local sign-in or chat landing page.
+- The directory shows **Your servers** first, including signed-out servers
+  and the origin server. Saved cards use existing registration and store data.
+  Recommendations exclude all registered servers, so each server appears
+  once. A **Connect by address** action opens the direct lookup. The lookup
+  shows immediately for an empty catalogue or when no recommendations remain.
+  An empty standalone catalogue does not contact a default third-party directory.
 - The Server Directory loads the cached Neighborhood of each server that is
   registered in the client. It contacts no other server to show results and
   does not ask for consent. A registered server already knows the user's
@@ -75,18 +79,16 @@ recommendation, not a trust or reciprocal relationship.
   registered server that does not provide a Neighborhood contributes no
   results and does not count as a failure.
 - Joining a server adds it to the gutter without a session and opens its
-  signed-out view. In the Add Server dialog, navigation replaces the dialog's
-  history entry, so the dialog closes and Back does not reopen it. The server
+  signed-out view. Back returns to the directory. The server
   view offers sign-in (FDR-023), including the inline Desktop password form
   (FDR-034). Joining does not submit credentials or open a sign-in window. Before
   it adds a recommended server, the client loads the server's current public
   data. The user starts this request with the join action. If the current
   version is not compatible or sign-in is not available, the client stops the
   join and shows the current action for that server.
-- An advertised server that is already registered remains visible and is
-  marked as joined. Its action opens the server, also when the client has no
-  session for it. Opening a server from the dialog replaces the dialog's
-  history entry, so Back does not reopen the dialog.
+- A registered server appears under **Your servers**. Its action opens the
+  server, also when the client has no session for it. A direct address lookup
+  for a registered server also offers the open action instead of joining again.
 - An unregistered server has a join action only when its discovered version is
   compatible with the client. When the version is incompatible or unknown,
   the client opens the server origin in a new tab. The server can then provide

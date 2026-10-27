@@ -37,7 +37,7 @@ const standaloneData = {
   passwordResetSuccess: false
 };
 
-describe('standalone server selection', () => {
+describe('origin sign-in page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.servers = [];
@@ -47,32 +47,6 @@ describe('standalone server selection', () => {
       name: 'Available',
       authorizeUrl: '/oauth/authorize'
     });
-  });
-
-  it('keeps saved servers out of the welcome page without checking them', async () => {
-    mocks.servers = [
-      { id: 'remote', url: 'https://remote.example', name: 'Remote Community', token: null }
-    ];
-    const { getByRole, getByText } = render(LoginPage, { props: { data: standaloneData } });
-
-    await expect
-      .element(getByRole('heading', { name: 'Choose a server to get started' }))
-      .toBeVisible();
-    await expect.element(getByRole('link', { name: 'Connect to a server' })).toBeVisible();
-    await expect.element(getByText('Remote Community')).not.toBeInTheDocument();
-    await expect
-      .element(getByText(/This page checks saved servers directly/))
-      .not.toBeInTheDocument();
-    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
-    expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
-    expect(mocks.servers).toHaveLength(1);
-  });
-
-  it('opens the full Server Directory instead of a modal', async () => {
-    const { getByRole } = render(LoginPage, { props: { data: standaloneData } });
-
-    const link = getByRole('link', { name: 'Connect to a server' });
-    await expect.element(link).toHaveAttribute('href', '/chat/servers');
   });
 
   it('shows provider errors without password controls when password login is disabled', async () => {

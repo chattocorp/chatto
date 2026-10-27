@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "See ei näi olevat Chatto server.",
     "directory": {
+      "your_servers": "Sinu serverid",
+      "introduction": "Vali server või ühendu aadressi kaudu.",
       "title": "Serverite kataloog",
       "subtitle": "Avastage teisi Chatto servereid",
       "lookup_description": "Sisestage mis tahes Chatto serveri aadress, et sellega liituda.",

@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "لا يبدو أن هذا هو خادم Chatto.",
     "directory": {
+      "your_servers": "خوادمك",
+      "introduction": "اختر خادمًا أو اتصل باستخدام عنوان.",
       "title": "دليل الخوادم",
       "subtitle": "اكتشف خوادم Chatto أخرى",
       "lookup_description": "أدخل عنوان أي خادم Chatto للانضمام إليه.",

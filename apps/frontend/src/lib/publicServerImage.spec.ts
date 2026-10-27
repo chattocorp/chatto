@@ -88,6 +88,7 @@ describe('loadPublicServerImage', () => {
     const createObjectURL = vi.spyOn(URL, 'createObjectURL');
     const image = {
       src: '',
+      dispatchEvent: vi.fn(),
       removeAttribute: vi.fn()
     } as unknown as HTMLImageElement;
 
@@ -96,6 +97,7 @@ describe('loadPublicServerImage', () => {
     await vi.waitFor(() => expect(bodyCancelled).toBe(true));
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(image.src).toBe('');
+    expect(image.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
   });
 
   it('stops reading an image that exceeds the public-image byte limit', async () => {
@@ -120,6 +122,7 @@ describe('loadPublicServerImage', () => {
     const createObjectURL = vi.spyOn(URL, 'createObjectURL');
     const image = {
       src: '',
+      dispatchEvent: vi.fn(),
       removeAttribute: vi.fn()
     } as unknown as HTMLImageElement;
 
@@ -128,5 +131,33 @@ describe('loadPublicServerImage', () => {
     await vi.waitFor(() => expect(bodyCancelled).toBe(true));
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(image.src).toBe('');
+    expect(image.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+  });
+
+  it('shows a fallback on network failure but ignores a disposed request', async () => {
+    let rejectRequest!: (reason: Error) => void;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((_, reject) => {
+            rejectRequest = reject;
+          })
+      )
+    );
+    const image = {
+      removeAttribute: vi.fn(),
+      dispatchEvent: vi.fn()
+    } as unknown as HTMLImageElement;
+    loadPublicServerImage('https://chat.example/logo.png')(image);
+    rejectRequest(new Error('Network unavailable'));
+    await vi.waitFor(() => expect(image.dispatchEvent).toHaveBeenCalledOnce());
+
+    vi.mocked(image.dispatchEvent).mockClear();
+    const cleanup = loadPublicServerImage('https://chat.example/logo.png')(image);
+    cleanup?.();
+    rejectRequest(new Error('Request aborted'));
+    await Promise.resolve();
+    expect(image.dispatchEvent).not.toHaveBeenCalled();
   });
 });

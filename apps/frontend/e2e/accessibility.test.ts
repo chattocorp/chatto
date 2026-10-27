@@ -281,10 +281,9 @@ test.describe('Route accessibility', () => {
     await expect(page.getByRole('dialog')).toBeHidden();
 
     await page.getByTitle('Add Server').click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expectNoAccessibilityViolations(page, 'add server dialog', 'dialog[open]');
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'server directory');
+    await page.goBack();
 
     await page.locator('[data-testid="server-icon"][href$="/chat/-"]').click({ button: 'right' });
     await expect(page.getByRole('menuitem', { name: 'Sign out of server' })).toBeVisible();

@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Il ne semble pas s'agir d'un serveur Chatto.",
     "directory": {
+      "your_servers": "Vos serveurs",
+      "introduction": "Choisissez un serveur ou connectez-vous à l’aide d’une adresse.",
       "title": "Annuaire des serveurs",
       "subtitle": "Découvrez d’autres serveurs Chatto",
       "lookup_description": "Saisissez l’adresse de n’importe quel serveur Chatto pour le rejoindre.",

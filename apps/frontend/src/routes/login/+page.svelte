@@ -42,13 +42,6 @@
   );
   const displayedError = $derived(error || pageError);
 
-  // Standalone detection: if public server info failed to load, there is no local
-  // backend to log in to. Redirect URLs are backend-driven flows, so keep the
-  // login form visible while those complete or fail.
-  const isStandalone = $derived(
-    !data.serverInfo && data.serverInfoLoaded && data.redirectUrl === '/'
-  );
-
   function providerLoginHref(provider: PublicAuthProvider): string {
     return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
@@ -140,99 +133,62 @@
   }
 </script>
 
-<PageTitle title={isStandalone ? m('auth.login.welcome_page_title') : m('auth.login.title')} />
+<PageTitle title={m('auth.login.title')} />
 
-{#if isStandalone}
-  <AuthLayout showBranding={false} centerContent>
-    <div class="flex flex-col items-center text-center">
-      <div
-        class="mb-8 flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-action/50 bg-action/10 text-action"
-        aria-hidden="true"
-      >
-        <span aria-hidden="true" class="iconify icon-[mdi--server-plus] text-4xl"></span>
-      </div>
-
-      <div class="flex flex-col gap-3">
-        <h1 class="text-3xl font-bold tracking-tight text-balance text-text-top">
-          {m('auth.login.welcome_title')}
-        </h1>
-        <p class="text-pretty text-muted">
-          {m('auth.login.welcome_description')}
-        </p>
-      </div>
-
-      <div class="mt-8 w-full">
-        <Button variant="action" size="lg" fullWidth href={resolve('/chat/servers')}>
-          <span aria-hidden="true" class="iconify icon-[mdi--plus] text-lg"></span>
-          {m('auth.login.add_server')}
-        </Button>
-      </div>
-
-      {#if displayedError}
-        <div class="mt-4 w-full">
-          <Hint tone="danger">{displayedError}</Hint>
-        </div>
-      {/if}
+<AuthLayout {compact} title={m('auth.login.title')}>
+  {#if data.passwordResetSuccess}
+    <div class="mb-4">
+      <Hint tone="success">
+        {m('auth.login.password_reset_success')}
+      </Hint>
     </div>
-  </AuthLayout>
-{:else}
-  <AuthLayout {compact} title={m('auth.login.title')}>
-    {#if data.passwordResetSuccess}
-      <div class="mb-4">
-        <Hint tone="success">
-          {m('auth.login.password_reset_success')}
-        </Hint>
-      </div>
-    {/if}
+  {/if}
 
-    <!-- SSO providers -->
-    {#if authProviders.length > 0}
-      <AuthProviderButtons
-        providers={authProviders}
-        {selectedProviderId}
-        {compact}
-        href={providerLoginHref}
-        onclick={handleProviderClick}
-      />
-      <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
-      {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
-    {/if}
+  <!-- SSO providers -->
+  {#if authProviders.length > 0}
+    <AuthProviderButtons
+      providers={authProviders}
+      {selectedProviderId}
+      {compact}
+      href={providerLoginHref}
+      onclick={handleProviderClick}
+    />
+    <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+    {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
+  {/if}
 
-    {#if !directLoginEnabled && displayedError}
-      <Hint tone="danger">{displayedError}</Hint>
-    {/if}
+  {#if !directLoginEnabled && displayedError}
+    <Hint tone="danger">{displayedError}</Hint>
+  {/if}
 
-    {#if directLoginEnabled}
-      <PasswordSignInForm
-        bind:identifier
-        bind:password
-        disabled={isAuthenticating}
-        loading={isLoading}
-        error={displayedError}
-        {compact}
-        autofocus
-        onsubmit={handleSubmit}
-      />
+  {#if directLoginEnabled}
+    <PasswordSignInForm
+      bind:identifier
+      bind:password
+      disabled={isAuthenticating}
+      loading={isLoading}
+      error={displayedError}
+      {compact}
+      autofocus
+      onsubmit={handleSubmit}
+    />
 
-      <div class="mt-4 text-center">
-        <a href={resolve('/forgot-password')} class="link">{m('auth.login.forgot_password')}</a>
-      </div>
-    {/if}
+    <div class="mt-4 text-center">
+      <a href={resolve('/forgot-password')} class="link">{m('auth.login.forgot_password')}</a>
+    </div>
+  {/if}
 
-    {#if directRegistrationEnabled}
-      <Divider label={m('common.or')} />
+  {#if directRegistrationEnabled}
+    <Divider label={m('common.or')} />
 
-      <Button
-        href={resolve('/register') +
-          (data.redirectUrl === '/'
-            ? ''
-            : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
-        variant="secondary"
-        size={compact ? 'md' : 'lg'}
-        fullWidth
-      >
-        {m('common.create_account')}
-      </Button>
-    {/if}
-  </AuthLayout>
-{/if}
+    <Button
+      href={resolve('/register') +
+        (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
+      variant="secondary"
+      size={compact ? 'md' : 'lg'}
+      fullWidth
+    >
+      {m('common.create_account')}
+    </Button>
+  {/if}
+</AuthLayout>

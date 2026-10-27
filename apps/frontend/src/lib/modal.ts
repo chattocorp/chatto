@@ -9,7 +9,6 @@ type RoomModalTarget = {
 /** The complete set of shallow-routed global modals and their required payloads. */
 export type ChatModal =
   | { type: 'aboutChatto' }
-  | { type: 'addServer' }
   | { type: 'motd'; motd: string }
   /** Rendered by the active room's notice panel so access loss also removes its draft. */
   | (RoomModalTarget & { type: 'roomNoticeEditor'; editorId: string })

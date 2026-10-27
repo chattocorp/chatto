@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "這似乎不是 Chatto 伺服器。",
     "directory": {
+      "your_servers": "你的伺服器",
+      "introduction": "選擇伺服器或透過位址連線。",
       "title": "伺服器目錄",
       "subtitle": "探索其他 Chatto 伺服器",
       "lookup_description": "輸入任何 Chatto 伺服器的位址即可加入。",

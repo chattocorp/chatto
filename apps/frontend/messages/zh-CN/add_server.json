@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "这似乎不是 Chatto 服务器。",
     "directory": {
+      "your_servers": "你的服务器",
+      "introduction": "选择服务器或通过地址连接。",
       "title": "服务器目录",
       "subtitle": "发现其他 Chatto 服务器",
       "lookup_description": "输入任意 Chatto 服务器的地址以加入。",

@@ -2,9 +2,8 @@
 @component
 
 The Server Directory: the merged cached Neighborhoods of all registered
-servers, and a direct server-address lookup that opens from a button. The
-`/chat/servers` page frames the directory in a titled panel; the Add Server
-dialog shows it directly on its work plane. See FDR-042.
+servers, saved server cards, and a direct server-address lookup. This is the
+single directory surface for every host and the standalone start page. See FDR-042.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
@@ -32,21 +31,10 @@ dialog shows it directly on its work plane. See FDR-042.
   import { evaluateServerCompatibility } from '@chatto/client/server/compatibility';
   import { serverRegistry } from '$lib/client';
   import { addSignedOutServer, findServerByUrl } from '$lib/serverCatalogue';
-  import { EmptyState, Hint, LoadingFog, Panel } from '$lib/ui';
+  import { serverDisplayName } from '@chatto/client/server/state';
+  import { EmptyState, Hint, LoadingFog } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-
-  let {
-    inDialog = false
-  }: {
-    /**
-     * The directory is the content of the history-backed Add Server dialog.
-     * Sections then sit on the dialog's work plane with one lower heading
-     * level. Opening a server replaces the dialog's history entry, so Back
-     * does not reopen it. Joining a server also opens it.
-     */
-    inDialog?: boolean;
-  } = $props();
 
   /** A live profile from a direct lookup, or a cached Server Directory profile. */
   type ServerVersionProfile = PublicServerInfo | NeighborhoodServerProfile | null;
@@ -75,7 +63,10 @@ dialog shows it directly on its work plane. See FDR-042.
       })
     )
   ]);
-  const entries = $derived(directory?.entries ?? []);
+  const savedServers = $derived(serverRegistry.servers);
+  const entries = $derived(
+    (directory?.entries ?? []).filter((entry) => !findServerByUrl(entry.origin))
+  );
   const allSourcesFailed = $derived(
     !!directory &&
       directory.sourceCount > 0 &&
@@ -85,7 +76,9 @@ dialog shows it directly on its work plane. See FDR-042.
     !!directory && directory.failedSourceCount > 0 && !allSourcesFailed
   );
   /** The lookup shows at once when the directory has nothing to recommend. */
-  const showLookup = $derived(lookupRequested || (!!directory && entries.length === 0));
+  const showLookup = $derived(
+    lookupRequested || savedServers.length === 0 || (!!directory && entries.length === 0)
+  );
 
   onMount(() => {
     void refreshDirectory();
@@ -194,7 +187,7 @@ dialog shows it directly on its work plane. See FDR-042.
     try {
       if (joined) {
         await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(joined.id) }), {
-          replaceState: inDialog
+          replaceState: false
         });
         return;
       }
@@ -216,7 +209,7 @@ dialog shows it directly on its work plane. See FDR-042.
         iconUrl: current.iconUrl ?? null
       });
       await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
-        replaceState: inDialog
+        replaceState: false
       });
     } catch {
       toast.error(m('common.error.generic'));
@@ -364,7 +357,7 @@ dialog shows it directly on its work plane. See FDR-042.
           iconActionDisabled={pendingOrigin === customOrigin}
           actions={customActions}
           testId="server-directory-entry"
-          headingTag={inDialog ? 'h4' : 'h3'}
+          headingTag="h3"
         />
       </div>
     {/if}
@@ -372,10 +365,6 @@ dialog shows it directly on its work plane. See FDR-042.
 {/snippet}
 
 {#snippet recommendationsBody()}
-  {#if showLookup}
-    {@render lookupForm()}
-  {/if}
-
   {#if someSourcesFailed}
     <Hint tone="warning">{m('add_server.directory.partial')}</Hint>
   {/if}
@@ -413,7 +402,7 @@ dialog shows it directly on its work plane. See FDR-042.
         <ServerProfileCard
           origin={entry.origin}
           imageOrigin={entry.imageOrigin}
-          profile={entry.profile}
+          {profile}
           badge={joined ? m('add_server.directory.joined') : undefined}
           iconHref={external ? entry.origin : undefined}
           iconOpensInNewTab={external}
@@ -424,47 +413,68 @@ dialog shows it directly on its work plane. See FDR-042.
           iconActionDisabled={pendingOrigin === entry.origin}
           actions={cardActions}
           testId="server-directory-entry"
-          headingTag={inDialog ? 'h4' : 'h3'}
+          headingTag="h3"
         />
       {/each}
     </div>
   {/if}
 {/snippet}
 
-<!-- The recommendations lead. The direct address lookup opens from a button,
-     or shows at once when there is nothing to recommend. The page frames the
-     directory in a titled Panel; the dialog already owns one work plane, so
-     the directory sits directly on it. -->
-{#if inDialog}
-  <section class="flex flex-col gap-4" aria-labelledby="server-directory-recommended-title">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+<div class="flex flex-col gap-8" data-testid="server-directory">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <p class="max-w-2xl text-sm text-pretty text-muted">
+      {m('add_server.directory.introduction')}
+    </p>
+    {#if !showLookup}{@render lookupButton()}{/if}
+  </div>
+  {#if showLookup}{@render lookupForm()}{/if}
+
+  {#if savedServers.length > 0}
+    <section class="flex flex-col gap-4" aria-labelledby="server-directory-saved-title">
+      <h2 id="server-directory-saved-title" class="text-base font-semibold text-text-top">
+        {m('add_server.directory.your_servers')}
+        <span class="font-normal text-muted tabular-nums">({savedServers.length})</span>
+      </h2>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {#each savedServers as server (server.id)}
+          {@const info = serverRegistry.tryGetStore(server.id)?.serverInfo}
+          {@const profile = {
+            name: info ? serverDisplayName(info, server.name) : server.name,
+            iconUrl: info?.iconUrl ?? server.iconUrl,
+            bannerUrl: info?.bannerUrl ?? null,
+            description: info?.description ?? null
+          }}
+          {@const href = resolve('/chat/[serverId]', { serverId: serverIdToSegment(server.id) })}
+          {#snippet savedActions()}
+            <Button {href} variant="secondary" size="sm">{m('add_server.directory.open')}</Button>
+          {/snippet}
+          <ServerProfileCard
+            origin={server.url}
+            {profile}
+            iconHref={href}
+            iconActionLabel={m('add_server.directory.open')}
+            actions={savedActions}
+            testId="saved-server-entry"
+          />
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if savedServers.length > 0}
+    <section class="flex flex-col gap-4" aria-labelledby="server-directory-recommended-title">
       <div class="flex min-w-0 flex-col gap-1">
-        <h3
-          id="server-directory-recommended-title"
-          class="text-base font-semibold text-balance text-text-top"
-        >
+        <h2 id="server-directory-recommended-title" class="text-base font-semibold text-text-top">
           {m('add_server.directory.servers_title')}
-          {#if entries.length}
-            <span class="font-normal text-muted tabular-nums">({entries.length})</span>
-          {/if}
-        </h3>
+          {#if entries.length}<span class="font-normal text-muted tabular-nums"
+              >({entries.length})</span
+            >{/if}
+        </h2>
         <p class="text-sm text-pretty text-muted">
           {m('add_server.directory.servers_description')}
         </p>
       </div>
-      {#if !showLookup}
-        {@render lookupButton()}
-      {/if}
-    </div>
-    {@render recommendationsBody()}
-  </section>
-{:else}
-  <Panel
-    title={m('add_server.directory.servers_title')}
-    subtitle={m('add_server.directory.servers_description')}
-    count={entries.length || undefined}
-    actions={showLookup ? undefined : lookupButton}
-  >
-    <div class="flex flex-col gap-4">{@render recommendationsBody()}</div>
-  </Panel>
-{/if}
+      {@render recommendationsBody()}
+    </section>
+  {/if}
+</div>

@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Dit lijkt geen Chatto-server te zijn.",
     "directory": {
+      "your_servers": "Jouw servers",
+      "introduction": "Kies een server of maak verbinding via een adres.",
       "title": "Servergids",
       "subtitle": "Ontdek andere Chatto-servers",
       "lookup_description": "Voer het adres van een Chatto-server in om lid te worden.",

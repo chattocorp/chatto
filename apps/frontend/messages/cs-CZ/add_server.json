@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Zdá se, že se nejedná o server Chatto.",
     "directory": {
+      "your_servers": "Vaše servery",
+      "introduction": "Vyberte server nebo se připojte pomocí adresy.",
       "title": "Adresář serverů",
       "subtitle": "Objevte další servery Chatto",
       "lookup_description": "Zadejte adresu libovolného serveru Chatto a připojte se k němu.",

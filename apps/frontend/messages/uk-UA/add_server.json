@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Це не схоже на сервер Chatto.",
     "directory": {
+      "your_servers": "Ваші сервери",
+      "introduction": "Виберіть сервер або підключіться за адресою.",
       "title": "Каталог серверів",
       "subtitle": "Відкрийте для себе інші сервери Chatto",
       "lookup_description": "Введіть адресу будь-якого сервера Chatto, щоб приєднатися до нього.",

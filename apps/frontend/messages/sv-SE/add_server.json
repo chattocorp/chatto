@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Det här verkar inte vara en Chatto-server.",
     "directory": {
+      "your_servers": "Dina servrar",
+      "introduction": "Välj en server eller anslut via en adress.",
       "title": "Serverkatalog",
       "subtitle": "Upptäck andra Chatto-servrar",
       "lookup_description": "Ange adressen till valfri Chatto-server för att gå med i den.",

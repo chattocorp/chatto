@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "זה לא נראה כשרת Chatto.",
     "directory": {
+      "your_servers": "השרתים שלך",
+      "introduction": "בחר שרת או התחבר באמצעות כתובת.",
       "title": "מדריך השרתים",
       "subtitle": "גלה שרתי Chatto נוספים",
       "lookup_description": "הזן את הכתובת של שרת Chatto כלשהו כדי להצטרף אליו.",

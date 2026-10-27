@@ -1,8 +1,8 @@
 <!--
 @component
 
-Full-page Server Directory. The standalone client links here before any server
-is registered; the Server Gutter opens the same directory in a dialog instead.
+The shared Server Directory and standalone start page. The Server Gutter
+opens this page in every host.
 -->
 <script lang="ts">
   import ServerDirectory from '$lib/components/ServerDirectory.svelte';
@@ -13,12 +13,9 @@ is registered; the Server Gutter opens the same directory in a dialog instead.
 <PageTitle title={m('add_server.directory.title')} />
 
 <div class="pane-page">
-  <PaneHeader
-    title={m('add_server.directory.title')}
-    subtitle={m('add_server.directory.subtitle')}
-  />
+  <PaneHeader title={m('add_server.directory.title')} />
 
-  <PaneContent>
+  <PaneContent wide>
     <ServerDirectory />
   </PaneContent>
 </div>

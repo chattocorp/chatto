@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Šķiet, ka tas nav Chatto serveris.",
     "directory": {
+      "your_servers": "Tavi serveri",
+      "introduction": "Izvēlies serveri vai izveido savienojumu, izmantojot adresi.",
       "title": "Serveru katalogs",
       "subtitle": "Atklājiet citus Chatto serverus",
       "lookup_description": "Ievadiet jebkura Chatto servera adresi, lai tam pievienotos.",

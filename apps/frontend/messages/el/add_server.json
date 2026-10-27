@@ -11,6 +11,8 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Αυτός δεν φαίνεται να είναι διακομιστής Chatto.",
     "directory": {
+      "your_servers": "Οι διακομιστές σας",
+      "introduction": "Επιλέξτε έναν διακομιστή ή συνδεθείτε μέσω διεύθυνσης.",
       "title": "Κατάλογος διακομιστών",
       "subtitle": "Ανακαλύψτε άλλους διακομιστές Chatto",
       "lookup_description": "Εισαγάγετε τη διεύθυνση οποιουδήποτε διακομιστή Chatto για να συμμετάσχετε.",
