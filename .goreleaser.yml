@@ -18,6 +18,10 @@ builds:
         goarch: amd64
     flags:
       - -trimpath
+    # Keep HEIC decoding in bundled WASM. Its dynamic backend requires a
+    # system loader even with CGO_ENABLED=0, which breaks Alpine images.
+    tags:
+      - nodynamic
     ldflags:
       - -s -w
 
