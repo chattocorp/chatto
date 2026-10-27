@@ -34,6 +34,80 @@ describe('renderInlineMarkdown', () => {
 });
 
 describe('renderMarkdown', () => {
+  describe('Mermaid previews', () => {
+    it('recognises only the complete language hint and escapes fallback source', async () => {
+      const source = 'flowchart LR\nA["<img src=x onerror=alert(1)>"] --> B\n';
+      const html = await renderMarkdown('```Mermaid\n' + source + '```');
+      expect(html).toContain('data-artifact="mermaid"');
+      expect(html).toContain('data-copy-source="flowchart LR');
+      expect(html).not.toContain('<img');
+      for (const info of ['mermaid extra', 'mermaidish', 'text']) {
+        expect(await renderMarkdown('```' + info + '\n' + source + '```')).not.toContain(
+          'data-artifact="mermaid"'
+        );
+      }
+    });
+
+    it('bounds previews and leaves source configuration as code', async () => {
+      const fence = '```mermaid\nflowchart LR\nA-->B\n```';
+      expect(
+        (await renderMarkdown(Array(5).fill(fence).join('\n\n'))).match(/ disabled/g)
+      ).toHaveLength(1);
+      expect(await renderMarkdown('```mermaid\n' + 'x'.repeat(10_001) + '\n```')).toContain(
+        ' disabled'
+      );
+      expect(
+        await renderMarkdown('```mermaid\n%%{init: {}}%%\nflowchart LR\nA-->B\n```')
+      ).toContain(' disabled');
+      expect(
+        await renderMarkdown(
+          fence
+            .split('\n')
+            .map((line) => '> ' + line)
+            .join('\n')
+        )
+      ).toContain('data-artifact="mermaid"');
+    });
+  });
+  describe('SVG previews', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><text>Hi &amp; bye</text></svg>\n';
+
+    it('uses the render hint only to select the initial tab and keeps source escaped', async () => {
+      for (const info of ['svg', 'xml', 'svg renderer', 'svg render extra']) {
+        expect(await renderMarkdown('```' + info + '\n' + svg + '```')).not.toContain('<img');
+      }
+      const html = await renderMarkdown('```svg render\n' + svg + '```');
+      expect(html).toContain('data-artifact="svg"');
+      expect(html).not.toContain('<img');
+      expect(html).not.toContain('<details>');
+      expect(html).toContain('data-code-panel="source" hidden');
+      expect(await renderMarkdown('```svg\n' + svg + '```')).toContain(
+        'data-code-panel="render" hidden'
+      );
+      expect(html).not.toContain('<svg');
+      expect(html).toContain('data-copy-source="&lt;svg');
+    });
+
+    it('supports nested fences and limits preview count and source length', async () => {
+      const fence = '```svg render\n' + svg + '```';
+      expect(
+        await renderMarkdown(
+          fence
+            .split('\n')
+            .map((line) => '> ' + line)
+            .join('\n')
+        )
+      ).toContain('data-artifact="svg"');
+      expect(
+        (await renderMarkdown(Array(5).fill(fence).join('\n\n'))).match(
+          /data-code-panel="source" hidden/g
+        )
+      ).toHaveLength(4);
+      expect(await renderMarkdown('```svg render\n' + 'x'.repeat(100_001) + '\n```')).toContain(
+        ' disabled'
+      );
+    });
+  });
   describe('footnotes', () => {
     it('numbers notes in reference order and returns to each repeated reference', async () => {
       const html = await renderMarkdown(
@@ -418,9 +492,7 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<pre class="hljs markdown-code" data-language="js"');
       expect(html).toContain('language-js');
       expect(html).toContain('hljs-keyword');
-      expect(html).toContain(
-        '<span class="markdown-code-actions"><span class="markdown-code-language">js</span><button'
-      );
+      expect(html).toContain('<span class="markdown-code-language">js</span><button');
       expect(html).toContain('data-markdown-copy');
     });
 
@@ -480,7 +552,7 @@ describe('renderMarkdown', () => {
       const html = await renderMarkdown('    first\n    second\n\n`inline`');
 
       expect(html).toContain('data-copy-source="first\nsecond\n"');
-      expect(html).toContain('<span class="markdown-code-actions"><button');
+      expect(html).toContain('<span class="markdown-code-language">text</span><button');
       expect(html.match(/data-markdown-copy/g)).toHaveLength(1);
       expect(html).toContain('<code>inline</code>');
     });

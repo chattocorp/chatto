@@ -24,6 +24,185 @@ vi.mock('$lib/ui/toast', () => ({ toast: toastMocks }));
 import MarkdownHtml from './MarkdownHtml.svelte';
 
 let originalClipboard: PropertyDescriptor | undefined;
+
+describe('Mermaid previews', () => {
+  it.each(['svg', 'mermaid', 'ansi'])(
+    'keeps %s source available through independent keyboard tabs',
+    async (language) => {
+      const source =
+        language === 'svg'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"/>\n'
+          : language === 'mermaid'
+            ? 'flowchart LR\nA-->B\n'
+            : '\x1b[31mART\n';
+      const html = await renderMarkdown('```' + language + '\n' + source + '```');
+      const first = render(MarkdownHtml, { html }).container;
+      const second = render(MarkdownHtml, { html }).container;
+      const tabs = first.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      expect(first.querySelector('img')).toBeNull();
+      expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+      const ids = [...first.querySelectorAll('[id]'), ...second.querySelectorAll('[id]')].map(
+        (node) => node.id
+      );
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const tab of tabs)
+        expect(
+          first.querySelector('#' + CSS.escape(tab.getAttribute('aria-controls')!))
+        ).not.toBeNull();
+      tabs[0].focus();
+      await userEvent.keyboard('{ArrowRight}');
+      await expect.element(tabs[1]).toHaveFocus();
+      if (language !== 'ansi')
+        await expect
+          .poll(() => first.querySelector<HTMLImageElement>('img')?.naturalWidth)
+          .toBeGreaterThan(0);
+      await userEvent.click(first.querySelector('[data-markdown-copy]')!);
+      expect(writeText).toHaveBeenCalledWith(source);
+      expect(second.querySelector('[role="tab"]')?.getAttribute('aria-selected')).toBe('true');
+      tabs[1].focus();
+      await userEvent.keyboard('{Home}');
+      await expect
+        .element(first.querySelector<HTMLElement>('[data-code-panel="source"]')!)
+        .toBeVisible();
+      await expect
+        .element(first.querySelector<HTMLElement>('[data-code-panel="render"]')!)
+        .not.toBeVisible();
+    }
+  );
+
+  it('does not switch back to Render when a pending image finishes', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```mermaid render\nflowchart LR\nA-->B\n```')
+    });
+    await expect
+      .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBeGreaterThan(0);
+    await userEvent.click(container.querySelector('[data-code-tab="source"]')!);
+    container.querySelector('img')!.dispatchEvent(new Event('load'));
+    expect(container.querySelector('[data-code-tab="source"]')?.getAttribute('aria-selected')).toBe(
+      'true'
+    );
+  });
+
+  it.each(['TB', 'LR'])(
+    'shows the whole %s diagram without internal scrolling on a narrow screen',
+    async (direction) => {
+      const source =
+        `flowchart ${direction}\n` +
+        Array.from(
+          { length: 10 },
+          (_, i) => `A${i}[Checkpoint ${i}] --> A${i + 1}[Checkpoint ${i + 1}]`
+        ).join('\n');
+      const { container } = render(MarkdownHtml, {
+        html: await renderMarkdown('```mermaid render\n' + source + '\n```')
+      });
+      container.classList.add('prose');
+      container.style.width = '320px';
+      await expect
+        .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      const block = container.querySelector<HTMLElement>('[data-artifact="mermaid"]')!;
+      const image = block.querySelector('img')!;
+      expect(getComputedStyle(block).overflowY).toBe('hidden');
+      expect(block.scrollHeight).toBeLessThanOrEqual(block.clientHeight + 1);
+      expect(block.scrollWidth).toBeLessThanOrEqual(block.clientWidth + 1);
+      expect(image.getBoundingClientRect().width).toBeLessThanOrEqual(320);
+      expect(block.clientHeight).toBeGreaterThanOrEqual(image.getBoundingClientRect().height - 1);
+      if (direction === 'TB') expect(block.clientHeight).toBeGreaterThan(512);
+      expect(block.hasAttribute('tabindex')).toBe(false);
+    }
+  );
+  it('updates surface lighting with UI Depth and removes it in flat mode', async () => {
+    const root = document.documentElement;
+    const previous = root.style.getPropertyValue('--depth-level');
+    try {
+      root.style.setProperty('--depth-level', '0');
+      const { container } = render(MarkdownHtml, {
+        html: await renderMarkdown('```mermaid render\nflowchart LR\nA[Dock]-->B[Trade]\n```')
+      });
+      await expect
+        .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+        .toBeGreaterThan(0);
+      const image = container.querySelector<HTMLImageElement>('img')!;
+      const source = () => decodeURIComponent(image.src.split(',')[1]);
+      await expect.poll(source).not.toContain('chatto-pele-depth-edge');
+      const width = image.naturalWidth;
+      root.style.setProperty('--depth-level', '100');
+      await expect.poll(source).toContain('chatto-pele-depth-edge');
+      await expect.poll(() => image.complete && image.naturalWidth === width).toBe(true);
+      root.style.setProperty('--depth-level', '0');
+      await expect.poll(source).not.toContain('chatto-pele-depth-edge');
+      expect(container.querySelector('img')).toBe(image);
+    } finally {
+      if (previous) root.style.setProperty('--depth-level', previous);
+      else root.style.removeProperty('--depth-level');
+    }
+  });
+  it('loads a real worker result as an image with accessible text and updates its theme', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown(
+        '```mermaid render\nflowchart LR\naccTitle: Flight plan\naccDescr: Launch then orbit\nA[Launch] --> B[Orbit]\n```'
+      )
+    });
+    await expect
+      .poll(
+        () => container.querySelector<HTMLImageElement>('.markdown-mermaid-preview')?.naturalWidth
+      )
+      .toBeGreaterThan(0);
+    const image = container.querySelector<HTMLImageElement>('img')!;
+    expect(image.alt).toBe('Flight plan. Launch then orbit');
+    expect(container.querySelector('svg')).toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-code-panel="source"]')?.hidden).toBe(true);
+    const before = image.src;
+    const previous = document.documentElement.dataset.theme;
+    try {
+      document.documentElement.dataset.theme = previous === 'dark' ? 'light' : 'dark';
+      await expect.poll(() => image.src).not.toBe(before);
+    } finally {
+      if (previous === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = previous;
+    }
+  });
+
+  it('keeps invalid source copyable without blocking a valid sibling', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown(
+        '```mermaid render\nnot a diagram\n```\n\n```mermaid render\nflowchart LR\nA-->B\n```'
+      )
+    });
+    await expect
+      .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBeGreaterThan(0);
+    expect(container.querySelector('pre')?.hidden).toBe(false);
+    await userEvent.click(container.querySelector('button[data-markdown-copy]')!);
+    expect(writeText).toHaveBeenCalledWith('not a diagram\n');
+  });
+
+  it('cancels old work when the HTML changes', async () => {
+    const view = render(MarkdownHtml, {
+      html: await renderMarkdown('```mermaid render\nflowchart LR\nOld-->Diagram\n```')
+    });
+    await view.rerender({ html: await renderMarkdown('Replacement message') });
+    await expect.element(view.container).toHaveTextContent('Replacement message');
+    expect(view.container.querySelector('img')).toBeNull();
+  });
+
+  it('defers offscreen diagrams until they approach the viewport', async () => {
+    const view = render(MarkdownHtml, {
+      html: await renderMarkdown('```mermaid render\nflowchart LR\nA-->B\n```')
+    });
+    const block = view.container.querySelector<HTMLElement>('[data-artifact="mermaid"]')!;
+    block.style.marginTop = '10000px';
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    expect(block.querySelector('img')).toBeNull();
+    block.style.marginTop = '0';
+    await expect
+      .poll(() => block.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBeGreaterThan(0);
+  });
+});
 const writeText = vi.fn<(_: string) => Promise<void>>();
 
 beforeEach(() => {
@@ -158,9 +337,69 @@ describe('MarkdownHtml footnotes', () => {
 });
 
 describe('MarkdownHtml code copy', () => {
+  it('renders SVG inside a shared frame with source and copy controls', async () => {
+    const source =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="red"/></svg>\n';
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```svg render\n' + source + '```')
+    });
+    await expect
+      .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBe(80);
+    const image = container.querySelector('img')!;
+    expect(container.querySelector('svg')).toBeNull();
+    container.classList.add('prose');
+    expect(container.querySelector('details, summary')).toBeNull();
+    await expect
+      .element(container.querySelector<HTMLButtonElement>('button[data-markdown-copy]')!)
+      .toBeVisible();
+    expect(getComputedStyle(image.parentElement!).borderTopWidth).toBe('0px');
+    expect(getComputedStyle(image).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(image).outlineStyle).toBe('none');
+    expect(getComputedStyle(image).borderRadius).toBe('0px');
+  });
+
+  it('reveals malformed SVG source instead of a broken image', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```svg render\n<svg broken\n```')
+    });
+    await expect.element(container.querySelector('code')!).toBeVisible();
+    expect(container.querySelector<HTMLElement>('[data-code-panel="render"]')?.hidden).toBe(true);
+    expect(container.querySelector('code')?.textContent).toBe('<svg broken');
+  });
+
+  it('isolates SVG scripts and external resources in image mode', async () => {
+    const source =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40" onload="parent.document.body.dataset.svgExecuted=1">' +
+      '<script>parent.document.body.dataset.svgExecuted=1</script>' +
+      '<image href="https://svg-preview.invalid/probe.png" width="80" height="40"/>' +
+      '<rect width="80" height="40" fill="red"/></svg>';
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown('```svg render\n' + source + '\n```')
+    });
+    await expect
+      .poll(() => container.querySelector<HTMLImageElement>('img')?.naturalWidth)
+      .toBe(80);
+    expect(document.body.dataset.svgExecuted).toBeUndefined();
+    expect(container.querySelector('script, svg, iframe, object')).toBeNull();
+    expect(
+      performance
+        .getEntriesByType('resource')
+        .some((entry) => entry.name.includes('svg-preview.invalid'))
+    ).toBe(false);
+  });
+
+  it('handles SVG failures after the message HTML changes', async () => {
+    const rendered = render(MarkdownHtml, { html: await renderMarkdown('Original message') });
+    await rendered.rerender({ html: await renderMarkdown('```svg render\n<svg broken\n```') });
+    await expect.element(rendered.container.querySelector('code')!).toBeVisible();
+    await rendered.rerender({ html: await renderMarkdown('Updated message') });
+    expect(rendered.container.querySelector('img, details')).toBeNull();
+  });
+
   it('dims the foreground without fading the background of ANSI cells', async () => {
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```ansi\n\x1b[2;44mDIM\n```')
+      html: await renderMarkdown('```ansi render\n\x1b[2;44mDIM\n```')
     });
     const span = container.querySelector('.markdown-ansi code span')!;
     const style = getComputedStyle(span);
@@ -178,7 +417,7 @@ describe('MarkdownHtml code copy', () => {
   it('renders ANSI screen cells in the browser and copies the original escape codes', async () => {
     const source = '\x1b[31mwrong\rART\x1b[K\r\n';
     const { container } = render(MarkdownHtml, {
-      html: await renderMarkdown('```ansi\n' + source + '```')
+      html: await renderMarkdown('```ansi render\n' + source + '```')
     });
     container.classList.add('prose');
     const code = container.querySelector('.markdown-ansi code')!;
@@ -197,7 +436,7 @@ describe('MarkdownHtml code copy', () => {
 
     expect(buttons).toHaveLength(2);
     expect(buttons[0].previousElementSibling?.textContent).toBe('text');
-    expect(buttons[1].previousElementSibling).toBeNull();
+    expect(buttons[1].previousElementSibling?.textContent).toBe('text');
     expect(buttons[0].getAttribute('aria-label')).toBe('Copy to clipboard');
     expect(container.querySelector('p code')?.textContent).toBe('inline');
     await userEvent.click(buttons[0]);

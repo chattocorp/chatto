@@ -15,7 +15,9 @@ describe('ANSI art', () => {
     const source = 'old\rnew\r\nnext';
     const html = await renderMarkdown(fence(source));
     expect(html).toContain(`data-copy-source="${source.replaceAll('\r', '&#13;')}\n"`);
-    const code = html.match(/<code[^>]*>([\s\S]*?)<\/code>/)![1];
+    const code = html.match(
+      /class="markdown-code markdown-ansi"><code[^>]*>([\s\S]*?)<\/code>/
+    )![1];
     expect(screenText(code)).toEqual(['new', 'next']);
   });
   it('renders palette, indexed and true colors, including painted spaces', async () => {

@@ -161,9 +161,37 @@
     unicode-bidi: isolate;
   }
 
-  /* Keep code scrolling inside the block so the controls stay fixed. */
+  & .markdown-code-frame {
+    @apply my-2 min-w-0 overflow-hidden rounded-lg border border-border;
+  }
+
+  & .markdown-code-header {
+    @apply flex items-center gap-3 bg-surface shell-lighting px-3 py-1.5 text-xs text-muted;
+  }
+
+  & .markdown-code-copy {
+    @apply ml-auto;
+  }
+
+  & .markdown-code-header [role='tablist'] {
+    @apply flex gap-1 segmented-track rounded-md p-0.5;
+  }
+
+  & .markdown-code-header [role='tab'] {
+    @apply cursor-pointer rounded px-2 py-1 disabled:cursor-default disabled:opacity-50;
+  }
+
+  & .markdown-code-header [role='tab'][aria-selected='true'] {
+    @apply segmented-selection text-text;
+  }
+
+  & .markdown-code-error {
+    @apply m-0 px-3 py-2 text-sm text-muted;
+  }
+
+  /* Only source text scrolls horizontally; images use the full message height. */
   & pre.markdown-code {
-    @apply relative overflow-hidden border border-surface-emphasized px-3 py-2 shadow-xs;
+    @apply m-0 overflow-hidden rounded-none px-3 py-2;
     background: transparent;
     color: var(--composer-code-text);
     line-height: 1.5;
@@ -173,13 +201,13 @@
     display: block;
     overflow-x: auto;
     line-height: inherit;
-    /* Allow the final characters to scroll clear of the language and copy controls. */
-    padding-inline-end: 5.5rem;
   }
 
-  & pre.markdown-code > .markdown-code-actions {
-    @apply absolute right-0 bottom-0 z-10 flex items-center gap-1.5 rounded-tl-md bg-surface-emphasized px-2 py-1;
-    white-space: normal;
+  & .markdown-svg-preview:not([hidden]),
+  & .markdown-mermaid-preview:not([hidden]) {
+    @apply mx-auto my-0 block h-auto max-w-full object-contain;
+    border-radius: 0;
+    outline: none;
   }
 
   /* ANSI art uses terminal cell spacing and a fixed palette in both themes. */
@@ -191,13 +219,12 @@
   }
 
   & pre.markdown-ansi > code {
-    max-height: 32rem;
-    overflow: auto;
+    overflow-x: auto;
     white-space: pre;
   }
 
-  & pre.markdown-code .markdown-code-language {
-    @apply text-xs tracking-wide text-muted uppercase;
+  & .markdown-code-language {
+    @apply tracking-wide uppercase;
   }
 
   /* Preserve highlighted lines without a separate number gutter. */

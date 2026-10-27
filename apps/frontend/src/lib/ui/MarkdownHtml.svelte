@@ -16,6 +16,7 @@ targets are unique to each component, including when callers reuse rendered HTML
   import { trustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { toast } from '$lib/ui/toast';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
+  import { attachCodeFrames } from '$lib/markdownArtifacts';
 
   let {
     html
@@ -62,7 +63,10 @@ targets are unique to each component, including when callers reuse rendered HTML
 
     event.preventDefault();
     event.stopPropagation();
-    const code = button.closest('pre')?.getAttribute('data-copy-source');
+    const code = button
+      .closest('.markdown-code-frame')
+      ?.querySelector('[data-copy-source]')
+      ?.getAttribute('data-copy-source');
     if (code === null || code === undefined) return;
 
     try {
@@ -96,7 +100,11 @@ targets are unique to each component, including when callers reuse rendered HTML
   }
 </script>
 
-<div class="markdown-html contents" {@attach attachMarkdownActions}>
+<div
+  class="markdown-html contents"
+  {@attach attachMarkdownActions}
+  {@attach attachCodeFrames(html, footnoteScope)}
+>
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- rendered markdown from `$lib/markdown`; see component docs above -->
   {@html trusted}
 </div>

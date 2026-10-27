@@ -78,6 +78,7 @@ Server and CLI Go Components:
 Frontend, Examples, and Documentation Components:
 
 - xterm.js headless terminal (https://github.com/xtermjs/xterm.js) - MIT License
+- Pele Mermaid renderer (https://github.com/obsidianmd/pele) - MIT License
 
 - Astro and Starlight (https://astro.build/) - MIT License
 - Buf Protobuf runtime and ES code generation for TypeScript
