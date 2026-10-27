@@ -279,6 +279,34 @@ describe('external identity settings query lifecycle', () => {
     }
   );
 
+  it.each([
+    DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+    DisconnectEligibility.DISABLED_BY_OPERATOR
+  ])('closes password confirmation when disconnect becomes blocked (%s)', async (decision) => {
+    mocks.list.mockResolvedValue(linkedIdentityList());
+    mocks.disconnect.mockRejectedValue(
+      new ConnectError('fresh authentication', Code.FailedPrecondition)
+    );
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await browserPage
+      .getByRole('dialog', { name: 'Disconnect provider' })
+      .getByRole('button', { name: 'Disconnect', exact: true })
+      .click();
+    const passwordDialog = browserPage.getByRole('dialog', { name: 'Confirm password' });
+    await expect.element(passwordDialog).toBeVisible();
+    await passwordDialog.getByLabelText('Current Password', { exact: true }).fill('test-password');
+    const refreshed = linkedIdentityList();
+    refreshed.linkedIdentities[0].disconnectEligibility = decision;
+    mocks.list.mockResolvedValue(refreshed);
+    await passwordDialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+      .toBeVisible();
+    await expect.element(passwordDialog).not.toBeInTheDocument();
+    expect(document.querySelector('input[type="password"]')).toBeNull();
+  });
+
   it('passes cancellation through and revalidates a cached callback snapshot', async () => {
     const first = renderSettings();
     await settle();

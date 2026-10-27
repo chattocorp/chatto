@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { AccountDeletionAvailability } from '@chatto/client/api/actionAvailability';
+  import {
+    AccountDeletionAvailability,
+    accountDeletionAvailabilityWithFallback
+  } from '@chatto/client/api/actionAvailability';
   import { queryClient } from '$lib/query/queryClient';
   import { settingsQueryKeys } from '$lib/query/settings';
   import AccountName from '$lib/components/users/AccountName.svelte';
@@ -71,9 +74,10 @@
       {/key}
       <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
       <DeleteAccountSection
-        canDeleteAccount={currentUser.user?.actions?.deleteAccount !== undefined
-          ? currentUser.user.actions.deleteAccount === AccountDeletionAvailability.ALLOWED
-          : (currentUser.user?.viewerCanDeleteAccount ?? false)}
+        canDeleteAccount={accountDeletionAvailabilityWithFallback(
+          currentUser.user?.actions?.deleteAccount,
+          currentUser.user?.viewerCanDeleteAccount ?? false
+        ) === AccountDeletionAvailability.ALLOWED}
         getAccountAPI={accountAPI}
       />
     </div>

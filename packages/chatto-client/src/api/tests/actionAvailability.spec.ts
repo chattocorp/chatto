@@ -10,10 +10,46 @@ import {
   type UsernameChangeAvailability,
   usernameChangeAvailabilityFromAPI,
   legacyUsernameChangeAvailability,
-  disconnectEligibilityWithFallback
+  disconnectEligibilityWithFallback,
+  passwordChangeAvailabilityWithFallback,
+  accountDeletionAvailabilityWithFallback
 } from '../actionAvailability.js';
 
 describe('action availability', () => {
+  it.each([true, false])(
+    'uses legacy password and deletion policy only for missing decisions (%s)',
+    (allowed) => {
+      expect(passwordChangeAvailabilityWithFallback(undefined, allowed)).toBe(
+        allowed
+          ? PasswordChangeAvailability.ALLOWED
+          : PasswordChangeAvailability.DIRECT_LOGIN_DISABLED
+      );
+      expect(accountDeletionAvailabilityWithFallback(undefined, allowed)).toBe(
+        allowed
+          ? AccountDeletionAvailability.ALLOWED
+          : AccountDeletionAvailability.PERMISSION_DENIED
+      );
+      for (const state of [
+        PasswordChangeAvailability.UNSPECIFIED,
+        PasswordChangeAvailability.ALLOWED,
+        PasswordChangeAvailability.DIRECT_LOGIN_DISABLED,
+        PasswordChangeAvailability.UNSUPPORTED_ACCOUNT,
+        99 as PasswordChangeAvailability
+      ]) {
+        expect(passwordChangeAvailabilityWithFallback(state, allowed)).toBe(state);
+      }
+      for (const state of [
+        AccountDeletionAvailability.UNSPECIFIED,
+        AccountDeletionAvailability.ALLOWED,
+        AccountDeletionAvailability.PERMISSION_DENIED,
+        AccountDeletionAvailability.UNSUPPORTED_ACCOUNT,
+        99 as AccountDeletionAvailability
+      ]) {
+        expect(accountDeletionAvailabilityWithFallback(state, allowed)).toBe(state);
+      }
+    }
+  );
+
   it('keeps action enums distinct and avoids contradictory allowed/reason fields', () => {
     expectTypeOf<PasswordChangeAvailability>().not.toExtend<AccountDeletionAvailability>();
     expectTypeOf<DisconnectEligibility>().not.toExtend<PasswordChangeAvailability>();

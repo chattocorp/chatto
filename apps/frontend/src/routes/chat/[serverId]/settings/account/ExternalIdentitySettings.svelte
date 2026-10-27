@@ -246,7 +246,7 @@
   const hasRows = $derived(providers.length > 0 || unconfiguredLinkedIdentities.length > 0);
   // Older servers lack the hint, so retain their count-based fallback.
   // Explicit decisions remain authoritative until the list refreshes.
-  function canDisconnectIdentity(subjectHash: string) {
+  function canDisconnectIdentity(subjectHash: string | null) {
     return disconnectAvailability(subjectHash) === DisconnectEligibility.ALLOWED;
   }
 
@@ -272,10 +272,6 @@
       default:
         return 'icon-[mdi--shield-account]';
     }
-  }
-
-  function unlinkDisabled(subjectHash: string | null) {
-    return disconnectAvailability(subjectHash) !== DisconnectEligibility.ALLOWED;
   }
 
   async function startProviderLink(
@@ -439,6 +435,9 @@
             refreshed.data?.linkedIdentities.length ?? 0
           ) !== DisconnectEligibility.ALLOWED
         ) {
+          disconnectFreshAuthTarget = null;
+          disconnectCurrentPassword = '';
+          disconnectFreshAuthError = '';
           blockedDisconnectProviderLabel = providerLabel;
           blockedDisconnectSubjectHash = subjectHash;
           showDisconnectBlockedModal = true;
@@ -520,7 +519,7 @@
                   <div class="text-xs text-muted">
                     {#if provider.linked}
                       {m('settings.account.sso.linked')}
-                      {#if unlinkDisabled(provider.linkedIdentitySubjectHash)}
+                      {#if !canDisconnectIdentity(provider.linkedIdentitySubjectHash)}
                         <p>
                           {identityDisconnectUnavailableMessage(
                             disconnectAvailability(provider.linkedIdentitySubjectHash),
@@ -540,7 +539,7 @@
                     variant="danger-secondary"
                     size="sm"
                     loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
-                    disabled={unlinkDisabled(provider.linkedIdentitySubjectHash) ||
+                    disabled={!canDisconnectIdentity(provider.linkedIdentitySubjectHash) ||
                       linkingProviderId !== '' ||
                       disconnectingSubjectHash !== ''}
                     onclick={() => openDisconnectProvider(provider)}
@@ -579,7 +578,7 @@
                   <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
                   <div class="text-xs text-muted">
                     {m('settings.account.sso.provider_unconfigured')}
-                    {#if unlinkDisabled(identity.subjectHash)}
+                    {#if !canDisconnectIdentity(identity.subjectHash)}
                       <p>
                         {identityDisconnectUnavailableMessage(
                           disconnectAvailability(identity.subjectHash),
@@ -594,7 +593,7 @@
                 variant="danger-secondary"
                 size="sm"
                 loading={disconnectingSubjectHash === identity.subjectHash}
-                disabled={unlinkDisabled(identity.subjectHash) ||
+                disabled={!canDisconnectIdentity(identity.subjectHash) ||
                   linkingProviderId !== '' ||
                   disconnectingSubjectHash !== ''}
                 onclick={() => openDisconnectIdentity(identity)}

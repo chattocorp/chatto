@@ -63,9 +63,6 @@ func (c *ChattoCore) UsernameManaged(ctx context.Context, userID string) (bool, 
 	if user.GetIsBot() {
 		return false, nil
 	}
-	if err := c.userModel.waitForUserAuthCurrent(ctx, "username policy"); err != nil {
-		return false, err
-	}
 	return c.usernameManaged(userID), nil
 }
 

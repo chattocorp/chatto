@@ -2,7 +2,10 @@
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { passwordChangeUnavailableMessage } from '$lib/actionAvailability';
-  import { PasswordChangeAvailability } from '@chatto/client/api/actionAvailability';
+  import {
+    PasswordChangeAvailability,
+    passwordChangeAvailabilityWithFallback
+  } from '@chatto/client/api/actionAvailability';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '@chatto/client/api/account';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
@@ -33,10 +36,10 @@
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
   const passwordAvailability = $derived(
-    currentUser.user?.actions?.changePassword ??
-      (directLoginEnabled
-        ? PasswordChangeAvailability.ALLOWED
-        : PasswordChangeAvailability.DIRECT_LOGIN_DISABLED)
+    passwordChangeAvailabilityWithFallback(
+      currentUser.user?.actions?.changePassword,
+      directLoginEnabled
+    )
   );
   const passwordValidationError = $derived(password ? validateNewPassword(password) : undefined);
   const currentPasswordError = $derived(
