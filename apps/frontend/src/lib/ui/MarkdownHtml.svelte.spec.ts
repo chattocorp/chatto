@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { cdp, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { renderMarkdown } from '$lib/markdown';
@@ -454,9 +454,14 @@ describe('MarkdownHtml code copy', () => {
     expect(writeText).toHaveBeenCalledWith(source);
   });
 
-  it.each(['light', 'dark'])(
-    'keeps code chrome above the message surface in %s mode',
-    async (theme) => {
+  it.each([
+    ['light', false],
+    ['dark', false],
+    ['light', true],
+    ['dark', true]
+  ] as const)(
+    'keeps code chrome above the message surface in %s mode with touch=%s',
+    async (theme, touch) => {
       const root = document.documentElement;
       const previous = root.dataset.theme;
       const transition = root.style.transition;
@@ -466,6 +471,7 @@ describe('MarkdownHtml code copy', () => {
       outside.style.cssText = 'position:fixed;top:0;left:0;width:4px;height:4px;z-index:9999';
       document.body.append(outside);
       try {
+        await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
         root.style.transition = 'none';
         root.dataset.theme = theme;
         const { container } = render(MarkdownHtml, {
@@ -480,15 +486,20 @@ describe('MarkdownHtml code copy', () => {
         expect(getComputedStyle(frame).borderTopColor).toBe(normal);
         await userEvent.hover(header);
         const highlighted = getComputedStyle(header).backgroundColor;
-        expect(highlighted).not.toBe(normal);
+        // Tailwind applies hover colors only when the primary input supports it.
+        // Headless CI can report no hover even with touch emulation disabled.
+        if (matchMedia('(hover: hover)').matches) expect(highlighted).not.toBe(normal);
+        else expect(highlighted).toBe(normal);
         expect(getComputedStyle(frame).borderTopColor).toBe(highlighted);
         container.classList.add('bg-surface');
         await userEvent.hover(outside);
-        expect(getComputedStyle(header).backgroundColor).toBe(highlighted);
-        expect(getComputedStyle(frame).borderTopColor).toBe(highlighted);
+        const held = getComputedStyle(header).backgroundColor;
+        expect(held).not.toBe(normal);
+        expect(getComputedStyle(frame).borderTopColor).toBe(held);
         container.classList.remove('bg-surface');
         expect(getComputedStyle(header).backgroundColor).toBe(normal);
       } finally {
+        await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
         outside.remove();
         root.style.transition = transition;
         if (previous === undefined) delete root.dataset.theme;
