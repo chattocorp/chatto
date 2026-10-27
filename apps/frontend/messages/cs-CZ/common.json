@@ -1,5 +1,14 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Klávesové zkratky",
+      "app": "Aplikace",
+      "undo": "Zpět",
+      "redo": "Znovu",
+      "new_line": "Nový řádek",
+      "edit_last": "Upravit poslední zprávu (prázdný koncept)",
+      "complete": "Doplnit zmínku nebo emoji"
+    },
     "action_unavailable": "Tato akce je momentálně nedostupná.",
     "edit": "Upravit",
     "copy_failed": "Do schránky se nepodařilo zkopírovat. Vyberte text a zkopírujte jej ručně.",

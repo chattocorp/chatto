@@ -9,6 +9,8 @@ export { default as CopyId } from './CopyId.svelte';
 export { default as CopyButton } from './CopyButton.svelte';
 export { default as DataTable } from './DataTable.svelte';
 export { default as Dialog } from './Dialog.svelte';
+export { default as PaletteDialog } from './PaletteDialog.svelte';
+export { default as PaletteSearch } from './PaletteSearch.svelte';
 export { default as Divider } from './Divider.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
 export { default as FormDialog } from './FormDialog.svelte';

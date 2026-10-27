@@ -1,5 +1,14 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Skróty klawiszowe",
+      "app": "Aplikacja",
+      "undo": "Cofnij",
+      "redo": "Ponów",
+      "new_line": "Nowy wiersz",
+      "edit_last": "Edytuj ostatnią wiadomość (pusty szkic)",
+      "complete": "Uzupełnij wzmiankę lub emoji"
+    },
     "action_unavailable": "Ta czynność jest obecnie niedostępna.",
     "edit": "Edytuj",
     "copy_failed": "Nie udało się skopiować do schowka. Zaznacz tekst i skopiuj go ręcznie.",

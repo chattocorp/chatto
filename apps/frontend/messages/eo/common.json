@@ -1,5 +1,14 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Klavkombinoj",
+      "app": "Aplikaĵo",
+      "undo": "Malfari",
+      "redo": "Refari",
+      "new_line": "Nova linio",
+      "edit_last": "Redakti la lastan mesaĝon (malplena malneto)",
+      "complete": "Kompletigi mencion aŭ emoĝion"
+    },
     "action_unavailable": "Ĉi tiu ago nuntempe ne disponeblas.",
     "edit": "Redakti",
     "copy_failed": "Ne eblis kopii al la tondujo. Elektu la tekston kaj kopiu ĝin permane.",

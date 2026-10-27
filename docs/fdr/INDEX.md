@@ -64,3 +64,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-052](FDR-052-message-send-retries.md)                  | Message Send Retries                  | Experimental | 2026-10-08    |
 | [FDR-053](FDR-053-history-import-export.md)                 | History Import and Export             | Experimental | 2026-10-26    |
 | [FDR-054](FDR-054-room-notices.md)                          | Room Notices                          | Experimental | 2026-10-25    |
+| [FDR-055](FDR-055-keyboard-shortcut-help.md)                | Keyboard Shortcut Help                | Active       | 2026-10-27    |

@@ -2395,7 +2395,16 @@
 }
 
 @utility command-palette-result {
-  @apply menu-entry gap-2 px-2 py-1;
+  @apply menu-entry command-palette-row;
+}
+
+/* Shared geometry for actionable results and noninteractive shortcut rows. */
+@utility command-palette-row {
+  @apply flex min-h-8 items-center gap-2 px-2 py-1 touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
+}
+
+@utility command-palette-heading {
+  @apply px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase touch-input:px-3;
 }
 
 @utility command-palette-result-active {
