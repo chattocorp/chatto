@@ -255,6 +255,53 @@ func TestRoomDirectorySnapshotPreservesThreadSlowModePresence(t *testing.T) {
 	}
 }
 
+func TestRoomGroupSnapshotLinkOrderDoesNotChangeLayout(t *testing.T) {
+	t.Parallel()
+	original := NewRoomGroupLayoutProjection()
+	original.Layout.groupIDs = []string{"G1"}
+	original.Groups.groups["G1"] = &roomGroupEntry{
+		name: "Lobby", roomIDs: []string{"R1"},
+		entries: []*evtv1.SidebarGroupEntry{
+			{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: "L2"},
+			{Kind: evtv1.SidebarGroupEntry_ROOM, Id: "R1"},
+			{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: "L1"},
+		},
+		links: map[string]*readmodel.SidebarLink{
+			"L1": {Id: "L1", Label: "First", Url: "/first"},
+			"L2": {Id: "L2", Label: "Second", Url: "/second"},
+			// Retained links need not occur in the display entries.
+			"L3": {Id: "L3", Label: "Orphan", Url: "/orphan"},
+		},
+	}
+	want, ok := original.Groups.Get("G1")
+	require.True(t, ok)
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	snapshot := &projectionv1.RoomGroupLayoutProjectionSnapshot{}
+	require.NoError(t, proto.Unmarshal(payload, snapshot))
+	links := snapshot.Groups[0].Group.SidebarLinks
+	require.Len(t, links, 3)
+	require.Equal(t, []string{"L1", "L2", "L3"}, []string{links[0].Id, links[1].Id, links[2].Id})
+
+	for _, previousOrder := range []bool{false, true} {
+		if previousOrder {
+			// Older snapshots stored link payloads in display order, then orphans.
+			links[0], links[1] = links[1], links[0]
+		}
+		encoded, err := proto.Marshal(snapshot)
+		require.NoError(t, err)
+		restored := NewRoomGroupLayoutProjection()
+		require.NoError(t, restored.Restore(encoded))
+		got, ok := restored.Groups.Get("G1")
+		require.True(t, ok)
+		require.Equal(t, want, got)
+		require.Equal(t, original.Layout.groupIDs, restored.Layout.groupIDs)
+		canonical, err := restored.Snapshot()
+		require.NoError(t, err)
+		require.Equal(t, payload, canonical)
+	}
+}
+
 func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	t.Parallel()
 

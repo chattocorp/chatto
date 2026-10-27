@@ -240,7 +240,7 @@ func (p *RoomGroupProjection) PlacementSnapshot(item *evtv1.SidebarGroupEntry, t
 			snapshot.SourceGroupID = groupID
 			snapshot.SourceGroup = entryToGroup(groupID, entry)
 			if item.GetKind() == evtv1.SidebarGroupEntry_SIDEBAR_LINK {
-				snapshot.Link = cloneSidebarLink(entry.links[item.GetId()])
+				snapshot.Link = entry.links[item.GetId()].Clone()
 			}
 			return snapshot
 		}
@@ -300,7 +300,7 @@ func (p *RoomGroupProjection) SidebarLinkMoveSnapshot(linkID, targetGroupID stri
 	for groupID, entry := range p.groups {
 		if link := entry.link(linkID); link != nil {
 			snapshot.SourceGroupID = groupID
-			snapshot.Link = cloneSidebarLink(link)
+			snapshot.Link = link.Clone()
 			return snapshot
 		}
 	}
@@ -445,7 +445,7 @@ func (e *roomGroupEntry) clonedLinks() []*readmodel.SidebarLink {
 		if link == nil {
 			continue
 		}
-		links = append(links, cloneSidebarLink(link))
+		links = append(links, link.Clone())
 		used[link.GetId()] = struct{}{}
 	}
 	var orphans []string
@@ -456,7 +456,7 @@ func (e *roomGroupEntry) clonedLinks() []*readmodel.SidebarLink {
 	}
 	slices.Sort(orphans)
 	for _, id := range orphans {
-		links = append(links, cloneSidebarLink(e.links[id]))
+		links = append(links, e.links[id].Clone())
 	}
 	return links
 }
@@ -482,10 +482,6 @@ func cloneSidebarEntry(entry *evtv1.SidebarGroupEntry) *evtv1.SidebarGroupEntry 
 		Kind: entry.GetKind(),
 		Id:   entry.GetId(),
 	}
-}
-
-func cloneSidebarLink(link *readmodel.SidebarLink) *readmodel.SidebarLink {
-	return link.Clone()
 }
 
 func roomIDsFromEntries(entries []*evtv1.SidebarGroupEntry) []string {

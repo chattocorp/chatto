@@ -284,7 +284,7 @@ func sidebarLinkFromGroup(group *readmodel.RoomGroup, linkID string) *readmodel.
 	}
 	for _, link := range group.GetSidebarLinks() {
 		if link.GetId() == linkID {
-			return cloneSidebarLink(link)
+			return link.Clone()
 		}
 	}
 	return nil

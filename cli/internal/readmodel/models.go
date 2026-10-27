@@ -131,14 +131,6 @@ func (x *Room) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// GetPurpose returns the field value, or its zero value for a nil receiver.
-func (x *Room) GetPurpose() string {
-	if x != nil {
-		return x.Purpose
-	}
-	return ""
-}
-
 // GetNotice returns the field value, or its zero value for a nil receiver.
 func (x *Room) GetNotice() *RoomNotice {
 	if x != nil {

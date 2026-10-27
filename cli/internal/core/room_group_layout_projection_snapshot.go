@@ -83,11 +83,12 @@ func (p *RoomGroupLayoutProjection) Restore(data []byte) error {
 	return nil
 }
 
-// snapshotSidebarLinks uses stable link order for deterministic snapshot bytes.
+// snapshotSidebarLinks serializes links by ID while the projection lock is held.
+// Display order is stored separately in the group's entries.
 func snapshotSidebarLinks(entry *roomGroupEntry) []*projectionv1.SidebarLinkSnapshot {
-	var links []*projectionv1.SidebarLinkSnapshot
-	for _, link := range entry.clonedLinks() {
-		links = append(links, snapshotSidebarLink(link))
+	links := make([]*projectionv1.SidebarLinkSnapshot, 0, len(entry.links))
+	for _, id := range sortedMapKeys(entry.links) {
+		links = append(links, snapshotSidebarLink(entry.links[id]))
 	}
 	return links
 }
