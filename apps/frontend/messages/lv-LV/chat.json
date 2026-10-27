@@ -31,12 +31,6 @@
         "room_invitation": "{actor} uzaicināja jūs uz telpu"
       }
     },
-    "sign_out": {
-      "title": "Izrakstīties",
-      "current_server": "Pašreizējais serveris",
-      "all_servers": "Visi serveri",
-      "description": "Izrakstieties tikai no atlasītā servera vai atvienojiet katru serveri no šī klienta."
-    },
     "overview": {
       "title": "Pārskats"
     },

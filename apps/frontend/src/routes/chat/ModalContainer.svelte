@@ -10,7 +10,6 @@
   import HtmlViewerModal from './modals/HtmlViewerModal.svelte';
   import LeaveRoomModal from './modals/LeaveRoomModal.svelte';
   import RemoveServerModal from './modals/RemoveServerModal.svelte';
-  import SignOutDialog from './SignOutDialog.svelte';
 
   const modal = $derived(page.state.modal);
 
@@ -24,9 +23,7 @@
 {#if modal}
   {#key modal}
     {@const closeModal = closeModalFor(modal)}
-    {#if modal.type === 'logout'}
-      <SignOutDialog onclose={closeModal} />
-    {:else if modal.type === 'aboutChatto'}
+    {#if modal.type === 'aboutChatto'}
       <AboutChattoModal onclose={closeModal} />
     {:else if modal.type === 'addServer'}
       <AddServerModal onclose={closeModal} />

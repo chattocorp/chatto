@@ -31,12 +31,6 @@
         "room_invitation": "{actor} hat dich in einen Raum eingeladen"
       }
     },
-    "sign_out": {
-      "title": "Abmelden",
-      "current_server": "Aktueller Server",
-      "all_servers": "Alle Server",
-      "description": "Melde dich nur vom ausgewählten Server ab oder trenne alle Server von diesem Client."
-    },
     "overview": {
       "title": "Übersicht"
     },

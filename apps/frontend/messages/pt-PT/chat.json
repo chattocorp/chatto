@@ -31,12 +31,6 @@
         "room_invitation": "{actor} convidou-te para uma sala"
       }
     },
-    "sign_out": {
-      "title": "Sair",
-      "current_server": "Servidor Atual",
-      "all_servers": "Todos os servidores",
-      "description": "Saia apenas do servidor selecionado ou desligue todos os servidores deste cliente."
-    },
     "overview": {
       "title": "Visão geral"
     },

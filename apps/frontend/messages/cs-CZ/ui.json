@@ -7,7 +7,6 @@
     "realtime_paused": "Aktualizace v reálném čase pozastaveny. Opětovné připojení...",
     "update_available": "K dispozici je nová verze",
     "reload": "Znovu načíst",
-    "sign_out": "Odhlaste se",
     "close": "Zavřít",
     "auth_status": {
       "origin_title": "Platnost relace vypršela",

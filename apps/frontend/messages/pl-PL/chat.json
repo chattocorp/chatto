@@ -31,12 +31,6 @@
         "room_invitation": "{actor} zaprasza Cię do pokoju"
       }
     },
-    "sign_out": {
-      "title": "Wyloguj się",
-      "current_server": "Bieżący serwer",
-      "all_servers": "Wszystkie serwery",
-      "description": "Wyloguj się tylko z wybranego serwera lub odłącz każdy serwer od tego klienta."
-    },
     "overview": {
       "title": "Przegląd"
     },
