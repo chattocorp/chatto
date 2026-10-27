@@ -34,7 +34,7 @@ is enabled. Email-code verification and account creation stay in the
 authorization window. After consent, Desktop receives the new session and
 opens the server. Older servers can show their login page first.
 
-**Continue on the server** opens the server's page for external providers,
+**Continue in the browser** opens the server's page for external providers,
 registration, and password recovery. The official desktop origin is accepted
 by Chatto's OAuth redirect policy. The desktop shell uses Electron's ordinary
 popup support for the same PKCE and

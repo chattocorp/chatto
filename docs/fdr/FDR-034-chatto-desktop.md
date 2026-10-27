@@ -29,7 +29,7 @@ system-browser authentication, and clean-machine media behavior are hardened.
   starts the server's PKCE-protected OAuth flow with that provider selected.
   The provider still owns its login page in a separate window. Servers that
   do not support the provider hint show their normal login page instead.
-  **Continue on the server** opens the existing PKCE-protected OAuth window
+  **Continue in the browser** opens the existing PKCE-protected OAuth window
   for external providers, account creation, and password recovery. Browser
   deployments continue to use the server-owned OAuth pages for remote login.
 - The sign-in screen reuses the web authentication layout and server branding.

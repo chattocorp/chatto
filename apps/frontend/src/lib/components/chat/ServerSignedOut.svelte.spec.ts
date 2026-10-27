@@ -128,7 +128,7 @@ describe('ServerSignedOut', () => {
     });
     render(ServerSignedOut, { props: { registration } });
     await expect.element(page.getByLabelText('Password', { exact: true })).not.toBeInTheDocument();
-    await page.getByRole('button', { name: 'Continue on the server' }).click();
+    await page.getByRole('button', { name: 'Continue in the browser' }).click();
     expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(registration);
     expect(mocks.passwordLogin).not.toHaveBeenCalled();
   });
