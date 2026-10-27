@@ -52,7 +52,6 @@
       "subtitle": "Servera identitāte, zīmols un ziņojumi"
     },
     "members": {
-      "deactivated": "Deaktivizēts",
       "deactivate": "Deaktivizēt kontu",
       "reactivate": "Atkārtoti aktivizēt kontu",
       "deactivate_description": "Lietotājs vairs nevarēs izmantot šo serveri. Visas sesijas tiks nekavējoties beigtas. Dati tiks saglabāti. Kontu vēlāk varēsiet atkārtoti aktivizēt.",

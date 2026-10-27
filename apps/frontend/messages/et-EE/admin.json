@@ -52,7 +52,6 @@
       "subtitle": "Serveri identiteet, kaubamärk ja sõnumid"
     },
     "members": {
-      "deactivated": "Inaktiveeritud",
       "deactivate": "Inaktiveeri konto",
       "reactivate": "Aktiveeri konto uuesti",
       "deactivate_description": "Kasutaja ei saa enam seda serverit kasutada. Kõik seansid lõpetatakse kohe. Andmed säilivad. Saate konto hiljem uuesti aktiveerida.",

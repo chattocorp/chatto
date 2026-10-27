@@ -52,7 +52,6 @@
       "subtitle": "Identità del server, branding e messaggi"
     },
     "members": {
-      "deactivated": "Disattivato",
       "deactivate": "Disattiva account",
       "reactivate": "Riattiva account",
       "deactivate_description": "L’utente non potrà più usare questo server. Tutte le sessioni termineranno immediatamente. I dati saranno conservati. Puoi riattivare l’account in seguito.",

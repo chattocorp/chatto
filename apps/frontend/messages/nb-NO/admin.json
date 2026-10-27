@@ -52,7 +52,6 @@
       "subtitle": "Serveridentitet, merkevarebygging og meldinger"
     },
     "members": {
-      "deactivated": "Deaktivert",
       "deactivate": "Deaktiver konto",
       "reactivate": "Aktiver konto igjen",
       "deactivate_description": "Brukeren vil ikke lenger kunne bruke denne serveren. Alle økter avsluttes umiddelbart. Alle data beholdes. Du kan aktivere kontoen igjen senere.",

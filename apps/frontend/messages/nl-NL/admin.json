@@ -52,7 +52,6 @@
       "subtitle": "Serveridentiteit, branding en berichten"
     },
     "members": {
-      "deactivated": "Gedeactiveerd",
       "deactivate": "Account deactiveren",
       "reactivate": "Account heractiveren",
       "deactivate_description": "De gebruiker kan deze server niet meer gebruiken. Alle sessies eindigen onmiddellijk. De gegevens blijven bewaard. Je kunt het account later heractiveren.",

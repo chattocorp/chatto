@@ -52,7 +52,6 @@
       "subtitle": "Identita serveru, branding a zprávy"
     },
     "members": {
-      "deactivated": "Deaktivováno",
       "deactivate": "Deaktivovat účet",
       "reactivate": "Znovu aktivovat účet",
       "deactivate_description": "Uživatel již nebude moci používat tento server. Všechny relace okamžitě skončí. Data zůstanou zachována. Účet můžete později znovu aktivovat.",

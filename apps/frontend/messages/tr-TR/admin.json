@@ -52,7 +52,6 @@
       "subtitle": "Sunucu kimliği, markalama ve mesajlar"
     },
     "members": {
-      "deactivated": "Devre dışı",
       "deactivate": "Hesabı devre dışı bırak",
       "reactivate": "Hesabı yeniden etkinleştir",
       "deactivate_description": "Kullanıcı artık bu sunucuyu kullanamayacak. Tüm oturumlar hemen sonlandırılacak. Verileri korunacak. Hesabı daha sonra yeniden etkinleştirebilirsiniz.",

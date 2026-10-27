@@ -52,7 +52,6 @@
       "subtitle": "Serveridentität, Branding und Nachrichten"
     },
     "members": {
-      "deactivated": "Deaktiviert",
       "deactivate": "Konto deaktivieren",
       "reactivate": "Konto reaktivieren",
       "deactivate_description": "Das Mitglied kann diesen Server nicht mehr nutzen. Alle Sitzungen werden sofort beendet. Die Daten bleiben erhalten. Du kannst das Konto später reaktivieren.",

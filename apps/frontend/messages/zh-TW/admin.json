@@ -52,7 +52,6 @@
       "subtitle": "伺服器識別資訊、品牌與訊息"
     },
     "members": {
-      "deactivated": "已停用",
       "deactivate": "停用帳戶",
       "reactivate": "重新啟用帳戶",
       "deactivate_description": "此使用者將無法再使用此伺服器。所有工作階段將立即結束。使用者資料將保留。你可以稍後重新啟用帳戶。",

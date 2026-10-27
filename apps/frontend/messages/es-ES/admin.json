@@ -52,7 +52,6 @@
       "subtitle": "Identidad del servidor, marca y mensajes"
     },
     "members": {
-      "deactivated": "Desactivada",
       "deactivate": "Desactivar cuenta",
       "reactivate": "Reactivar cuenta",
       "deactivate_description": "El usuario ya no podrá usar este servidor. Todas sus sesiones terminarán de inmediato. Sus datos se conservarán. Puedes reactivar la cuenta más adelante.",

@@ -150,6 +150,7 @@ func TestUserDeactivationAuthorization(t *testing.T) {
 }
 
 func TestUserDeactivationRestoresDirectMessageAccess(t *testing.T) {
+	t.Parallel()
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	manager := createGenerationZeroPasswordUser(t, c, "dmmanager")

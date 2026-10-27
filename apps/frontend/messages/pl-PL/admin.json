@@ -52,7 +52,6 @@
       "subtitle": "Tożsamość serwera, marka i wiadomości"
     },
     "members": {
-      "deactivated": "Nieaktywne",
       "deactivate": "Dezaktywuj konto",
       "reactivate": "Aktywuj ponownie konto",
       "deactivate_description": "Użytkownik nie będzie już mógł korzystać z tego serwera. Wszystkie sesje zakończą się natychmiast. Dane pozostaną zachowane. Możesz później ponownie aktywować konto.",
