@@ -6,7 +6,8 @@ import { task, Type } from 'runling';
 import { RunStore } from '../../../packages/runling/src/lib/server/run-store.ts';
 import { parseSettings } from './settings.ts';
 import sharp from 'sharp';
-import { inspectImageExtension } from './inspect-image.ts';
+import { delegateExtension } from './delegate.ts';
+import { viewImageExtension } from './view-image.ts';
 
 const cropFixture = vi.hoisted(() => ({ data: '', calls: 0 }));
 
@@ -29,10 +30,14 @@ vi.mock(sdkPath, async () => {
       const agent = result.session.agent;
       agent.getApiKey = () => 'offline-test';
       agent.streamFunction = (_model, context) => {
-        const inspector = result.session.getActiveToolNames().includes('view_image');
-        if (inspector) expect(result.session.getActiveToolNames()).toEqual(['view_image']);
-        const needsCrop = context.messages.at(-1)?.role === 'user';
-        if (!needsCrop) {
+        const child = result.session.systemPrompt.includes('You are a subagent');
+        if (child) expect(result.session.getActiveToolNames()).toEqual([]);
+        const needsCrop = !child && context.messages.at(-1)?.role === 'user';
+        const needsDelegate =
+          !child &&
+          context.messages.at(-1)?.role === 'toolResult' &&
+          context.messages.at(-1)?.toolName === 'view_image';
+        if (!needsCrop && !child) {
           const result = context.messages.at(-1);
           expect(result?.role).toBe('toolResult');
           expect(
@@ -40,9 +45,9 @@ vi.mock(sdkPath, async () => {
               'content' in result &&
               Array.isArray(result.content) &&
               result.content.some((part) =>
-                inspector
+                needsDelegate
                   ? part.type === 'image' && part.data === cropFixture.data
-                  : part.type === 'text' && part.text.includes('private-inspection')
+                  : part.type === 'text' && part.text.includes('private-result')
               )
           ).toBe(true);
         } else {
@@ -58,11 +63,9 @@ vi.mock(sdkPath, async () => {
             (message) =>
               message.role === 'user' &&
               Array.isArray(message.content) &&
-              message.content.some(
-                (part) => part.type === 'image' && (inspector || part.data === 'AQID')
-              )
+              message.content.some((part) => part.type === 'image' && part.data === 'AQID')
           )
-        ).toBe(true);
+        ).toBe(!child);
         type Stream = Awaited<ReturnType<typeof agent.streamFunction>>;
         const message: Awaited<ReturnType<Stream['result']>> = {
           role: 'assistant',
@@ -70,23 +73,30 @@ vi.mock(sdkPath, async () => {
           provider: 'anthropic',
           model: 'claude-sonnet-4-6',
           timestamp: Date.now(),
-          stopReason: needsCrop ? 'toolUse' : 'stop',
-          content: needsCrop
-            ? [
-                {
-                  type: 'toolCall',
-                  id: `crop-${++cropFixture.calls}`,
-                  name: inspector ? 'view_image' : 'inspect_image',
-                  arguments: inspector
-                    ? {
-                        messageId: 'message',
-                        attachmentId: 'image',
-                        crop: { x: 0, y: 0, width: 0.5, height: 1 }
-                      }
-                    : { messageId: 'message', attachmentId: 'image', question: 'private-question' }
-                }
-              ]
-            : [{ type: 'text', text: inspector ? 'private-inspection' : 'private-answer' }],
+          stopReason: needsCrop || needsDelegate ? 'toolUse' : 'stop',
+          content:
+            needsCrop || needsDelegate
+              ? [
+                  ...(needsCrop
+                    ? [{ type: 'text' as const, text: 'I will take a closer look.' }]
+                    : []),
+                  {
+                    type: 'toolCall',
+                    id: `crop-${++cropFixture.calls}`,
+                    name: needsCrop ? 'view_image' : 'delegate',
+                    arguments: needsCrop
+                      ? {
+                          messageId: 'message',
+                          attachmentId: 'image',
+                          crop: { x: 0, y: 0, width: 0.5, height: 1 }
+                        }
+                      : {
+                          task: 'private-task',
+                          context: 'private-context'
+                        }
+                  }
+                ]
+              : [{ type: 'text', text: child ? 'private-result' : 'private-answer' }],
           usage: {
             input: 11,
             output: 7,
@@ -148,13 +158,18 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
       { name: 'Usage fixture', input: Type.Null(), result: Type.Null() },
       async (ctx) => {
         for (let turn = 0; turn < 2; turn++) {
+          const texts: string[] = [];
           expect(
             await agent.reply(ctx, {
               identity: ['server', 'bot', 'room', 'thread'],
               prompt: 'private-prompt',
               signal: ctx.signal,
+              onText: (text) => {
+                texts.push(text);
+              },
               tools: [
-                inspectImageExtension(ctx, settings, server, 'room', imageContext, ctx.signal)
+                viewImageExtension(server, 'room', imageContext, ctx.signal),
+                delegateExtension(ctx, settings, ctx.signal)
               ],
               context: {
                 messages: [],
@@ -173,6 +188,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
               })
             })
           ).toBe('private-answer');
+          expect(texts).toEqual(['I will take a closer look.', 'private-answer']);
         }
         return null;
       }
@@ -194,11 +210,12 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     expect(journal).not.toContain('private-answer');
     expect(journal).not.toContain('AQID');
     expect(journal).not.toContain(cropFixture.data);
-    expect(journal).not.toContain('private-question');
-    expect(journal).not.toContain('private-inspection');
+    expect(journal).not.toContain('private-task');
+    expect(journal).not.toContain('private-context');
+    expect(journal).not.toContain('private-result');
     expect(
       detail.events.filter(
-        (event) => event.type === 'step.started' && event.label === 'Inspect image'
+        (event) => event.type === 'step.started' && event.label === 'Delegate task'
       )
     ).toHaveLength(2);
     const transcript = await readFile(
@@ -207,9 +224,9 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     );
     expect(transcript).not.toContain('AQID');
     expect(transcript).not.toContain(cropFixture.data);
-    expect(transcript).toContain('private-inspection');
-    expect(transcript).not.toContain('Image view prepared');
-    expect(server.readAttachment).toHaveBeenCalledTimes(4);
+    expect(transcript).toContain('private-result');
+    expect(transcript).toContain('Image view prepared');
+    expect(server.readAttachment).toHaveBeenCalledTimes(2);
   } finally {
     await store.close();
     await rm(directory, { recursive: true, force: true });

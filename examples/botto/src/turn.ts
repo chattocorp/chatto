@@ -1,4 +1,4 @@
-/** Connect a debounced message batch to one Pi turn and one Chatto reply. */
+/** Connect a debounced message batch to one Pi turn and its ordered Chatto messages. */
 import { replyDestination, type AddressedMessage, type Server } from '@chatto/client';
 import type { createAgent } from './agent.ts';
 import type { Settings } from './settings.ts';
@@ -11,7 +11,8 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import type { TaskContext } from 'runling';
 import { conversationIdentity } from './threads.ts';
 import { readImages } from './images.ts';
-import { inspectImageExtension } from './inspect-image.ts';
+import { delegateExtension } from './delegate.ts';
+import { viewImageExtension } from './view-image.ts';
 
 /** Own per-turn deadlines and routing. The inbox must serialize batches for the same thread. */
 export function createTurnHandler(
@@ -37,9 +38,11 @@ export function createTurnHandler(
       messages: messages.length
     };
     log.info('Batch ready', metrics);
+    const deliveryFailure = new AbortController();
     const signal = AbortSignal.any([
       shutdown,
       ctx.signal,
+      deliveryFailure.signal,
       AbortSignal.timeout(settings.turnTimeoutMs)
     ]);
     await server.withTyping(
@@ -96,43 +99,64 @@ export function createTurnHandler(
         // Persist only the accepted batch. The fresh snapshot travels through Pi's
         // request-only context hook, so old Chatto messages do not accumulate each turn.
         const prompt = JSON.stringify({ currentMessages });
-        const answer = await safeStep(
-          'Model turn',
-          () =>
-            agent.reply(ctx, {
-              identity,
-              prompt,
-              signal,
-              context,
-              loadImages: () =>
-                safeStep(
-                  'Read images',
-                  () => readImages(server, destination.roomId, context, currentIds, signal),
-                  metrics
-                ),
-              userIds: [...new Set(messages.map((item) => item.authorId))],
-              tools: [
-                inspectImageExtension(ctx, settings, server, destination.roomId, context, signal),
-                reactionExtension(
-                  server,
-                  destination.roomId,
-                  destination.threadRootId,
-                  new Set([
-                    ...messages.map((item) => item.id),
-                    ...context.messages.map((item) => item.id)
-                  ]),
-                  signal
-                )
-              ]
-            }),
-          metrics
-        );
-        signal.throwIfAborted();
-        await safeStep(
-          'Reply post',
-          () => server.postMessage(destination, answer, { signal }),
-          metrics
-        );
+        // Pi's callback is synchronous. Serialize writes and join them before leaving
+        // the turn. A failed write stops the model; never retry an uncertain post.
+        let delivery = Promise.resolve();
+        let lastText: string | undefined;
+        const onText = (text: string) => {
+          const body = text.trim();
+          if (!body || signal.aborted) return;
+          lastText = body;
+          delivery = delivery.then(async () => {
+            signal.throwIfAborted();
+            await safeStep(
+              'Reply post',
+              () => server.postMessage(destination, body, { signal }),
+              metrics
+            );
+          });
+          void delivery.catch((error) => deliveryFailure.abort(error));
+        };
+        try {
+          const answer = await safeStep(
+            'Model turn',
+            () =>
+              agent.reply(ctx, {
+                identity,
+                prompt,
+                signal,
+                onText,
+                context,
+                loadImages: () =>
+                  safeStep(
+                    'Read images',
+                    () => readImages(server, destination.roomId, context, currentIds, signal),
+                    metrics
+                  ),
+                userIds: [...new Set(messages.map((item) => item.authorId))],
+                tools: [
+                  delegateExtension(ctx, settings, signal),
+                  viewImageExtension(server, destination.roomId, context, signal),
+                  reactionExtension(
+                    server,
+                    destination.roomId,
+                    destination.threadRootId,
+                    new Set([
+                      ...messages.map((item) => item.id),
+                      ...context.messages.map((item) => item.id)
+                    ]),
+                    signal
+                  )
+                ]
+              }),
+            metrics
+          );
+          signal.throwIfAborted();
+          // Runling also returns the final text. Post it only if no callback supplied it.
+          if (answer.trim() !== lastText) onText(answer);
+        } finally {
+          await delivery;
+        }
       },
       { signal }
     );

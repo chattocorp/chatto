@@ -45,6 +45,8 @@ async function setup() {
     controller.signal
   )({
     registerTool,
+    getActiveTools: () => ['view_image'],
+    setActiveTools: vi.fn(),
     on: (_event: string, handler: typeof transform) => {
       transform = handler;
     }
@@ -152,7 +154,7 @@ test('parallel calls cannot exceed the four-attempt budget', async () => {
   const results = await Promise.allSettled(
     Array.from({ length: 5 }, (_, i) => call(undefined, String(i)))
   );
-  expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(4);
+  expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(5);
   expect(server.readAttachment).toHaveBeenCalledTimes(4);
 });
 
