@@ -53,6 +53,12 @@ describe('ZoomableImage', () => {
     expect(stage.clientHeight).toBeLessThanOrEqual(Math.min(480, innerHeight * 0.6));
     expect(view.container.querySelector('img')).toBe(image);
     expect(stage.getBoundingClientRect().width).toBeCloseTo(900, 0);
+    const canvas = view.container.querySelector<HTMLElement>('.image-canvas')!;
+    expect(canvas.clientHeight).toBe(stage.clientHeight);
+    const controls = canvas.querySelector('output')!.parentElement!;
+    expect(controls.getBoundingClientRect().bottom).toBeLessThan(
+      stage.getBoundingClientRect().bottom
+    );
     await view.getByRole('button', { name: 'Zoom in' }).click();
     const initialZoom = view.container.querySelector('output')!.textContent;
     const firstTransform = layer.style.transform;

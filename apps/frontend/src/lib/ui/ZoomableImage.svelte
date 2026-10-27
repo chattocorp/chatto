@@ -247,7 +247,7 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
 
 <div
   class={[
-    'image-canvas flex min-h-0 w-full flex-col',
+    'image-canvas relative flex min-h-0 w-full flex-col',
     inline ? 'mx-auto text-text' : 'h-full bg-black text-white'
   ]}
   data-sidebar-swipe-ignore
@@ -324,7 +324,14 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
       ></span>
     {/if}
   </div>
-  <div class="flex shrink-0 items-center justify-center gap-1 px-2 py-1">
+  <div
+    class={[
+      'flex items-center justify-center gap-1 px-2 py-1',
+      inline
+        ? 'absolute inset-x-2 bottom-2 z-40 mx-auto w-fit max-w-full shell-surface text-xs'
+        : 'shrink-0'
+    ]}
+  >
     <button
       type="button"
       class={inline ? 'mini-icon-action' : 'icon-action text-white'}
@@ -344,8 +351,11 @@ input. Viewer stages zoom on wheel input. Both share pinch, drag, Fit and bounds
     >
       <span class="iconify icon-[uil--plus] text-xl" aria-hidden="true"></span>
     </button>
-    <button type="button" class="ms-2 btn-secondary" disabled={zoom === 1} onclick={fit}
-      >{m('ui.image_modal.fit')}</button
+    <button
+      type="button"
+      class={['ms-2 btn-secondary', inline && 'btn-compact']}
+      disabled={zoom === 1}
+      onclick={fit}>{m('ui.image_modal.fit')}</button
     >
   </div>
 </div>
