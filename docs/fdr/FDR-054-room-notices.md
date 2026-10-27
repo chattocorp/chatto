@@ -20,8 +20,8 @@ pins, and the room description.
   remove room guidance that other members may have edited.
 
 - A published notice appears near the room header. Members can dismiss it on
-  the current device and select **Show notice** to open it again. Room
-  information also shows the current notice.
+  the current device. Dismissal removes the banner without a replacement control
+  or reserved space. Room information still shows the current notice.
 - **Edit notice** opens the standard form dialog. On narrow touch screens,
   it uses the standard bottom sheet. **Update** and **Announce** are disabled
   until the editor changes the text.

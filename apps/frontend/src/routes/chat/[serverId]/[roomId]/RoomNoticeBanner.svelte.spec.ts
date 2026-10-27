@@ -162,8 +162,10 @@ describe('RoomNoticeBanner', () => {
       await tick();
       expect(outgoing.isConnected).toBe(true);
       expect(outgoing.style.position).toBe('absolute');
-      expect(section.getBoundingClientRect().height).toBeLessThan(60);
-      await expect.element(page.getByRole('button', { name: 'Show notice' })).toBeVisible();
+      expect(section.getBoundingClientRect().height).toBe(0);
+      await expect
+        .element(page.getByRole('button', { name: 'Show notice' }))
+        .not.toBeInTheDocument();
     } finally {
       await page.viewport(1280, 720);
       await view.unmount();
@@ -195,13 +197,15 @@ describe('RoomNoticeBanner', () => {
     const next = render(RoomNoticeBanner, props);
     await expect
       .element(page.getByRole('button', { name: 'Show notice', exact: true }))
-      .toBeVisible();
+      .not.toBeInTheDocument();
+    expect(next.container.querySelector('section')!.getBoundingClientRect().height).toBe(0);
     current = new RoomNotice({ body: 'Republished notice', version: 'v3', publicationId: 'p3' });
     await store.refresh();
     await expect.element(page.getByText('Republished notice', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Dismiss', exact: true }).click();
-    await page.getByRole('button', { name: 'Show notice', exact: true }).click();
-    await expect.element(page.getByText('Republished notice', { exact: true })).toBeVisible();
+    await expect
+      .element(page.getByText('Republished notice', { exact: true }))
+      .not.toBeInTheDocument();
     await next.rerender({ viewerId: 'other-viewer' });
     await expect.element(page.getByText('Republished notice', { exact: true })).toBeVisible();
     store.dispose();

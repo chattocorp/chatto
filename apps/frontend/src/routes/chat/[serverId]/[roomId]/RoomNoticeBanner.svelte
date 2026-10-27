@@ -45,10 +45,6 @@
     dismissed = notice?.publicationId ?? '';
     writeNoticeDismissal(key, dismissed);
   }
-  function reopen() {
-    dismissed = '';
-    writeNoticeDismissal(key, '');
-  }
 
   /** Freeze the outgoing surface so the conversation can reclaim its space immediately. */
   function dismissTransition(node: HTMLElement) {
@@ -81,17 +77,12 @@
 {#snippet banner(open?: () => void)}
   {#if notice?.body}
     <section
-      class="relative flex min-h-0 flex-col px-3 pt-2 md:max-h-[min(40dvh,24rem)]"
+      class="relative flex min-h-0 flex-col md:max-h-[min(40dvh,24rem)]"
       aria-label={m('room.notice.title')}
     >
-      {#if dismissed === notice.publicationId}
-        <Button variant="ghost" onclick={reopen}>
-          <span aria-hidden="true" class="iconify icon-[uil--megaphone]"></span>
-          {m('room.notice.reopen')}
-        </Button>
-      {:else}
+      {#if dismissed !== notice.publicationId}
         <div
-          class="flex min-h-0 flex-1 origin-top flex-col"
+          class="flex min-h-0 flex-1 origin-top flex-col px-3 pt-2"
           in:scale|global={{
             ...expoOutTransition(COMPACT_MOTION_DURATION_MS),
             start: 0.96,
