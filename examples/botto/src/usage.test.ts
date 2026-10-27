@@ -85,7 +85,6 @@ vi.mock(sdkPath, async () => {
                     name: needsCrop ? 'view_image' : 'delegate',
                     arguments: needsCrop
                       ? {
-                          messageId: 'message',
                           attachmentId: 'image',
                           crop: { x: 0, y: 0, width: 0.5, height: 1 }
                         }

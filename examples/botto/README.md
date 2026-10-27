@@ -382,7 +382,8 @@ no separate Botto capability setting is needed. Downloads are reused within a tu
 The model receives a note when an image is unavailable, unsupported, or omitted.
 
 When an overview is too small to read, the root agent can call `view_image`
-directly with a message ID and attachment ID. An optional `crop` has
+directly with an attachment ID from the tool's allowed choices. Botto resolves
+the owning message from the thread context. An optional `crop` has
 `x`, `y`, `width`, and `height` values from 0 to 1. Coordinates refer to the full
 original image after orientation correction, with the origin at the top left.
 For example, `{ "x": 0.5, "y": 0, "width": 0.5, "height": 1 }` selects the right

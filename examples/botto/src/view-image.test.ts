@@ -39,7 +39,14 @@ async function setup() {
     server,
     'room',
     {
-      messages: [{ id: 'message', text: '', attachments: [attachment] }],
+      messages: [
+        { id: 'message', text: '', attachments: [attachment] },
+        {
+          id: 'EOixXw1lA53OS4M',
+          text: 'And this?',
+          attachments: [{ ...attachment, id: 'AL1OTYiP2g7EfGL' }]
+        }
+      ],
       olderContextOmitted: false
     },
     controller.signal
@@ -54,13 +61,7 @@ async function setup() {
   const tool = registerTool.mock.calls[0]![0];
   const ctx = { model: { input: ['text', 'image'] } } as ExtensionToolContext;
   const call = (crop?: { x: number; y: number; width: number; height: number }, id = 'call') =>
-    tool.execute(
-      id,
-      { messageId: 'message', attachmentId: 'image', crop },
-      undefined,
-      undefined,
-      ctx
-    );
+    tool.execute(id, { attachmentId: 'image', crop }, undefined, undefined, ctx);
   const history = (result: Awaited<ReturnType<typeof call>>): ContextEvent['messages'] => [
     {
       role: 'toolResult',
@@ -121,7 +122,7 @@ test('coordinates apply after EXIF orientation and whole images fit within 2048 
 test('rejects unknown IDs, invalid crops and text-only models before download', async () => {
   const { tool, ctx, call, server } = await setup();
   await expect(
-    tool.execute('call', { messageId: 'other', attachmentId: 'image' }, undefined, undefined, ctx)
+    tool.execute('call', { attachmentId: 'outside' }, undefined, undefined, ctx)
   ).rejects.toThrow('outside');
   for (const crop of [
     { x: -1, y: 0, width: 1, height: 1 },
@@ -134,6 +135,26 @@ test('rejects unknown IDs, invalid crops and text-only models before download', 
   await expect(call()).rejects.toThrow('cannot read images');
   expect(server.getMessage).not.toHaveBeenCalled();
   expect(server.readAttachment).not.toHaveBeenCalled();
+});
+
+test('resolves the owning message from the selected attachment without a model-supplied message ID', async () => {
+  const { tool, server, ctx } = await setup();
+  server.getMessage.mockResolvedValueOnce({
+    attachments: [{ id: 'AL1OTYiP2g7EfGL', contentType: 'image/png' }]
+  });
+  expect(tool.parameters.required).toEqual(['attachmentId']);
+  expect(tool.parameters.properties.attachmentId).toMatchObject({
+    anyOf: [{ const: 'image' }, { const: 'AL1OTYiP2g7EfGL' }]
+  });
+  await tool.execute('call', { attachmentId: 'AL1OTYiP2g7EfGL' }, undefined, undefined, ctx);
+  expect(server.getMessage).toHaveBeenCalledExactlyOnceWith(
+    { roomId: 'room', messageId: 'EOixXw1lA53OS4M' },
+    { signal: expect.any(AbortSignal) }
+  );
+  expect(server.readAttachment).toHaveBeenCalledExactlyOnceWith(
+    { roomId: 'room', attachmentId: 'AL1OTYiP2g7EfGL' },
+    { signal: expect.any(AbortSignal), maxBytes: 16 * 1024 * 1024 }
+  );
 });
 
 test('rechecks membership, sanitizes failures, and stops cancelled requests', async () => {
