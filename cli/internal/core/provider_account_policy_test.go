@@ -10,6 +10,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/stretchr/testify/require"
 )
 
@@ -112,6 +113,46 @@ func TestManagedProviderProfileKeepsUsername(t *testing.T) {
 			require.Equal(t, before.Login, stored.Login)
 			require.Equal(t, before.DisplayName, stored.DisplayName)
 			require.Equal(t, before.Bio, stored.Bio)
+		})
+	}
+}
+
+// A case-only sync must not retain its uniqueness exemption after a rename.
+func TestManagedProviderCaseOnlySyncRejectsStaleUsername(t *testing.T) {
+	t.Parallel()
+	for _, reclaim := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reclaimed=%t", reclaim), func(t *testing.T) {
+			t.Parallel()
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			user, err := c.CreateUser(ctx, SystemActorID, "Alice", "First", "password123")
+			require.NoError(t, err)
+			intervened := false
+			otherID := ""
+			_, err = c.applyLoginChangeChecked(ctx, SystemActorID, user.Id, "alice", false, func() error {
+				if intervened {
+					return nil
+				}
+				intervened = true
+				// Force a rename after the case-only decision, before the append.
+				_, err := c.AdminUpdateUserLogin(ctx, user.Id, "renamed")
+				require.NoError(t, err)
+				if reclaim {
+					other, err := c.CreateUser(ctx, SystemActorID, "alice", "Other", "password123")
+					require.NoError(t, err)
+					otherID = other.Id
+				}
+				return nil
+			})
+			require.ErrorIs(t, err, events.ErrConflict)
+			stored, err := c.GetUser(ctx, user.Id)
+			require.NoError(t, err)
+			require.Equal(t, "renamed", stored.Login)
+			if reclaim {
+				other, err := c.GetUser(ctx, otherID)
+				require.NoError(t, err)
+				require.Equal(t, "alice", other.Login)
+			}
 		})
 	}
 }

@@ -537,8 +537,15 @@ func (c *ChattoCore) applyLoginChangeChecked(ctx context.Context, actorID, userI
 			if actorID == userID && c.usernameManaged(userID) {
 				return ErrUsernameManaged
 			}
-			if _, err := c.GetUser(ctx, userID); err != nil {
+			current, err := c.GetUser(ctx, userID)
+			if err != nil {
 				return fmt.Errorf("user not found: %w", err)
+			}
+			// The uniqueness exemption is valid only for the source username.
+			// Recheck after projection catch-up on every OCC attempt: another
+			// rename can release that name for a different account to claim.
+			if current.Login != user.Login {
+				return events.ErrConflict
 			}
 			return nil
 		})
