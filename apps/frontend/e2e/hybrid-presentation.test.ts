@@ -1,6 +1,6 @@
 import { expect, test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { appPreferencesComposer } from './routes';
+import { appPreferences, appPreferencesComposer } from './routes';
 
 // Touch emulation replaces the mouse. Set Chromium's available devices to
 // coarse + fine, with a fine primary pointer and hover, to test actual CSS.
@@ -13,7 +13,7 @@ test.use({
   viewport: { width: 1024, height: 800 }
 });
 
-test('keeps touch presentation and mouse interaction on a hybrid device', async ({
+test('uses compact density with touch presentation and mouse interaction on a hybrid device', async ({
   page,
   chatPage
 }) => {
@@ -49,25 +49,25 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
     await expect(frame).toHaveCSS('border-radius', width < 768 ? '0px' : '16px');
     const toggle = page.getByRole('button', { name: 'Toggle sidebar', exact: true });
     if (width < 768) await toggle.click();
-    await expect(chatPage.getRoomLink('general')).toHaveCSS('height', '48px');
+    await expect(chatPage.getRoomLink('general')).toHaveCSS('height', '32px');
     if (width < 768) await toggle.click();
-    await expect(send).toHaveCSS('height', '44px');
+    await expect(send).toHaveCSS('height', '28px');
     await expect
       .poll(() =>
         formatting.evaluateAll((buttons) =>
           buttons.map((button) => button.getBoundingClientRect().height)
         )
       )
-      .toEqual(Array(12).fill(44));
+      .toEqual(Array(12).fill(28));
     await expect(room.messageInput).toHaveText('Retained hybrid draft');
     const roomActions = page.getByRole('button', { name: 'Actions for #general', exact: true });
     if (await roomActions.isVisible()) {
-      await expect(roomActions).toHaveCSS('width', '44px');
-      await expect(roomActions).toHaveCSS('height', '44px');
+      await expect(roomActions).toHaveCSS('width', '40px');
+      await expect(roomActions).toHaveCSS('height', '40px');
     } else {
       await expect(page.getByRole('button', { name: 'Files', exact: true })).toHaveCSS(
         'height',
-        '44px'
+        '40px'
       );
     }
     await message.locator.hover();
@@ -87,16 +87,34 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
   await room.openMembersPanel();
   const extras = page.getByTestId('room-sidebar-mobile-pane');
   const back = extras.getByRole('button', { name: 'Hide room extras', exact: true });
-  await expect(back).toHaveCSS('height', '44px');
+  await expect(back).toHaveCSS('height', '40px');
   await expect(back.locator('[class~="icon-[uil--arrow-left]"]')).toBeVisible();
   await expect(extras.locator('[class~="icon-[uil--times]"]')).toHaveCount(0);
   await back.click();
   await expect(extras).not.toBeVisible();
   await message.openThread();
-  await expect(room.threadBackButton).toHaveCSS('height', '44px');
+  await expect(room.threadBackButton).toHaveCSS('height', '40px');
   await expect(room.threadCloseButton).not.toBeVisible();
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(room.threadCloseButton).toBeVisible();
-  await expect(room.threadCloseButton).toHaveCSS('height', '44px');
+  await expect(room.threadCloseButton).toHaveCSS('height', '40px');
   await room.closeThread();
+});
+
+test('remembers explicit density on a hybrid device', async ({ page, chatPage }) => {
+  await createAndLoginTestUser(page);
+  for (const [label, density, height] of [
+    ['Comfortable', 'comfortable', '48px'],
+    ['Compact', 'compact', '32px'],
+    ['Automatic', 'automatic', '32px']
+  ]) {
+    await page.goto(appPreferences);
+    await page.getByRole('radio', { name: label, exact: true }).click();
+    await page.reload();
+    await expect(page.getByRole('radio', { name: label, exact: true })).toBeChecked();
+    await expect(page.locator('html')).toHaveAttribute('data-density', density);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await expect(chatPage.getRoomLink('general')).toHaveCSS('height', height);
+  }
 });

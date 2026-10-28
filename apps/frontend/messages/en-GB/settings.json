@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Control spacing",
+        "automatic": "Automatic",
+        "compact": "Compact",
+        "comfortable": "Comfortable",
+        "description": "Automatic uses larger controls when touch is the primary input."
+      },
       "title": "Time & region",
       "subtitle": "Choose how this server displays dates and times for you",
       "browser_scope": "This choice applies to every Chatto server in this browser.",

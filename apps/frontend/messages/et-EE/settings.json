@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Juhtelementide vahed",
+        "automatic": "Automaatne",
+        "compact": "Kompaktne",
+        "comfortable": "Mugav",
+        "description": "Automaatne režiim kasutab suuremaid juhtelemente, kui puudutus on peamine sisestusviis."
+      },
       "title": "Aeg ja piirkond",
       "subtitle": "Vali, kuidas see server sulle kuupäevi ja kellaaegu kuvab",
       "browser_scope": "See valik kehtib selles brauseris kõigile Chatto serveritele.",

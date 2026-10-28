@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "控制項間距",
+        "automatic": "自動",
+        "compact": "緊湊",
+        "comfortable": "舒適",
+        "description": "自動模式會在觸控為主要輸入方式時使用較大的控制項。"
+      },
       "title": "時間與地區",
       "subtitle": "選擇此伺服器為你顯示日期與時間的方式",
       "browser_scope": "此選擇適用於這個瀏覽器中的所有 Chatto 伺服器。",

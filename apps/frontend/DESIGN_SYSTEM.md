@@ -104,9 +104,8 @@ move the full frame width to follow a finger. Select a destination, use the app-
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
 
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
-route. Rows have a minimum height of 48 px whenever touch input is available,
-including wide windows and devices with both touch and mouse input. Mouse-only
-devices keep compact rows. Text and icon sizes do not change. Keep long
+route. Rows have a minimum height of 48 px in comfortable density.
+Compact density keeps smaller rows. Text and icon sizes do not change. Keep long
 navigation lists in a scrollable region so all rows remain reachable.
 The shared primitive uses a quiet action-coloured fill and an
 action-coloured icon. Current links and selected menu rows use flat fills,
@@ -236,13 +235,12 @@ below the editor. Keep this layout until the draft is cleared or sent, or its
 destination or edit mode changes. The extra text width can remove a line wrap;
 keeping the expanded layout prevents repeated layout changes while typing.
 
-Both composer toolbars use 44 px targets and 20 px icons whenever touch
-input is available, including wide windows and hybrid devices. Mouse-only
-devices keep 28 px controls and 15 px icons. Standalone composer actions use
+Both composer toolbars use 44 px targets and 20 px icons in comfortable
+density. Compact density uses 28 px controls and 15 px icons. Standalone composer actions use
 `CompactActionButton` with `touchFriendly`; joined formatting groups use
 `pill-button-group-touch`.
 The formatting shelf scrolls horizontally when its controls do not fit.
-In a wide, single-line composer, centre the editor and touch controls vertically.
+In a wide, single-line composer, centre the editor and comfortable controls vertically.
 The compact desktop controls retain their bottom offset; do not apply that offset
 to the taller touch controls.
 
@@ -868,9 +866,17 @@ Touch context menus keep their bottom-sheet presentation.
 ## Input And Responsive Layout
 
 Input capability selects control behavior. Available space selects content layout.
-Use `touch-input` for targets and actions that must work whenever
+Control spacing is a browser-local Appearance preference: Automatic, Compact,
+or Comfortable. Automatic uses comfortable density when the primary pointer
+is coarse; otherwise it uses compact density. A mouse-primary hybrid laptop
+thus uses compact controls. Explicit choices override this default. Use
+`comfortable-density` and `compact-density` for target sizes and spacing.
+CSS responds to primary-pointer changes in Automatic mode.
+
+Keep capability checks separate from density. `touch-input` matches when
 `any-pointer: coarse` matches, including hybrid devices. `compact-input` applies
-only when no coarse pointer is available. `hover-actions` permits mouse hover
+only when no coarse pointer is available; it does not select density.
+`hover-actions` permits mouse hover
 actions on hybrid devices, but essential controls must also remain accessible
 through touch and keyboard input.
 
@@ -893,11 +899,12 @@ Narrow touch windows keep viewport-based drawers and device safe-area offsets.
 Use Svelte's `MediaQuery` with `NARROW_TOUCH_QUERY` from `inputMediaQueries.ts`
 when a component needs a reactive presentation decision. Keep this query and
 the CSS variants in sync. Do not select a layout from a device name or the last
-pointer event. Touch-safe menus can remain floating when hover is available;
-touch input still gets larger command targets and emoji targets at every width.
+pointer event. Menus can remain floating when hover is available;
+command and emoji targets follow the density preference at every width.
 Keep the existing primary-pointer checks for keyboard and autofocus defaults.
-Mouse-primary hybrid devices retain mouse keyboard behavior; use touch capability,
-not the primary-pointer preference, to select target sizes and frame presentation.
+Mouse-primary hybrid devices retain mouse keyboard behavior. Frame presentation
+continues to use touch capability and width; the density preference does not
+change drawers, bottom sheets, or gesture support.
 
 Keep width or container queries for pane columns, navigation collapse, resize
 handles for docked panes, toolbar overflow, compact labels, header wrapping,
@@ -928,15 +935,15 @@ or take layout space, so it cannot block controls or reduce the composer area.
 Set `collapseActions` on `PaneHeader` to collapse its `actions` snippet behind
 a three-dot button when the pane is narrower than 32 rem. Header icon buttons,
 back links, and labelled panel controls have targets at least 44 px wide and
-44 px high whenever touch input is available, including wide and hybrid
-devices. Mouse-only controls stay 40 px high. Icon sizes do not change.
+44 px high in comfortable density. Compact controls stay 40 px high.
+Icon sizes do not change.
 Both sizes fit inside the existing 56 px header row.
 Below the 1024 px room-layout breakpoint, thread and room-extras overlay
 headers show one back arrow before the title and no trailing close icon.
 The arrow exits the current level: a member profile returns to Members,
 and a fullscreen call returns to its panel. Desktop headers keep their
 existing controls. Placement follows layout width; target size follows
-touch capability. Mirror the back arrow in right-to-left layouts.
+the density preference. Mirror the back arrow in right-to-left layouts.
 Use `actionsLabel` for a context-specific accessible label.
 The button expands the actions inside the pane
 header; the room title truncates as needed. A second press or Escape collapses

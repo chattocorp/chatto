@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Afstand tussen bedieningselementen",
+        "automatic": "Automatisch",
+        "compact": "Compact",
+        "comfortable": "Ruim",
+        "description": "Automatisch gebruikt grotere bedieningselementen als aanraking de primaire invoer is."
+      },
       "title": "Tijd en regio",
       "subtitle": "Kies hoe deze server datums en tijden voor je weergeeft",
       "browser_scope": "Deze keuze geldt voor alle Chatto-servers in deze browser.",

@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Spaziatura dei controlli",
+        "automatic": "Automatica",
+        "compact": "Compatta",
+        "comfortable": "Comoda",
+        "description": "La modalità automatica usa controlli più grandi quando il tocco è il metodo di input principale."
+      },
       "title": "Ora e area geografica",
       "subtitle": "Scegli come questo server mostra date e orari per te",
       "browser_scope": "Questa scelta si applica a tutti i server Chatto in questo browser.",

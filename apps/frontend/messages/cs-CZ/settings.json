@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Rozestupy ovládacích prvků",
+        "automatic": "Automatické",
+        "compact": "Kompaktní",
+        "comfortable": "Pohodlné",
+        "description": "Automatický režim používá větší ovládací prvky, když je hlavním způsobem vstupu dotyk."
+      },
       "title": "Čas a oblast",
       "subtitle": "Zvolte, jak tento server zobrazuje data a časy",
       "browser_scope": "Tato volba platí pro všechny servery Chatto v tomto prohlížeči.",

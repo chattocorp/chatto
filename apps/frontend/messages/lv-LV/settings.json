@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Vadīklu atstarpes",
+        "automatic": "Automātiskas",
+        "compact": "Kompaktas",
+        "comfortable": "Ērtas",
+        "description": "Automātiskais režīms izmanto lielākas vadīklas, ja pieskāriens ir galvenais ievades veids."
+      },
       "title": "Laiks un reģions",
       "subtitle": "Izvēlieties, kā šis serveris attēlo datumus un laikus",
       "browser_scope": "Šī izvēle attiecas uz visiem Chatto serveriem šajā pārlūkā.",

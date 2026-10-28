@@ -3,7 +3,7 @@
 
 A standalone compact action with a flat resting surface and a bevel on hover
 or keyboard focus. Owns the 28 px height, icon sizing, and disabled treatment.
-Use touchFriendly to enlarge targets and icons when touch input is available.
+Use touchFriendly to enlarge targets and icons in comfortable density.
 Use PillButtonGroup directly for joined toolbars.
 -->
 <script lang="ts">
@@ -21,7 +21,7 @@ Use PillButtonGroup directly for joined toolbars.
     label: string;
     children: Snippet;
     wrapperClass?: ClassValue;
-    /** Use 44 px targets and 20 px icons when a touch pointer is available. */
+    /** Use 44 px targets and 20 px icons in comfortable density. */
     touchFriendly?: boolean;
   } = $props();
 </script>

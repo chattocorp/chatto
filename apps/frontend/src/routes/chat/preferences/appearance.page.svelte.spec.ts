@@ -46,12 +46,31 @@ describe('App Preferences appearance page', () => {
   beforeEach(() => {
     localStorage.clear();
     userPreferences.displayTheme = 'system';
+    userPreferences.displayDensity = 'automatic';
     userPreferences.accentColor = 'cyan';
     userPreferences.lightSurfaceTone = 'gray';
     userPreferences.darkSurfaceTone = 'neutral';
     userPreferences.surfaceDepth = 50;
     userPreferences.contrastAge = 30;
     userPreferences.threadPanePresentation = 'overlay';
+  });
+
+  it('applies and saves the selected control spacing', async () => {
+    const screen = render(AppearancePage);
+    for (const [label, value] of [
+      ['Comfortable', 'comfortable'],
+      ['Compact', 'compact'],
+      ['Automatic', 'automatic']
+    ]) {
+      const choice = screen.getByRole('radio', { name: label, exact: true });
+      await choice.click();
+      await expect.element(choice).toHaveAttribute('aria-checked', 'true');
+      expect(userPreferences.displayDensity).toBe(value);
+      expect(document.documentElement.dataset.density).toBe(value);
+      expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+        displayDensity: value
+      });
+    }
   });
 
   it('changes depth in 10% steps with the slider and persists the choice', async () => {

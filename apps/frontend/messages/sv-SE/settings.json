@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Avstånd mellan kontroller",
+        "automatic": "Automatiskt",
+        "compact": "Kompakt",
+        "comfortable": "Rymligt",
+        "description": "Automatiskt använder större kontroller när pekskärmen är den primära inmatningen."
+      },
       "title": "Tid och region",
       "subtitle": "Välj hur den här servern visar datum och tider för dig",
       "browser_scope": "Det här valet gäller för alla Chatto-servrar i den här webbläsaren.",

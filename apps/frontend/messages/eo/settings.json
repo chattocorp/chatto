@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Interspaco de regiloj",
+        "automatic": "Aŭtomata",
+        "compact": "Kompakta",
+        "comfortable": "Komforta",
+        "description": "Aŭtomata reĝimo uzas pli grandajn regilojn kiam tuŝo estas la ĉefa enigmetodo."
+      },
       "title": "Tempo kaj regiono",
       "subtitle": "Elektu kiel ĉi tiu servilo montras datojn kaj horojn al vi",
       "browser_scope": "Ĉi tiu elekto validas por ĉiuj Chatto-serviloj en ĉi tiu retumilo.",

@@ -66,6 +66,13 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Admin overrides** — users with `user.manage-accounts` can update the login, display name, and bio of human profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar. Profile edits and cooldown resets in member management also accept the caller's own account.
 - **Bot identity management** — an API-key-authenticated bot updates its own login, display name, bio, and avatar through `UserService`. Human owners manage the lifecycle, permissions, API keys, profile, and avatar of their bots. Only `bot.manage` allows reassignment. A human with `bot.manage` or `user.manage-accounts` can also change the login, display name, bio, and avatar of a bot. The bot detail page in Server Admin shows a profile editor to the owner and to these managers. A login change by the owner or a bot manager checks and starts the cooldown of the bot. The profile editor asks for confirmation before such a change and locks the username field while the cooldown runs. A login change by an account manager does not check or start the cooldown. Bot custom-status and personal-settings management are not supported.
 
+- **Control spacing** — Appearance offers Automatic, Compact, and Comfortable.
+  Automatic is the default. It uses larger controls when touch is the primary
+  input and compact controls otherwise, including on mouse-primary hybrid laptops.
+  An explicit choice overrides the automatic selection. The choice applies
+  immediately across registered servers and remains after reload in this browser.
+  Touch gestures and action availability stay independent of control spacing.
+  This lets users choose suitable targets without relying on browser input detection.
 - **UI Style** — Appearance offers a **Depth** slider for bevel strength from
   0% to 100% in 10% steps. 50% is the default (0% in the iOS app). 0%, 50%,
   and 100% match the former Flat, Kinda 3D, and Very 3D modes, and the slider

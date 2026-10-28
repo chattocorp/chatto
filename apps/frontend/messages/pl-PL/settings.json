@@ -125,6 +125,13 @@
       }
     },
     "preferences": {
+      "density": {
+        "title": "Odstępy między elementami sterującymi",
+        "automatic": "Automatyczne",
+        "compact": "Kompaktowe",
+        "comfortable": "Wygodne",
+        "description": "Tryb automatyczny powiększa elementy sterujące, gdy dotyk jest główną metodą wprowadzania danych."
+      },
       "title": "Czas i region",
       "subtitle": "Wybierz sposób wyświetlania dat i godzin przez ten serwer",
       "browser_scope": "Ten wybór dotyczy wszystkich serwerów Chatto w tej przeglądarce.",
