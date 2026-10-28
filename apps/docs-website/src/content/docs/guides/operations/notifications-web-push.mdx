@@ -136,6 +136,8 @@ Push is on for every registered server or for none of them. Each server's notifi
 
 While push is on, use **Send test notification** in a server's notification settings to check delivery to your devices.
 
+If the browser cannot create a push subscription, Chatto pauses new subscription setup for all servers in that app. The pause remains after a reload and applies to other tabs on the same app origin. Existing subscriptions continue to work. Open notification settings and select **Try Again** to retry setup. If the browser fails again, setup pauses again. Turning push off and on also retries setup, but first removes existing subscriptions. A checked checkbox means push is enabled; wait for **Send test notification** before you test delivery.
+
 When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. While permission is granted, Chatto also registers servers that the user adds or signs in to later, without asking again. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 
 A server keeps a device's subscription for 180 days after the device last saved it. While the device uses Chatto, the app saves its subscriptions again when it starts, about once a day after that, and when the browser replaces a subscription. A device that does not open Chatto for 180 days stops receiving pushes until it opens Chatto again. Chatto also removes subscriptions when push providers report them as gone.
