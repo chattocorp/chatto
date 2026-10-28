@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'Shared sidebar navigation states. Blue marks the current route; neutral text and dots mark unread content.'
+            'Shared sidebar navigation states. Blue marks the current route; neutral text and dots mark unread content. Rows grow to at least 48 px when touch input is available, at every viewport width.'
         }
       }
     }
@@ -41,5 +41,19 @@
         <NotificationBadge count={2} color="warning" />
       </span>
     </a>
+  </nav>
+</Story>
+
+<Story name="Scrollable navigation" asChild>
+  <nav
+    class="sidebar-nav h-64 w-64 overflow-y-auto rounded-lg bg-background p-2 ring-1 ring-border"
+    aria-label="Scrollable rooms"
+  >
+    {#each Array.from({ length: 12 }, (_, index) => index + 1) as room (room)}
+      <a href="#room-{room}" class="sidebar-item">
+        <span aria-hidden="true" class="sidebar-icon">#</span>
+        <span class="flex-1 truncate">Room {room}</span>
+      </a>
+    {/each}
   </nav>
 </Story>

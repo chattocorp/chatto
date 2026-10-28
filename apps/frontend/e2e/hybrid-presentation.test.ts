@@ -43,6 +43,10 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
   for (const width of [320, 500, 767, 768, 1024, 500]) {
     await page.setViewportSize({ width, height: 800 });
     await expect(frame).toHaveCSS('border-radius', width < 768 ? '0px' : '16px');
+    const toggle = page.getByRole('button', { name: 'Toggle sidebar', exact: true });
+    if (width < 768) await toggle.click();
+    await expect(chatPage.getRoomLink('general')).toHaveCSS('height', '48px');
+    if (width < 768) await toggle.click();
     await expect(send).toHaveCSS('height', width < 768 ? '44px' : '28px');
     await message.locator.hover();
     await expect(message.hoverToolbar).toBeVisible();

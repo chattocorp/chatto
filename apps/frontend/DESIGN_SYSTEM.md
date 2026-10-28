@@ -104,7 +104,11 @@ move the full frame width to follow a finger. Select a destination, use the app-
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
 
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
-route. The shared primitive then uses a quiet action-coloured fill and an
+route. Rows have a minimum height of 48 px whenever touch input is available,
+including wide windows and devices with both touch and mouse input. Mouse-only
+devices keep compact rows. Text and icon sizes do not change. Keep long
+navigation lists in a scrollable region so all rows remain reachable.
+The shared primitive uses a quiet action-coloured fill and an
 action-coloured icon. Current links and selected menu rows use flat fills,
 without gradients, bevels, or shadows. A selected pane-header icon button
 uses the same flat action fill and action-coloured icon. It marks the panel
