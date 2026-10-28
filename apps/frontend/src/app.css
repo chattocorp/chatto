@@ -1843,6 +1843,18 @@
   @apply transition-colors;
 }
 
+/* Lift a surface directly, or when its enclosing hover-lift-group is hovered. */
+@utility hover-lift {
+  @apply transition-transform duration-150;
+
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    &:hover,
+    .hover-lift-group:hover & {
+      @apply -translate-y-0.5;
+    }
+  }
+}
+
 /* Shimmer hover effect */
 @utility shimmer-hover {
   @apply relative overflow-hidden;
@@ -1949,6 +1961,7 @@
 }
 
 .shimmer-hover:hover::before,
+.shimmer-group:hover .shimmer-hover::before,
 .server-gutter-item:hover::before {
   animation: shimmer-sweep 450ms ease-out forwards;
 }
@@ -1959,13 +1972,14 @@
   }
 }
 
-/* A gutter logo sits inside another shimmer surface; only the outer one sweeps. */
+/* A gutter logo defers to the outer shimmer. */
 .server-gutter-item .shimmer-hover::before {
   display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .shimmer-hover:hover::before,
+  .shimmer-group:hover .shimmer-hover::before,
   .server-gutter-item:hover::before {
     animation: none;
   }

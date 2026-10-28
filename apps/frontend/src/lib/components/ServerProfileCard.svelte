@@ -20,7 +20,7 @@ card. Callers supply trusted badges and actions through explicit props.
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import { m } from '$lib/i18n/messages';
   import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
-  import { Pill, ScrollArea } from '$lib/ui';
+  import { Pill, ScrollFader } from '$lib/ui';
   import { getGradientForName } from '$lib/utils/gradients';
 
   let {
@@ -28,13 +28,13 @@ card. Callers supply trusted badges and actions through explicit props.
     imageOrigin = origin,
     profile,
     badge,
-    details,
+    footer,
     actions,
-    onIconClick,
-    iconHref,
-    iconOpensInNewTab = false,
-    iconActionLabel,
-    iconActionDisabled = false,
+    onactivate,
+    href,
+    opensInNewTab = false,
+    actionLabel,
+    disabled = false,
     testId = 'server-profile-card',
     headingTag = 'h3'
   }: {
@@ -47,21 +47,29 @@ card. Callers supply trusted badges and actions through explicit props.
     /** `undefined` means loading; `null` means that discovery failed. */
     profile?: ServerProfileCardProfile | null;
     badge?: string;
-    /** Optional caller-owned content between the public profile and actions. */
-    details?: Snippet;
+    /** Optional status content in a darker, centred footer. */
+    footer?: Snippet;
     actions?: Snippet;
-    /** Makes the server icon perform the caller's existing open or join action. */
-    onIconClick?: () => void;
-    /** Makes the server icon a link. This takes precedence over `onIconClick`. */
-    iconHref?: string;
-    /** Opens `iconHref` in a separate browsing context without opener access. */
-    iconOpensInNewTab?: boolean;
-    iconActionLabel?: string;
-    iconActionDisabled?: boolean;
+    /** Makes the whole card perform the caller's existing open or join action. */
+    onactivate?: () => void;
+    /** Makes the whole card a link. This takes precedence over `onactivate`. */
+    href?: string;
+    /** Opens `href` in a separate browsing context without opener access. */
+    opensInNewTab?: boolean;
+    actionLabel?: string;
+    disabled?: boolean;
     testId?: string;
     /** Heading level of the server name, one below the surrounding section. */
     headingTag?: 'h2' | 'h3' | 'h4';
   } = $props();
+
+  let cardAction = $state<HTMLAnchorElement | HTMLButtonElement>();
+  const interactive = $derived(!!href || !!onactivate);
+
+  /** Keep descriptions scrollable; ordinary clicks activate the card. */
+  function activateFromDescription() {
+    if (!window.getSelection()?.toString()) cardAction?.click();
+  }
 
   const hostname = $derived(serverHost(origin));
   const titleId = $props.id();
@@ -71,69 +79,77 @@ card. Callers supply trusted badges and actions through explicit props.
   });
   const bannerURL = $derived(publicServerImageURL(imageOrigin, profile?.bannerUrl ?? null));
   let failedBannerURL = $state<string | null>(null);
-  const accessibleIconActionLabel = $derived(
-    iconActionLabel ? `${iconActionLabel}: ${logoServer.name}` : logoServer.name
-  );
+  const accessibleActionLabel = $derived(actionLabel ?? logoServer.name);
 </script>
 
 <article
-  class="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface text-start"
+  class={[
+    'relative isolate flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border text-start shadow-[var(--depth-shadow-sm)]',
+    footer ? 'bg-[color-mix(in_srgb,var(--color-surface),var(--color-background))]' : 'bg-surface',
+    interactive && !disabled && 'shimmer-group hover-lift'
+  ]}
   data-testid={testId}
   data-origin={origin}
 >
-  {#if bannerURL && failedBannerURL !== bannerURL}
-    <img
-      alt=""
-      class="h-24 w-full shrink-0 object-cover"
-      {@attach loadPublicServerImage(bannerURL)}
-      onerror={() => (failedBannerURL = bannerURL)}
-    />
-  {:else}
-    <!-- The name-seeded gradient matches the server's logo fallback. -->
-    <div
-      class="h-24 shrink-0 opacity-40"
-      class:bg-surface-emphasized={profile === undefined}
-      style:background={profile === undefined ? undefined : getGradientForName(logoServer.name)}
-      aria-hidden="true"
-      data-banner-fallback
-    ></div>
+  {#if href}
+    <!-- eslint-disable svelte/no-navigation-without-resolve -- href is a caller-provided destination -->
+    <a
+      bind:this={cardAction}
+      {href}
+      target={opensInNewTab ? '_blank' : undefined}
+      rel={opensInNewTab ? 'noopener noreferrer' : undefined}
+      aria-label={accessibleActionLabel}
+      aria-describedby={`${titleId} ${titleId}-host`}
+      class="absolute inset-0 z-10 cursor-pointer rounded-xl transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
+      data-testid={`${testId}-action`}
+      ><span class="sr-only">{actionLabel ?? logoServer.name}</span></a
+    >
+    <!-- eslint-enable svelte/no-navigation-without-resolve -->
+  {:else if onactivate}
+    <button
+      bind:this={cardAction}
+      type="button"
+      onclick={onactivate}
+      {disabled}
+      aria-label={accessibleActionLabel}
+      aria-describedby={`${titleId} ${titleId}-host`}
+      class="absolute inset-0 z-10 cursor-pointer rounded-xl transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-wait"
+      data-testid={`${testId}-action`}
+      ><span class="sr-only">{actionLabel ?? logoServer.name}</span></button
+    >
   {/if}
+  <div class={['shrink-0 bg-surface', interactive && !disabled && 'shimmer-hover']}>
+    {#if bannerURL && failedBannerURL !== bannerURL}
+      <img
+        alt=""
+        class="aspect-[1200/630] w-full shrink-0 object-cover"
+        {@attach loadPublicServerImage(bannerURL)}
+        onerror={() => (failedBannerURL = bannerURL)}
+      />
+    {:else}
+      <!-- The name-seeded gradient matches the server's logo fallback. -->
+      <div
+        class="aspect-[1200/630] w-full shrink-0 opacity-40"
+        class:bg-surface-emphasized={profile === undefined}
+        style:background={profile === undefined ? undefined : getGradientForName(logoServer.name)}
+        aria-hidden="true"
+        data-banner-fallback
+      ></div>
+    {/if}
+  </div>
 
-  <div class="flex flex-1 flex-col gap-3 p-4">
-    <div class="flex h-12 min-w-0 shrink-0 items-start gap-3">
-      {#if iconHref}
-        <!-- eslint-disable svelte/no-navigation-without-resolve -- iconHref is a caller-provided external URL -->
-        <a
-          href={iconHref}
-          target={iconOpensInNewTab ? '_blank' : undefined}
-          rel={iconOpensInNewTab ? 'noopener noreferrer' : undefined}
-          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96]"
-          aria-label={accessibleIconActionLabel}
-          title={accessibleIconActionLabel}
-          data-testid={`${testId}-icon-action`}
-        >
-          <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
-        </a>
-        <!-- eslint-enable svelte/no-navigation-without-resolve -->
-      {:else if onIconClick}
-        <button
-          type="button"
-          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] disabled:pointer-events-none disabled:cursor-not-allowed"
-          aria-label={accessibleIconActionLabel}
-          title={accessibleIconActionLabel}
-          disabled={iconActionDisabled}
-          onclick={onIconClick}
-          data-testid={`${testId}-icon-action`}
-        >
-          <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
-        </button>
-      {:else}
-        <div
-          class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized"
-        >
-          <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
-        </div>
-      {/if}
+  <div
+    class={[
+      'flex flex-1 flex-col gap-3 rounded-b-xl bg-surface p-4',
+      footer && 'shadow-[var(--depth-shadow-sm)]'
+    ]}
+  >
+    <div class="flex h-12 min-w-0 shrink-0 items-center gap-3">
+      <div
+        class="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-emphasized"
+      >
+        <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
+      </div>
 
       <div class="min-w-0 flex-1">
         <div class="flex min-w-0 items-center gap-2">
@@ -152,28 +168,36 @@ card. Callers supply trusted badges and actions through explicit props.
 
     <!-- A fixed reading area keeps every card's actions aligned. The shared
          scroll viewport makes long descriptions reachable by keyboard. -->
-    <ScrollArea
+    <ScrollFader
+      top
+      bottom
+      mask
+      maskSize="1rem"
       fill={false}
-      class="h-24 shrink-0"
+      class={`relative z-20 h-18 shrink-0${interactive ? ' cursor-pointer' : ''}`}
+      onclick={interactive ? activateFromDescription : undefined}
       aria-labelledby={`${titleId} ${titleId}-host`}
       keyboardFocusable={!!profile?.description}
       data-testid="server-card-description"
     >
       {#if profile?.description}
-        <p class="wrap-anywhere whitespace-pre-wrap text-text">
+        <p class="text-sm wrap-anywhere whitespace-pre-wrap text-muted">
           <bdi dir="auto">{profile.description}</bdi>
         </p>
       {:else if profile === null}
         <p class="text-text">{m('add_server.directory.profile_unavailable')}</p>
       {/if}
-    </ScrollArea>
-
-    {#if details}
-      {@render details()}
-    {/if}
+    </ScrollFader>
 
     {#if actions}
-      <div class="mt-auto">{@render actions()}</div>
+      <div class="relative z-20 mt-auto">{@render actions()}</div>
     {/if}
   </div>
+  {#if footer}
+    <div
+      class="pointer-events-none relative z-20 flex items-center justify-center px-4 py-2 text-center text-sm text-muted"
+    >
+      {@render footer()}
+    </div>
+  {/if}
 </article>

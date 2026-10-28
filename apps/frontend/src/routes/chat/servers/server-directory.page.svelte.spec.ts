@@ -221,6 +221,9 @@ describe('Server Directory page', () => {
     expect(button(container, 'Discover servers')).toBeUndefined();
     expect(container.textContent).not.toContain('can see your IP address');
     expect(container.querySelectorAll('[data-testid="saved-server-entry"]')).toHaveLength(2);
+    const savedCards = container.querySelectorAll('[data-testid="saved-server-entry"]');
+    expect(savedCards[0]?.textContent).toContain('Joined');
+    expect(savedCards[1]?.textContent).toContain('Needs login');
     expect(container.textContent).not.toContain('No recommended servers yet');
   });
 
@@ -366,14 +369,13 @@ describe('Server Directory page', () => {
       const { container } = render(Page);
       await vi.waitFor(() => {
         expect(
-          container.querySelector('[data-testid="server-directory-entry-icon-action"]')
+          container.querySelector('[data-testid="server-directory-entry-action"]')
         ).toBeTruthy();
       });
       const iconAction = container.querySelector<HTMLButtonElement>(
-        '[data-testid="server-directory-entry-icon-action"]'
+        '[data-testid="server-directory-entry-action"]'
       )!;
-      expect(iconAction.getAttribute('aria-label')).toBe('Join: Remote');
-      expect(iconAction.querySelector('.shimmer-hover.rounded-xl')).toBeTruthy();
+      expect(iconAction.getAttribute('aria-label')).toBe('Join');
       iconAction.click();
 
       // The entry moves to saved servers, so the user cannot join it again.
@@ -451,12 +453,10 @@ describe('Server Directory page', () => {
     mocks.getPublicServerInfo.mockRejectedValue(new TypeError('Failed to fetch'));
     const { container } = render(Page);
     await vi.waitFor(() =>
-      expect(
-        container.querySelector('[data-testid="server-directory-entry-icon-action"]')
-      ).toBeTruthy()
+      expect(container.querySelector('[data-testid="server-directory-entry-action"]')).toBeTruthy()
     );
     container
-      .querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-icon-action"]')!
+      .querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-action"]')!
       .click();
     const message = 'Could not connect. Check the URL and try again.';
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(message));
@@ -464,9 +464,8 @@ describe('Server Directory page', () => {
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
     expect(mocks.goto).not.toHaveBeenCalled();
     expect(
-      container.querySelector<HTMLButtonElement>(
-        '[data-testid="server-directory-entry-icon-action"]'
-      )!.disabled
+      container.querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-action"]')!
+        .disabled
     ).toBe(false);
   });
 
@@ -508,16 +507,15 @@ describe('Server Directory page', () => {
     expect(externalAction.href).toBe('https://old.example/');
     expect(externalAction.target).toBe('_blank');
     expect(externalAction.rel).toBe('noopener noreferrer');
-    expect(externalAction.querySelector('.iconify')).toBeTruthy();
     expect(button(container, 'Sign-in unavailable')).toBeUndefined();
 
     const iconAction = container.querySelector<HTMLAnchorElement>(
-      '[data-testid="server-directory-entry-icon-action"]'
+      '[data-testid="server-directory-entry-action"]'
     )!;
     expect(iconAction.href).toBe('https://old.example/');
     expect(iconAction.target).toBe('_blank');
     expect(iconAction.rel).toBe('noopener noreferrer');
-    expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab: Old server');
+    expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab');
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
@@ -779,7 +777,7 @@ describe('Server Directory page', () => {
       'https://mine.example',
       'https://other.example'
     ]);
-    expect(cards[0]!.textContent).not.toContain('Joined');
+    expect(cards[0]!.textContent).toContain('Joined');
     expect(cards[2]!.textContent).toContain('Added by you');
     expect(cards[2]!.querySelector('[data-testid="server-recommendation-source"]')).toBeNull();
     expect(cards[3]!.textContent).toContain('Recommended by Source');

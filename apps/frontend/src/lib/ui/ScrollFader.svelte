@@ -35,6 +35,10 @@ scroll container; children render inside the scroll container.
     fill?: boolean;
     /** Tailwind classes for the opaque end of each fade. */
     fadeColorClass?: string;
+    /** Fade content to transparency instead of painting a background overlay. */
+    mask?: boolean;
+    /** CSS length for each transparent edge when `mask` is enabled. */
+    maskSize?: string;
     /** Extra classes for the outer positioning wrapper. */
     class?: string;
     /** Extra classes for the inner scroll container. */
@@ -55,6 +59,8 @@ scroll container; children render inside the scroll container.
     scrollX = false,
     fill = true,
     fadeColorClass = 'from-background',
+    mask = false,
+    maskSize = '2rem',
     class: className = '',
     scrollClass = '',
     scrollEl = $bindable(),
@@ -77,7 +83,7 @@ scroll container; children render inside the scroll container.
 </script>
 
 {#snippet fades()}
-  {#if top}
+  {#if top && !mask}
     <div
       aria-hidden="true"
       class={[
@@ -89,7 +95,7 @@ scroll container; children render inside the scroll container.
       ]}
     ></div>
   {/if}
-  {#if bottom}
+  {#if bottom && !mask}
     <div
       aria-hidden="true"
       class={[
@@ -111,6 +117,9 @@ scroll container; children render inside the scroll container.
   {keyboardFocusable}
   contentAttachment={observeScrollEdges}
   overlay={fades}
+  style={mask
+    ? `mask-image: linear-gradient(to bottom, ${top && edges.start ? 'transparent' : 'black'}, black ${top && edges.start ? maskSize : '0px'}, black calc(100% - ${bottom && edges.end ? maskSize : '0px'}), ${bottom && edges.end ? 'transparent' : 'black'});`
+    : undefined}
   {...rest}
 >
   {@render children()}

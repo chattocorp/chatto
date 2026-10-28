@@ -251,9 +251,7 @@ polls the cache briefly after a change. See FDR-042.
         {:else if neighbors.length === 0}
           <EmptyState icon="icon-[uil--server-connection]" title={m('admin.neighbors.empty')} />
         {:else}
-          <div
-            class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 min-[90rem]:grid-cols-4 min-[112.5rem]:grid-cols-5"
-          >
+          <div class="grid grid-cols-[repeat(auto-fill,min(100%,18rem))] gap-4">
             {#each neighbors as neighbor (neighbor.id)}
               {#snippet actions()}
                 {#if editTarget?.neighbor.id === neighbor.id}

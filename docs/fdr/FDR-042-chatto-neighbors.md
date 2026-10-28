@@ -66,13 +66,18 @@ recommendation, not a trust or reciprocal relationship.
   data. The website receives the user's IP address only when they open it.
   An empty standalone catalogue does not contact a default third-party directory.
 - The directory and Neighbors administration share the server profile card.
-  Each card reserves the same description height and scrolls longer text.
-  The grids use the available page width with up to five columns on wide screens.
-  A quiet line above the actions shows **Added by you** or
+  Each card reserves three lines for its description and scrolls longer text.
+  Shared scroll fades indicate text beyond the visible edges.
+  A 1200:630 banner sits above a row with the logo, name, and hostname.
+  The grids use fixed 18rem cards, shrinking only when the available width is
+  narrower. Extra space adds columns instead of stretching cards. A darker footer shows **Added by you** or
   **Recommended by** with the first source name and a count of extra sources.
   Selecting the recommendation line opens all sources and their hostnames in
   a dialog, using cached data only. Back or Close dismisses the dialog.
-  Registered servers have no status label; their action is **Open**.
+  Every directory card has a centred status footer. Registered servers show
+  **Joined** when authenticated and **Needs login** otherwise. Selecting a directory card opens or joins
+  the server. Cards expose native link or button keyboard behavior. Clickability
+  is optional; Neighbors administration retains its separate edit controls.
 - The Server Directory loads the cached Neighborhood of each registered or
   explicitly discovered server. These servers see the user's IP address when
   the directory loads. The address form explains that lookup adds the server

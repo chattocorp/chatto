@@ -137,7 +137,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
       title={m('chat.server_gutter.add_server')}
       aria-label={m('chat.server_gutter.add_server')}
       aria-current={directoryActive ? 'page' : undefined}
-      class={['server-gutter-item cursor-pointer', directoryActive && 'server-gutter-item-active']}
+      class="server-gutter-item cursor-pointer"
     >
       <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
     </a>

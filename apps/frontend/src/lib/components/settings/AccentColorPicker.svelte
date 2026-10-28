@@ -22,7 +22,7 @@ The owner applies and saves changes. Samples retain their own palette colours.
     <legend class="sr-only">{m('settings.preferences.accent.title')}</legend>
     {#each accentColors as color (color)}
       <label
-        class="group/accent relative flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg"
+        class="hover-lift-group relative flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg"
         data-accent={color}
       >
         <!-- Keep the native focus target inside its swatch when the page scrolls. -->
@@ -36,7 +36,7 @@ The owner applies and saves changes. Samples retain their own palette colours.
         />
         <span
           class={[
-            'shimmer-hover relative flex h-20 items-end justify-end overflow-hidden rounded-lg accent-swatch p-2 transition-transform duration-150 group-hover/accent:-translate-y-0.5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-text motion-reduce:transform-none motion-reduce:before:animate-none',
+            'shimmer-hover relative flex h-20 hover-lift items-end justify-end overflow-hidden rounded-lg accent-swatch p-2 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-text motion-reduce:before:animate-none',
             value === color && 'ring-2 ring-text ring-offset-2 ring-offset-background'
           ]}
           aria-hidden="true"

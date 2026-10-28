@@ -12,6 +12,8 @@
     "not_chatto_server": "This does not appear to be a Chatto server.",
     "directory": {
       "added_by_you": "Added by you",
+      "joined": "Joined",
+      "needs_login": "Needs login",
       "learn_more": "Want to learn more?",
       "learn_more_description": "Get to know Chatto, learn how to run your own server, or find answers to your questions.",
       "welcome_title": "Chat just got real!",

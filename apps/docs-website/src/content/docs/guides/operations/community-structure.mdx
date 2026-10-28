@@ -252,23 +252,24 @@ Members select **Add Server** in the server gutter to open the Server
 Directory. Select **Connect by address** to find and remember another server.
 A successful lookup closes the dialog and adds the server to the directory,
 without adding it to the gutter or signing in. The app remembers it on this device
-and loads its recommendations whenever you open the directory. Select **Join**
-to add it to the gutter.
+and loads its recommendations whenever you open the directory. Select the server
+card to add it to the gutter and open its sign-in page.
 
 The directory combines registered servers, servers found by address, and their
 cached Neighborhoods. A Neighborhood contains direct Neighbors and mutually
 recommended Neighbors of Neighbors, for a maximum of two hops. Your registered
 and explicitly added servers appear first. Unregistered cards show **Added by you**
-or **Recommended by**. Select the recommendation line to see all sources.
-A result has a **Join** action, or **Open in new tab** when its
-version is not compatible. Servers that are offline or have no valid profile
+or **Recommended by** in a darker footer. Select the recommendation line to see all sources.
+Registered cards show **Joined** when you are signed in, or **Needs login** otherwise.
+Selecting a registered server card opens that server. An incompatible server
+opens in a new tab. Servers that are offline or have no valid profile
 do not show.
 
 <Aside type="note">
   The directory contacts registered servers and servers you explicitly find by
   address. These servers can see your IP address. It loads recommendations and
   their cached images from those sources, without contacting each recommended
-  server. Selecting Join contacts the selected server. The Neighbors
+  server. Selecting an unregistered server card contacts that server. The Neighbors
   administration page reads its own server's cached Neighborhood.
 </Aside>
 

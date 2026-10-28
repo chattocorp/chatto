@@ -294,26 +294,6 @@ single directory surface for every host and the standalone start page. See FDR-0
   }
 </script>
 
-{#snippet entryAction(origin: string, profile: ServerVersionProfile, fullWidth: boolean)}
-  {@const joined = findServerByUrl(origin)}
-  {#if opensInServerClient(origin, profile)}
-    <Button href={origin} opensInNewTab variant="secondary" {fullWidth}>
-      <span>{actionLabel(origin, profile)}</span>
-      <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
-    </Button>
-  {:else}
-    <Button
-      variant={joined ? 'secondary' : 'action'}
-      {fullWidth}
-      loading={pendingOrigin === origin}
-      disabled={!joined && !canJoin(profile)}
-      onclick={() => openOrJoin(origin, profile)}
-    >
-      {actionLabel(origin, profile)}
-    </Button>
-  {/if}
-{/snippet}
-
 {#snippet lookupForm(inDialog = false)}
   <section
     {@attach lookupLifetime}
@@ -385,17 +365,18 @@ single directory surface for every host and the standalone start page. See FDR-0
     {@const joined = findServerByUrl(entry.origin)}
     {@const addedByYou = knownServers.servers.some((server) => server.origin === entry.origin)}
     {@const external = opensInServerClient(entry.origin, profile)}
-    {#snippet cardActions()}
-      {@render entryAction(entry.origin, profile, true)}
-    {/snippet}
     {#snippet provenance()}
-      <div class="flex h-6 min-w-0 items-center justify-center text-center text-muted">
-        {#if addedByYou}
+      <div class="flex min-w-0 items-center justify-center text-muted">
+        {#if pendingOrigin === entry.origin}
+          <span role="status">{m('add_server.connecting')}</span>
+        {:else if !canJoin(profile)}
+          <span>{m('add_server.directory.sign_in_unavailable')}</span>
+        {:else if addedByYou}
           <span>{m('add_server.directory.added_by_you')}</span>
         {:else if entry.sourceOrigins.length > 0}
           <button
             type="button"
-            class="flex min-w-0 cursor-pointer items-center gap-1 rounded-sm text-center underline decoration-dotted underline-offset-4 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+            class="pointer-events-auto flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-sm text-center hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
             onclick={() => showRecommendationInfo(entry)}
             data-testid="server-recommendation-source"
           >
@@ -417,15 +398,12 @@ single directory surface for every host and the standalone start page. See FDR-0
       origin={entry.origin}
       imageOrigin={liveProfiles.has(entry.origin) ? entry.origin : entry.imageOrigin}
       {profile}
-      iconHref={external ? entry.origin : undefined}
-      iconOpensInNewTab={external}
-      onIconClick={external || (!joined && !canJoin(profile))
-        ? undefined
-        : () => openOrJoin(entry.origin, profile)}
-      iconActionLabel={actionLabel(entry.origin, profile)}
-      iconActionDisabled={pendingOrigin === entry.origin}
-      actions={cardActions}
-      details={provenance}
+      href={external ? entry.origin : undefined}
+      opensInNewTab={external}
+      onactivate={external ? undefined : () => openOrJoin(entry.origin, profile)}
+      actionLabel={actionLabel(entry.origin, profile)}
+      disabled={pendingOrigin === entry.origin || (!joined && !canJoin(profile))}
+      footer={provenance}
       testId="server-directory-entry"
       headingTag="h2"
     />
@@ -473,7 +451,7 @@ single directory surface for every host and the standalone start page. See FDR-0
 
   {#if !firstRun}
     <div
-      class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 min-[90rem]:grid-cols-4 min-[112.5rem]:grid-cols-5"
+      class="grid grid-cols-[repeat(auto-fill,min(100%,18rem))] gap-4"
       data-testid="server-directory-grid"
     >
       {#each savedServers as server (server.id)}
@@ -485,19 +463,19 @@ single directory surface for every host and the standalone start page. See FDR-0
           description: info?.description ?? null
         }}
         {@const href = resolve('/chat/[serverId]', { serverId: serverIdToSegment(server.id) })}
-        {#snippet savedActions()}
-          <Button {href} variant="secondary" fullWidth>{m('add_server.directory.open')}</Button>
-        {/snippet}
-        {#snippet savedDetails()}
-          <div class="h-6" aria-hidden="true"></div>
+        {#snippet status()}
+          <span
+            >{serverRegistry.isAuthenticated(server.id)
+              ? m('add_server.directory.joined')
+              : m('add_server.directory.needs_login')}</span
+          >
         {/snippet}
         <ServerProfileCard
           origin={server.url}
           {profile}
-          iconHref={href}
-          iconActionLabel={m('add_server.directory.open')}
-          actions={savedActions}
-          details={savedDetails}
+          {href}
+          actionLabel={m('add_server.directory.open')}
+          footer={status}
           testId="saved-server-entry"
           headingTag="h2"
         />

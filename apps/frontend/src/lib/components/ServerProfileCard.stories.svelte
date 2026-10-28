@@ -17,20 +17,22 @@
   };
 </script>
 
-<Story name="Joined" asChild>
+<Story name="Admin profile" asChild>
   <div class="w-full max-w-sm p-4">
-    <ServerProfileCard origin="https://long-neighbourhood.example" {profile} badge="Joined" />
+    <ServerProfileCard origin="https://long-neighbourhood.example" {profile} />
   </div>
 </Story>
 
 <Story name="Equal-height descriptions" asChild>
   <div class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3">
     {#each ['', 'A short introduction.', 'A community for long conversations.\n\nThis description has several paragraphs so you can scroll through the complete introduction without changing the height of the card.\n\nEveryone is welcome.\n\nBring your questions and ideas.\n\nThere is always more to talk about.'] as description, index (description)}
-      {#snippet actions()}<Button fullWidth>Join</Button>{/snippet}
+      {#snippet footer()}Added by you{/snippet}
       <ServerProfileCard
         origin={`https://community-${index + 1}.example`}
         profile={{ ...profile, description }}
-        {actions}
+        {footer}
+        onactivate={() => {}}
+        actionLabel="Join"
       />
     {/each}
   </div>
@@ -38,17 +40,21 @@
 
 <Story name="Saved server" asChild>
   <div class="w-full max-w-sm p-4">
-    {#snippet actions()}
-      <Button variant="secondary" fullWidth>Open</Button>
-    {/snippet}
-    <ServerProfileCard origin="https://community.example" {profile} {actions} />
+    {#snippet footer()}Joined{/snippet}
+    <ServerProfileCard
+      origin="https://community.example"
+      {profile}
+      href="https://community.example"
+      actionLabel="Open"
+      {footer}
+    />
   </div>
 </Story>
 
-<Story name="First-run preview" asChild>
+<Story name="Admin actions" asChild>
   <div class="mx-auto w-full max-w-md p-4 text-start">
     {#snippet actions()}
-      <Button fullWidth>Join</Button>
+      <Button variant="secondary">Edit</Button>
     {/snippet}
     <ServerProfileCard origin="https://community.example" {profile} {actions} headingTag="h2" />
   </div>
@@ -56,19 +62,14 @@
 
 <Story name="External handoff" asChild>
   <div class="w-full max-w-sm p-4">
-    {#snippet actions()}
-      <Button href="https://old-neighbourhood.example" opensInNewTab variant="secondary" fullWidth>
-        <span>Open in new tab</span>
-        <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
-      </Button>
-    {/snippet}
+    {#snippet footer()}Recommended by Chatto HQ{/snippet}
     <ServerProfileCard
       origin="https://old-neighbourhood.example"
       {profile}
-      iconHref="https://old-neighbourhood.example"
-      iconOpensInNewTab
-      iconActionLabel="Open in new tab"
-      {actions}
+      href="https://old-neighbourhood.example"
+      opensInNewTab
+      actionLabel="Open in new tab"
+      {footer}
     />
   </div>
 </Story>
