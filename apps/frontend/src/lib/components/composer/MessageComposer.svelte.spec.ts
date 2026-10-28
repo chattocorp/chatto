@@ -413,6 +413,7 @@ describe('MessageComposer', () => {
     userPreferences.composerEditor = 'visual';
     userPreferences.composerSendMode = 'modifier-enter';
     userPreferences.composerFormattingToolbarVisible = false;
+    userPreferences.animations = 'automatic';
     window.getSelection()?.removeAllRanges();
     roomUnread.setRoomUnread.mockClear();
     roomStateMock.members = [];
@@ -1447,9 +1448,14 @@ describe('MessageComposer', () => {
         .not.toBeInTheDocument();
     });
 
-    it.each([false, true])(
-      'highlights a blocked send and preserves the draft (reduced motion: %s)',
-      async (reducedMotion) => {
+    it.each([
+      { animations: 'enabled', reducedMotion: false },
+      { animations: 'automatic', reducedMotion: true },
+      { animations: 'disabled', reducedMotion: true }
+    ] as const)(
+      'highlights a blocked send and preserves the draft (animations: $animations)',
+      async ({ animations, reducedMotion }) => {
+        userPreferences.animations = animations;
         vi.spyOn(userPreferences, 'reducedMotion', 'get').mockReturnValue(reducedMotion);
         const { container } = renderMessageComposer({
           roomId: 'room-waiting-draft',
@@ -1469,6 +1475,7 @@ describe('MessageComposer', () => {
         expect(animation).toBeDefined();
         const frames = (animation.effect as KeyframeEffect).getKeyframes();
         expect(frames.some((frame) => frame.transform === 'translateX(-3px)')).toBe(!reducedMotion);
+        expect(animation.effect!.getTiming().duration).toBe(300);
         (q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement).click();
         expect(badge.getAnimations()).toEqual([animation]);
         animation.pause();

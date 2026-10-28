@@ -33,7 +33,7 @@
             ? 'var(--color-background)'
             : 'color-mix(in srgb, var(--color-action) 25%, var(--color-background))'
       })),
-      { duration: userPreferences.animations === 'disabled' ? 0 : 300, easing: 'ease-out' }
+      { duration: 300, easing: 'ease-out' }
     );
   }
 </script>
