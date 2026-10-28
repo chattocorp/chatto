@@ -21,6 +21,7 @@ import {
 import { APP_ORIGIN, createFrontendProtocolHandler } from './frontend_protocol.mjs';
 import { configureYouTubeEmbeds } from './youtube.mjs';
 import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
+import { configureNativeNavigation } from './native_navigation.mjs';
 import {
   gameCaptureCancelListSourcesChannel,
   gameCaptureListSourcesChannel,
@@ -460,6 +461,7 @@ function createMainWindow() {
 
   protectNavigation(window);
   protectReloadShortcuts(window.webContents, app.isPackaged);
+  configureNativeNavigation(window);
   window.on('closed', () => {
     if (mainWindow === window) {
       cancelActiveGameCaptureSourceList();
