@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { watchMotionPreference } from '$lib/dom/motionPreference';
   import {
     userPreferences,
     applyAccentColor,
@@ -37,7 +38,7 @@
 </script>
 
 <Story name="Appearance" asChild>
-  <div class="flex h-[1000px] w-full flex-col">
+  <div {@attach watchMotionPreference} class="flex h-[1000px] w-full flex-col">
     <AppAppearanceSettings />
   </div>
 </Story>

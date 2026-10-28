@@ -639,6 +639,7 @@
           hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
+        data-navigation-content
         inert={(threadId && canReadMessages && !splitThreadLayout) || hasMobileRoomSidebar
           ? true
           : undefined}

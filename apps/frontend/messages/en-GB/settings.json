@@ -143,6 +143,18 @@
           "description": "Use the dark interface on this browser"
         }
       },
+      "animations": {
+        "title": "Animations",
+        "automatic": {
+          "label": "Automatic",
+          "description": "Follow your system’s reduced-motion preference"
+        },
+        "enabled": {
+          "label": "Enabled",
+          "description": "Always show animations"
+        },
+        "disabled": { "label": "Disabled", "description": "Show changes without animations" }
+      },
       "thread_pane": {
         "title": "Thread pane",
         "overlay": {

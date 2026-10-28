@@ -16,6 +16,8 @@ targets are unique to each component, including when callers reuse rendered HTML
   import { trustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { toast } from '$lib/ui/toast';
   import { handleRenderedLinkClick } from '$lib/navigation/renderedLink';
+  import { CopyFeedback } from '$lib/dom/actionFeedback';
+  const feedback = new CopyFeedback();
 
   let {
     html
@@ -67,6 +69,7 @@ targets are unique to each component, including when callers reuse rendered HTML
 
     try {
       await navigator.clipboard.writeText(code);
+      if (button.isConnected) feedback.show(button, m('common.copied_to_clipboard'));
       toast.success(m('common.copied_to_clipboard'));
     } catch {
       toast.error(m('room.message.actions.copy_text_failed'));
@@ -90,6 +93,7 @@ targets are unique to each component, including when callers reuse rendered HTML
     };
     element.addEventListener('auxclick', handleAuxClick);
     return () => {
+      feedback.dispose();
       element.removeEventListener('click', handleClick);
       element.removeEventListener('auxclick', handleAuxClick);
     };

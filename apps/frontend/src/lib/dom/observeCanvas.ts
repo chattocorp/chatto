@@ -1,3 +1,5 @@
+import { motionPreference } from './motionPreference';
+
 type CanvasObservers = {
   /** Resize the drawing buffer or schedule a new frame. */
   onResize: () => void;
@@ -17,7 +19,7 @@ export function observeCanvas(
   canvas: HTMLCanvasElement,
   { onResize, onVisibilityChange, onMotionChange, visibilityTarget = canvas }: CanvasObservers
 ) {
-  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const motion = motionPreference();
   let active = true;
   let inViewport = true;
   const resize = new ResizeObserver(() => {

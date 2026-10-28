@@ -178,6 +178,7 @@ and cannot be combined with semantic actions.
   {oncloserequest}
   {onclose}
   autofocusContent
+  mediaViewerMotion={mediaViewer}
   onkeydown={handleKeydown}
   class={sheet
     ? ''

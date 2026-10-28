@@ -18,6 +18,7 @@ the handle claims drag gestures; content retains native scrolling.
     describedBy,
     ariaLabel,
     autofocusContent = false,
+    mediaViewerMotion = false,
     oncloserequest,
     onclose,
     onkeydown,
@@ -30,6 +31,8 @@ the handle claims drag gestures; content retains native scrolling.
     describedBy?: string;
     ariaLabel?: string;
     autofocusContent?: boolean;
+    /** Give media frames a gentle zoom and fade. */
+    mediaViewerMotion?: boolean;
     /** Runs when dismissal starts, before the closing animation. */
     oncloserequest?: () => void;
     onclose?: () => void;
@@ -226,6 +229,7 @@ the handle claims drag gestures; content retains native scrolling.
   class={[
     'modal-surface bg-transparent p-0 backdrop:bg-black/50',
     sheet ? 'bottom-sheet' : 'm-auto',
+    mediaViewerMotion && 'media-viewer-motion',
     className
   ]}
   class:closing
@@ -273,6 +277,28 @@ the handle claims drag gestures; content retains native scrolling.
   }
   .modal-surface[open].closing::backdrop {
     animation: backdrop-out 100ms ease-in forwards;
+  }
+  .modal-surface.media-viewer-motion[open] {
+    animation: viewer-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .modal-surface.media-viewer-motion[open].closing {
+    animation: viewer-out 100ms ease-in forwards;
+  }
+  @keyframes viewer-in {
+    from {
+      opacity: 0;
+      scale: 0.97;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+  @keyframes viewer-out {
+    to {
+      opacity: 0;
+      scale: 0.97;
+    }
   }
   .bottom-sheet[open] {
     animation: slide-up var(--motion-duration-pane) var(--ease-out-expo);
@@ -322,7 +348,9 @@ the handle claims drag gestures; content retains native scrolling.
       opacity: 0;
     }
   }
-  @media (prefers-reduced-motion: reduce) {
+  :global(:root[data-motion='reduced']) {
+    .modal-surface.media-viewer-motion[open],
+    .modal-surface.media-viewer-motion[open].closing,
     .modal-surface[open],
     .modal-surface[open].closing,
     .modal-surface[open]::backdrop,

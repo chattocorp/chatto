@@ -235,6 +235,17 @@
         // Keep this allowlist aligned with lib/state/userPreferences.svelte.ts.
         // The iOS shell serves its bundled page through this native-only scheme.
         const defaultDepth = location.protocol === 'capacitor:' ? 0 : 50;
+        let animations = 'automatic';
+        try {
+          const saved = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')?.animations;
+          if (saved === 'enabled' || saved === 'disabled') animations = saved;
+        } catch {}
+        root.dataset.animations = animations;
+        root.dataset.motion =
+          animations === 'disabled' ||
+          (animations === 'automatic' && matchMedia('(prefers-reduced-motion: reduce)').matches)
+            ? 'reduced'
+            : 'full';
         try {
           const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
           const age = stored?.contrastAge;
@@ -369,7 +380,7 @@
           transform: translate(12%, 6%) scale(1.05);
         }
       }
-      @media (prefers-reduced-motion: reduce) {
+      :root[data-motion='reduced'] {
         #app-loading::before {
           animation: none;
         }

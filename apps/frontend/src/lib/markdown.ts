@@ -319,7 +319,7 @@ function renderPlainCodeLines(code: string): string[] {
 
 function renderCodeCopyButton(): string {
   const label = escapeAttribute(m('common.copy_to_clipboard'));
-  return `<button type="button" class="markdown-code-copy mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span></button>`;
+  return `<button type="button" class="markdown-code-copy copy-feedback mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span data-copy-icon class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span><span data-copy-check class="iconify icon-[uil--check] text-sm text-action" aria-hidden="true"></span></button>`;
 }
 
 function renderCodeActions(language?: string): string {
