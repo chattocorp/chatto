@@ -62,6 +62,14 @@ describe('browser push creation gate', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  it('can create while holding the registration lock for a server named browser', async () => {
+    await expect(
+      navigator.locks.request('chatto.push-registration.browser', () =>
+        createBrowserPushSubscription(operation())
+      )
+    ).resolves.toBe(subscription);
+  });
+
   it('keeps a failure stopped after the page module is loaded again', async () => {
     const first = operation();
     first.subscribe.mockRejectedValueOnce(new DOMException('push service error', 'AbortError'));

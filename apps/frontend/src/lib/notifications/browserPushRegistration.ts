@@ -5,7 +5,9 @@
  * Existing subscriptions and server API saves do not use this gate.
  */
 const attemptKey = 'chatto.push-registration.browser-attempt.v1';
-const lockName = 'chatto.push-registration.browser';
+// Keep this outside the per-server `chatto.push-registration.` namespace:
+// creation runs while the caller holds its server's lock.
+const lockName = 'chatto.push-browser-creation';
 
 /** The failed attempt that one explicit user action is allowed to retry. */
 export type BrowserPushRecovery = { readonly attempt: string | null };
