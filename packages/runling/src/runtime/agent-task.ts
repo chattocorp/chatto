@@ -90,9 +90,22 @@ function defineAgentTask<Input extends WorkflowSchema>(
       const prompt = await options.prompt(input);
       if (typeof prompt !== 'string') throw new TypeError('An agent prompt must be a string');
       ctx.signal.throwIfAborted();
-      await using session = await createSession({ ...settings, output: 'text' });
-      ctx.signal.throwIfAborted();
-      return await converse(ctx, session, prompt);
+      const session = await createSession({ ...settings, output: 'text' });
+      let disposal: Promise<void> | undefined;
+      const dispose = () => (disposal ??= Promise.resolve(session[Symbol.asyncDispose]()));
+      // A native tool can wait for its transport despite model cancellation.
+      // Close transports immediately, then join disposal before the task returns.
+      const abort = () => {
+        void dispose().catch(() => {});
+      };
+      ctx.signal.addEventListener('abort', abort, { once: true });
+      try {
+        ctx.signal.throwIfAborted();
+        return await converse(ctx, session, prompt);
+      } finally {
+        ctx.signal.removeEventListener('abort', abort);
+        await dispose();
+      }
     }
   );
 }
