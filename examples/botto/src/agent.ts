@@ -11,10 +11,12 @@ import { createMemory } from './memory.ts';
 import { threadContextExtension, type ThreadContext } from './thread-context.ts';
 import { systemPrompt, type PromptCapability } from './prompts.ts';
 import { skillReadExtension } from './skills.ts';
+import { hasTranscript } from './messages.ts';
 
 /** Private input for one model turn. The task context always comes from its conversation. */
 export interface ReplyOptions {
   identity: readonly string[];
+  /** JSON envelope containing the accepted currentMessages batch. */
   prompt: string;
   signal: AbortSignal;
   context?: ThreadContext;
@@ -35,7 +37,7 @@ export function transcriptName(identity: readonly string[]): string {
 
 /** Prepare host-owned memory and storage. Runling owns model discovery and live sessions. */
 export async function createAgent(settings: Settings) {
-  const openMemory = createMemory(settings);
+  const memory = settings.memory ? createMemory(settings) : undefined;
   await startupStep('Cannot create the Botto data directory. Check runtime.data_directory.', () =>
     mkdir(settings.directory, { recursive: true, mode: 0o700 })
   );
@@ -56,9 +58,12 @@ export async function createAgent(settings: Settings) {
       }: ReplyOptions
     ): Promise<string> {
       signal.throwIfAborted();
-      const memory = settings.memory
-        ? await openMemory(identity.at(-1), userIds, signal)
-        : undefined;
+      // The first prompt retains the snapshot in Pi history, including across restarts.
+      // Later participants and changed facts are looked up by the agent, not the host.
+      if (memory && !(await hasTranscript(settings.directory, identity))) {
+        const initialMemory = await memory.initialize(identity.at(-1), userIds[0], signal);
+        prompt = JSON.stringify({ ...JSON.parse(prompt), initialMemory });
+      }
       await using session = await createAgentSession({
         cwd: settings.directory,
         model: `${settings.provider}/${settings.modelId}`,
@@ -85,14 +90,13 @@ export async function createAgent(settings: Settings) {
           ...tools,
           mcpExtension(settings, memory?.directory),
           memoryLockExtension(signal, memory?.acquire),
-          ...(context || memory || loadImages
+          ...(context || loadImages
             ? [
                 threadContextExtension(
                   {
                     ...context,
                     messages: context?.messages ?? [],
-                    olderContextOmitted: context?.olderContextOmitted ?? false,
-                    ...(memory ? { memoryDocuments: memory.documents } : {})
+                    olderContextOmitted: context?.olderContextOmitted ?? false
                   },
                   loadImages
                 )

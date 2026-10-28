@@ -30,14 +30,15 @@ schema:
 This collection belongs to one bot account on one Chatto server. Each memory can
 have its own document. Use `data.scope = "global"` for shared facts. Use
 `data.scope = "user"` and the stable Chatto `data.user_id` for user facts. Each
-scope can have zero or more documents. The host searches these frontmatter fields
-and supplies all matching document IDs for each turn. It does not create empty
-documents. Do not change the schema.
+scope can have zero or more documents. At conversation start, the host supplies
+a bounded snapshot of global memory and memory for the initiating user. It does
+not repeat this lookup on later turns or create empty documents. Do not change the schema.
 
 Read memory when prior decisions, preferences, or facts are relevant to the task.
-Skip memory lookups for self-contained questions. Read only relevant global or
-current-participant documents; the supplied IDs do not require you to read every
-document on every turn.
+Use the initial snapshot when sufficient. Search and read relevant memories for
+users who join or become involved later, and retrieve missing or changed facts
+as needed. Personalization does not require an explicit user request. Skip
+unnecessary lookups for self-contained questions.
 Keep shared project facts and general knowledge in global memory, without a
 `user_id`. Choose the scope by what the fact is about, not by who supplied it.
 For example, a project's release schedule is global knowledge even when one

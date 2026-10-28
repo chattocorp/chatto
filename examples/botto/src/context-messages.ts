@@ -15,8 +15,6 @@ export interface ContextMessage {
 export interface ThreadContext {
   messages: ContextMessage[];
   olderContextOmitted: boolean;
-  /** Fresh memory lookup results for this turn, supplied only in request context. */
-  memoryDocuments?: { global: string[]; users: Record<string, string[]> };
   /** Request-only image bytes. Never serialize these into a text prompt or transcript. */
   images?: { messageId: string; attachmentId: string; data: string; mimeType: string }[];
   /** Safe descriptions of image omissions; never raw download errors. */

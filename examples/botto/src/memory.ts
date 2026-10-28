@@ -1,4 +1,4 @@
-/** Find Means memories; Pi's native MCP extension owns model-facing tools. */
+/** Load initial Means memories; Pi's native MCP extension owns later lookups and writes. */
 import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -24,7 +24,11 @@ export function createMemory(settings: Settings) {
       throw error;
     }
   };
-  return async (threadId: string | undefined, userIds: readonly string[], signal: AbortSignal) => {
+  const initialize = async (
+    threadId: string | undefined,
+    userId: string | undefined,
+    signal: AbortSignal
+  ) => {
     const release = await acquire(signal);
     const client = new McpClient({ name: 'botto-memory-setup', version: '0.1.0' });
     const abort = () => {
@@ -51,21 +55,28 @@ export function createMemory(settings: Settings) {
         ),
         signal
       );
-      const global = await findDocuments(client, { scope: 'global' }, signal, threadId);
-      const users: Record<string, string[]> = Object.create(null);
-      for (const userId of new Set(userIds)) {
-        users[userId] = await findDocuments(
-          client,
-          { scope: 'user', user_id: userId },
-          signal,
-          threadId
-        );
+      const documents: Array<{ id: string; scope: string; user_id?: string; body: string }> = [];
+      let remaining = 24000;
+      let truncated = false;
+      const scopes = [{ scope: 'global' }, ...(userId ? [{ scope: 'user', user_id: userId }] : [])];
+      for (const scope of scopes) {
+        const ids = await findDocuments(client, scope, signal, threadId);
+        for (const id of ids) {
+          // Bound both text and document overhead; the agent can retrieve the rest later.
+          if (remaining === 0 || documents.length === 32) {
+            truncated = true;
+            break;
+          }
+          const document = await callMemory(client, 'read', { id }, signal, threadId);
+          if (typeof document.body !== 'string')
+            throw new Error('Means returned an invalid document');
+          const body = document.body.slice(0, remaining);
+          truncated ||= body.length < document.body.length;
+          remaining -= body.length;
+          documents.push({ id, ...scope, body });
+        }
       }
-      return {
-        directory,
-        documents: { global, users },
-        acquire
-      };
+      return { documents, truncated };
     } finally {
       signal.removeEventListener('abort', abort);
       try {
@@ -75,6 +86,32 @@ export function createMemory(settings: Settings) {
       }
     }
   };
+  return { directory: settings.memoryPath, acquire, initialize };
+}
+
+/** Record operation names only; memory contents must not enter run logs. */
+async function callMemory(
+  client: McpClient,
+  name: string,
+  args: Record<string, unknown>,
+  signal: AbortSignal,
+  threadId?: string
+): Promise<Record<string, unknown>> {
+  return safeStep(
+    `mcp__memory__${name}`,
+    async () => {
+      const result = await client.callTool(name, args, { signal });
+      if (
+        result.isError ||
+        !result.structuredContent ||
+        typeof result.structuredContent !== 'object' ||
+        Array.isArray(result.structuredContent)
+      )
+        throw new Error('Means memory operation failed');
+      return result.structuredContent as Record<string, unknown>;
+    },
+    { threadId, tool: `mcp__memory__${name}` }
+  );
 }
 
 /** Find all documents in a scope, including legacy files with several memories. */
@@ -84,23 +121,7 @@ async function findDocuments(
   signal: AbortSignal,
   threadId?: string
 ): Promise<string[]> {
-  const call = async (name: string, args: Record<string, unknown>) =>
-    safeStep(
-      `mcp__memory__${name}`,
-      async () => {
-        const result = await client.callTool(name, args, { signal });
-        if (
-          result.isError ||
-          !result.structuredContent ||
-          typeof result.structuredContent !== 'object' ||
-          Array.isArray(result.structuredContent)
-        )
-          throw new Error('Means memory operation failed');
-        return result.structuredContent as Record<string, unknown>;
-      },
-      { threadId, tool: `mcp__memory__${name}` }
-    );
-  const found = await call('search', { filter: data, limit: 0 });
+  const found = await callMemory(client, 'search', { filter: data, limit: 0 }, signal, threadId);
   if (
     !Array.isArray(found.documents) ||
     !Array.isArray(found.diagnostics) ||

@@ -1,5 +1,5 @@
 /** Verify Botto's Runling boundary: isolated tools, stable transcripts, and per-turn context. */
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createTaskContext, type TaskContext, type AgentRunOptions } from 'runling';
@@ -119,36 +119,45 @@ test('refreshes the current UTC date when a later turn opens its session', async
   }
 });
 
-test('refreshes private memory context per batch without changing system instructions', async () => {
-  let documents = { global: ['one'], users: { human: ['two'] } };
-  const open = vi.fn(async () => ({
+test('loads memory only for a new transcript and its initiating user, including after restart', async () => {
+  const initialMemory = {
+    documents: [{ id: 'one', scope: 'global', body: 'A useful fact' }],
+    truncated: false
+  };
+  const initialize = vi.fn(async () => initialMemory);
+  vi.mocked(createMemory).mockReturnValue({
     directory: '/memory',
-    documents,
+    initialize,
     acquire: async () => () => {}
-  }));
-  vi.mocked(createMemory).mockReturnValueOnce(open);
-  const { agent } = await setup(true);
-  const prompts: string[] = [];
+  });
+  const { agent, session, directory } = await setup(true);
+  const identity = ['server', 'bot', 'room', 'thread'];
+  const prompt = JSON.stringify({ currentMessages: [{ author: 'human', text: 'Hello' }] });
   const signal = new AbortController().signal;
-  for (const user of ['human', 'admin']) {
-    documents = { global: [user], users: { human: ['current'] } };
-    await agent.reply(createTaskContext(), {
-      identity: ['server', 'bot', 'room', 'thread'],
-      prompt: 'batch',
-      signal,
-      userIds: [user]
-    });
-    const options = mock.create.mock.calls.at(-1)![0];
-    prompts.push(options.systemPrompt);
-    expect(options.toolExecution).toBe('sequential');
-    expect(options.systemPrompt).toContain('Configured admin user IDs: ["admin"]');
-    expect(threadContextExtension).toHaveBeenLastCalledWith(
-      expect.objectContaining({ memoryDocuments: documents }),
-      undefined
-    );
-    expect(open).toHaveBeenLastCalledWith('thread', [user], signal);
-  }
-  expect(prompts[0]).toBe(prompts[1]);
+  await agent.reply(createTaskContext(), { identity, prompt, signal, userIds: ['human', 'other'] });
+  expect(initialize).toHaveBeenCalledExactlyOnceWith('thread', 'human', signal);
+  expect(JSON.parse(session.run.mock.calls[0]![1])).toEqual({
+    ...JSON.parse(prompt),
+    initialMemory
+  });
+  const options = mock.create.mock.calls[0]![0];
+  expect(options.toolExecution).toBe('sequential');
+  expect(options.systemPrompt).not.toContain('A useful fact');
+  expect(threadContextExtension).not.toHaveBeenCalled();
+  // Model the transcript retained by Pi, then open another turn and a new host instance.
+  await writeFile(join(directory, transcriptName(identity)), 'retained transcript');
+  await agent.reply(createTaskContext(), { identity, prompt, signal, userIds: ['other'] });
+  const restarted = await createAgent({
+    ...parseSettings(
+      '[chatto]\nurl="https://chat.example.com"\napi_key="unused"\n[agent]\nmodel="test/model"',
+      'botto.toml'
+    ),
+    directory,
+    memory: true
+  });
+  await restarted.reply(createTaskContext(), { identity, prompt, signal, userIds: ['third'] });
+  expect(initialize).toHaveBeenCalledOnce();
+  expect(session.run.mock.calls.slice(1).map((call) => call[1])).toEqual([prompt, prompt]);
 });
 
 test('passes fresh thread context through the request hook, not the persisted prompt', async () => {
@@ -165,6 +174,33 @@ test('passes fresh thread context through the request hook, not the persisted pr
   });
   expect(threadContextExtension).toHaveBeenCalledWith(context, undefined);
   expect(session.run.mock.calls[0]?.[1]).toBe('accepted batch');
+});
+
+test('failed memory initialization does not open a transcript and can be retried', async () => {
+  const initialize = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Means unavailable'))
+    .mockResolvedValue({ documents: [], truncated: false });
+  vi.mocked(createMemory).mockReturnValue({
+    directory: '/memory',
+    initialize,
+    acquire: async () => () => {}
+  });
+  const { agent, session } = await setup(true);
+  const options = {
+    identity: ['server', 'bot', 'room', 'thread'],
+    prompt: JSON.stringify({ currentMessages: [] }),
+    signal: new AbortController().signal,
+    userIds: ['human']
+  };
+  await expect(agent.reply(createTaskContext(), options)).rejects.toThrow('Means unavailable');
+  expect(mock.create).not.toHaveBeenCalled();
+  await expect(agent.reply(createTaskContext(), options)).resolves.toBe('Hello');
+  expect(initialize).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(session.run.mock.calls[0]![1]).initialMemory).toEqual({
+    documents: [],
+    truncated: false
+  });
 });
 
 test('releases the agent on failure, permits silence, and rejects cancellation', async () => {
