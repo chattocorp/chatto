@@ -143,6 +143,21 @@
           "description": "Gebruik de donkere interface in deze browser"
         }
       },
+      "animations": {
+        "title": "Animaties",
+        "automatic": {
+          "label": "Automatisch",
+          "description": "Volg de systeemvoorkeur voor minder beweging"
+        },
+        "enabled": {
+          "label": "Ingeschakeld",
+          "description": "Altijd animaties tonen"
+        },
+        "disabled": {
+          "label": "Uitgeschakeld",
+          "description": "Wijzigingen zonder animaties tonen"
+        }
+      },
       "thread_pane": {
         "title": "Threadpaneel",
         "overlay": {

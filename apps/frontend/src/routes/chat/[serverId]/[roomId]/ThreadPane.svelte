@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { fly } from 'svelte/transition';
+  import { createPanelReveal } from '$lib/dom/panelReveal';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { isMessagePostedEvent } from '@chatto/client/timeline/timelineEvents';
@@ -62,6 +63,10 @@
 
   const serverScope = useServerScope();
   const stores = serverScope.store;
+  const revealThread = createPanelReveal(() => ({
+    scope: roomId,
+    panel: threadRootEventId
+  }));
 
   $effect(() => {
     if (!stores.currentUser.user) return;
@@ -113,8 +118,12 @@
       : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
   ]}
   data-testid="thread-pane"
+  {@attach revealThread}
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
-  transition:fly|global={{ x: fromInlineEndOffset(300), ...expoOutTransition() }}
+  transition:fly|global={{
+    x: fromInlineEndOffset(presentation === 'overlay' ? 48 : 24),
+    ...expoOutTransition(180)
+  }}
 >
   {#if presentation === 'split'}
     <ResizeHandle

@@ -1682,7 +1682,7 @@ describe('Room local message echo', () => {
       .toHaveClass('end-0', 'border-s');
   });
 
-  it('keeps the mobile sidebar mounted during its close transition', async () => {
+  it('removes the mobile sidebar immediately when closed', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     stubMatchMedia(false);
     appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'mobile');
@@ -1694,7 +1694,7 @@ describe('Room local message echo', () => {
     appUi.closeMobileRoomSidebarPanel();
     await tick();
 
-    expect(pane.isConnected).toBe(true);
+    expect(pane.isConnected).toBe(false);
     await expect.element(pane).not.toBeInTheDocument();
   });
 

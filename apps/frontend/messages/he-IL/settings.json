@@ -143,6 +143,21 @@
           "description": "השתמש בממשק הכהה בדפדפן זה"
         }
       },
+      "animations": {
+        "title": "הנפשות",
+        "automatic": {
+          "label": "אוטומטי",
+          "description": "שימוש בהעדפת המערכת להפחתת תנועה"
+        },
+        "enabled": {
+          "label": "מופעלות",
+          "description": "הצגת הנפשות תמיד"
+        },
+        "disabled": {
+          "label": "מושבתות",
+          "description": "הצגת שינויים ללא הנפשות"
+        }
+      },
       "thread_pane": {
         "title": "חלונית שרשור",
         "overlay": {

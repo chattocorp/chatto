@@ -387,6 +387,33 @@ describe('ThreadPane', () => {
     await expect.element(send).toBeDisabled();
   });
 
+  it('reveals a different thread without remounting the pane or replaying for content updates', async () => {
+    const rendered = render(ThreadPane, { props: threadProps });
+    await tick();
+    const pane = q(rendered.container, '[data-testid="thread-pane"]') as HTMLElement;
+    const conversation = q(rendered.container, '[data-testid="thread-conversation-pane"]');
+    const animate = vi.spyOn(pane, 'animate');
+    try {
+      await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
+      expect(animate).toHaveBeenCalledOnce();
+      expect(animate.mock.calls[0][1]).toMatchObject({ duration: 140 });
+      expect(q(rendered.container, '[data-testid="thread-pane"]')).toBe(pane);
+      expect(q(rendered.container, '[data-testid="thread-conversation-pane"]')).toBe(conversation);
+
+      await rendered.rerender({
+        ...threadProps,
+        threadRootEventId: 'thread-2',
+        roomName: 'Renamed',
+        presentation: 'split'
+      });
+      mocks.threadStore!.threadEvents = [...mocks.threadStore!.threadEvents];
+      await tick();
+      expect(animate).toHaveBeenCalledOnce();
+    } finally {
+      animate.mockRestore();
+    }
+  });
+
   it('uses the persisted width and accessible resize handle in split layouts', async () => {
     const { container } = render(ThreadPane, {
       props: {

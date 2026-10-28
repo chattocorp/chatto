@@ -15,7 +15,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
   import type { Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteSet } from 'svelte/reactivity';
-  import { prefersReducedMotion } from 'svelte/motion';
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { fade } from 'svelte/transition';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
   import type { GutterItem } from './serverGutterDrag.svelte';
@@ -110,7 +110,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
           {@const store = serverRegistry.tryGetStore(item.serverId)}
           <div
             transition:fade={{
-              duration: prefersReducedMotion.current || preview || item.isDndShadowItem ? 0 : 150
+              duration: userPreferences.reducedMotion || preview || item.isDndShadowItem ? 0 : 150
             }}
             onoutrostart={(event) => exitingEntries.add(event.currentTarget)}
             onoutroend={(event) => exitingEntries.delete(event.currentTarget)}

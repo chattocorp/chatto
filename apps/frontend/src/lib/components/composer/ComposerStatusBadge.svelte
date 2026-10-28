@@ -4,7 +4,7 @@
   import type { HTMLAttributes } from 'svelte/elements';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { prefersReducedMotion } from 'svelte/motion';
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   let {
     children,
     avatarPadding = false,
@@ -28,7 +28,7 @@
     className
   ]}
   transition:scale|global={{
-    duration: animate && !prefersReducedMotion.current ? 150 : 0,
+    duration: animate && !userPreferences.reducedMotion ? 150 : 0,
     easing: cubicOut,
     start: 0.96,
     opacity: 0

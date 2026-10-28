@@ -100,9 +100,25 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
   the active theme, so the user changes the theme to select the other tone.
   Each sample shows the tone with the selected accent. Choices apply immediately, stay in this
   browser, and need no server request or external service. Accent, status
-  colours, contrast, and surface depth do not change. Palette changes from
-  theme, tone, accent, or contrast fade briefly unless reduced motion is
-  enabled.
+  colours, contrast, and surface depth do not change. Tone, accent, and contrast
+  changes fade briefly unless reduced motion is enabled. An explicit theme
+  choice reveals the new palette in a circle from the selected control. Keyboard
+  activation starts the circle at the centre of the control. Browsers without
+  View Transitions keep the colour fade. Reduced motion disables the reveal.
+- **Animations** — Appearance offers Automatic, Enabled, and Disabled. Automatic
+  is the default and follows the system's reduced-motion preference. Enabled
+  overrides that preference; Disabled suppresses app motion. The choice applies
+  immediately to CSS effects, canvas decoration, and JavaScript transitions,
+  including startup motion on reload. It stays in this browser, applies to all
+  registered servers, and makes no external connection. Static feedback, such
+  as copy confirmation and the message-location cue, remains visible.
+- **Navigation motion** — switching channels or pages briefly fades the new
+  main content to full opacity without moving or scaling it. Navigation does
+  not wait for the fade. Initial loads, query changes, and overlays do not
+  trigger it. Reduced motion disables it. The Room Sidebar changes immediately,
+  including opening, closing, and switching sidebar panels or profiles.
+  Navigation stops an active theme reveal. Theme effects run locally and make
+  no external connections. Thread-pane motion is described in FDR-002.
 
 ## Design Decisions
 

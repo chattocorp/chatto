@@ -5,6 +5,27 @@
 @import 'tailwindcss' source('./');
 @import './prose.css';
 @import './composer.css';
+@import './view-transitions.css';
+
+/* Both CSS and JavaScript use the effective app motion policy. */
+@custom-variant motion-reduce (&:where([data-motion='reduced'], [data-motion='reduced'] *));
+@custom-variant motion-safe (&:where([data-motion='full'], [data-motion='full'] *));
+
+/* Keep the timed, static message-location cue; finish other CSS animations
+   immediately so completion events and final states still work. */
+:root[data-motion='reduced'] *:not(.highlight-flash),
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
 
 /* Registered numbers let the whole design system interpolate depth together. */
 @property --depth-strength {
@@ -1057,7 +1078,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .loading-fog::before,
   .loading-fog::after {
     animation: none;
@@ -1669,7 +1690,7 @@
   --tw-ease: var(--motion-easing-feedback);
   transition-duration: var(--motion-duration-feedback);
   transition-timing-function: var(--motion-easing-feedback);
-  @media (prefers-reduced-motion: reduce) {
+  :where([data-motion='reduced']) & {
     /* Zero timing also wins when a property utility follows this utility. */
     --motion-duration-feedback: 0ms;
   }
@@ -1680,7 +1701,7 @@
   &:popover-open {
     animation: overlay-enter var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
   }
-  @media (prefers-reduced-motion: reduce) {
+  :where([data-motion='reduced']) & {
     &:popover-open {
       animation: none;
     }
@@ -1851,9 +1872,9 @@
 @utility hover-lift {
   @apply transition-transform duration-150;
 
-  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-    &:hover,
-    .hover-lift-group:hover & {
+  @media (hover: hover) {
+    &:where([data-motion='full'] *):hover,
+    :where([data-motion='full']) .hover-lift-group:hover & {
       @apply -translate-y-0.5;
     }
   }
@@ -1983,7 +2004,7 @@
   display: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .shimmer-hover:hover::before,
   .shimmer-group:hover .shimmer-hover::before,
   .server-gutter-item:hover::before {
@@ -1992,16 +2013,54 @@
 }
 
 @utility highlight-flash {
+  --jump-edge: 3px;
   animation: highlight-flash 1.5s ease-out;
+  &:dir(rtl) {
+    --jump-edge: -3px;
+  }
 }
 
 @keyframes highlight-flash {
   0%,
-  15% {
-    background-color: color-mix(in oklch, var(--color-warning) 20%, transparent);
+  30% {
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
   }
   100% {
     background-color: transparent;
+    box-shadow: inset var(--jump-edge) 0 transparent;
+  }
+}
+
+.copy-feedback [data-copy-check],
+.copy-feedback[data-copied] [data-copy-icon] {
+  display: none;
+}
+.copy-feedback[data-copied] [data-copy-check] {
+  display: inline-block;
+  animation: copy-confirmation 160ms ease-out;
+}
+@keyframes copy-confirmation {
+  from {
+    transform: scale(0.75);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes highlight-still {
+  from,
+  to {
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
+  }
+}
+:root[data-motion='reduced'] {
+  .highlight-flash {
+    animation-name: highlight-still;
+  }
+  .copy-feedback[data-copied] [data-copy-check] {
+    animation: none;
   }
 }
 
@@ -2192,7 +2251,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .typing-dot,
   .loading-dot,
   .quick-switcher[open],
@@ -2279,7 +2338,7 @@
   outline-color: var(--color-action);
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .sidebar-drop-target {
     transition: none;
   }
@@ -2623,8 +2682,6 @@ body[data-resizing-sidebar] {
   user-select: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    transition: none;
-  }
+:root[data-motion='reduced'] {
+  transition: none;
 }

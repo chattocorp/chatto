@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import CreateRoom from '$lib/CreateRoom.svelte';
@@ -426,7 +427,7 @@
       >
         {#each renderGroups as group (group.id)}
           <section
-            animate:flip={{ duration: 200 }}
+            animate:flip={{ duration: userPreferences.reducedMotion ? 0 : 200 }}
             class={[
               'shrink-0 overflow-hidden panel-shell panel-shell-raised transition-shadow',
               layout.draggingGroupId === group.id && 'shadow-lg ring-1 ring-action/30'
@@ -496,7 +497,7 @@
               >
                 {#each group.items as room (room.id)}
                   <div
-                    animate:flip={{ duration: 200 }}
+                    animate:flip={{ duration: userPreferences.reducedMotion ? 0 : 200 }}
                     class={[
                       'group flex cursor-grab items-center gap-3 selectable-list-item py-2 ps-3 pe-4',
                       room.kind === 'room' && room.room.archived && 'opacity-60'

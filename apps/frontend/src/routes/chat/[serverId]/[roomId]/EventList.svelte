@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { onDestroy, tick, untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import {
@@ -1100,7 +1101,7 @@
 
   {#if !viewport.shouldScrollToBottom}
     <button
-      transition:fade={{ duration: 150 }}
+      transition:fade={{ duration: userPreferences.reducedMotion ? 0 : 150 }}
       onclick={isJumpedMode ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"

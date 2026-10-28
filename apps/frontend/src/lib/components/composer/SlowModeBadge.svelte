@@ -4,7 +4,7 @@
   import { formatSlowModeCountdown } from '$lib/slowMode';
   import { HelpTooltip } from '$lib/ui';
   import ComposerStatusBadge from './ComposerStatusBadge.svelte';
-  import { prefersReducedMotion } from 'svelte/motion';
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   let {
     seconds,
     remaining = 0,
@@ -24,7 +24,7 @@
       badge.getAnimations().some((animation) => animation.playState === 'running')
     )
       return;
-    const offsets = prefersReducedMotion.current ? [0, 0, 0, 0, 0] : [0, -3, 3, -1, 0];
+    const offsets = userPreferences.reducedMotion ? [0, 0, 0, 0, 0] : [0, -3, 3, -1, 0];
     badge.animate(
       offsets.map((offset, index) => ({
         transform: `translateX(${offset}px)`,

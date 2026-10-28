@@ -291,7 +291,10 @@ local to the footer.
           'max-w-full gap-1 px-2 text-sm disabled:cursor-default disabled:opacity-60',
           reaction.hasReacted ? 'border-action/50' : 'border-transparent'
         ]}
-        onclick={() => action?.canReact && toggleReaction(reaction)}
+        onclick={() => {
+          if (!action?.canReact) return;
+          void toggleReaction(reaction);
+        }}
         onfocus={(e) => showReactionTooltip(e, reaction)}
         onblur={hideReactionTooltip}
         disabled={!action?.canReact}

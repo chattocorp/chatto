@@ -143,6 +143,21 @@
           "description": "Använd det mörka gränssnittet i den här webbläsaren"
         }
       },
+      "animations": {
+        "title": "Animationer",
+        "automatic": {
+          "label": "Automatiskt",
+          "description": "Följ systemets inställning för minskad rörelse"
+        },
+        "enabled": {
+          "label": "Aktiverat",
+          "description": "Visa alltid animationer"
+        },
+        "disabled": {
+          "label": "Inaktiverat",
+          "description": "Visa ändringar utan animationer"
+        }
+      },
       "thread_pane": {
         "title": "Trådpanel",
         "overlay": {

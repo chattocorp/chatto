@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import { prefersReducedMotion } from 'svelte/motion';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 type ServerMock = {
   id: string;
@@ -83,7 +83,7 @@ describe('ServerGutter', () => {
   }
 
   it('fades added and removed entries and resumes dragging after removal', async () => {
-    vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(false);
+    vi.spyOn(userPreferences, 'reducedMotion', 'get').mockReturnValue(false);
     register('origin', 'a', 'b');
     mocks.stores.delete('b');
     const { container } = render(ServerGutter);
@@ -114,7 +114,7 @@ describe('ServerGutter', () => {
   });
 
   it('removes entries immediately with reduced motion', async () => {
-    vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(true);
+    vi.spyOn(userPreferences, 'reducedMotion', 'get').mockReturnValue(true);
     register('origin', 'a');
     const { container } = render(ServerGutter);
     mocks.stores.delete('a');
@@ -124,7 +124,7 @@ describe('ServerGutter', () => {
   });
 
   it('restores dragging when a server returns before its fade-out finishes', async () => {
-    vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(false);
+    vi.spyOn(userPreferences, 'reducedMotion', 'get').mockReturnValue(false);
     register('origin', 'a', 'b');
     const store = mocks.stores.get('b')!;
     const { container } = render(ServerGutter);

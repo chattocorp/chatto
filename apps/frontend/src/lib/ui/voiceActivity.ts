@@ -1,6 +1,7 @@
 import type { Attachment } from 'svelte/attachments';
 import { microphoneMeter } from '$lib/audio/noiseGate';
 import { paintVoiceFog } from './voiceFog';
+import { motionPreference } from '$lib/dom/motionPreference';
 
 type VoiceLayer = {
   sample: () => void;
@@ -46,7 +47,7 @@ export function voiceActivity(readLevel: () => number): Attachment<HTMLCanvasEle
     let pixels: ImageData;
     let travel = 0;
     let textureTime = -Infinity;
-    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    const motion = motionPreference();
     let visible = false;
     let width = 0;
     let height = 0;

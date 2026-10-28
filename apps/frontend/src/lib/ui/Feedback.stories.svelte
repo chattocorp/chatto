@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import { expect } from 'storybook/test';
+  import { motionPreference } from '$lib/dom/motionPreference';
   import MenuItem from './MenuItem.svelte';
   import MenuSection from './MenuSection.svelte';
   import UserCard from './UserCard.svelte';
@@ -31,7 +32,7 @@
     const controls = canvasElement.querySelectorAll(
       '.menu-entry, .hover-reveal-action, .feedback-quick, .icon-action'
     );
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = motionPreference().matches;
     for (const control of controls) {
       await expect(getComputedStyle(control).transitionDuration).toBe('0s');
       await expect(getComputedStyle(control).transitionTimingFunction).toBe('ease-out');
