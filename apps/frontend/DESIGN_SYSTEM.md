@@ -323,6 +323,14 @@ lifecycle, focus restoration, backdrop handling, animation, and handle gestures.
 
 ## Standard Pane Pages
 
+Use `CenteredPage` for a single task, such as first-run setup or a welcome
+screen. It centers its content horizontally and vertically in the available
+pane, with the standard `max-w-pane` width and page padding. Its optional
+`header` snippet stays above the scroll viewport. Content taller than the
+viewport starts at the top and scrolls normally. Text alignment remains the
+caller's choice. Do not add a `pane-page` or `PaneContent` wrapper around it.
+See **UI/CenteredPage** in Storybook for introductions, forms, and tall content.
+
 Use the pane-page composition for primary application pages such as search,
 settings, and Server Admin. It gives these pages the same header, scrolling
 behaviour, content width, spacing, and panel hierarchy.
