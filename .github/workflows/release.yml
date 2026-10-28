@@ -662,6 +662,7 @@ jobs:
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    environment: chatto-release
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     permissions:
