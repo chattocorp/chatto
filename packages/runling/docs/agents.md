@@ -168,11 +168,13 @@ leases only; it does not recover execution or authorize new work.
 
 ## Classifiers
 
-`createClassifier({ name, label, model, input, result, systemPrompt })` defines an
+`createClassifier({ name, label, model, input, result, systemPrompt, logContent })` defines an
 ordinary task. It performs one model turn, parses JSON, and validates the output
 through the task schema. Standard Schema transformations run once. The task has
 no tools, local resources, or saved agent history. Its default thinking level is
 `low`, and its model turn receives a 30-second cancellation signal.
+Set `logContent: false` to omit model text and reasoning from logs. The task's
+explicit input and result still follow the ordinary task journal policy.
 
 The caller supplies classification policy and schemas. Invalid JSON, invalid
 output, cancellation, and provider failures reject the task without a retry or
@@ -285,6 +287,10 @@ also adds its outcome rules.
 Use `run(ctx, prompt, { onText })` or `runOutcome()` with `onText` to see each
 completed assistant text message during a turn. The callback does not get
 reasoning or tool output. Agent tasks use this callback to emit replies.
+The second argument has `hasToolCalls`, which identifies text that accompanies
+tool calls. Hosts can display that text immediately and use the returned summary
+for the final answer after the turn ends. Existing one-argument callbacks need
+no changes.
 `runling run` records those replies in the journal and prints only the root
 task's final output.
 

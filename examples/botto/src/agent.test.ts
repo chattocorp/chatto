@@ -2,7 +2,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
-import { createTaskContext, type TaskContext } from 'runling';
+import { createTaskContext, type TaskContext, type AgentRunOptions } from 'runling';
 import { createAgent, transcriptName } from './agent.ts';
 import { parseSettings } from './settings.ts';
 import { createMemory } from './memory.ts';
@@ -31,7 +31,7 @@ async function setup(memory = false) {
   const directory = await mkdtemp(resolve('../../.context/botto-agent-'));
   directories.push(directory);
   const session = {
-    run: vi.fn(async (_ctx: TaskContext, _prompt: string, _options?: { signal?: AbortSignal }) => ({
+    run: vi.fn(async (_ctx: TaskContext, _prompt: string, _options?: AgentRunOptions) => ({
       summary: ' Hello '
     })),
     dispose: vi.fn(async () => {}),
@@ -52,6 +52,25 @@ async function setup(memory = false) {
   return { agent, session, directory };
 }
 
+test('streams only text before tools and returns the final answer after disposal', async () => {
+  const { agent, session } = await setup();
+  const onText = vi.fn();
+  session.run.mockImplementationOnce(async (_ctx, _prompt, options) => {
+    options?.onText?.('Checking.', { hasToolCalls: true });
+    options?.onText?.('Done.', { hasToolCalls: false });
+    return { summary: 'Done.' };
+  });
+  const answer = await agent.reply(createTaskContext(), {
+    identity: ['server', 'bot', 'room', 'thread'],
+    prompt: 'Check it',
+    signal: new AbortController().signal,
+    onText
+  });
+  expect(onText.mock.calls).toEqual([['Checking.']]);
+  expect(answer).toBe('Done.');
+  expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+});
+
 test('uses Runling with explicit extensions, no ambient resources, and the original transcript path', async () => {
   const { agent, session, directory } = await setup();
   const identity = ['server', 'bot', 'room', 'thread'];
@@ -63,6 +82,7 @@ test('uses Runling with explicit extensions, no ambient resources, and the origi
       model: 'test/model',
       thinkingLevel: 'low',
       output: 'text',
+      allowEmptyText: true,
       tools: 'extensions',
       sessionFile: join(directory, transcriptName(identity)),
       resources: {
@@ -147,7 +167,7 @@ test('passes fresh thread context through the request hook, not the persisted pr
   expect(session.run.mock.calls[0]?.[1]).toBe('accepted batch');
 });
 
-test('releases the agent on failure and rejects empty or cancelled answers', async () => {
+test('releases the agent on failure, permits silence, and rejects cancellation', async () => {
   const { agent, session } = await setup();
   session.run.mockRejectedValueOnce(new Error('failed turn'));
   await expect(
@@ -165,7 +185,7 @@ test('releases the agent on failure and rejects empty or cancelled answers', asy
       prompt: 'batch',
       signal: new AbortController().signal
     })
-  ).rejects.toThrow('no answer');
+  ).resolves.toBe('');
   const controller = new AbortController();
   mock.create.mockImplementationOnce(async () => {
     controller.abort();

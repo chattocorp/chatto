@@ -188,7 +188,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
               })
             })
           ).toBe('private-answer');
-          expect(texts).toEqual(['I will take a closer look.', 'private-answer']);
+          expect(texts).toEqual(['I will take a closer look.']);
         }
         return null;
       }

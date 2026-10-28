@@ -11,6 +11,9 @@ one session, gives parent messages to it, and emits its completed replies.
 
 ## Behavior
 
+- Completed-text callbacks identify messages that contain tool calls. Hosts can
+  deliver interim text during work and deliver the returned answer after cleanup.
+
 - Agent task definitions are reusable and do not start a session at definition
   time. Each invocation owns setup, execution, cancellation, and disposal.
 - Agent tasks accept string prompts by default. A typed input schema requires
@@ -82,7 +85,8 @@ one session, gives parent messages to it, and emits its completed replies.
   This avoids repeated promise and timer plumbing in application loops; batching,
   data, and recovery remain the caller's responsibility. See [task channels](../task-channels.md#wake-a-processing-loop).
 - Classifiers run as ordinary tasks. `createClassifier` runs one tool-free agent
-  turn with no local instructions or saved history. `createChoiceClassifier`
+  invocation and lets callers omit model content from logs with `logContent: false`.
+  It performs one turn with no local instructions or saved history. `createChoiceClassifier`
   sends one typed choice question to OpenRouter's Decisions API without an agent
   session. The caller supplies the input schema, policy, model, and named choices;
   the choice result includes provider probabilities and confidence. Both have a

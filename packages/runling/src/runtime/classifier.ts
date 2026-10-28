@@ -15,6 +15,8 @@ export function createClassifier<Input extends WorkflowSchema, Result extends Wo
     input: Input;
     result: Result;
     systemPrompt: string;
+    /** Omit model text and reasoning from logs when the input is private. */
+    logContent?: boolean;
   },
   createAgent: AgentSessionFactory = createAgentSession
 ) {
@@ -27,6 +29,7 @@ export function createClassifier<Input extends WorkflowSchema, Result extends Wo
         model: options.model,
         label: options.label,
         thinkingLevel: 'low',
+        logContent: options.logContent,
         output: 'text',
         cwd: await usePrivateTempDirectory(),
         tools: [],

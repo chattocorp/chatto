@@ -20,7 +20,7 @@ export interface ReplyOptions {
   context?: ThreadContext;
   /** Deferred until Pi exposes the active model's image capability. */
   loadImages?: Parameters<typeof threadContextExtension>[1];
-  /** Receives completed parent assistant messages, including the final answer, never child output. */
+  /** Receives parent text before tool calls. The final answer is returned after cleanup. */
   onText?: (text: string) => void;
   userIds?: readonly string[];
   tools?: ExtensionFactory[];
@@ -64,6 +64,8 @@ export async function createAgent(settings: Settings) {
         model: `${settings.provider}/${settings.modelId}`,
         thinkingLevel: settings.reasoningLevel,
         output: 'text',
+        // Silence and reaction-only turns are valid participation decisions.
+        allowEmptyText: true,
         logContent: false,
         tools: 'extensions',
         // Pi prepares all parallel calls before executing them. Memory locks
@@ -115,10 +117,15 @@ export async function createAgent(settings: Settings) {
         signal.throwIfAborted();
         const { summary } = await session.run(ctx, prompt, {
           signal,
-          ...(onText ? { onText } : {})
+          ...(onText
+            ? {
+                onText: (text: string, message: { hasToolCalls: boolean }) => {
+                  if (message.hasToolCalls) onText(text);
+                }
+              }
+            : {})
         });
         signal.throwIfAborted();
-        if (!summary.trim()) throw new Error('The agent returned no answer');
         return summary.trim();
       } finally {
         signal.removeEventListener('abort', abort);

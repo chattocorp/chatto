@@ -221,8 +221,9 @@ export interface RunAgentOptions {
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
 
 export interface AgentRunOptions {
-  /** Receive completed assistant text during this interaction (not reasoning or tool output). */
-  onText?: (text: string) => void;
+  /** Receive completed assistant text (not reasoning or tool output). `hasToolCalls`
+   * identifies text before tool execution; it is not a guarantee that the turn has ended. */
+  onText?: (text: string, message: { hasToolCalls: boolean }) => void;
   /** Abort this model turn without disposing the agent. */
   signal?: AbortSignal;
 }
@@ -829,7 +830,10 @@ async function createRunlingAgent(
           emitRunlingEvent({ type: 'agent.usage', agentId, usage: { ...usage } });
           agentLog.debug(`Tokens: ${formatTokenUsage(usage)}`);
           // A message that failed or was aborted can hold partial text; a retry follows.
-          if (finalText.trim() && !finalTextError) onText?.(finalText);
+          if (finalText.trim() && !finalTextError)
+            onText?.(finalText, {
+              hasToolCalls: event.message.content.some((part) => part.type === 'toolCall')
+            });
         }
       })
     );

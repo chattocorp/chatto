@@ -188,13 +188,65 @@ has a 30-second deadline.
 ## Message flow
 
 Botto answers text DMs, verified mentions, and verified replies to its messages.
-It also answers ordinary text and image messages in threads where it has queued or running work,
+It also considers ordinary text and image messages in threads where it has queued or running work,
 or a saved Pi transcript. Saved transcripts keep threads active across restarts;
 this does not make other threads in the room active. Messages from other bots
 and from users outside `chatto.allowed_user_id`, when set, are ignored.
-In a thread, an explicit reply to another user's message does not start a turn,
+Every accepted DM message is addressed to Botto, including follow-ups and replies
+to the other user's earlier messages. The passive-chatter default does not apply
+to DMs; Botto should respond with text or an appropriate emoji reaction.
+In a shared room thread, an explicit reply to another user's message does not start a turn,
 even if it mentions Botto. This rule also applies to recovered notifications.
 Accepted messages include the reply target's ID and author ID in the model input.
+Each message also includes its verified addressing reasons. Unmentioned shared
+thread activity first goes to a tool-free OpenRouter chat model with
+recent thread text and attachment types. DMs, mentions, and verified replies to
+Botto bypass it, including batches that mix addressed and unmentioned messages.
+The classifier returns validated JSON: a reply, no response, or a reaction with
+an emoji shortcode it chooses for the last message in the batch. Only a reply opens the main agent.
+Ignored batches and classifier reactions do not open memory, load images, name
+the conversation, show typing, or generate text. A classifier failure fails the
+turn before effects and leaves the batch available for delivery retry. A failed
+reaction is not retried because its outcome can be uncertain.
+
+Human reactions added to Botto's messages also enter the classifier, including
+in DMs. The classifier sees the emoji, its target message, and recent thread
+context. It chooses a reply or silence; it does not react to Botto's own message.
+Appreciation usually needs no reply, while confusion or an answer to a question
+can warrant follow-through. Botto ignores its own reactions, other bots,
+reaction removals, and reactions to other people's messages. The user allowlist
+and passive debounce apply. Accepted reactions are saved and deduplicated by
+event ID. Reactions missed while disconnected are not recovered from notification
+history; queued reactions survive a restart.
+
+The classifier should ignore neutral acknowledgements after a completed answer,
+such as "mh" or "ok", and conversation between other people. Thanks and clear
+appreciation directed at Botto should receive an emoji reaction without a textual
+reply. The model chooses the emoji. A request after Botto
+offers help, an answer to its question, or a nudge after an unanswered request
+should receive a reply without another mention. These are model decisions,
+not guaranteed rules.
+
+Set `OPENROUTER_API_KEY` in the environment for passive participation. All
+classification requests use OpenRouter; no direct provider API
+is used. OpenRouter and its selected provider receive the supplied thread text
+and attachment types; OpenRouter also receives the host's IP address. No memory
+documents or image bytes are included. Runling records the decision,
+duration, and reported token usage and cost without logging the full model response or reasoning.
+Each successful classification also adds a concise participation log entry with
+the action, a short plain-text explanation, the selected emoji if any, and elapsed time.
+The classifier is instructed to explain the conversational situation without quotes,
+personal details, or credentials. This restriction depends on model compliance.
+A missing or empty explanation is logged as "Reason not supplied" and does not
+invalidate the decision. Emoji selection remains open-ended.
+
+```toml
+[participation]
+model = "z-ai/glm-5.3-flash" # Default; OpenRouter model ID without openrouter/
+```
+
+The classifier uses low reasoning and no saved session. Use an ordinary chat
+model that can return JSON; Decisions API models are not supported here.
 Botto reads targets outside the recent context window separately. If a target is
 missing or access is denied, its author is `null`.
 
@@ -240,8 +292,9 @@ a retained assistant response; human messages with the same text are kept.
 This check uses Pi's current request context, so messages removed by compaction
 can be supplied by the snapshot again. Compaction summaries can still describe
 the same events. These request changes do not rewrite the saved transcript.
-When Botto first joins a conversation, it adds an 👀 reaction to the first message
-in that initial batch. Later turns do not get this automatic reaction. An existing
+When Botto first joins an addressed conversation, it adds an 👀 reaction to the first
+addressed message in that batch. Passive batches do not get this automatic
+reaction. Later turns do not get this automatic reaction. An existing
 Pi transcript also suppresses the acknowledgement after a restart. Set
 `runtime.acknowledgement_emoji` to another emoji shortcode or `""` to disable it.
 Reaction failures do not stop the answer. Botto leaves this reaction in place as
@@ -252,24 +305,32 @@ native Pi tool uses the Chatto client and works without Chatto MCP. It can react
 only to messages in the current batch or supplied thread context. The default
 prompt tells the model not to duplicate the automatic acknowledgement reaction.
 
-Botto shows a typing indicator and posts completed parent assistant messages in
+Botto shows typing for the whole main-agent turn. Addressed batches start typing
+immediately; passive batches start typing after the classifier selects reply.
+Botto stops typing and waits for a pending refresh before it posts the final
+answer. Interim text before tool calls is posted during the turn. Conversation
+title generation does not keep typing active.
+Typing stops when the turn ends, including on failure. It posts completed parent assistant messages in
 the thread, referencing the last message in the batch. These include interim
-updates and the final answer. The prompt asks the model to send a brief update
-before its first tool call, including memory lookups. Tools stay available
+updates and the final answer. After choosing a textual reply, the model should
+send a brief update before any tool call, including memory reads. Answers without tools, reaction-only
+turns, and silent turns do not need an update. A successful turn can return no
+text; provider errors and cancellation still fail the turn. Tools stay available
 throughout the turn. The model decides when to send text; the prompt does not
 guarantee an early update.
 Updates are agent-written; there is no timed or fixed host message. They arrive
 when the model completes a text message, not token by token. Child-agent text,
 reasoning, and tool results are not forwarded directly.
-Posts are serialized, and the final answer is not posted a second time when its
-callback already supplied it. A failed post stops model work without retrying an
+Interim posts are serialized. The final answer is posted once, after the model
+finishes and typing refreshes stop. A failed post stops model work without retrying an
 uncertain write. An update already delivered remains visible if later work fails.
 The live Pi session closes after each turn; its transcript stays on disk.
 On the next message in that thread, including after a restart, Botto reopens the
 same transcript. It does not preload all transcripts at process startup.
 
 Messages that exceed the in-memory queue or thread limit wait in the delivery file.
-Ordinary room posts and reactions do not start turns. Botto always provides the reaction tool.
+Unaddressed room posts outside active threads do not start turns. Reactions to
+Botto's messages use the classifier described above. Botto provides the reaction tool.
 It loads only host-selected extensions and the configured instance's skill
 directory, not ambient Pi extensions, prompt templates, or project instructions.
 

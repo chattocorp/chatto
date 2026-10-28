@@ -175,6 +175,11 @@ and `ctx.reply` return the `ids` of the new messages. Other helpers are
 `conversationKey`, `replyDestination`, `withTyping` and `startTyping` for
 custom typing updates, and `createDeliveryTracker` for replay filters.
 
+For a final reply, await `withTyping(destination, work)` before posting the
+message. The helper stops its timer and waits for any pending refresh, with
+a two-second request timeout. This prevents a successful refresh from arriving
+after the message and restoring the typing indicator.
+
 Message bodies can contain emoji shortcodes, such as `Hello :wave:`. The
 server keeps this text. Clients choose how to display it. For custom renderers,
 `@chatto/client/messaging/emojiShortcodes` exports `resolveEmoji(name)` for
