@@ -47,13 +47,27 @@ test.describe('Touch sidebar targets', () => {
     const bounds = (await scrollRegion.boundingBox())!;
     const cdp = await page.context().newCDPSession(page);
     try {
-      // Exercise native touch scrolling, including the app-wide swipe handler.
-      await cdp.send('Input.synthesizeScrollGesture', {
-        x: bounds.x + bounds.width / 2,
-        y: bounds.y + bounds.height - 30,
-        yDistance: -1200,
-        gestureSourceType: 'touch'
-      });
+      // Keep each swipe inside the viewport. Explicit touch events exercise
+      // native scrolling and the app-wide swipe handler on Linux and macOS.
+      const x = bounds.x + bounds.width / 2;
+      const startY = bounds.y + bounds.height - 30;
+      const distance = bounds.height - 60;
+      for (let swipe = 0; swipe < 3; swipe += 1) {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchStart',
+          touchPoints: [{ x, y: startY }]
+        });
+        for (let step = 1; step <= 12; step += 1) {
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ x, y: startY - (distance * step) / 12 }]
+          });
+          await page.evaluate(
+            () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          );
+        }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      }
     } finally {
       await cdp.detach();
     }
