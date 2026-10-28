@@ -12,6 +12,8 @@ fuzzy matching and remembers recent destinations on the device.
 
 ## Behavior
 
+- Narrow-screen palettes leave the app header interactive. A header click closes the palette and runs the header action on the first click. Desktop palettes remain modal.
+
 - `Cmd+K` / `Ctrl+K` opens the palette from anywhere in the app. `Escape` or clicking outside closes it.
 - Below 768 px viewport width, the palette fills the visible content area below the app header and has a back arrow to close it. The app header stays visible and undimmed. The palette header and search stay available while results scroll. Safe-area padding and the visible viewport keep controls clear of screen cutouts and the software keyboard. Wider windows keep the floating palette. Resizing retains the query and input focus.
 - On open, the palette reads each registered server's current projected

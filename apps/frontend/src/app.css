@@ -2413,7 +2413,7 @@
 
 /* Quick navigation uses the menu frame with a larger search and result rhythm. */
 @utility palette-dialog {
-  @apply m-auto mt-[15vh] max-h-none max-w-none overflow-visible;
+  @apply fixed z-60 m-auto mt-[15vh] max-h-none max-w-none overflow-visible;
   @media (width < 48rem) {
     --palette-top: max(
       var(--modal-viewport-top, 0px),

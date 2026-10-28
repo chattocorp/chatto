@@ -184,6 +184,7 @@ describe('global keyboard shortcuts', () => {
       for (const width of [390, 767, 768, 1280, 390]) {
         await page.viewport(width, 800);
         if (width < 768) {
+          await expect.poll(() => dialog.matches(':modal')).toBe(false);
           await expect.poll(() => Math.round(dialog.getBoundingClientRect().width)).toBe(width);
           const headerHeight = touch ? 56 : 44;
           await expect
@@ -204,6 +205,7 @@ describe('global keyboard shortcuts', () => {
           }
           expect(dialog.querySelector('.command-palette')!.scrollWidth).toBeLessThanOrEqual(width);
         } else {
+          await expect.poll(() => dialog.matches(':modal')).toBe(true);
           await expect.element(back).not.toBeVisible();
           expect(dialog.getBoundingClientRect().width).toBeLessThan(width);
         }

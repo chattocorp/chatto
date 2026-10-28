@@ -10,6 +10,8 @@ It lets users discover shortcuts without leaving their draft or changing setting
 
 ## Behavior
 
+- Narrow-screen help leaves the app header interactive. A header click closes help and runs the header action on the first click. Desktop help remains modal.
+
 - Cmd+Shift+K on Apple platforms, or Ctrl+Shift+K elsewhere, opens help.
   Cmd/Ctrl+/ keeps room search and filters.
 - Help lists registered app shortcuts and filters in the current view. A form's

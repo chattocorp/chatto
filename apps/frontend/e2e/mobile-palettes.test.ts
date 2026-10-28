@@ -4,6 +4,37 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 test.use({ hasTouch: true, viewport: { width: 390, height: 800 } });
 
 for (const help of [false, true]) {
+  test(`mobile ${help ? 'shortcut help' : 'quick switcher'} allows header actions on the first tap`, async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const dialog = page.getByRole('dialog', {
+      name: help ? 'Keyboard shortcuts' : 'Quick switcher',
+      exact: true
+    });
+    const toggle = page
+      .locator('.app-header')
+      .getByRole('button', { name: 'Toggle sidebar', exact: true });
+    const expanded = await toggle.getAttribute('aria-expanded');
+    await page.keyboard.press(help ? 'ControlOrMeta+Shift+k' : 'ControlOrMeta+k');
+    await expect(dialog).toBeVisible();
+    expect(await dialog.evaluate((node) => node.matches(':modal'))).toBe(false);
+    await toggle.tap();
+    await expect(dialog).not.toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', expanded === 'true' ? 'false' : 'true');
+
+    await page.keyboard.press(help ? 'ControlOrMeta+Shift+k' : 'ControlOrMeta+k');
+    await expect(dialog).toBeVisible();
+    await page
+      .locator('.app-header')
+      .getByRole('link', { name: 'Notifications', exact: true })
+      .tap();
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL(/\/chat\/notifications$/);
+  });
+
   test(`mobile ${help ? 'shortcut help' : 'quick switcher'} fills the screen and returns focus`, async ({
     page,
     chatPage
@@ -49,6 +80,7 @@ for (const help of [false, true]) {
         await expect(back).toHaveCSS('width', '44px');
         await expect(back).toHaveCSS('height', '44px');
       } else {
+        await expect.poll(() => dialog.evaluate((node) => node.matches(':modal'))).toBe(true);
         await expect(back).not.toBeVisible();
         expect((await dialog.boundingBox())!.width).toBeLessThan(width);
       }
