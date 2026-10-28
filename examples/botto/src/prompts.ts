@@ -66,7 +66,7 @@ export function systemPrompt(settings: Settings, agent: PromptRole): string {
     );
     if (settings.mcp)
       sections.push(
-        'Use mcp__chatto__post_message only for additional messages the task requires. Never retry a write with an uncertain outcome.'
+        'Never use mcp__chatto__post_message to answer the current conversation; your replies are posted to its thread automatically. Use this tool only when explicitly asked to send a separate message elsewhere. It posts a room-root message, not a thread reply. Never retry a write with an uncertain outcome.'
       );
     if (agent.memory) sections.push(MEMORY);
   } else {
