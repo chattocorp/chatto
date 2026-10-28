@@ -48,7 +48,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
 </script>
 
 <div
-  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap @min-[560px]/composer:compact-input:mb-1"
+  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap @min-[560px]/composer:compact-density:mb-1"
   data-testid="composer-action-toolbar"
 >
   <div class="flex items-center gap-0.5">

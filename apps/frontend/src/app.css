@@ -186,6 +186,10 @@
  * content fitting; only narrow touch-capable windows use mobile presentation. */
 @custom-variant touch-input (@media (any-pointer: coarse));
 @custom-variant compact-input (@media not all and (any-pointer: coarse));
+/* Density follows the primary pointer.
+ * Capability variants above still own gesture and action availability. */
+@custom-variant comfortable-density (@media (pointer: coarse));
+@custom-variant compact-density (@media not all and (pointer: coarse));
 @custom-variant mobile-presentation (@media (width < 768px) and (any-pointer: coarse));
 @custom-variant desktop-presentation {
   @media (width >= 768px) {
@@ -1325,9 +1329,9 @@
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-/* Keep touch targets available on hybrid devices even when a mouse is present. */
+/* The composer uses the same primary-pointer density as navigation and menus. */
 @utility pill-button-group-touch {
-  @media (any-pointer: coarse) {
+  @variant comfortable-density {
     height: 44px;
     min-height: 44px;
     & > button {
@@ -1897,7 +1901,7 @@
    `pane-header-icon-button-active` to mark the selected panel. */
 @utility pane-header-icon-button {
   @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center icon-action-feedback bg-transparent leading-none;
-  @apply touch-input:h-11 touch-input:w-11;
+  @apply comfortable-density:h-11 comfortable-density:w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1907,7 +1911,7 @@
    with a `pane-header` container query when the header has room. */
 @utility pane-header-label-button {
   @apply inline-flex h-10 min-w-10 shrink-0 cursor-pointer items-center justify-center gap-2 icon-action-feedback px-3 leading-none whitespace-nowrap;
-  @apply touch-input:h-11 touch-input:min-w-11;
+  @apply comfortable-density:h-11 comfortable-density:min-w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1928,7 +1932,7 @@
 }
 
 @utility sidebar-item {
-  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text touch-input:min-h-12;
+  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text comfortable-density:min-h-12;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
 
@@ -2457,11 +2461,11 @@
 
 /* Shared geometry for actionable results and noninteractive shortcut rows. */
 @utility command-palette-row {
-  @apply flex min-h-8 items-center gap-2 px-2 py-1 touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
+  @apply flex min-h-8 items-center gap-2 px-2 py-1 comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
 }
 
 @utility command-palette-heading {
-  @apply px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase touch-input:px-3;
+  @apply px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase comfortable-density:px-3;
 }
 
 @utility command-palette-result-active {
@@ -2493,7 +2497,7 @@
 @utility menu-entry {
   @apply select-none;
   @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
-  @apply touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
+  @apply comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50;

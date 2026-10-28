@@ -303,7 +303,7 @@
         class={[
           'grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1',
           !expandedDraft &&
-            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:touch-input:items-center'
+            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:comfortable-density:items-center'
         ]}
       >
         {#if composer.autocomplete.emoji}
@@ -329,7 +329,7 @@
 
         <CompactActionButton
           touchFriendly
-          wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:compact-input:mb-1'}
+          wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:compact-density:mb-1'}
           label={m('composer.formatting_options')}
           type="button"
           onpointerdown={(event) => event.preventDefault()}

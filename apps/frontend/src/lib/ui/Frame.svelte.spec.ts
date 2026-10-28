@@ -10,6 +10,17 @@ afterEach(async () => {
   await page.viewport(1280, 720);
 });
 
+it('updates control density when the primary input changes without remounting', async () => {
+  const { container } = render(Frame, {
+    children: testSnippet('<button class="menu-entry">Command</button>')
+  });
+  const command = container.querySelector<HTMLElement>('.menu-entry')!;
+  for (const touch of [false, true, false]) {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+    await expect.poll(() => command.getBoundingClientRect().height).toBe(touch ? 44 : 32);
+  }
+});
+
 it.each([false, true])(
   'keeps menu targets and hover controls accessible with touch=%s',
   async (touch) => {
