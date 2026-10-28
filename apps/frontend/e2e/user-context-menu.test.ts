@@ -261,7 +261,8 @@ test.describe('User context menu', () => {
       await expect(page.getByRole('dialog', { name: 'User profile' })).toBeVisible();
       await page.keyboard.press('Escape');
 
-      // Control the real pointer before checking CSS hover visibility.
+      // Move focus out of the card before checking pointer-only hover visibility.
+      await page.getByRole('textbox', { name: 'Type a message...' }).focus();
       const memberButton = roomPage.memberList.getByRole('button', {
         name: `View profile of ${user.displayName}`,
         exact: true
