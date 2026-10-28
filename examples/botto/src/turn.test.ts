@@ -186,6 +186,7 @@ test.each(['reply', 'ignore'] as const)(
     expect(server.addReaction).not.toHaveBeenCalled();
     if (action === 'reply') {
       expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt)).toEqual({
+        currentDateTime: new Date().toISOString(),
         currentMessages: [{ author: 'human', reaction: reaction.reaction }]
       });
       expect(server.postMessage).toHaveBeenCalledOnce();
@@ -442,6 +443,17 @@ test('later turns use the live timeline without another history request', async 
   controller.abort();
 });
 
+test('each turn receives a fresh UTC date and time, including across midnight', async () => {
+  const { turn, one, two, agent } = setup();
+  vi.setSystemTime(new Date('2026-10-28T23:59:00.000Z'));
+  await turn([one]);
+  vi.setSystemTime(new Date('2026-10-29T00:01:00.000Z'));
+  await turn([two]);
+  expect(
+    agent.reply.mock.calls.map(([, input]) => JSON.parse(input.prompt).currentDateTime)
+  ).toEqual(['2026-10-28T23:59:00.000Z', '2026-10-29T00:01:00.000Z']);
+});
+
 test('a debounced batch becomes one prompt and one reply in its original thread', async () => {
   const { settings, server, agent, controller, turn, one, two, history } = setup();
   const failed = vi.fn();
@@ -455,12 +467,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
     expect.objectContaining({ signal: expect.any(AbortSignal) }),
     {
       identity: ['https://chat.example.com', 'bot', 'room', 'root'],
-      prompt: JSON.stringify({
-        currentMessages: [
-          { id: 'one', author: 'human', text: 'First', reasons: ['mention'] },
-          { id: 'two', author: 'another', text: 'Clarification', reasons: ['mention'] }
-        ]
-      }),
+      prompt: expect.any(String),
       signal: expect.any(AbortSignal),
       onText: expect.any(Function),
       loadImages: undefined,
@@ -484,6 +491,13 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
       capabilities: ['delegation', 'images', 'reactions']
     }
   );
+  expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt)).toEqual({
+    currentDateTime: expect.any(String),
+    currentMessages: [
+      { id: 'one', author: 'human', text: 'First', reasons: ['mention'] },
+      { id: 'two', author: 'another', text: 'Clarification', reasons: ['mention'] }
+    ]
+  });
   expect(history).toHaveBeenCalledOnce();
   expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
     { roomId: 'room', messageId: 'one' },

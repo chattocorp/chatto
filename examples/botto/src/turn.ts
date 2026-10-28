@@ -144,9 +144,12 @@ export function createTurnHandler(
           ).catch(() => {});
         }
         signal.throwIfAborted();
-        // Persist only the accepted batch. The fresh snapshot travels through Pi's
+        // Persist the accepted batch and its current UTC time. The fresh snapshot travels through Pi's
         // request-only context hook, so old Chatto messages do not accumulate each turn.
-        const prompt = JSON.stringify({ currentMessages });
+        const prompt = JSON.stringify({
+          currentDateTime: new Date().toISOString(),
+          currentMessages
+        });
         // Pi's callback is synchronous. Serialize writes and join them before leaving
         // the turn. A failed write stops the model; never retry an uncertain post.
         let delivery = Promise.resolve();
