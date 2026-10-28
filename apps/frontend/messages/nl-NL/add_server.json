@@ -11,28 +11,25 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Dit lijkt geen Chatto-server te zijn.",
     "directory": {
+      "added_by_you": "Door jou toegevoegd",
+      "joined": "Lid geworden",
+      "needs_login": "Inloggen vereist",
+      "learn_more": "Wil je meer weten?",
+      "learn_more_description": "Ontdek wat Chatto kan, leer hoe je je eigen server beheert of vind hulp.",
+      "welcome_title": "Chatten wordt nu écht!",
       "title": "Servergids",
-      "subtitle": "Ontdek andere Chatto-servers",
-      "lookup_description": "Voer het adres van een Chatto-server in om lid te worden.",
+      "lookup_description": "Voer een serveradres in om de server aan je overzicht toe te voegen en de aanbevelingen te laden.",
       "find": "Server zoeken",
       "connect_by_address": "Verbinden via adres",
-      "servers_title": "Aanbevolen servers",
-      "servers_description": "Aanbevolen door servers waarvan je lid bent. De resultaten zijn niet gerangschikt.",
       "recommended_by": "Aanbevolen door {servers}",
-      "more_recommenders_count": {
-        "other": "nog {count}"
-      },
-      "joined": "Lid geworden",
       "join": "Lid worden",
       "open": "Openen",
       "open_in_new_tab": "Openen in een nieuw tabblad",
       "sign_in_unavailable": "Inloggen niet beschikbaar",
       "profile_unavailable": "Het openbare profiel van deze server kon niet worden geladen.",
-      "partial": "Sommige servers waarvan je lid bent, konden geen aanbevelingen geven.",
+      "partial": "Sommige servers konden geen aanbevelingen geven.",
       "unavailable_title": "Gids niet beschikbaar",
-      "unavailable_body": "De servers waarvan je lid bent, konden geen aanbevelingen geven. Je kunt nog steeds rechtstreeks verbinden.",
-      "empty_title": "Nog geen aanbevolen servers",
-      "empty_body": "Je kunt nog steeds rechtstreeks verbinden met een serveradres."
+      "unavailable_body": "De servers konden geen aanbevelingen geven. Je kunt nog steeds rechtstreeks verbinden."
     }
   }
 }

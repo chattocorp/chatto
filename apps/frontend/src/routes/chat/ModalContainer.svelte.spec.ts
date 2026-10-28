@@ -152,12 +152,6 @@ vi.mock('@chatto/client/api/rooms', () => ({
   })
 }));
 
-vi.mock('$lib/components/ServerDirectory.svelte', async () => {
-  const { default: ServerDirectoryMock } =
-    await import('./ModalContainerServerDirectoryMock.svelte');
-  return { default: ServerDirectoryMock };
-});
-
 vi.mock('$lib/ui/ConfirmDialog.svelte', async () => {
   const { default: ConfirmDialogMock } = await import('./ModalContainerConfirmDialogMock.svelte');
   return { default: ConfirmDialogMock };
@@ -247,19 +241,6 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('ModalContainer add server modal', () => {
-  it('shows the Server Directory in a dialog', async () => {
-    mocks.modal = { type: 'addServer' };
-
-    const { container } = render(ModalContainer);
-
-    await expect.element(q(container, 'dialog')).toHaveAttribute('aria-label', 'Add Server');
-    expect(
-      container.querySelector('[data-testid="server-directory"]')?.getAttribute('data-in-dialog')
-    ).toBe('true');
-  });
-});
-
 describe('ModalContainer About Chatto modal', () => {
   it('shows the interactive Chatto wordmark', async () => {
     mocks.modal = { type: 'aboutChatto' };
@@ -282,6 +263,25 @@ describe('ModalContainer About Chatto modal', () => {
       },
       { timeout: 10_000 }
     );
+  });
+});
+
+describe('ModalContainer recommendation info', () => {
+  it('shows every cached recommendation source', () => {
+    mocks.modal = {
+      type: 'serverRecommendation',
+      name: 'Community',
+      origin: 'https://community.example',
+      sources: [
+        { name: 'First server', origin: 'https://first.example' },
+        { name: 'Second server', origin: 'https://second.example' },
+        { name: 'Third server', origin: 'https://third.example' }
+      ]
+    };
+    const { container } = render(ModalContainer);
+    expect(container.querySelector('dialog')?.getAttribute('aria-label')).toBe('About Community');
+    for (const host of ['first.example', 'second.example', 'third.example'])
+      expect(container.textContent).toContain(host);
   });
 });
 

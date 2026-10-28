@@ -10,6 +10,7 @@ ordinary content has a 16px gutter and Panel sections extend to the page edges.
     children,
     fillHeight = false,
     wide = false,
+    fluid = false,
     scrollContainer = $bindable<HTMLDivElement | undefined>()
   }: {
     children: Snippet;
@@ -17,6 +18,8 @@ ordinary content has a 16px gutter and Panel sections extend to the page edges.
     fillHeight?: boolean;
     /** Allow `max-w-pane-wide` for browsing grids, such as the room directory masonry. */
     wide?: boolean;
+    /** Let a responsive browsing grid use the complete available pane width. */
+    fluid?: boolean;
     scrollContainer?: HTMLDivElement;
   } = $props();
 </script>
@@ -25,10 +28,10 @@ ordinary content has a 16px gutter and Panel sections extend to the page edges.
   <!-- A zero-length basis keeps tall children bounded inside the min-height content wrapper. -->
   <div
     data-page-reveal
-    data-pane-content={wide ? 'wide' : undefined}
+    data-pane-content={fluid ? 'fluid' : wide ? 'wide' : undefined}
     class={[
       'pane-content w-full p-4 md:p-6',
-      wide ? 'max-w-pane-wide' : 'max-w-pane',
+      fluid ? 'max-w-none' : wide ? 'max-w-pane-wide' : 'max-w-pane',
       fillHeight && 'flex min-h-0 flex-1 basis-0 flex-col'
     ]}
   >

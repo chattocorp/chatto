@@ -217,7 +217,7 @@ test.describe('Remote bearer renewal', () => {
     await icon.click();
     const signedOutView = page.getByTestId('server-signed-out');
     await expect(signedOutView).toBeVisible();
-    await expect(signedOutView.getByRole('button', { name: 'Log in to server' })).toBeVisible();
+    await expect(signedOutView.getByRole('button', { name: 'Continue on server' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Reconnect', exact: true })).toHaveCount(0);
   });
 });

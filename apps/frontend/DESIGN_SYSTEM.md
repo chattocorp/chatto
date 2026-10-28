@@ -358,6 +358,7 @@ Follow these defaults:
 - Let `PaneContent` own scrolling, the `max-w-pane` content width, and page
   padding. Do not reproduce those constraints in each route. Set `wide` for a
   browsing grid, such as the room directory masonry, to use `max-w-pane-wide`.
+  Set `fluid` for server-card grids that fill the available pane width.
 - Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a
   deliberately dense surface, not as a page-by-page styling choice.
 - Give peer panels short, descriptive titles. A form panel names the task or
@@ -562,6 +563,11 @@ before the first paint. Keep boundaries, focus rings, status colours, and
 floating-menu elevation independent of this setting. Accent swatches become
 solid in Flat, retain their gradient in 3D, and add sheen in Very 3D. New depth recipes must
 use these shared parameters instead of fixed decorative shadow opacity.
+
+`hover-lift` moves a surface up 2 px over 150 ms on hover. Put
+`hover-lift-group` on an enclosing label to trigger the same movement from
+the label. Server cards and Appearance swatches share this utility. It only
+moves on devices with hover support and respects reduced motion.
 
 `shimmer-hover` overlays one broad, soft highlight that crosses the surface in
 450 ms. It runs once per hover and respects reduced motion. Nested gutter

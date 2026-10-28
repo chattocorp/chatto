@@ -11,6 +11,7 @@ import {
 } from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
+import { AuthPage } from './pages/AuthPage';
 
 /**
  * Returns the remote server's hostname:port (e.g., "127.0.0.1:4050")
@@ -38,6 +39,67 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     }
   });
 
+  test('Desktop signup returns the new account through PKCE', async ({ page, chatPage }) => {
+    await page.addInitScript(() => {
+      // Expose only the Desktop capability; signup must never call password login.
+      window.chattoDesktop = {
+        passwordLogin: async () => {
+          throw new Error('Unexpected password login');
+        }
+      };
+    });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+    await page.getByLabel('Server URL').fill(remoteHostPort(remoteServer));
+    await page.getByRole('button', { name: 'Find server' }).click();
+    await page.getByRole('button', { name: 'Join', exact: true }).click();
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('button', { name: 'Create Account', exact: true }).click();
+    const popup = await popupPromise;
+    await expect(popup).toHaveURL(/\/register\?redirect=/);
+    await expect(popup.getByTestId('app-frame')).toHaveCount(0);
+
+    // Switching auth screens must keep the same authorization request.
+    const signupURL = popup.url();
+    await popup.getByRole('link', { name: 'Sign In', exact: true }).click();
+    await expect(popup).toHaveURL(/\/login\?redirect=/);
+    await popup.getByRole('link', { name: 'Create Account', exact: true }).click();
+    await expect(popup).toHaveURL(signupURL);
+
+    const auth = new AuthPage(popup);
+    await auth.emailInput.fill('desktop-signup@example.test');
+    await auth.continueButton.click();
+    await expect(auth.firstCodeInput).toBeVisible();
+    // The test mailer captures the real registration message at the remote server.
+    const emailResponse = await popup.request.get(
+      `${remoteBaseURL(remoteServer)}/auth/test/last-email`
+    );
+    expect(emailResponse.ok()).toBeTruthy();
+    const email = await emailResponse.json();
+    await auth.fillRegistrationCode(auth.extractVerificationCode(email.body));
+    await auth.submitCodeButton.click();
+    await expect(auth.completeRegistrationHeading).toBeVisible();
+    await auth.fillRegistrationCompleteForm('desktop-new-user', 'password123', 'password123');
+    await auth.createAccountButton.click();
+    await expect(popup.getByRole('button', { name: 'Allow Access' })).toBeVisible();
+    const closed = popup.waitForEvent('close');
+    await popup.getByRole('button', { name: 'Allow Access' }).click();
+    await closed;
+    await expect(page.getByTestId('desktop-server-login')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const entries = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
+          return entries.find((entry: { url: string }) => entry.url.includes('127.0.0.1'))
+            ?.userLogin;
+        })
+      )
+      .toBe('desktop-new-user');
+  });
+
   test('full OAuth flow: add server via popup-based auth', async ({ page, chatPage }) => {
     // 1. Home instance: log in so the SPA works
     await createAndLoginTestUser(page);
@@ -53,6 +115,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     // and opens the remote's /oauth/authorize in a popup.
     const hostPort = remoteHostPort(remoteServer);
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
@@ -90,7 +153,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await cancelledPopupClosed;
     const logIn = page
       .getByTestId('server-signed-out')
-      .getByRole('button', { name: 'Log in to server' });
+      .getByRole('button', { name: 'Continue on server' });
     await expect(logIn).toBeEnabled();
     const retryPopupPromise = page.waitForEvent('popup');
     await logIn.click();
@@ -135,6 +198,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     });
     await page.goto('/chat/-');
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
@@ -200,6 +264,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const hostPort = remoteHostPort(remoteServer);
 
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
@@ -293,6 +358,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     });
     await page.goto('/chat/-');
     await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
     await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({

@@ -11,28 +11,25 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "To nie wygląda na serwer Chatto.",
     "directory": {
+      "added_by_you": "Dodany przez Ciebie",
+      "joined": "Dołączono",
+      "needs_login": "Wymagane logowanie",
+      "learn_more": "Chcesz dowiedzieć się więcej?",
+      "learn_more_description": "Poznaj możliwości Chatto, dowiedz się, jak prowadzić własny serwer, lub uzyskaj pomoc.",
+      "welcome_title": "Teraz rozmawiamy na serio!",
       "title": "Katalog serwerów",
-      "subtitle": "Odkryj inne serwery Chatto",
-      "lookup_description": "Wpisz adres dowolnego serwera Chatto, aby do niego dołączyć.",
+      "lookup_description": "Wpisz adres serwera, aby dodać go do swojego katalogu i wczytać jego polecenia.",
       "find": "Znajdź serwer",
       "connect_by_address": "Połącz przez adres",
-      "servers_title": "Polecane serwery",
-      "servers_description": "Polecane przez serwery, do których dołączyłeś. Wyniki nie są uszeregowane.",
       "recommended_by": "Polecane przez {servers}",
-      "more_recommenders_count": {
-        "other": "jeszcze {count}"
-      },
-      "joined": "Dołączono",
       "join": "Dołącz",
       "open": "Otwórz",
       "open_in_new_tab": "Otwórz w nowej karcie",
       "sign_in_unavailable": "Logowanie niedostępne",
       "profile_unavailable": "Nie udało się wczytać publicznego profilu tego serwera.",
-      "partial": "Niektóre serwery, do których dołączyłeś, nie mogły przekazać swoich poleceń.",
+      "partial": "Niektóre serwery nie mogły przekazać swoich poleceń.",
       "unavailable_title": "Katalog niedostępny",
-      "unavailable_body": "Serwery, do których dołączyłeś, nie mogły przekazać swoich poleceń. Nadal możesz połączyć się bezpośrednio.",
-      "empty_title": "Brak polecanych serwerów",
-      "empty_body": "Nadal możesz połączyć się bezpośrednio, podając adres serwera."
+      "unavailable_body": "Serwery nie mogły przekazać swoich poleceń. Nadal możesz połączyć się bezpośrednio."
     }
   }
 }

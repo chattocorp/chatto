@@ -16,8 +16,28 @@ durable namespace on every launch. Electron does not intercept ordinary HTTP
 or HTTPS traffic, so requests to Chatto servers use Chromium's normal network
 stack.
 
-The official desktop origin is accepted by Chatto's OAuth redirect policy. The
-desktop shell uses Electron's ordinary popup support for the same PKCE and
+Desktop shows a password form inside the selected server's view. Its narrow
+preload capability submits the password to that server's `/auth/login`
+endpoint and installs the returned renewable bearer session. It requires
+HTTPS except for loopback development servers and does not follow redirects.
+These are programmatic password sessions, without OAuth client grants. The
+web frontend continues to use OAuth for remote login.
+
+Configured SSO buttons appear above the password form. Each button starts
+Chatto OAuth with the selected provider ID; the Chatto server validates that
+ID and starts its configured provider flow. Older servers can show their
+normal login page instead. Password-disabled servers show the provider
+buttons without a password form.
+
+**Create account** opens server-hosted registration when direct registration
+is enabled. Email-code verification and account creation stay in the
+authorization window. After consent, Desktop receives the new session and
+opens the server. Older servers can show their login page first.
+
+**Continue in the browser** opens the server's page for external providers,
+registration, and password recovery. The official desktop origin is accepted
+by Chatto's OAuth redirect policy. The desktop shell uses Electron's ordinary
+popup support for the same PKCE and
 `BroadcastChannel` flow as a browser. Chatto 0.5 servers recognize the built-in
 `chatto://desktop` client identity and exact callback; bearer-authenticated API
 and realtime access requires no server origin configuration.

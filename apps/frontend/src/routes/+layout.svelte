@@ -67,7 +67,7 @@
     if (page.route.id === '/servers/callback') {
       return ['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '');
     }
-    if (page.route.id !== '/login') return false;
+    if (page.route.id !== '/login' && page.route.id !== '/register') return false;
     const redirect = page.url.searchParams.get('redirect');
     if (!isSafeInternalPath(redirect)) return false;
     const target = new URL(redirect, page.url).pathname;

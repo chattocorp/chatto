@@ -67,7 +67,7 @@ export function publicServerImageURL(serverOrigin: string, source: string | null
 /**
  * Load a public server image without credentials, referrer data, or redirects.
  * The response must identify itself as a supported image type before it reaches
- * the element.
+ * the element. Failed requests emit an error so the caller can show its fallback.
  */
 export function loadPublicServerImage(source: string): Attachment<HTMLImageElement> {
   return (image) => {
@@ -78,6 +78,10 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
     void (async () => {
       try {
         const response = await fetch(source, {
+          // A plain <img> (for example in the sidebar) can cache a response
+          // without CORS headers on older servers. Revalidate it for this
+          // CORS request instead of reusing that response unchanged.
+          cache: 'no-cache',
           credentials: 'omit',
           redirect: 'error',
           referrerPolicy: 'no-referrer',
@@ -90,16 +94,17 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
           .toLowerCase();
         if (!response.ok || !mediaType || !supportedPublicServerImageTypes.has(mediaType)) {
           await response.body?.cancel();
-          return;
+          throw new Error('Public image unavailable');
         }
 
         const imageData = await readBoundedImage(response, mediaType);
-        if (!imageData) return;
+        if (!imageData) throw new Error('Public image exceeds size limit');
         if (controller.signal.aborted) return;
         objectURL = URL.createObjectURL(imageData);
         image.src = objectURL;
       } catch {
-        // Keep the existing image placeholder when the remote image is unavailable.
+        // Disposal must not report failure to a removed or replacement image.
+        if (!controller.signal.aborted) image.dispatchEvent(new Event('error'));
       }
     })();
 

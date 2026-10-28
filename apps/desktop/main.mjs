@@ -20,6 +20,7 @@ import {
 } from 'electron';
 import { APP_ORIGIN, createFrontendProtocolHandler } from './frontend_protocol.mjs';
 import { configureYouTubeEmbeds } from './youtube.mjs';
+import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
 import {
   gameCaptureCancelListSourcesChannel,
   gameCaptureListSourcesChannel,
@@ -36,6 +37,7 @@ import packageJson from './package.json' with { type: 'json' };
 import { desktopBuildProfile } from './build_profile.mjs';
 import { StreamDiagnostics } from './stream_diagnostics.mjs';
 import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
+import { passwordLogin } from './password_login.mjs';
 
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 if (buildProfile.variant === 'development') {
@@ -117,6 +119,17 @@ async function start() {
   );
   configureSession(session.defaultSession);
   configureGameCaptureIPC();
+  ipcMain.handle('chatto:password-login', (event, request) => {
+    if (
+      !mainWindow ||
+      event.sender !== mainWindow.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame ||
+      !hasAppOrigin(event.senderFrame.url)
+    ) {
+      throw new Error('Password sign-in is available only to the Chatto renderer.');
+    }
+    return passwordLogin(request);
+  });
   mainWindow = createMainWindow();
   configureDiagnosticsMenu();
 
@@ -446,6 +459,7 @@ function createMainWindow() {
   });
 
   protectNavigation(window);
+  protectReloadShortcuts(window.webContents, app.isPackaged);
   window.on('closed', () => {
     if (mainWindow === window) {
       cancelActiveGameCaptureSourceList();
@@ -459,9 +473,10 @@ function createMainWindow() {
 
 function mainWindowWebPreferences() {
   const preferences = secureWebPreferences();
-  if (isGameCaptureAvailable()) {
-    preferences.preload = path.join(desktopRoot, 'preload.cjs');
-  }
+  preferences.preload = path.join(desktopRoot, 'preload.cjs');
+  preferences.additionalArguments = isGameCaptureAvailable()
+    ? ['--chatto-native-screen-share']
+    : [];
   return preferences;
 }
 

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { NeighborhoodServerProfile, PublicServerInfo } from '@chatto/client/api/server';
 import type { ServerDirectoryEntry } from '$lib/serverDirectory';
+import type { KnownServers } from '@chatto/client/server/knownServers';
 
 type MockServer = {
   id: string;
@@ -14,6 +15,7 @@ type MockServer = {
 
 const mocks = vi.hoisted(() => ({
   servers: [] as MockServer[],
+  known: null as KnownServers | null,
   /** Servers that the directory added. A reactive map, so the directory updates. */
   added: null as Map<string, MockServer> | null,
   authenticated: new Set<string>(),
@@ -21,20 +23,38 @@ const mocks = vi.hoisted(() => ({
   getPublicServerInfo: vi.fn(),
   addSignedOutServer: vi.fn(),
   toastError: vi.fn(),
-  goto: vi.fn()
+  goto: vi.fn(),
+  pushState: vi.fn(),
+  pageState: null as Map<string, unknown> | null
 }));
+
+vi.mock('$app/state', async () => {
+  const { SvelteMap } = await import('svelte/reactivity');
+  mocks.pageState = new SvelteMap();
+  return {
+    page: {
+      get state() {
+        return { modal: mocks.pageState!.get('modal') };
+      }
+    }
+  };
+});
 
 // Page titles are tested separately from this page's partial route/server fixtures.
 vi.mock('$lib/client', async () => {
+  const { KnownServers } = await import('@chatto/client/server/knownServers');
+  mocks.known = new KnownServers();
   const { SvelteMap } = await import('svelte/reactivity');
   mocks.added = new SvelteMap<string, MockServer>();
   return {
     ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
+    knownServers: mocks.known,
     serverRegistry: {
       get servers() {
         return [...mocks.servers, ...mocks.added!.values()];
       },
-      isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId)
+      isAuthenticated: (serverId: string) => mocks.authenticated.has(serverId),
+      tryGetStore: () => undefined
     }
   };
 });
@@ -51,7 +71,7 @@ vi.mock('$lib/ui/toast', () => ({ toast: { error: mocks.toastError } }));
 
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
-  pushState: vi.fn(),
+  pushState: mocks.pushState,
   replaceState: vi.fn()
 }));
 vi.mock('$lib/navigation', async (importOriginal) => {
@@ -136,6 +156,8 @@ function link(container: HTMLElement, label: string): HTMLAnchorElement | undefi
 
 describe('Server Directory page', () => {
   beforeEach(() => {
+    for (const server of mocks.known!.servers) mocks.known!.forget(server.origin);
+    vi.spyOn(history, 'back').mockImplementation(() => mocks.pageState!.delete('modal'));
     mocks.servers = [
       {
         id: 'joined',
@@ -154,6 +176,11 @@ describe('Server Directory page', () => {
     ];
     mocks.authenticated = new Set(['joined']);
     mocks.loadServerDirectory.mockReset();
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 0
+    });
     mocks.getPublicServerInfo.mockReset();
     mocks.toastError.mockReset();
     mocks.addSignedOutServer.mockReset();
@@ -166,6 +193,9 @@ describe('Server Directory page', () => {
       }
     );
     mocks.goto.mockReset();
+    mocks.pushState.mockReset();
+    mocks.pageState!.clear();
+    mocks.pushState.mockImplementation((_url, state) => mocks.pageState!.set('modal', state.modal));
     mocks.goto.mockResolvedValue(undefined);
   });
 
@@ -190,26 +220,33 @@ describe('Server Directory page', () => {
     );
     expect(button(container, 'Discover servers')).toBeUndefined();
     expect(container.textContent).not.toContain('can see your IP address');
-    await vi.waitFor(() => expect(container.textContent).toContain('No recommended servers yet'));
+    expect(container.querySelectorAll('[data-testid="saved-server-entry"]')).toHaveLength(2);
+    const savedCards = container.querySelectorAll('[data-testid="saved-server-entry"]');
+    expect(savedCards[0]?.textContent).toContain('Joined');
+    expect(savedCards[1]?.textContent).toContain('Needs login');
+    expect(container.textContent).not.toContain('No recommended servers yet');
   });
 
-  it('leads with recommendations and opens the address lookup from a button', async () => {
+  it('opens the address lookup from the pane header', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'))],
       failedSourceCount: 0,
       sourceCount: 2
     });
 
-    const { container } = render(ServerDirectory, { inDialog: true });
+    const { container } = render(Page);
 
     await vi.waitFor(() => expect(container.textContent).toContain('Remote description'));
     expect(container.querySelector('#add-server-url')).toBeNull();
 
-    button(container, 'Connect by address')!.click();
+    const connect = button(container, 'Connect by address')!;
+    expect(container.querySelector('.pane-page')?.firstElementChild?.contains(connect)).toBe(true);
+    connect.click();
     flushSync();
 
     expect(container.querySelector('#add-server-url')).not.toBeNull();
-    expect(button(container, 'Connect by address')).toBeUndefined();
+    expect(container.querySelector('#add-server-url')?.closest('dialog')).not.toBeNull();
+    expect(button(container, 'Connect by address')).toBeDefined();
     expect(container.textContent).toContain('Remote description');
   });
 
@@ -233,11 +270,12 @@ describe('Server Directory page', () => {
     expect(mocks.loadServerDirectory).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps directory response order and marks registered entries as joined', async () => {
+  it('keeps recommendation order after filtering saved servers', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
         entry('https://z.example', cached('Zulu'), ['https://source.example']),
-        entry('https://a.example', cached('Alpha'), ['https://source.example'])
+        entry('https://a.example', cached('Alpha'), ['https://source.example']),
+        entry('https://b.example', cached('Bravo'), ['https://source.example'])
       ],
       failedSourceCount: 0,
       sourceCount: 2
@@ -253,12 +291,17 @@ describe('Server Directory page', () => {
     );
     expect(entries.map((entry) => entry.dataset.origin)).toEqual([
       'https://z.example',
-      'https://a.example'
+      'https://b.example'
     ]);
     expect(entries[0]?.textContent).toContain('Zulu description');
-    expect(entries[1]?.textContent).toContain('Joined');
+    expect(entries[1]?.textContent).toContain('Bravo description');
     expect(entries[1]?.querySelector('img')).toBeNull();
-    expect(container.textContent).toContain('Recommended servers (2)');
+    const grid = container.querySelector('[data-testid="server-directory-grid"]')!;
+    expect(grid.querySelectorAll('article')).toHaveLength(4);
+    expect(entries.every((entry) => entry.parentElement === grid)).toBe(true);
+    expect(container.textContent).not.toContain('Your servers');
+    expect(container.textContent).not.toContain('Recommended servers');
+    expect(container.textContent).not.toContain('Choose a server or connect by address.');
   });
 
   it('reports partial source failures', async () => {
@@ -271,7 +314,7 @@ describe('Server Directory page', () => {
     const { container } = render(Page);
 
     await vi.waitFor(() => {
-      expect(container.textContent).toContain('Some joined servers could not provide');
+      expect(container.textContent).toContain('Some servers could not provide');
     });
     const entries = container.querySelectorAll<HTMLElement>(
       '[data-testid="server-directory-entry"]'
@@ -313,7 +356,7 @@ describe('Server Directory page', () => {
   });
 
   it.each(['0.5.0', '0.5.0-beta.9', '0.5.0-beta.15-custom', 'dev'])(
-    'adds a recommended %s server and stays in the directory',
+    'adds a recommended %s server and opens it',
     async (version) => {
       const remoteProfile = { ...profile('Remote'), version };
       mocks.getPublicServerInfo.mockResolvedValue(remoteProfile);
@@ -326,21 +369,21 @@ describe('Server Directory page', () => {
       const { container } = render(Page);
       await vi.waitFor(() => {
         expect(
-          container.querySelector('[data-testid="server-directory-entry-icon-action"]')
+          container.querySelector('[data-testid="server-directory-entry-action"]')
         ).toBeTruthy();
       });
       const iconAction = container.querySelector<HTMLButtonElement>(
-        '[data-testid="server-directory-entry-icon-action"]'
+        '[data-testid="server-directory-entry-action"]'
       )!;
-      expect(iconAction.getAttribute('aria-label')).toBe('Join: Remote');
-      expect(iconAction.querySelector('.shimmer-hover.rounded-xl')).toBeTruthy();
+      expect(iconAction.getAttribute('aria-label')).toBe('Join');
       iconAction.click();
 
-      // The entry changes to the joined state, so the user cannot join it again.
-      await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-      expect(button(container, 'Join')).toBeUndefined();
-      expect(container.textContent).toContain('Joined');
-      expect(mocks.goto).not.toHaveBeenCalled();
+      // The entry moves to saved servers, so the user cannot join it again.
+      await vi.waitFor(() => expect(button(container, 'Join')).toBeUndefined());
+      expect(
+        container.querySelector('[data-testid="saved-server-entry"] a[href="/chat/remote.example"]')
+      ).toBeTruthy();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example', { replaceState: false });
       expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
         'https://remote.example',
         expect.objectContaining({ signal: expect.any(AbortSignal) })
@@ -354,7 +397,14 @@ describe('Server Directory page', () => {
   );
 
   it('stops a join when the current version is no longer compatible', async () => {
-    mocks.getPublicServerInfo.mockResolvedValue(profile('Remote', { version: '0.4.19' }));
+    const fetchImage = vi.fn().mockResolvedValue(new Response('', { status: 404 }));
+    vi.stubGlobal('fetch', fetchImage);
+    mocks.getPublicServerInfo.mockResolvedValue(
+      profile('Remote', {
+        version: '0.4.19',
+        bannerUrl: 'https://remote.example/banner.png'
+      })
+    );
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'))],
       failedSourceCount: 0,
@@ -367,6 +417,13 @@ describe('Server Directory page', () => {
 
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Sign-in unavailable'));
     await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+    // A refreshed profile uses the destination's images, not the cached source's.
+    await vi.waitFor(() =>
+      expect(fetchImage).toHaveBeenCalledWith(
+        'https://remote.example/banner.png',
+        expect.any(Object)
+      )
+    );
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
@@ -396,12 +453,10 @@ describe('Server Directory page', () => {
     mocks.getPublicServerInfo.mockRejectedValue(new TypeError('Failed to fetch'));
     const { container } = render(Page);
     await vi.waitFor(() =>
-      expect(
-        container.querySelector('[data-testid="server-directory-entry-icon-action"]')
-      ).toBeTruthy()
+      expect(container.querySelector('[data-testid="server-directory-entry-action"]')).toBeTruthy()
     );
     container
-      .querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-icon-action"]')!
+      .querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-action"]')!
       .click();
     const message = 'Could not connect. Check the URL and try again.';
     await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(message));
@@ -409,9 +464,8 @@ describe('Server Directory page', () => {
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
     expect(mocks.goto).not.toHaveBeenCalled();
     expect(
-      container.querySelector<HTMLButtonElement>(
-        '[data-testid="server-directory-entry-icon-action"]'
-      )!.disabled
+      container.querySelector<HTMLButtonElement>('[data-testid="server-directory-entry-action"]')!
+        .disabled
     ).toBe(false);
   });
 
@@ -453,79 +507,83 @@ describe('Server Directory page', () => {
     expect(externalAction.href).toBe('https://old.example/');
     expect(externalAction.target).toBe('_blank');
     expect(externalAction.rel).toBe('noopener noreferrer');
-    expect(externalAction.querySelector('.iconify')).toBeTruthy();
     expect(button(container, 'Sign-in unavailable')).toBeUndefined();
 
     const iconAction = container.querySelector<HTMLAnchorElement>(
-      '[data-testid="server-directory-entry-icon-action"]'
+      '[data-testid="server-directory-entry-action"]'
     )!;
     expect(iconAction.href).toBe('https://old.example/');
     expect(iconAction.target).toBe('_blank');
     expect(iconAction.rel).toBe('noopener noreferrer');
-    expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab: Old server');
+    expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab');
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
-  it('opens an advertised server that is already joined', async () => {
-    mocks.loadServerDirectory.mockResolvedValue({
-      entries: [
-        entry('https://a.example', cached('Alpha', { version: '0.4.19' }), [
-          'https://source.example'
-        ])
-      ],
-      failedSourceCount: 0,
-      sourceCount: 2
-    });
-
-    const { container } = render(Page);
-    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    button(container, 'Open')?.click();
-
-    await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/joined', { replaceState: false });
-    });
-  });
-
-  it('replaces the dialog history entry when it opens a joined server', async () => {
-    mocks.loadServerDirectory.mockResolvedValue({
-      entries: [entry('https://a.example', cached('Alpha'))],
-      failedSourceCount: 0,
-      sourceCount: 2
-    });
-
-    const { container } = render(ServerDirectory, { inDialog: true });
-    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    button(container, 'Open')?.click();
-
-    await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/joined', { replaceState: true });
-    });
-  });
-
-  it('opens an incompatible joined server without a session instead of signing in', async () => {
+  it('lists saved servers once, including signed-out servers, separately from recommendations', async () => {
     mocks.authenticated.clear();
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
-        entry('https://a.example', cached('Alpha', { version: '0.4.19' }), [
-          'https://source.example'
-        ])
+        entry('https://a.example', cached('Alpha')),
+        entry('https://new.example', cached('New'))
       ],
       failedSourceCount: 0,
       sourceCount: 2
     });
-
     const { container } = render(Page);
-    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    expect(link(container, 'Open in new tab')).toBeUndefined();
-    button(container, 'Open')?.click();
-
-    await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/joined', { replaceState: false });
-    });
-    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('[data-testid="server-directory-entry"]')).toHaveLength(1)
+    );
+    expect(container.querySelectorAll('[data-testid="saved-server-entry"]')).toHaveLength(2);
+    expect(
+      container.querySelector('[data-testid="saved-server-entry"] a[href="/chat/joined"]')
+    ).toBeTruthy();
+    expect(container.querySelector('[data-testid="saved-server-entry"]')?.textContent).toContain(
+      'Already joined'
+    );
+    expect(
+      container.querySelector('[data-testid="server-directory-entry"]')?.textContent
+    ).toContain('New');
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 
-  it('keeps the dialog open after a join and replaces its history entry on open', async () => {
+  it('shows the address form immediately for an empty standalone catalogue', () => {
+    mocks.servers = [];
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 0
+    });
+    const { container } = render(Page);
+    expect(container.querySelector('#add-server-url')).toBeTruthy();
+    expect(container.textContent).toContain('Chat just got real!');
+    expect(container.textContent).toContain('Chatto communities live on independent servers');
+    expect(container.textContent).not.toContain('Your servers');
+    expect(container.textContent).not.toContain('Recommended servers');
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+  });
+
+  it('links to the Chatto website without discovering or registering a server', () => {
+    mocks.servers = [];
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 0
+    });
+    const { container } = render(Page);
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+    const website = container.querySelector('a[href="https://chatto.run"]');
+    expect(website?.textContent).toBe('www.chatto.run');
+    expect(website?.parentElement?.tagName).toBe('P');
+    expect(container.textContent).toContain('Want to learn more?');
+    expect(container.textContent).toContain('learn how to run your own server');
+    expect(website?.getAttribute('rel')).toContain('noreferrer');
+    expect(container.textContent).not.toContain('Chatto HQ');
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('opens a newly joined server and preserves the directory in history', async () => {
     mocks.getPublicServerInfo.mockResolvedValue(profile('Remote'));
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [entry('https://remote.example', cached('Remote'))],
@@ -533,31 +591,49 @@ describe('Server Directory page', () => {
       sourceCount: 2
     });
 
-    const { container } = render(ServerDirectory, { inDialog: true });
+    const { container } = render(ServerDirectory);
     await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
     button(container, 'Join')?.click();
-    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    expect(mocks.goto).not.toHaveBeenCalled();
-
-    button(container, 'Open')?.click();
+    await vi.waitFor(() => expect(link(container, 'Open')).toBeDefined());
     await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example', { replaceState: true });
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example', { replaceState: false });
     });
+    expect(mocks.goto).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a lookup that completes after its modal closes', async () => {
+    let finishLookup!: (value: PublicServerInfo) => void;
+    mocks.getPublicServerInfo.mockImplementationOnce(
+      () => new Promise<PublicServerInfo>((resolve) => (finishLookup = resolve))
+    );
+    const { container } = render(Page);
+    await enterServerAddress(container, 'https://cancelled.example');
+    await vi.waitFor(() => expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce());
+    const signal = mocks.getPublicServerInfo.mock.calls[0]![1].signal as AbortSignal;
+    flushSync(() => mocks.pageState!.delete('modal'));
+    await vi.waitFor(() => expect(signal.aborted).toBe(true));
+    button(container, 'Connect by address')!.click();
+    flushSync();
+    finishLookup(profile('Cancelled'));
+    await vi.waitFor(() => expect(container.querySelector('form')).not.toBeNull());
+    await Promise.resolve();
+    expect(mocks.known!.servers).toHaveLength(0);
+    expect(mocks.pageState!.get('modal')).toEqual({ type: 'serverAddress' });
   });
 
   it('adds a server found by address without another profile request', async () => {
     const customProfile = profile('Custom');
     mocks.getPublicServerInfo.mockResolvedValue(customProfile);
 
-    const { container } = render(ServerDirectory, { inDialog: true });
+    const { container } = render(Page);
     await enterServerAddress(container, 'custom.example');
     await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
     mocks.getPublicServerInfo.mockClear();
 
     button(container, 'Join')?.click();
 
-    await vi.waitFor(() => expect(button(container, 'Open')).toBeDefined());
-    expect(mocks.goto).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(link(container, 'Open')).toBeDefined());
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/custom.example', { replaceState: false });
     expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://custom.example', {
       name: 'Custom',
       iconUrl: customProfile.iconUrl
@@ -585,6 +661,31 @@ describe('Server Directory page', () => {
     });
   });
 
+  it('replaces first-run onboarding with known servers without registration', async () => {
+    mocks.servers = [];
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 0
+    });
+    mocks.getPublicServerInfo.mockResolvedValue(profile('Custom'));
+    const { container } = render(Page);
+    await enterServerAddress(container, 'custom.example');
+    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
+    expect(container.textContent).not.toContain('Chat just got real!');
+    expect(container.textContent).not.toContain('Want to learn more?');
+    expect(container.querySelector('form')).toBeNull();
+    expect(container.querySelector('h1')?.textContent).toContain('Server Directory');
+    expect(container.querySelector('h2')?.textContent).toContain('Custom');
+    expect(mocks.known!.servers.map((server) => server.origin)).toEqual(['https://custom.example']);
+    expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.loadServerDirectory).toHaveBeenLastCalledWith(
+      ['https://custom.example'],
+      expect.anything()
+    );
+  });
+
   it('requires sign-in support even when an unknown version may connect', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [],
@@ -604,7 +705,7 @@ describe('Server Directory page', () => {
     expect(mocks.addSignedOutServer).not.toHaveBeenCalled();
   });
 
-  it('shows compact recommendation provenance with the full accessible source list', async () => {
+  it('opens the full provenance from the compact recommendation line without contacting servers', async () => {
     mocks.servers = [
       { id: 'one', url: 'https://one.example', name: 'One', iconUrl: null, addedAt: 1 },
       { id: 'two', url: 'https://two.example', name: 'Two', iconUrl: null, addedAt: 2 },
@@ -630,16 +731,55 @@ describe('Server Directory page', () => {
     const { container } = render(Page);
     await vi.waitFor(() => {
       expect(
-        container.querySelectorAll('[data-testid="server-recommendation-sources"]')
+        container.querySelectorAll('[data-testid="server-recommendation-source"]')
       ).toHaveLength(3);
     });
-    const attributions = Array.from(
-      container.querySelectorAll<HTMLElement>('[data-testid="server-recommendation-sources"]')
+    expect(container.textContent).toContain('Recommended by One');
+    const infoButtons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[data-testid="server-recommendation-source"]')
     );
-    expect(attributions[0]?.textContent).toContain('Recommended by One');
-    expect(attributions[1]?.textContent).toContain('Recommended by One and Two');
-    expect(attributions[2]?.textContent).toContain('Recommended by One, Two, and 1 more');
-    expect(attributions[2]?.getAttribute('aria-label')).toContain('One, Two, and Three');
-    expect(attributions[2]?.title).toContain('One, Two, and Three');
+    expect(infoButtons[2]!.textContent).toContain('+2');
+    infoButtons[2]!.click();
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'serverRecommendation',
+        name: 'Triple',
+        origin: 'https://triple.example',
+        sources: [
+          { name: 'One', origin: 'https://one.example' },
+          { name: 'Two', origin: 'https://two.example' },
+          { name: 'Three', origin: 'https://three.example' }
+        ]
+      }
+    });
+    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
+  });
+
+  it('keeps registered and explicitly added servers before recommendations, without duplicates', async () => {
+    mocks.known!.remember('https://mine.example', cached('Mine'));
+    mocks.known!.remember('https://a.example', cached('Also registered'));
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        entry('https://other.example', cached('Other')),
+        entry('https://mine.example', cached('Mine'))
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(container.textContent).toContain('Other description'));
+    const cards = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="server-directory-grid"] > article')
+    );
+    expect(cards.map((card) => card.dataset.origin)).toEqual([
+      'https://a.example',
+      'https://source.example',
+      'https://mine.example',
+      'https://other.example'
+    ]);
+    expect(cards[0]!.textContent).toContain('Joined');
+    expect(cards[2]!.textContent).toContain('Added by you');
+    expect(cards[2]!.querySelector('[data-testid="server-recommendation-source"]')).toBeNull();
+    expect(cards[3]!.textContent).toContain('Recommended by Source');
   });
 });

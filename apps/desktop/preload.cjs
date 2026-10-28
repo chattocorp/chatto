@@ -20,25 +20,33 @@ ipcRenderer.on(gameCapturePublisherChannel, (event, message) => {
 contextBridge.exposeInMainWorld(
   'chattoDesktop',
   Object.freeze({
-    screenShare: Object.freeze({
-      listSources: () => {
-        if (!navigator.userActivation?.isActive) {
-          return Promise.reject(new Error('Native screen sharing requires a user gesture.'));
-        }
-        return ipcRenderer.invoke(gameCaptureListSourcesChannel);
-      },
-      cancelSourceList: () => ipcRenderer.send(gameCaptureCancelListSourcesChannel),
-      startPublisher: (request) => {
-        const requestId = crypto.randomUUID();
-        ipcRenderer.send(gameCaptureStartChannel, {
-          sourceId: request?.sourceId,
-          livekitUrl: request?.livekitUrl,
-          token: request?.token,
-          e2eeKey: request?.e2eeKey,
-          requestId
-        });
-        return requestId;
-      }
-    })
+    passwordLogin: (request) =>
+      ipcRenderer.invoke('chatto:password-login', {
+        serverUrl: request?.serverUrl,
+        identifier: request?.identifier,
+        password: request?.password
+      }),
+    screenShare: process.argv.includes('--chatto-native-screen-share')
+      ? Object.freeze({
+          listSources: () => {
+            if (!navigator.userActivation?.isActive) {
+              return Promise.reject(new Error('Native screen sharing requires a user gesture.'));
+            }
+            return ipcRenderer.invoke(gameCaptureListSourcesChannel);
+          },
+          cancelSourceList: () => ipcRenderer.send(gameCaptureCancelListSourcesChannel),
+          startPublisher: (request) => {
+            const requestId = crypto.randomUUID();
+            ipcRenderer.send(gameCaptureStartChannel, {
+              sourceId: request?.sourceId,
+              livekitUrl: request?.livekitUrl,
+              token: request?.token,
+              e2eeKey: request?.e2eeKey,
+              requestId
+            });
+            return requestId;
+          }
+        })
+      : undefined
   })
 );

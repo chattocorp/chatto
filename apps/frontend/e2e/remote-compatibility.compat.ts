@@ -69,6 +69,7 @@ test.describe('supported release baseline', () => {
       // Discover the released server and complete its real OAuth + PKCE flow.
       const remoteHost = new URL(remoteServer.baseURL).host;
       await page.getByTitle('Add Server').click();
+      await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
       await page.getByLabel('Server URL').fill(remoteHost);
       await page.getByRole('button', { name: 'Find server' }).click();
       await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
@@ -190,6 +191,7 @@ test.describe('unsupported release boundary', () => {
       });
 
       await page.getByTitle('Add Server').click();
+      await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
       await page.getByLabel('Server URL').fill(remoteHost);
       await page.getByRole('button', { name: 'Find server' }).click();
       const externalAction = page.getByRole('link', { name: 'Open in new tab', exact: true });

@@ -52,7 +52,7 @@ The owner applies and saves changes.
     <legend class="sr-only">{m('settings.preferences.tone.title')}</legend>
     {#each surfaceTones as tone (tone)}
       <label
-        class="group/tone relative flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg"
+        class="hover-lift-group relative flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg"
         data-tone={tone}
       >
         <input
@@ -65,7 +65,7 @@ The owner applies and saves changes.
         />
         <span
           class={[
-            'relative flex h-16 overflow-hidden rounded-lg border transition-transform duration-150 group-hover/tone:-translate-y-0.5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-text motion-reduce:transform-none',
+            'relative flex h-16 hover-lift overflow-hidden rounded-lg border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-text',
             sample.background,
             theme === 'dark' ? 'border-white/10' : 'border-black/10',
             value === tone && 'ring-2 ring-text ring-offset-2 ring-offset-background'

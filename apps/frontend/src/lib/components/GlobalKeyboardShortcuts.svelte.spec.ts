@@ -18,6 +18,12 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
   stores: new Map<string, ReturnType<typeof makeStore>>()
 }));
+vi.mock('$app/environment', () => ({
+  browser: true,
+  building: false,
+  version: 'test',
+  dev: false
+}));
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
   pushState: vi.fn(),
@@ -113,6 +119,27 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.stores.clear();
   quickSwitcher.close();
+});
+
+describe('production reload shortcuts', () => {
+  it.each([
+    { key: 'r', metaKey: true },
+    { key: 'r', ctrlKey: true },
+    { key: 'R', metaKey: true, shiftKey: true },
+    { key: 'R', ctrlKey: true, shiftKey: true },
+    { key: 'F5' },
+    { key: 'F5', ctrlKey: true },
+    { key: 'F5', shiftKey: true }
+  ])('blocks reload from a focused editor: %j', (shortcut) => {
+    const { container } = render(Harness);
+    container.querySelector('textarea')!.focus();
+    expect(press({ altKey: false, shiftKey: false, ...shortcut }).defaultPrevented).toBe(true);
+  });
+
+  it('keeps ordinary typing available', () => {
+    render(Harness);
+    expect(press({ key: 'r', altKey: false, shiftKey: false }).defaultPrevented).toBe(false);
+  });
 });
 
 describe('global keyboard shortcuts', () => {

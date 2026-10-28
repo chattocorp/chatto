@@ -40,7 +40,13 @@ export type NativeScreenSharePublisherRequest = {
 };
 
 type ChattoDesktopBridge = {
-  screenShare: {
+  /** Optional host-owned password request. Browser deployments do not expose it. */
+  passwordLogin?: (request: {
+    serverUrl: string;
+    identifier: string;
+    password: string;
+  }) => Promise<unknown>;
+  screenShare?: {
     listSources(): Promise<NativeScreenShareSourceResponse>;
     cancelSourceList?(): void;
     startPublisher(request: NativeScreenSharePublisherRequest): string;

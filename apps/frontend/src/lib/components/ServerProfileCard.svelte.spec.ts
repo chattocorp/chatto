@@ -1,5 +1,7 @@
+import '../../app.css';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { userEvent } from 'vitest/browser';
 import type { PublicServerInfo } from '@chatto/client/api/server';
 import ServerProfileCard from './ServerProfileCard.svelte';
 
@@ -26,6 +28,104 @@ afterEach(() => {
 });
 
 describe('ServerProfileCard public images', () => {
+  it('activates the whole card with the keyboard and description clicks', async () => {
+    const onactivate = vi.fn();
+    const { container } = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({ iconUrl: null, bannerUrl: null }),
+      onactivate,
+      actionLabel: 'Join'
+    });
+    const action = container.querySelector<HTMLButtonElement>(
+      '[data-testid="server-profile-card-action"]'
+    )!;
+    action.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(onactivate).toHaveBeenCalledOnce();
+    await userEvent.keyboard(' ');
+    expect(onactivate).toHaveBeenCalledTimes(2);
+    await userEvent.click(container.querySelector('[data-testid="server-card-description"] p')!);
+    expect(onactivate).toHaveBeenCalledTimes(3);
+    const card = container.querySelector('article')!.getBoundingClientRect();
+    const target = action.getBoundingClientRect();
+    expect(target.width).toBeCloseTo(card.width - 2, 0);
+    expect(target.height).toBeCloseTo(card.height - 2, 0);
+  });
+
+  it('has no card action unless the caller supplies one', () => {
+    const { container } = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({ iconUrl: null, bannerUrl: null })
+    });
+    expect(container.querySelector('button, a')).toBeNull();
+  });
+
+  it('preserves modified link clicks from the description', () => {
+    const { container } = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({ iconUrl: null, bannerUrl: null }),
+      href: 'https://chat.example'
+    });
+    const clicks: MouseEvent[] = [];
+    container.querySelector('a')!.addEventListener('click', (event) => {
+      event.preventDefault();
+      clicks.push(event);
+    });
+    const description = container.querySelector('[data-testid="server-card-description"]')!;
+    description.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
+    description.dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true }));
+    expect(clicks).toHaveLength(2);
+    expect(clicks[0]?.ctrlKey).toBe(true);
+    expect(clicks[1]?.metaKey).toBe(true);
+  });
+
+  it('does not activate a disabled card through its description', async () => {
+    const onactivate = vi.fn();
+    const { container } = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({ iconUrl: null, bannerUrl: null }),
+      onactivate,
+      disabled: true
+    });
+    await userEvent.click(container.querySelector('[data-testid="server-card-description"] p')!);
+    expect(onactivate).not.toHaveBeenCalled();
+  });
+
+  it('keeps long descriptions scrollable without increasing the card height', async () => {
+    const short = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({ iconUrl: null, bannerUrl: null })
+    });
+    const long = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({
+        iconUrl: null,
+        bannerUrl: null,
+        description: 'A long introduction with room for every detail.\n'.repeat(30)
+      })
+    });
+    const viewport = long.container.querySelector<HTMLElement>(
+      '[data-testid="server-card-description"]'
+    )!;
+    expect(viewport.getAttribute('tabindex')).toBe('0');
+    expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight);
+    await vi.waitFor(() => expect(viewport.style.maskImage).toMatch(/transparent\)$/));
+    await vi.waitFor(() =>
+      expect(
+        short.container.querySelector<HTMLElement>('[data-testid="server-card-description"]')!.style
+          .maskImage
+      ).not.toContain('transparent')
+    );
+    expect(long.container.querySelector('article')!.getBoundingClientRect().height).toBe(
+      short.container.querySelector('article')!.getBoundingClientRect().height
+    );
+    viewport.focus();
+    expect(document.activeElement).toBe(viewport);
+    viewport.scrollTop = viewport.scrollHeight;
+    expect(viewport.scrollTop).toBeGreaterThan(0);
+    await vi.waitFor(() => expect(viewport.style.maskImage).toContain('transparent, black'));
+    expect(viewport.style.maskImage).not.toMatch(/transparent\)$/);
+  });
   it('loads same-origin images through the private public-image path', async () => {
     const png = Uint8Array.from(
       atob(

@@ -459,9 +459,8 @@ export async function setMotdOnRemote(
 /**
  * Joins the server that the Server Directory shows, opens it, then starts
  * sign-in from the server's signed-out view and returns the sign-in popup.
- * Joining only adds the server to the gutter: the directory stays open, and
- * the entry changes to the joined state with an Open action. `join` can also
- * be the Open action of a server that is already registered.
+ * Joining closes the directory and opens the server's signed-out view.
+ * `join` can also be the Open action of an already registered server.
  */
 export async function joinServerAndStartSignIn(
   page: Page,
@@ -470,16 +469,10 @@ export async function joinServerAndStartSignIn(
   let popupsFromJoin = 0;
   const countPopup = () => popupsFromJoin++;
   page.on('popup', countPopup);
-  const label = (await join.textContent())?.trim();
   await join.click();
-  if (label !== 'Open') {
-    const open = page.getByRole('button', { name: 'Open', exact: true });
-    await expect(open).toBeVisible({ timeout: 30_000 });
-    await open.click();
-  }
   const logIn = page
     .getByTestId('server-signed-out')
-    .getByRole('button', { name: 'Log in to server' });
+    .getByRole('button', { name: 'Continue on server' });
   await expect(logIn).toBeVisible({ timeout: 30_000 });
   page.off('popup', countPopup);
   expect(popupsFromJoin).toBe(0);
@@ -562,9 +555,13 @@ export async function connectRemoteInstance(
     await page.goto('/chat/-');
   }
   await page.getByTitle('Add Server').click();
+  await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Find server' }).click();
-  const joinButton = page.getByRole('button', { name: /^(Join|Open)$/ });
+  const card = page.locator(`article[data-origin="${remoteOrigin}"]`);
+  const joinButton = card
+    .getByRole('button', { name: 'Join', exact: true })
+    .or(card.getByRole('link', { name: 'Open', exact: true }));
   await expect(joinButton).toBeVisible({ timeout: 30_000 });
   const popup = await joinServerAndStartSignIn(page, joinButton);
   await popup.waitForEvent('close');

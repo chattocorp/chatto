@@ -11,28 +11,25 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "זה לא נראה כשרת Chatto.",
     "directory": {
+      "added_by_you": "נוסף על ידך",
+      "joined": "הצטרף",
+      "needs_login": "נדרשת כניסה",
+      "learn_more": "רוצים ללמוד עוד?",
+      "learn_more_description": "גלו מה אפשר לעשות עם Chatto, למדו איך להפעיל שרת משלכם או קבלו עזרה.",
+      "welcome_title": "עכשיו הצ׳אט הופך לאמיתי!",
       "title": "מדריך השרתים",
-      "subtitle": "גלה שרתי Chatto נוספים",
-      "lookup_description": "הזן את הכתובת של שרת Chatto כלשהו כדי להצטרף אליו.",
+      "lookup_description": "הזינו כתובת שרת כדי להוסיף אותו לספרייה שלכם ולטעון את ההמלצות שלו.",
       "find": "חיפוש שרת",
       "connect_by_address": "התחברות לפי כתובת",
-      "servers_title": "שרתים מומלצים",
-      "servers_description": "המלצות מהשרתים שהצטרפת אליהם. התוצאות אינן מדורגות.",
       "recommended_by": "מומלץ על ידי {servers}",
-      "more_recommenders_count": {
-        "other": "עוד {count}"
-      },
-      "joined": "הצטרף",
       "join": "הצטרפות",
       "open": "פתיחה",
       "open_in_new_tab": "פתיחה בכרטיסייה חדשה",
       "sign_in_unavailable": "ההתחברות אינה זמינה",
       "profile_unavailable": "לא ניתן היה לטעון את הפרופיל הציבורי של שרת זה.",
-      "partial": "חלק מהשרתים שהצטרפת אליהם לא הצליחו לספק המלצות.",
+      "partial": "חלק מהשרתים לא הצליחו לספק המלצות.",
       "unavailable_title": "המדריך אינו זמין",
-      "unavailable_body": "השרתים שהצטרפת אליהם לא הצליחו לספק המלצות. עדיין אפשר להתחבר ישירות.",
-      "empty_title": "עדיין אין שרתים מומלצים",
-      "empty_body": "עדיין אפשר להתחבר ישירות באמצעות כתובת שרת."
+      "unavailable_body": "השרתים לא הצליחו לספק המלצות. עדיין אפשר להתחבר ישירות."
     }
   }
 }

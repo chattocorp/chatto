@@ -19,6 +19,21 @@ function validLifetime(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+/** Parse a direct password-login response. These sessions have no OAuth client binding. */
+export function directBearerSession(value: unknown): NewBearerSession | null {
+  if (!value || typeof value !== 'object') return null;
+  const response = value as Record<string, unknown>;
+  return oauthBearerSession(
+    {
+      access_token: response.token,
+      refresh_token: response.refreshToken,
+      expires_in: response.expiresIn,
+      refresh_token_expires_in: response.refreshTokenExpiresIn
+    },
+    null
+  );
+}
+
 /** Parse the standard snake_case OAuth token response. */
 export function oauthBearerSession(
   value: OAuthTokenResponseShape,

@@ -1,3 +1,4 @@
+import { OAuthPopupError } from '$lib/oauth/popupError';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';
@@ -41,8 +42,6 @@ const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const DESKTOP_CLIENT_ID = 'chatto://desktop';
 const FRONTEND_CIMD_PATH = '/oauth/frontend-client-metadata.json';
 
-class OAuthPopupError extends Error {}
-
 /** Sign-in completed for a server that is no longer registered. */
 class ServerNotRegisteredError extends Error {
   constructor() {
@@ -59,7 +58,9 @@ class ServerNotRegisteredError extends Error {
  */
 async function runServerOAuthFlow(
   serverUrl: string,
-  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>
+  serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>,
+  providerId?: string,
+  screenHint?: 'signup'
 ): Promise<void> {
   const verifier = generateCodeVerifier();
   const state = generateState();
@@ -73,6 +74,8 @@ async function runServerOAuthFlow(
       redirect_uri: MOBILE_CALLBACK,
       code_challenge: challenge,
       code_challenge_method: 'S256',
+      ...(providerId ? { provider_id: providerId } : {}),
+      ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
     const response = await authorizeNatively(`${serverUrl}${info.authorizeUrl}?${params}`, state);
@@ -110,7 +113,7 @@ async function runServerOAuthFlow(
     loadAndClearFlowState();
     // The blocked window replaces any later server-data error.
     serverInfo.catch(() => {});
-    throw new OAuthPopupError('The sign-in window could not be opened.');
+    throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
   }
 
   const responseChannel = createResponseChannel(state);
@@ -126,7 +129,9 @@ async function runServerOAuthFlow(
   responseWait.promise.catch(() => {});
 
   try {
-    const info = await serverInfo;
+    // A deliberate close must end the attempt even while discovery is pending.
+    // Both promises stay observed, including a late discovery failure.
+    const info = await Promise.race([serverInfo, responseWait.promise.then(() => serverInfo)]);
     if (!info.authorizeUrl) {
       throw new Error('This server does not support OAuth sign-in.');
     }
@@ -146,6 +151,8 @@ async function runServerOAuthFlow(
       redirect_uri: redirectUri,
       code_challenge: challenge,
       code_challenge_method: 'S256',
+      ...(providerId ? { provider_id: providerId } : {}),
+      ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
 
@@ -209,11 +216,11 @@ function waitForPopupResponse(
       resolveResponse(response);
     };
 
-    const fail = (message: string) => {
+    const fail = (message: string, reason: 'failed' | 'cancelled' = 'failed') => {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new OAuthPopupError(message));
+      reject(new OAuthPopupError(message, reason));
     };
 
     cancel = () => {
@@ -245,7 +252,7 @@ function waitForPopupResponse(
       polling = true;
       try {
         if (await authorizationWindow.isClosed()) {
-          fail('The sign-in window was closed before authorization completed.');
+          fail('The sign-in window was closed before authorization completed.', 'cancelled');
         }
       } catch {
         fail('The sign-in window could not be inspected.');
@@ -375,9 +382,15 @@ export function oauthClientIdForLocation(
 /**
  * Sign in to a registered remote server in a separate window and open the
  * server when sign-in completes. Call this synchronously from the user's
- * action, so the browser allows the window.
+ * action, so the browser allows the window. An optional provider ID hints at
+ * one of the server's configured providers; the server validates the hint.
+ * The signup screen hint opens registration on servers that support it.
  */
-export function startRemoteReauthentication(server: RegisteredServer): Promise<void> {
+export function startRemoteReauthentication(
+  server: RegisteredServer,
+  providerId?: string,
+  screenHint?: 'signup'
+): Promise<void> {
   const serverInfo = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
     (info) => ({
       name: info.name || server.name,
@@ -385,7 +398,7 @@ export function startRemoteReauthentication(server: RegisteredServer): Promise<v
       iconUrl: info.iconUrl ?? server.iconUrl
     })
   );
-  return runServerOAuthFlow(server.url, serverInfo);
+  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint);
 }
 
 export function beginOriginReauthentication(returnPath?: string): void {

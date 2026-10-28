@@ -9,8 +9,10 @@ once at the root layout level.
   the currently focused element
 - `Cmd+K` (Mac) / `Ctrl+K` (Windows/Linux): Open the quick switcher palette
 - `Alt+Shift+ArrowDown`: Open the next unread notification source
+- Production builds cancel reload shortcuts, including their hard-reload variants.
 -->
 <script lang="ts">
+  import { dev } from '$app/environment';
   import QuickSwitcher from './QuickSwitcher.svelte';
   import KeyboardShortcut from './KeyboardShortcut.svelte';
   import KeyboardShortcutHelp from './KeyboardShortcutHelp.svelte';
@@ -25,6 +27,19 @@ once at the root layout level.
   let helpVisible = $state(false);
   let helpEntries = $state<ShortcutDescription[]>([]);
 
+  // Capture reloads before editors, dialogs, or other shortcuts consume them.
+  function handleCapturedShortcut(e: KeyboardEvent) {
+    if (
+      !dev &&
+      !e.altKey &&
+      (e.key === 'F5' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'r'))
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+  }
+
   function openHelp() {
     if (helpVisible) return;
     helpEntries = shortcuts?.snapshot() ?? [];
@@ -36,6 +51,7 @@ once at the root layout level.
   }
 </script>
 
+<svelte:window onkeydowncapture={handleCapturedShortcut} />
 <KeyboardShortcut
   key="k"
   command

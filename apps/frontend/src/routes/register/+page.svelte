@@ -1,7 +1,6 @@
 <script lang="ts">
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
   import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
@@ -9,12 +8,17 @@
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
+  import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
+  import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
+  import { popupErrorMessage } from '$lib/oauth/popupError';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import { Divider, Hint, PageTitle } from '$lib/ui';
   import { Button, FormError, TextInput, VerificationCodeInput, validate, z } from '$lib/ui/form';
 
   const { data } = $props();
+  const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
 
   type Step = 'email' | 'code' | 'details';
 
@@ -77,36 +81,27 @@
       !confirmError
   );
 
-  function providerIcon(type: string): string {
-    switch (type) {
-      case 'github':
-        return 'icon-[mdi--github]';
-      case 'gitlab':
-        return 'icon-[mdi--gitlab]';
-      case 'google':
-        return 'icon-[mdi--google]';
-      case 'discord':
-        return 'icon-[mdi--discord]';
-      default:
-        return 'icon-[mdi--shield-account]';
-    }
-  }
-
   function providerLoginHref(provider: PublicAuthProvider): string {
-    return `${provider.loginUrl}?redirect=${encodeURIComponent('/')}`;
+    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
   async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
     event.preventDefault();
     providerError = '';
     selectedProviderId = provider.id;
+    // Keep the server's OAuth session in this window throughout provider signup.
+    if (compact) {
+      window.location.href = providerLoginHref(provider);
+      return;
+    }
     try {
       providerPopup = openProviderSignIn(provider.loginUrl);
       await verifyProviderSignIn(providerPopup);
       if (!active) return;
-      if (!(await completeOriginAuthentication())) await goto(resolve('/'));
+      if (!(await completeOriginAuthentication()))
+        await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
-      if (active) providerError = errorMessage(err, m('auth.register.failed'));
+      if (active) providerError = popupErrorMessage(err, m('auth.register.failed'));
     } finally {
       selectedProviderId = null;
       providerPopup = null;
@@ -221,7 +216,7 @@
 
       const resumedReturnNavigation = await completeOriginAuthentication();
       if (!resumedReturnNavigation) {
-        goto(resolve('/'), { replaceState: true });
+        await navigateAfterAuthentication(data.redirectUrl);
       }
     } catch (err) {
       error = errorMessage(err, m('auth.register.failed'));
@@ -234,6 +229,7 @@
 <PageTitle title={m('auth.register.title')} />
 
 <AuthLayout
+  {compact}
   title={step === 'code'
     ? m('auth.register.code.title')
     : step === 'details'
@@ -285,24 +281,14 @@
     {/if}
 
     {#if registrationProviders.length > 0}
-      <div class="flex flex-col gap-3">
-        {#each registrationProviders as provider (provider.id)}
-          <Button
-            href={providerLoginHref(provider)}
-            variant="secondary"
-            size="lg"
-            fullWidth
-            disabled={selectedProviderId !== null && selectedProviderId !== provider.id}
-            loading={selectedProviderId === provider.id}
-            loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
-            onclick={(event) => handleProviderClick(event, provider)}
-          >
-            <span aria-hidden="true" class={['iconify', providerIcon(provider.type)]}></span>
-            {m('auth.login.continue_with_provider', { provider: provider.label })}
-          </Button>
-        {/each}
-        <FormError error={providerError} />
-      </div>
+      <AuthProviderButtons
+        providers={registrationProviders}
+        {selectedProviderId}
+        href={providerLoginHref}
+        onclick={handleProviderClick}
+      />
+      <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+      <FormError error={providerError} />
     {/if}
   {:else if step === 'code'}
     <form onsubmit={handleCodeSubmit} class="flex flex-col gap-5">
@@ -397,7 +383,13 @@
 
   <Divider label={m('common.or')} />
 
-  <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
+  <Button
+    href={resolve('/login') +
+      (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
+    variant="secondary"
+    size="lg"
+    fullWidth
+  >
     {m('common.sign_in')}
   </Button>
 </AuthLayout>

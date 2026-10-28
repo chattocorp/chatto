@@ -76,6 +76,27 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
   });
 
+  it('loads and replaces configured providers from public discovery', async () => {
+    const provider = {
+      id: 'chatto-id',
+      type: 'oidc',
+      label: 'Chatto ID',
+      loginUrl: '/auth/providers/chatto-id',
+      issuerUrl: 'https://chatto.id',
+      autoProvision: true
+    };
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockResolvedValue(publicServerInfo({ authProviders: [provider] }));
+    const state = new ServerInfoState('https://acme.test', loader);
+    expect(state.authProviders).toEqual([]);
+    await state.init();
+    expect(state.authProviders).toEqual([provider]);
+    loader.mockResolvedValue(publicServerInfo());
+    await state.refreshProfile();
+    expect(state.authProviders).toEqual([]);
+  });
+
   it('refreshes profile fields without toggling initial loading state', async () => {
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
       publicServerInfo({

@@ -20,11 +20,28 @@ system-browser authentication, and clean-machine media behavior are hardened.
   existing client registry. Registrations, credentials, and browser-managed
   preferences persist across application launches in an app-specific profile.
 - On launch, restored authenticated servers reconcile in the background so the
-  welcome screen can show their availability without selecting one. Desktop
-  remains on the welcome screen until the person chooses a server.
-- Connecting a server starts Chatto's PKCE-protected OAuth flow in a separate
-  Electron window. The remote server continues to own the visible sign-in and
-  consent pages.
+  Server Directory shows saved servers without selecting one. Desktop starts
+  on this directory, with direct address lookup available. It does not register
+  its application origin as a Chatto server. See FDR-042.
+- A signed-out server shows a password form in the main window when the server
+  permits password login. Desktop sends the password only to the selected
+  server and stores its renewable session. It does not store the password.
+  Configured provider buttons appear above the password form. Selecting one
+  starts the server's PKCE-protected OAuth flow with that provider selected.
+  The provider still owns its login page in a separate window. Servers that
+  do not support the provider hint show their normal login page instead.
+  **Continue in the browser** opens the existing PKCE-protected OAuth window
+  for external providers, account creation, and password recovery. Browser
+  deployments continue to use the server-owned OAuth pages for remote login.
+- The sign-in screen reuses the web authentication layout and server branding.
+  When direct registration is enabled, **Create account** opens the server's
+  registration page with a pending PKCE authorization. The person enters the
+  emailed verification code and account details in that window. After any
+  required consent, the window closes and Desktop opens the new account.
+  Servers that do not support the signup hint show their login page instead.
+  Switching between registration, login, and SSO keeps the authorization
+  continuation. Registration and invitation rules remain server-owned.
+  **Remove server** remains in the server context menu, outside the sign-in form.
 - Voice calls, camera video, screen sharing, and media-device selection use
   Electron's bundled Chromium WebRTC implementation. Camera and microphone
   requests use operating-system permission prompts; screen sharing requires an
@@ -185,13 +202,25 @@ remote server navigation. Chatto servers trust only its exact callback path.
 clients using this identity require the corresponding Chatto 0.5 server
 behavior.
 
-### 4. Keep the browser OAuth-window flow
+### 4. Inline password login with server-owned OAuth as an alternative
 
-**Decision:** Both browser and Electron deployments use the frontend's ordinary
-`window.open()` authorization flow and the same PKCE and callback handling.
-**Why:** Electron implements browser popup windows, so the desktop host no
-longer needs the privileged CEF bridge introduced by the Deno prototype.
-**Tradeoff:** Some providers still require a system-browser flow, and the host
+**Decision:** Desktop offers password login inside the selected server's view
+through a narrow host capability (ADR-072). It uses the server's existing
+programmatic password sessions, including renewal and revocation. These
+sessions have no OAuth client grant or client-consent step. Server password
+policy still applies. The server cannot identify an official Desktop binary
+from this request. The web frontend does not offer direct remote login.
+**Why:** Users can sign in without leaving the main app, while each server
+keeps an independent session. A late response cannot replace a session after
+the user leaves the form, removes the server, or replaces its session.
+**Tradeoff:** Users trust the installed app with their server password.
+External provider buttons send only the configured provider ID to the Chatto
+server, which owns provider selection and account mapping. Registration and
+recovery also use the server-owned OAuth window and its existing PKCE and
+callback handling. Selecting a provider contacts that provider and reveals
+the user's IP address to it. No provider connection starts from displaying
+the buttons alone. Some providers
+require a future system-browser flow, and the host
 must tightly constrain popup and navigation behavior. The host opens a new
 window only on the frontend's `/servers/authorize` launch page and sends all
 other window requests to the system browser.
