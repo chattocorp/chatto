@@ -1541,7 +1541,7 @@ test.describe('Message Threading', () => {
     await roomPage.expectThreadRouteClosed();
   });
 
-  test('clicking the room list keeps the thread open', async ({ page, chatPage, roomPage }) => {
+  test('clicking the room list closes the thread overlay', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -1551,15 +1551,21 @@ test.describe('Message Threading', () => {
     const message = await roomPage.sendMessage(rootMessage);
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
+    await expect(page.getByTestId('room-view-region')).toHaveAttribute(
+      'data-thread-presentation',
+      'overlay'
+    );
+    // A closing context menu blocks overlay dismissal until its outro finishes.
+    await expect(page.locator('[role="menu"]:popover-open')).toHaveCount(0);
 
     // Click on the room list sidebar area (not on a link or button)
     // The sidebar container is always visible on desktop viewports
     const sidebar = page.locator('.room-list');
     await sidebar.click({ position: { x: 10, y: 10 } });
 
-    // App navigation is outside the thread's dimmed room dismissal surface.
-    await roomPage.expectThreadRouteActive();
-    await roomPage.expectThreadPaneVisible();
+    // The left sidebar is a dismissal surface for the thread overlay.
+    await roomPage.expectThreadRouteClosed();
+    await expect(roomPage.threadPane).not.toBeVisible();
   });
 
   test('thread reply does not scroll main chat to bottom', async ({ page, chatPage, roomPage }) => {
