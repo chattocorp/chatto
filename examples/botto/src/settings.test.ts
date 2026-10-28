@@ -9,6 +9,40 @@ const source =
 const env = { BOTTO_CHATTO_API_KEY: 'secret' };
 const parse = (text = source) => parseSettings(text, '/config/botto.toml', env);
 
+test('subagent profiles resolve defaults without inheriting the root prompt', () => {
+  expect(parse().subagents).toEqual({});
+  const settings = parse(
+    `${source}\nreasoning_level="low"\nsystem_prompt="Root personality"\n[subagents.researcher]\ndescription="Compare sources"\n[subagents.reviewer]\ndescription="Find flaws"\nmodel="test/reviewer"\nreasoning_level="off"\nsystem_prompt="Review evidence"`
+  );
+  expect(settings.subagents).toEqual({
+    researcher: {
+      description: 'Compare sources',
+      model: 'openrouter/anthropic/claude-sonnet-4-6',
+      reasoningLevel: 'low',
+      systemPrompt: ''
+    },
+    reviewer: {
+      description: 'Find flaws',
+      model: 'test/reviewer',
+      reasoningLevel: 'off',
+      systemPrompt: 'Review evidence'
+    }
+  });
+});
+
+test.each([
+  '[subagents.worker]\nmodel="test/model"',
+  '[subagents.worker]\ndescription=""',
+  '[subagents.worker]\ndescription="Work"\nmodel="invalid"',
+  '[subagents.worker]\ndescription="Work"\nreasoning_level="secret-invalid"',
+  '[subagents.worker]\ndescription="Work"\nweb=true',
+  '[subagents]\nworker="bad"',
+  '[subagents."Bad Name"]\ndescription="Work"'
+])('rejects malformed subagent profiles: %s', (configuration) => {
+  expect(() => parse(`${source}\n${configuration}`)).toThrow();
+  expect(() => parse(`${source}\n${configuration}`)).not.toThrow('secret-invalid');
+});
+
 test('participation uses OpenRouter model IDs without a provider prefix', () => {
   expect(parse().participationModel).toBe('z-ai/glm-5.3-flash');
   expect(parse(`${source}\n[participation]\nmodel="openai/gpt-6-luna"`).participationModel).toBe(
