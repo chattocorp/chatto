@@ -130,10 +130,10 @@ describe('production reload shortcuts', () => {
     { key: 'F5' },
     { key: 'F5', ctrlKey: true },
     { key: 'F5', shiftKey: true }
-  ])('blocks reload from a focused editor: %j', (shortcut) => {
+  ])('allows browser reload from a focused editor: %j', (shortcut) => {
     const { container } = render(Harness);
     container.querySelector('textarea')!.focus();
-    expect(press({ altKey: false, shiftKey: false, ...shortcut }).defaultPrevented).toBe(true);
+    expect(press({ altKey: false, shiftKey: false, ...shortcut }).defaultPrevented).toBe(false);
   });
 
   it('keeps ordinary typing available', () => {
