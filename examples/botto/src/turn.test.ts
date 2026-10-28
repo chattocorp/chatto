@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { Destination, Server } from '@chatto/client';
 import type { IncomingMessage } from './messages.ts';
 import { Inbox } from './inbox.ts';
+import type { ParticipantSource } from './context.ts';
 import { createTurnHandler } from './turn.ts';
 import { parseSettings } from './settings.ts';
 import { contextFixture, page, row } from './context.fixture.ts';
@@ -49,6 +50,9 @@ function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = (
   fixtures.push(fixture.rooms);
   const server = {
     ...fixture.server,
+    service: vi.fn<ParticipantSource['service']>().mockReturnValue({
+      batchGetUsers: vi.fn().mockResolvedValue({ users: [] })
+    }),
     getMessage: vi.fn<Server['getMessage']>().mockResolvedValue(undefined),
     readAttachment: vi.fn<Server['readAttachment']>(),
     addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
@@ -510,6 +514,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
           { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
         ],
         olderContextOmitted: false,
+        participants: [],
         imageNotes: []
       },
       userIds: ['human', 'another'],
@@ -660,4 +665,69 @@ test('an already delivered interim message survives a later model failure withou
   });
   await expect(turn([one])).rejects.toThrow('Model failed');
   expect(server.postMessage).toHaveBeenCalledTimes(1);
+});
+
+test('supplies current directory names by author ID without changing message text', async () => {
+  const { server, agent, turn, one, two } = setup();
+  const batchGetUsers = vi.fn().mockResolvedValue({
+    users: [
+      { user: { id: 'another', login: 'river', displayName: 'River', deleted: false } },
+      { user: { id: 'human', login: 'cedar', displayName: 'Cedar', deleted: false } },
+      { user: { id: 'bot', login: 'helper', displayName: 'Helper', deleted: false } },
+      { user: { id: 'outsider', login: 'unrequested', displayName: 'Other', deleted: false } }
+    ]
+  });
+  server.service.mockReturnValue({ batchGetUsers });
+  const text = 'For you it is mister river. It is a placebo switch.';
+  await turn([one, { ...two, body: text }]);
+  expect(batchGetUsers).toHaveBeenCalledWith(
+    { userIds: ['human', 'another'] },
+    { signal: expect.any(AbortSignal), timeoutMs: 10_000 }
+  );
+  const input = agent.reply.mock.calls[0]![1];
+  expect(input.context?.participants).toEqual([
+    { id: 'another', username: 'river', displayName: 'River' },
+    { id: 'human', username: 'cedar', displayName: 'Cedar' }
+  ]);
+  expect(JSON.parse(input.prompt).currentMessages[1]).toMatchObject({
+    author: 'another',
+    text
+  });
+});
+
+test('participant lookup failure stays retryable before delivery effects', async () => {
+  const beforeEffects = vi.fn();
+  const { server, agent, turn, one } = setup(beforeEffects);
+  server.service.mockReturnValue({
+    batchGetUsers: vi.fn().mockRejectedValue(new Error('Read failed'))
+  });
+  await expect(turn([one])).rejects.toThrow();
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('refreshes names each turn and never supplies a deleted account name', async () => {
+  const { server, agent, turn, one } = setup();
+  const batchGetUsers = vi
+    .fn()
+    .mockResolvedValueOnce({
+      users: [
+        { user: { id: 'human', login: 'old-name', displayName: 'Old name' } },
+        { user: { id: 'another', login: 'deleted-name', displayName: 'Deleted', deleted: true } }
+      ]
+    })
+    .mockResolvedValueOnce({
+      users: [{ user: { id: 'human', login: 'new-name', displayName: 'New name' } }]
+    });
+  server.service.mockReturnValue({ batchGetUsers });
+  await turn([one]);
+  await turn([one]);
+  expect(agent.reply.mock.calls[0]![1].context?.participants).toEqual([
+    { id: 'human', username: 'old-name', displayName: 'Old name' }
+  ]);
+  expect(agent.reply.mock.calls[1]![1].context?.participants).toEqual([
+    { id: 'human', username: 'new-name', displayName: 'New name' }
+  ]);
 });

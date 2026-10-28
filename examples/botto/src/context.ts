@@ -3,6 +3,8 @@ import type { Server, ThreadLocation } from '@chatto/client';
 import type { MessagesStore } from '@chatto/client/room/messages/MessagesStore';
 import { computed, subscribe } from '@chatto/client/reactivity';
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+import type { Client } from '@connectrpc/connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { untilAborted } from './abort.ts';
 import type { ThreadContext } from './context-messages.ts';
 
@@ -140,4 +142,33 @@ function selectContext(
     messages: [...(root ? [root] : []), ...replies.slice(-limit)],
     olderContextOmitted: !store.hasReachedStart || replies.length > limit
   };
+}
+
+/** The user directory service needed to read public participant names. */
+export interface ParticipantSource {
+  service(service: typeof UserService): Pick<Client<typeof UserService>, 'batchGetUsers'>;
+}
+
+/** Read current names for known authors. Unknown and deleted accounts have no name.
+ * Only public names enter model context; errors remain retryable before effects. */
+export async function readParticipants(
+  server: ParticipantSource,
+  authorIds: readonly (string | undefined)[],
+  signal: AbortSignal
+): Promise<NonNullable<ThreadContext['participants']>> {
+  const ids = [...new Set(authorIds.filter((id): id is string => Boolean(id)))];
+  const participants: NonNullable<ThreadContext['participants']> = [];
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    signal.throwIfAborted();
+    const requested = ids.slice(offset, offset + 100);
+    const { users } = await server
+      .service(UserService)
+      .batchGetUsers({ userIds: requested }, { signal, timeoutMs: 10_000 });
+    signal.throwIfAborted();
+    for (const { user } of users) {
+      if (!user || user.deleted || !requested.includes(user.id)) continue;
+      participants.push({ id: user.id, username: user.login, displayName: user.displayName });
+    }
+  }
+  return participants;
 }

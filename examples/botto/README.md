@@ -52,6 +52,12 @@ Botto omits message text, model replies, reasoning, and tool arguments from
 Runling logs. Full model context remains in the private Pi transcripts.
 The console's message composer cannot submit Chatto messages or grant authority.
 
+Before each reply, Botto reads current public usernames and display names for
+message authors from Chatto. It sends these names and stable user IDs to the
+configured model provider with the thread context. Names do not grant authority.
+Unknown or deleted accounts have no name in this directory. Botto does not log
+the names. A failed directory read leaves the message batch queued for retry.
+
 ## Configuration
 
 Botto reads `botto.toml` from the working directory. Select another file with

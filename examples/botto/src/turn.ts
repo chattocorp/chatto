@@ -5,7 +5,13 @@ import type { createAgent } from './agent.ts';
 import type { Settings } from './settings.ts';
 import { safeStep } from './steps.ts';
 import { log } from 'runling';
-import { includeCurrentMessages, readContext, type ContextSource } from './context.ts';
+import {
+  includeCurrentMessages,
+  readContext,
+  readParticipants,
+  type ParticipantSource,
+  type ContextSource
+} from './context.ts';
 import { reactionExtension } from './reactions.ts';
 import { hasTranscript } from './messages.ts';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -25,7 +31,8 @@ export function createTurnHandler(
     Server,
     'postMessage' | 'withTyping' | 'addReaction' | 'getMessage' | 'readAttachment'
   > &
-    ContextSource,
+    ContextSource &
+    ParticipantSource,
   agent: Awaited<ReturnType<typeof createAgent>>,
   shutdown: AbortSignal,
   beforeEffects: (messages: readonly IncomingMessage[]) => void = () => {}
@@ -127,6 +134,22 @@ export function createTurnHandler(
               inReplyTo: { id: item.inReplyTo, author }
             };
           })
+        );
+        context.participants = await safeStep(
+          'Participant names read',
+          () =>
+            readParticipants(
+              server,
+              [
+                ...context.messages.map((item) => item.author),
+                ...messages.map((item) => item.authorId),
+                ...currentMessages.flatMap((item) =>
+                  'inReplyTo' in item && item.inReplyTo?.author ? [item.inReplyTo.author] : []
+                )
+              ],
+              signal
+            ),
+          metrics
         );
         signal.throwIfAborted();
         if (!completed) beforeEffects(messages);
