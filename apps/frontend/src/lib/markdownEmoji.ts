@@ -47,7 +47,8 @@ function emojiCoreRule(state: StateCore): void {
       if (child.type === 'link_open') automaticLink = child.info === 'auto';
       if (child.type === 'link_close') automaticLink = false;
       if (child.type === 'text' && !automaticLink && child.content.includes(':')) {
-        children.push(...splitEmojiText(state, child));
+        // Attachments can contain more tokens than a function call accepts.
+        for (const part of splitEmojiText(state, child)) children.push(part);
       } else {
         children.push(child);
       }

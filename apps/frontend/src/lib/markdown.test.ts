@@ -35,6 +35,13 @@ describe('renderInlineMarkdown', () => {
 
 describe('renderMarkdown', () => {
   describe('emoji shortcodes', () => {
+    it('renders a large Markdown attachment without exceeding the argument limit', async () => {
+      const count = 100_000;
+      const html = await renderMarkdown(':wave: '.repeat(count));
+      expect(html.match(/👋/g)).toHaveLength(count);
+      expect(html).not.toContain(':wave:');
+    });
+
     it('renders aliases and adjacent tags while preserving Unicode and unknown names', async () => {
       const source = ':wave::heart: :+1: :-1: 👋 :foo: :WAVE: :constructor: :wave';
       expect(await renderMarkdown(source)).toBe(
