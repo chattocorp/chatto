@@ -5,7 +5,6 @@ import type {} from '@vitest/browser-playwright';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet, tick, type ComponentProps } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import { prefersReducedMotion } from 'svelte/motion';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import ReplyFocusTestHarness from './ReplyFocusTestHarness.svelte';
 import { q } from '$lib/test-utils';
@@ -1451,7 +1450,7 @@ describe('MessageComposer', () => {
     it.each([false, true])(
       'highlights a blocked send and preserves the draft (reduced motion: %s)',
       async (reducedMotion) => {
-        vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(reducedMotion);
+        vi.spyOn(userPreferences, 'reducedMotion', 'get').mockReturnValue(reducedMotion);
         const { container } = renderMessageComposer({
           roomId: 'room-waiting-draft',
           slowModeSeconds: 30,
