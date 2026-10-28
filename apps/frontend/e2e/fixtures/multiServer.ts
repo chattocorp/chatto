@@ -457,25 +457,14 @@ export async function setMotdOnRemote(
 }
 
 /**
- * Joins the server that the Server Directory shows, opens it, then starts
- * sign-in from the server's signed-out view and returns the sign-in popup.
- * Joining closes the directory and opens the server's signed-out view.
- * `join` can also be the Open action of an already registered server.
+ * Starts sign-in from the server's signed-out view and returns the sign-in popup.
+ * Address lookup opens this view before the helper runs.
  */
-export async function joinServerAndStartSignIn(
-  page: Page,
-  join = page.getByRole('button', { name: 'Join', exact: true })
-): Promise<Page> {
-  let popupsFromJoin = 0;
-  const countPopup = () => popupsFromJoin++;
-  page.on('popup', countPopup);
-  await join.click();
+export async function startServerSignIn(page: Page): Promise<Page> {
   const logIn = page
     .getByTestId('server-signed-out')
     .getByRole('button', { name: 'Continue on server' });
   await expect(logIn).toBeVisible({ timeout: 30_000 });
-  page.off('popup', countPopup);
-  expect(popupsFromJoin).toBe(0);
   const popupPromise = page.waitForEvent('popup');
   await logIn.click();
   return popupPromise;
@@ -546,7 +535,7 @@ export async function connectRemoteInstance(
     });
   });
 
-  // Drive the real UI: open the directory from the sidebar → URL → card →
+  // Drive the real UI: open the directory from the sidebar → URL →
   // signed-out view → popup /oauth/authorize (intercepted) →
   // /servers/callback → token exchange → session. Attach the close listener
   // as soon as Playwright observes the popup so the fast intercepted callback
@@ -558,12 +547,7 @@ export async function connectRemoteInstance(
   await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Find server' }).click();
-  const card = page.locator(`article[data-origin="${remoteOrigin}"]`);
-  const joinButton = card
-    .getByRole('button', { name: 'Join', exact: true })
-    .or(card.getByRole('link', { name: 'Open', exact: true }));
-  await expect(joinButton).toBeVisible({ timeout: 30_000 });
-  const popup = await joinServerAndStartSignIn(page, joinButton);
+  const popup = await startServerSignIn(page);
   await popup.waitForEvent('close');
   await expectSignedOutViewGone(page);
 

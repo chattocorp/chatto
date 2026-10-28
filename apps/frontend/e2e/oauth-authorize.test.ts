@@ -5,7 +5,7 @@ import {
   createUserOnRemote,
   getViewerOnRemote,
   expectSignedOutViewGone,
-  joinServerAndStartSignIn,
+  startServerSignIn,
   startSecondServer,
   stopSecondServer
 } from './fixtures/multiServer';
@@ -54,7 +54,6 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(remoteHostPort(remoteServer));
     await page.getByRole('button', { name: 'Find server' }).click();
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Create Account', exact: true }).click();
     const popup = await popupPromise;
@@ -110,18 +109,15 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
     // 3. Drive the Server Directory: open it from the sidebar `+` button,
-    // fill the URL, find the server, then click the static "Join" button on
-    // the result card. The page generates the PKCE verifier/challenge
+    // fill the URL, find the server, then continue from its sign-in view.
+    // The page generates the PKCE verifier/challenge
     // and opens the remote's /oauth/authorize in a popup.
     const hostPort = remoteHostPort(remoteServer);
     await page.getByTitle('Add Server').click();
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    let remoteAuthPage = await joinServerAndStartSignIn(page);
+    let remoteAuthPage = await startServerSignIn(page);
 
     // 4. The popup should land on the remote instance's OAuth login page.
     // The flow: redirect to remote's /oauth/authorize → /login?redirect=/oauth/authorize
@@ -201,10 +197,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    const secondRemoteAuthPage = await joinServerAndStartSignIn(page);
+    const secondRemoteAuthPage = await startServerSignIn(page);
     await expect(secondRemoteAuthPage).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -267,10 +260,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    const remoteAuthPage = await joinServerAndStartSignIn(page);
+    const remoteAuthPage = await startServerSignIn(page);
     await expect(remoteAuthPage.locator('input[autocomplete="username"]')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -361,10 +351,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    const blockedPopup = await joinServerAndStartSignIn(page);
+    const blockedPopup = await startServerSignIn(page);
     await expect(blockedPopup.locator('body')).toContainText('invalid_client', {
       timeout: TIMEOUTS.REALTIME_EVENT
     });

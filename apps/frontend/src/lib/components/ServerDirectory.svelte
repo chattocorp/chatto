@@ -10,7 +10,7 @@ single directory surface for every host and the standalone start page. See FDR-0
   import { ConnectError } from '@connectrpc/connect';
   import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { goto, pushState } from '$app/navigation';
+  import { goto, pushState, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import {
     getPublicServerInfo,
@@ -152,6 +152,10 @@ single directory surface for every host and the standalone start page. See FDR-0
       liveProfiles.set(origin, profile);
       knownServers.remember(origin, profile);
       customInput = '';
+      if (lookupRequested && canJoin(profile) && !opensInServerClient(origin, profile)) {
+        await openOrJoin(origin, profile);
+        return;
+      }
       onLookupClose?.();
       // First-run success remounts the directory, which loads these sources.
       // An existing directory refreshes here without registering the server.
@@ -218,15 +222,16 @@ single directory surface for every host and the standalone start page. See FDR-0
    * profile. The user starts this request explicitly.
    */
   async function openOrJoin(origin: string, profile: ServerVersionProfile) {
-    // Replace the dialog history entry so Back returns to the plain directory.
-    const replaceState = lookupRequested && savedServers.length > 0;
+    // Clear the shallow dialog state before a full navigation. Replacing a
+    // shallow entry with goto would make Back change only the URL, not the page.
+    if (lookupRequested) replaceState('', {});
     const joined = findServerByUrl(origin);
     if (!joined && !canJoin(profile)) return;
     pendingOrigin = origin;
     try {
       if (joined) {
         await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(joined.id) }), {
-          replaceState
+          replaceState: false
         });
         return;
       }
@@ -248,7 +253,7 @@ single directory surface for every host and the standalone start page. See FDR-0
         iconUrl: current.iconUrl ?? null
       });
       await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
-        replaceState
+        replaceState: false
       });
     } catch {
       toast.error(m('common.error.generic'));

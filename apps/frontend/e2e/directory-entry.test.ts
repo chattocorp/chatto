@@ -1,8 +1,6 @@
 import { test, expect } from './setup';
 
-test('address lookup remembers discovery sources without registering or crawling neighbors', async ({
-  page
-}) => {
+test('first-run lookup remembers sources and modal lookup opens sign-in', async ({ page }) => {
   const queries: string[] = [];
   await page.route('**/chatto.discovery.v1.ServerDiscoveryService/GetServer', (route) => {
     if (new URL(route.request().url()).origin !== 'https://known.example')
@@ -48,12 +46,21 @@ test('address lookup remembers discovery sources without registering or crawling
   await dialog.getByLabel('Server URL').fill('https://known.example');
   await dialog.getByRole('button', { name: 'Find server', exact: true }).click();
   await expect(dialog).toBeHidden();
-  await expect(grid.getByRole('heading', { name: 'Known community', exact: true })).toHaveCount(1);
+  await expect(page).toHaveURL(/\/chat\/known\.example\/overview$/);
+  await expect(page.getByTestId('server-signed-out')).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/chat\/servers$/);
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByTestId('saved-server-entry')).toHaveCount(1);
+  await page.goForward();
+  await expect(page.getByTestId('server-signed-out')).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('server-signed-out')).toBeVisible();
   expect(queries.length).toBeGreaterThan(1);
   expect(new Set(queries)).toEqual(new Set(['https://known.example']));
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('chatto:instances') ?? '[]'))
-  ).toEqual([]);
+  ).toEqual([expect.objectContaining({ url: 'https://known.example' })]);
 });
 
 test('a server-hosted frontend retains its origin and local sign-in entry', async ({ page }) => {

@@ -56,10 +56,14 @@ recommendation, not a trust or reciprocal relationship.
   An empty catalogue shows a welcome heading and an explanation of independent
   communities above the address form, without a separate welcome step.
   A successful address lookup remembers the server as a **known server** on
-  this device, closes the modal, and adds its card to the grid. First-run lookup
+  this device. A modal lookup also registers a compatible server with sign-in
+  support and opens its signed-out view, without a separate Join action.
+  Back returns to the directory with the modal closed. An already registered
+  server opens with its existing session. Servers that cannot be joined remain
+  in the directory with their existing fallback action. First-run lookup
   opens the directory instead of a preview. Known servers do not create a
   registration, session, live connection, or sidebar entry. Join remains the
-  separate action that registers a server, with compatibility and sign-in checks.
+  action for first-run results and recommendations, with compatibility and sign-in checks.
   Duplicate origins update the existing record instead of adding another card.
   The welcome uses an open layout without panels and links to the Chatto
   website at `https://chatto.run`. The link opens in a new tab without referrer
