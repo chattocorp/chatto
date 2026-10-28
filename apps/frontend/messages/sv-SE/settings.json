@@ -264,9 +264,6 @@
       "title": "Aviseringar",
       "subtitle": "Konfigurera hur du tar emot aviseringar",
       "push": {
-        "recovery_browser": "Kontrollera din anslutning och välj {retry}.",
-        "recovery_server": "Vi försöker igen automatiskt. Du kan också välja {retry}.",
-        "recovery_setup": "Tillåt aviseringar i webbläsarens inställningar och välj {retry}.",
         "title": "Push-meddelanden",
         "not_supported": "Push-meddelanden stöds inte i den här webbläsaren.",
         "server_unconfigured": "Push-meddelanden är inte tillgängliga på den här servern. Serveradministratören har inte konfigurerat dem.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Aviseringar är inte tillåtna för den här webbplatsen. Tillåt aviseringar i webbläsarens webbplatsinställningar för att slå på dem.",
         "label": "Push-meddelanden på den här enheten",
         "description": "{device} · Gäller alla servrar på den här enheten.",
-        "setup_failed": "Pushaviseringar är inte klara än.",
-        "technical_details": "Tekniska detaljer"
+        "setup_failed": "Push-meddelanden kunde inte konfigureras: {reason}"
       },
       "sound": {
         "title": "Aviseringsljud",

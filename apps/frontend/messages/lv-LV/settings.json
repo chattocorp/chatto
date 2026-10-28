@@ -264,9 +264,6 @@
       "title": "Paziņojumi",
       "subtitle": "Konfigurējiet paziņojumu saņemšanas veidu",
       "push": {
-        "recovery_browser": "Pārbaudiet savienojumu un atlasiet {retry}.",
-        "recovery_server": "Mēs automātiski mēģināsim vēlreiz. Varat arī atlasīt {retry}.",
-        "recovery_setup": "Atļaujiet paziņojumus pārlūka iestatījumos un atlasiet {retry}.",
         "title": "Push paziņojumi",
         "not_supported": "Push paziņojumi šajā pārlūkprogrammā netiek atbalstīti.",
         "server_unconfigured": "Push paziņojumi šajā serverī nav pieejami. Servera administrators tos nav konfigurējis.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Šai vietnei paziņojumi nav atļauti. Lai tos ieslēgtu, atļaujiet paziņojumus pārlūkprogrammas vietnes iestatījumos.",
         "label": "Push paziņojumi šajā ierīcē",
         "description": "{device} · Attiecas uz visiem šīs ierīces serveriem.",
-        "setup_failed": "Push paziņojumi vēl nav gatavi.",
-        "technical_details": "Tehniskā informācija"
+        "setup_failed": "Push paziņojumus neizdevās iestatīt: {reason}"
       },
       "sound": {
         "title": "Paziņojuma skaņa",

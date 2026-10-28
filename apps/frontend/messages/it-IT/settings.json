@@ -264,9 +264,6 @@
       "title": "Notifiche",
       "subtitle": "Configura il modo in cui ricevi le notifiche",
       "push": {
-        "recovery_browser": "Controlla la connessione e seleziona {retry}.",
-        "recovery_server": "Riproveremo automaticamente. Puoi anche selezionare {retry}.",
-        "recovery_setup": "Consenti le notifiche nelle impostazioni del browser e seleziona {retry}.",
         "title": "Notifiche push",
         "not_supported": "Le notifiche push non sono supportate in questo browser.",
         "server_unconfigured": "Le notifiche push non sono disponibili su questo server. L’amministratore del server non le ha configurate.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Le notifiche non sono consentite per questo sito. Per attivarle, consenti le notifiche nelle impostazioni del sito del tuo browser.",
         "label": "Notifiche push su questo dispositivo",
         "description": "{device} · Vale per tutti i server su questo dispositivo.",
-        "setup_failed": "Le notifiche push non sono ancora pronte.",
-        "technical_details": "Dettagli tecnici"
+        "setup_failed": "Non è stato possibile configurare le notifiche push: {reason}"
       },
       "sound": {
         "title": "Suono di notifica",

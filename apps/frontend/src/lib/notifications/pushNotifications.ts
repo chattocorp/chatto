@@ -95,15 +95,12 @@ type RefreshReason =
  */
 const savedRegistrations = new SvelteMap<string, SavedRegistration>();
 /**
- * Technical reason and recovery category of the latest failed save for each server in this page,
+ * Technical reason of the latest failed save for each server in this page,
  * recorded only while permission is granted. The browser's push service or
  * the server can reject a subscription. Reactive, so settings can explain the
  * failure.
  */
-const failedRegistrations = new SvelteMap<string, PushRegistrationFailure>();
-/** Recovery differs for browser creation, server saves, and other setup steps. */
-export type PushRegistrationFailureKind = 'browser' | 'server' | 'setup';
-type PushRegistrationFailure = { reason: string; kind: PushRegistrationFailureKind };
+const failedRegistrations = new SvelteMap<string, string>();
 /** Servers that a refresh in this page is saving now. */
 const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
@@ -287,12 +284,7 @@ export function hasSavedPushRegistration(serverId: string, userId: string | null
  * not translated.
  */
 export function pushRegistrationFailure(serverId: string): string | null {
-  return failedRegistrations.get(serverId)?.reason ?? null;
-}
-
-/** Reactive recovery category; it never infers a cause from an opaque browser error. */
-export function pushRegistrationFailureKind(serverId: string): PushRegistrationFailureKind | null {
-  return failedRegistrations.get(serverId)?.kind ?? null;
+  return failedRegistrations.get(serverId) ?? null;
 }
 
 /** Formats a browser or transport error for a technical failure reason. */
@@ -589,10 +581,7 @@ export async function ensureRegistered(
   target: PushRegistrationTarget,
   options: { recovery?: BrowserPushRecovery } = {}
 ): Promise<boolean> {
-  const saved = {
-    endpoint: null as string | null,
-    failure: { reason: 'Unknown failure', kind: 'setup' } as PushRegistrationFailure
-  };
+  const saved = { endpoint: null as string | null, failure: 'Unknown failure' };
   let registered = false;
   try {
     registered = await enqueuePushRegistration(target.serverId, (signal) =>
@@ -600,13 +589,13 @@ export async function ensureRegistered(
         saved: (endpoint) => {
           saved.endpoint = endpoint;
         },
-        failed: (reason, kind = 'setup') => {
-          saved.failure = { reason, kind };
+        failed: (reason) => {
+          saved.failure = reason;
         }
       })
     );
   } catch (error) {
-    saved.failure = { reason: technicalReason(error), kind: 'setup' };
+    saved.failure = technicalReason(error);
     throw error;
   } finally {
     if (registered && saved.endpoint) {
@@ -630,10 +619,7 @@ async function ensureRegisteredOnce(
   vapidPublicKey: string,
   signal: AbortSignal,
   recovery: BrowserPushRecovery | undefined,
-  report: {
-    saved: (endpoint: string) => void;
-    failed: (reason: string, kind?: PushRegistrationFailureKind) => void;
-  }
+  report: { saved: (endpoint: string) => void; failed: (reason: string) => void }
 ): Promise<boolean> {
   if (!isSupported()) {
     console.warn('Push notifications not supported');
@@ -758,7 +744,7 @@ async function ensureRegisteredOnce(
       // Keep the browser subscription: the next check saves it again without
       // creating another push service registration.
       console.error('Failed to save push subscription');
-      report.failed('The server did not save the subscription', 'server');
+      report.failed('The server did not save the subscription');
       return false;
     }
 
@@ -770,19 +756,11 @@ async function ensureRegisteredOnce(
       console.debug('[push] Browser subscription creation skipped: recovery required', {
         serverId
       });
-      // Preserve a browser cause, but do not present an earlier server-save
-      // failure as the reason that browser creation is paused.
-      const previous = failedRegistrations.get(serverId);
-      report.failed(
-        previous?.kind === 'browser' ? previous.reason : technicalReason(error),
-        'browser'
-      );
+      // Keep this page's original cause when later checks only skip creation.
+      report.failed(failedRegistrations.get(serverId) ?? technicalReason(error));
     } else {
       console.error('Failed to register push:', { serverId, stage }, error);
-      report.failed(
-        technicalReason(error),
-        stage === 'server-save' ? 'server' : stage === 'browser-create' ? 'browser' : 'setup'
-      );
+      report.failed(technicalReason(error));
     }
     // A failed save keeps the browser subscription, so the next check saves it
     // again without creating another push service registration. Cancelled

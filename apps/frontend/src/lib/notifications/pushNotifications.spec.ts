@@ -9,7 +9,6 @@ import {
   hasSavedPushRegistration,
   isPushDisabledOnThisDevice,
   pushRegistrationFailure,
-  pushRegistrationFailureKind,
   retryPushRegistration,
   PUSH_REGISTRATION_REFRESH_INTERVAL_MS,
   refreshPushSubscriptions,
@@ -1272,11 +1271,9 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     await refreshPushSubscriptions();
     expect(pushRegistrationFailure('remote')).toBeNull();
     expect(pushRegistrationFailure('origin')).toBe('Error: rejected');
-    expect(pushRegistrationFailureKind('origin')).toBe('server');
 
     await retryPushRegistration('origin');
     expect(pushRegistrationFailure('origin')).toBeNull();
-    expect(pushRegistrationFailureKind('origin')).toBeNull();
     expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(true);
   });
 
@@ -1308,21 +1305,6 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     );
     expect(subscribe).toHaveBeenCalledOnce();
     expect(pushRegistrationFailure('origin')).toBeNull();
-  });
-
-  it('does not reuse an earlier server error as the cause of a browser creation pause', async () => {
-    useOriginSubscribe(vi.fn().mockRejectedValue(new Error('server unavailable')));
-    vi.setSystemTime(start.getTime() + PUSH_REGISTRATION_REFRESH_INTERVAL_MS);
-    await refreshPushSubscriptions();
-    expect(pushRegistrationFailureKind('origin')).toBe('server');
-
-    getSubscription.mockResolvedValue(null);
-    window.localStorage.setItem('chatto.push-registration.browser-attempt.v1', 'another-tab');
-    await refreshPushSubscriptions();
-
-    expect(pushRegistrationFailureKind('origin')).toBe('browser');
-    expect(pushRegistrationFailure('origin')).toContain('Automatic push setup is paused');
-    expect(subscribe).not.toHaveBeenCalled();
   });
 
   it('stops creating browser subscriptions after a failed browser subscribe', async () => {
@@ -1391,7 +1373,6 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     await refreshPushSubscriptions();
     expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(false);
     expect(pushRegistrationFailure('origin')).not.toBeNull();
-    expect(pushRegistrationFailureKind('origin')).toBe('browser');
   });
 
   it('does not save an incompatible subscription that remains after unsubscribe', async () => {

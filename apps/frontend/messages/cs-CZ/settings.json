@@ -264,9 +264,6 @@
       "title": "Oznámení",
       "subtitle": "Nakonfigurujte způsob přijímání oznámení",
       "push": {
-        "recovery_browser": "Zkontrolujte připojení a zvolte {retry}.",
-        "recovery_server": "Zkusíme to znovu automaticky. Můžete také zvolit {retry}.",
-        "recovery_setup": "Povolte oznámení v nastavení prohlížeče a zvolte {retry}.",
         "title": "Push oznámení",
         "not_supported": "Push notifikace nejsou v tomto prohlížeči podporovány.",
         "server_unconfigured": "Push oznámení nejsou na tomto serveru dostupná. Správce serveru je nenakonfiguroval.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Oznámení nejsou pro tento web povolena. Chcete-li je zapnout, povolte oznámení v nastavení webu ve svém prohlížeči.",
         "label": "Push oznámení na tomto zařízení",
         "description": "{device} · Platí pro všechny servery na tomto zařízení.",
-        "setup_failed": "Push oznámení ještě nejsou připravena.",
-        "technical_details": "Technické podrobnosti"
+        "setup_failed": "Push oznámení se nepodařilo nastavit: {reason}"
       },
       "sound": {
         "title": "Zvuk upozornění",

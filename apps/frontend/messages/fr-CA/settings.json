@@ -264,9 +264,6 @@
       "title": "Notifications",
       "subtitle": "Configurez comment vous recevez les notifications",
       "push": {
-        "recovery_browser": "Vérifiez votre connexion, puis sélectionnez {retry}.",
-        "recovery_server": "Nous réessaierons automatiquement. Vous pouvez aussi sélectionner {retry}.",
-        "recovery_setup": "Autorisez les notifications dans les paramètres du navigateur, puis sélectionnez {retry}.",
         "title": "Notifications poussées",
         "not_supported": "Les notifications poussées ne sont pas prises en charge dans ce navigateur.",
         "server_unconfigured": "Les notifications poussées ne sont pas disponibles sur ce serveur. L’administrateur du serveur ne les a pas configurées.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Les notifications ne sont pas autorisées pour ce site. Pour les activer, autorisez les notifications dans les paramètres du site de votre navigateur.",
         "label": "Notifications poussées sur cet appareil",
         "description": "{device} · S’applique à tous les serveurs sur cet appareil.",
-        "setup_failed": "Les notifications push ne sont pas encore prêtes.",
-        "technical_details": "Détails techniques"
+        "setup_failed": "Les notifications poussées n’ont pas pu être configurées : {reason}"
       },
       "sound": {
         "title": "Son de notification",

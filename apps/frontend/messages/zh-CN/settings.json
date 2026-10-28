@@ -264,9 +264,6 @@
       "title": "通知",
       "subtitle": "设置通知接收方式",
       "push": {
-        "recovery_browser": "请检查你的连接，然后选择{retry}。",
-        "recovery_server": "我们会自动重试。你也可以选择{retry}。",
-        "recovery_setup": "请在浏览器设置中允许通知，然后选择{retry}。",
         "title": "推送通知",
         "not_supported": "此浏览器不支持推送通知。",
         "server_unconfigured": "此服务器无法使用推送通知。服务器管理员尚未配置推送通知。",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "此网站的通知未被允许。要开启通知，请在浏览器的网站设置中允许通知。",
         "label": "此设备上的推送通知",
         "description": "{device} · 应用于此设备上的所有服务器。",
-        "setup_failed": "推送通知尚未就绪。",
-        "technical_details": "技术详情"
+        "setup_failed": "无法设置推送通知：{reason}"
       },
       "sound": {
         "title": "通知提示音",

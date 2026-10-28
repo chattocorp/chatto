@@ -264,9 +264,6 @@
       "title": "Benachrichtigungen",
       "subtitle": "Lege fest, wie du Benachrichtigungen erhältst",
       "push": {
-        "recovery_browser": "Prüfe deine Verbindung und wähle {retry}.",
-        "recovery_server": "Wir versuchen es automatisch erneut. Du kannst auch {retry} wählen.",
-        "recovery_setup": "Erlaube Benachrichtigungen in deinen Browsereinstellungen und wähle {retry}.",
         "title": "Push-Benachrichtigungen",
         "not_supported": "Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.",
         "server_unconfigured": "Push-Benachrichtigungen sind auf diesem Server nicht verfügbar. Die Serveradministration hat sie nicht eingerichtet.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Benachrichtigungen sind für diese Website nicht erlaubt. Um sie einzuschalten, erlaube Benachrichtigungen in den Website-Einstellungen deines Browsers.",
         "label": "Push-Benachrichtigungen auf diesem Gerät",
         "description": "{device} · Gilt für alle Server auf diesem Gerät.",
-        "setup_failed": "Push-Benachrichtigungen sind noch nicht bereit.",
-        "technical_details": "Technische Details"
+        "setup_failed": "Push-Benachrichtigungen konnten nicht eingerichtet werden: {reason}"
       },
       "sound": {
         "title": "Benachrichtigungston",

@@ -264,9 +264,6 @@
       "title": "通知",
       "subtitle": "通知の受信方法を設定する",
       "push": {
-        "recovery_browser": "接続を確認して、{retry}を選択してください。",
-        "recovery_server": "自動的に再試行します。{retry}を選択することもできます。",
-        "recovery_setup": "ブラウザー設定で通知を許可して、{retry}を選択してください。",
         "title": "プッシュ通知",
         "not_supported": "このブラウザではプッシュ通知がサポートされていません。",
         "server_unconfigured": "このサーバーではプッシュ通知を利用できません。サーバー管理者が設定していません。",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "このサイトの通知は許可されていません。通知をオンにするには、ブラウザのサイト設定で通知を許可してください。",
         "label": "このデバイスのプッシュ通知",
         "description": "{device} · このデバイスのすべてのサーバーに適用されます。",
-        "setup_failed": "プッシュ通知はまだ準備できていません。",
-        "technical_details": "技術的な詳細"
+        "setup_failed": "プッシュ通知を設定できませんでした: {reason}"
       },
       "sound": {
         "title": "通知音",

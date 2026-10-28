@@ -264,9 +264,6 @@
       "title": "Powiadomienia",
       "subtitle": "Skonfiguruj sposób otrzymywania powiadomień",
       "push": {
-        "recovery_browser": "Sprawdź połączenie i wybierz {retry}.",
-        "recovery_server": "Spróbujemy ponownie automatycznie. Możesz też wybrać {retry}.",
-        "recovery_setup": "Zezwól na powiadomienia w ustawieniach przeglądarki i wybierz {retry}.",
         "title": "Powiadomienia push",
         "not_supported": "Powiadomienia push nie są obsługiwane w tej przeglądarce.",
         "server_unconfigured": "Powiadomienia push nie są dostępne na tym serwerze. Administrator serwera ich nie skonfigurował.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Powiadomienia nie są dozwolone dla tej witryny. Aby je włączyć, zezwól na powiadomienia w ustawieniach witryny w przeglądarce.",
         "label": "Powiadomienia push na tym urządzeniu",
         "description": "{device} · Dotyczy wszystkich serwerów na tym urządzeniu.",
-        "setup_failed": "Powiadomienia push nie są jeszcze gotowe.",
-        "technical_details": "Szczegóły techniczne"
+        "setup_failed": "Nie udało się skonfigurować powiadomień push: {reason}"
       },
       "sound": {
         "title": "Dźwięk powiadomienia",

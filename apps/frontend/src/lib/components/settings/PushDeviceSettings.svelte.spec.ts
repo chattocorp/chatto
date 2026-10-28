@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   permission: 'granted' as NotificationPermission | null,
   registered: true,
   failure: null as string | null,
-  failureKind: 'browser' as 'browser' | 'server' | 'setup',
   webPushRuntime: true,
   retryPushRegistration: vi.fn(),
   enablePushOnAllServers: vi.fn(),
@@ -28,7 +27,6 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   hasSavedPushRegistration: mocks.hasSavedPushRegistration,
   isBrowserWebPushRuntime: () => mocks.webPushRuntime,
   pushRegistrationFailure: () => mocks.failure,
-  pushRegistrationFailureKind: () => mocks.failureKind,
   retryPushRegistration: mocks.retryPushRegistration,
   sendTestNotification: mocks.sendTestNotification
 }));
@@ -56,7 +54,6 @@ describe('PushDeviceSettings', () => {
     mocks.hasSavedPushRegistration.mockImplementation(() => mocks.registered);
     mocks.registered = true;
     mocks.failure = null;
-    mocks.failureKind = 'browser';
     mocks.retryPushRegistration.mockReset();
     mocks.retryPushRegistration.mockResolvedValue(true);
     mocks.sendTestNotification.mockReset();
@@ -121,37 +118,12 @@ describe('PushDeviceSettings', () => {
 
     await expect
       .element(screen.getByRole('alert'))
-      .toHaveTextContent('Push notifications aren’t ready yet.');
-    await expect.element(screen.getByText(mocks.failure, { exact: true })).not.toBeVisible();
-    await screen.getByText('Technical details', { exact: true }).click();
-    await expect.element(screen.getByText(mocks.failure, { exact: true })).toBeVisible();
+      .toHaveTextContent(
+        'Push notifications could not be set up: AbortError: Registration failed - push service error'
+      );
     await screen.getByRole('button', { name: 'Try Again' }).click();
 
     expect(mocks.retryPushRegistration).toHaveBeenCalledWith('origin');
-    await expect
-      .element(screen.getByText('Check your connection, then select Try Again.'))
-      .toBeVisible();
-    await expect.element(screen.getByText(/Setting up push notifications/)).not.toBeInTheDocument();
-    await expect.element(screen.getByText(/TOO_MANY_REGISTRATIONS/)).not.toBeInTheDocument();
-  });
-
-  it('explains automatic server-save retries without claiming browser creation is paused', async () => {
-    mocks.registered = false;
-    mocks.failure = 'Error: server unavailable';
-    mocks.failureKind = 'server';
-    const screen = renderSettings();
-    await expect.element(screen.getByText(/We’ll try again automatically/)).toBeVisible();
-    await expect.element(screen.getByText(/without a time limit/)).not.toBeInTheDocument();
-  });
-
-  it('provides browser settings guidance for other setup failures', async () => {
-    mocks.registered = false;
-    mocks.failure = 'Error: storage unavailable';
-    mocks.failureKind = 'setup';
-    const screen = renderSettings();
-    await expect
-      .element(screen.getByText(/Allow notifications in your browser settings/))
-      .toBeVisible();
   });
 
   it('shows setup progress until this page saves the subscription', async () => {

@@ -264,9 +264,6 @@
       "title": "Sciigoj",
       "subtitle": "Agordu kiel vi ricevas sciigojn",
       "push": {
-        "recovery_browser": "Kontrolu vian konekton kaj elektu {retry}.",
-        "recovery_server": "Ni aŭtomate reprovos. Vi ankaŭ povas elekti {retry}.",
-        "recovery_setup": "Permesu sciigojn en la retumilaj agordoj kaj elektu {retry}.",
         "title": "Puŝaj Sciigoj",
         "not_supported": "Puŝaj sciigoj ne estas subtenataj en ĉi tiu retumilo.",
         "server_unconfigured": "Puŝaj sciigoj ne estas disponeblaj en ĉi tiu servilo. La servila administranto ne agordis ilin.",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "Sciigoj ne estas permesataj por ĉi tiu retejo. Por ŝalti ilin, permesu sciigojn en la retejaj agordoj de via retumilo.",
         "label": "Puŝaj sciigoj en ĉi tiu aparato",
         "description": "{device} · Validas por ĉiuj serviloj en ĉi tiu aparato.",
-        "setup_failed": "Puŝaj sciigoj ankoraŭ ne estas pretaj.",
-        "technical_details": "Teknikaj detaloj"
+        "setup_failed": "Ne eblis agordi puŝajn sciigojn: {reason}"
       },
       "sound": {
         "title": "Sciiga Sono",

@@ -264,9 +264,6 @@
       "title": "通知",
       "subtitle": "設定通知接收方式",
       "push": {
-        "recovery_browser": "請檢查你的連線，然後選擇{retry}。",
-        "recovery_server": "我們會自動重試。你也可以選擇{retry}。",
-        "recovery_setup": "請在瀏覽器設定中允許通知，然後選擇{retry}。",
         "title": "推播通知",
         "not_supported": "此瀏覽器不支援推播通知。",
         "server_unconfigured": "此伺服器無法使用推播通知。伺服器管理員尚未設定推播通知。",
@@ -286,8 +283,7 @@
         "prompt_unanswered": "此網站的通知未獲允許。若要開啟通知，請在瀏覽器的網站設定中允許通知。",
         "label": "此裝置上的推播通知",
         "description": "{device} · 套用到此裝置上的所有伺服器。",
-        "setup_failed": "推播通知尚未就緒。",
-        "technical_details": "技術詳細資料"
+        "setup_failed": "無法設定推播通知：{reason}"
       },
       "sound": {
         "title": "通知音效",
