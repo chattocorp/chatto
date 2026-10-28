@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import { expect, userEvent } from 'storybook/test';
+  import { motionPreference } from '$lib/dom/motionPreference';
   import ContextMenu from './ContextMenu.svelte';
   import MenuItem from './MenuItem.svelte';
   import MenuSection from './MenuSection.svelte';
@@ -39,7 +40,7 @@
   play={async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Open menu' }));
     const menu = canvas.getByRole('menu', { name: 'Example actions' });
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = motionPreference().matches;
     await expect(getComputedStyle(menu).animationName).toBe(
       reducedMotion ? 'none' : 'overlay-enter'
     );

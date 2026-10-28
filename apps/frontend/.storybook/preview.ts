@@ -4,6 +4,8 @@ import '@chatto/client/svelte';
 import '../src/app.css';
 import './storybook.css';
 import { loadLocaleMessages } from '../src/lib/i18n/messages';
+import { applyAnimationPreference } from '../src/lib/dom/motionPreference';
+import { userPreferences } from '../src/lib/state/userPreferences.svelte';
 
 const prefersDark =
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
@@ -15,6 +17,8 @@ function resolveTheme(theme: string | undefined): 'light' | 'dark' {
 
 const previewDecorator: Decorator = (story, context) => {
   if (typeof document !== 'undefined') {
+    // Stories do not run the app's first-paint bootstrap or root attachment.
+    applyAnimationPreference(userPreferences.animations);
     const resolved = resolveTheme(context.globals.theme as string | undefined);
     document.documentElement.dataset.theme = resolved;
     document.documentElement.dir = context.globals.direction === 'rtl' ? 'rtl' : 'ltr';
