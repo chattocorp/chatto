@@ -65,8 +65,9 @@ role positions remain active.
 - Room and group values genuinely override less-specific values for the same
   subject, matching the UI's inheritance model.
 - The built-in announcements room's `everyone.message.post` deny blocks normal
-  members. Fresh announcements rooms add a room-level posting grant for admins;
-  moderators need an explicit grant. Owners remain allowed virtually.
+  members. Fresh announcements rooms add a room-level posting grant for admins
+  and owners; moderators need an explicit grant. Owners can post without
+  privileged mode.
 - The permission explainer shows the `everyone` baseline alongside named
   decisions and identifies whether its scope or a sufficiently specific named
   allow won.
