@@ -3,6 +3,7 @@ export { default as AppHeader } from './AppHeader.svelte';
 export { default as ActivityListRow } from './ActivityListRow.svelte';
 export { default as BottomSheet } from './BottomSheet.svelte';
 export { default as ChoiceRow } from './ChoiceRow.svelte';
+export { default as CenteredPage } from './CenteredPage.svelte';
 export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as ContextMenu } from './ContextMenu.svelte';
 export { default as CopyId } from './CopyId.svelte';

@@ -65,6 +65,18 @@ make every correctness concern part of this review.
     it works with for duplication, unnecessary state, and avoidable complexity.
     Suggest concrete simplifications that help the current change. Keep broader
     refactors as separate suggestions.
+11. **Check the layout at wide and small viewport sizes.** For page layout
+    changes, inspect the rendered page at a wide desktop size and a narrow,
+    short viewport. Use the user's reported size when available. Check alignment
+    against the intended container, text wrapping, and access to the first and
+    last controls when content overflows. Review screenshots for defects;
+    capturing them alone does not verify the layout.
+12. **Exercise browser navigation for screen and step changes.** Check Back,
+    Forward, reload, and direct entry to the relevant URL in the browser.
+    Confirm the expected screen, focus, and draft retention or clearing. A
+    component test that clicks forward does not establish history behavior.
+    Use the URL for navigable screens and steps; reserve component-local state
+    for interactions that do not need a history entry.
 
 ## Findings
 

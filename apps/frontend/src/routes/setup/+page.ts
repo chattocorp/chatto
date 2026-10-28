@@ -8,5 +8,5 @@ export const load: PageLoad = async ({ url }) => {
   // Always recheck: another visitor or replica can complete setup at any time.
   const setupServer = await getPublicServerInfo(url.origin);
   if (!setupServer.setupRequired) redirect(302, '/login');
-  return { setupServer };
+  return { setupServer, step: url.searchParams.get('step') === 'details' ? 'details' : 'welcome' };
 };
