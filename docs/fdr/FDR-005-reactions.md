@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-10-02
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -52,9 +52,15 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ### 2. Shortcodes, not raw Unicode
 
-**Decision:** Reactions are stored as shortcode names like `thumbsup` or `heart`, drawn from the gemoji dataset (GitHub's emoji set). The frontend converts to display glyphs.
-**Why:** NATS KV keys can't contain arbitrary Unicode, and storing the codepoint as a key would also lock us into one particular Unicode version's normalization rules. Shortcodes are stable, portable, and human-readable in storage.
-**Tradeoff:** Emojis outside the gemoji set can't be used. The set is large enough that this rarely matters.
+**Decision:** Reactions use case-sensitive names with 1–128 ASCII letters, digits,
+underscores, plus signs, or hyphens, without surrounding colons. Names remain
+unchanged. Aliases such as `+1` and `thumbsup` remain separate reactions. The
+frontend shows known names as emoji and unknown names as `:name:`. Both support
+counts, toggling, and reactor lists.
+**Why:** Imports must retain reactions whose names are not in the bundled emoji
+catalogue. Clients can render these names without custom emoji assets.
+**Tradeoff:** Custom assets and name lifecycle rules are not implemented. Unknown
+names have no image. Existing data and replay semantics remain unchanged.
 
 ### 3. Durable events, in-memory projection is source of truth
 

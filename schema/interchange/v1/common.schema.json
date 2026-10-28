@@ -91,7 +91,7 @@
         "emoji": {
           "type": "string",
           "minLength": 1,
-          "description": "Unicode emoji sequence, not a platform shortcode."
+          "description": "Unicode emoji sequence or case-sensitive reaction name (1–128 ASCII letters, digits, underscores, plus signs, or hyphens; no colons)."
         },
         "user_ids": {
           "type": "array",

@@ -476,37 +476,45 @@ describe('notifications page', () => {
     expect(q(row, '[data-testid="activity-badge"]')?.textContent?.trim()).toBe('👍');
   });
 
-  it('renders a single reaction as a sentence', async () => {
-    const bob = {
-      id: 'bob',
-      login: 'bob',
-      displayName: 'Bob',
-      deleted: false,
-      avatarUrl: null,
-      presenceStatus: 1,
-      customStatus: null
-    };
-    retainProjection([
-      {
-        ...mocks.occurrence,
-        id: 'reaction-bob',
-        actor: bob,
-        signalKind: NotificationSignalKind.REACTION,
-        attentionLevel: NotificationAttentionLevel.AMBIENT,
-        reactionEmoji: 'heart'
+  it.each(['heart', 'Party_Parrot'])(
+    'renders a single %s reaction as a sentence',
+    async (emoji) => {
+      const bob = {
+        id: 'bob',
+        login: 'bob',
+        displayName: 'Bob',
+        deleted: false,
+        avatarUrl: null,
+        presenceStatus: 1,
+        customStatus: null
+      };
+      retainProjection([
+        {
+          ...mocks.occurrence,
+          id: 'reaction-bob',
+          actor: bob,
+          signalKind: NotificationSignalKind.REACTION,
+          attentionLevel: NotificationAttentionLevel.AMBIENT,
+          reactionEmoji: emoji
+        }
+      ]);
+
+      const { container } = render(NotificationsPage);
+      const row = await vi.waitFor(() => {
+        const element = q(container, '[data-testid="notification-group"]');
+        expect(element).not.toBeNull();
+        return element as HTMLElement;
+      });
+
+      expect(row.textContent).toContain(
+        `Bob reacted with ${emoji === 'heart' ? '❤️' : ':Party_Parrot:'} to your message`
+      );
+      if (emoji !== 'heart') {
+        expect(q(row, '[data-testid="activity-badge"]')?.textContent?.trim()).toBe('');
       }
-    ]);
-
-    const { container } = render(NotificationsPage);
-    const row = await vi.waitFor(() => {
-      const element = q(container, '[data-testid="notification-group"]');
-      expect(element).not.toBeNull();
-      return element as HTMLElement;
-    });
-
-    expect(row.textContent).toContain('Bob reacted with ❤️ to your message');
-    expect(row.textContent?.match(/#general/g)).toHaveLength(1);
-  });
+      expect(row.textContent?.match(/#general/g)).toHaveLength(1);
+    }
+  );
 
   it('keeps a known reaction actor as the lead when another actor was deleted', async () => {
     const alice = {

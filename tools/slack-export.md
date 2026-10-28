@@ -121,8 +121,11 @@ The manifest marks history as partial and capture consistency as unknown.
 Known gaps are declared as omissions. It does not use the conversion time as
 the source capture time. Rich-text conversion keeps the existing supported
 Markdown subset. Rich-text user mentions become literal names because the draft
-format has no structured mention contract. Custom or unknown reaction emoji,
-unresolved references, unsupported blocks, and ambiguous history stop conversion.
+format has no structured mention contract. Custom or unknown reaction names are
+preserved when they use the reaction-name syntax. Their images are not imported;
+clients can show them as `:name:`. Known emoji retain their Unicode representation.
+Invalid reaction names, unresolved references, unsupported blocks, and ambiguous
+history stop conversion.
 
 - `--allow-missing-files` writes unavailable asset records when files cannot be
   downloaded. It does not invent placeholder message text.

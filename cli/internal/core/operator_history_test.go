@@ -72,6 +72,7 @@ func TestHistoricalThreadImport(t *testing.T) {
 
 func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	t.Parallel()
+	const emoji = "Party_Parrot"
 	ns, _ := testutil.StartNATS(t)
 	c := startReplica(t, ns, testCoreConfig())
 	ctx := testContext(t)
@@ -87,7 +88,7 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	require.NoError(t, err)
 	replica := startReplica(t, ns, testCoreConfig())
 	for _, messageID := range []string{root.Id, reply.Id} {
-		input := HistoricalReactionInput{RoomID: room.Id, MessageEventID: messageID, UserID: reactor.Id, Emoji: "heart"}
+		input := HistoricalReactionInput{RoomID: room.Id, MessageEventID: messageID, UserID: reactor.Id, Emoji: emoji}
 		var addedCount atomic.Int32
 		var wg sync.WaitGroup
 		for i := range 6 {
@@ -109,7 +110,7 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 		require.EqualValues(t, 1, addedCount.Load())
 		reactions, err := c.GetReactions(ctx, messageID)
 		require.NoError(t, err)
-		require.Equal(t, []ReactionSummary{{Emoji: "heart", UserIDs: []string{reactor.Id}}}, reactions)
+		require.Equal(t, []ReactionSummary{{Emoji: emoji, UserIDs: []string{reactor.Id}}}, reactions)
 	}
 	reactionEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventReactionAdded))
 	require.NoError(t, err)
@@ -127,10 +128,10 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	restored := NewReactionProjection()
 	require.NoError(t, restored.Restore(snapshot))
 	// The mapped user can remove an imported reaction through the ordinary path.
-	removed, err := c.reactionModel.removeReaction(ctx, KindChannel, room.Id, root.Id, "heart", reactor.Id)
+	removed, err := c.reactionModel.removeReaction(ctx, KindChannel, room.Id, root.Id, emoji, reactor.Id)
 	require.NoError(t, err)
 	require.True(t, removed)
-	removal := newReactionRemovedEvent(reactor.Id, room.Id, root.Id, "heart")
+	removal := newReactionRemovedEvent(reactor.Id, room.Id, root.Id, emoji)
 	for _, p := range []*ReactionProjection{projection, restored} {
 		require.NoError(t, p.Apply(removal, 3))
 		bytes, err := p.Snapshot()
@@ -149,7 +150,7 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	require.Equal(t, []string{author.Id}, replayed.GetThreadMetadata(root.Id).ParticipantIDs)
 	reactions, err := replayed.GetReactions(ctx, reply.Id)
 	require.NoError(t, err)
-	require.Equal(t, []ReactionSummary{{Emoji: "heart", UserIDs: []string{reactor.Id}}}, reactions)
+	require.Equal(t, []ReactionSummary{{Emoji: emoji, UserIDs: []string{reactor.Id}}}, reactions)
 	following, err := replayed.IsFollowingThread(ctx, KindChannel, author.Id, room.Id, root.Id)
 	require.NoError(t, err)
 	require.False(t, following)
@@ -196,7 +197,7 @@ func TestHistoricalReactionImportRejectsInvalidTargets(t *testing.T) {
 		func(v *HistoricalReactionInput) { v.RoomID = other.Id },
 		func(v *HistoricalReactionInput) { v.UserID = "missing" },
 		func(v *HistoricalReactionInput) { v.MessageEventID = "missing" },
-		func(v *HistoricalReactionInput) { v.Emoji = "not-a-real-emoji" },
+		func(v *HistoricalReactionInput) { v.Emoji = ":invalid:" },
 	} {
 		input := base
 		change(&input)

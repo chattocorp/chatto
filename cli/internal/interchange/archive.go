@@ -110,7 +110,7 @@ type Content struct {
 	Reason   string   `json:"reason"`
 }
 
-// Reaction is one Unicode sequence and its final set of source reactors.
+// Reaction is one Unicode sequence or reaction name and its final source reactors.
 type Reaction struct {
 	Emoji   string   `json:"emoji"`
 	UserIDs []string `json:"user_ids"`

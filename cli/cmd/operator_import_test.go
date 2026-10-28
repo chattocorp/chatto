@@ -151,3 +151,32 @@ func TestOperatorImportRejectsSourceBeforeConnecting(t *testing.T) {
 	command.SetArgs([]string{"/nonexistent/source"})
 	require.ErrorContains(t, command.Execute(), "source must be a directory")
 }
+
+func TestOperatorImportUnknownReactionNames(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+	path := filepath.Join(dir, "events.jsonl")
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	// Keep the Unicode fixture unchanged; this copy exercises named snapshots.
+	require.Contains(t, string(raw), "❤️")
+	require.NoError(t, os.WriteFile(path, []byte(strings.ReplaceAll(string(raw), "❤️", "Party_Parrot")), 0600))
+	args := []string{"operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress")}
+	env.run(t, args...)
+	facts, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, "evt.room.*.reaction_added")
+	require.NoError(t, err)
+	require.NotEmpty(t, facts)
+	for _, event := range facts {
+		require.Equal(t, "Party_Parrot", event.GetReactionAdded().GetEmoji())
+		reactions, err := env.core.GetReactions(env.ctx, event.GetReactionAdded().GetMessageEventId())
+		require.NoError(t, err)
+		require.Equal(t, "Party_Parrot", reactions[0].Emoji)
+	}
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	env.run(t, args...)
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+}

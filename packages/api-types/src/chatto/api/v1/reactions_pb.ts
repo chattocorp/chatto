@@ -16,6 +16,9 @@ import { PageInfo, PageRequest } from "./pagination_pb.js";
  * on that original event. The server returns `RESOURCE_EXHAUSTED` when the
  * current user already has 20 distinct emoji reactions on the canonical
  * message; adding an emoji that already exists remains an idempotent success.
+ * Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+ * without colons. Names are case-sensitive and are stored unchanged, including
+ * unknown names. Clients can display an unknown name as :name:.
  *
  * @generated from message chatto.api.v1.AddReactionRequest
  */
@@ -36,7 +39,7 @@ export class AddReactionRequest extends Message<AddReactionRequest> {
   messageEventId = "";
 
   /**
-   * Required. Emoji shortcode name, such as "thumbsup" or "heart".
+   * Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid.
    *
    * @generated from field: string emoji = 3;
    */
@@ -147,7 +150,7 @@ export class RemoveReactionRequest extends Message<RemoveReactionRequest> {
   messageEventId = "";
 
   /**
-   * Required. Emoji shortcode name, such as "thumbsup" or "heart".
+   * Required. Exact reaction name returned by the server, without colons.
    *
    * @generated from field: string emoji = 3;
    */
@@ -255,7 +258,7 @@ export class ListReactionUsersRequest extends Message<ListReactionUsersRequest> 
   messageEventId = "";
 
   /**
-   * Emoji shortcode, such as "thumbsup".
+   * Exact reaction name returned by the server, without colons.
    *
    * @generated from field: string emoji = 3;
    */

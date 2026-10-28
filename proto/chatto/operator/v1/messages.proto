@@ -64,7 +64,8 @@ message ImportReactionRequest {
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Existing user shown as the reactor.
   string user_id = 3 [(buf.validate.field).string.min_len = 1];
-  // Supported emoji shortcode, such as heart.
+  // Case-sensitive reaction name: 1–128 ASCII letters, digits, underscores,
+  // plus signs, or hyphens, without colons. Unknown names are stored unchanged.
   string emoji = 4 [(buf.validate.field).string.min_len = 1];
 }
 
@@ -95,11 +96,11 @@ message HistoricalMessageEdit {
   repeated string attachment_asset_ids = 2;
 }
 
-// Historical reaction transition. The emoji can be a Unicode sequence or shortcode.
+// Historical reaction transition. Accepts a supported Unicode sequence or reaction name.
 message HistoricalReactionChange {
   // Mapped reactor account.
   string user_id = 1;
-  // Supported Unicode sequence or shortcode.
+  // Supported Unicode sequence or reaction name. Unknown names are stored unchanged.
   string emoji = 2;
   // True adds the reaction; false removes it.
   bool present = 3;

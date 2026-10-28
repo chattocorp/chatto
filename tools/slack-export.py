@@ -12,6 +12,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import uuid
@@ -54,13 +55,15 @@ def literal_mentions(value):
 
 
 def reaction_unicode(name, emojis):
-    """Resolve bundled aliases and Slack skin-tone suffixes; never guess custom emoji."""
+    """Keep unknown reaction names; retain Unicode output for known Slack emoji."""
     if not isinstance(name, str):
         raise ApplyError("Invalid reaction name.")
     base, separator, tone = name.partition("::skin-tone-")
     value = emojis.get({"hugging_face": "hugs"}.get(base, base))
     if not value:
-        raise ApplyError("Custom or unknown reaction emoji is unsupported.")
+        if re.fullmatch(r"[A-Za-z0-9_+-]{1,128}", name):
+            return name
+        raise ApplyError("Invalid or unsupported reaction emoji.")
     if separator:
         if tone not in {"2", "3", "4", "5", "6"} or "\u200d" in value:
             raise ApplyError("Unsupported reaction skin-tone sequence.")

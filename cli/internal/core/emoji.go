@@ -24,11 +24,26 @@ func IsValidUnicodeEmoji(emoji string) bool {
 	return ok
 }
 
-// resolveEmojiInput validates that the input is a known emoji shortcode name.
-// The API only accepts shortcode names (e.g., "thumbsup"), not Unicode emoji.
+// IsValidReactionName accepts 1–128 ASCII letters, digits, underscores, plus
+// signs, or hyphens. Names are case-sensitive and need not be in the bundled
+// catalogue. Validation never resolves aliases or changes stored identity.
+func IsValidReactionName(name string) bool {
+	if len(name) == 0 || len(name) > 128 {
+		return false
+	}
+	for _, c := range name {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '+' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+// resolveEmojiInput accepts reaction names without colons, not Unicode emoji.
+// Unknown names remain usable before a client can render their emoji.
 func resolveEmojiInput(input string) (string, error) {
-	if IsValidEmojiName(input) {
+	if IsValidReactionName(input) {
 		return input, nil
 	}
-	return "", invalidArgument("unsupported emoji")
+	return "", invalidArgument("invalid reaction name")
 }

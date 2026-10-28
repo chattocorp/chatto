@@ -282,7 +282,8 @@ type ImportReactionRequest struct {
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Existing user shown as the reactor.
 	UserId string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Supported emoji shortcode, such as heart.
+	// Case-sensitive reaction name: 1–128 ASCII letters, digits, underscores,
+	// plus signs, or hyphens, without colons. Unknown names are stored unchanged.
 	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -447,12 +448,12 @@ func (x *HistoricalMessageEdit) GetAttachmentAssetIds() []string {
 	return nil
 }
 
-// Historical reaction transition. The emoji can be a Unicode sequence or shortcode.
+// Historical reaction transition. Accepts a supported Unicode sequence or reaction name.
 type HistoricalReactionChange struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Mapped reactor account.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Supported Unicode sequence or shortcode.
+	// Supported Unicode sequence or reaction name. Unknown names are stored unchanged.
 	Emoji string `protobuf:"bytes,2,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	// True adds the reaction; false removes it.
 	Present       bool `protobuf:"varint,3,opt,name=present,proto3" json:"present,omitempty"`
