@@ -1,6 +1,6 @@
 {
   "name": "@chatto/client",
-  "version": "0.5.0-beta.22",
+  "version": "0.5.0-beta.23",
   "description": "Framework-neutral Chatto client: connections, realtime projection, and reactive stores",
   "license": "Apache-2.0",
   "type": "module",

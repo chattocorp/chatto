@@ -3,6 +3,37 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.23](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.22...v0.5.0-beta.23) (2026-10-28)
+
+
+### Features
+
+* **auth:** add provider-managed usernames and unlink controls ([#3223](https://github.com/chattocorp/chatto/issues/3223)) ([f5d5718](https://github.com/chattocorp/chatto/commit/f5d571879150b6931e0fa20cbdb77c9386e21686))
+* **botto:** classify thread participation and incoming reactions ([#3251](https://github.com/chattocorp/chatto/issues/3251)) ([0e927b2](https://github.com/chattocorp/chatto/commit/0e927b21961bf88aede1dccadf54ec873bc83007))
+* **desktop:** distribute macOS app in a signed DMG ([#3245](https://github.com/chattocorp/chatto/issues/3245)) ([46e289f](https://github.com/chattocorp/chatto/commit/46e289f9ef4987d3f0894981ee5ce7e4919919d3))
+* **frontend:** add shortcut help and fix unread navigation ([#3241](https://github.com/chattocorp/chatto/issues/3241)) ([5683886](https://github.com/chattocorp/chatto/commit/568388667d0e453052831c2386afdaf6d01087bf))
+* **frontend:** fade server gutter icons on add and remove ([#3237](https://github.com/chattocorp/chatto/issues/3237)) ([19db501](https://github.com/chattocorp/chatto/commit/19db50125f8dc7dee70ebad712e3376ae9de2d9c))
+* **frontend:** support emoji shortcodes in messages ([#3255](https://github.com/chattocorp/chatto/issues/3255)) ([3a14f6d](https://github.com/chattocorp/chatto/commit/3a14f6de54fcade327a52711108c0c166bee9bdf))
+* **frontend:** unify server entry, sign-in, and directory cards ([#3239](https://github.com/chattocorp/chatto/issues/3239)) ([2ec104d](https://github.com/chattocorp/chatto/commit/2ec104d80552336e195dc46298f3f0c356892206))
+* **import:** convert Slack exports and import archives from the CLI ([#3216](https://github.com/chattocorp/chatto/issues/3216)) ([97d489e](https://github.com/chattocorp/chatto/commit/97d489eb77fbbe200cb9cbd9c936be2388810091))
+* **runling:** simplify the console and surface workflow usage ([#3248](https://github.com/chattocorp/chatto/issues/3248)) ([3994aef](https://github.com/chattocorp/chatto/commit/3994aef82d191622990b67c41d1139a1f8df3cc7))
+
+
+### Bug Fixes
+
+* **auth:** preserve provider popup flow when linking existing accounts ([#3250](https://github.com/chattocorp/chatto/issues/3250)) ([9a31898](https://github.com/chattocorp/chatto/commit/9a31898c54440fea98fec90e269d906476b85f40))
+* **ci:** limit automatic media E2E image builds ([#3230](https://github.com/chattocorp/chatto/issues/3230)) ([40ea92b](https://github.com/chattocorp/chatto/commit/40ea92b5e7191812554625ea657cee537149b9c1))
+* **ci:** skip protobuf checks for unrelated changes ([#3259](https://github.com/chattocorp/chatto/issues/3259)) ([396e0ae](https://github.com/chattocorp/chatto/commit/396e0ae592f85855d8a0be3d1b75ca9b6a7dfc89))
+* **desktop:** repair release signing and retry Apple validation ([#3232](https://github.com/chattocorp/chatto/issues/3232)) ([32004a6](https://github.com/chattocorp/chatto/commit/32004a6237a07cb6e95f595349e73cc8425d0938))
+* **frontend:** enlarge pane header targets for touch ([#3257](https://github.com/chattocorp/chatto/issues/3257)) ([305de46](https://github.com/chattocorp/chatto/commit/305de46eb22ebc2755f434c1ca8b44c8d686fe4b))
+* **frontend:** enlarge sidebar navigation targets for touch ([#3254](https://github.com/chattocorp/chatto/issues/3254)) ([44c62d4](https://github.com/chattocorp/chatto/commit/44c62d49c02cd68807b1f1237f5037558ee5fe85))
+* **frontend:** keep composer touch targets large at every width ([#3261](https://github.com/chattocorp/chatto/issues/3261)) ([91956cd](https://github.com/chattocorp/chatto/commit/91956cde54d2ea8371dcf70b7bf6f10bf19f6843))
+* **frontend:** remove sign-out action from app header ([#3238](https://github.com/chattocorp/chatto/issues/3238)) ([34cf8ec](https://github.com/chattocorp/chatto/commit/34cf8ec129aef8c5946b4605c8e7a2e8646da185))
+* **frontend:** restore browser reload shortcuts ([#3260](https://github.com/chattocorp/chatto/issues/3260)) ([4713a13](https://github.com/chattocorp/chatto/commit/4713a13ad820a018b53dce29406bce994397fedf))
+* **frontend:** use back arrows for mobile overlay exits ([#3262](https://github.com/chattocorp/chatto/issues/3262)) ([36e5d11](https://github.com/chattocorp/chatto/commit/36e5d11f210afe42b4588ac95b4173c3b6bc58ae))
+* **logging:** add context to cache and cleanup diagnostics ([#3246](https://github.com/chattocorp/chatto/issues/3246)) ([2b266eb](https://github.com/chattocorp/chatto/commit/2b266eb6ca61dcde7d605c5444d82e3df71f16e5))
+* **runling:** load workspace consumers from TypeScript source ([#3244](https://github.com/chattocorp/chatto/issues/3244)) ([1cc88d1](https://github.com/chattocorp/chatto/commit/1cc88d1ee17f95b55425edcdd364bad3d14cec23))
+
 ## [0.5.0-beta.22](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.21...v0.5.0-beta.22) (2026-10-27)
 
 
