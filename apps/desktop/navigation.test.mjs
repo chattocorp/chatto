@@ -101,16 +101,13 @@ test('navigation shortcuts support mouse drivers on each platform', () => {
     const app = loadPreload(platform);
     for (const key of ['ArrowLeft', 'ArrowRight']) {
       assert.deepEqual(app.dispatch('keydown', { key, altKey: true }), {
-        prevented: true,
-        stopped: true
+        prevented: platform !== 'darwin',
+        stopped: platform !== 'darwin'
       });
     }
-    assert.deepEqual(app.navigations, ['back', 'forward']);
+    assert.deepEqual(app.navigations, platform === 'darwin' ? [] : ['back', 'forward']);
     for (const key of ['[', ']']) app.dispatch('keydown', { key, metaKey: true });
-    assert.deepEqual(
-      app.navigations,
-      platform === 'darwin' ? ['back', 'forward', 'back', 'forward'] : ['back', 'forward']
-    );
+    assert.deepEqual(app.navigations, ['back', 'forward']);
   }
 });
 

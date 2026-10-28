@@ -23,7 +23,7 @@ window.addEventListener(
   (event) => {
     if (event.shiftKey || event.ctrlKey) return;
     const macShortcut = process.platform === 'darwin' && event.metaKey && !event.altKey;
-    const altShortcut = event.altKey && !event.metaKey;
+    const altShortcut = process.platform !== 'darwin' && event.altKey && !event.metaKey;
     const back = (macShortcut && event.key === '[') || (altShortcut && event.key === 'ArrowLeft');
     const forward =
       (macShortcut && event.key === ']') || (altShortcut && event.key === 'ArrowRight');
