@@ -60,10 +60,11 @@ Call cards use the same shell surface without an extra border. Supply avatar,
 badge, indicator, action, and optional body snippets. Avatar snippets normally use `UserAvatar`
 at size `sm`.
 
-Pass `identityAttributes` for a clickable identity. Put independent controls in
+Cards with a `menu` open it when the identity is clicked and use a pointer cursor.
+Pass `identityAttributes` to override the identity button. Put independent controls in
 the `actions` snippet so buttons never nest. Pass `menu` with a label, click
 callback, and expanded state for the standard three-dot button. Member entries
-use this button and leave identity text passive. Use `menu.revealOnHover` to
+use this button as well as the clickable identity. Use `menu.revealOnHover` to
 hide the button until hover or keyboard focus; touch devices keep it visible.
 Use `menu.oncontextmenu` for right-click access from the whole card.
 Icon actions in the `actions` snippet use `CompactActionButton`, the same format

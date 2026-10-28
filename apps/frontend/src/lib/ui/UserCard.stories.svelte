@@ -44,7 +44,10 @@
     menu.focus();
     await waitFor(() => expect(getComputedStyle(menu.parentElement!).opacity).toBe('1'));
     await userEvent.click(canvas.getByText('Alice', { exact: true }));
-    await expect(canvas.getByText('No action yet')).toBeVisible();
+    await expect(canvas.getByText('Profile opened')).toBeVisible();
+    await expect(
+      getComputedStyle(canvas.getByRole('button', { name: 'Alice 🌴 @alice' })).cursor
+    ).toBe('pointer');
     await userEvent.click(canvas.getByRole('button', { name: 'User options' }));
     await expect(canvas.getByText('Profile opened')).toBeVisible();
   }}
