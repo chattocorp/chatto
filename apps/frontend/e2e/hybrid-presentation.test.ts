@@ -84,4 +84,19 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
   }
   await send.click();
   await expect(room.getMessage('Retained hybrid draft').locator).toBeVisible();
+  await room.openMembersPanel();
+  const extras = page.getByTestId('room-sidebar-mobile-pane');
+  const back = extras.getByRole('button', { name: 'Hide room extras', exact: true });
+  await expect(back).toHaveCSS('height', '44px');
+  await expect(back.locator('[class~="icon-[uil--arrow-left]"]')).toBeVisible();
+  await expect(extras.locator('[class~="icon-[uil--times]"]')).toHaveCount(0);
+  await back.click();
+  await expect(extras).not.toBeVisible();
+  await message.openThread();
+  await expect(room.threadBackButton).toHaveCSS('height', '44px');
+  await expect(room.threadCloseButton).not.toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(room.threadCloseButton).toBeVisible();
+  await expect(room.threadCloseButton).toHaveCSS('height', '44px');
+  await room.closeThread();
 });

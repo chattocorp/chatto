@@ -18,6 +18,8 @@ can exercise pagination wiring without mounting the full chat room.
     roomId = 'room-1',
     roomData: _roomData,
     activePanel = 'members',
+    activeProfileUserId = null,
+    onBackToMembers,
     presentation = 'desktop',
     maximized = false,
     hasActiveCall = false,
@@ -37,6 +39,8 @@ can exercise pagination wiring without mounting the full chat room.
     roomId?: string;
     roomData: RoomData;
     activePanel?: RoomSidebarPanel;
+    activeProfileUserId?: string | null;
+    onBackToMembers?: () => void;
     presentation?: 'desktop' | 'overlay';
     maximized?: boolean;
     hasActiveCall?: boolean;
@@ -75,6 +79,8 @@ can exercise pagination wiring without mounting the full chat room.
   <RoomSidebar
     {roomId}
     {activePanel}
+    {activeProfileUserId}
+    {onBackToMembers}
     {presentation}
     {maximized}
     {hasActiveCall}
