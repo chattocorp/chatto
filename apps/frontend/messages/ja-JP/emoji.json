@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{users}からの{emoji}",
+    "tone_default": "既定の黄色",
+    "tone_light": "明るい",
+    "tone_medium_light": "やや明るい",
+    "tone_medium": "中間",
+    "tone_medium_dark": "やや暗い",
+    "tone_dark": "暗い",
     "search_placeholder": "絵文字を検索...",
     "no_results": "絵文字が見つかりませんでした",
     "recently_used": "最近使用したもの"

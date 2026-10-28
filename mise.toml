@@ -239,7 +239,7 @@ run = [
 ]
 
 [tasks.codegen-emoji]
-description = "Generate Go emoji map from gemoji npm package"
+description = "Generate server, client, and converter emoji maps from gemoji and Unicode data"
 depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
 

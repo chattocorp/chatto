@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} fra {users}",
+    "tone_default": "Standard gul",
+    "tone_light": "Lys",
+    "tone_medium_light": "Mellomlys",
+    "tone_medium": "Mellom",
+    "tone_medium_dark": "Mellommørk",
+    "tone_dark": "Mørk",
     "search_placeholder": "Søk etter emojier...",
     "no_results": "Ingen emojier funnet",
     "recently_used": "Nylig brukt"

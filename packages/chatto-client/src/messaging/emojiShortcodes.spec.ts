@@ -1,5 +1,29 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { emojiShortcodeQuery, emojiShortcodes, resolveEmoji } from './emojiShortcodes.js';
+import { readFileSync } from 'node:fs';
+import { nameToEmoji } from 'gemoji';
+import {
+  emojiShortcodeQuery,
+  emojiShortcodes,
+  resolveEmoji,
+  emojiNameFromUnicode
+} from './emojiShortcodes.js';
+
+describe('emojiNameFromUnicode', () => {
+  it.each([
+    ['👍', 'thumbsup'],
+    ['👎', 'thumbsdown'],
+    ['👍🏽', 'thumbsup::skin-tone-4'],
+    ['👩🏾‍⚕️', 'woman_health_worker::skin-tone-5'],
+    ['👩🏻‍🤝‍👨🏿', 'couple::skin-tone-2-6']
+  ])('keeps a stable name for %s', (emoji, name) => {
+    expect(emojiNameFromUnicode(emoji)).toBe(name);
+  });
+  it('rejects text, prototype properties, and invalid sequences', () => {
+    for (const emoji of ['hello', 'constructor', '❤️🏽', '👍👍'])
+      expect(emojiNameFromUnicode(emoji)).toBeUndefined();
+  });
+});
 
 describe('resolveEmoji', () => {
   it.each([
@@ -8,7 +32,15 @@ describe('resolveEmoji', () => {
     ['thumbsup', '👍'],
     ['+1', '👍'],
     ['-1', '👎'],
-    ['woman_health_worker', '👩‍⚕️']
+    ['woman_health_worker', '👩‍⚕️'],
+    ['thumbsup::skin-tone-4', '👍🏽'],
+    ['+1::skin-tone-2', '👍🏻'],
+    ['wave::skin-tone-3', '👋🏼'],
+    ['v::skin-tone-6', '✌🏿'],
+    ['woman_health_worker::skin-tone-5', '👩🏾‍⚕️'],
+    ['people_holding_hands::skin-tone-4', '🧑🏽‍🤝‍🧑🏽'],
+    ['handshake::skin-tone-2-6', '🫱🏻‍🫲🏿'],
+    ['couple::skin-tone-2-6', '👩🏻‍🤝‍👨🏿']
   ])('resolves the built-in name %s', (name, emoji) => {
     expect(resolveEmoji(name)).toEqual({ kind: 'unicode', name, emoji });
   });
@@ -17,9 +49,72 @@ describe('resolveEmoji', () => {
     'keeps unknown name %s literal',
     (name) => expect(resolveEmoji(name)).toEqual({ kind: 'unknown', name })
   );
+
+  it.each([
+    'heart::skin-tone-4',
+    'wave::skin-tone-1',
+    'wave::skin-tone-7',
+    'wave::skin-tone-4::skin-tone-5',
+    'custom::skin-tone-4'
+  ])('rejects unsupported tone sequence %s', (name) => {
+    expect(resolveEmoji(name)).toEqual({ kind: 'unknown', name });
+  });
+
+  it('agrees with the converter map and preserves every existing gemoji name', () => {
+    const map = JSON.parse(
+      readFileSync(new URL('../../../../tools/emoji-map.json', import.meta.url), 'utf8')
+    ) as Record<string, string>;
+    for (const [name, emoji] of Object.entries(map)) {
+      expect(resolveEmoji(name)).toEqual({ kind: 'unicode', name, emoji });
+    }
+    for (const [name, emoji] of Object.entries(nameToEmoji)) expect(map[name]).toBe(emoji);
+  });
 });
 
 describe('emojiShortcodes', () => {
+  it('parses mixed-tone pairs as a single shortcode', () => {
+    const matches = [...emojiShortcodes(':couple::skin-tone-2-6:')];
+    expect(matches).toEqual([
+      {
+        start: 0,
+        end: 23,
+        resolution: { kind: 'unicode', name: 'couple::skin-tone-2-6', emoji: '👩🏻‍🤝‍👨🏿' }
+      }
+    ]);
+  });
+  it('consumes complete tone sequences and preserves UTF-16 offsets', () => {
+    const source = '😀 :thumbsup::skin-tone-4::heart: :woman_health_worker::skin-tone-2:';
+    const matches = [...emojiShortcodes(source)];
+    expect(matches.map(({ start, end }) => source.slice(start, end))).toEqual([
+      ':thumbsup::skin-tone-4:',
+      ':heart:',
+      ':woman_health_worker::skin-tone-2:'
+    ]);
+    expect(
+      matches.map(({ resolution }) => resolution.kind === 'unicode' && resolution.emoji)
+    ).toEqual(['👍🏽', '❤️', '👩🏻‍⚕️']);
+  });
+
+  it.each([
+    ':heart::skin-tone-4:',
+    ':wave::skin-tone-7:',
+    ':wave::skin-tone-nope:',
+    ':wave::skin-tone-4::skin-tone-5:'
+  ])('keeps an unsupported compound literal: %s', (source) => {
+    const matches = [...emojiShortcodes(source)];
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.resolution.kind).toBe('unknown');
+    expect(source.slice(matches[0]?.start, matches[0]?.end)).toBe(source);
+  });
+
+  it.each(['a:wave::skin-tone-4:', ':wave::skin-tone-4:a', ':wave::skin-tone-4:中'])(
+    'does not partially convert word-adjacent compounds: %s',
+    (source) => {
+      expect(
+        [...emojiShortcodes(source)].every(({ resolution }) => resolution.kind === 'unknown')
+      ).toBe(true);
+    }
+  );
   it.each([
     'omg:poop:foo',
     'hello:wave:',

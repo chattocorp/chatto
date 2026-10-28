@@ -92,6 +92,9 @@ Frontend, Examples, and Documentation Components:
   https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
 - daisyUI, used by the Runling console (https://daisyui.com/) - MIT License
 - gemoji (https://github.com/github/gemoji) - MIT License
+- Unicode Emoji 15.0 data (https://www.unicode.org/Public/emoji/15.0/)
+  - Unicode Data Files and Software License (Unicode-DFS-2016)
+  - Copyright © 2022 Unicode, Inc. Used to generate skin-tone emoji mappings.
 - heic2any (https://github.com/alexcorvi/heic2any) - MIT License
 - highlight.js (https://highlightjs.org/) - BSD 3-Clause License
 - hls.js (https://github.com/video-dev/hls.js) - Apache License 2.0

@@ -30,6 +30,8 @@ func interactionUserPage(ids []string, limit, offset int) *InteractionUserPage {
 
 // ListReactionUsers returns complete reaction membership under the same read
 // authorization as the message. A channel echo is an alias for its reply.
+// Existing names are exact lookup keys, even if current write validation rejects
+// them. Catalogue changes must not make persisted reaction membership unreadable.
 func (s *RoomTimelineReadModel) ListReactionUsers(ctx context.Context, actorID, roomID, eventID, emoji string, limit, offset int) (*InteractionUserPage, error) {
 	if _, _, err := s.core.requireMessageReader(ctx, actorID, roomID, eventID); err != nil {
 		return nil, err
@@ -41,17 +43,16 @@ func (s *RoomTimelineReadModel) ListReactionUsers(ctx context.Context, actorID, 
 	if _, err := s.timelineMessageEntry(roomID, canonical, false); err != nil {
 		return nil, err
 	}
-	name, err := resolveEmojiInput(emoji)
-	if err != nil {
-		return nil, err
-	}
 	if err := s.core.roomModel.waitForReactionsCurrent(ctx, s.core.EventPublisher, roomID); err != nil {
 		return nil, err
 	}
 	for _, reaction := range s.core.roomModel.reactionsForMessage(canonical) {
-		if reaction.Emoji == name {
+		if reaction.Emoji == emoji {
 			return interactionUserPage(append([]string(nil), reaction.UserIDs...), limit, offset), nil
 		}
+	}
+	if _, err := resolveEmojiInput(emoji); err != nil {
+		return nil, err
 	}
 	return interactionUserPage(nil, limit, offset), nil
 }

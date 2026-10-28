@@ -56,7 +56,28 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 underscores, plus signs, or hyphens, without surrounding colons. Names remain
 unchanged. Aliases such as `+1` and `thumbsup` remain separate reactions. The
 frontend shows known names as emoji and unknown names as `:name:`. Both support
-counts, toggling, and reactor lists.
+counts, toggling, and reactor lists. Known names also accept Slack-style skin-tone
+suffixes, from `::skin-tone-2` (light) to `::skin-tone-6` (dark). For example,
+`thumbsup::skin-tone-4` displays as 👍🏽. Compound emoji use complete Unicode
+sequences. Supported mixed-tone pairs use a suffix such as `::skin-tone-2-6`,
+with tone numbers in participant order.
+Unsupported tone combinations are rejected. The picker and autocomplete popup offer yellow and five
+skin tones. Its default is saved in the browser, shared across servers, and
+applies to supported picker and autocomplete choices. Recent choices retain
+their exact tone and select immediately. The picker opens a separate, headerless
+tone list after selecting an emoji that supports skin tones. Back or Escape restores the
+previous search, scroll position, and source button focus. Accepting an autocomplete suggestion with Enter, Tab, or a
+click opens a separate skin-tone popup when variants are available. It highlights
+the saved tone. Up and Down select a variant; Enter or Tab inserts it and saves
+its tone. Escape returns to the selected suggestion. Emoji without tone variants
+insert immediately. Explicit shortcodes and existing reactions remain unchanged.
+Separate tone controls for mixed-tone pairs are not available.
+Plain names and aliases keep their existing identity.
+Reactor lists and removal use the exact stored name, even when current validation
+rejects that name for new reactions. Removal still requires the actor's own
+reaction and normal room permissions; an absent reaction is an idempotent no-op.
+Hover tooltips show the emoji and a localized sentence with up to five account
+names. Locale-aware list formatting supplies punctuation and conjunctions.
 **Why:** Imports must retain reactions whose names are not in the bundled emoji
 catalogue. Clients can render these names without custom emoji assets.
 **Tradeoff:** Custom assets and name lifecycle rules are not implemented. Unknown

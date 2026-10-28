@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} מאת {users}",
+    "tone_default": "צהוב כברירת מחדל",
+    "tone_light": "בהיר",
+    "tone_medium_light": "בהיר בינוני",
+    "tone_medium": "בינוני",
+    "tone_medium_dark": "כהה בינוני",
+    "tone_dark": "כהה",
     "search_placeholder": "אימוג'י חיפוש...",
     "no_results": "לא נמצאו אמוג'י",
     "recently_used": "בשימוש לאחרונה"

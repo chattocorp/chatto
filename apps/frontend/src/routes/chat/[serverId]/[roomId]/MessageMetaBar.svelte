@@ -9,13 +9,14 @@ context-menu, and touch surfaces. Thread navigation and tooltip state remain
 local to the footer.
 -->
 <script lang="ts">
-  import AccountName from '$lib/components/users/AccountName.svelte';
+  import { formatAccountName } from '@chatto/client/timeline/accountName';
+  import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { conversationPath } from '$lib/navigation/conversationPath';
   import { on } from 'svelte/events';
   import type { MessagePostedPayload } from '@chatto/client/timeline/timelineEvents';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { UnreadDot, FloatingPopover, ConfirmDialog } from '$lib/ui';
-  import { getReactionDisplay, getEmojiDisplayName } from '$lib/emoji';
+  import { getReactionDisplay, getEmojiDisplayName, getEmojiByName } from '$lib/emoji';
   import { m } from '$lib/i18n/messages';
   import type { MessageActionModel } from './messageActionModel';
 
@@ -296,15 +297,6 @@ local to the footer.
         disabled={!action?.canReact}
         aria-describedby={tooltipReactionEmoji === reaction.emoji ? reactionTooltipId : undefined}
         aria-label={`${getReactionDisplay(reaction.emoji)} ${reaction.count}`}
-        title={reaction.hasReacted
-          ? m('room.message.meta.remove_reaction_label', {
-              emoji: getReactionDisplay(reaction.emoji),
-              count: reaction.count
-            })
-          : m('room.message.meta.add_reaction_label', {
-              emoji: getReactionDisplay(reaction.emoji),
-              count: reaction.count
-            })}
         aria-pressed={reaction.hasReacted}
       >
         <span class="max-w-48 truncate" aria-hidden="true"
@@ -351,20 +343,35 @@ local to the footer.
 >
   {#if tooltipReaction}
     {@const tooltipUsers = reactionTooltipUsers(tooltipReaction)}
-    <div class="flex min-w-0 flex-col gap-1 menu-section px-3 py-2 text-xs">
-      <strong class="font-semibold">{getEmojiDisplayName(tooltipReaction.emoji)}</strong>
-      <span class="flex min-w-0 flex-col gap-0.5 text-muted">
-        {#each tooltipUsers.users as user (user.id)}
-          <span class="break-words" data-testid="reaction-tooltip-user"
-            ><AccountName name={user.displayName} identity={user} /></span
-          >
+    {@const glyph = getEmojiByName(tooltipReaction.emoji)}
+    {@const names = tooltipUsers.users.map((user) => formatAccountName(user.displayName, user))}
+    {@const usersText = new Intl.ListFormat(getReactiveLocale(), { type: 'conjunction' }).format(
+      tooltipUsers.remaining ? [...names, `+${tooltipUsers.remaining}`] : names
+    )}
+    <!-- Split only translation placeholders, before inserting any user-controlled text. -->
+    {@const sentenceParts = m('emoji.reaction_summary', {
+      emoji: '{emoji}',
+      users: '{users}'
+    }).split(/(\{emoji\}|\{users\})/)}
+    <div class="flex min-w-0 items-start gap-3 menu-section p-3 text-sm">
+      {#if glyph}
+        <span
+          class="flex h-11 w-11 shrink-0 items-center justify-center text-4xl"
+          aria-hidden="true">{glyph}</span
+        >
+      {/if}
+      <p class="min-w-0 flex-1 leading-relaxed text-muted">
+        {#each sentenceParts as part, index (index)}
+          {#if part === '{emoji}'}<strong class="font-semibold break-words text-text"
+              >{getEmojiDisplayName(tooltipReaction.emoji)}</strong
+            >
+          {:else if part === '{users}'}<span
+              class="break-words"
+              data-testid="reaction-tooltip-users">{usersText}</span
+            >
+          {:else}{part}{/if}
         {/each}
-        {#if tooltipUsers.remaining > 0}
-          <span class="text-muted">
-            {m('room.message.meta.reaction_users_more', { count: tooltipUsers.remaining })}
-          </span>
-        {/if}
-      </span>
+      </p>
     </div>
   {/if}
 </FloatingPopover>

@@ -65,7 +65,9 @@ message ImportReactionRequest {
   // Existing user shown as the reactor.
   string user_id = 3 [(buf.validate.field).string.min_len = 1];
   // Case-sensitive reaction name: 1–128 ASCII letters, digits, underscores,
-  // plus signs, or hyphens, without colons. Unknown names are stored unchanged.
+  // plus signs, or hyphens, without surrounding colons. Known emoji also accept
+  // valid Slack-style suffixes, such as thumbsup::skin-tone-4, within the same
+  // length limit. Unknown plain names are stored unchanged.
   string emoji = 4 [(buf.validate.field).string.min_len = 1];
 }
 

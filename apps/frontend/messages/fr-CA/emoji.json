@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} par {users}",
+    "tone_default": "Jaune par défaut",
+    "tone_light": "Claire",
+    "tone_medium_light": "Moyennement claire",
+    "tone_medium": "Moyenne",
+    "tone_medium_dark": "Moyennement foncée",
+    "tone_dark": "Foncée",
     "search_placeholder": "Chercher des émojis...",
     "no_results": "Aucun émoji trouvé",
     "recently_used": "Utilisés récemment"

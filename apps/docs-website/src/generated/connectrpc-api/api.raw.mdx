@@ -3629,7 +3629,7 @@ the original message. Users are ordered by user ID ascending.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Message or channel echo ID. |
-| `emoji` | `string` | Exact reaction name returned by the server, without colons. |
+| `emoji` | `string` | Exact reaction name returned by the server, without surrounding colons. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
 
 
@@ -4002,7 +4002,9 @@ on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 current user already has 20 distinct emoji reactions on the canonical
 message; adding an emoji that already exists remains an idempotent success.
 Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
-without colons. Names are case-sensitive and are stored unchanged, including
+without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+Names are case-sensitive and are stored unchanged, including
 unknown names. Clients can display an unknown name as :name:.
 
 | Field | Type | Description |
@@ -4050,7 +4052,7 @@ from that original event.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Exact reaction name returned by the server, without colons. |
+| `emoji` | `string` | Required. Exact reaction name returned by the server, without surrounding colons. |
 
 
 <a id="chatto-api-v1-RemoveReactionResponse"></a>
