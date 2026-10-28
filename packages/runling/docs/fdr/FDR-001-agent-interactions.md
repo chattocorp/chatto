@@ -67,6 +67,9 @@ one session, gives parent messages to it, and emits its completed replies.
   agent in memory.
 - Abort signals and disposal cancel pending work. Cancellation cannot undo a
   tool's external effects or stop uncooperative code.
+- Cancelling an agent task starts session disposal immediately so native tool
+  transports can close. The task joins that disposal before cleanup finishes;
+  it does not wait for a blocked tool before starting transport shutdown.
 - `awaitWithSignal` lets tasks stop waiting for an external operation that has
   no cancellation API. It checks the signal before starting work and removes
   its listener when the wait ends. It cannot stop the external operation; the

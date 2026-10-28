@@ -3,9 +3,20 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { RunStore } from '../../../packages/runling/src/lib/server/run-store.ts';
-import { conversation, runTurn } from './conversation.ts';
+import { closeConversations, conversation, runTurn } from './conversation.ts';
 import { BatchQueue } from 'runling';
 import type { EventSourceContext } from 'runling/web';
+import { parseSettings } from './settings.ts';
+
+const sessions = vi.hoisted(() => vi.fn());
+vi.mock('runling', async (original) => ({
+  ...(await original<typeof import('runling')>()),
+  createAgentSession: sessions
+}));
+const settings = parseSettings(
+  '[chatto]\nurl="https://example.com"\napi_key="test"\n[agent]\nmodel="test/model"',
+  'botto.toml'
+);
 
 const stores: RunStore[] = [];
 const directories: string[] = [];
@@ -202,4 +213,132 @@ test('the batch scheduler serializes one conversation and bounds work across key
   release.resolve();
   await vi.waitFor(() => expect(batches).toEqual([['first'], ['other'], ['second', 'third']]));
   await queue.close();
+});
+
+test('accepts follow-ups during a child and serializes automatic completion behind the parent turn', async () => {
+  const { source, store } = await setup();
+  const childResult = Promise.withResolvers<{ outcome: string; summary: string }>();
+  const session = {
+    runOutcome: vi.fn(() => childResult.promise),
+    steer: vi.fn(async () => true),
+    [Symbol.asyncDispose]: vi.fn(async () => {})
+  };
+  sessions.mockResolvedValue(session);
+  const events: string[] = [];
+  let childId = '';
+  await runTurn(source, 'one', async (_ctx, children) => {
+    childId = children.start(settings, { task: 'Research' }, async (result) => {
+      expect(result.result).toBe('Findings');
+      events.push('completion');
+    });
+    events.push('initial reply');
+  });
+  const root = store.sourceRuns('source')[0]!;
+  expect(events).toEqual(['initial reply']);
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const followup = runTurn(source, 'one', async (ctx, children) => {
+    expect(ctx.run?.id).toBe(root.id);
+    expect(children.inspect(childId)[0]?.status).toBe('running');
+    await children.steer(childId, 'Focus on costs');
+    events.push('followup started');
+    entered.resolve();
+    await release.promise;
+    events.push('followup done');
+  });
+  await entered.promise;
+  await vi.waitFor(() => expect(session.steer).toHaveBeenCalledWith('Focus on costs'));
+  childResult.resolve({ outcome: 'completed', summary: 'Findings' });
+  await vi.waitFor(() => expect(session[Symbol.asyncDispose]).toHaveBeenCalledOnce());
+  expect(events).toEqual(['initial reply', 'followup started']);
+  release.resolve();
+  await followup;
+  await root.finished;
+  expect(events).toEqual(['initial reply', 'followup started', 'followup done', 'completion']);
+  expect(store.sourceRuns('source')).toEqual([]);
+});
+
+test('idle parent wakes for child completion without another user message', async () => {
+  const { source, store } = await setup();
+  const result = Promise.withResolvers<{ outcome: string; summary: string }>();
+  sessions.mockResolvedValue({
+    runOutcome: () => result.promise,
+    [Symbol.asyncDispose]: async () => {}
+  });
+  const delivered = vi.fn(async () => {});
+  await runTurn(source, 'one', async (_ctx, children) => {
+    children.start(settings, { task: 'Work' }, delivered);
+  });
+  const root = store.sourceRuns('source')[0]!;
+  result.resolve({ outcome: 'completed', summary: 'Done' });
+  await root.finished;
+  expect(delivered).toHaveBeenCalledOnce();
+});
+
+test('source shutdown cancels children between batches and suppresses completion callbacks', async () => {
+  const { source, store, controller } = await setup();
+  const entered = Promise.withResolvers<void>();
+  const disposed = vi.fn(async () => {});
+  sessions.mockResolvedValue({
+    runOutcome: async (_ctx: unknown, _prompt: unknown, { signal }: { signal: AbortSignal }) => {
+      entered.resolve();
+      return new Promise((_resolve, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      );
+    },
+    [Symbol.asyncDispose]: disposed
+  });
+  const delivered = vi.fn(async () => {});
+  await runTurn(source, 'one', async (_ctx, children) => {
+    children.start(settings, { task: 'Work' }, delivered);
+  });
+  const root = store.sourceRuns('source')[0]!;
+  await entered.promise;
+  await expect(runTurn(source, 'other', async () => {}, 1)).rejects.toThrow('capacity');
+  controller.abort();
+  await root.finished;
+  expect(disposed).toHaveBeenCalledOnce();
+  expect(delivered).not.toHaveBeenCalled();
+});
+
+test('source failure closes background roots even without source-signal cancellation', async () => {
+  const { source, store } = await setup();
+  const entered = Promise.withResolvers<void>();
+  const disposed = vi.fn(async () => {});
+  sessions.mockResolvedValue({
+    runOutcome: async (_ctx: unknown, _prompt: unknown, { signal }: { signal: AbortSignal }) => {
+      entered.resolve();
+      return new Promise((_resolve, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      );
+    },
+    [Symbol.asyncDispose]: disposed
+  });
+  const delivered = vi.fn(async () => {});
+  await runTurn(source, 'one', async (_ctx, children) => {
+    children.start(settings, { task: 'Work' }, delivered);
+  });
+  await entered.promise;
+  await closeConversations(source);
+  expect(source.signal.aborted).toBe(false);
+  expect(store.sourceRuns('source')).toEqual([]);
+  expect(disposed).toHaveBeenCalledOnce();
+  expect(delivered).not.toHaveBeenCalled();
+});
+
+test('reserves capacity before asynchronous root admission', async () => {
+  const { source } = await setup();
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const original = source.dispatch;
+  source.dispatch = async (...args) => {
+    entered.resolve();
+    await release.promise;
+    return original(...args);
+  };
+  const first = runTurn(source, 'one', async () => {}, 1);
+  await entered.promise;
+  await expect(runTurn(source, 'two', async () => {}, 1)).rejects.toThrow('capacity');
+  release.resolve();
+  await first;
 });

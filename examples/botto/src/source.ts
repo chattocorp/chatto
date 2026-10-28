@@ -1,6 +1,6 @@
 /** Runling source: own the Chatto connection, durable delivery, and bounded inbox. */
 import type { EventSourceContext } from 'runling/web';
-import { runTurn } from './conversation.ts';
+import { runTurn, closeConversations } from './conversation.ts';
 import { createClient, replyDestination } from '@chatto/client';
 import { conversationIdentity, threadKey } from './threads.ts';
 import { RECENT_THREAD_LIMIT } from '@chatto/client/server/roomStores';
@@ -61,7 +61,12 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
         const key = JSON.stringify(
           conversationIdentity(settings.serverUrl, viewerId, replyDestination(first))
         );
-        await runTurn(source, key, (ctx) => turn(ctx, messages));
+        await runTurn(
+          source,
+          key,
+          (ctx, children) => turn(ctx, messages, children),
+          settings.maxThreads
+        );
         delivery.complete(messages);
       },
       () => {
@@ -184,6 +189,7 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
     log.info('Botto stopping');
     controller.abort();
     await recovery;
+    await closeConversations(source);
     await inbox?.close();
     client.close();
     source.signal.removeEventListener('abort', stop);
