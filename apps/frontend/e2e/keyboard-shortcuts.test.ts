@@ -48,7 +48,12 @@ test('shortcut help preserves editor text, selection, and focus', async ({
     const style = getComputedStyle(node);
     return { width: style.width, font: style.font, padding: style.padding };
   });
-  await page.getByRole('button', { name: 'Keyboard shortcuts', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Keyboard shortcuts', exact: true })).toHaveCount(
+    0
+  );
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Quick switcher', exact: true })).not.toBeVisible();
+  await page.keyboard.press('ControlOrMeta+Shift+K');
   await expect(dialog).toBeVisible();
   expect(
     await dialog.locator('.command-palette').evaluate((node) => {
