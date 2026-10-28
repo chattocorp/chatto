@@ -38,15 +38,28 @@ describe('withTyping', () => {
     expect(started[1]! - started[0]!).toBe(8000);
 
     finishWork('answer');
+    finishUpdate();
     await expect(running).resolves.toBe('answer');
   });
 
-  it('aborts the refresh in flight and schedules none after the work ends', async () => {
+  it('waits for the refresh in flight and schedules none after the work ends', async () => {
     const signals: AbortSignal[] = [];
+    const refresh = Promise.withResolvers<void>();
     const update = vi.fn(async (signal: AbortSignal) => {
       signals.push(signal);
+      await refresh.promise;
     });
-    await withTyping(new AbortController().signal, update, async () => 'done');
+    let ended = false;
+    const pending = withTyping(new AbortController().signal, update, async () => 'done').then(
+      () => {
+        ended = true;
+      }
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ended).toBe(false);
+    expect(signals[0]!.aborted).toBe(false);
+    refresh.resolve();
+    await pending;
     expect(signals[0]!.aborted).toBe(true);
     await vi.advanceTimersByTimeAsync(10_000);
     expect(update).toHaveBeenCalledOnce();

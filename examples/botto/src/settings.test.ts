@@ -9,6 +9,17 @@ const source =
 const env = { BOTTO_CHATTO_API_KEY: 'secret' };
 const parse = (text = source) => parseSettings(text, '/config/botto.toml', env);
 
+test('participation uses OpenRouter model IDs without a provider prefix', () => {
+  expect(parse().participationModel).toBe('z-ai/glm-5.3-flash');
+  expect(parse(`${source}\n[participation]\nmodel="openai/gpt-6-luna"`).participationModel).toBe(
+    'openai/gpt-6-luna'
+  );
+  for (const model of ['invalid', 'openrouter/typesafe/jev-1.13', ''])
+    expect(() => parse(`${source}\n[participation]\nmodel="${model}"`)).toThrow(
+      'participation.model'
+    );
+});
+
 test('reasoning is optional, supports Pi levels, and rejects unknown values without exposing them', () => {
   expect(parse().reasoningLevel).toBeUndefined();
   for (const level of ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
