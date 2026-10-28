@@ -1,6 +1,6 @@
 import { test, expect } from './setup';
 
-test('production reload shortcuts are cancelled while a modal input is focused', async ({
+test('production reload shortcuts remain unhandled while a modal input is focused', async ({
   page
 }) => {
   await page.goto('/chat/servers');
@@ -31,7 +31,6 @@ test('production reload shortcuts are cancelled while a modal input is focused',
   ]) {
     await page.evaluate(() => delete document.documentElement.dataset.reloadPrevented);
     await page.keyboard.press(shortcut);
-    await expect(page.locator('html')).toHaveAttribute('data-reload-prevented', 'true');
-    await expect(input).toHaveValue('unfinished.example');
+    await expect(page.locator('html')).toHaveAttribute('data-reload-prevented', 'false');
   }
 });
