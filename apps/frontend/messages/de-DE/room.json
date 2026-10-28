@@ -275,6 +275,7 @@
     },
     "thread": {
       "title": "Thread in #{room}",
+      "participants": "Thread-Teilnehmer ({count})",
       "back_to_room": "Zurück zum Raum",
       "follow": "Thread folgen",
       "unfollow": "Thread nicht mehr folgen",

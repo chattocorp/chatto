@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
-import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '@chatto/client/timeline/timelineEvents';
 import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
 import { THREAD_PANE_MAX_WIDTH } from '$lib/storage/threadPaneWidth';
 import { getToasts, toast } from '$lib/ui/toast';
@@ -15,6 +15,7 @@ import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
 import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { signal } from '@chatto/client/reactivity';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RealtimeResourceUpdate } from '@chatto/client/api/realtimeResources';
 import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import {
@@ -112,6 +113,11 @@ function rootReaction(
 vi.mock('$lib/client', async () => ({
   ...(await import('$lib/test-utils/clientMock')).clientMockDefaults,
   serverRegistry: { getStore: () => server.scope.store }
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_id: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: () => null
 }));
 
 vi.mock('@chatto/client/api/readState', () => ({
@@ -277,6 +283,29 @@ const threadProps = {
   onClose: () => {}
 };
 
+/** A root summary can include participants whose replies are outside the loaded window. */
+function participantRoot(ids: string[], count = ids.length): TimelineEventView {
+  return {
+    id: 'thread-root',
+    createdAt: '2026-10-28T12:00:00Z',
+    event: {
+      kind: TimelineEventKind.MessagePosted,
+      roomId: 'room-1',
+      body: 'Thread root',
+      attachments: [],
+      reactions: [],
+      replyCount: count,
+      threadParticipantCount: count,
+      threadParticipants: ids.map((id) => ({
+        id,
+        login: id,
+        displayName: id,
+        presenceStatus: PresenceStatus.OFFLINE
+      }))
+    }
+  };
+}
+
 describe('ThreadPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -350,6 +379,46 @@ describe('ThreadPane', () => {
       following: false,
       state: { roomId: 'room-1', threadRootEventId: 'thread-root', following: false }
     });
+  });
+
+  it('shows participant summary updates and opens profiles from the header', async () => {
+    const onOpenProfile = vi.fn();
+    const rendered = render(ThreadPane, { props: { ...threadProps, onOpenProfile } });
+    expect(
+      rendered.container.querySelector('[data-testid="thread-header-participants"]')
+    ).toBeNull();
+
+    mocks.threadStore!.threadEvents = [participantRoot(['Alice', 'Bob', 'Carol', 'Dave'], 12)];
+    const group = rendered.getByRole('group', { name: 'Thread participants (12)' });
+    await expect.element(group).toBeVisible();
+    await expect.element(group.getByText('+9')).toBeVisible();
+    await expect.element(group.getByRole('button', { name: 'Alice', exact: true })).toBeVisible();
+    await expect.element(group.getByRole('button', { name: 'Carol', exact: true })).toBeVisible();
+    await expect
+      .element(group.getByRole('button', { name: 'Dave', exact: true }))
+      .not.toBeInTheDocument();
+    await group.getByRole('button', { name: 'Bob', exact: true }).click();
+    expect(onOpenProfile).toHaveBeenCalledWith('Bob');
+
+    mocks.threadStore!.threadEvents = [participantRoot(['Carol'])];
+    await expect
+      .element(rendered.getByRole('group', { name: 'Thread participants (1)' }))
+      .toBeVisible();
+    await expect
+      .element(rendered.getByRole('button', { name: 'Alice', exact: true }))
+      .not.toBeInTheDocument();
+    await rendered.rerender({ ...threadProps, onOpenProfile, threadRootEventId: 'thread-2' });
+    expect(
+      rendered.container.querySelector('[data-testid="thread-header-participants"]')
+    ).toBeNull();
+  });
+
+  it('does not show participants from a reply when the root is unavailable', async () => {
+    mocks.threadStore!.threadEvents = [{ ...participantRoot(['Alice']), id: 'reply' }];
+    const rendered = render(ThreadPane, { props: threadProps });
+    expect(
+      rendered.container.querySelector('[data-testid="thread-header-participants"]')
+    ).toBeNull();
   });
 
   it('updates the composer when interaction posting is granted and revoked', async () => {

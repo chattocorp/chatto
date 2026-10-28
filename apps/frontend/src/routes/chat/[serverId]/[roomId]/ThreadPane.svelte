@@ -13,6 +13,7 @@
   import { PaneHeader, HeaderIconButton } from '$lib/ui';
   import { expoOutTransition } from '$lib/ui/motion';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ConversationPane from './ConversationPane.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -86,6 +87,19 @@
   const threadMessage = $derived(
     store.threadEvents.find((entry) => isMessagePostedEvent(entry.event))?.event
   );
+  const rootMessage = $derived(
+    store.threadEvents.find((entry) => entry.id === threadRootEventId)?.event
+  );
+  const participants = $derived(
+    isMessagePostedEvent(rootMessage) ? (rootMessage.threadParticipants ?? []) : []
+  );
+  // The summary includes replies outside the loaded message window.
+  const participantCount = $derived(
+    isMessagePostedEvent(rootMessage)
+      ? Math.max(rootMessage.threadParticipantCount ?? 0, participants.length)
+      : 0
+  );
+  const visibleParticipants = $derived(participants.slice(0, 3));
   let canPost = $derived(
     threadingMode !== RoomThreadingMode.DISABLED &&
       (isMessagePostedEvent(threadMessage)
@@ -164,6 +178,35 @@
     {#snippet header()}
       <PaneHeader title={threadTitle} onBack={onClose} backLabel={m('room.thread.back_to_room')}>
         {#snippet actions()}
+          {#if participantCount > 0}
+            <div
+              class="flex items-center"
+              role="group"
+              aria-label={m('room.thread.participants', { count: participantCount })}
+              data-testid="thread-header-participants"
+            >
+              {#each visibleParticipants as participant (participant.id)}
+                {@const name = participant.deleted
+                  ? m('common.deleted_user')
+                  : participant.displayName || participant.login || m('common.unknown_user')}
+                <button
+                  type="button"
+                  class="pane-header-icon-button"
+                  title={name}
+                  aria-label={name}
+                  disabled={!onOpenProfile || participant.deleted}
+                  onclick={() => onOpenProfile?.(participant.id)}
+                >
+                  <UserAvatar user={participant} size="sm" />
+                </button>
+              {/each}
+              {#if participantCount > visibleParticipants.length}
+                <span class="px-1 text-xs text-muted" aria-hidden="true"
+                  >+{participantCount - visibleParticipants.length}</span
+                >
+              {/if}
+            </div>
+          {/if}
           <HeaderIconButton
             icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}
             label={threadFollow.following ? m('room.thread.unfollow') : m('room.thread.follow')}
