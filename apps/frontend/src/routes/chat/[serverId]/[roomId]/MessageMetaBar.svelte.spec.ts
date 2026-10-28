@@ -1,5 +1,8 @@
 import '../../../../app.css';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
@@ -17,6 +20,8 @@ const mocks = vi.hoisted(() => ({
     copyMessageLink: vi.fn()
   }
 }));
+
+afterEach(() => setReactiveLocale('en-GB'));
 
 vi.mock('$lib/navigation', () => ({
   segmentToServerId: (segment: string) => (segment === '-' ? 'server-1' : 'remote-server'),
@@ -95,14 +100,7 @@ function buildAction({
   });
 }
 
-function reaction(
-  overrides: Partial<{
-    emoji: string;
-    count: number;
-    hasReacted: boolean;
-    users: { id: string; displayName: string }[];
-  }> = {}
-) {
+function reaction(overrides: Partial<ReactionSummaryView> = {}): ReactionSummaryView {
   return {
     emoji: 'thumbsup',
     count: 2,
@@ -403,30 +401,25 @@ describe('MessageMetaBar', () => {
     const { container } = render(MessageMetaBar, {
       props: {
         ...baseProps,
-        reactions: [reaction()]
+        reactions: [reaction({ emoji: 'thumbsup::skin-tone-4' })]
       }
     });
 
-    const wrapper = q(container, 'button[aria-label="👍 2"]')!.parentElement as HTMLElement;
+    const wrapper = q(container, 'button[aria-label="👍🏽 2"]')!.parentElement as HTMLElement;
 
     wrapper.dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
 
     const tooltip = q(container, '[role="tooltip"]')!;
     const reactionName = q(tooltip, 'strong')!;
-    const userNames = Array.from(
-      tooltip.querySelectorAll<HTMLElement>('[data-testid="reaction-tooltip-user"]')
-    ).map((el) => el.textContent?.trim());
 
     expect(reactionName.textContent?.trim()).toBe('Thumbs up');
-    expect(userNames).toEqual(['Alice', 'Bob']);
+    expect(q(tooltip, '.text-4xl')?.textContent?.trim()).toBe('👍🏽');
+    expect(tooltip.textContent?.replace(/\s+/g, ' ').trim()).toContain(
+      'Thumbs up by Alice and Bob'
+    );
     expect(tooltip.classList.contains('menu')).toBe(true);
     expect(q(tooltip, '.menu-section')).not.toBeNull();
-    expect(
-      Array.from(
-        tooltip.querySelectorAll<HTMLElement>('[data-testid="reaction-tooltip-user"]')
-      ).every((el) => el.classList.contains('break-words'))
-    ).toBe(true);
     expect(reactionName.classList.contains('font-semibold')).toBe(true);
     expect(tooltip.innerHTML).not.toContain('whitespace-nowrap');
   });
@@ -457,23 +450,77 @@ describe('MessageMetaBar', () => {
 
     const tooltip = q(container, '[role="tooltip"]')!;
     const content = q(tooltip, '.menu-section')!;
-    const reactingUsers = q(tooltip, 'span.text-muted')!;
-    const userNames = Array.from(
-      tooltip.querySelectorAll<HTMLElement>('[data-testid="reaction-tooltip-user"]')
-    ).map((el) => el.textContent?.trim());
+    const reactingUsers = q(tooltip, '[data-testid="reaction-tooltip-users"]')!;
 
     expect(content.classList.contains('min-w-0')).toBe(true);
     expect(tooltip.classList.contains('menu')).toBe(true);
     expect(tooltip.classList.contains('w-64')).toBe(true);
-    expect(reactingUsers.classList.contains('min-w-0')).toBe(true);
-    expect(userNames).toEqual([
-      'Azerbaijan',
-      'German_Noob_With_An_Absurdly_Long_Name',
-      '2tap2b',
-      'muchtin',
-      'patry'
-    ]);
-    expect(reactingUsers.textContent).toContain('+ 67 more');
+    expect(reactingUsers.textContent).toContain('and +67');
+    expect(reactingUsers.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Azerbaijan, German_Noob_With_An_Absurdly_Long_Name, 2tap2b, muchtin, patry and +67'
+    );
+  });
+
+  it.each([
+    ['de-DE', 'Thumbs up von Alice und Bob'],
+    ['ja-JP', 'Alice、BobからのThumbs up']
+  ] as const)('uses sentence order and list punctuation for %s', async (locale, expected) => {
+    await loadLocaleMessages(locale);
+    setReactiveLocale(locale);
+    const { container } = render(MessageMetaBar, {
+      props: { ...baseProps, reactions: [reaction()] }
+    });
+    q(container, 'button[aria-label="👍 2"]')!.parentElement!.dispatchEvent(
+      new MouseEvent('mouseenter')
+    );
+    flushSync();
+    expect(q(container, '[role="tooltip"] p')?.textContent?.trim()).toBe(expected);
+  });
+
+  it('keeps commas with names when the sentence wraps', () => {
+    const users = ['Alice', 'Bob', 'Charles', 'Diana', 'Elliot'].map((displayName, index) => ({
+      id: String(index),
+      displayName
+    }));
+    const { container } = render(MessageMetaBar, {
+      props: { ...baseProps, reactions: [reaction({ count: 17, users })] }
+    });
+    q(container, 'button[aria-label="👍 17"]')!.parentElement!.dispatchEvent(
+      new MouseEvent('mouseenter')
+    );
+    flushSync();
+    const tooltip = q(container, '[role="tooltip"]')!;
+    const names = q(tooltip, '[data-testid="reaction-tooltip-users"]')!;
+    const text = names.firstChild!;
+    for (const width of [190, 220, 256]) {
+      tooltip.style.width = `${width}px`;
+      const sentence = text.textContent!;
+      for (let index = 0; index < sentence.length; index++) {
+        if (sentence[index] !== ',') continue;
+        const range = document.createRange();
+        range.setStart(text, index - 1);
+        range.setEnd(text, index + 1);
+        expect(range.getClientRects()).toHaveLength(1);
+      }
+    }
+  });
+
+  it('renders account names as text and retains bot identity', () => {
+    const name = '<img src=x onerror=alert(1)> {emoji}';
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        reactions: [reaction({ count: 1, users: [{ id: 'bot', displayName: name, isBot: true }] })]
+      }
+    });
+    q(container, 'button[aria-label="👍 1"]')!.parentElement!.dispatchEvent(
+      new MouseEvent('mouseenter')
+    );
+    flushSync();
+    const tooltip = q(container, '[role="tooltip"]')!;
+    expect(q(tooltip, '[data-testid="reaction-tooltip-users"]')?.textContent).toBe(`${name} (BOT)`);
+    expect(tooltip.querySelector('img')).toBeNull();
+    expect(tooltip.querySelectorAll('strong')).toHaveLength(1);
   });
 
   it('keeps the reaction tooltip available when the reaction button is disabled', () => {
@@ -497,7 +544,7 @@ describe('MessageMetaBar', () => {
 
     const tooltip = q(container, '[role="tooltip"]')!;
     expect(q(tooltip, 'strong')?.textContent?.trim()).toBe('Heart');
-    expect(q(tooltip, '[data-testid="reaction-tooltip-user"]')?.textContent?.trim()).toBe('Alice');
+    expect(q(tooltip, '[data-testid="reaction-tooltip-users"]')?.textContent?.trim()).toBe('Alice');
   });
 
   it('routes reaction pill clicks through shared reaction actions', async () => {

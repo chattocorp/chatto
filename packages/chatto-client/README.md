@@ -190,6 +190,22 @@ reads a partial name with the same opening boundary for autocomplete. Parse
 Markdown first and scan only prose; leave code and URLs unchanged. Custom emoji
 assets are not supported yet.
 
+Skin-tone shortcodes use Slack syntax: `:thumbsup::skin-tone-4:` displays as
+👍🏽. Tones range from 2 (light) to 6 (dark). Supported mixed-tone pairs use two
+numbers in one suffix, such as `:couple::skin-tone-2-6:`. Unsupported combinations
+stay literal. Reaction APIs take the same name without the surrounding colons.
+Older servers can reject these reaction names; no connection-floor increase is
+required. Existing names and Unicode message content remain unchanged.
+
+`emojiNameFromUnicode(emoji)` returns a stable reaction name for a selected
+Unicode emoji, including its tone. Unknown sequences return `undefined`.
+Use this helper for new selections; keep existing reaction names unchanged.
+
+`mise codegen-emoji` builds the client tone map, server map, and converter map
+(`tools/emoji-map.json`) from gemoji and the bundled Unicode Emoji 15.0 data.
+Converters should look up complete names in this map rather than append a
+modifier to a base glyph. The generated maps require no network calls at runtime.
+
 For a send that needs retry safety, retain the prepared operation:
 
 ```ts

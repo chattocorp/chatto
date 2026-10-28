@@ -4,7 +4,17 @@
  */
 
 import { gemoji } from 'gemoji';
-import { resolveEmoji } from '@chatto/client/messaging/emojiShortcodes';
+import { resolveEmoji, emojiNameFromUnicode } from '@chatto/client/messaging/emojiShortcodes';
+import type { EmojiTone } from '$lib/emojiTones';
+
+/** Apply the picker default only to unmodified names with a supported variant. */
+export function emojiWithTone(name: string, tone: EmojiTone): { name: string; emoji: string } {
+  const variant =
+    tone && !name.includes('::') ? resolveEmoji(`${name}::skin-tone-${tone}`) : undefined;
+  if (variant?.kind === 'unicode') return variant;
+  const base = resolveEmoji(name);
+  return { name, emoji: base.kind === 'unicode' ? base.emoji : `:${name}:` };
+}
 
 export type EmojiResult = {
   name: string;
@@ -98,33 +108,13 @@ export function searchEmojis(query: string, limit = 10): EmojiResult[] {
 export const PINNED_REACTIONS = ['👍', '👋', '🤣', '🙏'] as const;
 
 /**
- * Reverse lookup: Unicode emoji → shortcode name.
- * Built from gemoji data at module load. Uses names[0] (primary name)
- * except for +1/-1 which use their aliases (thumbsup/thumbsdown)
- * since +/- characters are problematic in NATS KV keys.
- */
-const emojiToNameMap: Record<string, string> = (() => {
-  const map: Record<string, string> = {};
-  for (const e of gemoji) {
-    const primary = e.names[0];
-    if (primary === '+1' || primary === '-1') {
-      // Use the alias that avoids + and - characters
-      map[e.emoji] = e.names[1]; // thumbsup / thumbsdown
-    } else {
-      map[e.emoji] = primary;
-    }
-  }
-  return map;
-})();
-
-/**
  * Convert a Unicode emoji to its shortcode name for sending to the server.
  * Returns undefined if the emoji is not recognized.
  * @example emojiToName('👍') // 'thumbsup'
  * @example emojiToName('❤️') // 'heart'
  */
 export function emojiToName(emoji: string): string | undefined {
-  return Object.hasOwn(emojiToNameMap, emoji) ? emojiToNameMap[emoji] : undefined;
+  return emojiNameFromUnicode(emoji);
 }
 
 const EMOJI_DISPLAY_NAME_OVERRIDES: Record<string, string> = {
@@ -133,13 +123,15 @@ const EMOJI_DISPLAY_NAME_OVERRIDES: Record<string, string> = {
 };
 
 /**
- * Human-readable label for a reaction emoji or shortcode.
+ * Human-readable base label for a reaction emoji or shortcode. Supported skin
+ * tones stay visible in the glyph rather than leaking suffix syntax into labels.
  * @example getEmojiDisplayName('thumbsup') // 'Thumbs up'
  * @example getEmojiDisplayName('🚀') // 'Rocket'
  */
 export function getEmojiDisplayName(emojiOrName: string): string {
   const emoji = getEmojiByName(emojiOrName) ?? emojiOrName;
-  const name = emojiToName(emoji) ?? emojiOrName;
+  const canonicalName = emojiToName(emoji);
+  const name = canonicalName ? canonicalName.split('::')[0] : emojiOrName;
   const override = Object.hasOwn(EMOJI_DISPLAY_NAME_OVERRIDES, name)
     ? EMOJI_DISPLAY_NAME_OVERRIDES[name]
     : undefined;

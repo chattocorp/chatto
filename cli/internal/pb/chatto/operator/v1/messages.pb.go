@@ -283,7 +283,9 @@ type ImportReactionRequest struct {
 	// Existing user shown as the reactor.
 	UserId string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Case-sensitive reaction name: 1–128 ASCII letters, digits, underscores,
-	// plus signs, or hyphens, without colons. Unknown names are stored unchanged.
+	// plus signs, or hyphens, without surrounding colons. Known emoji also accept
+	// valid Slack-style suffixes, such as thumbsup::skin-tone-4, within the same
+	// length limit. Unknown plain names are stored unchanged.
 	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

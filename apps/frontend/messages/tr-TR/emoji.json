@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{users} tarafından {emoji}",
+    "tone_default": "Varsayılan sarı",
+    "tone_light": "Açık",
+    "tone_medium_light": "Orta açık",
+    "tone_medium": "Orta",
+    "tone_medium_dark": "Orta koyu",
+    "tone_dark": "Koyu",
     "search_placeholder": "Emoji ara...",
     "no_results": "Hiçbir emoji bulunamadı",
     "recently_used": "Son kullanılanlar"

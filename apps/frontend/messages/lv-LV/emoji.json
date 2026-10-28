@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} no {users}",
+    "tone_default": "Noklusējuma dzeltenais",
+    "tone_light": "Gaišs",
+    "tone_medium_light": "Vidēji gaišs",
+    "tone_medium": "Vidējs",
+    "tone_medium_dark": "Vidēji tumšs",
+    "tone_dark": "Tumšs",
     "search_placeholder": "Meklēt emocijzīmes...",
     "no_results": "Emocijas netika atrastas",
     "recently_used": "Nesen izmantotās"

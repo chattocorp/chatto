@@ -49,6 +49,22 @@ Type `:wave:`, `:heart:`, or `:+1:` to show 👋, ❤️, or 👍 after sending.
 Names are case-sensitive. Unknown names, such as `:custom-party:`, stay as text.
 You can also type or select Unicode emoji as before.
 
+Add a skin tone with `:thumbsup::skin-tone-4:` to show 👍🏽. Tone numbers range
+from 2 (light) to 6 (dark). Compound emoji also work, for example
+`:woman_health_worker::skin-tone-5:` shows 👩🏾‍⚕️. Unsupported combinations,
+such as `:heart::skin-tone-4:`, stay as text.
+
+In the emoji picker, select an emoji to open its skin-tone choices. Choose yellow
+or one of five skin tones. Back or Escape returns to the previous search. Recently used
+emoji select their exact tone immediately.
+In autocomplete, accept an emoji with Enter, Tab, or a click to open its skin-tone
+popup. Your saved tone is highlighted. Use Up and Down to choose a tone, then
+Enter or Tab to insert it. Escape returns to the emoji suggestions. You can also
+click a tone. Emoji without skin tones insert immediately.
+Chatto remembers the choice in this browser and uses it for supported picker
+and autocomplete choices, including reactions. Recently used emoji keep their
+original tones. A shortcode that you type explicitly keeps its specified tone.
+
 Separate shortcodes from letters, numbers, combining marks, and literal underscores.
 For example, `omg:poop:foo` stays as text, while `omg :poop: foo` shows an emoji.
 Punctuation and adjacent tags work: `(:wave:)!` shows (👋)!, and `:wave::heart:`

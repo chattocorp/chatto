@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} van {users}",
+    "tone_default": "Standaardgeel",
+    "tone_light": "Licht",
+    "tone_medium_light": "Middellicht",
+    "tone_medium": "Gemiddeld",
+    "tone_medium_dark": "Middeldonker",
+    "tone_dark": "Donker",
     "search_placeholder": "Emoji's zoeken...",
     "no_results": "Geen emoji's gevonden",
     "recently_used": "Recent gebruikt"

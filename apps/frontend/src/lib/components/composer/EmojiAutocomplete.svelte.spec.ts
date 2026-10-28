@@ -1,7 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { emojiPreferences } from '$lib/state/emojiPreferences.svelte';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import EmojiAutocomplete from './EmojiAutocomplete.svelte';
+import { page } from 'vitest/browser';
+
+beforeEach(() => {
+  emojiPreferences.tone = 0;
+});
+afterEach(() => {
+  emojiPreferences.tone = 0;
+});
 
 function renderAutocomplete(props: {
   query: string;
@@ -26,6 +35,98 @@ function shortcodes(container: HTMLElement): string[] {
 }
 
 describe('EmojiAutocomplete', () => {
+  it('opens variants for the chosen result and selects a tone with the keyboard', () => {
+    const onSelect = vi.fn();
+    const { container, component } = renderAutocomplete({ query: 'Thum', onSelect });
+    const variants = () =>
+      [...container.querySelectorAll('button .text-xl')].map((glyph) => glyph.textContent?.trim());
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
+    flushSync();
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+    flushSync();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(variants()).toEqual(['👎', '👎🏻', '👎🏼', '👎🏽', '👎🏾', '👎🏿']);
+    for (let i = 0; i < 3; i++) {
+      component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    }
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onSelect).toHaveBeenCalledWith('👎🏽', '-1::skin-tone-4');
+    expect(emojiPreferences.tone).toBe(4);
+  });
+
+  it('does not offer skin tones for smileys', () => {
+    const onSelect = vi.fn();
+    const { component } = renderAutocomplete({ query: 'smile', onSelect });
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('😄', 'smile');
+  });
+  it('inserts a variant without moving focus or the editor cursor before the callback', async () => {
+    const editor = document.createElement('input');
+    document.body.append(editor);
+    try {
+      const onSelect = vi.fn();
+      const { container, component } = renderAutocomplete({ query: 'wave', onSelect });
+      editor.value = ':wave';
+      editor.focus();
+      editor.setSelectionRange(5, 5);
+      component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
+      flushSync();
+      await page.elementLocator(container.querySelectorAll('button')[5]).click();
+      expect(document.activeElement).toBe(editor);
+      expect(editor.selectionStart).toBe(5);
+      expect(onSelect).toHaveBeenCalledOnce();
+      expect(onSelect).toHaveBeenCalledWith('👋🏿', 'wave::skin-tone-6');
+    } finally {
+      editor.remove();
+    }
+  });
+
+  it('shows a short base label while selecting the preferred tone', () => {
+    const onSelect = vi.fn();
+    const { container, component } = renderAutocomplete({ query: 'wave', onSelect });
+    emojiPreferences.tone = 5;
+    flushSync();
+    expect(container.textContent).toContain(':wave:');
+    expect(container.textContent).not.toContain('skin-tone-');
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    flushSync();
+    expect(container.querySelector('.menu-item-active')?.textContent).toContain('👋🏾');
+    expect(onSelect).not.toHaveBeenCalled();
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+    expect(onSelect).toHaveBeenCalledWith('👋🏾', 'wave::skin-tone-5');
+  });
+  it('Escape returns to the selected emoji without inserting or changing the saved tone', () => {
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+    const { container, component } = renderAutocomplete({ query: 'Thum', onSelect, onClose });
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
+    flushSync();
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }));
+    flushSync();
+    expect(container.querySelector('.menu-item-active')?.textContent).toContain(':thumbsdown:');
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(emojiPreferences.tone).toBe(0);
+  });
+  it('shows familiar names for thumb aliases', () => {
+    const { container } = renderAutocomplete({ query: 'Thum' });
+    expect(container.textContent).toContain(':thumbsup:');
+    expect(container.textContent).toContain(':thumbsdown:');
+    expect(container.textContent).not.toContain(':+1:');
+  });
+  it('returns to search when the draft query changes during tone selection', async () => {
+    const onSelect = vi.fn();
+    const { container, component, rerender } = renderAutocomplete({ query: 'wave', onSelect });
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
+    flushSync();
+    await rerender({ query: 'fire', onSelect, onClose: () => {} });
+    expect(shortcodes(container)[0]).toBe('fire');
+    component.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(onSelect).toHaveBeenCalledWith('🔥', 'fire');
+  });
   describe('search', () => {
     it('renders nothing when no emoji matches', () => {
       const { container } = renderAutocomplete({ query: 'zzzznothing' });

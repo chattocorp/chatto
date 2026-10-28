@@ -35,6 +35,16 @@ describe('renderInlineMarkdown', () => {
 
 describe('renderMarkdown', () => {
   describe('emoji shortcodes', () => {
+    it('renders skin-tone compounds only in prose and retains invalid combinations', async () => {
+      const source =
+        ':thumbsup::skin-tone-4: :woman_health_worker::skin-tone-5: :heart::skin-tone-4: `:wave::skin-tone-2:`';
+      const expected = '👍🏽 👩🏾‍⚕️ :heart::skin-tone-4: <code>:wave::skin-tone-2:</code>';
+      expect(renderInlineMarkdown(source)).toBe(expected);
+      expect(await renderMarkdown(source)).toBe(`<p>${expected}</p>\n`);
+      const url = 'https://example.com/:wave::skin-tone-4:';
+      expect(await renderMarkdown(url)).toContain(`>${url}</a>`);
+    });
+
     it('requires Unicode word boundaries without blocking punctuation or adjacent tags', async () => {
       const source =
         'omg:poop:foo hello:wave: :wave:hello ' +
