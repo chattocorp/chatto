@@ -210,6 +210,7 @@ func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
 
 	appendRoleDecisions(RoleEveryone, DefaultAnnouncementsEveryoneDenials(), DecisionDeny)
 	appendRoleDecisions(RoleAdmin, DefaultAnnouncementsAdminPermissions(), DecisionAllow)
+	appendRoleDecisions(RoleOwner, []Permission{PermMessagePost}, DecisionAllow)
 	return decisions
 }
 

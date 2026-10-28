@@ -89,8 +89,10 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
 		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
 	}
-	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
-		t.Fatalf("admin message.post decision on return = %s, want %s", got, DecisionAllow)
+	for _, role := range []string{RoleAdmin, RoleOwner} {
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, role, PermMessagePost); got != DecisionAllow {
+			t.Fatalf("%s message.post decision on return = %s, want %s", role, got, DecisionAllow)
+		}
 	}
 
 	created, createdSeq, err := core.EventPublisher.SubjectEvents(
@@ -121,10 +123,11 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if err != nil {
 		t.Fatalf("read room group membership: %v", err)
 	}
-	if len(created) != 1 || len(added) != 1 || len(denied) != 1 || len(granted) != 1 {
-		t.Fatalf("created events = %d, added events = %d, denied events = %d, granted events = %d; want 1 each", len(created), len(added), len(denied), len(granted))
+	if len(created) != 1 || len(added) != 1 || len(denied) != 1 || len(granted) != 2 {
+		t.Fatalf("created events = %d, added events = %d, denied events = %d, granted events = %d; want 1, 1, 1, 2", len(created), len(added), len(denied), len(granted))
 	}
-	if addedSeq != createdSeq+1 || grantedSeq != addedSeq+1 || deniedSeq != grantedSeq+1 {
+	// Defaults are ordered by role: admin grant, everyone denial, owner grant.
+	if addedSeq != createdSeq+1 || deniedSeq != addedSeq+2 || grantedSeq != deniedSeq+1 {
 		t.Fatalf("room creation sequences = created %d, added %d, denied %d, granted %d; want one contiguous batch", createdSeq, addedSeq, deniedSeq, grantedSeq)
 	}
 }

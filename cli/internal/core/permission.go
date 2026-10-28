@@ -474,7 +474,8 @@ const AnnouncementsRoomName = "announcements"
 
 // DefaultAnnouncementsEveryoneDenials returns the room-scope denials for the
 // built-in announcements room. This blocks root posts unless a named role or
-// direct user has a room-local allow. Effective owners bypass the decision.
+// direct user has a room-local allow. Effective owners bypass the decision
+// while privileged mode is active.
 func DefaultAnnouncementsEveryoneDenials() []Permission {
 	return []Permission{PermMessagePost}
 }

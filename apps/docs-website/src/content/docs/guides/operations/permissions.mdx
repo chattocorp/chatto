@@ -58,8 +58,8 @@ roles does not change which setting wins.
 
 Moderators and admins get their member permissions from `everyone`. A new
 server also makes the `announcements` room read-only: in that room, it denies
-`message.post` for `everyone` and allows it for `admin`. Owners can post there
-only in privileged mode.
+`message.post` for `everyone` and allows it for `admin` and `owner`. Owners can
+post there without privileged mode.
 
 ## Privileged mode
 
@@ -253,8 +253,9 @@ Make these changes on an upgraded server:
 - **Allow `bot.create`** for the roles that can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.
-- **Allow `message.post`** for `admin` in the `announcements` room if admins
-  must post there. Until you do this, admins cannot post there.
+- **Allow `message.post`** for `admin` and `owner` in the `announcements` room
+  if they must post there without privileged mode. New servers have these
+  grants; existing servers keep their current settings.
 - **Check `message.post`.** It now also allows thread replies, so a deny of
   `message.post-in-thread` does not stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
@@ -264,9 +265,9 @@ Make these changes on an upgraded server:
   Administrators, moderators, and owners must now enable
   [privileged mode](#privileged-mode) to use their administrative permissions.
   This also applies to custom `room.create` grants. Owners also need privileged
-  mode to see, join, or read rooms that deny this to `everyone`, and to post in
-  the `announcements` room. Give an owner the `admin` role or a room-level allow
-  if they need this access during normal use.
+  mode to see, join, or read rooms that deny this to `everyone` when no explicit
+  grant allows access. Give the `owner` role a room-level allow if owners need
+  this access during normal use.
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
