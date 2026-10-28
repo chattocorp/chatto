@@ -157,7 +157,13 @@ export function createTurnHandler(
         const prompt = JSON.stringify({
           currentDateTime: new Date().toISOString(),
           currentMessages,
-          ...(completed ? { subagentResult: completed } : {})
+          ...(completed
+            ? {
+                subagentResult: completed,
+                instruction:
+                  'This is an automatic subagent completion, not a new user request. If you already answered using this result, end with no assistant text. Do not acknowledge completion, repeat the answer, or say that you already answered. Otherwise, use the result to finish the original request at the requested length.'
+              }
+            : {})
         });
         // Pi's callback is synchronous. Serialize writes and join them before leaving
         // the turn. A failed write stops the model; never retry an uncertain post.

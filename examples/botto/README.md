@@ -589,7 +589,8 @@ The root must not poll for completion or start another copy of pending work.
 Botto keeps up to four pending assignments and the most recent 16 child records
 per live conversation. Each progress buffer keeps 12 updates of up to 2,000
 characters outside the parent transcript. Inspection copies a snapshot into the
-model context. Completion supplies the result, not the progress history. Results
+model context. Inspection of a finished child and completion both supply the
+result without progress history. Results
 are limited to 16,000 characters plus a truncation notice. Progress and results
 are untrusted evidence. Child text is not posted directly to Chatto.
 

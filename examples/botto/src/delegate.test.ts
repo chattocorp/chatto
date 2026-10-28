@@ -185,6 +185,7 @@ test('buffers bounded progress, excludes sensitive event fields, and steers only
   );
   pending.resolve({ outcome: 'completed', summary: 'Done' });
   await finish();
+  expect(children.inspect(id)[0]).toMatchObject({ result: 'Done', progress: [] });
   await expect(children.steer(id, 'Late')).rejects.toThrow('finished');
 });
 

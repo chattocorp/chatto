@@ -147,6 +147,8 @@ export class Subagents {
         snapshot.result = 'Subagent did not complete. Do not infer findings.';
       } finally {
         clearTimeout(timer);
+        // Finished children need only their result, not a second copy in progress.
+        snapshot.progress = [];
         if (!this.closed && !this.ctx.signal.aborted) {
           const result = { ...snapshot, progress: [] };
           this.completions.push(async () => {
@@ -185,12 +187,8 @@ export class Subagents {
   async close(): Promise<void> {
     this.closed = true;
     for (const child of this.children.values()) child.handle.cancel();
-    await Promise.all(
-      [...this.children.values()].map(async (child) => {
-        await child.handle[Symbol.asyncDispose]();
-        await child.settled;
-      })
-    );
+    // Each settlement already joins invocation disposal before it completes.
+    await Promise.all([...this.children.values()].map((child) => child.settled));
     this.completions.length = 0;
     this.pendingCount = 0;
   }
