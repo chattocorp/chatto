@@ -460,7 +460,7 @@ export async function setMotdOnRemote(
  * Starts sign-in from the server's signed-out view and returns the sign-in popup.
  * Address lookup opens this view before the helper runs.
  */
-export async function joinServerAndStartSignIn(page: Page): Promise<Page> {
+export async function startServerSignIn(page: Page): Promise<Page> {
   const logIn = page
     .getByTestId('server-signed-out')
     .getByRole('button', { name: 'Continue on server' });
@@ -547,7 +547,7 @@ export async function connectRemoteInstance(
   await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Find server' }).click();
-  const popup = await joinServerAndStartSignIn(page);
+  const popup = await startServerSignIn(page);
   await popup.waitForEvent('close');
   await expectSignedOutViewGone(page);
 

@@ -6,7 +6,7 @@ import {
   createUserOnRemote,
   getRoomOnRemote,
   expectSignedOutViewGone,
-  joinServerAndStartSignIn,
+  startServerSignIn,
   postMessageOnRemote,
   startSecondServer,
   stopSecondServer
@@ -286,10 +286,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostname);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByTestId('server-signed-out')).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    return joinServerAndStartSignIn(page);
+    return startServerSignIn(page);
   }
 
   test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({

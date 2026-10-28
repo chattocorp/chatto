@@ -642,28 +642,12 @@ describe('Server Directory page', () => {
         iconUrl: customProfile.iconUrl
       });
       expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
-    }
-  );
-
-  it('probes a custom address and opens its server', async () => {
-    mocks.loadServerDirectory.mockResolvedValue({
-      entries: [],
-      failedSourceCount: 0,
-      sourceCount: 2
-    });
-    mocks.getPublicServerInfo.mockResolvedValue(profile('Custom'));
-
-    const { container } = render(Page);
-    await enterServerAddress(container, 'custom.example');
-
-    await vi.waitFor(() => {
       expect(mocks.getPublicServerInfo).toHaveBeenCalledWith(
         'https://custom.example',
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/custom.example', { replaceState: false });
-    });
-  });
+    }
+  );
 
   it('replaces first-run onboarding with known servers without registration', async () => {
     mocks.servers = [];

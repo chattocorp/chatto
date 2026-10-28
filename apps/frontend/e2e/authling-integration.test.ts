@@ -2,7 +2,7 @@ import { test as base, expect } from '@playwright/test';
 import { startStack, stopStack, type TestStack } from '../../../authling/e2e/fixtures/stack';
 import { waitForVerificationCode } from '../../../authling/e2e/fixtures/mailpit';
 import { serverBaseURLForTest, startServer, stopServer, type ServerInfo } from './fixtures/server';
-import { expectSignedOutViewGone, joinServerAndStartSignIn } from './fixtures/multiServer';
+import { expectSignedOutViewGone, startServerSignIn } from './fixtures/multiServer';
 import * as routes from './routes';
 
 const test = base.extend<{ authling: TestStack; server: ServerInfo }>({
@@ -191,7 +191,7 @@ test('links a remote identity in one popup and refreshes the original client', a
     await clientPage.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await clientPage.getByLabel('Server URL').fill(server.baseURL);
     await clientPage.getByRole('button', { name: 'Find server' }).click();
-    const authPopup = await joinServerAndStartSignIn(clientPage);
+    const authPopup = await startServerSignIn(clientPage);
     await authPopup.getByLabel('Username or Email').fill('remote-link-user');
     await authPopup.getByLabel('Password', { exact: true }).fill(password);
     await authPopup.getByRole('button', { name: 'Sign In', exact: true }).click();

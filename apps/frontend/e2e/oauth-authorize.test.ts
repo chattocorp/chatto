@@ -5,7 +5,7 @@ import {
   createUserOnRemote,
   getViewerOnRemote,
   expectSignedOutViewGone,
-  joinServerAndStartSignIn,
+  startServerSignIn,
   startSecondServer,
   stopSecondServer
 } from './fixtures/multiServer';
@@ -117,10 +117,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByTestId('server-signed-out')).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    let remoteAuthPage = await joinServerAndStartSignIn(page);
+    let remoteAuthPage = await startServerSignIn(page);
 
     // 4. The popup should land on the remote instance's OAuth login page.
     // The flow: redirect to remote's /oauth/authorize → /login?redirect=/oauth/authorize
@@ -200,10 +197,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByTestId('server-signed-out')).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    const secondRemoteAuthPage = await joinServerAndStartSignIn(page);
+    const secondRemoteAuthPage = await startServerSignIn(page);
     await expect(secondRemoteAuthPage).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -266,10 +260,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByTestId('server-signed-out')).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    const remoteAuthPage = await joinServerAndStartSignIn(page);
+    const remoteAuthPage = await startServerSignIn(page);
     await expect(remoteAuthPage.locator('input[autocomplete="username"]')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -360,10 +351,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByTestId('server-signed-out')).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    const blockedPopup = await joinServerAndStartSignIn(page);
+    const blockedPopup = await startServerSignIn(page);
     await expect(blockedPopup.locator('body')).toContainText('invalid_client', {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
