@@ -11,7 +11,10 @@ export function fadePageContent(): () => void {
     '[data-navigation-content]:not(:has([data-navigation-content]))'
   );
   if (motion.matches || !element) return () => {};
-  const animation = element.animate([{ opacity: 0.55 }, { opacity: 1 }], {
+  // A thread or mobile sidebar can already dim this pane. Fade toward that
+  // opacity instead of briefly brightening the inactive room behind it.
+  const opacity = Number(getComputedStyle(element).opacity);
+  const animation = element.animate([{ opacity: opacity * 0.55 }, { opacity }], {
     duration: 140,
     easing: 'ease-out'
   });

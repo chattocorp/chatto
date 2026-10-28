@@ -52,3 +52,12 @@ it('uses the page wrapper when there is no nested room pane', () => {
   stop = fadePageContent();
   expect(root.getAnimations()).toHaveLength(1);
 });
+
+it('preserves the dimmed room opacity when navigation opens a thread overlay', () => {
+  const { main } = fixture();
+  main.style.opacity = '0.3';
+  stop = fadePageContent();
+  const frames = (main.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+  expect(Number(frames[0].opacity)).toBeCloseTo(0.165);
+  expect(Number(frames[1].opacity)).toBeCloseTo(0.3);
+});
