@@ -541,8 +541,10 @@ responses can describe images, and those responses remain in the transcript.
 The root agent can call `delegate` with a self-contained `task`, optional text
 `context`, and optional `agent` profile name. Each call starts an ordinary Runling
 child task and a fresh agent session. Without a profile, it uses the main agent's
-model and reasoning settings. The root waits for the result and decides how to
-use it in its answer. Delegation is optional; image inspection stays with the root.
+model and reasoning settings. The tool returns a child ID immediately. The root
+can acknowledge the work, finish its turn, and respond to new user messages while
+the child works. Completion starts another parent turn automatically; no new user
+message is required. Delegation is optional; image inspection stays with the root.
 
 Define named workers in `botto.toml`:
 
@@ -578,16 +580,30 @@ The task and context go to the selected profile's model provider, or the main
 agent's provider for generic delegation; web queries
 and fetch requests go to Exa when those tools are used.
 
-Each child shares the turn deadline and cancellation. Cancelling its tool call
-also cancels the child and closes its session. There is no separate child timeout,
-background execution, automatic retry, or saved child transcript. Concurrent calls
-use separate sessions. Results are limited to 16,000 characters, with a notice
-when truncated, and are treated as untrusted evidence. Task arguments and results
-remain in the root's private transcript. Child text is not posted directly to Chatto.
+The root can use `inspect_subagents` to list children or inspect one child's recent
+text, tool activity, and result. `steer_subagent` queues a clarification, revised
+constraint, or progress question. Queued does not mean read: steering cannot
+interrupt an active model response or tool call. IDs belong to one conversation.
+The root must not poll for completion or start another copy of pending work.
 
-Runling's existing `taskTool` and agent-session APIs provide child execution,
-activity, and combined usage and cost. Journal entries omit task/context and reply
-content. Delegation adds model calls and can increase latency and cost.
+Botto keeps up to four pending assignments and the most recent 16 child records
+per live conversation. Each progress buffer keeps 12 updates of up to 2,000
+characters outside the parent transcript. Inspection copies a snapshot into the
+model context. Inspection of a finished child and completion both supply the
+result without progress history. Results
+are limited to 16,000 characters plus a truncation notice. Progress and results
+are untrusted evidence. Child text is not posted directly to Chatto.
+
+Each child has its own deadline, using `runtime.turn_timeout_ms`. Finishing a
+parent turn leaves its children running. Root failure or shutdown cancels children
+and waits for session cleanup. There is no automatic retry or saved child session;
+interrupted assignments and completion replies are not replayed after restart.
+Completion turns read fresh thread context and use the usual reply and typing flow.
+
+Runling's ordinary agent tasks provide child execution, output, steering, and
+combined usage and cost. Explicit task output and steering are recorded in the
+run journal, including child assistant text and steering text. Progress omits
+reasoning, tool arguments, and tool results. Delegation adds model calls and cost.
 
 ### External services and storage
 
@@ -643,10 +659,12 @@ Separate instances must use separate data directories.
 Existing transcript filenames and delivery files need no
 migration.
 
-Each message batch runs as one finite root execution. After the answer and task
-cleanup, the root returns. A later batch reactivates the retained workflow ID;
-there is no idle conversation task to interrupt on shutdown. The inbox serializes
-batches for each thread.
+Each conversation execution ends after its parent turns, child tasks, and
+completion replies finish. While children work, later batches enter the same root.
+The root serializes user turns and completion turns, so only one parent session
+writes the transcript at a time. A later batch reactivates a finished workflow ID.
+Idle conversations have no task to interrupt on shutdown. Active child work counts
+toward `runtime.max_threads`; excess messages stay queued in the delivery ledger.
 
 Runling saves workflow state after execution, every 60 seconds, and on graceful shutdown.
 After a crash, a newly created run can be absent from the snapshot; later input
@@ -708,10 +726,11 @@ mise x -- pnpm --filter @chatto/example-botto test
 recoverable conversation task. The Runling CLI owns serving, signal handling, and shutdown.
 `src/source.ts` owns connectivity and the durable message ledger.
 `src/conversation.ts` defines an ordinary Runling root task for each Chatto
-thread. Its source routing starts or reactivates that root for one batch and waits
-for its execution and cleanup. Routing reads Runling's retained source-owned runs
-directly. Only a private, process-local ticket admits work; console messages and
-recovery cannot replay callbacks.
+thread. Its source routing starts, reuses, or reactivates that root and waits for
+the accepted batch. The root also owns the child handles and completion queue in
+`src/delegate.ts`. Routing reads Runling's retained source-owned runs directly.
+Only verified, process-local callbacks admit work; console messages and recovery
+cannot replay callbacks.
 Runling's batch queue owns ordering, capacity, and timers. `src/threads.ts`
 keeps Botto's routing keys and transcript identities consistent.
 `src/messages.ts` selects addressed

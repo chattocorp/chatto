@@ -16,6 +16,32 @@ const answer = (summary: string) => ({
   usage: emptyTokenUsage()
 });
 
+test('cancellation closes session transports before waiting for a blocked tool', async () => {
+  const entered = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<void>();
+  const instance = session(async (_ctx, _prompt, options) => {
+    entered.resolve();
+    await released.promise;
+    options?.signal?.throwIfAborted();
+    return answer('Unexpected result');
+  });
+  instance.dispose = vi.fn(async () => {
+    released.resolve();
+  });
+  const child = createTaskContext().start(
+    agent({ name: 'Blocked transport', ...settings }, async () => instance),
+    'Work'
+  );
+  await entered.promise;
+  child.cancel();
+  try {
+    await vi.waitFor(() => expect(instance.dispose).toHaveBeenCalled(), { timeout: 100 });
+  } finally {
+    released.resolve();
+    await child[Symbol.asyncDispose]();
+  }
+});
+
 function session(run: RunlingAgent['runOutcome']): RunlingAgent {
   return {
     id: 'test-agent',

@@ -11,6 +11,7 @@ import { createTaskContext } from 'runling';
 import { createTitleWriter } from './title.ts';
 import type { createParticipationClassifier } from './participation.ts';
 import { withTyping } from '@chatto/client/messaging/typing';
+import { Subagents, type SubagentStatus } from './delegate.ts';
 
 const participation = vi.hoisted(() => vi.fn<ReturnType<typeof createParticipationClassifier>>());
 vi.mock('./participation.ts', async (original) => ({
@@ -68,7 +69,10 @@ function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = (
     beforeEffects
   );
   const ctx = createTaskContext();
-  const turn = (messages: readonly IncomingMessage[]) => handle(ctx, messages);
+  const children = new Subagents(ctx, () => {});
+  const turn = (messages: readonly IncomingMessage[]) => handle(ctx, messages, children);
+  const completion = (messages: readonly IncomingMessage[], result: SubagentStatus) =>
+    handle(ctx, messages, children, result);
   const one: IncomingMessage = {
     id: 'one',
     roomId: 'room',
@@ -78,8 +82,30 @@ function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = (
     reasons: ['mention']
   };
   const two: IncomingMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
-  return { ...fixture, settings, server, agent, controller, turn, one, two };
+  return { ...fixture, settings, server, agent, controller, turn, completion, one, two };
 }
+
+test('child completion runs the parent without replaying the triggering message or delivery effects', async () => {
+  const beforeEffects = vi.fn();
+  const { completion, one, server, agent } = setup(beforeEffects);
+  await completion([one], { id: 'child', status: 'completed', progress: [], result: 'Findings' });
+  expect(participation).not.toHaveBeenCalled();
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(naming).not.toHaveBeenCalled();
+  const input = agent.reply.mock.calls[0]![1];
+  expect(JSON.parse(input.prompt)).toMatchObject({
+    currentMessages: [],
+    subagentResult: { id: 'child', result: 'Findings' }
+  });
+  expect(input.context).toBeDefined();
+  expect(server.withTyping).toHaveBeenCalledOnce();
+  expect(server.postMessage).toHaveBeenCalledWith(
+    { roomId: 'room', threadRootId: 'root', inReplyTo: 'one' },
+    'One answer',
+    expect.anything()
+  );
+});
 
 test.each([true, false])(
   'finishes pending typing before the final post, independently of naming (addressed: %s)',

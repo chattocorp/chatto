@@ -6,7 +6,7 @@ import { task, Type } from 'runling';
 import { RunStore } from '../../../packages/runling/src/lib/server/run-store.ts';
 import { parseSettings } from './settings.ts';
 import sharp from 'sharp';
-import { delegateExtension } from './delegate.ts';
+import { delegateExtension, Subagents } from './delegate.ts';
 import { viewImageExtension } from './view-image.ts';
 
 const cropFixture = vi.hoisted(() => ({ data: '', calls: 0 }));
@@ -47,7 +47,7 @@ vi.mock(sdkPath, async () => {
               result.content.some((part) =>
                 needsDelegate
                   ? part.type === 'image' && part.data === cropFixture.data
-                  : part.type === 'text' && part.text.includes('private-result')
+                  : part.type === 'text' && part.text.includes('"status":"running"')
               )
           ).toBe(true);
         } else {
@@ -157,6 +157,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     const root = task(
       { name: 'Usage fixture', input: Type.Null(), result: Type.Null() },
       async (ctx) => {
+        const children = new Subagents(ctx, () => {});
         for (let turn = 0; turn < 2; turn++) {
           const texts: string[] = [];
           expect(
@@ -169,7 +170,7 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
               },
               tools: [
                 viewImageExtension(server, 'room', imageContext, ctx.signal),
-                delegateExtension(ctx, settings, ctx.signal)
+                delegateExtension(children, settings, ctx.signal, async () => {})
               ],
               context: {
                 messages: [],
@@ -189,12 +190,16 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
             })
           ).toBe('private-answer');
           expect(texts).toEqual(['I will take a closer look.']);
+          await vi.waitFor(() =>
+            expect(children.inspect().every((child) => child.status !== 'running')).toBe(true)
+          );
         }
+        await children.close();
         return null;
       }
     );
     const handle = await store.start('fixture', root, null, 'source');
-    expect((await handle.completion).ok).toBe(true);
+    expect(await handle.completion).toMatchObject({ ok: true });
     const detail = (await store.get(handle.id))!;
     expect(detail.usage).toEqual({
       input: 88,
@@ -212,7 +217,8 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     expect(journal).not.toContain(cropFixture.data);
     expect(journal).not.toContain('private-task');
     expect(journal).not.toContain('private-context');
-    expect(journal).not.toContain('private-result');
+    // Explicit child output is recorded in task channels, independent of model logContent.
+    expect(journal).toContain('private-result');
     expect(
       detail.events.filter(
         (event) => event.type === 'step.started' && event.label === 'Delegate task'
@@ -224,7 +230,8 @@ test('records fresh usage and cost for reopened Botto sessions without logging c
     );
     expect(transcript).not.toContain('AQID');
     expect(transcript).not.toContain(cropFixture.data);
-    expect(transcript).toContain('private-result');
+    // Completion has not been supplied as a new parent turn in this usage fixture.
+    expect(transcript).not.toContain('private-result');
     expect(transcript).toContain('Image view prepared');
     expect(server.readAttachment).toHaveBeenCalledTimes(2);
   } finally {

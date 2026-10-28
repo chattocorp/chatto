@@ -12,7 +12,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import type { TaskContext } from 'runling';
 import { conversationIdentity } from './threads.ts';
 import { readImages } from './images.ts';
-import { delegateExtension } from './delegate.ts';
+import { delegateExtension, type Subagents, type SubagentStatus } from './delegate.ts';
 import { viewImageExtension } from './view-image.ts';
 import { createTitleWriter } from './title.ts';
 import { createParticipationClassifier } from './participation.ts';
@@ -32,7 +32,12 @@ export function createTurnHandler(
 ) {
   const writeTitle = createTitleWriter(settings);
   const classifyParticipation = createParticipationClassifier(settings);
-  return async (ctx: TaskContext, messages: readonly IncomingMessage[]): Promise<void> => {
+  return async function turn(
+    ctx: TaskContext,
+    messages: readonly IncomingMessage[],
+    children: Subagents,
+    completed?: SubagentStatus
+  ): Promise<void> {
     shutdown.throwIfAborted();
     const message = messages.at(-1);
     if (!message) return;
@@ -41,7 +46,7 @@ export function createTurnHandler(
       id: message.reaction?.messageId ?? message.id
     });
     const identity = conversationIdentity(settings.serverUrl, botId, destination);
-    const addressed = messages.some((item) => item.reasons.length > 0);
+    const addressed = Boolean(completed) || messages.some((item) => item.reasons.length > 0);
     const metrics = {
       threadId: destination.threadRootId,
       messages: messages.length
@@ -60,7 +65,9 @@ export function createTurnHandler(
     let finalAnswer: string | undefined;
     const work = async () => {
       // Read-only failures remain queued and can be retried after reconnect.
-      const currentIds = messages.map((item) => item.reaction?.messageId ?? item.id);
+      const currentIds = completed
+        ? []
+        : messages.map((item) => item.reaction?.messageId ?? item.id);
       const context = await safeStep(
         'Thread context read',
         async () =>
@@ -103,7 +110,7 @@ export function createTurnHandler(
         // Resolve reply authors before starting effects. Targets can be outside
         // the recent context window; unavailable targets have an unknown author.
         const currentMessages = await Promise.all(
-          messages.map(async (item) => {
+          (completed ? [] : messages).map(async (item) => {
             if (item.reaction) return { author: item.authorId, reaction: item.reaction };
             const message = {
               id: item.id,
@@ -122,9 +129,10 @@ export function createTurnHandler(
           })
         );
         signal.throwIfAborted();
-        beforeEffects(messages);
+        if (!completed) beforeEffects(messages);
         // Existing transcripts identify ongoing conversations, including after a restart.
         if (
+          !completed &&
           addressed &&
           settings.acknowledgementEmoji &&
           !(await hasTranscript(settings.directory, identity))
@@ -148,7 +156,14 @@ export function createTurnHandler(
         // request-only context hook, so old Chatto messages do not accumulate each turn.
         const prompt = JSON.stringify({
           currentDateTime: new Date().toISOString(),
-          currentMessages
+          currentMessages,
+          ...(completed
+            ? {
+                subagentResult: completed,
+                instruction:
+                  'This is an automatic subagent completion, not a new user request. If you already answered using this result, end with no assistant text. Do not acknowledge completion, repeat the answer, or say that you already answered. Otherwise, use the result to finish the original request at the requested length.'
+              }
+            : {})
         });
         // Pi's callback is synchronous. Serialize writes and join them before leaving
         // the turn. A failed write stops the model; never retry an uncertain post.
@@ -162,7 +177,8 @@ export function createTurnHandler(
           });
           void delivery.catch((error) => deliveryFailure.abort(error));
         };
-        naming = writeTitle(ctx, messages.map((message) => message.body).join('\n\n'), signal);
+        if (!completed)
+          naming = writeTitle(ctx, messages.map((message) => message.body).join('\n\n'), signal);
         try {
           const answer = await safeStep(
             'Model turn',
@@ -188,7 +204,9 @@ export function createTurnHandler(
                 userIds: [...new Set(messages.map((item) => item.authorId))],
                 capabilities: ['delegation', 'images', 'reactions'],
                 tools: [
-                  delegateExtension(ctx, settings, signal),
+                  delegateExtension(children, settings, signal, (result) =>
+                    turn(ctx, messages, children, result)
+                  ),
                   viewImageExtension(server, destination.roomId, context, signal),
                   reactionExtension(
                     server,
