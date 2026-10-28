@@ -40,6 +40,10 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
   const frame = page.getByTestId('app-frame');
   const composer = page.getByTestId('composer-input-surface');
   const send = composer.getByRole('button', { name: 'Send: Send message', exact: true });
+  await composer.getByRole('button', { name: 'Formatting options', exact: true }).click();
+  const formatting = page.getByTestId('composer-formatting-toolbar').getByRole('button');
+  await expect(formatting).toHaveCount(12);
+  await room.messageInput.fill('Retained hybrid draft');
   for (const width of [320, 500, 767, 768, 1024, 500]) {
     await page.setViewportSize({ width, height: 800 });
     await expect(frame).toHaveCSS('border-radius', width < 768 ? '0px' : '16px');
@@ -47,7 +51,15 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
     if (width < 768) await toggle.click();
     await expect(chatPage.getRoomLink('general')).toHaveCSS('height', '48px');
     if (width < 768) await toggle.click();
-    await expect(send).toHaveCSS('height', width < 768 ? '44px' : '28px');
+    await expect(send).toHaveCSS('height', '44px');
+    await expect
+      .poll(() =>
+        formatting.evaluateAll((buttons) =>
+          buttons.map((button) => button.getBoundingClientRect().height)
+        )
+      )
+      .toEqual(Array(12).fill(44));
+    await expect(room.messageInput).toHaveText('Retained hybrid draft');
     const roomActions = page.getByRole('button', { name: 'Actions for #general', exact: true });
     if (await roomActions.isVisible()) {
       await expect(roomActions).toHaveCSS('width', '44px');
@@ -70,4 +82,6 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', { name: 'About Chatto', exact: true })).toBeFocused();
   }
+  await send.click();
+  await expect(room.getMessage('Retained hybrid draft').locator).toBeVisible();
 });
