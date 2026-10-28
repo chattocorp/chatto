@@ -443,6 +443,9 @@ importers:
       '@connectrpc/connect-web':
         specifier: ^1.7.0
         version: 1.7.0(@bufbuild/protobuf@1.10.1)(@connectrpc/connect@1.7.0(@bufbuild/protobuf@1.10.1))
+      gemoji:
+        specifier: ^8.1.0
+        version: 8.1.0
       js-sha256:
         specifier: ^1.0.0
         version: 1.0.0
