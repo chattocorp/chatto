@@ -1,7 +1,7 @@
 # FDR-015: Quick Switcher (Cmd-K)
 
 **Status:** Active
-**Last reviewed:** 2026-09-21
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -13,6 +13,7 @@ fuzzy matching and remembers recent destinations on the device.
 ## Behavior
 
 - `Cmd+K` / `Ctrl+K` opens the palette from anywhere in the app. `Escape` or clicking outside closes it.
+- Below 768 px viewport width, the palette fills the visible content area below the app header and has a back arrow to close it. The app header stays visible and undimmed. The palette header and search stay available while results scroll. Safe-area padding and the visible viewport keep controls clear of screen cutouts and the software keyboard. Wider windows keep the floating palette. Resizing retains the query and input focus.
 - On open, the palette reads each registered server's current projected
   navigation state. The empty catalogue contains every registered server,
   joined channel room, visible DM, and Notifications.

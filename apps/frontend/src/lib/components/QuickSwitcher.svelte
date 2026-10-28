@@ -2,30 +2,21 @@
   import AccountName from '$lib/components/users/AccountName.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
-  import { tick, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
-  import { LoadingFog, MenuSection, PaletteSearch } from '$lib/ui';
+  import { LoadingFog, MenuSection, PaletteSearch, PaletteFrame, modalViewport } from '$lib/ui';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
 
   let {
-    onNextUnread,
-    onShortcutHelp
+    onNextUnread
   }: {
     onNextUnread?: () => Promise<void>;
-    onShortcutHelp?: () => void;
   } = $props();
   const model = new QuickSwitcherModel(() => onNextUnread?.());
   let dialogEl: HTMLDialogElement | undefined;
-
-  async function openShortcutHelp() {
-    quickSwitcher.close();
-    // Restore the previous view and focus before help takes its snapshot.
-    await tick();
-    onShortcutHelp?.();
-  }
 
   function syncQuickSwitcherDialog(node: HTMLDialogElement) {
     dialogEl = node;
@@ -73,7 +64,12 @@
 <!-- The native dialog owns dismissal; command-palette owns the shared menu finish. -->
 <dialog
   {@attach syncQuickSwitcherDialog}
-  onclose={() => quickSwitcher.close()}
+  {@attach modalViewport}
+  aria-label={m('quick_switcher.title')}
+  onclose={(event) => {
+    // A close event is queued: reopening before delivery must keep the new palette open.
+    if (!event.currentTarget.open) quickSwitcher.close();
+  }}
   onkeydown={(event) => {
     if (event.key === 'Escape') event.stopPropagation();
   }}
@@ -84,11 +80,12 @@
   onclick={(event) => {
     if (event.target === dialogEl) quickSwitcher.close();
   }}
-  class="quick-switcher m-auto mt-[15vh] max-h-none max-w-none overflow-visible border-none bg-transparent p-0 text-inherit backdrop:bg-black/50"
+  class="quick-switcher palette-dialog border-none bg-transparent p-0 text-inherit backdrop:bg-black/50"
 >
   {#if quickSwitcher.visible}
-    <div class="command-palette">
+    <PaletteFrame title={m('quick_switcher.title')} onBack={() => quickSwitcher.close()}>
       <PaletteSearch
+        class="shrink-0 max-md:border-b max-md:border-border"
         value={model.query}
         onvaluechange={(value) => model.setQuery(value)}
         onkeydown={handleKeydown}
@@ -96,19 +93,12 @@
         loading={model.loading}
         focusOnMount
       >
-        {#if onShortcutHelp}
-          <button
-            type="button"
-            class="keycap"
-            aria-label={m('common.keyboard_shortcuts.title')}
-            title={m('common.keyboard_shortcuts.title')}
-            onclick={openShortcutHelp}>?</button
-          >
-        {/if}
-        <kbd class="keycap">Esc</kbd>
+        <kbd class="keycap hidden md:inline-flex">Esc</kbd>
       </PaletteSearch>
 
-      <MenuSection class="max-h-[min(20rem,55dvh)] overflow-y-auto">
+      <MenuSection
+        class="max-h-[min(20rem,55dvh)] min-h-0 overflow-y-auto max-md:max-h-none max-md:flex-1"
+      >
         <nav class="sidebar-nav">
           {#if model.loading && model.filtered.length === 0}
             <LoadingFog class="m-2 h-24" />
@@ -239,6 +229,6 @@
           {/if}
         </nav>
       </MenuSection>
-    </div>
+    </PaletteFrame>
   {/if}
 </dialog>

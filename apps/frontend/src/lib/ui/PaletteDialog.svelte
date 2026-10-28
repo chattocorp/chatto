@@ -1,10 +1,12 @@
 <!-- @component
-Compact modal shell using the command palette's frame, width, and typography.
+Responsive modal shell using the command palette's frame and typography.
+Narrow screens use a pane below the app header, with its own back header.
 ModalSurface owns dismissal and focus restoration; content owns its layout.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ModalSurface from './ModalSurface.svelte';
+  import PaletteFrame from './PaletteFrame.svelte';
 
   let {
     visible = $bindable(false),
@@ -24,11 +26,11 @@ ModalSurface owns dismissal and focus restoration; content owns its layout.
   ariaLabel={title}
   {onclose}
   autofocusContent
-  class="mt-[15vh] max-h-none max-w-none overflow-visible text-inherit"
+  class="palette-dialog text-inherit"
 >
   {#snippet children(close)}
-    <div class="command-palette">
+    <PaletteFrame {title} onBack={close}>
       {@render content(close)}
-    </div>
+    </PaletteFrame>
   {/snippet}
 </ModalSurface>

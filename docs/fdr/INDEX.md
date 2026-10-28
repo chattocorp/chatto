@@ -24,7 +24,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-012](FDR-012-notifications.md)                         | Notifications                         | Experimental | 2026-10-22    |
 | [FDR-013](FDR-013-web-push-notifications.md)                | Web Push Notifications                | Active       | 2026-10-22    |
 | [FDR-014](FDR-014-jump-to-present.md)                       | Jump to Present                       | Active       | 2026-09-25    |
-| [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-09-21    |
+| [FDR-015](FDR-015-quick-switcher.md)                        | Quick Switcher (Cmd-K)                | Active       | 2026-10-28    |
 | [FDR-016](FDR-016-voice-calls.md)                           | Voice Calls                           | Active       | 2026-10-26    |
 | [FDR-017](FDR-017-room-groups-and-sidebar-layout.md)        | Room Groups & Sidebar Layout          | Active       | 2026-10-22    |
 | [FDR-018](FDR-018-account-lifecycle.md)                     | Account Lifecycle                     | Active       | 2026-10-27    |
@@ -64,4 +64,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-052](FDR-052-message-send-retries.md)                  | Message Send Retries                  | Experimental | 2026-10-08    |
 | [FDR-053](FDR-053-history-import-export.md)                 | History Import and Export             | Experimental | 2026-10-26    |
 | [FDR-054](FDR-054-room-notices.md)                          | Room Notices                          | Experimental | 2026-10-25    |
-| [FDR-055](FDR-055-keyboard-shortcut-help.md)                | Keyboard Shortcut Help                | Active       | 2026-10-27    |
+| [FDR-055](FDR-055-keyboard-shortcut-help.md)                | Keyboard Shortcut Help                | Active       | 2026-10-28    |

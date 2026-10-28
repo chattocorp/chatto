@@ -16,12 +16,14 @@
   let visible = $state(false);
 </script>
 
-<Story name="Compact palette" asChild>
+<Story name="Responsive palette" asChild>
   <Button onclick={() => (visible = true)}>Open palette</Button>
   <PaletteDialog bind:visible title="Keyboard shortcuts">
     {#snippet children(close)}
       <PaletteSearch label="Search" placeholder="Keyboard shortcuts">
-        <button type="button" class="keycap" title="Close" onclick={close}>Esc</button>
+        <button type="button" class="keycap hidden md:inline-flex" title="Close" onclick={close}
+          >Esc</button
+        >
       </PaletteSearch>
       <MenuSection>
         <p class="command-palette-heading">App</p>

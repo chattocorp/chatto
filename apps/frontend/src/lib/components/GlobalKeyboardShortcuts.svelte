@@ -65,5 +65,5 @@ once at the root layout level.
   when={() => !!focusedForm()}
   ontrigger={() => focusedForm()?.requestSubmit()}
 />
-<QuickSwitcher onNextUnread={nextUnread} onShortcutHelp={openHelp} />
+<QuickSwitcher onNextUnread={nextUnread} />
 <KeyboardShortcutHelp bind:visible={helpVisible} shortcuts={helpEntries} />

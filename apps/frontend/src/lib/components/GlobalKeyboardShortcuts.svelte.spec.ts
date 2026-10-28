@@ -11,6 +11,8 @@ import { flushSync } from 'svelte';
 import Harness from './GlobalKeyboardShortcutsTestHarness.svelte';
 import ShortcutTextInput from '$lib/ui/form/ShortcutTextInput.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import { cdp, page, userEvent } from 'vitest/browser';
+import '../../app.css';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn().mockResolvedValue(undefined),
@@ -143,6 +145,93 @@ describe('production reload shortcuts', () => {
 });
 
 describe('global keyboard shortcuts', () => {
+  it('keeps the quick switcher open when an earlier native close event arrives', async () => {
+    render(Harness);
+    quickSwitcher.open();
+    flushSync();
+    const dialog = document.querySelector<HTMLDialogElement>('dialog.quick-switcher')!;
+    expect(dialog.querySelector('[aria-label="Keyboard shortcuts"]')).toBeNull();
+    quickSwitcher.close();
+    flushSync();
+    quickSwitcher.open();
+    flushSync();
+    dialog.dispatchEvent(new Event('close'));
+    await expect.poll(() => quickSwitcher.visible).toBe(true);
+    expect(dialog.open).toBe(true);
+  });
+
+  it.each([
+    { help: false, touch: false },
+    { help: false, touch: true },
+    { help: true, touch: false },
+    { help: true, touch: true }
+  ])('keeps a full-screen mobile palette across resize: %j', async ({ help, touch }) => {
+    await page.viewport(1280, 800);
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+    const viewport = Object.assign(new EventTarget(), { height: 800, offsetTop: 0 });
+    vi.stubGlobal('visualViewport', viewport);
+    const { container } = render(Harness);
+    const opener = container.querySelector('textarea')!;
+    opener.value = 'Keep the room draft';
+    opener.focus();
+    press({ key: 'k', altKey: false, ctrlKey: true, shiftKey: help });
+    flushSync();
+    const dialog = document.querySelector<HTMLDialogElement>('dialog[open]')!;
+    const input = dialog.querySelector('input')!;
+    await userEvent.fill(input, 'search');
+    const back = dialog.querySelector<HTMLButtonElement>('button[aria-label="Back"]')!;
+    try {
+      for (const width of [390, 767, 768, 1280, 390]) {
+        await page.viewport(width, 800);
+        if (width < 768) {
+          await expect.poll(() => Math.round(dialog.getBoundingClientRect().width)).toBe(width);
+          const headerHeight = touch ? 56 : 44;
+          await expect
+            .poll(() => Math.round(dialog.getBoundingClientRect().height))
+            .toBe(800 - headerHeight);
+          expect(dialog.getBoundingClientRect().top).toBeCloseTo(headerHeight, 0);
+          await expect.element(back).toBeVisible();
+          await expect.poll(() => back.getBoundingClientRect().height).toBe(touch ? 44 : 40);
+          const frame = dialog.querySelector('.command-palette')!;
+          expect(getComputedStyle(frame).fontSize).toBe('16px');
+          expect(getComputedStyle(frame).gap).toBe('0px');
+          for (const section of frame.querySelectorAll('.menu-section')) {
+            expect(getComputedStyle(section).backgroundColor).toBe(
+              getComputedStyle(frame).backgroundColor
+            );
+            expect(getComputedStyle(section).borderRadius).toBe('0px');
+            expect(getComputedStyle(section).boxShadow).toBe('none');
+          }
+          expect(dialog.querySelector('.command-palette')!.scrollWidth).toBeLessThanOrEqual(width);
+        } else {
+          await expect.element(back).not.toBeVisible();
+          expect(dialog.getBoundingClientRect().width).toBeLessThan(width);
+        }
+        expect(dialog.querySelector('input')).toBe(input);
+        expect(input.value).toBe('search');
+        expect(document.activeElement).toBe(input);
+      }
+      viewport.height = 420;
+      viewport.offsetTop = 12;
+      viewport.dispatchEvent(new Event('resize'));
+      const headerHeight = touch ? 56 : 44;
+      await expect
+        .poll(() => Math.round(dialog.getBoundingClientRect().height))
+        .toBe(432 - headerHeight);
+      expect(Math.round(dialog.getBoundingClientRect().top)).toBe(headerHeight);
+      expect(back.getBoundingClientRect().top).toBeGreaterThanOrEqual(12);
+      expect(input.getBoundingClientRect().bottom).toBeLessThan(432);
+      back.click();
+      await expect.poll(() => dialog.open).toBe(false);
+      await expect.poll(() => document.activeElement).toBe(opener);
+      expect(opener.value).toBe('Keep the room draft');
+    } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+      vi.unstubAllGlobals();
+      await page.viewport(1280, 800);
+    }
+  });
+
   it.each(['metaKey', 'ctrlKey'] as const)(
     'opens shortcut help with %s+Shift+K without changing a draft',
     async (modifier) => {
@@ -176,9 +265,7 @@ describe('global keyboard shortcuts', () => {
     const view = render(Harness, { showFilter: true, showEditor: true });
     const help = async () => {
       document.querySelector('textarea')!.focus();
-      quickSwitcher.open();
-      flushSync();
-      document.querySelector<HTMLButtonElement>('button[aria-label="Keyboard shortcuts"]')!.click();
+      press({ key: 'k', altKey: false, ctrlKey: true, shiftKey: true });
       await expect
         .poll(() => document.querySelector('dialog[open][aria-label="Keyboard shortcuts"]'))
         .not.toBeNull();

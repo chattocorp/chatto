@@ -1,5 +1,6 @@
 {
   "quick_switcher": {
+    "title": "Schnellwechsel",
     "placeholder": "Zu einem Ziel wechseln oder ? für die Nachrichtensuche eingeben...",
     "no_results": "Keine Ergebnisse",
     "recent": "Zuletzt verwendet",
