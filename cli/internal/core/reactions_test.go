@@ -940,7 +940,7 @@ func TestUnknownReactionRoundTrip(t *testing.T) {
 	ctx := testContext(t)
 	user, room, messageID := setupReactionTest(t, c, ctx)
 	input := ReactionMutationInput{ActorID: user.Id, RoomID: room.Id, MessageEventID: messageID, Emoji: "Party_Parrot"}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		added, err := c.ReactionModel().AddReaction(ctx, input)
 		if err != nil || added != (i == 0) {
 			t.Fatalf("add attempt %d: %v, %v", i, added, err)
@@ -954,7 +954,7 @@ func TestUnknownReactionRoundTrip(t *testing.T) {
 	if err != nil || len(page.UserIDs) != 1 || page.UserIDs[0] != user.Id {
 		t.Fatalf("reaction users: %v, %v", page, err)
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		removed, err := c.ReactionModel().RemoveReaction(ctx, input)
 		if err != nil || removed != (i == 0) {
 			t.Fatalf("remove attempt %d: %v, %v", i, removed, err)
