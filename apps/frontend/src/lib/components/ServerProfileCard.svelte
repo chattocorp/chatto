@@ -66,9 +66,24 @@ card. Callers supply trusted badges and actions through explicit props.
   let cardAction = $state<HTMLAnchorElement | HTMLButtonElement>();
   const interactive = $derived(!!href || !!onactivate);
 
-  /** Keep descriptions scrollable; ordinary clicks activate the card. */
-  function activateFromDescription() {
-    if (!window.getSelection()?.toString()) cardAction?.click();
+  /** Keep text selectable and preserve link modifiers through the scroll viewport. */
+  function activateFromDescription(event: MouseEvent) {
+    if (window.getSelection()?.toString()) return;
+    if (cardAction instanceof HTMLAnchorElement) {
+      cardAction.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
+          altKey: event.altKey
+        })
+      );
+    } else {
+      cardAction?.click();
+    }
   }
 
   const hostname = $derived(serverHost(origin));

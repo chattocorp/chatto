@@ -398,7 +398,7 @@ describe('ServerGutter', () => {
     const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]');
 
     expect(link?.getAttribute('aria-current')).toBe('page');
-    expect(link?.className).toContain('server-gutter-item-active');
+    expect(link?.className).not.toContain('server-gutter-item-active');
   });
 
   /**

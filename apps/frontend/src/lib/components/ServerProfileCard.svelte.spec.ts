@@ -60,6 +60,25 @@ describe('ServerProfileCard public images', () => {
     expect(container.querySelector('button, a')).toBeNull();
   });
 
+  it('preserves modified link clicks from the description', () => {
+    const { container } = render(ServerProfileCard, {
+      origin: 'https://chat.example',
+      profile: profile({ iconUrl: null, bannerUrl: null }),
+      href: 'https://chat.example'
+    });
+    const clicks: MouseEvent[] = [];
+    container.querySelector('a')!.addEventListener('click', (event) => {
+      event.preventDefault();
+      clicks.push(event);
+    });
+    const description = container.querySelector('[data-testid="server-card-description"]')!;
+    description.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
+    description.dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true }));
+    expect(clicks).toHaveLength(2);
+    expect(clicks[0]?.ctrlKey).toBe(true);
+    expect(clicks[1]?.metaKey).toBe(true);
+  });
+
   it('does not activate a disabled card through its description', async () => {
     const onactivate = vi.fn();
     const { container } = render(ServerProfileCard, {
