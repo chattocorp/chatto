@@ -103,7 +103,7 @@ test('uses Runling with explicit extensions, no ambient resources, and the origi
   expect(transcriptName(identity)).not.toBe(transcriptName(['server', 'other', 'room', 'thread']));
 });
 
-test('refreshes the current UTC date when a later turn opens its session', async () => {
+test('keeps system instructions stable across UTC dates', async () => {
   const { agent } = await setup();
   vi.useFakeTimers({ toFake: ['Date'] });
   for (const date of ['2026-10-26', '2026-10-27']) {
@@ -113,10 +113,10 @@ test('refreshes the current UTC date when a later turn opens its session', async
       prompt: 'What is in this image?',
       signal: new AbortController().signal
     });
-    expect(mock.create.mock.calls.at(-1)![0].systemPrompt).toContain(
-      `Current date (UTC): ${date}.`
-    );
   }
+  expect(mock.create.mock.calls.at(-1)![0].systemPrompt).toBe(
+    mock.create.mock.calls[0]![0].systemPrompt
+  );
 });
 
 test('loads memory only for a new transcript and its initiating user, including after restart', async () => {
