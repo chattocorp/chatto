@@ -1,22 +1,22 @@
 /** Chatto batching policy. Runling owns scheduling, capacity, and shutdown. */
 import { BatchQueue } from 'runling';
 import { replyDestination, type RealtimeEvent, type ThreadLocation } from '@chatto/client';
-import type { IncomingMessage as AddressedMessage } from './messages.ts';
+import type { IncomingMessage } from './messages.ts';
 import { DEFAULT_INBOX, type InboxSettings } from './settings.ts';
 import { threadKey } from './threads.ts';
 
-const keyOf = (message: AddressedMessage) => threadKey(replyDestination(message));
+const keyOf = (message: IncomingMessage) => threadKey(replyDestination(message));
 
 /** Any addressed message promotes the complete pending batch to the short quiet period. */
-const batchDelay = (messages: readonly AddressedMessage[], settings: InboxSettings) =>
+const batchDelay = (messages: readonly IncomingMessage[], settings: InboxSettings) =>
   messages.some((message) => message.reasons.length > 0)
     ? settings.debounceMs
     : settings.passiveDebounceMs;
 
 /** Adapt typing and addressed-message quiet periods to Runling's keyed scheduler. */
-export class Inbox extends BatchQueue<AddressedMessage> {
+export class Inbox extends BatchQueue<IncomingMessage> {
   constructor(
-    turn: (messages: readonly AddressedMessage[]) => Promise<void>,
+    turn: (messages: readonly IncomingMessage[]) => Promise<void>,
     failed: () => void,
     private readonly settings: InboxSettings = DEFAULT_INBOX
   ) {
@@ -37,7 +37,7 @@ export class Inbox extends BatchQueue<AddressedMessage> {
   }
 
   /** Report the quiet period selected for an incoming message. */
-  debounceMs(message: AddressedMessage): number {
+  debounceMs(message: IncomingMessage): number {
     return batchDelay([...this.queued(keyOf(message)), message], this.settings);
   }
 

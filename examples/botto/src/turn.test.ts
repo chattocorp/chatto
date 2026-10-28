@@ -1,7 +1,7 @@
 /** Exercise inbox, shared client timeline, Pi input, and reply routing together. */
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { Destination, Server } from '@chatto/client';
-import type { IncomingMessage as AddressedMessage } from './messages.ts';
+import type { IncomingMessage } from './messages.ts';
 import { Inbox } from './inbox.ts';
 import { createTurnHandler } from './turn.ts';
 import { parseSettings } from './settings.ts';
@@ -38,7 +38,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}) {
+function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = () => {}) {
   const settings = parseSettings(
     '[chatto]\nurl="https://chat.example.com"\napi_key="test"\n[agent]\nmodel="test/model"',
     'botto.toml',
@@ -68,8 +68,8 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
     beforeEffects
   );
   const ctx = createTaskContext();
-  const turn = (messages: readonly AddressedMessage[]) => handle(ctx, messages);
-  const one: AddressedMessage = {
+  const turn = (messages: readonly IncomingMessage[]) => handle(ctx, messages);
+  const one: IncomingMessage = {
     id: 'one',
     roomId: 'room',
     threadRootId: 'root',
@@ -77,7 +77,7 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
     body: 'First',
     reasons: ['mention']
   };
-  const two: AddressedMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
+  const two: IncomingMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
   return { ...fixture, settings, server, agent, controller, turn, one, two };
 }
 

@@ -2,7 +2,7 @@
 import { createClassifier, log, Type, type TaskContext } from 'runling';
 import type { Settings } from './settings.ts';
 import type { ThreadContext } from './thread-context.ts';
-import type { IncomingMessage as AddressedMessage } from './messages.ts';
+import type { IncomingMessage } from './messages.ts';
 
 /** Explanations aid debugging but are not required to execute a valid decision. */
 const reasonSchema = Type.Optional(Type.String());
@@ -16,7 +16,7 @@ const ignoreDecision = Type.Object(
 );
 
 /** The model chooses a shortcode, never a target message or arbitrary tool call. */
-export const participationDecision = Type.Union([
+const participationDecision = Type.Union([
   replyDecision,
   ignoreDecision,
   Type.Object(
@@ -52,7 +52,7 @@ Return only JSON with action, a short plain-text reason, and emoji only for reac
   return async (
     ctx: TaskContext,
     context: ThreadContext,
-    messages: readonly AddressedMessage[],
+    messages: readonly IncomingMessage[],
     signal: AbortSignal
   ) => {
     const currentIds = new Set(messages.map((message) => message.id));

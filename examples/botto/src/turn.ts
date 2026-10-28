@@ -1,6 +1,6 @@
 /** Connect a debounced message batch to one Pi turn and its ordered Chatto messages. */
 import { replyDestination, type Server } from '@chatto/client';
-import type { IncomingMessage as AddressedMessage } from './messages.ts';
+import type { IncomingMessage } from './messages.ts';
 import type { createAgent } from './agent.ts';
 import type { Settings } from './settings.ts';
 import { safeStep } from './steps.ts';
@@ -28,11 +28,11 @@ export function createTurnHandler(
     ContextSource,
   agent: Awaited<ReturnType<typeof createAgent>>,
   shutdown: AbortSignal,
-  beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}
+  beforeEffects: (messages: readonly IncomingMessage[]) => void = () => {}
 ) {
   const writeTitle = createTitleWriter(settings);
   const classifyParticipation = createParticipationClassifier(settings);
-  return async (ctx: TaskContext, messages: readonly AddressedMessage[]): Promise<void> => {
+  return async (ctx: TaskContext, messages: readonly IncomingMessage[]): Promise<void> => {
     shutdown.throwIfAborted();
     const message = messages.at(-1);
     if (!message) return;
@@ -54,6 +54,8 @@ export function createTurnHandler(
       deliveryFailure.signal,
       AbortSignal.timeout(settings.turnTimeoutMs)
     ]);
+    const postReply = (body: string) =>
+      safeStep('Reply post', () => server.postMessage(destination, body, { signal }), metrics);
     let naming: Promise<void> | undefined;
     let finalAnswer: string | undefined;
     const work = async () => {
@@ -153,11 +155,7 @@ export function createTurnHandler(
           if (!body || signal.aborted) return;
           delivery = delivery.then(async () => {
             signal.throwIfAborted();
-            await safeStep(
-              'Reply post',
-              () => server.postMessage(destination, body, { signal }),
-              metrics
-            );
+            await postReply(body);
           });
           void delivery.catch((error) => deliveryFailure.abort(error));
         };
@@ -220,12 +218,7 @@ export function createTurnHandler(
       // clears the indicator. Title generation does not represent chat activity.
       if (finalAnswer) {
         signal.throwIfAborted();
-        const body = finalAnswer;
-        await safeStep(
-          'Reply post',
-          () => server.postMessage(destination, body, { signal }),
-          metrics
-        );
+        await postReply(finalAnswer);
       }
     } finally {
       // Naming handles its own errors. Join it even if delivery has failed.
