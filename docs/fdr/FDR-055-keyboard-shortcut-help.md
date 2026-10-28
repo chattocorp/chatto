@@ -1,7 +1,7 @@
 # FDR-055: Keyboard Shortcut Help
 
 **Status:** Active
-**Last reviewed:** 2026-10-27
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -10,10 +10,10 @@ It lets users discover shortcuts without leaving their draft or changing setting
 
 ## Behavior
 
+- Narrow-screen help leaves the app header interactive. A header click closes help and runs the header action on the first click. Desktop help remains modal.
+
 - Cmd+Shift+K on Apple platforms, or Ctrl+Shift+K elsewhere, opens help.
   Cmd/Ctrl+/ keeps room search and filters.
-- The Cmd/Ctrl+K palette also has a Keyboard shortcuts button to open help
-  from any view, including views with filters.
 - Help lists registered app shortcuts and filters in the current view. A form's
   submit shortcut appears when the focused field belongs to a form.
 - When a message composer is available, help also lists sending, newlines,
@@ -25,6 +25,11 @@ It lets users discover shortcuts without leaving their draft or changing setting
   shortcuts from the next help list.
 - Escape or Close dismisses help and restores focus. Opening help does not
   change the draft or its selection.
+- Below 768 px viewport width, help fills the visible content area below the
+  app header, which stays visible and undimmed. Help uses a back
+  arrow to close. The header and search stay available while shortcuts scroll,
+  including above the software keyboard. Wider windows keep the floating
+  palette. Resizing retains the query and input focus.
 - Labels use the current language. Keycaps use the platform's modifier names.
 - Search filters the list by action label or displayed keys. Closing help clears
   the search, so the next opening shows the complete list for that view.
@@ -34,11 +39,9 @@ It lets users discover shortcuts without leaving their draft or changing setting
 ### 1. Keep the filter shortcut
 
 **Decision:** Use Cmd/Ctrl+Shift+K for help and preserve Cmd/Ctrl+/ for room search and filters.
-Also provide a help button in the quick switcher.
 **Why:** Users can continue to reach filters with the existing shortcut.
 Cmd+Shift+/ can open a native browser menu before the page receives the key.
-**Tradeoff:** Browsers can reserve shortcuts. The quick-switcher button provides
-a second entry point when a browser intercepts the help shortcut.
+**Tradeoff:** Browsers can reserve shortcuts and prevent the app from receiving them.
 
 ### 2. Describe the current view
 

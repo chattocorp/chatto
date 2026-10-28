@@ -191,6 +191,19 @@ The quick finder uses `command-palette`, which composes the shared menu frame.
 It keeps a compact search field and aligned result rows through
 `command-palette-result`. The active result uses a flat neutral fill and a quiet
 Enter cue. `keycap` supplies the shared keyboard-hint shape.
+Quick switcher and keyboard-shortcut help share `PaletteFrame`. Below 768 px,
+`palette-dialog` fills the visible content area below the app header, with safe-area padding and a
+`PaneHeader` back arrow. Search stays available while the results scroll.
+Use the flat `bg-background` pane surface and normal text size on narrow
+screens, with header and search dividers. Do not retain the floating menu's
+raised surround or recessed section boxes in this layout.
+Keep the app header visible and undimmed, including while palette search
+opens the software keyboard.
+Narrow palettes are nonmodal. A header click dismisses the palette and runs
+the selected header action on the first click. Desktop palettes remain modal.
+Wider windows keep the compact floating frame. Layout changes retain the
+same input, query, and focus. `modalViewport` keeps top-layer content above
+the software keyboard; it is shared with task dialogs and bottom sheets.
 
 ## Attachment Description Icons
 

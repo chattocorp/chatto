@@ -8,6 +8,7 @@ the handle claims drag gestures; content retains native scrolling.
   import { m } from '$lib/i18n/messages';
   import { panGesture } from '$lib/hooks/panGesture.svelte';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
+  import { modalViewport } from './modalViewport';
 
   let {
     visible = $bindable(false),
@@ -97,26 +98,6 @@ the handle claims drag gestures; content retains native scrolling.
     } else if (!visible && node.open && !closing) node.close();
   }
 
-  /** Top-layer dialogs do not inherit body height fixes for virtual keyboards. */
-  function viewport(node: HTMLDialogElement) {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    function update() {
-      node.style.setProperty('--modal-viewport-height', `${vv!.height}px`);
-      node.style.setProperty(
-        '--modal-viewport-bottom',
-        `${Math.max(0, window.innerHeight - vv!.height - vv!.offsetTop)}px`
-      );
-    }
-    update();
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    return () => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
-    };
-  }
-
   function close() {
     if (!dialogEl?.open || closing) return;
     closing = true;
@@ -196,7 +177,7 @@ the handle claims drag gestures; content retains native scrolling.
 <dialog
   {@attach lifetime}
   {@attach syncVisibility}
-  {@attach viewport}
+  {@attach modalViewport}
   onclose={nativeClose}
   onkeydown={(event) => {
     // Keep Escape inside this modal. Descendants can cancel it to dismiss a

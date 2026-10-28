@@ -1,5 +1,6 @@
 {
   "quick_switcher": {
+    "title": "快速切换",
     "placeholder": "前往任意位置，或输入 ? 搜索消息...",
     "no_results": "无结果",
     "recent": "最近",

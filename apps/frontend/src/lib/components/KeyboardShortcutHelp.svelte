@@ -33,15 +33,20 @@ The shared dialog owns Escape dismissal and focus restoration.
     <!-- Keep search in the scroll container so keyboard users can scroll the list.
          The sticky header retains the palette's search placement. -->
     <div
-      class="dialog-body flex max-h-[min(24rem,calc(55dvh+4rem))] flex-col gap-1 overflow-y-auto"
+      class="dialog-body flex max-h-[min(24rem,calc(55dvh+4rem))] min-h-0 flex-col gap-1 overflow-y-auto max-md:max-h-none max-md:flex-1"
     >
       <PaletteSearch
-        class="sticky top-0 z-10"
+        class="sticky top-0 z-10 shrink-0 max-md:border-b max-md:border-border"
         bind:value={query}
         label={m('search.action')}
         placeholder={m('common.keyboard_shortcuts.title')}
       >
-        <button type="button" class="keycap" title={m('ui.close')} onclick={close}>Esc</button>
+        <button
+          type="button"
+          class="keycap hidden md:inline-flex"
+          title={m('ui.close')}
+          onclick={close}>Esc</button
+        >
       </PaletteSearch>
       {#if matches.length === 0}
         <MenuSection>

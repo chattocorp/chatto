@@ -21,7 +21,7 @@ const styleBlockAllowlist = new Set([
 // These components own specialized native-dialog behavior. Standard task
 // dialogs must use Dialog, FormDialog, or ConfirmDialog instead.
 const nativeDialogAllowlist = new Set([
-  'src/lib/components/QuickSwitcher.svelte',
+  'src/lib/ui/PaletteDialog.svelte',
   'src/lib/ui/ModalSurface.svelte',
   'src/routes/chat/ModalContainerConfirmDialogMock.svelte',
   'src/routes/chat/ModalContainerDialogMock.svelte',

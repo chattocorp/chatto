@@ -2404,9 +2404,47 @@
   }
 }
 
+/* Palettes retain the app header even while their search opens the keyboard. */
+@media (width < 48rem) {
+  body[data-keyboard-open]:has(.palette-dialog[open]) .app-header {
+    display: flex;
+  }
+}
+
 /* Quick navigation uses the menu frame with a larger search and result rhythm. */
+@utility palette-dialog {
+  @apply fixed z-60 m-auto mt-[15vh] max-h-none max-w-none overflow-visible;
+  @media (width < 48rem) {
+    --palette-top: max(
+      var(--modal-viewport-top, 0px),
+      calc(var(--app-header-height) + env(safe-area-inset-top, 0px))
+    );
+    margin: 0;
+    top: var(--palette-top);
+    bottom: auto;
+    width: 100%;
+    height: calc(
+      var(--modal-viewport-height, 100dvh) + var(--modal-viewport-top, 0px) - var(--palette-top)
+    );
+    overflow: hidden;
+    &[open]::backdrop {
+      background: transparent;
+    }
+  }
+}
+
 @utility command-palette {
-  @apply flex w-140 max-w-[calc(100vw-2rem)] flex-col gap-1 menu rounded-lg p-1 text-sm;
+  @apply flex min-h-0 w-full flex-col gap-0 bg-background text-base;
+  @media (width < 48rem) {
+    height: 100%;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    & :is(.menu-section, .menu-section-sm) {
+      border-radius: 0;
+    }
+  }
+  @media (width >= 48rem) {
+    @apply w-140 max-w-[calc(100vw-2rem)] gap-1 menu rounded-lg p-1 text-sm;
+  }
 }
 
 @utility command-palette-leading {
