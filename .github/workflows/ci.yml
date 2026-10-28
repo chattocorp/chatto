@@ -483,7 +483,7 @@ jobs:
         if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           base_ref="${GITHUB_BASE_REF}"
-          git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
+          git fetch --no-tags origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
       - name: Lint Chatto protobufs
         if: env.RUN_PROTO_CHECKS == 'true'
