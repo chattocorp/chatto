@@ -32,6 +32,8 @@ type Room struct {
 	// Thread policy for channel rooms. See evtv1.RoomThreadingMode for legacy and DM
 	// normalization rules.
 	ThreadingMode evtv1.RoomThreadingMode
+	// ShowMembershipEvents controls client timeline display, not membership delivery.
+	ShowMembershipEvents bool
 	// Independent per-user thread interval. Absence in legacy records uses
 	// SlowModeSeconds; explicit zero disables thread slow mode.
 	ThreadSlowModeSeconds *uint32

@@ -97,6 +97,15 @@ Explicit membership gives access independently of `room.list` and `room.join`.
 A deny of discovery or self-join does not remove current members. Examine the
 member list when you restrict a room.
 
+## Membership activity
+
+To reduce membership activity in the timeline, open
+**Server Admin → Rooms → [room] → General → Membership activity**,
+clear **Show join/leave events**, and select **Save changes**. You need
+`room.manage`. This setting applies to history and new activity. Turn it on to
+show the stored activity again. It does not remove members or delete events.
+Clients that do not support this setting can continue to show join/leave events.
+
 ## Slow Mode
 
 Open **Server Admin → Rooms → [room] → General → Slow Mode**. Select an

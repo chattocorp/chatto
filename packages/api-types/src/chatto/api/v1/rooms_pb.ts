@@ -132,6 +132,14 @@ export class Room extends Message<Room> {
    */
   createdAt?: Timestamp;
 
+  /**
+   * Whether clients show room join/leave activity. Absence on older servers
+   * means true. Membership state and event delivery are not affected.
+   *
+   * @generated from field: optional bool show_membership_events = 12;
+   */
+  showMembershipEvents?: boolean;
+
   constructor(data?: PartialMessage<Room>) {
     super();
     proto3.util.initPartial(data, this);
@@ -151,6 +159,7 @@ export class Room extends Message<Room> {
     { no: 9, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
     { no: 10, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 11, name: "created_at", kind: "message", T: Timestamp },
+    { no: 12, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Room {
@@ -725,7 +734,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   threadingMode?: RoomThreadingMode;
 
   /**
-   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
+   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events.
    * Omit to infer populated fields; * selects all editable fields. An explicit
    * empty mask is invalid. Unselected values are ignored. Selected absent values
    * reset the field to its default, subject to field validation.
@@ -741,6 +750,14 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
    * @generated from field: optional uint32 thread_slow_mode_seconds = 8;
    */
   threadSlowModeSeconds?: number;
+
+  /**
+   * Whether clients show join/leave activity in this channel's history and live
+   * timeline. Requires room.manage. Selecting an absent value resets to true.
+   *
+   * @generated from field: optional bool show_membership_events = 9;
+   */
+  showMembershipEvents?: boolean;
 
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
@@ -758,6 +775,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
     { no: 6, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode), opt: true },
     { no: 7, name: "update_mask", kind: "message", T: FieldMask },
     { no: 8, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 9, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {

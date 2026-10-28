@@ -557,6 +557,8 @@ message RoomSnapshot {
   string purpose = 14;
   // Member-only notice state. Never expose this through room discovery.
   RoomNoticeSnapshot notice = 15;
+  // Room-owned display setting. Membership facts remain available.
+  bool show_membership_events = 16;
 }
 
 // RoomNoticeSnapshot stores room notice state for projection restore.

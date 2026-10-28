@@ -16,6 +16,7 @@
   import { getLocale } from '$lib/i18n/runtime';
   import {
     isMessagePostedEvent,
+    TimelineEventKind,
     type TimelineEventView
   } from '@chatto/client/timeline/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
@@ -163,6 +164,9 @@
   const roomMembers = $derived(getRoomMembers());
   const userInteractions = new MessageUserInteractionState(() => roomMembers);
   const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
+  const showMembershipEvents = $derived(
+    stores.projection?.rooms?.get(roomId)?.room?.showMembershipEvents ?? true
+  );
   const canStartDMs = $derived(stores.permissions?.canStartDMs ?? false);
   // Message action overlays live outside the virtualized rows, so they stay open when
   // the row of their message unmounts.
@@ -203,8 +207,19 @@
       return true;
     })
   );
+  // Apply display settings after structural filtering, retaining the original
+  // window for unread boundaries and pagination through entirely hidden pages.
+  const activityFilteredEvents = $derived(
+    showMembershipEvents
+      ? timelineEvents
+      : timelineEvents.filter(
+          (event) =>
+            event.event?.kind !== TimelineEventKind.UserJoinedRoom &&
+            event.event?.kind !== TimelineEventKind.UserLeftRoom
+        )
+  );
   let filteredEvents = $derived(
-    showTombstones ? timelineEvents : visibleTombstoneEvents(timelineEvents)
+    showTombstones ? activityFilteredEvents : visibleTombstoneEvents(activityFilteredEvents)
   );
   // The message that owns the open action overlay, while the timeline shows it as a message.
   const actionOverlayEvent = $derived.by(() => {
@@ -272,7 +287,9 @@
   $effect(() => {
     const currentTimelineKey = timelineKey;
     const jumped = isJumpedMode;
-    const newestId = timelineEvents.at(-1)?.id ?? null;
+    // Hidden membership activity does not announce new messages. Keep deleted
+    // placeholders in this boundary, even when their rows have no visible context.
+    const newestId = activityFilteredEvents.at(-1)?.id ?? null;
     untrack(() => {
       if (viewport.enterRoom(currentTimelineKey)) {
         expandedSystemEventIds.clear();
@@ -819,7 +836,7 @@
 
     underfilledBackfillInFlight = true;
     try {
-      // A fetched page can consist entirely of context-free tombstones. There is no
+      // A fetched page can consist entirely of hidden activity or tombstones. There is no
       // Virtualizer in that state, but pagination still needs to walk backward
       // until it finds visible history or reaches the beginning.
       if (timelineEvents.length > 0 && filteredEvents.length === 0) {

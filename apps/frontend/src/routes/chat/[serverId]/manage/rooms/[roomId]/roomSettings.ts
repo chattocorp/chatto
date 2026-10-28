@@ -1,5 +1,6 @@
-import type { RoomCommandAPI } from '@chatto/client/api/rooms';
+import type { PublicRoom, RoomCommandAPI } from '@chatto/client/api/rooms';
 import { normalizeRoomName } from '@chatto/client/util/roomName';
+import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
 
 type RoomUpdateInput = Parameters<RoomCommandAPI['updateRoom']>[0];
 
@@ -9,6 +10,31 @@ type RoomUpdateInput = Parameters<RoomCommandAPI['updateRoom']>[0];
  * or overwrite concurrent changes.
  */
 export type RoomSettingsPatch = Omit<RoomUpdateInput, 'roomId'>;
+
+/**
+ * Apply only submitted fields from an accepted response. Concurrent panels can
+ * receive whole-room responses in a different order from their saves.
+ */
+export function applyRoomSettingsResponse(
+  current: AdminManagedRoom,
+  updated: PublicRoom,
+  patch: RoomSettingsPatch
+): AdminManagedRoom {
+  return {
+    ...current,
+    ...('name' in patch && { name: updated.name }),
+    ...('description' in patch && { description: updated.description || null }),
+    ...('universal' in patch && { isUniversal: updated.universal }),
+    ...('slowModeSeconds' in patch && { slowModeSeconds: updated.slowModeSeconds }),
+    ...('threadSlowModeSeconds' in patch && {
+      threadSlowModeSeconds: updated.threadSlowModeSeconds
+    }),
+    ...('threadingMode' in patch && { threadingMode: updated.threadingMode }),
+    ...('showMembershipEvents' in patch && {
+      showMembershipEvents: updated.showMembershipEvents
+    })
+  };
+}
 
 /** The editable name and description of a room. */
 export type RoomDetailsValues = { name: string; description: string };

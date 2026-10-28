@@ -245,7 +245,9 @@ Snapshot codecs map projection state to dedicated `projection/v1` records;
 transport adapters map read results to public API records. The
 [`snapshot adapters`](../../cli/internal/core/read_model_snapshots.go) exclude
 hydrated login, display name, and bio structurally. Room snapshots retain raw
-threading enum values before read-time normalization. Legacy group and link
+threading enum values before read-time normalization and the room-owned membership
+activity display setting. Creation facts initialize that setting to true, including
+historical creation facts. Legacy group and link
 records live with `RoomLayout` in `runtime_state/v1/legacy_state.proto`. Event-owned
 values stay in `evt/v1/event_values.proto`. See
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).

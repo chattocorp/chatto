@@ -2,7 +2,7 @@
 @component
 
 General section of a room: its name and description, visibility, Slow Mode,
-and Threading Mode, each in its own form with Save and Discard actions. A viewer who cannot
+Threading Mode, and membership activity, each in its own form with Save and Discard actions. A viewer who cannot
 change the settings goes to the Members section instead.
 -->
 <script lang="ts">
@@ -22,11 +22,12 @@ change the settings goes to the Members section instead.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { toast } from '$lib/ui/toast';
   import { ConfirmDialog } from '$lib/ui';
-  import type { RoomSettingsPatch } from './roomSettings';
+  import { applyRoomSettingsResponse, type RoomSettingsPatch } from './roomSettings';
   import RoomNameSettingsPanel from './RoomNameSettingsPanel.svelte';
   import RoomSlowModeSettingsPanel from './RoomSlowModeSettingsPanel.svelte';
   import RoomThreadingModeSettingsPanel from './RoomThreadingModeSettingsPanel.svelte';
   import RoomVisibilitySettingsPanel from './RoomVisibilitySettingsPanel.svelte';
+  import RoomMembershipEventsSettingsPanel from './RoomMembershipEventsSettingsPanel.svelte';
   import { useRoomManagement, type RoomMutationScope } from './roomManagementContext';
 
   const serverScope = useServerScope();
@@ -37,6 +38,7 @@ change the settings goes to the Members section instead.
   let visibilitySection = $state<SettingsSection>();
   let slowModeSection = $state<SettingsSection>();
   let threadingSection = $state<SettingsSection>();
+  let membershipEventsSection = $state<SettingsSection>();
   let pendingNavigation = $state<BeforeNavigate | null>(null);
   // Approval applies only to the resumed destination, not to later navigation attempts.
   let approvedDestination: string | null = null;
@@ -57,9 +59,13 @@ change the settings goes to the Members section instead.
       pendingNavigation = null;
       return;
     }
-    const dirty = [nameSection, visibilitySection, slowModeSection, threadingSection].some(
-      (section) => section?.hasChanges()
-    );
+    const dirty = [
+      nameSection,
+      visibilitySection,
+      slowModeSection,
+      threadingSection,
+      membershipEventsSection
+    ].some((section) => section?.hasChanges());
     if (!dirty) return;
     cancel();
     // Closing or reloading a tab must use the browser's native unload warning.
@@ -118,27 +124,10 @@ change the settings goes to the Members section instead.
     onSuccess: (updated, variables) => {
       if (!detail.isCurrentRoom(variables)) return;
       if (detail.canApplyRoomSnapshot(variables)) {
-        // Panels save concurrently, and each response describes the whole
-        // room. Apply only the fields of this patch, so an older response
-        // cannot restore a value that another panel changed. Realtime room
-        // refreshes reconcile the other fields.
         const { patch } = variables;
         queryClient.setQueryData<AdminManagedRoom | null>(
           adminQueryKeys.room(variables.serverId, variables.connection, variables.roomId),
-          (current) =>
-            current
-              ? {
-                  ...current,
-                  ...('name' in patch && { name: updated.name }),
-                  ...('description' in patch && { description: updated.description || null }),
-                  ...('universal' in patch && { isUniversal: updated.universal }),
-                  ...('slowModeSeconds' in patch && { slowModeSeconds: updated.slowModeSeconds }),
-                  ...('threadSlowModeSeconds' in patch && {
-                    threadSlowModeSeconds: updated.threadSlowModeSeconds
-                  }),
-                  ...('threadingMode' in patch && { threadingMode: updated.threadingMode })
-                }
-              : current
+          (current) => (current ? applyRoomSettingsResponse(current, updated, patch) : current)
         );
       }
       invalidateAdminRoomLayoutQueries(variables.serverId, variables.connection, variables.roomId);
@@ -207,6 +196,11 @@ change the settings goes to the Members section instead.
     {/if}
     <RoomThreadingModeSettingsPanel
       bind:this={threadingSection}
+      room={detail.room}
+      onSave={saveSettings}
+    />
+    <RoomMembershipEventsSettingsPanel
+      bind:this={membershipEventsSection}
       room={detail.room}
       onSave={saveSettings}
     />

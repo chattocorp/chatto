@@ -733,6 +733,7 @@ Public room metadata returned by room commands.
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 | `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+| `show_membership_events` | `optional bool` | Whether clients show room join/leave activity. Absence on older servers means true. Membership state and event delivery are not affected. |
 
 <a id="chatto-api-v1-RoomNotice"></a>
 

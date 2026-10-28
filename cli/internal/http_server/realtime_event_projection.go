@@ -84,6 +84,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 	case *evtv1.Event_RoomThreadingModeChanged:
 		v := e.RoomThreadingModeChanged
 		target.Event = &realtimev1.RealtimeEvent_RoomThreadingModeChanged{RoomThreadingModeChanged: &realtimev1.RoomThreadingModeChangedEvent{RoomId: v.GetRoomId(), ThreadingMode: realtimeRoomThreadingMode(v.GetThreadingMode())}}
+	case *evtv1.Event_RoomMembershipEventsVisibilityChanged:
+		v := e.RoomMembershipEventsVisibilityChanged
+		target.Event = &realtimev1.RealtimeEvent_RoomMembershipEventsVisibilityChanged{RoomMembershipEventsVisibilityChanged: &realtimev1.RoomMembershipEventsVisibilityChangedEvent{RoomId: v.GetRoomId(), ShowMembershipEvents: v.GetShowMembershipEvents()}}
 	case *evtv1.Event_UserJoinedRoom:
 		target.Event = &realtimev1.RealtimeEvent_UserJoinedRoom{UserJoinedRoom: &realtimev1.UserJoinedRoomEvent{RoomId: e.UserJoinedRoom.GetRoomId()}}
 	case *evtv1.Event_UserLeftRoom:
