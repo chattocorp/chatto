@@ -264,6 +264,9 @@
       "title": "Notifiche",
       "subtitle": "Configura il modo in cui ricevi le notifiche",
       "push": {
+        "recovery_browser": "Dopo una creazione non riuscita o interrotta, i nuovi abbonamenti vengono sospesi in tutte le schede di questa app senza limiti di tempo. Ricaricare non riprende la configurazione; un nuovo tentativo riuscito sì. Controlla la connessione e seleziona {retry}. Gli abbonamenti esistenti continuano a funzionare. Se gli errori persistono, condividi quello sopra con l’assistenza del browser. Disattivare e riattivare il push rimuove gli abbonamenti esistenti.",
+        "recovery_server": "L’abbonamento del browser viene mantenuto. Chatto riprova automaticamente a salvarlo sul server quando torni nell’app e durante i controlli periodici. Controlla la connessione o seleziona {retry} ora.",
+        "recovery_setup": "Controlla i permessi per le notifiche e l’accesso allo spazio di archiviazione del sito nelle impostazioni del browser, poi seleziona {retry}. Se la configurazione continua a fallire, condividi l’errore sopra con l’assistenza.",
         "title": "Notifiche push",
         "not_supported": "Le notifiche push non sono supportate in questo browser.",
         "server_unconfigured": "Le notifiche push non sono disponibili su questo server. L’amministratore del server non le ha configurate.",

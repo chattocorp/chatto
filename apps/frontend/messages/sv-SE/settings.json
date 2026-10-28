@@ -264,6 +264,9 @@
       "title": "Aviseringar",
       "subtitle": "Konfigurera hur du tar emot aviseringar",
       "push": {
+        "recovery_browser": "Efter misslyckad eller avbruten registrering pausas nya prenumerationer i appens alla flikar utan tidsgräns. Omladdning återupptar inte konfigurationen; ett lyckat nytt försök gör det. Kontrollera din anslutning och välj {retry}. Befintliga prenumerationer fortsätter fungera. Om felen fortsätter, dela felet ovan med webbläsarens support. Att stänga av och slå på push tar bort befintliga prenumerationer.",
+        "recovery_server": "Webbläsarens prenumeration behålls. Chatto försöker automatiskt spara på servern igen när du återvänder till appen och vid regelbundna kontroller. Kontrollera din anslutning eller välj {retry} nu.",
+        "recovery_setup": "Kontrollera aviseringsbehörigheter och åtkomst till webbplatslagring i webbläsarens inställningar och välj {retry}. Dela felet ovan med supporten om konfigurationen fortsätter misslyckas.",
         "title": "Push-meddelanden",
         "not_supported": "Push-meddelanden stöds inte i den här webbläsaren.",
         "server_unconfigured": "Push-meddelanden är inte tillgängliga på den här servern. Serveradministratören har inte konfigurerat dem.",

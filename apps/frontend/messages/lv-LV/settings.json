@@ -264,6 +264,9 @@
       "title": "Paziņojumi",
       "subtitle": "Konfigurējiet paziņojumu saņemšanas veidu",
       "push": {
+        "recovery_browser": "Pēc neveiksmīgas vai pārtrauktas izveides jauni abonementi tiek apturēti visās šīs lietotnes cilnēs bez laika ierobežojuma. Pārlādēšana neatsāk iestatīšanu; veiksmīgs atkārtots mēģinājums to atsāk. Pārbaudiet savienojumu un atlasiet {retry}. Esošie abonementi turpina darboties. Ja kļūdas atkārtojas, nosūtiet iepriekš redzamo kļūdu pārlūka atbalsta dienestam. Push izslēgšana un ieslēgšana noņem esošos abonementus.",
+        "recovery_server": "Pārlūka abonements tiek saglabāts. Chatto automātiski atkārto saglabāšanu serverī, kad atgriežaties lietotnē, un periodisko pārbaužu laikā. Pārbaudiet savienojumu vai atlasiet {retry} tagad.",
+        "recovery_setup": "Pārbaudiet paziņojumu atļaujas un piekļuvi vietnes krātuvei pārlūka iestatījumos, pēc tam atlasiet {retry}. Ja iestatīšana joprojām neizdodas, nosūtiet iepriekš redzamo kļūdu atbalsta dienestam.",
         "title": "Push paziņojumi",
         "not_supported": "Push paziņojumi šajā pārlūkprogrammā netiek atbalstīti.",
         "server_unconfigured": "Push paziņojumi šajā serverī nav pieejami. Servera administrators tos nav konfigurējis.",

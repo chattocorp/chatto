@@ -24,6 +24,7 @@ blocks notifications. Renders nothing when the app does not run in a browser.
     isBrowserWebPushRuntime,
     isPushDisabledOnThisDevice,
     pushRegistrationFailure,
+    pushRegistrationFailureKind,
     retryPushRegistration,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
@@ -58,6 +59,14 @@ blocks notifications. Renders nothing when the app does not run in a browser.
   const registrationFailure = $derived(
     on && !registered ? pushRegistrationFailure(serverId) : null
   );
+  const recoveryGuidance = $derived.by(() => {
+    if (!registrationFailure) return undefined;
+    const kind = pushRegistrationFailureKind(serverId);
+    const retry = m('common.retry');
+    if (kind === 'browser') return m('settings.notifications.push.recovery_browser', { retry });
+    if (kind === 'server') return m('settings.notifications.push.recovery_server', { retry });
+    return m('settings.notifications.push.recovery_setup', { retry });
+  });
 
   let changing = $state(false);
   let problem = $state<ToggleProblem | null>(null);
@@ -76,7 +85,7 @@ blocks notifications. Renders nothing when the app does not run in a browser.
     return undefined;
   });
   const description = $derived(
-    on && !registered
+    on && !registered && !registrationFailure
       ? m('settings.notifications.push.registering')
       : m('settings.notifications.push.description', { device: deviceLabel })
   );
@@ -171,6 +180,9 @@ blocks notifications. Renders nothing when the app does not run in a browser.
           bind:checked
           onchange={change}
         />
+        {#if recoveryGuidance && !problem}
+          <Hint>{recoveryGuidance}</Hint>
+        {/if}
         {#if problem === 'turn_off_failed' || (registrationFailure && !problem)}
           <div>
             <Button

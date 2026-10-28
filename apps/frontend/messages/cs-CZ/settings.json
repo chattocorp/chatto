@@ -264,6 +264,9 @@
       "title": "Oznámení",
       "subtitle": "Nakonfigurujte způsob přijímání oznámení",
       "push": {
+        "recovery_browser": "Po neúspěšném nebo přerušeném vytváření se nové odběry pozastaví ve všech kartách této aplikace bez časového limitu. Obnovení stránky nastavení neobnoví; úspěšný nový pokus ano. Zkontrolujte připojení a zvolte {retry}. Stávající odběry nadále fungují. Pokud chyby přetrvávají, předejte výše uvedenou chybu podpoře prohlížeče. Vypnutí a zapnutí push odstraní stávající odběry.",
+        "recovery_server": "Odběr v prohlížeči zůstane zachován. Chatto automaticky opakuje uložení na server při návratu do aplikace a při pravidelných kontrolách. Zkontrolujte připojení nebo zvolte {retry} nyní.",
+        "recovery_setup": "Zkontrolujte oprávnění k oznámením a přístup k úložišti webu v nastavení prohlížeče a zvolte {retry}. Pokud nastavení stále selhává, předejte výše uvedenou chybu podpoře.",
         "title": "Push oznámení",
         "not_supported": "Push notifikace nejsou v tomto prohlížeči podporovány.",
         "server_unconfigured": "Push oznámení nejsou na tomto serveru dostupná. Správce serveru je nenakonfiguroval.",

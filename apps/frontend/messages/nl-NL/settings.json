@@ -264,6 +264,9 @@
       "title": "Meldingen",
       "subtitle": "Configureer hoe u meldingen ontvangt",
       "push": {
+        "recovery_browser": "Na een mislukte of onderbroken aanmaak pauzeren nieuwe abonnementen in alle tabbladen van deze app zonder tijdslimiet. Herladen hervat de installatie niet; een geslaagde nieuwe poging wel. Controleer je verbinding en kies {retry}. Bestaande abonnementen blijven werken. Blijven fouten optreden, deel dan de fout hierboven met de browserondersteuning. Push uit- en inschakelen verwijdert bestaande abonnementen.",
+        "recovery_server": "Het browserabonnement blijft behouden. Chatto probeert automatisch opnieuw op de server op te slaan wanneer je terugkeert naar de app en bij periodieke controles. Controleer je verbinding of kies nu {retry}.",
+        "recovery_setup": "Controleer de meldingsrechten en toegang tot websiteopslag in je browserinstellingen en kies {retry}. Deel de fout hierboven met de ondersteuning als de installatie blijft mislukken.",
         "title": "Pushmeldingen",
         "not_supported": "Pushmeldingen worden niet ondersteund in deze browser.",
         "server_unconfigured": "Pushmeldingen zijn niet beschikbaar op deze server. De serverbeheerder heeft ze niet ingesteld.",

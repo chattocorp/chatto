@@ -264,6 +264,9 @@
       "title": "Notificações",
       "subtitle": "Configure como você recebe notificações",
       "push": {
+        "recovery_browser": "Após uma falha ou interrupção na criação, novas assinaturas ficam pausadas em todas as abas deste aplicativo, sem limite de tempo. Recarregar não retoma a configuração; uma nova tentativa bem-sucedida retoma. Verifique sua conexão e selecione {retry}. As assinaturas existentes continuam funcionando. Se as falhas persistirem, envie o erro acima ao suporte do navegador. Desativar e reativar o push remove as assinaturas existentes.",
+        "recovery_server": "A assinatura do navegador é mantida. O Chatto tenta salvá-la no servidor automaticamente quando você volta ao aplicativo e nas verificações periódicas. Verifique sua conexão ou selecione {retry} agora.",
+        "recovery_setup": "Verifique as permissões de notificação e o acesso ao armazenamento do site nas configurações do navegador e selecione {retry}. Se a configuração continuar falhando, envie o erro acima ao suporte.",
         "title": "Notificações push",
         "not_supported": "Notificações push não são suportadas neste navegador.",
         "server_unconfigured": "As notificações push não estão disponíveis neste servidor. O administrador do servidor não as configurou.",

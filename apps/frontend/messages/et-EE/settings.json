@@ -264,6 +264,9 @@
       "title": "Märguanded",
       "subtitle": "Seadistage teatiste saamise viis",
       "push": {
+        "recovery_browser": "Pärast ebaõnnestunud või katkenud loomist peatatakse uued tellimused selle rakenduse kõigil vahekaartidel tähtajatult. Uuesti laadimine ei jätka seadistamist; edukas uus katse jätkab. Kontrollige ühendust ja valige {retry}. Olemasolevad tellimused töötavad edasi. Kui vead korduvad, edastage ülaltoodud viga brauseri kasutajatoele. Tõuketeavituste välja- ja sisselülitamine eemaldab olemasolevad tellimused.",
+        "recovery_server": "Brauseri tellimus säilitatakse. Chatto proovib automaatselt uuesti serverisse salvestada, kui naasete rakendusse ja perioodiliste kontrollide ajal. Kontrollige ühendust või valige kohe {retry}.",
+        "recovery_setup": "Kontrollige brauseri seadetes teavituste õigusi ja juurdepääsu saidi salvestusruumile ning valige {retry}. Kui seadistamine ikka ebaõnnestub, edastage ülaltoodud viga kasutajatoele.",
         "title": "Tõukemärguanded",
         "not_supported": "See brauser ei toeta tõukemärguandeid.",
         "server_unconfigured": "Tõukemärguanded pole selles serveris saadaval. Serveri administraator pole neid seadistanud.",

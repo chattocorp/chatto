@@ -264,6 +264,9 @@
       "title": "Bildirimler",
       "subtitle": "Bildirimleri nasıl alacağınızı yapılandırın",
       "push": {
+        "recovery_browser": "Oluşturma başarısız olduğunda veya kesildiğinde yeni abonelikler bu uygulamanın tüm sekmelerinde süresiz duraklatılır. Yeniden yüklemek kurulumu sürdürmez; başarılı bir yeniden deneme sürdürür. Bağlantınızı kontrol edip {retry} seçeneğini seçin. Mevcut abonelikler çalışmaya devam eder. Hatalar sürerse yukarıdaki hatayı tarayıcı desteğiyle paylaşın. Push bildirimlerini kapatıp açmak mevcut abonelikleri kaldırır.",
+        "recovery_server": "Tarayıcı aboneliği korunur. Chatto, uygulamaya döndüğünüzde ve düzenli kontroller sırasında sunucuya kaydetmeyi otomatik olarak yeniden dener. Bağlantınızı kontrol edin veya şimdi {retry} seçeneğini seçin.",
+        "recovery_setup": "Tarayıcı ayarlarında bildirim izinlerini ve site depolama erişimini kontrol edip {retry} seçeneğini seçin. Kurulum hâlâ başarısızsa yukarıdaki hatayı destekle paylaşın.",
         "title": "Anlık bildirimler",
         "not_supported": "Anında bildirimler bu tarayıcıda desteklenmiyor.",
         "server_unconfigured": "Anlık bildirimler bu sunucuda kullanılamıyor. Sunucu yöneticisi bunları yapılandırmadı.",

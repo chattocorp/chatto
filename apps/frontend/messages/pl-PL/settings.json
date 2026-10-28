@@ -264,6 +264,9 @@
       "title": "Powiadomienia",
       "subtitle": "Skonfiguruj sposób otrzymywania powiadomień",
       "push": {
+        "recovery_browser": "Po nieudanym lub przerwanym tworzeniu nowe subskrypcje są wstrzymane we wszystkich kartach tej aplikacji bez limitu czasu. Odświeżenie nie wznawia konfiguracji; udana ponowna próba ją wznawia. Sprawdź połączenie i wybierz {retry}. Istniejące subskrypcje nadal działają. Jeśli błędy się powtarzają, przekaż powyższy błąd pomocy technicznej przeglądarki. Wyłączenie i włączenie push usuwa istniejące subskrypcje.",
+        "recovery_server": "Subskrypcja przeglądarki zostaje zachowana. Chatto automatycznie ponawia zapis na serwerze po powrocie do aplikacji i podczas okresowych kontroli. Sprawdź połączenie lub wybierz teraz {retry}.",
+        "recovery_setup": "Sprawdź uprawnienia do powiadomień i dostęp do pamięci witryny w ustawieniach przeglądarki, a następnie wybierz {retry}. Jeśli konfiguracja nadal się nie udaje, przekaż powyższy błąd pomocy technicznej.",
         "title": "Powiadomienia push",
         "not_supported": "Powiadomienia push nie są obsługiwane w tej przeglądarce.",
         "server_unconfigured": "Powiadomienia push nie są dostępne na tym serwerze. Administrator serwera ich nie skonfigurował.",

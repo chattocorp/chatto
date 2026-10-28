@@ -264,6 +264,9 @@
       "title": "Benachrichtigungen",
       "subtitle": "Lege fest, wie du Benachrichtigungen erhältst",
       "push": {
+        "recovery_browser": "Nach einer fehlgeschlagenen oder unterbrochenen Erstellung pausieren neue Abonnements in allen Tabs dieser App ohne Zeitlimit. Neuladen setzt die Einrichtung nicht fort; ein erfolgreicher neuer Versuch schon. Prüfe deine Verbindung und wähle {retry}. Bestehende Abonnements funktionieren weiter. Bei weiteren Fehlern teile dem Browser-Support den Fehler oben mit. Aus- und Einschalten von Push entfernt bestehende Abonnements.",
+        "recovery_server": "Das Browser-Abonnement bleibt erhalten. Chatto wiederholt das Speichern auf dem Server automatisch, wenn du zur App zurückkehrst, und bei regelmäßigen Prüfungen. Prüfe deine Verbindung oder wähle jetzt {retry}.",
+        "recovery_setup": "Prüfe die Benachrichtigungsberechtigungen und den Zugriff auf den Website-Speicher in deinen Browsereinstellungen und wähle {retry}. Wenn die Einrichtung weiter fehlschlägt, teile dem Support den Fehler oben mit.",
         "title": "Push-Benachrichtigungen",
         "not_supported": "Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.",
         "server_unconfigured": "Push-Benachrichtigungen sind auf diesem Server nicht verfügbar. Die Serveradministration hat sie nicht eingerichtet.",

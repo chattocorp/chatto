@@ -264,6 +264,9 @@
       "title": "Notificaciones",
       "subtitle": "Configura cómo recibes notificaciones",
       "push": {
+        "recovery_browser": "Tras un fallo o una interrupción al crear suscripciones, las nuevas se pausan sin límite de tiempo en todas las pestañas de esta aplicación. Recargar no reanuda la configuración; un nuevo intento exitoso sí. Comprueba tu conexión y selecciona {retry}. Las suscripciones existentes siguen funcionando. Si los fallos continúan, comparte el error de arriba con el soporte del navegador. Desactivar y activar las notificaciones push elimina las suscripciones existentes.",
+        "recovery_server": "Se conserva la suscripción del navegador. Chatto reintenta guardarla en el servidor cuando vuelves a la aplicación y durante las comprobaciones periódicas. Comprueba tu conexión o selecciona {retry} ahora.",
+        "recovery_setup": "Comprueba los permisos de notificación y el acceso al almacenamiento del sitio en los ajustes del navegador y selecciona {retry}. Si la configuración sigue fallando, comparte el error de arriba con el soporte.",
         "title": "Notificaciones push",
         "not_supported": "Las notificaciones push no son compatibles con este navegador.",
         "server_unconfigured": "Las notificaciones push no están disponibles en este servidor. El administrador del servidor no las ha configurado.",

@@ -264,6 +264,9 @@
       "title": "Varsler",
       "subtitle": "Konfigurer hvordan du mottar varsler",
       "push": {
+        "recovery_browser": "Etter mislykket eller avbrutt opprettelse settes nye abonnementer på pause i alle fanene til denne appen uten tidsgrense. Oppdatering av siden gjenopptar ikke oppsettet; et vellykket nytt forsøk gjør det. Sjekk tilkoblingen din og velg {retry}. Eksisterende abonnementer fungerer fortsatt. Hvis feilene fortsetter, del feilen ovenfor med nettleserens brukerstøtte. Å slå push av og på fjerner eksisterende abonnementer.",
+        "recovery_server": "Nettleserabonnementet beholdes. Chatto prøver automatisk å lagre på serveren igjen når du kommer tilbake til appen og ved regelmessige kontroller. Sjekk tilkoblingen din eller velg {retry} nå.",
+        "recovery_setup": "Sjekk varslingstillatelser og tilgang til nettstedslagring i nettleserinnstillingene, og velg {retry}. Hvis oppsettet fortsatt mislykkes, del feilen ovenfor med brukerstøtten.",
         "title": "Push-varsler",
         "not_supported": "Push-varsler støttes ikke i denne nettleseren.",
         "server_unconfigured": "Push-varsler er ikke tilgjengelige på denne serveren. Serveradministratoren har ikke konfigurert dem.",

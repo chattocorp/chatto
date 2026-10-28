@@ -264,6 +264,9 @@
       "title": "Notifications",
       "subtitle": "Configurez comment vous recevez les notifications",
       "push": {
+        "recovery_browser": "Après un échec ou une interruption de création, les nouveaux abonnements sont suspendus sans limite de temps dans tous les onglets de cette application. Recharger ne relance pas la configuration ; une nouvelle tentative réussie la relance. Vérifiez votre connexion, puis sélectionnez {retry}. Les abonnements existants fonctionnent toujours. Si les erreurs persistent, transmettez celle ci-dessus à l’assistance du navigateur. Désactiver puis réactiver les notifications push supprime les abonnements existants.",
+        "recovery_server": "L’abonnement du navigateur est conservé. Chatto réessaie automatiquement l’enregistrement sur le serveur à votre retour dans l’application et lors des vérifications périodiques. Vérifiez votre connexion ou sélectionnez {retry} maintenant.",
+        "recovery_setup": "Vérifiez les autorisations de notification et l’accès au stockage du site dans les paramètres du navigateur, puis sélectionnez {retry}. Si la configuration échoue encore, transmettez l’erreur ci-dessus à l’assistance.",
         "title": "Notifications poussées",
         "not_supported": "Les notifications poussées ne sont pas prises en charge dans ce navigateur.",
         "server_unconfigured": "Les notifications poussées ne sont pas disponibles sur ce serveur. L’administrateur du serveur ne les a pas configurées.",

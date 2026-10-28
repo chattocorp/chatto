@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   permission: 'granted' as NotificationPermission | null,
   registered: true,
   failure: null as string | null,
+  failureKind: 'browser' as 'browser' | 'server' | 'setup',
   webPushRuntime: true,
   retryPushRegistration: vi.fn(),
   enablePushOnAllServers: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   hasSavedPushRegistration: mocks.hasSavedPushRegistration,
   isBrowserWebPushRuntime: () => mocks.webPushRuntime,
   pushRegistrationFailure: () => mocks.failure,
+  pushRegistrationFailureKind: () => mocks.failureKind,
   retryPushRegistration: mocks.retryPushRegistration,
   sendTestNotification: mocks.sendTestNotification
 }));
@@ -54,6 +56,7 @@ describe('PushDeviceSettings', () => {
     mocks.hasSavedPushRegistration.mockImplementation(() => mocks.registered);
     mocks.registered = true;
     mocks.failure = null;
+    mocks.failureKind = 'browser';
     mocks.retryPushRegistration.mockReset();
     mocks.retryPushRegistration.mockResolvedValue(true);
     mocks.sendTestNotification.mockReset();
@@ -124,6 +127,26 @@ describe('PushDeviceSettings', () => {
     await screen.getByRole('button', { name: 'Try Again' }).click();
 
     expect(mocks.retryPushRegistration).toHaveBeenCalledWith('origin');
+    await expect.element(screen.getByText(/without a time limit/)).toBeVisible();
+    await expect.element(screen.getByText(/Setting up push notifications/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/TOO_MANY_REGISTRATIONS/)).not.toBeInTheDocument();
+  });
+
+  it('explains automatic server-save retries without claiming browser creation is paused', async () => {
+    mocks.registered = false;
+    mocks.failure = 'Error: server unavailable';
+    mocks.failureKind = 'server';
+    const screen = renderSettings();
+    await expect.element(screen.getByText(/retries the server save automatically/)).toBeVisible();
+    await expect.element(screen.getByText(/without a time limit/)).not.toBeInTheDocument();
+  });
+
+  it('provides browser settings guidance for other setup failures', async () => {
+    mocks.registered = false;
+    mocks.failure = 'Error: storage unavailable';
+    mocks.failureKind = 'setup';
+    const screen = renderSettings();
+    await expect.element(screen.getByText(/site storage access/)).toBeVisible();
   });
 
   it('shows setup progress until this page saves the subscription', async () => {
