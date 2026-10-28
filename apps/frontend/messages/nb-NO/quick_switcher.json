@@ -1,5 +1,6 @@
 {
   "quick_switcher": {
+    "title": "Hurtigbytte",
     "placeholder": "Gå et sted, eller skriv ? for å søke i meldinger...",
     "no_results": "Ingen resultater",
     "recent": "Nylig",
