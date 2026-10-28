@@ -185,19 +185,22 @@
               aria-label={m('room.thread.participants', { count: participantCount })}
               data-testid="thread-header-participants"
             >
-              {#each visibleParticipants as participant (participant.id)}
+              {#each visibleParticipants as participant, index (participant.id)}
                 {@const name = participant.deleted
                   ? m('common.deleted_user')
                   : participant.displayName || participant.login || m('common.unknown_user')}
                 <button
                   type="button"
-                  class="pane-header-icon-button"
+                  class={[
+                    'relative pane-header-icon-button rounded-full hover:z-10 focus-visible:z-10',
+                    index > 0 && '-ms-4'
+                  ]}
                   title={name}
                   aria-label={name}
                   disabled={!onOpenProfile || participant.deleted}
                   onclick={() => onOpenProfile?.(participant.id)}
                 >
-                  <UserAvatar user={participant} size="sm" />
+                  <UserAvatar user={participant} size="sm" class="ring-2 ring-background" />
                 </button>
               {/each}
               {#if participantCount > visibleParticipants.length}
