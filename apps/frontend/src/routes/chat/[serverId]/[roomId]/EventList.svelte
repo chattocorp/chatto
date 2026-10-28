@@ -209,16 +209,18 @@
   );
   // Apply display settings after structural filtering, retaining the original
   // window for unread boundaries and pagination through entirely hidden pages.
-  let filteredEvents = $derived.by(() => {
-    const visible = showTombstones ? timelineEvents : visibleTombstoneEvents(timelineEvents);
-    return showMembershipEvents
-      ? visible
-      : visible.filter(
+  const activityFilteredEvents = $derived(
+    showMembershipEvents
+      ? timelineEvents
+      : timelineEvents.filter(
           (event) =>
             event.event?.kind !== TimelineEventKind.UserJoinedRoom &&
             event.event?.kind !== TimelineEventKind.UserLeftRoom
-        );
-  });
+        )
+  );
+  let filteredEvents = $derived(
+    showTombstones ? activityFilteredEvents : visibleTombstoneEvents(activityFilteredEvents)
+  );
   // The message that owns the open action overlay, while the timeline shows it as a message.
   const actionOverlayEvent = $derived.by(() => {
     const eventId = actionOverlays.current?.eventId;
@@ -285,7 +287,9 @@
   $effect(() => {
     const currentTimelineKey = timelineKey;
     const jumped = isJumpedMode;
-    const newestId = timelineEvents.at(-1)?.id ?? null;
+    // Hidden membership activity does not announce new messages. Keep deleted
+    // placeholders in this boundary, even when their rows have no visible context.
+    const newestId = activityFilteredEvents.at(-1)?.id ?? null;
     untrack(() => {
       if (viewport.enterRoom(currentTimelineKey)) {
         expandedSystemEventIds.clear();

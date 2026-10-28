@@ -22,7 +22,7 @@ change the settings goes to the Members section instead.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { toast } from '$lib/ui/toast';
   import { ConfirmDialog } from '$lib/ui';
-  import type { RoomSettingsPatch } from './roomSettings';
+  import { applyRoomSettingsResponse, type RoomSettingsPatch } from './roomSettings';
   import RoomNameSettingsPanel from './RoomNameSettingsPanel.svelte';
   import RoomSlowModeSettingsPanel from './RoomSlowModeSettingsPanel.svelte';
   import RoomThreadingModeSettingsPanel from './RoomThreadingModeSettingsPanel.svelte';
@@ -124,30 +124,10 @@ change the settings goes to the Members section instead.
     onSuccess: (updated, variables) => {
       if (!detail.isCurrentRoom(variables)) return;
       if (detail.canApplyRoomSnapshot(variables)) {
-        // Panels save concurrently, and each response describes the whole
-        // room. Apply only the fields of this patch, so an older response
-        // cannot restore a value that another panel changed. Realtime room
-        // refreshes reconcile the other fields.
         const { patch } = variables;
         queryClient.setQueryData<AdminManagedRoom | null>(
           adminQueryKeys.room(variables.serverId, variables.connection, variables.roomId),
-          (current) =>
-            current
-              ? {
-                  ...current,
-                  ...('name' in patch && { name: updated.name }),
-                  ...('description' in patch && { description: updated.description || null }),
-                  ...('universal' in patch && { isUniversal: updated.universal }),
-                  ...('slowModeSeconds' in patch && { slowModeSeconds: updated.slowModeSeconds }),
-                  ...('threadSlowModeSeconds' in patch && {
-                    threadSlowModeSeconds: updated.threadSlowModeSeconds
-                  }),
-                  ...('threadingMode' in patch && { threadingMode: updated.threadingMode }),
-                  ...('showMembershipEvents' in patch && {
-                    showMembershipEvents: updated.showMembershipEvents
-                  })
-                }
-              : current
+          (current) => (current ? applyRoomSettingsResponse(current, updated, patch) : current)
         );
       }
       invalidateAdminRoomLayoutQueries(variables.serverId, variables.connection, variables.roomId);

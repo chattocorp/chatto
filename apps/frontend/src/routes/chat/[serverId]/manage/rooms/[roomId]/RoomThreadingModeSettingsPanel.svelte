@@ -7,7 +7,7 @@ Threading Mode of a room. Selecting a mode edits a draft until the form submits.
   import { DraftField } from '$lib/components/settings/DraftField.svelte';
   import type { AdminManagedRoom } from '$lib/api/adminRoomLayout';
   import { ChoiceRow, Hint, Panel } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
+  import RoomSettingsForm from './RoomSettingsForm.svelte';
   import { m } from '$lib/i18n/messages';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
   import type { RoomSettingsPatch } from './roomSettings';
@@ -22,12 +22,12 @@ Threading Mode of a room. Selecting a mode edits a draft until the form submits.
   } = $props();
 
   const mode = new DraftField(() => room.threadingMode);
-  let saving = $state(false);
+  let form = $state<RoomSettingsForm>();
   const changed = $derived(mode.value !== mode.original);
 
   /** Lets the page guard navigation without copying the section's draft state. */
   export function hasChanges(): boolean {
-    return changed || saving;
+    return form?.hasChanges() ?? changed;
   }
 
   function discard(): void {
@@ -56,17 +56,6 @@ Threading Mode of a room. Selecting a mode edits a draft until the form submits.
       description: m('admin.rooms_admin.threading_mode_disabled_description')
     }
   ]);
-
-  async function save(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    if (saving || !changed) return;
-    saving = true;
-    try {
-      if (await onSave({ threadingMode: mode.value })) discard();
-    } finally {
-      saving = false;
-    }
-  }
 </script>
 
 <Panel
@@ -74,33 +63,32 @@ Threading Mode of a room. Selecting a mode edits a draft until the form submits.
   subtitle={m('admin.rooms_admin.settings.threading_subtitle')}
   icon="iconify icon-[uil--comments-alt]"
 >
-  <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('admin.rooms_admin.settings.threading_title')}
-      aria-busy={saving || undefined}
-    >
-      {#each options as option (option.value)}
-        <ChoiceRow
-          label={option.label}
-          description={option.description}
-          selected={mode.value === option.value}
-          disabled={saving}
-          onclick={() => {
-            mode.value = option.value;
-          }}
-        />
-      {/each}
-    </div>
-    <Hint>{m('admin.rooms_admin.settings.threading_help')}</Hint>
-    <div class="flex justify-end gap-2">
-      <Button variant="secondary" disabled={saving || !changed} onclick={discard}>
-        {m('admin.rooms_admin.settings.discard_changes')}
-      </Button>
-      <Button type="submit" loading={saving} disabled={!changed}>
-        {m('admin.permissions.save_changes')}
-      </Button>
-    </div>
-  </form>
+  <RoomSettingsForm
+    bind:this={form}
+    {changed}
+    onSave={() => onSave({ threadingMode: mode.value })}
+    onDiscard={discard}
+  >
+    {#snippet children(saving: boolean)}
+      <div
+        class="flex flex-col gap-2"
+        role="radiogroup"
+        aria-label={m('admin.rooms_admin.settings.threading_title')}
+        aria-busy={saving || undefined}
+      >
+        {#each options as option (option.value)}
+          <ChoiceRow
+            label={option.label}
+            description={option.description}
+            selected={mode.value === option.value}
+            disabled={saving}
+            onclick={() => {
+              mode.value = option.value;
+            }}
+          />
+        {/each}
+      </div>
+      <Hint>{m('admin.rooms_admin.settings.threading_help')}</Hint>
+    {/snippet}
+  </RoomSettingsForm>
 </Panel>
