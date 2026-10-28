@@ -66,10 +66,11 @@ or configuration changes. Use this full restart for development rather than
 
 Botto builds each agent's system prompt from two parts. Botto supplies the role,
 Chatto behavior, and instructions for the tools available in that session.
-`agent.system_prompt` adds the instance's identity, personality, and workflow
-instructions. It does not replace Botto's instructions or enable tools.
+`agent.system_prompt` adds the main agent's identity, personality, and workflow
+instructions. A named subagent instead receives its profile's `system_prompt`.
+Neither replaces Botto's instructions or enables tools.
 
-Main agents and subagents both receive the instance instructions. Subagents keep
+Subagents do not inherit the main agent's name or personality prompt. They keep
 their assignment role and return results to the main agent. They receive web
 instructions when web access is enabled, but no Chatto, memory, image, or
 delegation tool instructions. Main agents receive the modules for their enabled
@@ -77,7 +78,9 @@ tools, plus conversation, formatting, and authorization rules.
 
 Existing TOML files still work. You can remove copied Chatto, memory, and tool
 rules from `agent.system_prompt`; Botto now supplies these rules. Keep instructions
-specific to your bot. Restart Botto after changes. The separate title-description
+specific to your bot. If a child needs instructions formerly inherited from the
+main prompt, put them in its profile or pass them with the assignment.
+Restart Botto after changes. The separate title-description
 task does not use the instance prompt.
 
 ### Agent skills
@@ -535,17 +538,44 @@ responses can describe images, and those responses remain in the transcript.
 
 ### Subagents
 
-The root agent can call `delegate` with a self-contained `task` and optional text
-`context`. Each call starts an ordinary Runling child task and a fresh agent session
-using Botto's configured model. The root waits for the result and decides how to
+The root agent can call `delegate` with a self-contained `task`, optional text
+`context`, and optional `agent` profile name. Each call starts an ordinary Runling
+child task and a fresh agent session. Without a profile, it uses the main agent's
+model and reasoning settings. The root waits for the result and decides how to
 use it in its answer. Delegation is optional; image inspection stays with the root.
+
+Define named workers in `botto.toml`:
+
+```toml
+[subagents.researcher]
+description = "Research questions that need sources and comparisons."
+# model = "provider/model" # Omit to use agent.model.
+reasoning_level = "medium"
+system_prompt = "Find reliable sources and return concise findings with links."
+```
+
+Each profile requires a non-empty `description`. Names use up to 64 lowercase
+letters, digits, hyphens, or underscores, starting with a letter. Omitted `model`
+and `reasoning_level` inherit the main agent's settings; omitted `system_prompt`
+adds no profile instructions. The root sees names and descriptions in the tool
+definition and chooses a profile by use case; unknown names are rejected.
+For example, it can call `delegate` with `agent: "researcher"` and a research task.
+Runling labels the child session with the profile name and records its model,
+usage, and cost. Configure credentials for each selected provider before use.
+
+The child prompt contains Botto's core and subagent rules, available capability
+instructions, and its profile prompt. The root's personality stays with the root;
+it must pass relevant preferences and constraints as assignment context. Skills
+remain shared instructions that both the root and children can load. Profiles
+do not change tool access or grant permissions.
 
 Children receive only the supplied task and context. They do not inherit chat
 history, images, memory, or the root's tools. When web access is enabled, children
 can use the same Exa search and fetch tools. They cannot post messages, change
 memory, execute commands, or delegate further. Their only local file tool is the
 restricted skill reader described above. Ambient Pi resources are disabled.
-The task and context go to the configured model provider; web queries
+The task and context go to the selected profile's model provider, or the main
+agent's provider for generic delegation; web queries
 and fetch requests go to Exa when those tools are used.
 
 Each child shares the turn deadline and cancellation. Cancelling its tool call

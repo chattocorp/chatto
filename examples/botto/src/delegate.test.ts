@@ -3,7 +3,7 @@ import type { ExtensionAPI, ExtensionToolContext } from '@earendil-works/pi-codi
 import { createTaskContext } from 'runling';
 import { afterEach, expect, test, vi } from 'vitest';
 import { delegateExtension } from './delegate.ts';
-import { parseSettings } from './settings.ts';
+import { parseSettings, type Settings } from './settings.ts';
 
 const mock = vi.hoisted(() => ({ create: vi.fn(), mcp: vi.fn(() => () => {}) }));
 vi.mock('runling', async (original) => ({
@@ -16,7 +16,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-async function setup(web = false) {
+async function setup(web = false, subagents: Settings['subagents'] = {}) {
   vi.spyOn(console, 'info').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   const session = {
@@ -33,6 +33,7 @@ async function setup(web = false) {
       'botto.toml'
     ),
     web,
+    subagents,
     systemPrompt: 'You are a patient gardening expert.',
     reasoningLevel: 'low' as const
   };
@@ -42,18 +43,19 @@ async function setup(web = false) {
     controller.signal
   )({ registerTool } as unknown as ExtensionAPI);
   const tool = registerTool.mock.calls[0]![0];
-  const call = (signal?: AbortSignal) =>
+  const call = (signal?: AbortSignal, agent?: string) =>
     tool.execute(
       'call',
       {
         task: 'Compare these approaches',
+        ...(agent === undefined ? {} : { agent }),
         context: 'Explicit private context'
       },
       signal,
       undefined,
       {} as ExtensionToolContext
     );
-  return { call, session, controller };
+  return { call, session, controller, tool };
 }
 
 test('opens an isolated session with explicit context and a bounded result', async () => {
@@ -73,9 +75,7 @@ test('opens an isolated session with explicit context and a bounded result', asy
     }
   });
   expect(mock.create.mock.calls[0]![0].sessionFile).toBeUndefined();
-  expect(mock.create.mock.calls[0]![0].systemPrompt).toContain(
-    '# Instance instructions\n\nYou are a patient gardening expert.'
-  );
+  expect(mock.create.mock.calls[0]![0].systemPrompt).not.toContain('patient gardening expert');
   expect(mock.create.mock.calls[0]![0].systemPrompt).not.toContain(
     'posted to this thread automatically'
   );
@@ -89,6 +89,57 @@ test('opens an isolated session with explicit context and a bounded result', asy
   expect(result).toContain('[Result truncated.]');
   expect(result.length).toBeLessThan(16200);
 });
+
+test('advertises profiles and applies only the selected worker configuration', async () => {
+  const { call, tool } = await setup(false, {
+    researcher: {
+      description: 'Compare evidence from sources.',
+      model: 'test/research',
+      reasoningLevel: 'high',
+      systemPrompt: 'Report supported findings.'
+    },
+    reviewer: {
+      description: 'Review proposed solutions.',
+      model: 'test/review',
+      reasoningLevel: 'off',
+      systemPrompt: 'Find flaws.'
+    }
+  });
+  expect(tool.description).toContain('researcher: Compare evidence from sources.');
+  expect(tool.description).not.toContain('Report supported findings.');
+  await expect(call(undefined, 'missing')).rejects.toThrow();
+  expect(mock.create).not.toHaveBeenCalled();
+  await call(undefined, 'researcher');
+  expect(mock.create.mock.calls[0]![0]).toMatchObject({
+    model: 'test/research',
+    thinkingLevel: 'high',
+    label: 'Subagent: researcher'
+  });
+  const prompt = mock.create.mock.calls[0]![0].systemPrompt;
+  expect(prompt).toContain('Report supported findings.');
+  expect(prompt).not.toContain('Find flaws.');
+  expect(prompt).not.toContain('patient gardening expert');
+  await call(undefined, 'reviewer');
+  expect(mock.create.mock.calls[1]![0]).toMatchObject({
+    model: 'test/review',
+    thinkingLevel: 'off'
+  });
+  await call();
+  expect(mock.create.mock.calls[2]![0]).toMatchObject({
+    model: 'test/model',
+    thinkingLevel: 'low',
+    label: 'Subagent'
+  });
+});
+
+test.each(['missing', 'constructor', '__proto__'])(
+  'rejects an unknown profile before opening a session: %s',
+  async (name) => {
+    const { call } = await setup();
+    await expect(call(undefined, name)).rejects.toThrow('Unknown subagent profile');
+    expect(mock.create).not.toHaveBeenCalled();
+  }
+);
 
 test('enables only web MCP, with no memory directory or Chatto tools', async () => {
   const { call } = await setup(true);

@@ -26,11 +26,19 @@ model = "anthropic/claude-sonnet-4-6"
 # Optional: off, minimal, low, medium, high, xhigh, max.
 # Explicit values override saved sessions. Pi adapts unsupported levels to the model.
 # reasoning_level = "low"
-# Additional identity, personality, and workflow instructions for this bot.
+# Additional identity, personality, and workflow instructions for the main agent only.
 # Botto supplies its own role and tool instructions to main agents and subagents.
 system_prompt = """
 You are a helpful assistant. Be friendly, clear, and concise.
 """
+
+# Optional named workers. Omitted model/reasoning settings inherit from [agent].
+# The root sees the description; only the child receives this system_prompt.
+# [subagents.researcher]
+# description = "Research questions that need sources and comparisons."
+# model = "provider/model"
+# reasoning_level = "medium"
+# system_prompt = "Find reliable sources and return concise findings with links."
 
 [titles]
 # Optional independent model for short run titles. Defaults to agent.model.
