@@ -1,6 +1,13 @@
 /** Shared emoji names and shortcode syntax, independent of Markdown and UI. */
 import { gemoji, nameToEmoji } from 'gemoji';
 import { emojiSkinTones } from './emojiSkinTones.gen.js';
+import { emojiAdditions } from './emojiAdditions.gen.js';
+
+/** Built-in base emoji for picker categories and name search, including catalog additions. */
+export const builtInEmoji = [...gemoji, ...emojiAdditions];
+const additionalNames: Record<string, string> = Object.fromEntries(
+  emojiAdditions.flatMap((entry) => entry.names.map((name) => [name, entry.emoji]))
+);
 
 // Complete tags and autocomplete share the same opening boundary and name syntax.
 const wordCharacter = String.raw`[\p{L}\p{N}\p{M}_]`;
@@ -18,7 +25,7 @@ export type EmojiResolution =
   { kind: 'unicode'; name: string; emoji: string } | { kind: 'unknown'; name: string };
 
 /**
- * Resolves a case-sensitive gemoji name, including aliases and Slack-style
+ * Resolves a case-sensitive built-in name, including aliases and Slack-style
  * `::skin-tone-2` through `::skin-tone-6` suffixes, without surrounding colons.
  * Unknown names remain distinct from Unicode so hosts can retain their source.
  * Custom emoji resolution will extend this boundary when their model exists.
@@ -26,9 +33,11 @@ export type EmojiResolution =
 export function resolveEmoji(name: string): EmojiResolution {
   const emoji = Object.hasOwn(nameToEmoji, name)
     ? nameToEmoji[name]
-    : Object.hasOwn(emojiSkinTones, name)
-      ? emojiSkinTones[name]
-      : undefined;
+    : Object.hasOwn(additionalNames, name)
+      ? additionalNames[name]
+      : Object.hasOwn(emojiSkinTones, name)
+        ? emojiSkinTones[name]
+        : undefined;
   return emoji ? { kind: 'unicode', name, emoji } : { kind: 'unknown', name };
 }
 
@@ -36,7 +45,7 @@ export function resolveEmoji(name: string): EmojiResolution {
 // thumbsdown. Tone variants use the same base name as their unmodified emoji.
 const namesByUnicode = new Map<string, string>();
 const primaryNames = new Set<string>();
-for (const entry of gemoji) {
+for (const entry of builtInEmoji) {
   const name =
     entry.names[0] === '+1' || entry.names[0] === '-1' ? entry.names[1]! : entry.names[0]!;
   namesByUnicode.set(entry.emoji, name);

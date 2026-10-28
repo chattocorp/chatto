@@ -1,9 +1,9 @@
 /**
  * Emoji utilities for autocomplete and display.
- * Uses gemoji (GitHub's emoji shortcodes) as the data source.
+ * Uses the shared client catalog as the data source.
  */
 
-import { gemoji } from 'gemoji';
+import { builtInEmoji } from '@chatto/client/messaging/emojiShortcodes';
 import { resolveEmoji, emojiNameFromUnicode } from '@chatto/client/messaging/emojiShortcodes';
 import type { EmojiTone } from '$lib/emojiTones';
 
@@ -56,7 +56,7 @@ export function searchEmojis(query: string, limit = 10): EmojiResult[] {
 
   const scored: ScoredEmoji[] = [];
 
-  for (const e of gemoji) {
+  for (const e of builtInEmoji) {
     let bestScore = 0;
 
     // Check names for matches
@@ -177,7 +177,7 @@ export type EmojiCategory = {
  */
 export const EMOJI_BY_CATEGORY: EmojiCategory[] = (() => {
   const map = new Map<string, { emoji: string; name: string }[]>();
-  for (const e of gemoji) {
+  for (const e of builtInEmoji) {
     let list = map.get(e.category);
     if (!list) {
       list = [];
