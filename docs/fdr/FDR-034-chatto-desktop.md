@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-27
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -13,6 +13,10 @@ system-browser authentication, and clean-machine media behavior are hardened.
 
 ## Behavior
 
+- Mouse back and forward buttons navigate the main window's history. On macOS,
+  this includes navigation gestures sent by mouse software such as Options+.
+  Keyboard navigation uses `Alt+Left` and `Alt+Right`, or `Cmd+[` and `Cmd+]`
+  on macOS. Navigation stops at either end of the history.
 - The application is named **Chatto Desktop** and presents the same interface,
   routes, translations, and client-server compatibility behavior as the
   official standalone frontend.
