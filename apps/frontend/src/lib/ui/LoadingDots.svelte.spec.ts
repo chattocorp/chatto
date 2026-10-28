@@ -1,8 +1,11 @@
 import '../../app.css';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import LoadingDots from './LoadingDots.svelte';
+import { applyAnimationPreference } from '$lib/dom/motionPreference';
+
+afterEach(() => applyAnimationPreference('automatic'));
 
 it('announces a busy status with its label', async () => {
   render(LoadingDots, { props: { label: 'Loading messages...' } });
@@ -12,21 +15,13 @@ it('announces a busy status with its label', async () => {
 });
 
 it('keeps the reveal delay when the user requests less motion', () => {
-  const reducedMotionRules = [...document.styleSheets]
-    .flatMap((sheet) => [...sheet.cssRules])
-    .filter(
-      (rule): rule is CSSMediaRule =>
-        rule instanceof CSSMediaRule && rule.conditionText.includes('prefers-reduced-motion')
-    )
-    .flatMap((rule) => [...rule.cssRules])
-    .filter(
-      (rule): rule is CSSStyleRule =>
-        rule instanceof CSSStyleRule && /\.loading-dots\b/.test(rule.selectorText)
-    );
-
-  expect(reducedMotionRules.length).toBeGreaterThan(0);
-  for (const rule of reducedMotionRules) {
-    // Removing the whole animation would also remove the delay and flash the dots.
-    expect(rule.style.animationName).not.toBe('none');
-  }
+  applyAnimationPreference('disabled');
+  const { container } = render(LoadingDots);
+  const dots = container.querySelector<HTMLElement>('[data-loading-dots]')!;
+  const style = getComputedStyle(dots);
+  // Removing the whole animation would also remove the delay and flash the dots.
+  expect(style.animationName).not.toBe('none');
+  expect(parseFloat(style.animationDelay)).toBeGreaterThan(0);
+  expect(parseFloat(style.animationDuration)).toBeLessThanOrEqual(0.001);
+  expect(getComputedStyle(dots.firstElementChild!).animationName).toBe('none');
 });
