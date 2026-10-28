@@ -161,11 +161,13 @@
             onclick={() => void threadFollow.toggle()}
             disabled={threadFollow.pending}
           />
-          <HeaderIconButton
-            icon="icon-[uil--times]"
-            label={m('room.thread.close')}
-            onclick={onClose}
-          />
+          <div class="hidden lg:contents">
+            <HeaderIconButton
+              icon="icon-[uil--times]"
+              label={m('room.thread.close')}
+              onclick={onClose}
+            />
+          </div>
         {/snippet}
       </PaneHeader>
     {/snippet}

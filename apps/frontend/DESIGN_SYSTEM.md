@@ -931,6 +931,12 @@ back links, and labelled panel controls have targets at least 44 px wide and
 44 px high whenever touch input is available, including wide and hybrid
 devices. Mouse-only controls stay 40 px high. Icon sizes do not change.
 Both sizes fit inside the existing 56 px header row.
+Below the 1024 px room-layout breakpoint, thread and room-extras overlay
+headers show one back arrow before the title and no trailing close icon.
+The arrow exits the current level: a member profile returns to Members,
+and a fullscreen call returns to its panel. Desktop headers keep their
+existing controls. Placement follows layout width; target size follows
+touch capability. Mirror the back arrow in right-to-left layouts.
 Use `actionsLabel` for a context-specific accessible label.
 The button expands the actions inside the pane
 header; the room title truncates as needed. A second press or Escape collapses

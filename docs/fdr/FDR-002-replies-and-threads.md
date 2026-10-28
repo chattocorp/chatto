@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-18
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -51,6 +51,7 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   notifications in that thread. Emoji reactions do not activate this dot. They
   remain in the notification list and notification counts.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- Below 1024 px viewport width, the thread header has one back arrow to return to the room and no trailing close button. Desktop controls remain available at wider widths. Header targets are at least 44 px square whenever touch input is available.
 - A root message with an attached thread does not group with adjacent messages
   from the same author. The root and the next message show a full author header.
   This also applies to an empty thread. Plain messages inside a thread can still
