@@ -143,6 +143,21 @@
           "description": "在此浏览器中使用深色界面"
         }
       },
+      "animations": {
+        "title": "动画",
+        "automatic": {
+          "label": "自动",
+          "description": "遵循系统的减少动态效果偏好设置"
+        },
+        "enabled": {
+          "label": "启用",
+          "description": "始终显示动画"
+        },
+        "disabled": {
+          "label": "禁用",
+          "description": "显示更改时不使用动画"
+        }
+      },
       "thread_pane": {
         "title": "话题窗格",
         "overlay": {

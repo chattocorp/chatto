@@ -143,6 +143,21 @@
           "description": "Kasutage selles brauseris tumedat liidest"
         }
       },
+      "animations": {
+        "title": "Animatsioonid",
+        "automatic": {
+          "label": "Automaatne",
+          "description": "Järgi süsteemi vähendatud liikumise eelistust"
+        },
+        "enabled": {
+          "label": "Lubatud",
+          "description": "Kuva alati animatsioonid"
+        },
+        "disabled": {
+          "label": "Keelatud",
+          "description": "Kuva muudatused ilma animatsioonideta"
+        }
+      },
       "thread_pane": {
         "title": "Lõimepaan",
         "overlay": {

@@ -143,6 +143,21 @@
           "description": "Usa la interfaz oscura en este navegador"
         }
       },
+      "animations": {
+        "title": "Animaciones",
+        "automatic": {
+          "label": "Automático",
+          "description": "Seguir la preferencia del sistema de reducir el movimiento"
+        },
+        "enabled": {
+          "label": "Activadas",
+          "description": "Mostrar siempre las animaciones"
+        },
+        "disabled": {
+          "label": "Desactivadas",
+          "description": "Mostrar cambios sin animaciones"
+        }
+      },
       "thread_pane": {
         "title": "Panel del hilo",
         "overlay": {

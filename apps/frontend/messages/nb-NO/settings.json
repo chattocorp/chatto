@@ -143,6 +143,21 @@
           "description": "Bruk det mørke grensesnittet på denne nettleseren"
         }
       },
+      "animations": {
+        "title": "Animasjoner",
+        "automatic": {
+          "label": "Automatisk",
+          "description": "Følg systemets innstilling for redusert bevegelse"
+        },
+        "enabled": {
+          "label": "Aktivert",
+          "description": "Vis alltid animasjoner"
+        },
+        "disabled": {
+          "label": "Deaktivert",
+          "description": "Vis endringer uten animasjoner"
+        }
+      },
       "thread_pane": {
         "title": "Trådpanel",
         "overlay": {

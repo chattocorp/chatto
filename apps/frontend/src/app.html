@@ -246,7 +246,8 @@
         root.dataset.animations = animations;
         root.dataset.motion =
           animations === 'disabled' ||
-          (animations === 'automatic' && matchMedia('(prefers-reduced-motion: reduce)').matches)
+          (animations === 'automatic' &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches)
             ? 'reduced'
             : 'full';
         try {

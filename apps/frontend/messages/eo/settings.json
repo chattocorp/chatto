@@ -143,6 +143,21 @@
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
         }
       },
+      "animations": {
+        "title": "Animacioj",
+        "automatic": {
+          "label": "Aŭtomate",
+          "description": "Sekvi la sisteman preferon pri reduktita movado"
+        },
+        "enabled": {
+          "label": "Ŝaltitaj",
+          "description": "Ĉiam montri animaciojn"
+        },
+        "disabled": {
+          "label": "Malŝaltitaj",
+          "description": "Montri ŝanĝojn sen animacioj"
+        }
+      },
       "thread_pane": {
         "title": "Fadena panelo",
         "overlay": {

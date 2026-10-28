@@ -143,6 +143,21 @@
           "description": "このブラウザではダーク インターフェースを使用してください"
         }
       },
+      "animations": {
+        "title": "アニメーション",
+        "automatic": {
+          "label": "自動",
+          "description": "システムの視差効果を減らす設定に従う"
+        },
+        "enabled": {
+          "label": "有効",
+          "description": "常にアニメーションを表示"
+        },
+        "disabled": {
+          "label": "無効",
+          "description": "アニメーションなしで変更を表示"
+        }
+      },
       "thread_pane": {
         "title": "スレッドペイン",
         "overlay": {

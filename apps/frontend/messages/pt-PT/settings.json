@@ -143,6 +143,21 @@
           "description": "Utilize a interface escura neste browser"
         }
       },
+      "animations": {
+        "title": "Animações",
+        "automatic": {
+          "label": "Automático",
+          "description": "Seguir a preferência do sistema por movimento reduzido"
+        },
+        "enabled": {
+          "label": "Ativadas",
+          "description": "Mostrar sempre animações"
+        },
+        "disabled": {
+          "label": "Desativadas",
+          "description": "Mostrar alterações sem animações"
+        }
+      },
       "thread_pane": {
         "title": "Painel da conversa",
         "overlay": {

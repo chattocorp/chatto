@@ -143,6 +143,21 @@
           "description": "Bu tarayıcıdaki karanlık arayüzü kullanın"
         }
       },
+      "animations": {
+        "title": "Animasyonlar",
+        "automatic": {
+          "label": "Otomatik",
+          "description": "Sistemin azaltılmış hareket tercihini kullan"
+        },
+        "enabled": {
+          "label": "Etkin",
+          "description": "Animasyonları her zaman göster"
+        },
+        "disabled": {
+          "label": "Devre dışı",
+          "description": "Değişiklikleri animasyonsuz göster"
+        }
+      },
       "thread_pane": {
         "title": "Konu paneli",
         "overlay": {

@@ -143,6 +143,21 @@
           "description": "استخدم الواجهة الداكنة في هذا المتصفح"
         }
       },
+      "animations": {
+        "title": "الرسوم المتحركة",
+        "automatic": {
+          "label": "تلقائي",
+          "description": "اتباع تفضيل النظام لتقليل الحركة"
+        },
+        "enabled": {
+          "label": "مفعّلة",
+          "description": "إظهار الرسوم المتحركة دائمًا"
+        },
+        "disabled": {
+          "label": "معطّلة",
+          "description": "إظهار التغييرات دون رسوم متحركة"
+        }
+      },
       "thread_pane": {
         "title": "جزء سلسلة الرسائل",
         "overlay": {

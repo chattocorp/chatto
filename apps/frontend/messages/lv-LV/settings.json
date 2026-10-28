@@ -143,6 +143,21 @@
           "description": "Izmantojiet tumšo interfeisu šajā pārlūkprogrammā"
         }
       },
+      "animations": {
+        "title": "Animācijas",
+        "automatic": {
+          "label": "Automātiski",
+          "description": "Ievērot sistēmas samazinātas kustības iestatījumu"
+        },
+        "enabled": {
+          "label": "Iespējotas",
+          "description": "Vienmēr rādīt animācijas"
+        },
+        "disabled": {
+          "label": "Atspējotas",
+          "description": "Rādīt izmaiņas bez animācijām"
+        }
+      },
       "thread_pane": {
         "title": "Pavediena rūts",
         "overlay": {

@@ -143,6 +143,21 @@
           "description": "Użyj ciemnego interfejsu w tej przeglądarce"
         }
       },
+      "animations": {
+        "title": "Animacje",
+        "automatic": {
+          "label": "Automatycznie",
+          "description": "Używaj systemowego ustawienia ograniczenia ruchu"
+        },
+        "enabled": {
+          "label": "Włączone",
+          "description": "Zawsze pokazuj animacje"
+        },
+        "disabled": {
+          "label": "Wyłączone",
+          "description": "Pokazuj zmiany bez animacji"
+        }
+      },
       "thread_pane": {
         "title": "Panel wątku",
         "overlay": {
