@@ -54,7 +54,6 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(remoteHostPort(remoteServer));
     await page.getByRole('button', { name: 'Find server' }).click();
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Create Account', exact: true }).click();
     const popup = await popupPromise;
@@ -110,15 +109,15 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
     // 3. Drive the Server Directory: open it from the sidebar `+` button,
-    // fill the URL, find the server, then click the static "Join" button on
-    // the result card. The page generates the PKCE verifier/challenge
+    // fill the URL, find the server, then continue from its sign-in view.
+    // The page generates the PKCE verifier/challenge
     // and opens the remote's /oauth/authorize in a popup.
     const hostPort = remoteHostPort(remoteServer);
     await page.getByTitle('Add Server').click();
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
+    await expect(page.getByTestId('server-signed-out')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     let remoteAuthPage = await joinServerAndStartSignIn(page);
@@ -201,7 +200,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
+    await expect(page.getByTestId('server-signed-out')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     const secondRemoteAuthPage = await joinServerAndStartSignIn(page);
@@ -267,7 +266,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
+    await expect(page.getByTestId('server-signed-out')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     const remoteAuthPage = await joinServerAndStartSignIn(page);
@@ -361,7 +360,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostPort);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
+    await expect(page.getByTestId('server-signed-out')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     const blockedPopup = await joinServerAndStartSignIn(page);

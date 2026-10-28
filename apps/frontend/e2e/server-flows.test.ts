@@ -278,15 +278,15 @@ test.describe('Add Server - Remote Auth Flow', () => {
 
   /**
    * Drive the directory up to (but not through) the OAuth popup: open it
-   * from the sidebar `+` button, fill the URL, find the server, and click the
-   * static "Join" button on the result card.
+   * from the sidebar `+` button, fill the URL, find the server, and continue
+   * from its sign-in view.
    */
   async function driveAddServerToOAuth(page: Page, hostname: string): Promise<Page> {
     await page.getByRole('link', { name: 'Add Server', exact: true }).click();
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostname);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
+    await expect(page.getByTestId('server-signed-out')).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     return joinServerAndStartSignIn(page);

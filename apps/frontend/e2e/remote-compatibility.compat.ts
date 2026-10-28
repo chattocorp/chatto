@@ -72,7 +72,7 @@ test.describe('supported release baseline', () => {
       await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
       await page.getByLabel('Server URL').fill(remoteHost);
       await page.getByRole('button', { name: 'Find server' }).click();
-      await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
+      await expect(page.getByTestId('server-signed-out')).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       const remoteLoginPage = await joinServerAndStartSignIn(page);

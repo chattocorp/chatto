@@ -76,7 +76,6 @@ test('Desktop registration through SSO stays in one window and returns to the cl
     await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(server.baseURL);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await page.getByRole('button', { name: 'Join', exact: true }).click();
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Create Account', exact: true }).click();
     const popup = await popupPromise;

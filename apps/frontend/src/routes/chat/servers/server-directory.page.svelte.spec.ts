@@ -621,27 +621,31 @@ describe('Server Directory page', () => {
     expect(mocks.pageState!.get('modal')).toEqual({ type: 'serverAddress' });
   });
 
-  it('adds a server found by address without another profile request', async () => {
-    const customProfile = profile('Custom');
-    mocks.getPublicServerInfo.mockResolvedValue(customProfile);
+  it.each([true, false])(
+    'opens a modal lookup directly with saved servers: %s',
+    async (hasSaved) => {
+      if (!hasSaved) {
+        mocks.servers = [];
+        mocks.known!.remember('https://known.example', profile('Known'));
+      }
+      const customProfile = profile('Custom');
+      mocks.getPublicServerInfo.mockResolvedValue(customProfile);
 
-    const { container } = render(Page);
-    await enterServerAddress(container, 'custom.example');
-    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
-    mocks.getPublicServerInfo.mockClear();
+      const { container } = render(Page);
+      await enterServerAddress(container, 'custom.example');
+      await vi.waitFor(() => expect(link(container, 'Open')).toBeDefined());
+      expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/custom.example', {
+        replaceState: false
+      });
+      expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://custom.example', {
+        name: 'Custom',
+        iconUrl: customProfile.iconUrl
+      });
+      expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
+    }
+  );
 
-    button(container, 'Join')?.click();
-
-    await vi.waitFor(() => expect(link(container, 'Open')).toBeDefined());
-    expect(mocks.goto).toHaveBeenCalledWith('/chat/custom.example', { replaceState: false });
-    expect(mocks.addSignedOutServer).toHaveBeenCalledExactlyOnceWith('https://custom.example', {
-      name: 'Custom',
-      iconUrl: customProfile.iconUrl
-    });
-    expect(mocks.getPublicServerInfo).not.toHaveBeenCalled();
-  });
-
-  it('probes a custom address and shows the same profile card', async () => {
+  it('probes a custom address and opens its server', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [],
       failedSourceCount: 0,
@@ -657,7 +661,7 @@ describe('Server Directory page', () => {
         'https://custom.example',
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
-      expect(container.textContent).toContain('Custom description');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/custom.example', { replaceState: false });
     });
   });
 
