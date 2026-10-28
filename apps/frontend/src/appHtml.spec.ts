@@ -298,18 +298,6 @@ describe('app.html metadata', () => {
 
 describe('app.html theme bootstrap', () => {
   it.each([
-    ['compact', 'compact'],
-    ['comfortable', 'comfortable'],
-    ['automatic', 'automatic'],
-    ['unknown', 'automatic'],
-    [null, 'automatic'],
-    [undefined, 'automatic']
-  ])('restores density %s as %s before first paint', (displayDensity, expected) => {
-    const { root } = runThemeScript({ preferences: { displayDensity }, systemDark: false });
-    expect(root.dataset.density).toBe(expected);
-  });
-
-  it.each([
     [20, 20],
     [25, 26],
     [25.5, 26],

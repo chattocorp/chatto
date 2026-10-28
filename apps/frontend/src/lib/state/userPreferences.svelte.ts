@@ -293,20 +293,6 @@ function syncShellColor(): void {
 }
 
 export type DisplayTheme = 'system' | 'light' | 'dark';
-/** Automatic density follows the primary pointer; explicit choices apply on this device. */
-export type DisplayDensity = 'automatic' | 'compact' | 'comfortable';
-
-/** Validate stored density without inferring a preference from touch capability. */
-export function isDisplayDensity(value: unknown): value is DisplayDensity {
-  return value === 'automatic' || value === 'compact' || value === 'comfortable';
-}
-
-/** CSS resolves automatic density and reacts to primary-pointer changes. */
-export function applyDisplayDensity(value: DisplayDensity): void {
-  if (typeof document === 'undefined') return;
-  document.documentElement.dataset.density = isDisplayDensity(value) ? value : 'automatic';
-}
-
 export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
 export type ThreadPanePresentation = 'overlay' | 'split';
@@ -314,7 +300,6 @@ export type EffectiveTheme = 'light' | 'dark';
 
 interface AppPreferences {
   displayTheme: DisplayTheme;
-  displayDensity: DisplayDensity;
   accentColor: AccentColor;
   /** Surface tone for light appearance. */
   lightSurfaceTone: SurfaceTone;
@@ -339,7 +324,6 @@ interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPrefe
 
 const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
-  displayDensity: 'automatic',
   accentColor: defaultAccentColor,
   lightSurfaceTone: defaultSurfaceTones.light,
   darkSurfaceTone: defaultSurfaceTones.dark,
@@ -450,7 +434,6 @@ function loadAppPreferences(): AppPreferences {
     getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultAppPreferences.displayTheme;
   return {
     displayTheme,
-    displayDensity: isDisplayDensity(stored.displayDensity) ? stored.displayDensity : 'automatic',
     accentColor: isAccentColor(stored.accentColor) ? stored.accentColor : defaultAccentColor,
     lightSurfaceTone: isSurfaceTone(stored.lightSurfaceTone)
       ? stored.lightSurfaceTone
@@ -501,19 +484,7 @@ export class UserPreferencesState {
     // the client store starts so hydration cannot leave the palette at default.
     applyContrastAge(this.#preferences.contrastAge);
     applySurfaceDepth(this.#preferences.surfaceDepth);
-    applyDisplayDensity(this.#preferences.displayDensity);
     this.#applySurfaceTones();
-  }
-
-  /** Control spacing shared by all servers in this browser. */
-  get displayDensity(): DisplayDensity {
-    return this.#preferences.displayDensity;
-  }
-
-  set displayDensity(value: DisplayDensity) {
-    this.#preferences.displayDensity = isDisplayDensity(value) ? value : 'automatic';
-    this.#persist();
-    applyDisplayDensity(this.#preferences.displayDensity);
   }
 
   get displayTheme(): DisplayTheme {

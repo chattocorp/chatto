@@ -237,9 +237,6 @@
         const defaultDepth = location.protocol === 'capacitor:' ? 0 : 50;
         try {
           const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
-          root.dataset.density = ['compact', 'comfortable'].includes(stored?.displayDensity)
-            ? stored.displayDensity
-            : 'automatic';
           const age = stored?.contrastAge;
           const contrastAge =
             typeof age === 'number' &&

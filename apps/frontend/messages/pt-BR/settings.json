@@ -125,13 +125,6 @@
       }
     },
     "preferences": {
-      "density": {
-        "title": "Espaçamento dos controles",
-        "automatic": "Automático",
-        "compact": "Compacto",
-        "comfortable": "Confortável",
-        "description": "O modo automático usa controles maiores quando o toque é a entrada principal."
-      },
       "title": "Hora e região",
       "subtitle": "Escolha como este servidor exibe datas e horários para você",
       "browser_scope": "Esta escolha vale para todos os servidores do Chatto neste navegador.",

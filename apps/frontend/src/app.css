@@ -186,28 +186,10 @@
  * content fitting; only narrow touch-capable windows use mobile presentation. */
 @custom-variant touch-input (@media (any-pointer: coarse));
 @custom-variant compact-input (@media not all and (any-pointer: coarse));
-/* Density follows the primary pointer unless the user chooses an override.
+/* Density follows the primary pointer.
  * Capability variants above still own gesture and action availability. */
-@custom-variant comfortable-density {
-  &:where(:root[data-density='comfortable'] *) {
-    @slot;
-  }
-  @media (pointer: coarse) {
-    &:where(:root:not([data-density='compact'], [data-density='comfortable']) *) {
-      @slot;
-    }
-  }
-}
-@custom-variant compact-density {
-  &:where(:root[data-density='compact'] *) {
-    @slot;
-  }
-  @media not all and (pointer: coarse) {
-    &:where(:root:not([data-density='compact'], [data-density='comfortable']) *) {
-      @slot;
-    }
-  }
-}
+@custom-variant comfortable-density (@media (pointer: coarse));
+@custom-variant compact-density (@media not all and (pointer: coarse));
 @custom-variant mobile-presentation (@media (width < 768px) and (any-pointer: coarse));
 @custom-variant desktop-presentation {
   @media (width >= 768px) {
@@ -1347,7 +1329,7 @@
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-/* The composer uses the same density choice as navigation and menus. */
+/* The composer uses the same primary-pointer density as navigation and menus. */
 @utility pill-button-group-touch {
   @variant comfortable-density {
     height: 44px;

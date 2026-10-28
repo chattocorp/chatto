@@ -125,13 +125,6 @@
       }
     },
     "preferences": {
-      "density": {
-        "title": "操作部品の間隔",
-        "automatic": "自動",
-        "compact": "コンパクト",
-        "comfortable": "ゆったり",
-        "description": "自動では、タッチが主な入力方法の場合に操作部品を大きくします。"
-      },
       "title": "時刻と地域",
       "subtitle": "このサーバーでの日付と時刻の表示方法を選択します",
       "browser_scope": "この選択は、このブラウザーのすべての Chatto サーバーに適用されます。",

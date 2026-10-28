@@ -125,13 +125,6 @@
       }
     },
     "preferences": {
-      "density": {
-        "title": "Espacement des commandes",
-        "automatic": "Automatique",
-        "compact": "Compact",
-        "comfortable": "Confortable",
-        "description": "Le mode automatique agrandit les commandes lorsque le tactile est le mode de saisie principal."
-      },
       "title": "Heure et région",
       "subtitle": "Choisissez comment ce serveur affiche les dates et les heures pour vous",
       "browser_scope": "Ce choix s’applique à tous les serveurs Chatto dans ce navigateur.",

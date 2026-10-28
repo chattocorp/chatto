@@ -34,7 +34,6 @@ describe('UserPreferencesState', () => {
     localStorage.clear();
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.accent;
-    delete document.documentElement.dataset.density;
     document.documentElement.style.removeProperty('--depth-level');
     delete document.documentElement.dataset.lightTone;
     delete document.documentElement.dataset.darkTone;
@@ -49,7 +48,6 @@ describe('UserPreferencesState', () => {
     const state = new UserPreferencesState();
 
     expect(state.displayTheme).toBe('system');
-    expect(state.displayDensity).toBe('automatic');
     expect(state.accentColor).toBe('cyan');
     expect(state.surfaceDepth).toBe(50);
     expect(state.contrastAge).toBe(30);
@@ -63,29 +61,6 @@ describe('UserPreferencesState', () => {
     expect(state.composerFormattingToolbarVisible).toBe(false);
     expect(state.threadPanePresentation).toBe('overlay');
   });
-
-  it.each(['automatic', 'compact', 'comfortable'] as const)(
-    'applies, persists, and restores %s density',
-    (density) => {
-      const state = new UserPreferencesState();
-      state.displayDensity = density;
-      expect(document.documentElement.dataset.density).toBe(density);
-      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}').displayDensity).toBe(density);
-      delete document.documentElement.dataset.density;
-      expect(new UserPreferencesState().displayDensity).toBe(density);
-      expect(document.documentElement.dataset.density).toBe(density);
-    }
-  );
-
-  it.each([undefined, null, 'unknown', 123])(
-    'defaults invalid density %s to automatic',
-    (value) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayDensity: value }));
-      const state = new UserPreferencesState();
-      expect(state.displayDensity).toBe('automatic');
-      expect(document.documentElement.dataset.density).toBe('automatic');
-    }
-  );
 
   it.each([0, 10, 50, 70, 100])(
     'persists and restores %s% surface depth independently',

@@ -6,27 +6,20 @@ import { testSnippet } from '$lib/test-utils';
 import Frame from './Frame.svelte';
 
 afterEach(async () => {
-  delete document.documentElement.dataset.density;
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
   await page.viewport(1280, 720);
 });
 
-it.each([false, true])(
-  'overrides density without changing touch capabilities, touch=%s',
-  async (touch) => {
+it('updates control density when the primary input changes without remounting', async () => {
+  const { container } = render(Frame, {
+    children: testSnippet('<button class="menu-entry">Command</button>')
+  });
+  const command = container.querySelector<HTMLElement>('.menu-entry')!;
+  for (const touch of [false, true, false]) {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-    const { container } = render(Frame, {
-      children: testSnippet('<button class="menu-entry">Command</button>')
-    });
-    const command = container.querySelector<HTMLElement>('.menu-entry')!;
-    for (const density of ['compact', 'comfortable', 'automatic']) {
-      document.documentElement.dataset.density = density;
-      const comfortable = density === 'comfortable' || (density === 'automatic' && touch);
-      await expect.poll(() => command.getBoundingClientRect().height).toBe(comfortable ? 44 : 32);
-      expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
-    }
+    await expect.poll(() => command.getBoundingClientRect().height).toBe(touch ? 44 : 32);
   }
-);
+});
 
 it.each([false, true])(
   'keeps menu targets and hover controls accessible with touch=%s',

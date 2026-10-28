@@ -1,6 +1,6 @@
 import { expect, test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { appPreferences, appPreferencesComposer } from './routes';
+import { appPreferencesComposer } from './routes';
 
 // Touch emulation replaces the mouse. Set Chromium's available devices to
 // coarse + fine, with a fine primary pointer and hover, to test actual CSS.
@@ -99,22 +99,4 @@ test('uses compact density with touch presentation and mouse interaction on a hy
   await expect(room.threadCloseButton).toBeVisible();
   await expect(room.threadCloseButton).toHaveCSS('height', '40px');
   await room.closeThread();
-});
-
-test('remembers explicit density on a hybrid device', async ({ page, chatPage }) => {
-  await createAndLoginTestUser(page);
-  for (const [label, density, height] of [
-    ['Comfortable', 'comfortable', '48px'],
-    ['Compact', 'compact', '32px'],
-    ['Automatic', 'automatic', '32px']
-  ]) {
-    await page.goto(appPreferences);
-    await page.getByRole('radio', { name: label, exact: true }).click();
-    await page.reload();
-    await expect(page.getByRole('radio', { name: label, exact: true })).toBeChecked();
-    await expect(page.locator('html')).toHaveAttribute('data-density', density);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-    await expect(chatPage.getRoomLink('general')).toHaveCSS('height', height);
-  }
 });

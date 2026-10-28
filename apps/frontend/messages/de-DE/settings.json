@@ -125,13 +125,6 @@
       }
     },
     "preferences": {
-      "density": {
-        "title": "Abstand der Bedienelemente",
-        "automatic": "Automatisch",
-        "compact": "Kompakt",
-        "comfortable": "Komfortabel",
-        "description": "Automatisch verwendet größere Bedienelemente, wenn du hauptsächlich den Touchscreen nutzt."
-      },
       "title": "Zeit & Region",
       "subtitle": "Lege fest, wie dieser Server Datum und Uhrzeit für dich anzeigt",
       "browser_scope": "Diese Auswahl gilt für alle Chatto-Server in diesem Browser.",

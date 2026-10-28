@@ -125,13 +125,6 @@
       }
     },
     "preferences": {
-      "density": {
-        "title": "控件间距",
-        "automatic": "自动",
-        "compact": "紧凑",
-        "comfortable": "舒适",
-        "description": "自动模式会在触控为主要输入方式时使用较大的控件。"
-      },
       "title": "时间和地区",
       "subtitle": "选择此服务器为你显示日期和时间的方式",
       "browser_scope": "此选择适用于本浏览器中的所有 Chatto 服务器。",

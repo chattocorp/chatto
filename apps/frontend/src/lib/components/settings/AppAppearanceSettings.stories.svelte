@@ -14,14 +14,11 @@
     userPreferences,
     applyAccentColor,
     applyContrastAge,
-    applyDisplayDensity,
     applySurfaceDepth
   } from '$lib/state/userPreferences.svelte';
 
   // The app's HTML bootstrap owns this at runtime; Storybook has its own shell.
   onMount(() => {
-    const previousDensity = document.documentElement.dataset.density;
-    applyDisplayDensity(userPreferences.displayDensity);
     const previousDepth = document.documentElement.style.getPropertyValue('--depth-level');
     applySurfaceDepth(userPreferences.surfaceDepth);
     const previous = document.documentElement.dataset.accent;
@@ -30,8 +27,6 @@
     const previousStrong = document.documentElement.style.getPropertyValue('--contrast-strong-mix');
     applyContrastAge(userPreferences.contrastAge);
     return () => {
-      if (previousDensity) document.documentElement.dataset.density = previousDensity;
-      else delete document.documentElement.dataset.density;
       document.documentElement.style.setProperty('--depth-level', previousDepth);
       if (previous) document.documentElement.dataset.accent = previous;
       else delete document.documentElement.dataset.accent;

@@ -125,13 +125,6 @@
       }
     },
     "preferences": {
-      "density": {
-        "title": "Denetim aralığı",
-        "automatic": "Otomatik",
-        "compact": "Sıkı",
-        "comfortable": "Rahat",
-        "description": "Otomatik mod, birincil giriş yöntemi dokunma olduğunda daha büyük denetimler kullanır."
-      },
       "title": "Saat ve bölge",
       "subtitle": "Bu sunucunun tarihleri ve saatleri size nasıl göstereceğini seçin",
       "browser_scope": "Bu seçim, bu tarayıcıdaki tüm Chatto sunucuları için geçerlidir.",

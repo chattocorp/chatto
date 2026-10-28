@@ -866,12 +866,11 @@ Touch context menus keep their bottom-sheet presentation.
 ## Input And Responsive Layout
 
 Input capability selects control behavior. Available space selects content layout.
-Control spacing is a browser-local Appearance preference: Automatic, Compact,
-or Comfortable. Automatic uses comfortable density when the primary pointer
-is coarse; otherwise it uses compact density. A mouse-primary hybrid laptop
-thus uses compact controls. Explicit choices override this default. Use
+Control spacing follows the primary pointer. A coarse primary pointer uses
+comfortable density; other primary pointers use compact density. A mouse-primary
+hybrid laptop thus uses compact controls. Use
 `comfortable-density` and `compact-density` for target sizes and spacing.
-CSS responds to primary-pointer changes in Automatic mode.
+CSS responds to primary-pointer changes automatically. There is no user setting.
 
 Keep capability checks separate from density. `touch-input` matches when
 `any-pointer: coarse` matches, including hybrid devices. `compact-input` applies
@@ -900,10 +899,10 @@ Use Svelte's `MediaQuery` with `NARROW_TOUCH_QUERY` from `inputMediaQueries.ts`
 when a component needs a reactive presentation decision. Keep this query and
 the CSS variants in sync. Do not select a layout from a device name or the last
 pointer event. Menus can remain floating when hover is available;
-command and emoji targets follow the density preference at every width.
+command and emoji targets follow primary-pointer density at every width.
 Keep the existing primary-pointer checks for keyboard and autofocus defaults.
 Mouse-primary hybrid devices retain mouse keyboard behavior. Frame presentation
-continues to use touch capability and width; the density preference does not
+continues to use touch capability and width; control density does not
 change drawers, bottom sheets, or gesture support.
 
 Keep width or container queries for pane columns, navigation collapse, resize
@@ -943,7 +942,7 @@ headers show one back arrow before the title and no trailing close icon.
 The arrow exits the current level: a member profile returns to Members,
 and a fullscreen call returns to its panel. Desktop headers keep their
 existing controls. Placement follows layout width; target size follows
-the density preference. Mirror the back arrow in right-to-left layouts.
+the primary pointer. Mirror the back arrow in right-to-left layouts.
 Use `actionsLabel` for a context-specific accessible label.
 The button expands the actions inside the pane
 header; the room title truncates as needed. A second press or Escape collapses

@@ -125,13 +125,6 @@
       }
     },
     "preferences": {
-      "density": {
-        "title": "Avstand mellom kontroller",
-        "automatic": "Automatisk",
-        "compact": "Kompakt",
-        "comfortable": "Romslig",
-        "description": "Automatisk bruker større kontroller når berøring er den primære inndatametoden."
-      },
       "title": "Tid og region",
       "subtitle": "Velg hvordan denne serveren viser datoer og klokkeslett for deg",
       "browser_scope": "Dette valget gjelder for alle Chatto-servere i denne nettleseren.",

@@ -6,7 +6,6 @@
     contrastAgeStep,
     surfaceDepthStep,
     type DisplayTheme,
-    type DisplayDensity,
     type ThreadPanePresentation
   } from '$lib/state/userPreferences.svelte';
   import AccentColorPicker from './AccentColorPicker.svelte';
@@ -77,12 +76,6 @@
     label: string;
     description: string;
   }>);
-
-  const densityOptions = $derived([
-    { value: 'automatic', label: m('settings.preferences.density.automatic') },
-    { value: 'compact', label: m('settings.preferences.density.compact') },
-    { value: 'comfortable', label: m('settings.preferences.density.comfortable') }
-  ] satisfies Array<{ value: DisplayDensity; label: string }>);
 </script>
 
 <PageTitle title={m('settings.app_preferences.appearance.title')} scope="app" />
@@ -119,22 +112,6 @@
         icon="iconify icon-[uil--palette]"
       >
         <div class="flex flex-col gap-6">
-          <FormSection title={m('settings.preferences.density.title')}>
-            <p class="text-muted">{m('settings.preferences.density.description')}</p>
-            <div
-              class="flex max-w-md flex-col gap-2"
-              role="radiogroup"
-              aria-label={m('settings.preferences.density.title')}
-            >
-              {#each densityOptions as option (option.value)}
-                <ChoiceRow
-                  label={option.label}
-                  selected={userPreferences.displayDensity === option.value}
-                  onclick={() => (userPreferences.displayDensity = option.value)}
-                />
-              {/each}
-            </div>
-          </FormSection>
           <FormSection title={m('settings.preferences.accent.title')}>
             <AccentColorPicker
               value={userPreferences.accentColor}
