@@ -9,6 +9,12 @@ Dependency manifests and lockfiles in this repository remain the authoritative
 set of third-party packages, including transitive dependencies, used to build
 each artifact.
 
+Slack conversion data:
+
+- emoji-data (https://github.com/iamcal/emoji-data) - MIT License
+  Copyright (c) 2013 Cal Henderson. Generated alias and skin-tone mappings only;
+  no upstream image assets are included.
+
 ChattoBot:
 
 - Paseo client SDK (https://github.com/getpaseo/paseo) - Apache License 2.0

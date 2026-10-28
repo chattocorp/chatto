@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { emojiToName, getEmojiDisplayName, getReactionDisplay, emojiWithTone } from './emoji';
+import {
+  emojiToName,
+  getEmojiDisplayName,
+  getReactionDisplay,
+  emojiWithTone,
+  searchEmojis,
+  EMOJI_BY_CATEGORY
+} from './emoji';
+
+it.each([
+  ['face_with_bags_under_eyes', '🫩'],
+  ['head_shaking_vertically', '🙂‍↕️'],
+  ['leafless_tree', '🪾'],
+  ['phoenix', '🐦‍🔥'],
+  ['shovel', '🪏'],
+  ['splatter', '🫟']
+])('shows %s in reactions, search, and picker categories', (name, emoji) => {
+  expect(getReactionDisplay(name)).toBe(emoji);
+  expect(searchEmojis(name)[0]).toMatchObject({ name, emoji });
+  expect(EMOJI_BY_CATEGORY.flatMap((category) => category.emojis)).toContainEqual({ name, emoji });
+});
 
 describe('emojiWithTone', () => {
   it('uses supported variants and converts the result back to a reaction name', () => {

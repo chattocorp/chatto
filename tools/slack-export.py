@@ -8,6 +8,7 @@
 import argparse
 import collections
 import copy
+import functools
 import hashlib
 import importlib.util
 import json
@@ -54,20 +55,33 @@ def literal_mentions(value):
     return count
 
 
+@functools.lru_cache(maxsize=1)
+def slack_emoji_catalog():
+    """Load pinned Slack aliases and the destination Unicode set once, offline."""
+    directory = Path(__file__).parent
+    aliases = json.loads((directory / "slack-emoji-map.json").read_text(encoding="utf-8"))["emoji"]
+    supported = frozenset(json.loads((directory / "emoji-map.json").read_text(encoding="utf-8")).values())
+    return aliases, supported
+
+
 def reaction_unicode(name, emojis):
     """Keep unknown reaction names; retain Unicode output for known Slack emoji."""
     if not isinstance(name, str):
         raise ApplyError("Invalid reaction name.")
-    base, separator, tone = name.partition("::skin-tone-")
-    value = emojis.get({"hugging_face": "hugs"}.get(base, base))
+    aliases, supported = slack_emoji_catalog()
+    # The shared catalogue contains complete, valid modifier/ZWJ sequences.
+    # Never construct variants by appending a modifier to an arbitrary base.
+    value = aliases.get(name) or emojis.get(name)
     if not value:
         if re.fullmatch(r"[A-Za-z0-9_+-]{1,128}", name):
             return name
         raise ApplyError("Invalid or unsupported reaction emoji.")
-    if separator:
-        if tone not in {"2", "3", "4", "5", "6"} or "\u200d" in value:
-            raise ApplyError("Unsupported reaction skin-tone sequence.")
-        value = value.rstrip("\ufe0f") + chr(0x1F3FB + int(tone) - 2)
+    if value not in supported:
+        # Plain names are valid native reactions even when the destination's
+        # bundled Unicode catalogue predates the source. Keep their identity.
+        if re.fullmatch(r"[A-Za-z0-9_+-]{1,128}", name):
+            return name
+        raise ApplyError("Slack reaction Unicode sequence is not supported by the destination catalog.")
     return value
 
 
@@ -204,7 +218,9 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
             add("blockers", "unresolved_author", position=position)
         for reaction in original.get("reactions", []):
             try:
-                reaction_unicode(reaction["name"], emojis)
+                resolved = reaction_unicode(reaction["name"], emojis)
+                if resolved == reaction["name"] and resolved in slack_emoji_catalog()[0]:
+                    add("transformations", "standard_reaction_name_without_destination_glyph", position=position)
             except ApplyError:
                 add("blockers", "unsupported_reaction_emoji", position=position)
                 unknown_names.add(reaction["name"])
@@ -327,6 +343,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
     omit("history", "The source does not identify every reactor; only known reactors are retained.", issues.get("incomplete_reaction_users", 0))
     events, introduced, membership = [], set(), {}
     custom_reaction_names = set()
+    newer_reaction_names = set()
     mentions = summaries = broadcasts = 0
     for row in plan["messages"]:
         original = row["source"]
@@ -389,7 +406,10 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                 reactions[emoji].add(user)
                 # Unresolved names retain their identity but have no image in the archive.
                 if emoji == reaction["name"]:
-                    custom_reaction_names.add(emoji)
+                    if emoji in slack_emoji_catalog()[0]:
+                        newer_reaction_names.add(emoji)
+                    else:
+                        custom_reaction_names.add(emoji)
         event.update(type="message.snapshot", data={"message_id": key, "author_id": author,
             "thread_id": root, "reply_to": None, "content": content, "created_at": row["created_at"],
             "edited_at": row["edited_at"], "deleted_at": None,
@@ -402,6 +422,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                        "data": {"user_ids": sorted(set(room["members"]))}})
     omit("unsupported", "Structured user mentions are retained as literal names.", mentions)
     omit("unsupported", "Custom reaction names are retained; their emoji images are not included.", len(custom_reaction_names))
+    omit("unsupported", "Newer standard reaction names are retained; the destination emoji catalog has no glyph mapping.", len(newer_reaction_names))
     omit("unsupported", "Attachment text is retained; layout and embedded media are omitted.", summaries)
     omit("unsupported", "Thread broadcasts are retained in their thread without a channel echo.", broadcasts)
     workspaces = plan.get("slack_workspace_ids", [])

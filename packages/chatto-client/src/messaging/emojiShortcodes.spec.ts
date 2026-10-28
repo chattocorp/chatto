@@ -27,6 +27,22 @@ describe('emojiNameFromUnicode', () => {
 
 describe('resolveEmoji', () => {
   it.each([
+    ['face_with_bags_under_eyes', '🫩'],
+    ['head_shaking_vertically', '🙂‍↕️'],
+    ['leafless_tree', '🪾'],
+    ['phoenix', '🐦‍🔥'],
+    ['shovel', '🪏'],
+    ['splatter', '🫟']
+  ])('resolves and round-trips the supplemental name %s', (name, emoji) => {
+    expect(resolveEmoji(name)).toEqual({ kind: 'unicode', name, emoji });
+    expect(emojiNameFromUnicode(emoji)).toBe(name);
+    expect([...emojiShortcodes(`:${name}:`)][0]?.resolution).toEqual({
+      kind: 'unicode',
+      name,
+      emoji
+    });
+  });
+  it.each([
     ['wave', '👋'],
     ['heart', '❤️'],
     ['thumbsup', '👍'],
