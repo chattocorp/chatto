@@ -6,6 +6,8 @@
     Use HeaderIconButton for compact icon-only actions in pane headers and tight toolbars. Provide
     a clear label for accessibility. Use the active tone to mark the panel that a button currently
     shows. For on/off settings, change the icon and label instead of adding a background.
+    Targets are 44 px square when touch input is available and 40 px square on mouse-only
+    devices. Icon sizes stay the same at every viewport width.
   `.trim();
 
   const { Story } = defineMeta({

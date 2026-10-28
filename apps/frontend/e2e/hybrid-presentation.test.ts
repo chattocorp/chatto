@@ -48,6 +48,16 @@ test('keeps touch presentation and mouse interaction on a hybrid device', async 
     await expect(chatPage.getRoomLink('general')).toHaveCSS('height', '48px');
     if (width < 768) await toggle.click();
     await expect(send).toHaveCSS('height', width < 768 ? '44px' : '28px');
+    const roomActions = page.getByRole('button', { name: 'Actions for #general', exact: true });
+    if (await roomActions.isVisible()) {
+      await expect(roomActions).toHaveCSS('width', '44px');
+      await expect(roomActions).toHaveCSS('height', '44px');
+    } else {
+      await expect(page.getByRole('button', { name: 'Files', exact: true })).toHaveCSS(
+        'height',
+        '44px'
+      );
+    }
     await message.locator.hover();
     await expect(message.hoverToolbar).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
