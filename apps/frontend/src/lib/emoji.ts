@@ -3,7 +3,8 @@
  * Uses gemoji (GitHub's emoji shortcodes) as the data source.
  */
 
-import { gemoji, nameToEmoji } from 'gemoji';
+import { gemoji } from 'gemoji';
+import { resolveEmoji } from '@chatto/client/messaging/emojiShortcodes';
 
 export type EmojiResult = {
   name: string;
@@ -16,7 +17,8 @@ export type EmojiResult = {
  * @example getEmojiByName('heart') // '❤️'
  */
 export function getEmojiByName(name: string): string | undefined {
-  return nameToEmoji[name];
+  const resolved = resolveEmoji(name);
+  return resolved.kind === 'unicode' ? resolved.emoji : undefined;
 }
 
 /**

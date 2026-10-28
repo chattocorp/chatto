@@ -8,6 +8,7 @@ import { configureMarkdownLinks } from './markdownLinks';
 import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
+import { emojiPlugin } from './markdownEmoji';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
 
@@ -497,6 +498,7 @@ function initialize(): void {
   // Recognize @mentions in the token tree after linkify, so URLs, links,
   // code, and blockquotes keep their text. See `$lib/markdownMentions`.
   md.use(mentionPlugin);
+  md.use(emojiPlugin);
   const defaultFence = md.renderer.rules.fence!;
   md.renderer.rules.fence = (tokens, index, options, env, self) => {
     const token = tokens[index];

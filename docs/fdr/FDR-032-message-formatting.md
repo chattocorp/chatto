@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -11,6 +11,8 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 - Automatic links require `www.` or an allowed protocol: `https://`, `http://`, or `mailto:`. Bare domains, filenames, email addresses without `mailto:`, and protocol-relative URLs stay plain text. Explicit Markdown links also allow root-relative paths that start with one `/`, such as `[room](/chat/example.com/R8rLgzhPkYja7Gs)`. These paths do not produce link previews, and the visual editor preserves them. Other protocols stay unlinked. This rule prevents filenames such as `agents.md` and `foo.py` from becoming links. The source editor uses the same prefix rule for URL highlighting. Selecting a `mailto:` link opens the configured mail application.
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
+- Built-in emoji shortcodes, such as `:wave:`, `:heart:`, and `:+1:`, render as Unicode emoji. Names are case-sensitive and use the gemoji catalogue, including its aliases. Adjacent tags work without spaces. Unknown names stay literal. Code, automatic URL labels, link destinations, and link titles stay unchanged. Explicit link labels, quotes, tables, footnotes, and inline Markdown previews support shortcodes.
+- Typed shortcodes remain in the stored message and in both editors. Editing, reopening, and copying the full message source retain them. Existing Unicode emoji and the picker's Unicode insertion still work. Other clients can show shortcode text without a server upgrade.
 - Double underscores (`__text__`) mean underline, including in existing messages. Double asterisks (`**text**`) mean bold. Underline uses the normal emphasis boundaries and does not interpret underscores inside inline code, code blocks, or link destinations. Both editors provide an Underline toolbar button and Ctrl+U (⌘U on macOS). The visual editor retains underline when messages are saved, reopened, or switched to Markdown.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
@@ -68,7 +70,13 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 **Why:** People and bots can share colored art and cursor-based drawings through the existing message body. Fixed limits keep each message's display work bounded. Static output needs no active terminal session.
 **Tradeoff:** Terminal animations and raw CP437 file imports are not supported. Send Unicode text with actual escape characters. The composer shows source. Other clients can show the source if they do not support ANSI art.
 
+### 6. Emoji shortcodes are display syntax
+
+**Decision:** Resolve built-in shortcodes when displaying Markdown. Keep their source text in the message body and leave unknown names visible.
+**Why:** People and bots can send readable emoji names through the existing message API. Shared client rules keep name lookup consistent across hosts without changing stored messages or contacting an external service.
+**Tradeoff:** Older clients can show the literal shortcode. The visual editor keeps typed shortcodes as text. Custom emoji assets and stable references are not implemented; their identity and rename rules need a separate design.
+
 ## Related
 
-- **FDRs:** FDR-004 (Message Editing & Deletion), FDR-006 (@Mentions), FDR-030 (Inline Message Timestamps)
+- **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions), FDR-030 (Inline Message Timestamps)
 - **Guide:** [Format Messages](../../apps/docs-website/src/content/docs/getting-started/message-formatting.mdx)

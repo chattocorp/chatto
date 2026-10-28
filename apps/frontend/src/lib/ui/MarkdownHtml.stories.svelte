@@ -12,6 +12,13 @@
 <script lang="ts">
   import { renderMarkdown } from '$lib/markdown';
 
+  const emojiHtml = renderMarkdown(
+    'Hello :wave: **Great work :+1:** :heart:\n\n' +
+      '> A quoted :rocket: and an unknown :custom-party:.\n\n' +
+      'Literal code: `:wave:`. Unicode still works: 👋.\n\n' +
+      '[:heart: Documentation](https://example.com/:wave:)'
+  );
+
   const tableHtml = renderMarkdown(`| Release | Status | Owner | Compatibility | Notes |
 | :--- | :---: | ---: | :--- | :--- |
 | 0.4.8 | **Stable** | Core team | Server and bundled client | Current production release |
@@ -59,6 +66,16 @@
 
     Keep the previous backup until the final check is complete.`);
 </script>
+
+<Story name="Emoji shortcodes" asChild>
+  <div class="w-xl max-w-full rounded-md border border-border bg-surface p-3">
+    <div class="prose max-w-none min-w-0">
+      {#await emojiHtml then html}
+        <MarkdownHtml {html} />
+      {/await}
+    </div>
+  </div>
+</Story>
 
 <Story name="Blockquote emphasis" asChild>
   <div class="w-xl max-w-full rounded-md border border-border bg-surface p-3">
