@@ -445,24 +445,29 @@ Markdown files from `.botto/memory/<server-and-bot-hash>/` into `memory/`. Prese
 any edits to the old `MEANS.md` and schema. Means rebuilds its indexes. Alternatively,
 set `memory.path` to the old collection directory. Pi session storage is unchanged.
 
-Pi receives matching document IDs per scope and user in the request-only input
-context, plus the full Means tool catalog with a `mcp__memory__` prefix. Means
+At the first main-agent turn of a new conversation, Botto searches and reads global
+memory and memory for the first author in the accepted batch. It includes up to
+32 documents and 24,000 body characters in the first prompt as `initialMemory`,
+with a flag when the snapshot is incomplete. The snapshot stays in the Pi transcript
+across turns and restarts. Existing transcripts are not initialized again.
+Later turns do not perform automatic memory searches or reads. Pi receives
+the full Means tool catalog with a `mcp__memory__` prefix. Means
 serves the collection schema and workflow through its `info` tool; Botto does not
 copy that workflow into its system prompt. The default
-system prompt tells it to read relevant global and participant memory when a task
-needs prior decisions, preferences, or facts, and to skip memory lookups for
-self-contained questions. It also tells it to create separate documents for new
+system prompt tells it to use remembered facts and preferences, retrieve relevant
+memories for users who join later, and look up missing or changed facts as needed.
+If compaction removes earlier memory context, the agent can retrieve it through
+Means. It also tells it to create separate documents for new
 memories and update existing related facts. Read-before-update checks still apply.
 Memory updates are model-driven. If you supply a custom `agent.system_prompt`, include
 your desired memory behavior there. Edit the collection's `MEANS.md` to change
 its workflow; Botto can read the current version through MCP `info`.
 
-Batch authors and memory document IDs do not change the system prompt. They are
-input data for the current turn. Room and thread IDs remain in the system prompt
-when Chatto MCP is enabled; they stay fixed within a conversation. Memory document
-IDs are refreshed for each turn and are not saved as additional transcript messages.
+Batch authors and memory contents do not change the system prompt. They are
+input data, not instructions or grants of authority. Room and thread IDs remain
+in the system prompt; they stay fixed within a conversation.
 
-Botto uses a short-lived Means subprocess to find document IDs. Pi then opens
+Botto uses a short-lived Means subprocess to load the initial snapshot. Pi opens
 its own Means connection for model tool calls and closes it when the turn ends.
 Botto serializes Means calls within its process. It uses
 Pi's sequential tool mode when memory is enabled, so a batch of memory calls
@@ -473,10 +478,10 @@ per data directory and memory collection; do not edit memory concurrently throug
 Memory contains private Markdown. User documents organize facts; they are not
 access-control boundaries. The model can access the complete collection. The
 workflow tells it to keep private user facts out of global memory and other users'
-replies, and to never store credentials. Memory read through tools is sent to the
+replies, and to never store credentials. The initial snapshot and memory read through tools are sent to the
 configured model provider and can also remain in Pi transcripts. Clearing a memory
 document does not erase older transcripts. Missing Means or invalid collection
-data during memory discovery fails the turn. Later connection failures follow
+data during memory initialization fails the turn. Later connection failures follow
 Pi's MCP behavior described above.
 
 Botto connects to the configured Chatto server and model provider. The provider
@@ -689,7 +694,7 @@ the shared client timeline in the same message format used by that merge.
 `src/mcp.ts` lists the Chatto, Exa, and memory MCP servers, configures Pi's native
 MCP extension, and releases shared memory locks. Runling observes tool activity.
 `src/steps.ts` keeps external errors private at the Runling step boundary.
-`src/memory.ts` finds memory documents and owns the shared memory lock.
+`src/memory.ts` loads initial memories and owns the shared memory lock.
 Agent tests use a mocked Runling boundary. Botto's conversation tests use Runling's real
 persistent host to check routing, restart, failure, and shutdown. A usage test runs
 Botto through real Runling and Pi sessions with a synthetic provider stream. It
