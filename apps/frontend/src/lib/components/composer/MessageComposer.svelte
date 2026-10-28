@@ -303,7 +303,7 @@
         class={[
           'grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1',
           !expandedDraft &&
-            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:mobile-presentation:items-center'
+            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:touch-input:items-center'
         ]}
       >
         {#if composer.autocomplete.emoji}
@@ -328,10 +328,8 @@
         {/if}
 
         <CompactActionButton
-          wrapperClass={[
-            'mobile-presentation:pill-button-group-touch',
-            !expandedDraft && '@min-[560px]/composer:desktop-presentation:mb-1'
-          ]}
+          touchFriendly
+          wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:compact-input:mb-1'}
           label={m('composer.formatting_options')}
           type="button"
           onpointerdown={(event) => event.preventDefault()}

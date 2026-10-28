@@ -236,11 +236,11 @@ below the editor. Keep this layout until the draft is cleared or sent, or its
 destination or edit mode changes. The extra text width can remove a line wrap;
 keeping the expanded layout prevents repeated layout changes while typing.
 
-Both composer toolbars use 44 px targets and 20 px icons in narrow touch
-windows, including hybrid devices. Wide windows and mouse-only devices keep
-28 px controls and 15 px icons. Composer controls opt in through
-`mobile-presentation:pill-button-group-touch`. This is a composer-specific
-exception to touch target sizing at every viewport width.
+Both composer toolbars use 44 px targets and 20 px icons whenever touch
+input is available, including wide windows and hybrid devices. Mouse-only
+devices keep 28 px controls and 15 px icons. Standalone composer actions use
+`CompactActionButton` with `touchFriendly`; joined formatting groups use
+`pill-button-group-touch`.
 The formatting shelf scrolls horizontally when its controls do not fit.
 In a wide, single-line composer, centre the editor and touch controls vertically.
 The compact desktop controls retain their bottom offset; do not apply that offset

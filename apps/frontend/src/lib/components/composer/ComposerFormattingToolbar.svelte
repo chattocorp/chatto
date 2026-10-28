@@ -93,7 +93,7 @@ block in the DOM until it finishes.
         compact
         gaps={false}
         label={m('composer.formatting_options')}
-        class="w-max shrink-0 mobile-presentation:pill-button-group-touch"
+        class="pill-button-group-touch w-max shrink-0 rounded-xl"
       >
         {#each formattingControls as control (control.command)}
           {@const label = formattingLabel(control.command)}

@@ -782,7 +782,7 @@ describe('MessageComposer', () => {
         await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
         expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
         userPreferences.composerEditor = mode;
-        const largeTargets = touch && viewport < 768;
+        const largeTargets = touch;
         const { container } = renderMessageComposer({
           roomId: 'narrow-composer',
           showCreateThread: true,
@@ -933,9 +933,7 @@ describe('MessageComposer', () => {
           for (const width of [767, 768, 1280, 390]) {
             await page.viewport(width, 900);
             const button = q(container, 'button[aria-label="Send: Send message"]')!;
-            await expect
-              .poll(() => button.getBoundingClientRect().height)
-              .toBe(touch && width < 768 ? 44 : 28);
+            await expect.poll(() => button.getBoundingClientRect().height).toBe(touch ? 44 : 28);
             expect(await findEditor(container)).toBe(editor);
             expect(editor.textContent).toContain('Keep this draft');
             expect(
@@ -947,12 +945,14 @@ describe('MessageComposer', () => {
     );
 
     it.each(
-      [false, true].flatMap((touch) => [767, 768].map((viewport) => [touch, viewport] as const))
+      [false, true].flatMap((touch) =>
+        [767, 768, 1280].map((viewport) => [touch, viewport] as const)
+      )
     )(
       'keeps formatting controls on one row with touch=%s at viewport=%s',
       async (touch, viewport) => {
         await page.viewport(viewport, 900);
-        const largeTargets = touch && viewport < 768;
+        const largeTargets = touch;
         await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
         expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
         const { container } = renderMessageComposer({ roomId: 'room_456' });
@@ -960,6 +960,7 @@ describe('MessageComposer', () => {
         await findEditor(container);
         await openFormattingShelf(container);
 
+        container.style.width = '336px';
         expect(q(container, '[data-testid="message-composer"]')).toHaveClass('@container/composer');
         const toolbar = q(container, '[data-testid="composer-formatting-toolbar"]')!;
         expect(toolbar).toHaveClass('overflow-x-auto');
@@ -974,6 +975,15 @@ describe('MessageComposer', () => {
             largeTargets ? 20 : 15
           );
         }
+        expect(toolbar.scrollWidth).toBeGreaterThan(toolbar.clientWidth);
+        toolbar.scrollLeft = toolbar.scrollWidth;
+        await expect.poll(() => toolbar.scrollLeft).toBeGreaterThan(0);
+        const buttons = toolbar.querySelectorAll('button');
+        const lastButton = buttons[buttons.length - 1];
+        expect(lastButton.getBoundingClientRect().right).toBeLessThanOrEqual(
+          toolbar.getBoundingClientRect().right + 1
+        );
+        expect(lastButton.getBoundingClientRect().top).toBe(buttons[0].getBoundingClientRect().top);
       }
     );
 
