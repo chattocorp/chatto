@@ -219,8 +219,10 @@ and passive debounce apply. Accepted reactions are saved and deduplicated by
 event ID. Reactions missed while disconnected are not recovered from notification
 history; queued reactions survive a restart.
 
-The classifier should ignore acknowledgements after a completed answer, such as
-"mh" or "cool", and conversation between other people. A request after Botto
+The classifier should ignore neutral acknowledgements after a completed answer,
+such as "mh" or "ok", and conversation between other people. Thanks and clear
+appreciation directed at Botto should receive an emoji reaction without a textual
+reply. The model chooses the emoji. A request after Botto
 offers help, an answer to its question, or a nudge after an unanswered request
 should receive a reply without another mention. These are model decisions,
 not guaranteed rules.
@@ -230,11 +232,13 @@ classification requests use OpenRouter; no direct provider API
 is used. OpenRouter and its selected provider receive the supplied thread text
 and attachment types; OpenRouter also receives the host's IP address. No memory
 documents or image bytes are included. Runling records the decision,
-duration, and reported token usage and cost without logging model text or reasoning.
+duration, and reported token usage and cost without logging the full model response or reasoning.
 Each successful classification also adds a concise participation log entry with
-the action, a reason label, the selected emoji if any, and elapsed time. The model
-selects a reason code; Botto logs fixed labels instead of free-text explanations
-that could quote private conversation content. Emoji selection remains open-ended.
+the action, a short plain-text explanation, the selected emoji if any, and elapsed time.
+The classifier is instructed to explain the conversational situation without quotes,
+personal details, or credentials. This restriction depends on model compliance.
+A missing or empty explanation is logged as "Reason not supplied" and does not
+invalidate the decision. Emoji selection remains open-ended.
 
 ```toml
 [participation]

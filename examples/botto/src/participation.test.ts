@@ -158,9 +158,9 @@ test.each([
   ).rejects.toThrow();
 });
 
-test('logs only the validated decision, safe reason label, emoji, and duration', async () => {
+test('logs the model explanation with the decision, emoji, and duration', async () => {
   const info = vi.spyOn(log, 'info');
-  const classify = setup('{"action":"react","emoji":"tada","reason":"celebration"}');
+  const classify = setup('{"action":"react","emoji":"tada","reason":"Good news needs no text"}');
   await classify(
     createTaskContext(),
     {
@@ -177,19 +177,21 @@ test('logs only the validated decision, safe reason label, emoji, and duration',
   expect(JSON.stringify(info.mock.calls)).not.toContain('private-');
 });
 
-test.each(['{"action":"ignore"}', '{"action":"ignore","reason":"private-person said something"}'])(
-  'rejects missing or free-text reasons without logging them: %s',
-  async (summary) => {
-    const info = vi.spyOn(log, 'info');
-    await expect(
-      setup(summary)(
-        createTaskContext(),
-        { messages: [], olderContextOmitted: false },
-        [],
-        new AbortController().signal
-      )
-    ).rejects.toThrow();
-    expect(JSON.stringify(info.mock.calls)).not.toContain('Participation:');
-    expect(JSON.stringify(info.mock.calls)).not.toContain('private-person');
-  }
-);
+test.each([
+  [{ action: 'ignore' }, 'Reason not supplied'],
+  [{ action: 'ignore', reason: '' }, 'Reason not supplied'],
+  [{ action: 'ignore', reason: 'The exchange is complete.' }, 'The exchange is complete.']
+])('accepts optional plain-text explanations: %j', async (decision, explanation) => {
+  const info = vi.spyOn(log, 'info');
+  await expect(
+    setup(JSON.stringify(decision))(
+      createTaskContext(),
+      { messages: [], olderContextOmitted: false },
+      [],
+      new AbortController().signal
+    )
+  ).resolves.toEqual({ action: 'ignore' });
+  expect(info).toHaveBeenCalledWith(`Participation: ignore — ${explanation}`, {
+    durationMs: expect.any(Number)
+  });
+});
