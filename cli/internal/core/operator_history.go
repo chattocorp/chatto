@@ -284,12 +284,9 @@ func (c *ChattoCore) ImportHistoricalMessageChange(ctx context.Context, in Histo
 			if _, err = c.GetUser(ctx, in.UserID); err != nil {
 				return err
 			}
-			emoji := in.Emoji
-			if !IsValidEmojiName(emoji) {
-				emoji, err = HistoricalEmojiName(emoji)
-				if err != nil {
-					return err
-				}
+			emoji, err := HistoricalReactionName(in.Emoji)
+			if err != nil {
+				return err
 			}
 			if in.Present {
 				e.Event = &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{RoomId: in.RoomID, MessageEventId: in.MessageID, UserId: in.UserID, Emoji: emoji, HistoricalImport: true}}

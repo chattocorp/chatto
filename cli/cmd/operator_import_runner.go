@@ -219,12 +219,12 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 			usedAssets[id] = true
 		}
 		if strings.HasPrefix(e.Type, "reaction.") {
-			if _, err := core.HistoricalEmojiName(d.Emoji); err != nil {
+			if _, err := core.HistoricalReactionName(d.Emoji); err != nil {
 				return err
 			}
 		}
 		for _, r := range d.Reactions {
-			if _, err := core.HistoricalEmojiName(r.Emoji); err != nil {
+			if _, err := core.HistoricalReactionName(r.Emoji); err != nil {
 				return err
 			}
 		}

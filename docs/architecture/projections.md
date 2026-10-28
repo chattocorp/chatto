@@ -371,6 +371,8 @@ Reactions interns emoji, user, and room IDs in one table and message IDs in
 the shared event ID table. It keeps the source event ID of each active
 reaction as a string, because each source ID occurs only once. Each message
 has a short slice of active reactions, sorted by emoji and user handles.
+Emoji handles retain exact case-sensitive reaction names, including names outside
+the bundled catalogue. Replay does not resolve aliases or require emoji assets.
 
 Timeline, Threads, and Reactions construct detached read results.
 

@@ -21,6 +21,11 @@ export function getEmojiByName(name: string): string | undefined {
   return resolved.kind === 'unicode' ? resolved.emoji : undefined;
 }
 
+/** Display a reaction glyph or its literal shortcode until the name is known. */
+export function getReactionDisplay(name: string): string {
+  return getEmojiByName(name) ?? `:${name}:`;
+}
+
 /**
  * Search emojis by query string.
  * Matches against both shortcode names and tags.
@@ -119,7 +124,7 @@ const emojiToNameMap: Record<string, string> = (() => {
  * @example emojiToName('❤️') // 'heart'
  */
 export function emojiToName(emoji: string): string | undefined {
-  return emojiToNameMap[emoji];
+  return Object.hasOwn(emojiToNameMap, emoji) ? emojiToNameMap[emoji] : undefined;
 }
 
 const EMOJI_DISPLAY_NAME_OVERRIDES: Record<string, string> = {
@@ -135,7 +140,9 @@ const EMOJI_DISPLAY_NAME_OVERRIDES: Record<string, string> = {
 export function getEmojiDisplayName(emojiOrName: string): string {
   const emoji = getEmojiByName(emojiOrName) ?? emojiOrName;
   const name = emojiToName(emoji) ?? emojiOrName;
-  const override = EMOJI_DISPLAY_NAME_OVERRIDES[name];
+  const override = Object.hasOwn(EMOJI_DISPLAY_NAME_OVERRIDES, name)
+    ? EMOJI_DISPLAY_NAME_OVERRIDES[name]
+    : undefined;
   if (override) return override;
 
   const readable = name

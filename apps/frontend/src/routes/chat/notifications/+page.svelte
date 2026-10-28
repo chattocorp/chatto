@@ -44,7 +44,7 @@
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
-  import { getEmojiByName } from '$lib/emoji';
+  import { getEmojiByName, getReactionDisplay } from '$lib/emoji';
 
   type ServerGroup = {
     serverId: string;
@@ -377,15 +377,15 @@
     );
   }
 
-  /** First reaction emoji of a reaction group, for the avatar badge. */
+  /** Only glyphs fit the avatar badge; unknown names use the reaction icon. */
   function badgeEmoji(group: NotificationGroupItem): string | null {
     const name = group.occurrences.find((item) => item.reactionEmoji)?.reactionEmoji;
-    return name ? renderEmoji(name) : null;
+    return name ? (getEmojiByName(name) ?? null) : null;
   }
 
   /** Stored reaction emoji names render as their emoji when known. */
   function renderEmoji(name: string): string {
-    return getEmojiByName(name) ?? name;
+    return getReactionDisplay(name);
   }
 
   async function openGroup(item: ServerGroup) {

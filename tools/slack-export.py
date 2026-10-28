@@ -12,6 +12,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import uuid
@@ -54,13 +55,15 @@ def literal_mentions(value):
 
 
 def reaction_unicode(name, emojis):
-    """Resolve bundled aliases and Slack skin-tone suffixes; never guess custom emoji."""
+    """Keep unknown reaction names; retain Unicode output for known Slack emoji."""
     if not isinstance(name, str):
         raise ApplyError("Invalid reaction name.")
     base, separator, tone = name.partition("::skin-tone-")
     value = emojis.get({"hugging_face": "hugs"}.get(base, base))
     if not value:
-        raise ApplyError("Custom or unknown reaction emoji is unsupported.")
+        if re.fullmatch(r"[A-Za-z0-9_+-]{1,128}", name):
+            return name
+        raise ApplyError("Invalid or unsupported reaction emoji.")
     if separator:
         if tone not in {"2", "3", "4", "5", "6"} or "\u200d" in value:
             raise ApplyError("Unsupported reaction skin-tone sequence.")
@@ -323,6 +326,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
     omit("history", "The source reports replies outside the exported history.", issues.get("incomplete_thread_replies", 0))
     omit("history", "The source does not identify every reactor; only known reactors are retained.", issues.get("incomplete_reaction_users", 0))
     events, introduced, membership = [], set(), {}
+    custom_reaction_names = set()
     mentions = summaries = broadcasts = 0
     for row in plan["messages"]:
         original = row["source"]
@@ -381,7 +385,11 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
             for user in reaction.get("users", []):
                 if user not in logins:
                     raise ApplyError("Unresolved reaction user.")
-                reactions[reaction_unicode(reaction["name"], emojis)].add(user)
+                emoji = reaction_unicode(reaction["name"], emojis)
+                reactions[emoji].add(user)
+                # Unresolved names retain their identity but have no image in the archive.
+                if emoji == reaction["name"]:
+                    custom_reaction_names.add(emoji)
         event.update(type="message.snapshot", data={"message_id": key, "author_id": author,
             "thread_id": root, "reply_to": None, "content": content, "created_at": row["created_at"],
             "edited_at": row["edited_at"], "deleted_at": None,
@@ -393,6 +401,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                        "room_id": room["source_id"], "actor_id": None, "occurred_at": None,
                        "data": {"user_ids": sorted(set(room["members"]))}})
     omit("unsupported", "Structured user mentions are retained as literal names.", mentions)
+    omit("unsupported", "Custom reaction names are retained; their emoji images are not included.", len(custom_reaction_names))
     omit("unsupported", "Attachment text is retained; layout and embedded media are omitted.", summaries)
     omit("unsupported", "Thread broadcasts are retained in their thread without a channel echo.", broadcasts)
     workspaces = plan.get("slack_workspace_ids", [])

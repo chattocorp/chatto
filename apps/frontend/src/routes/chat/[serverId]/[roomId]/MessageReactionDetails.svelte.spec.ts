@@ -85,6 +85,19 @@ afterEach(() => {
 });
 
 describe('message reaction details', () => {
+  it('shows unknown names and requests their exact reactor list', async () => {
+    const { container } = renderDetails([reaction('Party_Parrot', 1)]);
+    expect(container.textContent).toContain(':Party_Parrot:');
+    await vi.waitFor(() => {
+      expect(mocks.listReactionUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ emoji: 'Party_Parrot' }),
+        expect.any(Number),
+        expect.any(Number),
+        expect.anything()
+      );
+    });
+  });
+
   it('shows a complete list for one emoji and preserves bot identity', async () => {
     mocks.listReactionUsers.mockResolvedValue({
       userIds: ['alice', 'bot'],

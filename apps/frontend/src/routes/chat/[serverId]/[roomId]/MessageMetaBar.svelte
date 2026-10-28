@@ -15,7 +15,7 @@ local to the footer.
   import type { MessagePostedPayload } from '@chatto/client/timeline/timelineEvents';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { UnreadDot, FloatingPopover, ConfirmDialog } from '$lib/ui';
-  import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
+  import { getReactionDisplay, getEmojiDisplayName } from '$lib/emoji';
   import { m } from '$lib/i18n/messages';
   import type { MessageActionModel } from './messageActionModel';
 
@@ -280,13 +280,14 @@ local to the footer.
   {#each reactions as reaction (reaction.emoji)}
     <span
       role="group"
+      class="max-w-full min-w-0"
       onmouseenter={(e) => showReactionTooltip(e, reaction)}
       onmouseleave={hideReactionTooltip}
     >
       <button
         class={[
           baseButtonClass,
-          'gap-1 px-2 text-sm disabled:cursor-default disabled:opacity-60',
+          'max-w-full gap-1 px-2 text-sm disabled:cursor-default disabled:opacity-60',
           reaction.hasReacted ? 'border-action/50' : 'border-transparent'
         ]}
         onclick={() => action?.canReact && toggleReaction(reaction)}
@@ -294,20 +295,22 @@ local to the footer.
         onblur={hideReactionTooltip}
         disabled={!action?.canReact}
         aria-describedby={tooltipReactionEmoji === reaction.emoji ? reactionTooltipId : undefined}
-        aria-label={`${getEmojiByName(reaction.emoji) ?? reaction.emoji} ${reaction.count}`}
+        aria-label={`${getReactionDisplay(reaction.emoji)} ${reaction.count}`}
         title={reaction.hasReacted
           ? m('room.message.meta.remove_reaction_label', {
-              emoji: getEmojiByName(reaction.emoji) ?? reaction.emoji,
+              emoji: getReactionDisplay(reaction.emoji),
               count: reaction.count
             })
           : m('room.message.meta.add_reaction_label', {
-              emoji: getEmojiByName(reaction.emoji) ?? reaction.emoji,
+              emoji: getReactionDisplay(reaction.emoji),
               count: reaction.count
             })}
         aria-pressed={reaction.hasReacted}
       >
-        <span aria-hidden="true">{getEmojiByName(reaction.emoji) ?? reaction.emoji}</span>
-        <span class="text-xs" aria-hidden="true">{reaction.count}</span>
+        <span class="max-w-48 truncate" aria-hidden="true"
+          >{getReactionDisplay(reaction.emoji)}</span
+        >
+        <span class="shrink-0 text-xs" aria-hidden="true">{reaction.count}</span>
       </button>
     </span>
   {/each}

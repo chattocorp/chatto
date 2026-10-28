@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -120,7 +121,7 @@ func TestReactionModel_AddReactionWrite(t *testing.T) {
 	})
 
 	t.Run("add reaction with invalid input", func(t *testing.T) {
-		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "not_valid", user.Id)
+		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, ":invalid:", user.Id)
 		if err == nil {
 			t.Error("Expected error for invalid emoji input")
 		}
@@ -875,24 +876,6 @@ func TestEmoji(t *testing.T) {
 		}
 	})
 
-	t.Run("IsValidEmojiName accepts known names", func(t *testing.T) {
-		valid := []string{"thumbsup", "+1", "heart", "joy", "tada", "rocket", "fire", "grinning", "t-rex", "melting_face", "saluting_face"}
-		for _, name := range valid {
-			if !IsValidEmojiName(name) {
-				t.Errorf("Expected %q to be valid", name)
-			}
-		}
-	})
-
-	t.Run("IsValidEmojiName rejects unknown names", func(t *testing.T) {
-		invalid := []string{"invalid", "foobar", "not_an_emoji", ""}
-		for _, name := range invalid {
-			if IsValidEmojiName(name) {
-				t.Errorf("Expected %q to be invalid", name)
-			}
-		}
-	})
-
 	t.Run("resolveEmojiInput accepts shortcode names", func(t *testing.T) {
 		name, err := resolveEmojiInput("thumbsup")
 		if err != nil {
@@ -911,11 +894,54 @@ func TestEmoji(t *testing.T) {
 	})
 
 	t.Run("resolveEmojiInput rejects invalid input", func(t *testing.T) {
-		_, err := resolveEmojiInput("totally_bogus")
-		if err == nil {
-			t.Error("Expected error for invalid input")
+		for _, input := range []string{"", ":heart:", "two words", " foo", "foo.", "foo/bar", "é", "<img>", strings.Repeat("a", 129)} {
+			if _, err := resolveEmojiInput(input); err == nil {
+				t.Errorf("Expected error for invalid input %q", input)
+			}
 		}
 	})
+
+	t.Run("resolveEmojiInput preserves names without catalogue lookup", func(t *testing.T) {
+		for _, input := range []string{"Party_Parrot", "custom-party", "+1", "thumbsup", strings.Repeat("a", 128)} {
+			name, err := resolveEmojiInput(input)
+			if err != nil || name != input {
+				t.Errorf("resolveEmojiInput(%q) = %q, %v", input, name, err)
+			}
+		}
+		for name := range emojiNameToUnicode {
+			if !IsValidReactionName(name) {
+				t.Errorf("previously supported name rejected: %q", name)
+			}
+		}
+	})
+}
+
+func TestUnknownReactionRoundTrip(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, messageID := setupReactionTest(t, c, ctx)
+	input := ReactionMutationInput{ActorID: user.Id, RoomID: room.Id, MessageEventID: messageID, Emoji: "Party_Parrot"}
+	for i := range 2 {
+		added, err := c.ReactionModel().AddReaction(ctx, input)
+		if err != nil || added != (i == 0) {
+			t.Fatalf("add attempt %d: %v, %v", i, added, err)
+		}
+	}
+	reactions, err := c.GetReactions(ctx, messageID)
+	if err != nil || len(reactions) != 1 || reactions[0].Emoji != input.Emoji {
+		t.Fatalf("reaction name round trip: %v, %v", reactions, err)
+	}
+	page, err := c.RoomTimelineReads().ListReactionUsers(ctx, user.Id, room.Id, messageID, input.Emoji, 50, 0)
+	if err != nil || len(page.UserIDs) != 1 || page.UserIDs[0] != user.Id {
+		t.Fatalf("reaction users: %v, %v", page, err)
+	}
+	for i := range 2 {
+		removed, err := c.ReactionModel().RemoveReaction(ctx, input)
+		if err != nil || removed != (i == 0) {
+			t.Fatalf("remove attempt %d: %v, %v", i, removed, err)
+		}
+	}
 }
 
 func setupReactionTest(t *testing.T, core *ChattoCore, ctx context.Context) (*readmodel.User, *readmodel.Room, string) {

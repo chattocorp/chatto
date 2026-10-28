@@ -1,3 +1,4 @@
+import '../../../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
@@ -115,6 +116,38 @@ function reaction(
 }
 
 describe('MessageMetaBar', () => {
+  it('keeps long reaction names inside the message column', () => {
+    const name = 'x'.repeat(128);
+    const { container } = render(MessageMetaBar, {
+      props: { ...baseProps, reactions: [reaction({ emoji: name })] }
+    });
+    container.style.width = '240px';
+    const button = container.querySelector<HTMLButtonElement>(`button[aria-label=":${name}: 2"]`)!;
+    expect(button.getBoundingClientRect().width).toBeLessThanOrEqual(240);
+    expect(button.textContent).toContain(`:${name}:`);
+  });
+
+  it('shows unknown reaction names and toggles their exact identity', async () => {
+    const unknown = reaction({ emoji: 'Party_Parrot', hasReacted: true });
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        reactions: [unknown],
+        action: buildAction({ canReact: true, reactions: [unknown] })
+      }
+    });
+    const button = q(container, 'button[aria-label=":Party_Parrot: 2"]') as HTMLButtonElement;
+    expect(button.textContent).toContain(':Party_Parrot:');
+    button.click();
+    await vi.waitFor(() => {
+      expect(mocks.actions.toggleReaction).toHaveBeenCalledWith(
+        expect.anything(),
+        'Party_Parrot',
+        true
+      );
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
