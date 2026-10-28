@@ -13,6 +13,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
 - Built-in emoji shortcodes, such as `:wave:`, `:heart:`, and `:+1:`, render as Unicode emoji. Names are case-sensitive and use the gemoji catalogue, including its aliases. Adjacent tags work without spaces. Unknown names stay literal. Code, automatic URL labels, link destinations, and link titles stay unchanged. Explicit link labels, quotes, tables, footnotes, and inline Markdown previews support shortcodes.
 - Typed shortcodes remain in the stored message and in both editors. Editing, reopening, and copying the full message source retain them. Existing Unicode emoji and the picker's Unicode insertion still work. Other clients can show shortcode text without a server upgrade.
+- Shortcodes directly beside Unicode letters, numbers, combining marks, or literal underscores stay literal. For example, `omg:poop:foo` stays unchanged. Whitespace and punctuation permit conversion, so `(:wave:)!` and `:wave::heart:` work. Markdown formatting still applies around tags, such as `_:wave:_` for an italic emoji. Autocomplete uses the same opening boundary and shortcode name characters. Suggestions appear after two name characters, including signed aliases such as `:+1`.
 - Double underscores (`__text__`) mean underline, including in existing messages. Double asterisks (`**text**`) mean bold. Underline uses the normal emphasis boundaries and does not interpret underscores inside inline code, code blocks, or link destinations. Both editors provide an Underline toolbar button and Ctrl+U (⌘U on macOS). The visual editor retains underline when messages are saved, reopened, or switched to Markdown.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
@@ -72,8 +73,8 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ### 6. Emoji shortcodes are display syntax
 
-**Decision:** Resolve built-in shortcodes when displaying Markdown. Keep their source text in the message body and leave unknown names visible.
-**Why:** People and bots can send readable emoji names through the existing message API. Shared client rules keep name lookup consistent across hosts without changing stored messages or contacting an external service.
+**Decision:** Resolve built-in shortcodes at word boundaries when displaying Markdown. Keep their source text in the message body and leave unknown names visible. Apply the same opening boundary to autocomplete.
+**Why:** People and bots can send readable emoji names through the existing message API. Boundaries prevent accidental conversion inside words or identifiers. Shared client rules keep name lookup consistent across hosts without changing stored messages or contacting an external service.
 **Tradeoff:** Older clients can show the literal shortcode. The visual editor keeps typed shortcodes as text. Custom emoji assets and stable references are not implemented; their identity and rename rules need a separate design.
 
 ## Related

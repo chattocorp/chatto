@@ -35,6 +35,30 @@ describe('renderInlineMarkdown', () => {
 
 describe('renderMarkdown', () => {
   describe('emoji shortcodes', () => {
+    it('requires Unicode word boundaries without blocking punctuation or adjacent tags', async () => {
+      const source =
+        'omg:poop:foo hello:wave: :wave:hello ' +
+        'é:wave: :wave:中 𐐀:wave: :wave:𝟙 e\u0301:wave: :wave:\u0301 ' +
+        '(:poop:)! :wave::heart:';
+      const expected = source.replace('(:poop:)! :wave::heart:', '(💩)! 👋❤️');
+      expect(renderInlineMarkdown(source)).toBe(expected);
+      expect(await renderMarkdown(source)).toBe(`<p>${expected}</p>\n`);
+    });
+
+    it.each(['_:+1:', ':heart:_'])(
+      'keeps a tag beside a literal underscore: %s',
+      async (source) => {
+        expect(renderInlineMarkdown(source)).toBe(source);
+        expect(await renderMarkdown(source)).toBe(`<p>${source}</p>\n`);
+      }
+    );
+
+    it('keeps a word boundary when mention parsing splits the text', async () => {
+      const html = await renderMarkdown('@alice:wave: @alice :wave:', { mentions: true });
+      expect(html).toContain('<span data-mention-handle="alice">@alice</span>:wave:');
+      expect(html).toContain('<span data-mention-handle="alice">@alice</span> 👋');
+    });
+
     it('renders a large Markdown attachment without exceeding the argument limit', async () => {
       const count = 100_000;
       const html = await renderMarkdown(':wave: '.repeat(count));

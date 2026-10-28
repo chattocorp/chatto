@@ -25,14 +25,35 @@ export type EmojiShortcode = {
 /**
  * Finds non-overlapping `:name:` tags, including unknown names and adjacent tags.
  * Names accept ASCII letters, digits, underscores, plus signs, and hyphens.
+ * Unicode letters, numbers, combining marks, and underscores directly beside
+ * a tag prevent conversion. Punctuation and whitespace are boundaries.
  * Call this only on prose: the host parser must exclude code and URLs first.
  */
 export function* emojiShortcodes(text: string): Generator<EmojiShortcode> {
-  for (const match of text.matchAll(/:([a-zA-Z0-9_+-]+):/g)) {
+  for (const match of text.matchAll(
+    /(?<![\p{L}\p{N}\p{M}_]):([a-zA-Z0-9_+-]+):(?![\p{L}\p{N}\p{M}_])/gu
+  )) {
     yield {
       start: match.index,
       end: match.index + match[0].length,
       resolution: resolveEmoji(match[1]!)
     };
   }
+}
+
+/** A partial shortcode name and the UTF-16 offset of its opening colon. */
+export type EmojiShortcodeQuery = { name: string; start: number };
+
+/**
+ * Reads an unfinished shortcode at the end of text before the cursor.
+ * Uses the same opening boundary and name characters as complete shortcodes.
+ * Hosts choose a suggestion threshold; a completed tag is not a query.
+ */
+export function emojiShortcodeQuery(textBeforeCursor: string): EmojiShortcodeQuery | null {
+  const match = /(?<![\p{L}\p{N}\p{M}_]):([a-zA-Z0-9_+-]+)$/u.exec(textBeforeCursor);
+  // JavaScript's `$` also matches before a final newline. The cursor must
+  // remain directly after the name, not on the next line.
+  return match && match.index + match[0].length === textBeforeCursor.length
+    ? { name: match[1]!, start: match.index }
+    : null;
 }

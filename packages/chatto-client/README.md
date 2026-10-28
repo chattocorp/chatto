@@ -184,8 +184,11 @@ Message bodies can contain emoji shortcodes, such as `Hello :wave:`. The
 server keeps this text. Clients choose how to display it. For custom renderers,
 `@chatto/client/messaging/emojiShortcodes` exports `resolveEmoji(name)` for
 case-sensitive built-in names and `emojiShortcodes(text)` for source ranges
-with Unicode or unknown results. Parse Markdown first and scan only prose;
-leave code and URLs unchanged. Custom emoji assets are not supported yet.
+with Unicode or unknown results. Tags beside Unicode letters, numbers, combining
+marks, or underscores stay literal. `emojiShortcodeQuery(textBeforeCursor)`
+reads a partial name with the same opening boundary for autocomplete. Parse
+Markdown first and scan only prose; leave code and URLs unchanged. Custom emoji
+assets are not supported yet.
 
 For a send that needs retry safety, retain the prepared operation:
 

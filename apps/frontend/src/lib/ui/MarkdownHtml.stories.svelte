@@ -16,6 +16,7 @@
     'Hello :wave: **Great work :+1:** :heart:\n\n' +
       '> A quoted :rocket: and an unknown :custom-party:.\n\n' +
       'Literal code: `:wave:`. Unicode still works: 👋.\n\n' +
+      'Boundaries: omg:poop:foo stays literal. (:poop:)! :wave::heart:\n\n' +
       '[:heart: Documentation](https://example.com/:wave:)'
   );
 
