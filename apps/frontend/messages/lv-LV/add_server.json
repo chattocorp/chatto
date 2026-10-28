@@ -12,6 +12,8 @@
     "not_chatto_server": "Šķiet, ka tas nav Chatto serveris.",
     "directory": {
       "added_by_you": "Jūsu pievienots",
+      "joined": "Pievienojies",
+      "needs_login": "Nepieciešama pieteikšanās",
       "learn_more": "Vēlies uzzināt vairāk?",
       "learn_more_description": "Atklāj Chatto iespējas, uzzini, kā uzturēt savu serveri, vai saņem palīdzību.",
       "welcome_title": "Tagad sarunas kļūst īstas!",

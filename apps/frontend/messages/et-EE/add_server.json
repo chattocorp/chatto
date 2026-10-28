@@ -12,6 +12,8 @@
     "not_chatto_server": "See ei näi olevat Chatto server.",
     "directory": {
       "added_by_you": "Teie lisatud",
+      "joined": "Liitunud",
+      "needs_login": "Vajab sisselogimist",
       "learn_more": "Soovid rohkem teada?",
       "learn_more_description": "Avasta Chatto võimalused, õpi oma serverit haldama või leia abi.",
       "welcome_title": "Nüüd läheb vestlus päriselt käima!",

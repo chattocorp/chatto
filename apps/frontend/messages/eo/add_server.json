@@ -12,6 +12,8 @@
     "not_chatto_server": "Ĉi tio ne ŝajnas esti Chatto-servilo.",
     "directory": {
       "added_by_you": "Aldonita de vi",
+      "joined": "Aliĝis",
+      "needs_login": "Ensaluto necesas",
       "learn_more": "Ĉu vi volas scii pli?",
       "learn_more_description": "Malkovru la eblojn de Chatto, lernu funkciigi vian propran servilon aŭ ricevu helpon.",
       "welcome_title": "Babilado ĵus fariĝis vera!",

@@ -12,6 +12,8 @@
     "not_chatto_server": "لا يبدو أن هذا هو خادم Chatto.",
     "directory": {
       "added_by_you": "أضفته بنفسك",
+      "joined": "تم الانضمام",
+      "needs_login": "يلزم تسجيل الدخول",
       "learn_more": "هل تريد معرفة المزيد؟",
       "learn_more_description": "اكتشف إمكانات Chatto، وتعلّم كيفية تشغيل خادمك الخاص، أو احصل على المساعدة.",
       "welcome_title": "الآن تبدأ الدردشة الحقيقية!",

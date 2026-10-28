@@ -12,6 +12,8 @@
     "not_chatto_server": "Dette ser ikke ut til å være en Chatto-server.",
     "directory": {
       "added_by_you": "Lagt til av deg",
+      "joined": "Ble med",
+      "needs_login": "Innlogging kreves",
       "learn_more": "Vil du vite mer?",
       "learn_more_description": "Oppdag hva Chatto kan gjøre, lær å drive din egen server eller få hjelp.",
       "welcome_title": "Nå blir chatten på ekte!",

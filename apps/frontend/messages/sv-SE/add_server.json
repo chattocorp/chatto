@@ -12,6 +12,8 @@
     "not_chatto_server": "Det här verkar inte vara en Chatto-server.",
     "directory": {
       "added_by_you": "Tillagd av dig",
+      "joined": "Gick med",
+      "needs_login": "Inloggning krävs",
       "learn_more": "Vill du veta mer?",
       "learn_more_description": "Upptäck vad Chatto kan göra, lär dig att driva en egen server eller få hjälp.",
       "welcome_title": "Nu blir chatten på riktigt!",

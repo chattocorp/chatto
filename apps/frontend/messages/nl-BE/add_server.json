@@ -12,6 +12,8 @@
     "not_chatto_server": "Dit lijkt geen Chatto-server te zijn.",
     "directory": {
       "added_by_you": "Door jou toegevoegd",
+      "joined": "Lid geworden",
+      "needs_login": "Inloggen vereist",
       "learn_more": "Wil je meer weten?",
       "learn_more_description": "Ontdek wat Chatto kan, leer hoe je je eigen server beheert of vind hulp.",
       "welcome_title": "Chatten wordt nu écht!",

@@ -12,6 +12,8 @@
     "not_chatto_server": "これは Chatto サーバーではないようです。",
     "directory": {
       "added_by_you": "あなたが追加",
+      "joined": "参加済み",
+      "needs_login": "ログインが必要",
       "learn_more": "もっと知りたいですか？",
       "learn_more_description": "Chattoでできることや、自分のサーバーを運営する方法を調べたり、サポート情報を見つけたりできます。",
       "welcome_title": "チャットが、もっとリアルに！",

@@ -12,6 +12,8 @@
     "not_chatto_server": "Bu bir Chatto sunucusu gibi görünmüyor.",
     "directory": {
       "added_by_you": "Sizin tarafınızdan eklendi",
+      "joined": "Katıldı",
+      "needs_login": "Giriş gerekli",
       "learn_more": "Daha fazla bilgi mi istiyorsunuz?",
       "learn_more_description": "Chatto'nun neler yapabileceğini keşfedin, kendi sunucunuzu yönetmeyi öğrenin veya yardım alın.",
       "welcome_title": "Şimdi sohbet gerçek oluyor!",

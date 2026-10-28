@@ -12,6 +12,8 @@
     "not_chatto_server": "Zdá se, že se nejedná o server Chatto.",
     "directory": {
       "added_by_you": "Přidáno vámi",
+      "joined": "Připojeno",
+      "needs_login": "Je nutné se přihlásit",
       "learn_more": "Chcete se dozvědět více?",
       "learn_more_description": "Objevte možnosti Chatto, naučte se provozovat vlastní server nebo získejte pomoc.",
       "welcome_title": "Teď se chatuje doopravdy!",

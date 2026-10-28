@@ -12,6 +12,8 @@
     "not_chatto_server": "Este no parece ser un servidor Chatto.",
     "directory": {
       "added_by_you": "Añadido por ti",
+      "joined": "Unido",
+      "needs_login": "Requiere iniciar sesión",
       "learn_more": "¿Quieres saber más?",
       "learn_more_description": "Descubre qué puedes hacer con Chatto, aprende a gestionar tu propio servidor o encuentra ayuda.",
       "welcome_title": "¡El chat se pone de verdad!",

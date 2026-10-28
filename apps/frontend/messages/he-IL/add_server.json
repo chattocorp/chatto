@@ -12,6 +12,8 @@
     "not_chatto_server": "זה לא נראה כשרת Chatto.",
     "directory": {
       "added_by_you": "נוסף על ידך",
+      "joined": "הצטרף",
+      "needs_login": "נדרשת כניסה",
       "learn_more": "רוצים ללמוד עוד?",
       "learn_more_description": "גלו מה אפשר לעשות עם Chatto, למדו איך להפעיל שרת משלכם או קבלו עזרה.",
       "welcome_title": "עכשיו הצ׳אט הופך לאמיתי!",

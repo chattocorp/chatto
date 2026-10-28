@@ -12,6 +12,8 @@
     "not_chatto_server": "这似乎不是 Chatto 服务器。",
     "directory": {
       "added_by_you": "由你添加",
+      "joined": "已加入",
+      "needs_login": "需要登录",
       "learn_more": "想了解更多？",
       "learn_more_description": "探索 Chatto 的功能，了解如何运行自己的服务器，或获取帮助。",
       "welcome_title": "聊天，现在来真的！",
