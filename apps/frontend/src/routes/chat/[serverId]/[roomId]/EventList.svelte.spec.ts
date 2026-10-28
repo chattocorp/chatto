@@ -13,6 +13,67 @@ import { loadLocaleMessages, m } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import type { JumpToMessageState } from '$lib/state/room';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { ReactiveMap } from '@chatto/client/reactivity';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+
+describe('membership activity display', () => {
+  it.each(['join', 'leave'] as const)(
+    'hides and restores %s activity when the room setting changes',
+    async (eventKind) => {
+      const rooms = new ReactiveMap([
+        ['room-1', new RoomWithViewerState({ room: new Room({ id: 'room-1' }) })]
+      ]);
+      createTestServerScope({
+        store: { projection: { rooms }, realtimeSync: { isRecoveringSnapshot: false } },
+        ui: { activeCallRooms: { getCallId: () => null } }
+      });
+      const view = render(EventListTestHarness, {
+        props: { eventIds: ['activity'], eventKind, scrollToEventId: null, hasReachedStart: true }
+      });
+      await expect.element(view.getByText('User activity', { exact: true })).toBeVisible();
+      rooms.set(
+        'room-1',
+        new RoomWithViewerState({ room: new Room({ id: 'room-1', showMembershipEvents: false }) })
+      );
+      await expect
+        .element(view.getByText('User activity', { exact: true }))
+        .not.toBeInTheDocument();
+      rooms.set(
+        'room-1',
+        new RoomWithViewerState({ room: new Room({ id: 'room-1', showMembershipEvents: true }) })
+      );
+      await expect.element(view.getByText('User activity', { exact: true })).toBeVisible();
+    }
+  );
+
+  it('loads past a page containing only hidden activity', async () => {
+    const rooms = new ReactiveMap([
+      [
+        'room-1',
+        new RoomWithViewerState({ room: new Room({ id: 'room-1', showMembershipEvents: false }) })
+      ]
+    ]);
+    createTestServerScope({
+      store: { projection: { rooms }, realtimeSync: { isRecoveringSnapshot: false } },
+      ui: { activeCallRooms: { getCallId: () => null } }
+    });
+    const onLoadMore = vi.fn(async () => {
+      // Backfill can start during render. Wait until the harness exists.
+      await Promise.resolve();
+      await view.rerender({
+        eventIds: ['older-message'],
+        eventKind: 'message',
+        hasReachedStart: true
+      });
+    });
+    const view = render(EventListTestHarness, {
+      props: { eventIds: ['activity'], eventKind: 'join', scrollToEventId: null, onLoadMore }
+    });
+    await vi.waitFor(() => expect(onLoadMore).toHaveBeenCalled());
+    await expect.element(view.getByText('older-message', { exact: true })).toBeVisible();
+  });
+});
 
 beforeEach(() => {
   createTestServerScope({

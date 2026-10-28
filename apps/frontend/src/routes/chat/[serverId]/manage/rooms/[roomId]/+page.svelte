@@ -2,7 +2,7 @@
 @component
 
 General section of a room: its name and description, visibility, Slow Mode,
-and Threading Mode, each in its own form with Save and Discard actions. A viewer who cannot
+Threading Mode, and membership activity, each in its own form with Save and Discard actions. A viewer who cannot
 change the settings goes to the Members section instead.
 -->
 <script lang="ts">
@@ -27,6 +27,7 @@ change the settings goes to the Members section instead.
   import RoomSlowModeSettingsPanel from './RoomSlowModeSettingsPanel.svelte';
   import RoomThreadingModeSettingsPanel from './RoomThreadingModeSettingsPanel.svelte';
   import RoomVisibilitySettingsPanel from './RoomVisibilitySettingsPanel.svelte';
+  import RoomMembershipEventsSettingsPanel from './RoomMembershipEventsSettingsPanel.svelte';
   import { useRoomManagement, type RoomMutationScope } from './roomManagementContext';
 
   const serverScope = useServerScope();
@@ -37,6 +38,7 @@ change the settings goes to the Members section instead.
   let visibilitySection = $state<SettingsSection>();
   let slowModeSection = $state<SettingsSection>();
   let threadingSection = $state<SettingsSection>();
+  let membershipEventsSection = $state<SettingsSection>();
   let pendingNavigation = $state<BeforeNavigate | null>(null);
   // Approval applies only to the resumed destination, not to later navigation attempts.
   let approvedDestination: string | null = null;
@@ -57,9 +59,13 @@ change the settings goes to the Members section instead.
       pendingNavigation = null;
       return;
     }
-    const dirty = [nameSection, visibilitySection, slowModeSection, threadingSection].some(
-      (section) => section?.hasChanges()
-    );
+    const dirty = [
+      nameSection,
+      visibilitySection,
+      slowModeSection,
+      threadingSection,
+      membershipEventsSection
+    ].some((section) => section?.hasChanges());
     if (!dirty) return;
     cancel();
     // Closing or reloading a tab must use the browser's native unload warning.
@@ -136,7 +142,10 @@ change the settings goes to the Members section instead.
                   ...('threadSlowModeSeconds' in patch && {
                     threadSlowModeSeconds: updated.threadSlowModeSeconds
                   }),
-                  ...('threadingMode' in patch && { threadingMode: updated.threadingMode })
+                  ...('threadingMode' in patch && { threadingMode: updated.threadingMode }),
+                  ...('showMembershipEvents' in patch && {
+                    showMembershipEvents: updated.showMembershipEvents
+                  })
                 }
               : current
         );
@@ -207,6 +216,11 @@ change the settings goes to the Members section instead.
     {/if}
     <RoomThreadingModeSettingsPanel
       bind:this={threadingSection}
+      room={detail.room}
+      onSave={saveSettings}
+    />
+    <RoomMembershipEventsSettingsPanel
+      bind:this={membershipEventsSection}
       room={detail.room}
       onSave={saveSettings}
     />

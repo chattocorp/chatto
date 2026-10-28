@@ -75,6 +75,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		SlowModeSeconds:       req.Msg.SlowModeSeconds,
 		ThreadSlowModeSeconds: req.Msg.ThreadSlowModeSeconds,
 		ThreadingMode:         threadingMode,
+		ShowMembershipEvents:  req.Msg.ShowMembershipEvents,
 	})
 	if err != nil {
 		return nil, err
@@ -391,6 +392,7 @@ func apiRoom(room *readmodel.Room) *apiv1.Room {
 		SlowModeSeconds:       room.SlowModeSeconds,
 		ThreadSlowModeSeconds: new(core.EffectiveThreadSlowModeSeconds(room)),
 		ThreadingMode:         apiRoomThreadingMode(room),
+		ShowMembershipEvents:  new(room.ShowMembershipEvents),
 	}
 }
 

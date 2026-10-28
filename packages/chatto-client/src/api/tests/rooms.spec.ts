@@ -177,6 +177,20 @@ describe('createRoomCommandAPI', () => {
     });
   });
 
+  it('preserves false membership display settings and sends a sparse mask', async () => {
+    mocks.updateRoom.mockReturnValue({ room: { id: 'room-1', showMembershipEvents: false } });
+    const result = await roomAPI().updateRoom({ roomId: 'room-1', showMembershipEvents: false });
+    expect(result?.showMembershipEvents).toBe(false);
+    expect(receivedRequest(mocks.updateRoom)).toMatchObject({
+      showMembershipEvents: false,
+      updateMask: { paths: ['show_membership_events'] }
+    });
+    mocks.updateRoom.mockReturnValue({ room: { id: 'room-1' } });
+    expect(
+      (await roomAPI().updateRoom({ roomId: 'room-1', name: 'general' }))?.showMembershipEvents
+    ).toBeUndefined();
+  });
+
   it('uses Connect room and directory membership commands', async () => {
     mocks.joinRoom.mockReturnValue({ room: { id: 'room-1', name: 'general' } });
     mocks.startDM.mockReturnValue({ room: { id: 'dm-1', name: '' } });

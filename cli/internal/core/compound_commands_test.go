@@ -36,7 +36,7 @@ func limitCompoundBatch(t *testing.T, ctx context.Context, core *ChattoCore, slo
 func TestCompoundRoomUpdateRejectsEveryPartialBatch(t *testing.T) {
 	t.Parallel()
 
-	for slots := range 4 {
+	for slots := range 5 {
 		t.Run(fmt.Sprint(slots), func(t *testing.T) {
 			core, _ := setupTestCore(t)
 			ctx := testContext(t)
@@ -53,7 +53,8 @@ func TestCompoundRoomUpdateRejectsEveryPartialBatch(t *testing.T) {
 			_, err = core.RoomCommands().updateRoom(ctx, RoomUpdateInput{
 				ActorID: actor.Id, RoomID: room.Id, Name: new("after"), Description: new("after"),
 				Universal: new(true), SlowModeSeconds: proto.Uint32(30),
-				ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum(),
+				ThreadingMode:        evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum(),
+				ShowMembershipEvents: new(false),
 			}, func(ctx context.Context) error {
 				limitCompoundBatch(t, ctx, core, slots)
 				return nil
@@ -86,7 +87,8 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 			second := startReplica(t, ns, first.config)
 			input := RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Description: new("after"),
 				Universal: new(true), SlowModeSeconds: proto.Uint32(30),
-				ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum()}
+				ShowMembershipEvents: new(false),
+				ThreadingMode:        evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum()}
 			if scenario == "name-collision" {
 				input.Name = new("claimed")
 			}
@@ -118,8 +120,9 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 				require.True(t, updated.Universal)
 				require.EqualValues(t, 30, updated.SlowModeSeconds)
 				require.Equal(t, *input.ThreadingMode, updated.ThreadingMode)
+				require.False(t, updated.ShowMembershipEvents)
 				var previous uint64
-				for _, eventType := range []string{evtstream.EventRoomUpdated, evtstream.EventRoomUniversalChanged, evtstream.EventRoomSlowModeChanged, evtstream.EventRoomThreadingModeChanged} {
+				for _, eventType := range []string{evtstream.EventRoomUpdated, evtstream.EventRoomUniversalChanged, evtstream.EventRoomSlowModeChanged, evtstream.EventRoomThreadingModeChanged, evtstream.EventRoomMembershipEventsVisibilityChanged} {
 					seq, err := first.EventPublisher.LastSubjectSeq(ctx, evtstream.RoomAggregate(room.Id).Subject(eventType))
 					require.NoError(t, err)
 					if previous != 0 {
@@ -143,6 +146,7 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "before", unchanged.Description)
 			require.False(t, unchanged.Universal)
+			require.True(t, unchanged.ShowMembershipEvents)
 			require.Zero(t, unchanged.SlowModeSeconds)
 			require.Equal(t, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED, unchanged.ThreadingMode)
 		})

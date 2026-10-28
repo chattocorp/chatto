@@ -37,6 +37,8 @@ export type DirectoryRoomSummary = {
   /** Undefined for the legacy shared cooldown; zero disables thread cooldowns. */
   threadSlowModeSeconds?: number;
   threadingMode: RoomThreadingMode;
+  /** Absent on older servers; clients then show join/leave activity. */
+  showMembershipEvents?: boolean;
   slowModeNextPostAt: string | null;
   isMember: boolean;
   hasUnread: boolean;
@@ -225,6 +227,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     slowModeSeconds: entry.room.slowModeSeconds ?? 0,
     threadSlowModeSeconds: entry.room.threadSlowModeSeconds,
     threadingMode: normalizeRoomThreadingMode(entry.room.kind, entry.room.threadingMode),
+    showMembershipEvents: entry.room.showMembershipEvents,
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,

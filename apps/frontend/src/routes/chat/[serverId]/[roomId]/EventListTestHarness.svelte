@@ -40,12 +40,13 @@
     onStoreRead,
     onReadPosition,
     onReachedBottom,
-    onClearAnchor
+    onClearAnchor,
+    onLoadMore
   }: {
     eventIds: string[];
     roomId?: string;
     permalinkThreadRootEventId?: string | null;
-    eventKind?: 'message' | 'join';
+    eventKind?: 'message' | 'join' | 'leave';
     scrollToEventId: string | null;
     onComplete?: () => void;
     isLoading?: boolean;
@@ -64,6 +65,8 @@
     onReachedBottom?: () => void;
     /** Called when the timeline clears the store's anchor. */
     onClearAnchor?: () => void;
+    /** Supplies an older page for pagination tests. */
+    onLoadMore?: () => Promise<void>;
   } = $props();
 
   const composerContext = createComposerContext();
@@ -93,11 +96,14 @@
           presenceStatus: PresenceStatus.OFFLINE
         }
       };
-      if (eventKind === 'join') {
+      if (eventKind === 'join' || eventKind === 'leave') {
         return {
           ...base,
           event: {
-            kind: TimelineEventKind.UserJoinedRoom,
+            kind:
+              eventKind === 'join'
+                ? TimelineEventKind.UserJoinedRoom
+                : TimelineEventKind.UserLeftRoom,
             roomId
           }
         } as unknown as TimelineEventView;
@@ -138,7 +144,9 @@
     get hasReachedStart() {
       return hasReachedStart;
     },
-    loadMore: async () => {},
+    loadMore: async () => {
+      await onLoadMore?.();
+    },
     canLoadNewer: false,
     loadNewer: async () => ({ status: 'declined' }),
     jumpToLatest: async () => (await onJumpToPresent?.()) ?? false,

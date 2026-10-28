@@ -55,13 +55,14 @@ func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind 
 	room_id := NewRoomID()
 
 	room := &readmodel.Room{
-		Id:            room_id,
-		Kind:          ProtoKindForRoomKind(kind),
-		Name:          name,
-		Description:   description,
-		GroupId:       groupID,
-		Universal:     options.universal,
-		ThreadingMode: threadingMode,
+		Id:                   room_id,
+		Kind:                 ProtoKindForRoomKind(kind),
+		Name:                 name,
+		Description:          description,
+		GroupId:              groupID,
+		Universal:            options.universal,
+		ThreadingMode:        threadingMode,
+		ShowMembershipEvents: true,
 	}
 
 	createdEvent := newEvent(actorID, &evtv1.Event{

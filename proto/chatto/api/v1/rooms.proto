@@ -51,6 +51,9 @@ message Room {
   optional uint32 thread_slow_mode_seconds = 10;
   // When the room was created. Absent when unavailable on an older server.
   google.protobuf.Timestamp created_at = 11;
+  // Whether clients show room join/leave activity. Absence on older servers
+  // means true. Membership state and event delivery are not affected.
+  optional bool show_membership_events = 12;
 }
 
 // Current member-only notice in a channel room.
@@ -160,7 +163,7 @@ message UpdateRoomRequest {
   // New threading policy. Direct-message rooms cannot set this field, and an
   // explicitly supplied UNSPECIFIED or unknown value is rejected.
   optional RoomThreadingMode threading_mode = 6;
-  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
+  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events.
   // Omit to infer populated fields; * selects all editable fields. An explicit
   // empty mask is invalid. Unselected values are ignored. Selected absent values
   // reset the field to its default, subject to field validation.
@@ -168,6 +171,9 @@ message UpdateRoomRequest {
   // Per-user interval within each thread. The root starts its author's timer.
   // Zero disables it. Updating this field does not change the root interval.
   optional uint32 thread_slow_mode_seconds = 8 [(buf.validate.field).uint32.lte = 21600];
+  // Whether clients show join/leave activity in this channel's history and live
+  // timeline. Requires room.manage. Selecting an absent value resets to true.
+  optional bool show_membership_events = 9;
 }
 
 // Result of updating a room.

@@ -19,12 +19,14 @@ type updateMaskSpec struct {
 	fields          string
 	container       protoreflect.Name
 	preserveAbsence bool
+	// defaults overrides protobuf zero values when a resource has a different reset value.
+	defaults map[string]protoreflect.Value
 }
 
 var updateMaskSpecs = map[protoreflect.FullName]updateMaskSpec{
 	"chatto.api.v1.UpdateUserProfileRequest":                                 {fields: "display_name login bio"},
 	"chatto.api.v1.UpdateSettingsRequest":                                    {fields: "timezone time_format share_timezone"},
-	"chatto.api.v1.UpdateRoomRequest":                                        {fields: "name description universal slow_mode_seconds threading_mode thread_slow_mode_seconds"},
+	"chatto.api.v1.UpdateRoomRequest":                                        {fields: "name description universal slow_mode_seconds threading_mode thread_slow_mode_seconds show_membership_events", defaults: map[string]protoreflect.Value{"show_membership_events": protoreflect.ValueOfBool(true)}},
 	"chatto.api.v1.UpdateMessageRequest":                                     {fields: "body also_send_to_channel"},
 	"chatto.api.v1.UpdateBotOutboundWebhookRequest":                          {fields: "enabled url authorization"},
 	"chatto.admin.v1.UpdateServerConfigRequest":                              {fields: "server_name description motd welcome_message"},
@@ -101,7 +103,11 @@ func applyUpdateMask(request proto.Message) error {
 		}
 		canonical.Paths = append(canonical.Paths, name)
 		if !spec.preserveAbsence && !values.Has(field) && !field.IsList() && !field.IsMap() {
-			values.Set(field, field.Default())
+			value := field.Default()
+			if reset, ok := spec.defaults[name]; ok {
+				value = reset
+			}
+			values.Set(field, value)
 		}
 	}
 	root.Set(maskField, protoreflect.ValueOfMessage(canonical.ProtoReflect()))
