@@ -264,9 +264,9 @@
       "title": "Notificações",
       "subtitle": "Configure como recebe as notificações",
       "push": {
-        "recovery_browser": "Após uma falha ou interrupção na criação, as novas subscrições ficam em pausa em todos os separadores desta aplicação, sem limite de tempo. Recarregar não retoma a configuração; uma nova tentativa bem-sucedida retoma. Verifique a ligação e selecione {retry}. As subscrições existentes continuam a funcionar. Se as falhas persistirem, envie o erro acima ao suporte do navegador. Desativar e reativar o push remove as subscrições existentes.",
-        "recovery_server": "A subscrição do navegador é mantida. O Chatto tenta guardá-la no servidor automaticamente ao regressar à aplicação e nas verificações periódicas. Verifique a ligação ou selecione {retry} agora.",
-        "recovery_setup": "Verifique as permissões de notificação e o acesso ao armazenamento do site nas definições do navegador e selecione {retry}. Se a configuração continuar a falhar, envie o erro acima ao suporte.",
+        "recovery_browser": "Verifique a ligação e selecione {retry}.",
+        "recovery_server": "Tentaremos novamente de forma automática. Também pode selecionar {retry}.",
+        "recovery_setup": "Permita notificações nas definições do navegador e selecione {retry}.",
         "title": "Notificações push",
         "not_supported": "As notificações push não são suportadas neste browser.",
         "server_unconfigured": "As notificações push não estão disponíveis neste servidor. O administrador do servidor não as configurou.",
@@ -286,7 +286,8 @@
         "prompt_unanswered": "As notificações não estão permitidas para este site. Para as ativar, permita notificações nas definições do site do browser.",
         "label": "Notificações push neste dispositivo",
         "description": "{device} · Aplica-se a todos os servidores neste dispositivo.",
-        "setup_failed": "Não foi possível configurar as notificações push: {reason}"
+        "setup_failed": "As notificações push ainda não estão prontas.",
+        "technical_details": "Detalhes técnicos"
       },
       "sound": {
         "title": "Som de notificação",

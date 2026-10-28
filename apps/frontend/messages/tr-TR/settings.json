@@ -264,9 +264,9 @@
       "title": "Bildirimler",
       "subtitle": "Bildirimleri nasıl alacağınızı yapılandırın",
       "push": {
-        "recovery_browser": "Oluşturma başarısız olduğunda veya kesildiğinde yeni abonelikler bu uygulamanın tüm sekmelerinde süresiz duraklatılır. Yeniden yüklemek kurulumu sürdürmez; başarılı bir yeniden deneme sürdürür. Bağlantınızı kontrol edip {retry} seçeneğini seçin. Mevcut abonelikler çalışmaya devam eder. Hatalar sürerse yukarıdaki hatayı tarayıcı desteğiyle paylaşın. Push bildirimlerini kapatıp açmak mevcut abonelikleri kaldırır.",
-        "recovery_server": "Tarayıcı aboneliği korunur. Chatto, uygulamaya döndüğünüzde ve düzenli kontroller sırasında sunucuya kaydetmeyi otomatik olarak yeniden dener. Bağlantınızı kontrol edin veya şimdi {retry} seçeneğini seçin.",
-        "recovery_setup": "Tarayıcı ayarlarında bildirim izinlerini ve site depolama erişimini kontrol edip {retry} seçeneğini seçin. Kurulum hâlâ başarısızsa yukarıdaki hatayı destekle paylaşın.",
+        "recovery_browser": "Bağlantınızı kontrol edip {retry} seçeneğini seçin.",
+        "recovery_server": "Otomatik olarak yeniden deneyeceğiz. Ayrıca {retry} seçeneğini seçebilirsiniz.",
+        "recovery_setup": "Tarayıcı ayarlarında bildirimlere izin verip {retry} seçeneğini seçin.",
         "title": "Anlık bildirimler",
         "not_supported": "Anında bildirimler bu tarayıcıda desteklenmiyor.",
         "server_unconfigured": "Anlık bildirimler bu sunucuda kullanılamıyor. Sunucu yöneticisi bunları yapılandırmadı.",
@@ -286,7 +286,8 @@
         "prompt_unanswered": "Bu site için bildirimlere izin verilmiyor. Bildirimleri açmak için tarayıcınızın site ayarlarında bildirimlere izin verin.",
         "label": "Bu cihazda anlık bildirimler",
         "description": "{device} · Bu cihazdaki tüm sunucular için geçerlidir.",
-        "setup_failed": "Anlık bildirimler ayarlanamadı: {reason}"
+        "setup_failed": "Push bildirimleri henüz hazır değil.",
+        "technical_details": "Teknik ayrıntılar"
       },
       "sound": {
         "title": "Bildirim Sesi",

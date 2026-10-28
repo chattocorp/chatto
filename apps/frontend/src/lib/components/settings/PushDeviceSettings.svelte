@@ -80,7 +80,7 @@ blocks notifications. Renders nothing when the app does not run in a browser.
     }
     if (problem === 'turn_off_failed') return m('settings.notifications.push.turn_off_failed');
     if (registrationFailure) {
-      return m('settings.notifications.push.setup_failed', { reason: registrationFailure });
+      return m('settings.notifications.push.setup_failed');
     }
     return undefined;
   });
@@ -181,7 +181,7 @@ blocks notifications. Renders nothing when the app does not run in a browser.
           onchange={change}
         />
         {#if recoveryGuidance && !problem}
-          <Hint>{recoveryGuidance}</Hint>
+          <p class="text-sm text-muted">{recoveryGuidance}</p>
         {/if}
         {#if problem === 'turn_off_failed' || (registrationFailure && !problem)}
           <div>
@@ -195,6 +195,14 @@ blocks notifications. Renders nothing when the app does not run in a browser.
               {m('common.retry')}
             </Button>
           </div>
+          {#if registrationFailure && !problem}
+            <details class="text-sm text-muted">
+              <summary class="cursor-pointer"
+                >{m('settings.notifications.push.technical_details')}</summary
+              >
+              <p class="mt-2 wrap-anywhere">{registrationFailure}</p>
+            </details>
+          {/if}
         {:else if on && registered}
           <div class="flex flex-wrap items-center gap-3">
             <Button

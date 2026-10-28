@@ -264,9 +264,9 @@
       "title": "Notifications",
       "subtitle": "Configure how you receive notifications",
       "push": {
-        "recovery_browser": "After failed or interrupted creation, new subscriptions pause across this app’s tabs without a time limit. Reloading does not resume setup; a successful retry does. Check your connection, then select {retry}. Existing subscriptions keep working. If failures continue, share the error above with browser support. Turning push off and on removes existing subscriptions.",
-        "recovery_server": "The browser subscription is kept. Chatto retries the server save automatically when you return to the app and during periodic checks. Check your connection or select {retry} now.",
-        "recovery_setup": "Check notification permissions and site storage access in your browser settings, then select {retry}. If setup still fails, share the error above with support.",
+        "recovery_browser": "Check your connection, then select {retry}.",
+        "recovery_server": "We’ll try again automatically. You can also select {retry}.",
+        "recovery_setup": "Allow notifications in your browser settings, then select {retry}.",
         "title": "Push Notifications",
         "not_supported": "Push notifications are not supported in this browser.",
         "server_unconfigured": "Push notifications are unavailable on this server. The server administrator has not configured them.",
@@ -286,7 +286,8 @@
         "prompt_unanswered": "Notifications are not allowed for this site. To turn them on, allow notifications in your browser’s site settings.",
         "label": "Push notifications on this device",
         "description": "{device} · Applies to every server on this device.",
-        "setup_failed": "Push notifications could not be set up: {reason}"
+        "setup_failed": "Push notifications aren’t ready yet.",
+        "technical_details": "Technical details"
       },
       "sound": {
         "title": "Notification Sound",

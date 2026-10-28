@@ -264,9 +264,9 @@
       "title": "Oznámení",
       "subtitle": "Nakonfigurujte způsob přijímání oznámení",
       "push": {
-        "recovery_browser": "Po neúspěšném nebo přerušeném vytváření se nové odběry pozastaví ve všech kartách této aplikace bez časového limitu. Obnovení stránky nastavení neobnoví; úspěšný nový pokus ano. Zkontrolujte připojení a zvolte {retry}. Stávající odběry nadále fungují. Pokud chyby přetrvávají, předejte výše uvedenou chybu podpoře prohlížeče. Vypnutí a zapnutí push odstraní stávající odběry.",
-        "recovery_server": "Odběr v prohlížeči zůstane zachován. Chatto automaticky opakuje uložení na server při návratu do aplikace a při pravidelných kontrolách. Zkontrolujte připojení nebo zvolte {retry} nyní.",
-        "recovery_setup": "Zkontrolujte oprávnění k oznámením a přístup k úložišti webu v nastavení prohlížeče a zvolte {retry}. Pokud nastavení stále selhává, předejte výše uvedenou chybu podpoře.",
+        "recovery_browser": "Zkontrolujte připojení a zvolte {retry}.",
+        "recovery_server": "Zkusíme to znovu automaticky. Můžete také zvolit {retry}.",
+        "recovery_setup": "Povolte oznámení v nastavení prohlížeče a zvolte {retry}.",
         "title": "Push oznámení",
         "not_supported": "Push notifikace nejsou v tomto prohlížeči podporovány.",
         "server_unconfigured": "Push oznámení nejsou na tomto serveru dostupná. Správce serveru je nenakonfiguroval.",
@@ -286,7 +286,8 @@
         "prompt_unanswered": "Oznámení nejsou pro tento web povolena. Chcete-li je zapnout, povolte oznámení v nastavení webu ve svém prohlížeči.",
         "label": "Push oznámení na tomto zařízení",
         "description": "{device} · Platí pro všechny servery na tomto zařízení.",
-        "setup_failed": "Push oznámení se nepodařilo nastavit: {reason}"
+        "setup_failed": "Push oznámení ještě nejsou připravena.",
+        "technical_details": "Technické podrobnosti"
       },
       "sound": {
         "title": "Zvuk upozornění",

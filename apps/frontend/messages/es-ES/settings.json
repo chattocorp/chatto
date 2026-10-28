@@ -264,9 +264,9 @@
       "title": "Notificaciones",
       "subtitle": "Configura cómo recibes notificaciones",
       "push": {
-        "recovery_browser": "Tras un fallo o una interrupción al crear suscripciones, las nuevas se pausan sin límite de tiempo en todas las pestañas de esta aplicación. Recargar no reanuda la configuración; un nuevo intento exitoso sí. Comprueba tu conexión y selecciona {retry}. Las suscripciones existentes siguen funcionando. Si los fallos continúan, comparte el error de arriba con el soporte del navegador. Desactivar y activar las notificaciones push elimina las suscripciones existentes.",
-        "recovery_server": "Se conserva la suscripción del navegador. Chatto reintenta guardarla en el servidor cuando vuelves a la aplicación y durante las comprobaciones periódicas. Comprueba tu conexión o selecciona {retry} ahora.",
-        "recovery_setup": "Comprueba los permisos de notificación y el acceso al almacenamiento del sitio en los ajustes del navegador y selecciona {retry}. Si la configuración sigue fallando, comparte el error de arriba con el soporte.",
+        "recovery_browser": "Comprueba tu conexión y selecciona {retry}.",
+        "recovery_server": "Lo intentaremos de nuevo automáticamente. También puedes seleccionar {retry}.",
+        "recovery_setup": "Permite las notificaciones en los ajustes de tu navegador y selecciona {retry}.",
         "title": "Notificaciones push",
         "not_supported": "Las notificaciones push no son compatibles con este navegador.",
         "server_unconfigured": "Las notificaciones push no están disponibles en este servidor. El administrador del servidor no las ha configurado.",
@@ -286,7 +286,8 @@
         "prompt_unanswered": "Las notificaciones no están permitidas para este sitio. Para activarlas, permite las notificaciones en la configuración del sitio de tu navegador.",
         "label": "Notificaciones push en este dispositivo",
         "description": "{device} · Se aplica a todos los servidores de este dispositivo.",
-        "setup_failed": "No se han podido configurar las notificaciones push: {reason}"
+        "setup_failed": "Las notificaciones push aún no están listas.",
+        "technical_details": "Detalles técnicos"
       },
       "sound": {
         "title": "Sonido de notificación",

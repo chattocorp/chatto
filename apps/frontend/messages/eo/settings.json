@@ -264,9 +264,9 @@
       "title": "Sciigoj",
       "subtitle": "Agordu kiel vi ricevas sciigojn",
       "push": {
-        "recovery_browser": "Post malsukcesa aŭ interrompita kreado, novaj abonoj paŭzas en ĉiuj langetoj de ĉi tiu aplikaĵo sen tempolimo. Reŝargi ne rekomencas la agordon; sukcesa reprovo jes. Kontrolu vian konekton kaj elektu {retry}. Ekzistantaj abonoj plu funkcias. Se eraroj daŭras, sendu la supran eraron al la retumila subteno. Malŝalti kaj reŝalti puŝajn sciigojn forigas ekzistantajn abonojn.",
-        "recovery_server": "La retumila abono estas konservata. Chatto aŭtomate reprovas konservi ĝin sur la servilo kiam vi revenas al la aplikaĵo kaj dum periodaj kontroloj. Kontrolu vian konekton aŭ elektu {retry} nun.",
-        "recovery_setup": "Kontrolu sciigajn permesojn kaj aliron al reteja konservado en la retumilaj agordoj, poste elektu {retry}. Se agordo plu malsukcesas, sendu la supran eraron al subteno.",
+        "recovery_browser": "Kontrolu vian konekton kaj elektu {retry}.",
+        "recovery_server": "Ni aŭtomate reprovos. Vi ankaŭ povas elekti {retry}.",
+        "recovery_setup": "Permesu sciigojn en la retumilaj agordoj kaj elektu {retry}.",
         "title": "Puŝaj Sciigoj",
         "not_supported": "Puŝaj sciigoj ne estas subtenataj en ĉi tiu retumilo.",
         "server_unconfigured": "Puŝaj sciigoj ne estas disponeblaj en ĉi tiu servilo. La servila administranto ne agordis ilin.",
@@ -286,7 +286,8 @@
         "prompt_unanswered": "Sciigoj ne estas permesataj por ĉi tiu retejo. Por ŝalti ilin, permesu sciigojn en la retejaj agordoj de via retumilo.",
         "label": "Puŝaj sciigoj en ĉi tiu aparato",
         "description": "{device} · Validas por ĉiuj serviloj en ĉi tiu aparato.",
-        "setup_failed": "Ne eblis agordi puŝajn sciigojn: {reason}"
+        "setup_failed": "Puŝaj sciigoj ankoraŭ ne estas pretaj.",
+        "technical_details": "Teknikaj detaloj"
       },
       "sound": {
         "title": "Sciiga Sono",
