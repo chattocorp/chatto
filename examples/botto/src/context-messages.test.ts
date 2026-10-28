@@ -105,3 +105,18 @@ test('supplies messages absent from retained history after compaction', () => {
   expect(result[0]).toEqual(user('Compacted summary'));
   expect(JSON.stringify(result).match(/Recent fact/g)).toHaveLength(1);
 });
+
+test('keeps the current participant directory even when all messages are already represented', () => {
+  const history = [
+    user(JSON.stringify({ currentMessages: [{ id: 'one', author: 'human', text: 'Hello' }] }))
+  ];
+  const snapshot: ThreadContext = {
+    messages: [{ id: 'one', author: 'human', text: 'Hello' }],
+    olderContextOmitted: false,
+    participants: [{ id: 'human', username: 'cedar', displayName: 'Cedar' }]
+  };
+  const merged = JSON.stringify(mergeThreadContext(history, snapshot));
+  expect(merged).toContain('participants');
+  expect(merged).toContain('cedar');
+  expect(merged).toContain('Cedar');
+});
