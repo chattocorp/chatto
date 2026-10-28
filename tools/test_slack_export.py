@@ -295,6 +295,26 @@ class SlackArchiveTests(unittest.TestCase):
         self.assertIn({"emoji": "custom_company_emoji", "user_ids": ["U2"]}, reactions)
         self.assertEqual(exporter.conversion_report(plan)["unsupported_emoji_names"], 0)
 
+    def test_custom_reaction_images_are_declared_once_per_retained_name(self):
+        reason = "Custom reaction names are retained; their emoji images are not included."
+        records, _ = exporter.build_archive(self.plan())
+        self.assertFalse(any(o["reason"] == reason for o in records["manifest"]["omissions"]))
+        rows = self.data["general/2020-01-01.json"]
+        rows[1]["reactions"] = [
+            {"name": "custom_one", "users": ["U1", "U2"], "count": 2},
+            {"name": "heart", "users": ["U2"], "count": 1},
+        ]
+        rows[2]["reactions"] = [
+            {"name": "custom_one", "users": ["U2"], "count": 1},
+            {"name": "custom_two", "users": ["U1"], "count": 1},
+            {"name": "custom_without_reactors", "users": [], "count": 1},
+        ]
+        records, _ = exporter.build_archive(self.plan())
+        validate_records(records)
+        omissions = [o for o in records["manifest"]["omissions"] if o["reason"] == reason]
+        self.assertEqual(omissions, [{"category": "unsupported", "reason": reason, "count": 2}])
+        self.assertNotIn("custom_one", json.dumps(omissions))
+
     def test_unresolved_reference_and_invalid_email_fail(self):
         plan = self.plan()
         plan["messages"][1]["source_author_id"] = "unknown"

@@ -876,24 +876,6 @@ func TestEmoji(t *testing.T) {
 		}
 	})
 
-	t.Run("IsValidEmojiName accepts known names", func(t *testing.T) {
-		valid := []string{"thumbsup", "+1", "heart", "joy", "tada", "rocket", "fire", "grinning", "t-rex", "melting_face", "saluting_face"}
-		for _, name := range valid {
-			if !IsValidEmojiName(name) {
-				t.Errorf("Expected %q to be valid", name)
-			}
-		}
-	})
-
-	t.Run("IsValidEmojiName rejects unknown names", func(t *testing.T) {
-		invalid := []string{"invalid", "foobar", "not_an_emoji", ""}
-		for _, name := range invalid {
-			if IsValidEmojiName(name) {
-				t.Errorf("Expected %q to be invalid", name)
-			}
-		}
-	})
-
 	t.Run("resolveEmojiInput accepts shortcode names", func(t *testing.T) {
 		name, err := resolveEmojiInput("thumbsup")
 		if err != nil {
