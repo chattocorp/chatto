@@ -875,16 +875,16 @@ describe('RoomSidebar', () => {
       expect(memberButton).toBeTruthy();
     });
     const login = q(container, '[data-testid="room-member-login"]')!;
-    expect(login.closest('button')).toBeNull();
+    expect(login.closest('button')).toBeTruthy();
     expect(memberButton!.getAttribute('aria-haspopup')).toBe('dialog');
-    memberButton!.click();
+    login.closest('button')!.click();
 
     await vi.waitFor(() => {
       expect(buttonByText(document.body, 'Open conversation')).toBeTruthy();
     });
   });
 
-  it('opens a member context menu by right-clicking the passive identity', async () => {
+  it('opens a member context menu by right-clicking the identity', async () => {
     server.permissions.canStartDMs = true;
     const { container } = render(RoomSidebarTestHarness, {
       props: { roomData: roomData([], 0, false) }
