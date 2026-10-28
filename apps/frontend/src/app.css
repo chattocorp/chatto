@@ -1882,6 +1882,7 @@
    `pane-header-icon-button-active` to mark the selected panel. */
 @utility pane-header-icon-button {
   @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center icon-action-feedback bg-transparent leading-none;
+  @apply touch-input:h-11 touch-input:w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1891,6 +1892,7 @@
    with a `pane-header` container query when the header has room. */
 @utility pane-header-label-button {
   @apply inline-flex h-10 min-w-10 shrink-0 cursor-pointer items-center justify-center gap-2 icon-action-feedback px-3 leading-none whitespace-nowrap;
+  @apply touch-input:h-11 touch-input:min-w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
