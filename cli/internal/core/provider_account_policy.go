@@ -138,7 +138,7 @@ func (c *ChattoCore) SyncProviderUsername(ctx context.Context, userID, providerI
 	var source config.AuthProviderConfig
 	for _, provider := range c.config.AuthProviders {
 		if provider.ID == providerID {
-			enabled = provider.ManageUsernames && provider.SyncUsernames
+			enabled = provider.ManageUsernames && provider.UpdateUsernames
 			source = provider
 		}
 	}

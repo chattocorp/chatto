@@ -141,7 +141,7 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 		provider.GroupsClaim = value
 	case "USERNAME_CLAIM":
 		provider.UsernameClaim = value
-	case "MANAGE_USERNAMES", "SYNC_USERNAMES", "ALLOW_UNLINKING":
+	case "MANAGE_USERNAMES", "UPDATE_USERNAMES", "ALLOW_UNLINKING":
 		flag, err := strconv.ParseBool(value)
 		if err != nil {
 			return fmt.Errorf("%s must be a boolean: %w", name, err)
@@ -149,8 +149,8 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 		switch field {
 		case "MANAGE_USERNAMES":
 			provider.ManageUsernames = flag
-		case "SYNC_USERNAMES":
-			provider.SyncUsernames = flag
+		case "UPDATE_USERNAMES":
+			provider.UpdateUsernames = flag
 		case "ALLOW_UNLINKING":
 			provider.AllowUnlinking = &flag
 		}

@@ -37,7 +37,7 @@ func TestManagedProviderAccountPolicy(t *testing.T) {
 	unchanged, err := c.GetUser(ctx, user.Id)
 	require.NoError(t, err)
 	require.Equal(t, "alice-2", unchanged.Login)
-	c.config.AuthProviders[0].SyncUsernames = true
+	c.config.AuthProviders[0].UpdateUsernames = true
 	// Releasing the base name must not make a later sign-in drop the suffix.
 	_, err = c.AdminUpdateUserLogin(ctx, existing.Id, "previous-alice")
 	require.NoError(t, err)

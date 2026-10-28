@@ -36,7 +36,7 @@ providers, and a bootstrap path for first-boot operator setup.
   Collisions use numeric suffixes starting at `-2`,
   with at most 1,000 candidates and base truncation to fit the username limit.
   The server assigns the name; the confirmation preview is not a reservation.
-- Existing names remain stable unless the provider enables `sync_usernames`.
+- Existing names remain stable unless the provider enables `update_usernames`.
   Synchronization occurs at sign-in and retains an existing name that matches
   the provider base or one of its numeric candidates. Failed synchronization
   preserves the current name, permits sign-in, and logs a warning without PII.
