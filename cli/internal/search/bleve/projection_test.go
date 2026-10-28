@@ -128,6 +128,47 @@ func TestProjectionThreadScopeIncludesRootAndRepliesAcrossEditsAndRestore(t *tes
 	}
 }
 
+func TestProjectionQueryPagination(t *testing.T) {
+	index, err := blevesearch.NewMemOnly(newIndexMapping(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = index.Close() })
+	for i, body := range []string{"needle", "needle", "needle", "needle extra words", "needle extra words", "needle extra words and more"} {
+		id := fmt.Sprintf("message-%d", i)
+		require.NoError(t, index.Index(messageDocumentID(id), messageDocument{
+			MessageID: id, RoomID: "room", AuthorID: "author", Body: body,
+			CreatedAt: time.Unix(int64(i/2), 0), Visible: true,
+		}))
+	}
+	projection := &Projection{index: index}
+	for _, order := range []searchv1.SearchOrder{searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, searchv1.SearchOrder_SEARCH_ORDER_NEWEST} {
+		t.Run(order.String(), func(t *testing.T) {
+			request := &searchv1.QueryRequest{RequiredTerms: []string{"needle"}, Order: order, PageSize: 100}
+			all, err := projection.query(context.Background(), request)
+			require.NoError(t, err)
+			require.Len(t, all.Hits, 6)
+			for _, size := range []uint32{1, 2, 4} {
+				t.Run(fmt.Sprintf("page-size-%d", size), func(t *testing.T) {
+					request.PageSize = size
+					request.Cursor = nil
+					var ids []string
+					for page := 0; ; page++ {
+						require.Less(t, page, 6, "pagination must terminate")
+						response, err := projection.query(context.Background(), request)
+						require.NoError(t, err)
+						require.NotEmpty(t, response.Hits, "each cursor must reach more results")
+						ids = append(ids, hitIDs(response)...)
+						if len(response.NextCursor) == 0 {
+							break
+						}
+						request.Cursor = response.NextCursor
+					}
+					require.Equal(t, hitIDs(all), ids)
+				})
+			}
+		})
+	}
+}
+
 func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
