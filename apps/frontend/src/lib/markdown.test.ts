@@ -59,6 +59,17 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<span data-mention-handle="alice">@alice</span> 👋');
     });
 
+    it.each([
+      ['https://example.com:wave:', '</a>:wave:'],
+      ['https://example.com :wave:', '</a> 👋'],
+      ['https://example.com!:wave:', '</a>!👋'],
+      ['<https://example.com>:wave:', '</a>👋'],
+      ['[site](https://example.com):wave:', '</a>👋']
+    ])('preserves the source boundary after links: %s', async (source, suffix) => {
+      expect(renderInlineMarkdown(source)).toContain(suffix);
+      expect(await renderMarkdown(source)).toContain(suffix);
+    });
+
     it('renders a large Markdown attachment without exceeding the argument limit', async () => {
       const count = 100_000;
       const html = await renderMarkdown(':wave: '.repeat(count));

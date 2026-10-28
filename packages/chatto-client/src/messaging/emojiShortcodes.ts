@@ -1,6 +1,12 @@
 /** Shared emoji names and shortcode syntax, independent of Markdown and UI. */
 import { nameToEmoji } from 'gemoji';
 
+// Complete tags and autocomplete share the same opening boundary and name syntax.
+const wordCharacter = String.raw`[\p{L}\p{N}\p{M}_]`;
+const shortcodeStart = String.raw`(?<!${wordCharacter}):([a-zA-Z0-9_+-]+)`;
+const shortcodePattern = new RegExp(`${shortcodeStart}:(?!${wordCharacter})`, 'gu');
+const shortcodeQueryPattern = new RegExp(`${shortcodeStart}$`, 'u');
+
 /** A resolved built-in emoji, or a name that the client does not recognise. */
 export type EmojiResolution =
   { kind: 'unicode'; name: string; emoji: string } | { kind: 'unknown'; name: string };
@@ -30,9 +36,7 @@ export type EmojiShortcode = {
  * Call this only on prose: the host parser must exclude code and URLs first.
  */
 export function* emojiShortcodes(text: string): Generator<EmojiShortcode> {
-  for (const match of text.matchAll(
-    /(?<![\p{L}\p{N}\p{M}_]):([a-zA-Z0-9_+-]+):(?![\p{L}\p{N}\p{M}_])/gu
-  )) {
+  for (const match of text.matchAll(shortcodePattern)) {
     yield {
       start: match.index,
       end: match.index + match[0].length,
@@ -50,10 +54,6 @@ export type EmojiShortcodeQuery = { name: string; start: number };
  * Hosts choose a suggestion threshold; a completed tag is not a query.
  */
 export function emojiShortcodeQuery(textBeforeCursor: string): EmojiShortcodeQuery | null {
-  const match = /(?<![\p{L}\p{N}\p{M}_]):([a-zA-Z0-9_+-]+)$/u.exec(textBeforeCursor);
-  // JavaScript's `$` also matches before a final newline. The cursor must
-  // remain directly after the name, not on the next line.
-  return match && match.index + match[0].length === textBeforeCursor.length
-    ? { name: match[1]!, start: match.index }
-    : null;
+  const match = shortcodeQueryPattern.exec(textBeforeCursor);
+  return match ? { name: match[1]!, start: match.index } : null;
 }
