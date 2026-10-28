@@ -675,15 +675,19 @@ function configureDiagnosticsMenu() {
         {
           label: 'Copy Screen Sharing Diagnostics',
           click: () => {
-            clipboard.writeText(
-              streamDiagnostics.report({
-                version: app.getVersion(),
-                electron: process.versions.electron,
-                platform: process.platform,
-                arch: process.arch,
-                variant: buildProfile.variant
-              })
-            );
+            void clipboard
+              .writeText(
+                streamDiagnostics.report({
+                  version: app.getVersion(),
+                  electron: process.versions.electron,
+                  platform: process.platform,
+                  arch: process.arch,
+                  variant: buildProfile.variant
+                })
+              )
+              .catch(() => {
+                dialog.showErrorBox('Copy failed', 'Could not copy screen sharing diagnostics.');
+              });
           }
         },
         { type: 'separator' },
