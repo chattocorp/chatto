@@ -471,6 +471,56 @@ describe('MessageComposer', () => {
     vi.clearAllMocks();
   });
 
+  describe.each(['visual', 'markdown'] as const)('%s emoji picker', (kind) => {
+    it.each([false, true])(
+      'inserts at the selection and restores focus with touch=%s',
+      async (touch) => {
+        if (touch) mockTouchPrimaryPointer();
+        userPreferences.composerEditor = kind;
+        const { container } = renderMessageComposer({ roomId: 'emoji-room' });
+        const editor = await findEditor(container);
+        await userEvent.click(editor);
+        await userEvent.keyboard('Hello world');
+        await userEvent.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}');
+        await page.getByRole('button', { name: 'Insert emoji', exact: true }).click();
+        await page.getByRole('textbox', { name: 'Search emojis...' }).fill('grinning');
+        await page.getByTitle('grinning', { exact: true }).click();
+        await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+        await settleEditorFocus();
+        await expect.element(editor).toHaveFocus();
+        await userEvent.keyboard('!');
+        await expect.element(editor).toHaveTextContent('Hello 😀!world');
+        expect(createMessageConnectMock).not.toHaveBeenCalled();
+
+        await userEvent.keyboard('{Shift>}{ArrowLeft}{ArrowLeft}{/Shift}');
+        await page.getByRole('button', { name: 'Insert emoji', exact: true }).click();
+        await page.getByRole('textbox', { name: 'Search emojis...' }).fill('rocket');
+        await page.getByTitle('rocket', { exact: true }).click();
+        await expect.element(editor).toHaveTextContent('Hello 🚀world');
+      }
+    );
+
+    it('dismisses without changing the draft and disables the picker when posting is denied', async () => {
+      userPreferences.composerEditor = kind;
+      const rendered = renderMessageComposer({ roomId: 'emoji-room' });
+      const editor = await findEditor(rendered.container);
+      await userEvent.click(editor);
+      await userEvent.keyboard('Keep me');
+      const button = page.getByRole('button', { name: 'Insert emoji', exact: true });
+      await button.click();
+      await userEvent.keyboard('{Escape}');
+      await expect.element(button).toHaveFocus();
+      await expect.element(editor).toHaveTextContent('Keep me');
+      await button.click();
+      await rendered.rerender({ roomId: 'emoji-room', canPost: false });
+      await expect.element(button).toBeDisabled();
+      await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+      await rendered.rerender({ roomId: 'emoji-room', canPost: true });
+      await expect.element(button).toBeEnabled();
+      await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
   describe('explicit Reply focus on touch devices', () => {
     it.each(['visual', 'markdown'] as const)(
       'focuses the %s editor after sheet teardown, including repeated replies and thread replies',

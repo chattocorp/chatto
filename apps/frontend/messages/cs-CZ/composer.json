@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Vložte emoji",
     "attach_file": "Připojit soubor",
     "formatting_options": "Možnosti formátování",
     "send": "Odeslat zprávu",

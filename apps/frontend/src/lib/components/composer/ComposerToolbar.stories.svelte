@@ -23,6 +23,7 @@
 <Story name="Narrow actions" asChild>
   <div class="@container/composer chat-input-surface w-80 p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach
@@ -39,6 +40,7 @@
 <Story name="Very narrow thread reply" asChild>
   <div class="@container/composer chat-input-surface w-[180px] p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach
@@ -54,6 +56,7 @@
 <Story name="With labels" asChild>
   <div class="@container/composer flex chat-input-surface w-[640px] justify-end p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach
@@ -70,6 +73,7 @@
 <Story name="Expanded draft actions" asChild>
   <div class="@container/composer chat-input-surface w-[640px] p-2">
     <ComposerToolbar
+      serverId="storybook"
       editorApi={null}
       inputDisabled={false}
       canAttach

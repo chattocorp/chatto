@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "插入表情符號",
     "attach_file": "附加檔案",
     "formatting_options": "格式選項",
     "send": "傳送訊息",

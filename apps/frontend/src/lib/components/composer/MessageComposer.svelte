@@ -380,6 +380,7 @@
         </div>
 
         <ComposerToolbar
+          serverId={serverScope.serverId}
           editorApi={composer.editorApi}
           inputDisabled={composer.inputDisabled}
           {canAttach}
