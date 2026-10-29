@@ -1,0 +1,40 @@
+diff --git a/templates/nsis/messages.yml b/templates/nsis/messages.yml
+index 982e1b09e424c4f07ce7c1152fe5ce8b703f5f57..245e50503d94a3528a73c3d4a087b682936a76a0 100644
+--- a/templates/nsis/messages.yml
++++ b/templates/nsis/messages.yml
+@@ -52,7 +52,7 @@ appRunning:
+   cs: "${PRODUCT_NAME} běží.\nPotvrďte zavření stisknutím OK.\nPokud se aplikace nezavře sama, zavřete ji ručně."
+   cy: "Mae ${PRODUCT_NAME} yn rhedeg.\nCliciwch Iawn i'w gau.\nOs na fydd yn cau, ceisiwch ei gau â llaw."
+   da: "${PRODUCT_NAME} kører.\nKlik OK for at lukke den.\nHvis den ikke lukker, kan du prøve at lukke den manuelt."
+-  de: "${PRODUCT_NAME} wird gerade ausgeführt.\nKlicke auf »OK«, um es zu schließen.\nFalls es sich nicht schließen lässt, versuche es manuell zu schließen."
++  de: "${PRODUCT_NAME} wird gerade ausgeführt.\nKlicken Sie auf »OK«, um es zu schließen.\nFalls es sich nicht schließen lässt, versuchen Sie, es manuell zu schließen."
+   el: "Το ${PRODUCT_NAME} εκτελείται ήδη. \nΚάντε κλικ στο ΟΚ για κλείσιμο.\nΑν δεν κλείνει, δοκιμάστε να το κλείσετε εσείς."
+   eo: "${PRODUCT_NAME} funkcias.\nAlklaku Bone („OK“) por fermi ĝin.\nSe ĝi ne fermiĝas, provu fermi ĝin permane."
+   es: "${PRODUCT_NAME} está activa.\nHaz clic en Aceptar para cerrarla.\nSi no se cierra, inténtalo manualmente."
+@@ -90,7 +90,7 @@ appCannotBeClosed:
+   cs: "Aplikaci ${PRODUCT_NAME} se nepodařilo zavřít. \nZavřete ji ručně a poté klikněte na Opakovat pro pokračování."
+   cy: "Nid oes modd cau ${PRODUCT_NAME}. \nCaewch ef â llaw a chliciwch ar Ailgynnig i barhau."
+   da: "${PRODUCT_NAME} kan ikke afsluttes \nLuk den manuelt og klik Prøv igen for at fortsætte"
+-  de: "${PRODUCT_NAME} kann nicht geschlossen werden. \nSchließ es bitte manuell und klicke auf »Wiederholen«, um fortzufahren."
++  de: "${PRODUCT_NAME} kann nicht geschlossen werden. \nSchließen Sie es bitte manuell und klicken Sie auf »Wiederholen«, um fortzufahren."
+   eo: "${PRODUCT_NAME} ne povas esti fermita. \nFermu ĝin permane, kaj alklaku „Reprovi“ por daŭrigi."
+   el: "Το ${PRODUCT_NAME} δεν μπορεί να κλείσει. \nΠαρακαλώ κλείστο χειροκίνητα και πάτα Δοκιμή Ξανά για να συνεχίσεις."
+   es: "No se puede cerrar ${PRODUCT_NAME}. \nPor favor cierra la aplicación manualmente y haz clic en reintentar para continuar."
+@@ -179,7 +179,7 @@ decompressionFailed:
+   cs: Nepodařilo se rozbalit soubory. Zkuste prosím instalátor spustit znovu.
+   cy: Wedi methu â datgywasgu ffeiliau. Ceisiwch redeg y gosodwr eto.
+   da: Det lykkedes ikke at udpakke filer. Prøv venligst at køre installationsprogrammet igen.
+-  de: Die Dateien konnten nicht entpackt werden. Bitte versuche, das Installationsprogramm erneut auszuführen.
++  de: Die Dateien konnten nicht entpackt werden. Bitte versuchen Sie, das Installationsprogramm erneut auszuführen.
+   el: Αποτυχία αποσυμπίεσης των αρχείων. Παρακαλούμε ξαναπροσπαθήστε την εγκατάσταση.
+   eo: Maldensigo de dosieroj malsukcesis. Provu relanĉi la instalilon.
+   es: Fallo al descomprimir archivos. Inténtalo de nuevo más tarde.
+@@ -211,7 +211,7 @@ uninstallFailed:
+   cs: Nepodařilo se odinstalovat staré soubory aplikace. Zkuste prosím instalátor spustit znovu.
+   cy: Wedi methu â dadosod hen ffeiliau rhaglen. Ceisiwch redeg y gosodwr eto.
+   da: Det lykkedes ikke at afinstallere gamle applikationsfiler. Prøv venligst at køre installationsprogrammet igen.
+-  de: Die alten Anwendungsdateien konnten nicht deinstalliert werden. Bitte versuche, das Installationsprogramm erneut auszuführen.
++  de: Die alten Anwendungsdateien konnten nicht deinstalliert werden. Bitte versuchen Sie, das Installationsprogramm erneut auszuführen.
+   el: Δεν ήταν δυνατή η απεγκατάσταση των παλιών αρχείων εφαρμογής. Ξαναπροσπαθήστε την απεγκατάσταση αργότερα.
+   eo: Malinstalo de malnovaj aplikaĵaj dosieroj malsukcesis. Provu relanĉi la instalilon.
+   es: Fallo al desinstalar archivos antiguos de la aplicación. Inténtalo de nuevo más tarde.
