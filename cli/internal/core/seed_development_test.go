@@ -4,6 +4,7 @@ package core
 
 import (
 	"context"
+	"io"
 	"slices"
 	"sync"
 	"testing"
@@ -11,6 +12,32 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestSeedDataStoresOptionalAvatars(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	portrait, err := io.ReadAll(createTestImage(32, 32))
+	require.NoError(t, err)
+	result, err := c.SeedData(ctx, SeedOptions{Users: 3, Rooms: 1, AvatarImages: [][]byte{portrait}})
+	require.NoError(t, err)
+	for _, seeded := range result.Users {
+		avatarURL, err := c.GetUserAvatarURL(ctx, seeded.ID, nil, nil, "")
+		require.NoError(t, err)
+		require.NotEmpty(t, avatarURL)
+	}
+}
+
+func TestSeedOptionsRejectInvalidAvatars(t *testing.T) {
+	t.Parallel()
+	for _, images := range [][][]byte{
+		{[]byte("not an image")},
+		{make([]byte, MaxSeedAvatarBytes+1)},
+		make([][]byte, 51),
+	} {
+		require.Error(t, (SeedOptions{Users: 1, Rooms: 1, AvatarImages: images}).Validate())
+	}
+}
 
 func TestSeedNotificationHistory(t *testing.T) {
 	t.Parallel()

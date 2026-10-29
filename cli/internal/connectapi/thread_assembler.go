@@ -91,7 +91,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		if thread.LastReplyAt != nil {
 			lastReplyAt = timestamppb.New(*thread.LastReplyAt)
 		}
-		participantPreviewUserIDs := firstN(thread.ParticipantIDs, 5)
+		participantPreviewUserIDs := firstN(thread.ParticipantIDs, threadParticipantPreviewLimit)
 		threadHydrator.addUserIDs(participantPreviewUserIDs)
 		var directMessageParticipantUserIDs []string
 		if kind == core.KindDM {

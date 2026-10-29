@@ -405,7 +405,10 @@ namespaces and password-login setting inside the mutation decision.
 The [synthetic data generator](../../cli/internal/core/seed_development.go) uses
 existing account, channel, membership, and message operations. Its CLI is
 `chatto operator seed`. It adds no event types, streams, or projections and waits
-for serving projections before success. Optional notification fixtures use the
+for serving projections before success. The
+optional avatar image pool uses the existing user-avatar operation and asset
+storage. The CLI can opt in to Pravatar downloads before the seed RPC; the server
+does not fetch external avatar URLs. Optional notification fixtures use the
 historical message import service and notification command model to populate an
 existing account's inbox across several days, without Web Push. The
 [test-only HTTP wrapper](../../cli/internal/http_server/seed_test_endpoint.go)

@@ -276,6 +276,7 @@
     "thread": {
       "title": "Fadeno en #{room}",
       "back_to_room": "Reen al la ĉambro",
+      "participants": "Partoprenantoj de la fadeno ({count})",
       "follow": "Sekvu fadenon",
       "unfollow": "Malsekvu fadenon",
       "close": "Fermu fadenon",

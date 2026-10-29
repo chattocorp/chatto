@@ -10,9 +10,13 @@
   import type { ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { THREAD_PANE_MAX_WIDTH, THREAD_PANE_MIN_WIDTH } from '$lib/storage/threadPaneWidth';
-  import { PaneHeader, HeaderIconButton } from '$lib/ui';
+  import { PaneHeader, HeaderIconButton, FloatingPopover } from '$lib/ui';
   import { expoOutTransition } from '$lib/ui/motion';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserMenu from '$lib/components/users/UserMenu.svelte';
+  import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
+  import { startDMWith } from '$lib/dm/startDM';
   import ConversationPane from './ConversationPane.svelte';
   import type { PendingComposerInput, PendingHighlight } from './roomNavigationState.svelte';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -86,6 +90,58 @@
   const threadMessage = $derived(
     store.threadEvents.find((entry) => isMessagePostedEvent(entry.event))?.event
   );
+  const rootMessage = $derived(
+    store.threadEvents.find((entry) => entry.id === threadRootEventId)?.event
+  );
+  const participants = $derived(
+    isMessagePostedEvent(rootMessage) ? (rootMessage.threadParticipants ?? []) : []
+  );
+  // The summary includes replies outside the loaded message window.
+  const participantCount = $derived(
+    isMessagePostedEvent(rootMessage)
+      ? Math.max(rootMessage.threadParticipantCount ?? 0, participants.length)
+      : 0
+  );
+  let paneWidth = $state(0);
+  // Use the actual pane width: split panes can stay narrow on a wide screen.
+  const participantLimit = $derived(
+    paneWidth >= 640 ? 12 : paneWidth >= 480 ? 8 : paneWidth >= 360 ? 5 : 3
+  );
+  const visibleParticipants = $derived(participants.slice(0, participantLimit));
+  let participantHint = $state<{
+    userId: string;
+    roomId: string;
+    threadRootEventId: string;
+    anchor: DOMRect;
+  } | null>(null);
+  const hintedParticipant = $derived(
+    participantHint?.roomId === roomId && participantHint.threadRootEventId === threadRootEventId
+      ? visibleParticipants.find((user) => user.id === participantHint?.userId)
+      : undefined
+  );
+  function showParticipantHint(event: MouseEvent | FocusEvent, userId: string) {
+    participantHint = {
+      userId,
+      roomId,
+      threadRootEventId,
+      anchor: (event.currentTarget as HTMLElement).getBoundingClientRect()
+    };
+  }
+  function hideParticipantHint() {
+    participantHint = null;
+  }
+  // Resolve menu data from the current thread so removed participants cannot stay visible.
+  const participantMenu = new UserMenuState<{
+    roomId: string;
+    threadRootEventId: string;
+    userId: string;
+  }>();
+  const menuParticipant = $derived(
+    participantMenu.target?.roomId === roomId &&
+      participantMenu.target.threadRootEventId === threadRootEventId
+      ? participants.find((user) => user.id === participantMenu.target?.userId && !user.deleted)
+      : undefined
+  );
   let canPost = $derived(
     threadingMode !== RoomThreadingMode.DISABLED &&
       (isMessagePostedEvent(threadMessage)
@@ -118,6 +174,7 @@
       : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
   ]}
   data-testid="thread-pane"
+  bind:clientWidth={paneWidth}
   {@attach revealThread}
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
   transition:fly|global={{
@@ -164,6 +221,46 @@
     {#snippet header()}
       <PaneHeader title={threadTitle} onBack={onClose} backLabel={m('room.thread.back_to_room')}>
         {#snippet actions()}
+          {#if participantCount > 0}
+            <div
+              class="flex items-center"
+              role="group"
+              aria-label={m('room.thread.participants', { count: participantCount })}
+              data-testid="thread-header-participants"
+            >
+              {#each visibleParticipants as participant, index (participant.id)}
+                {@const menuTarget = { roomId, threadRootEventId, userId: participant.id }}
+                {@const name = participant.deleted
+                  ? m('common.deleted_user')
+                  : participant.displayName || participant.login || m('common.unknown_user')}
+                <button
+                  type="button"
+                  class={[
+                    'relative pane-header-icon-button rounded-full not-disabled:hover:bg-transparent focus-visible:z-10 not-disabled:active:bg-transparent',
+                    index > 0 && '-ms-4'
+                  ]}
+                  aria-label={name}
+                  aria-haspopup="dialog"
+                  aria-expanded={menuParticipant?.id === participant.id}
+                  disabled={participant.deleted}
+                  onmouseenter={(event) => showParticipantHint(event, participant.id)}
+                  onmouseleave={hideParticipantHint}
+                  onfocus={(event) => showParticipantHint(event, participant.id)}
+                  onblur={hideParticipantHint}
+                  onpointerdown={hideParticipantHint}
+                  onclick={(event) => participantMenu.open(menuTarget, event)}
+                  {@attach participantMenu.trigger(() => (participant.deleted ? null : menuTarget))}
+                >
+                  <UserAvatar user={participant} size="sm" class="ring-2 ring-background" />
+                </button>
+              {/each}
+              {#if participantCount > visibleParticipants.length}
+                <span class="px-1 text-xs text-muted" aria-hidden="true"
+                  >+{participantCount - visibleParticipants.length}</span
+                >
+              {/if}
+            </div>
+          {/if}
           <HeaderIconButton
             icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}
             label={threadFollow.following ? m('room.thread.unfollow') : m('room.thread.follow')}
@@ -182,3 +279,40 @@
     {/snippet}
   </ConversationPane>
 </div>
+
+<svelte:window
+  onresize={hideParticipantHint}
+  onkeydowncapture={(event) => {
+    if (event.key === 'Escape' && participantHint && !menuParticipant) {
+      hideParticipantHint();
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }}
+/>
+
+{#if participantHint && hintedParticipant && !menuParticipant}
+  <FloatingPopover
+    anchor={participantHint.anchor}
+    role="tooltip"
+    class="pointer-events-none max-w-xs menu"
+    onclose={hideParticipantHint}
+  >
+    <div class="menu-section px-3 py-2 text-xs whitespace-normal">
+      {hintedParticipant.deleted
+        ? m('common.deleted_user')
+        : hintedParticipant.displayName || hintedParticipant.login || m('common.unknown_user')}
+    </div>
+  </FloatingPopover>
+{/if}
+
+{#if menuParticipant}
+  <UserMenu
+    state={participantMenu}
+    user={menuParticipant}
+    canSendMessage={stores.permissions.canStartDMs}
+    viewerSettings={stores.currentUser.user?.settings}
+    onSendMessage={() => startDMWith(serverScope.serverId, menuParticipant!.id)}
+    {onOpenProfile}
+  />
+{/if}

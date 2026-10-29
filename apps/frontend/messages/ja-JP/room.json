@@ -276,6 +276,7 @@
     "thread": {
       "title": "#{room} のスレッド",
       "back_to_room": "部屋に戻る",
+      "participants": "スレッドの参加者 ({count})",
       "follow": "スレッドをフォローする",
       "unfollow": "スレッドのフォローを解除",
       "close": "スレッドを閉じる",

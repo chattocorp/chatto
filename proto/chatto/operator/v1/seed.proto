@@ -22,6 +22,9 @@ message SeedDataRequest {
   int32 notifications = 8;
   // Days of notification history, including today, from 1 to 30 when enabled.
   int32 notification_days = 9;
+  // Optional image files, cycled in order across users and stored as Chatto avatars.
+  // At most 50 images and 512 KiB in total. No remote image URLs are fetched.
+  repeated bytes avatar_images = 10;
 }
 
 // A generated passwordless account. Use operator user commands to set a password.
