@@ -32,7 +32,7 @@
     /** Rendered reaction emoji for the cause badge of a reaction group. */
     reactionEmoji?: string | null;
     roomName: string | null;
-    /** Formatted local clock time of the newest occurrence within its day section. */
+    /** Relative time for today's activity; local clock time for older days. */
     time: string;
     unread: boolean;
     /** Attention classification for row metadata; never changes the background. */

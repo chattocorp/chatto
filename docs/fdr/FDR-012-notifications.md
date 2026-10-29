@@ -69,8 +69,9 @@ targets, unread counts, read state, or deletion semantics.
   opened from server settings. Public authentication pages use the origin server
   name. The Important count is a prefix, for example `(3) #general · Chatto HQ`.
 - The list groups activity by calendar day using the preferred time zone of
-  the account on each server. Each row shows the local clock time. The Today
-  section has no visible heading or separator; older days have date headings.
+  the account on each server. Today's rows show elapsed time; older rows show
+  the local clock time. Each section has a visible heading: Today, Yesterday,
+  or the date for older days.
 - Rows use short localized summaries without message previews. Reaction rows
   show the emoji that were given. The time is at the end of the summary line.
   Wide rows show the summary, room, server, and time on one line. Narrow rows

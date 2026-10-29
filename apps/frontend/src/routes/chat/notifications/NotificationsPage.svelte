@@ -38,6 +38,7 @@
   import type { ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import {
     formatMessageTime,
+    formatRelativeTime,
     groupByActivityDay,
     timeFormatSettingsFor,
     type TimeFormatSettings
@@ -608,19 +609,12 @@
         {:else if filteredGroups.length > 0}
           <div class="selectable-list pb-3" aria-busy={loadingMore}>
             {#each dateSections as section (section.key)}
-              <section
-                aria-label={section.key === 'today' ? section.label : undefined}
-                aria-labelledby={section.key === 'today'
-                  ? undefined
-                  : `notification-date-${section.key}`}
-              >
-                {#if section.key !== 'today'}
-                  <DaySeparator
-                    id={`notification-date-${section.key}`}
-                    label={section.label}
-                    testId="notification-date-heading"
-                  />
-                {/if}
+              <section aria-labelledby={`notification-date-${section.key}`}>
+                <DaySeparator
+                  id={`notification-date-${section.key}`}
+                  label={section.label}
+                  testId="notification-date-heading"
+                />
                 {#each section.items as item (rowKey(item))}
                   {@const occurrence = item.group.openTarget}
                   {@const targetSupported = occurrence?.targetSupported !== false}
@@ -637,7 +631,7 @@
                     signalKind={occurrence?.signalKind}
                     reactionEmoji={emoji}
                     {roomName}
-                    time={formatMessageTime(
+                    time={(section.key === 'today' ? formatRelativeTime : formatMessageTime)(
                       item.group.latestAt,
                       item.timeFormatSettings,
                       activeLocale

@@ -915,11 +915,11 @@ describe('notifications page', () => {
     const { container } = render(NotificationsPage);
     const headings = await vi.waitFor(() => {
       const elements = container.querySelectorAll('[data-testid="notification-date-heading"]');
-      expect(elements.length).toBe(2);
+      expect(elements.length).toBe(3);
       return [...elements].map((heading) => heading.textContent?.trim());
     });
 
-    expect(headings).not.toContain('Today');
+    expect(headings[0]).toBe('Today');
     expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(3);
     expect(headings).toContain('Yesterday');
     expect(headings.some((heading) => heading?.includes('2026'))).toBe(true);
@@ -927,7 +927,7 @@ describe('notifications page', () => {
       [...container.querySelectorAll('[data-testid="notification-content"]')].map((row) =>
         row.lastElementChild?.textContent?.trim()
       )
-    ).toEqual(['00:00', '00:00', '00:00']);
+    ).toEqual(['Just now', '00:00', '00:00']);
     const firstHeading = container.querySelector(
       '[data-testid="notification-date-heading"]'
     ) as HTMLElement;
