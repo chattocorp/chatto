@@ -26,6 +26,32 @@ emit an already-created release in its outputs on a rerun.
 Maintenance branches carry their own workflow and release configuration.
 Backport this policy before publishing from those branches.
 
+## Publication approval
+
+The tagged workflow builds server archives, server and frontend container
+images, and signed desktop packages before it requests approval to publish.
+The build jobs save these files as workflow artifacts. They do not upload
+release assets or push release images to GHCR.
+
+After all builds and desktop assembly succeed, approve the `release` job in
+the protected `chatto-release` environment. This is the only publication
+approval for server, frontend container, and desktop artifacts. Desktop signing
+keeps its separate protected-environment approvals. The client npm workflow
+also keeps its separate publication process.
+
+The approved job checks the archive checksums, uploads the assets, pushes the
+saved container images, and publishes the GitHub Release. Stable releases then
+update Homebrew and start the stable documentation build. Release credentials
+stay in the protected publication job. There is no second approval to make
+the GitHub Release public.
+
+Publication across GitHub and GHCR is not atomic. If publication fails, some
+images or assets can already be available. Rerun the failed jobs on the same
+workflow run to reuse the saved artifacts; they are retained for seven days.
+Uploads replace matching assets, and image pushes can be repeated. A retry of
+the protected job can require approval again. Do not rebuild a published
+version to change its contents.
+
 ## Documentation channels
 
 The public documentation has two independently deployed channels:
@@ -94,10 +120,10 @@ Windows releases also include a per-user `*_Windows_X64_Setup.exe` installer.
 Its installer and embedded uninstaller are signed and verified before upload.
 The ZIP remains available. See the desktop README for installation and the
 interactive Windows verification checklist; PR builds are unsigned.
-The server job alone publishes the release and does not wait for Desktop.
-Desktop assets can arrive before or after publication. If signing fails, retry
-the failed jobs on the same tagged run; a server security release must not wait
-for a signing service. Linux and ordinary CI artifacts remain unsigned experimental builds.
+Publication waits for server and desktop builds, including signing, to succeed.
+If signing fails, retry the failed jobs on the same tagged run. A signing
+outage blocks publication. Linux and ordinary CI artifacts remain unsigned
+experimental builds.
 Windows and macOS use separate protected signing environments. Signing-service
 provisioning, protected-environment settings, renewal, and emergency revocation
 are documented in [`apps/desktop/README.md`](../apps/desktop/README.md).
@@ -117,7 +143,7 @@ provide a branch, tag, or commit reachable from `origin/main` or an
 input. Signed desktop builds reject other commits before running repository
 code or requesting signing credentials. The workflow builds and packages all
 three platforms, generates the same checksum file used by a tagged release, and
-uploads the assembled files as a one-day verification artifact.
+uploads the assembled files as a seven-day verification artifact.
 
 Desktop release tags must also point to commits reachable from `origin/main`
 or an `origin/release-*` branch.

@@ -629,7 +629,7 @@ jobs:
     needs: build-desktop-release
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -661,34 +661,20 @@ jobs:
           sha256sum chatto-desktop_* > chatto-desktop_checksums.txt
 
       - name: Upload desktop release verification
-        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-verification-${{ github.run_id }}
+          overwrite: true
           path: .context/desktop-release
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
-      # Keep this release hidden until both server and desktop jobs finish.
-      - name: Upload desktop assets to the Chatto release
-        if: github.event_name == 'push'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          test "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" = true
-          gh release upload "$GITHUB_REF_NAME" .context/desktop-release/* --clobber
-
-  release:
+  build-server-release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-    environment: chatto-release
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      packages: write
-      id-token: write
+      contents: read
     outputs:
       is_stable: ${{ steps.release_meta.outputs.is_stable }}
       version: ${{ steps.release_meta.outputs.version }}
@@ -810,6 +796,127 @@ jobs:
             [registry."docker.io"]
               mirrors = ["mirror.gcr.io"]
 
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHATTO_PUSH_LATEST: ${{ steps.release_meta.outputs.push_latest }}
+
+      # Build each platform locally so no registry writes occur before approval.
+      - name: Build frontend release image (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.frontend.prebuilt
+          load: true
+          platforms: linux/amd64
+          tags: ghcr.io/chattocorp/chatto-client:${{ steps.release_meta.outputs.version }}-amd64
+          cache-from: type=gha,scope=chatto-client-amd64
+          cache-to: type=gha,scope=chatto-client-amd64,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.release_meta.outputs.version }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Build frontend release image (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.frontend.prebuilt
+          load: true
+          platforms: linux/arm64
+          tags: ghcr.io/chattocorp/chatto-client:${{ steps.release_meta.outputs.version }}-arm64
+          cache-from: type=gha,scope=chatto-client-arm64
+          cache-to: type=gha,scope=chatto-client-arm64,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.release_meta.outputs.version }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Save release images
+        shell: bash
+        env:
+          VERSION: ${{ steps.release_meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p .context/release-images
+          docker save --output .context/release-images/images.tar \
+            "ghcr.io/chattocorp/chatto:${VERSION}-amd64" \
+            "ghcr.io/chattocorp/chatto:${VERSION}-arm64" \
+            "ghcr.io/chattocorp/chatto-client:${VERSION}-amd64" \
+            "ghcr.io/chattocorp/chatto-client:${VERSION}-arm64"
+
+      - name: Upload server release archives
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-release-${{ github.run_id }}
+          overwrite: true
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*_checksums.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload release images
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-images-${{ github.run_id }}
+          overwrite: true
+          path: .context/release-images/images.tar
+          if-no-files-found: error
+          retention-days: 7
+
+  # One approval publishes the artifacts from both successful build jobs.
+  release:
+    needs: [build-server-release, assemble-desktop-release]
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    environment: chatto-release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: chatto-release-publication-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      packages: write
+    outputs:
+      is_stable: ${{ needs.build-server-release.outputs.is_stable }}
+    steps:
+      - name: Download server release archives
+        uses: actions/download-artifact@v8
+        with:
+          name: server-release-${{ github.run_id }}
+          path: .context/server-release
+
+      - name: Download assembled desktop assets
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-verification-${{ github.run_id }}
+          path: .context/desktop-release
+
+      - name: Download release images
+        uses: actions/download-artifact@v8
+        with:
+          name: release-images-${{ github.run_id }}
+          path: .context/release-images
+
+      - name: Verify release archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd .context/server-release && sha256sum --check ./*_checksums.txt)
+          (cd .context/desktop-release && sha256sum --check chatto-desktop_checksums.txt)
+          docker load --input .context/release-images/images.tar
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -817,71 +924,50 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: release --clean
-        env:
-          # Use a PAT so the release is authored by a user account rather
-          # than github-actions[bot]. Bot-authored releases don't get
-          # GitHub's autolink rendering for commit SHAs and #NNN PR refs.
-          GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          CHATTO_PUSH_LATEST: ${{ steps.release_meta.outputs.push_latest }}
-
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Build frontend Docker tags
-        id: frontend_tags
+      # Overwrite assets on a retry, including a retry after GitHub publication.
+      - name: Upload release assets
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-          PUSH_LATEST: ${{ steps.release_meta.outputs.push_latest }}
+          GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          {
-            echo "tags<<EOF"
-            echo "ghcr.io/chattocorp/chatto-client:${VERSION}"
+          set -euo pipefail
+          gh release view "$GITHUB_REF_NAME" > /dev/null
+          gh release upload "$GITHUB_REF_NAME" \
+            .context/server-release/* .context/desktop-release/* --clobber
+
+      - name: Publish release images
+        shell: bash
+        env:
+          VERSION: ${{ needs.build-server-release.outputs.version }}
+          PUSH_LATEST: ${{ needs.build-server-release.outputs.make_latest }}
+        run: |
+          set -euo pipefail
+          for repository in chatto chatto-client; do
+            image="ghcr.io/chattocorp/${repository}"
+            docker push "${image}:${VERSION}-amd64"
+            docker push "${image}:${VERSION}-arm64"
+            tags=(--tag "${image}:${VERSION}")
             if [[ "$VERSION" == *-* ]]; then
-              echo "ghcr.io/chattocorp/chatto-client:next"
-            elif [[ "$PUSH_LATEST" == "true" ]]; then
-              echo "ghcr.io/chattocorp/chatto-client:latest"
+              tags+=(--tag "${image}:next")
+            else
+              if [[ "$repository" == chatto ]]; then
+                tags+=(--tag "${image}:${VERSION%.*}")
+              fi
+              if [[ "$PUSH_LATEST" == true ]]; then
+                tags+=(--tag "${image}:latest")
+              fi
             fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+            docker buildx imagetools create "${tags[@]}" \
+              "${image}:${VERSION}-amd64" "${image}:${VERSION}-arm64"
+          done
 
-      - name: Build and push frontend Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.frontend.prebuilt
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.frontend_tags.outputs.tags }}
-          cache-from: type=gha,scope=chatto-client
-          cache-to: type=gha,scope=chatto-client,mode=max
-          labels: |
-            org.opencontainers.image.source=https://github.com/chattocorp/chatto
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.version.outputs.version }}
-            org.opencontainers.image.licenses=Apache-2.0
-
-  finalize-release:
-    needs: [release, assemble-desktop-release]
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-    environment: chatto-release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
       - name: Publish GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          VERSION: ${{ needs.release.outputs.version }}
-          MAKE_LATEST: ${{ needs.release.outputs.make_latest }}
+          VERSION: ${{ needs.build-server-release.outputs.version }}
+          MAKE_LATEST: ${{ needs.build-server-release.outputs.make_latest }}
         run: |
           set -euo pipefail
 
@@ -891,12 +977,12 @@ jobs:
             --latest="$MAKE_LATEST"
 
       - name: Update Homebrew tap
-        if: ${{ needs.release.outputs.is_stable == 'true' }}
+        if: ${{ needs.build-server-release.outputs.is_stable == 'true' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          VERSION: ${{ needs.release.outputs.version }}
+          VERSION: ${{ needs.build-server-release.outputs.version }}
         run: |
           set -euo pipefail
 
@@ -986,7 +1072,7 @@ jobs:
           git -C "${tap_dir}" push origin HEAD:main
 
   publish-stable-docs:
-    needs: [release, finalize-release]
+    needs: release
     if: ${{ github.event_name == 'push' && needs.release.outputs.is_stable == 'true' }}
     permissions:
       contents: read
