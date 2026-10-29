@@ -32,7 +32,7 @@ for (const help of [false, true]) {
       .getByRole('link', { name: 'Notifications', exact: true })
       .tap();
     await expect(dialog).not.toBeVisible();
-    await expect(page).toHaveURL(/\/chat\/notifications$/);
+    await expect(page).toHaveURL(/\/chat\/-\/notifications$/);
   });
 
   test(`mobile ${help ? 'shortcut help' : 'quick switcher'} fills the screen and returns focus`, async ({
