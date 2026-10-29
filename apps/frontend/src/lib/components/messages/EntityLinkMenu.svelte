@@ -21,7 +21,7 @@
     markNavigationRoomAsRead,
     markNavigationServerAsRead
   } from '$lib/navigation/readActions';
-  import { copyRoomLinkToClipboard } from '$lib/copyChatLink';
+  import { copyRoomLinkToClipboard, copyServerLinkToClipboard } from '$lib/copyChatLink';
   import { copyToClipboard } from '$lib/utils/copyToClipboard';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -159,6 +159,14 @@
           icon="icon-[uil--info-circle]"
           href={resolve('/chat/[serverId]/info', { serverId: segment })}
           onclick={onclose}>{m('chat.server_info.title')}</MenuItem
+        >
+        <MenuItem
+          icon="icon-[uil--link]"
+          dataTestid="copy-server-link"
+          onclick={() => {
+            void copyServerLinkToClipboard(serverId);
+            onclose();
+          }}>{m('room_list.copy_server_link')}</MenuItem
         >
         <MenuItem
           icon="icon-[uil--copy]"

@@ -2,28 +2,20 @@
 import { mount, unmount } from 'svelte';
 import type { Attachment } from 'svelte/attachments';
 import EntityLink from './EntityLink.svelte';
+import { parseWebLink } from '$lib/navigation/webLink';
 
-/** Preserve the original rendered anchor as the fallback when an entity is unavailable. */
+/** Enhance automatic web URLs; explicit labels and non-web links retain their original anchors. */
 export function enhanceEntityLinks(context: Map<unknown, unknown>): Attachment<HTMLAnchorElement> {
   return (anchor) => {
     if (!anchor.hasAttribute('data-entity-autolink')) return;
     const href = anchor.dataset.contentHref;
-    if (!href) return;
-    // Ordinary web links need no component. Keep candidates mounted so later
-    // catalogue and projection changes can resolve them without re-rendering Markdown.
-    let url: URL;
-    try {
-      url = new URL(href, window.location.origin);
-    } catch {
-      return;
-    }
-    if (url.pathname !== '/' && !url.pathname.startsWith('/chat/')) return;
+    if (!href || !parseWebLink(href)) return;
     const target = document.createElement('span');
     anchor.replaceWith(target);
     const component = mount(EntityLink, {
       target,
       context,
-      props: { href, fallbackHtml: anchor.outerHTML }
+      props: { href }
     });
     return () => {
       void unmount(component);

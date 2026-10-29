@@ -1,4 +1,4 @@
-<!-- @component A live display for a normal message link. Reads known data only; never discovers targets. -->
+<!-- @component An automatic URL display: known entity pill or compact web link. Never discovers targets. -->
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/client';
@@ -6,10 +6,10 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { conversationPath, userPath } from '$lib/navigation/conversationPath';
   import { serverDisplayName } from '@chatto/client/server/state';
-  import { MarkdownHtml } from '$lib/ui';
   import EntityLinkPill from './EntityLinkPill.svelte';
+  import UrlLink from './UrlLink.svelte';
 
-  let { href, fallbackHtml }: { href: string; fallbackHtml: string } = $props();
+  let { href }: { href: string } = $props();
   const target = $derived(parseEntityLink(href));
   const store = $derived(target ? serverRegistry.tryGetStore(target.serverId) : undefined);
   const server = $derived(target ? serverRegistry.getServer(target.serverId) : undefined);
@@ -59,5 +59,5 @@
     />
   {/key}
 {:else}
-  <MarkdownHtml html={fallbackHtml} />
+  <UrlLink {href} />
 {/if}

@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "نسخ رابط الخادم",
     "copy_room_link": "نسخ رابط الغرفة",
     "show_rooms_in_group": "عرض المزيد من الغرف في {group} ({count})",
     "hide_rooms_in_group": "إخفاء الغرف التي لم تنضم إليها في {group}",

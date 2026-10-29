@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "复制服务器链接",
     "copy_room_link": "复制聊天室链接",
     "show_rooms_in_group": "显示 {group} 中的更多聊天室（{count}）",
     "hide_rooms_in_group": "隐藏 {group} 中尚未加入的聊天室",

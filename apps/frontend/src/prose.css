@@ -60,7 +60,7 @@
   }
 
   /* Links */
-  & a:not(.entity-link) {
+  & a:not(.entity-link, .url-link, .menu-entry) {
     color: var(--color-link);
     text-decoration: underline;
     text-underline-offset: 2px;

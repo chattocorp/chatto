@@ -1821,6 +1821,10 @@
   @apply inline-flex max-w-full cursor-pointer items-baseline gap-1 rounded-sm bg-action/15 px-1 align-baseline leading-[1.25] font-semibold text-text no-underline hover:bg-action/25;
 }
 
+.url-link {
+  @apply inline-flex max-w-[min(100%,32ch)] cursor-pointer items-baseline gap-1 rounded-sm bg-surface-emphasized px-1 align-baseline leading-[1.25] font-normal text-text no-underline hover:bg-surface-selected;
+}
+
 .entity-link-with-image {
   padding-inline-start: 0;
 }
@@ -2736,8 +2740,10 @@ body[data-resizing-sidebar] {
 :root[data-motion='reduced'] {
   transition: none;
 }
-/* Keep the editable URL in ProseMirror; only its idle presentation is a pill. */
-.composer-entity-preview:has(.entity-link) + * .composer-entity-source,
-.composer-entity-preview:has(.entity-link) + .composer-entity-source {
+/* Keep the editable URL in ProseMirror; hide its anchor too so it is not an empty
+   accessible link. The separate boundary widget preserves caret placement. */
+.composer-entity-preview:has(.entity-link, .url-link) + * .composer-entity-source,
+.composer-entity-preview:has(.entity-link, .url-link) + a:has(.composer-entity-source),
+.composer-entity-preview:has(.entity-link, .url-link) + .composer-entity-source {
   display: none;
 }

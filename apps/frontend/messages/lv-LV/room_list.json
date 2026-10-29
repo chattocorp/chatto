@@ -1,5 +1,6 @@
 {
   "room_list": {
+    "copy_server_link": "Kopēt servera saiti",
     "copy_room_link": "Kopēt telpas saiti",
     "show_rooms_in_group": "Rādīt vairāk istabu grupā {group} ({count})",
     "hide_rooms_in_group": "Paslēpt grupas {group} istabas, kurām neesat pievienojies",

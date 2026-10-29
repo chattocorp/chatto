@@ -1,9 +1,9 @@
-/** ProseMirror decorations preview entity URLs without changing the editable document. */
+/** ProseMirror decorations preview automatic web URLs without changing the editable document. */
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { mount, unmount } from 'svelte';
 import EntityLink from '../messages/EntityLink.svelte';
-import { parseEntityLink } from '$lib/chatLinks';
+import { parseWebLink } from '$lib/navigation/webLink';
 
 /** Widgets own their Svelte previews; ProseMirror owns URL text, selection, and clipboard data. */
 export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
@@ -32,7 +32,7 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
           if (!link || link.attrs.explicitLabel || link.attrs.title) return;
           const href = link.attrs.href as string;
           if (node.text !== href && `http://${node.text}` !== href) return;
-          if (!parseEntityLink(href)) return;
+          if (!parseWebLink(href)) return;
           const to = from + node.nodeSize;
           // A caret beside the URL (including just after paste) does not edit its text.
           if (focused && state.selection.from < to && state.selection.to > from) return;
@@ -49,7 +49,7 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
                 boundary.setAttribute('aria-hidden', 'true');
                 return boundary;
               },
-              { key: `${to}:entity-boundary`, side: -1 }
+              { key: `${to}:entity-boundary`, side: -1, marks: [] }
             )
           );
           let dispose: (() => void) | undefined;
@@ -62,7 +62,7 @@ export function entityLinkPreview(context: Map<unknown, unknown>): Plugin {
                 const component = mount(EntityLink, {
                   target: preview,
                   context,
-                  props: { href, fallbackHtml: '' }
+                  props: { href }
                 });
                 preview.addEventListener(
                   'click',

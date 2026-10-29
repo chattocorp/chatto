@@ -491,7 +491,12 @@ describe('ServerSidebarEntry', () => {
       copyHostname.closest('.menu-section')!.querySelectorAll('[role="menuitem"]'),
       (item) => item.textContent?.trim()
     );
-    expect(actionLabels).toEqual(['Server information', 'Copy server hostname', 'Mark as read']);
+    expect(actionLabels).toEqual([
+      'Server information',
+      'Copy server link',
+      'Copy server hostname',
+      'Mark as read'
+    ]);
     expect(q(document.body, '[data-testid="move-server-up"]')).toBeNull();
     expect(q(document.body, '[data-testid="move-server-down"]')).toBeNull();
 
@@ -508,6 +513,23 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Copied to clipboard');
     await vi.waitFor(() =>
       expect(q(document.body, '[data-testid="copy-server-hostname"]')).toBeNull()
+    );
+  });
+
+  it('copies the server root link with its scheme and port', async () => {
+    mocks.server.url = 'https://remote.example.com:8443/chat';
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-server-link"]')).not.toBeNull()
+    );
+    (document.querySelector('[data-testid="copy-server-link"]') as HTMLButtonElement).click();
+    await vi.waitFor(() =>
+      expect(mocks.writeClipboardText).toHaveBeenCalledWith('https://remote.example.com:8443/')
+    );
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-server-link"]')).toBeNull()
     );
   });
 
