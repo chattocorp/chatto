@@ -4,12 +4,12 @@
   let { url }: { url: string } = $props();
 </script>
 
-<!-- @component Full-width server artwork separated from the sidebar navigation. -->
-<div class="w-full border-b border-border bg-surface">
+<!-- @component Inset server artwork with rounded corners and its original aspect ratio. -->
+<div class="w-full px-2 pt-2">
   <img
     src={url}
     alt={m('media.server_banner_alt')}
-    class="block h-auto w-full"
+    class="block h-auto w-full rounded-lg"
     onload={(event) => ((event.currentTarget as HTMLImageElement).style.display = '')}
     onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = 'none')}
   />
