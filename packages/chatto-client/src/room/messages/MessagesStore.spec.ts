@@ -525,6 +525,54 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it.each(['userJoinedRoom', 'userLeftRoom'] as const)(
+    'scrubs deleted-user actors and reaction previews on %s',
+    (kind) => {
+      const fake = new FakeQueryClient();
+      const store = new MessagesStore(
+        fake as unknown as ServerConnection,
+        () => null,
+        { roomId: 'room-1' },
+        timelineFromFixtures(fake)
+      );
+      store.events = [
+        {
+          id: 'membership',
+          createdAt: '',
+          actorId: 'deleted-user',
+          actor: {
+            id: 'deleted-user',
+            login: 'alice',
+            displayName: 'Alice',
+            presenceStatus: PresenceStatus.OFFLINE
+          },
+          event: {
+            kind,
+            roomId: 'room-1',
+            reactions: [
+              {
+                emoji: 'heart',
+                count: 2,
+                hasReacted: false,
+                users: [
+                  { id: 'deleted-user', displayName: 'Alice' },
+                  { id: 'remaining-user', displayName: 'Bob' }
+                ]
+              }
+            ]
+          }
+        }
+      ];
+      store.scrubUserReferences('deleted-user');
+      expect(store.events[0]).toMatchObject({
+        actor: null,
+        actorResolution: 'deleted',
+        event: { reactions: [{ count: 2, users: [{ id: 'remaining-user' }] }] }
+      });
+      store.dispose();
+    }
+  );
+
   it('scrubs deleted-user render data from off-window preview events', async () => {
     const preview = threadMessageEvent('preview');
     const deletedUserPreview = {

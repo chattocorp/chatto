@@ -309,11 +309,11 @@ service MessageService {
   // Results preserve first-seen request order, and repeated event IDs are
   // de-duplicated.
   rpc BatchGetMessages(BatchGetMessagesRequest) returns (BatchGetMessagesResponse);
-  // Adds a reaction to a message. The user must be a room member and have
+  // Adds a reaction to a message or room join/leave event. The user must be a room member and have
   // message.react. Reactions also require message.read or a matching thread
   // relationship with message.read-interactions.
   rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
-  // Removes a reaction from a message. The user must be a room member and have
+  // Removes a reaction from a message or room join/leave event. The user must be a room member and have
   // message.react. Reactions also require message.read or a matching thread
   // relationship with message.read-interactions.
   rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);

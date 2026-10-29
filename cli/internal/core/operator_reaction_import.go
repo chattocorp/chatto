@@ -20,7 +20,7 @@ type HistoricalReactionInput struct {
 
 // ImportHistoricalReaction records a mapped reactor as a system operation.
 // It bypasses membership and interactive count limits, but requires an existing
-// user and message (including a tombstone) in an active channel. Room OCC makes concurrent repeats
+// user and message (including a tombstone), join, or leave event in an active channel. Room OCC makes concurrent repeats
 // idempotent. The event time is the import time, not an invented source time.
 func (c *ChattoCore) ImportHistoricalReaction(ctx context.Context, input HistoricalReactionInput) (bool, error) {
 	if input.RoomID == "" || input.MessageEventID == "" || input.UserID == "" {
@@ -70,7 +70,7 @@ func (c *ChattoCore) ImportHistoricalReaction(ctx context.Context, input Histori
 		if err != nil {
 			return nil, err
 		}
-		if target.GetMessagePosted() == nil {
+		if target.GetMessagePosted() == nil && target.GetUserJoinedRoom() == nil && target.GetUserLeftRoom() == nil {
 			return nil, ErrMessageNotFound
 		}
 		if c.roomModel.reactionMutationSnapshot(input.RoomID, messageID, emoji, input.UserID).Exists {

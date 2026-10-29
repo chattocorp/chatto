@@ -24,6 +24,7 @@ function fakeTimeline() {
   const reads: ReturnType<typeof deferred>[] = [];
   return {
     reads,
+    getEventById: vi.fn((): TimelineEventView | null => null),
     refreshAnchorForMessageMutation: vi.fn((): string | null => null),
     refreshCurrentWindow: vi.fn(
       (
@@ -86,6 +87,30 @@ async function flush(): Promise<void> {
 }
 
 describe('TimelineSync', () => {
+  it.each(['userJoinedRoom', 'userLeftRoom'] as const)(
+    'refreshes %s reactions through the timeline',
+    async (kind) => {
+      const room = fakeTimeline();
+      room.getEventById.mockReturnValue({
+        id: 'membership',
+        createdAt: '',
+        event: { kind, roomId: 'R1' }
+      });
+      const readMessages = vi.fn(async () => []);
+      const { sync } = makeSync({ R1: { messages: room } }, { readMessages });
+      sync.reconcile('R1', 'membership');
+      await flush();
+      expect(room.refreshCurrentWindow).toHaveBeenCalledWith(
+        'membership',
+        false,
+        'cursor',
+        expect.any(Function)
+      );
+      expect(readMessages).not.toHaveBeenCalled();
+      room.reads[0]?.resolve();
+      await flush();
+    }
+  );
   it('shares a root read across room and thread views, using the event cursor', async () => {
     const room = fakeTimeline();
     const thread = fakeTimeline();

@@ -9,7 +9,8 @@ import { MessageReaction } from "./message_types_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
- * Request to add the current user's reaction to a message.
+ * Request to add the current user's reaction to a message or an individual
+ * room join or leave event.
  *
  * When `message_event_id` names a channel echo of a thread reply, the server
  * treats it as an alias for the original thread reply and stores the reaction
@@ -33,8 +34,7 @@ export class AddReactionRequest extends Message<AddReactionRequest> {
   roomId = "";
 
   /**
-   * Required. Event ID of the message being reacted to, or a channel echo of
-   * the message.
+   * Required. Message, channel echo, room join, or room leave event ID.
    *
    * @generated from field: string message_event_id = 2;
    */
@@ -127,7 +127,8 @@ export class AddReactionResponse extends Message<AddReactionResponse> {
 }
 
 /**
- * Request to remove the current user's reaction from a message.
+ * Request to remove the current user's reaction from a message or an individual
+ * room join or leave event.
  *
  * When `message_event_id` names a channel echo of a thread reply, the server
  * treats it as an alias for the original thread reply and removes the reaction
@@ -144,8 +145,7 @@ export class RemoveReactionRequest extends Message<RemoveReactionRequest> {
   roomId = "";
 
   /**
-   * Required. Event ID of the message whose reaction should be removed, or a
-   * channel echo of the message.
+   * Required. Message, channel echo, room join, or room leave event ID.
    *
    * @generated from field: string message_event_id = 2;
    */

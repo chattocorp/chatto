@@ -81,6 +81,35 @@ function begin(input: {
 }
 
 describe('optimistic reactions', () => {
+  it.each(['userJoinedRoom', 'userLeftRoom'] as const)(
+    'adds, rolls back and removes reactions on %s',
+    (kind) => {
+      const events: TimelineEventView[] = [
+        { id: 'membership', createdAt: '', event: { kind, roomId: 'room' } }
+      ];
+      const add = begin({ events, messageEventId: 'membership', emoji: 'wave', action: 'add' });
+      expect(events[0].event).toMatchObject({
+        reactions: [{ emoji: 'wave', count: 1, hasReacted: true }]
+      });
+      add.rollback();
+      expect(events[0].event).toMatchObject({ reactions: [] });
+      begin({
+        events,
+        messageEventId: 'membership',
+        emoji: 'wave',
+        action: 'add'
+      }).applyServerReaction({ emoji: 'wave', count: 2, hasReacted: true });
+      const remove = begin({
+        events,
+        messageEventId: 'membership',
+        emoji: 'wave',
+        action: 'remove'
+      });
+      expect(events[0].event).toMatchObject({ reactions: [{ count: 1, hasReacted: false }] });
+      remove.applyServerReaction(null);
+      expect(events[0].event).toMatchObject({ reactions: [] });
+    }
+  );
   it('applies and rolls back an add', () => {
     const events = [messageEvent('m1', [reaction('heart', 1, false)])];
 

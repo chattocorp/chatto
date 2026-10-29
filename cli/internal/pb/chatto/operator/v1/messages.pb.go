@@ -276,9 +276,10 @@ func (x *ImportMessageResponse) GetMessageId() string {
 // No source reaction time is required; the event time records the import.
 type ImportReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Active channel containing the message.
+	// Active channel containing the target event.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Message or channel echo ID. Echoes resolve to their original reply.
+	// Message, channel echo, room join, or room leave event ID.
+	// Echoes resolve to their original reply.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Existing user shown as the reactor.
 	UserId string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`

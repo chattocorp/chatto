@@ -58,9 +58,10 @@ message ImportMessageResponse {
 // Import a reaction for an existing user without membership or posting policy.
 // No source reaction time is required; the event time records the import.
 message ImportReactionRequest {
-  // Active channel containing the message.
+  // Active channel containing the target event.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Message or channel echo ID. Echoes resolve to their original reply.
+  // Message, channel echo, room join, or room leave event ID.
+  // Echoes resolve to their original reply.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Existing user shown as the reactor.
   string user_id = 3 [(buf.validate.field).string.min_len = 1];

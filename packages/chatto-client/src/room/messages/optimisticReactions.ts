@@ -187,26 +187,40 @@ function isMessagePostedPayload(
   return event?.kind === TimelineEventKind.MessagePosted;
 }
 
+/** These timeline payloads support reactions on their own stable event ID. */
+function hasReactions(
+  payload: TimelineEventPayload
+): payload is Extract<
+  TimelineEventPayload,
+  { kind: 'messagePosted' | 'userJoinedRoom' | 'userLeftRoom' }
+> {
+  return (
+    payload.kind === 'messagePosted' ||
+    payload.kind === 'userJoinedRoom' ||
+    payload.kind === 'userLeftRoom'
+  );
+}
+
 function eventWithOptimisticReaction(
   event: TimelineEventView,
   emoji: string,
   action: OptimisticReactionAction
 ): TimelineEventView | null {
   const payload = event.event;
-  if (!isMessagePostedPayload(payload)) return null;
+  if (!hasReactions(payload)) return null;
   return {
     ...event,
     event: {
       ...payload,
-      reactions: optimisticReactions(payload.reactions, emoji, action)
+      reactions: optimisticReactions(payload.reactions ?? [], emoji, action)
     }
   };
 }
 
 function reactionSummary(event: TimelineEventView, emoji: string): MessageReactionSummary | null {
   const payload = event.event;
-  if (!isMessagePostedPayload(payload)) return null;
-  return payload.reactions.find((reaction) => reaction.emoji === emoji) ?? null;
+  if (!hasReactions(payload)) return null;
+  return payload.reactions?.find((reaction) => reaction.emoji === emoji) ?? null;
 }
 
 function eventWithReactionSummary(
@@ -215,12 +229,12 @@ function eventWithReactionSummary(
   reaction: MessageReactionSummary | null
 ): TimelineEventView | null {
   const payload = event.event;
-  if (!isMessagePostedPayload(payload)) return null;
+  if (!hasReactions(payload)) return null;
   return {
     ...event,
     event: {
       ...payload,
-      reactions: reactionsWithSummary(payload.reactions, emoji, reaction)
+      reactions: reactionsWithSummary(payload.reactions ?? [], emoji, reaction)
     }
   };
 }
@@ -306,12 +320,12 @@ function applyServerReactionSnapshot(
 ): void {
   const apply = (event: TimelineEventView): TimelineEventView | null => {
     const payload = event.event;
-    if (!isMessagePostedPayload(payload)) return null;
+    if (!hasReactions(payload)) return null;
     return {
       ...event,
       event: {
         ...payload,
-        reactions: serverReactions(payload.reactions, emoji, reaction)
+        reactions: serverReactions(payload.reactions ?? [], emoji, reaction)
       }
     };
   };

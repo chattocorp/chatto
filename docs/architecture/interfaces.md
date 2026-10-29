@@ -184,6 +184,11 @@ server's configured transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.
+`MessageService` also adds and removes reactions on individual room join and
+leave events. The room timeline assembler includes their reaction summaries
+in `RoomTimelineRoomEvent.reactions`.
+`OperatorMessageService.ImportReaction` accepts the same join and leave event
+IDs for historical imports, without live delivery or notifications.
 `MessageService.UpdateMessage` permits an author or a user with effective
 `message.manage` to remove a thread reply's channel echo. Enabling an echo
 remains author-only and requires `message.echo` and `message.post`. Clients omit
