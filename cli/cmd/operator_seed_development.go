@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,7 @@ func operatorSeedCmd() *cobra.Command {
 	var request operatorv1.SeedDataRequest
 	var timeout time.Duration
 	var avatarDir string
+	var pravatar bool
 	cmd := &cobra.Command{
 		Use:   "seed",
 		Short: "Create synthetic users, rooms, and messages (development builds)",
@@ -38,17 +40,27 @@ func operatorSeedCmd() *cobra.Command {
 			if timeout <= 0 {
 				return fmt.Errorf("timeout must be positive")
 			}
-			images, err := readSeedAvatarImages(avatarDir)
-			if err != nil {
-				return err
-			}
-			request.AvatarImages = images
 			options := core.SeedOptions{
 				Seed:  request.Seed,
 				Users: int(request.Users), Rooms: int(request.Rooms),
 				Messages: int(request.Messages), ThreadReplies: int(request.ThreadReplies),
-				AvatarImages: images,
 			}
+			if err := options.Validate(); err != nil {
+				return err
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+			defer cancel()
+			images, err := readSeedAvatarImages(avatarDir)
+			if pravatar {
+				remote := &http.Client{Timeout: 20 * time.Second, CheckRedirect: seedAvatarRedirect}
+				defer remote.CloseIdleConnections()
+				images, err = downloadSeedAvatars(ctx, remote, request.Seed, int(request.Users))
+			}
+			if err != nil {
+				return fmt.Errorf("prepare seed avatars (no data was created): %w", err)
+			}
+			request.AvatarImages = images
+			options.AvatarImages = images
 			if err := options.Validate(); err != nil {
 				return err
 			}
@@ -58,8 +70,6 @@ func operatorSeedCmd() *cobra.Command {
 			}
 			defer httpClient.CloseIdleConnections()
 			client := operatorv1connect.NewOperatorSeedServiceClient(httpClient, baseURL)
-			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
-			defer cancel()
 			result, err := client.SeedData(ctx, connect.NewRequest(&request))
 			if err != nil {
 				return seedCommandError(err)
@@ -76,7 +86,56 @@ func operatorSeedCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&request.ThreadReplies, "thread-replies", 0, "posts that reply to generated root messages")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "maximum time to wait for seeding")
 	cmd.Flags().StringVar(&avatarDir, "avatar-dir", "", "optional folder of JPEG, PNG, or WebP avatars (sorted by filename, resized and cycled across users; 50 files and 512 KiB converted total maximum; no network requests)")
+	cmd.Flags().BoolVar(&pravatar, "pravatar", false, "download up to 20 portraits from i.pravatar.cc before seeding (shares your IP and synthetic seed keys with Pravatar; stored locally)")
+	cmd.MarkFlagsMutuallyExclusive("avatar-dir", "pravatar")
 	return cmd
+}
+
+// seedAvatarRedirect keeps provider redirects on its HTTPS image origin.
+func seedAvatarRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 3 || req.URL.Scheme != "https" || req.URL.Host != "i.pravatar.cc" {
+		return fmt.Errorf("unexpected Pravatar redirect")
+	}
+	return nil
+}
+
+// downloadSeedAvatars prepares a bounded pool before the first durable seed write.
+// Keys contain only the random seed and index, never account identifiers. Larger
+// datasets cycle this pool through the same path as local avatar files.
+func downloadSeedAvatars(ctx context.Context, client *http.Client, seed int64, users int) ([][]byte, error) {
+	images := make([][]byte, 0, min(users, 20))
+	remaining := int64(core.MaxSeedAvatarBytes)
+	for i := range min(users, 20) {
+		url := fmt.Sprintf("https://i.pravatar.cc/128?u=chatto-seed-%d-%d", seed, i)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "image/jpeg,image/png,image/webp")
+		response, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("download Pravatar image %d: %w", i+1, err)
+		}
+		if response.StatusCode != http.StatusOK {
+			response.Body.Close()
+			return nil, fmt.Errorf("Pravatar image %d returned HTTP %d", i+1, response.StatusCode)
+		}
+		processed, processErr := assets.ProcessAvatarImageWithConfig(response.Body, assets.Config{MaxUploadSize: 1 << 20})
+		closeErr := response.Body.Close()
+		if err := errors.Join(processErr, closeErr); err != nil {
+			return nil, fmt.Errorf("decode Pravatar image %d: %w", i+1, err)
+		}
+		data, err := io.ReadAll(io.LimitReader(processed, remaining+1))
+		if err != nil {
+			return nil, err
+		}
+		remaining -= int64(len(data))
+		if remaining < 0 {
+			return nil, fmt.Errorf("Pravatar images exceed the 512 KiB seed avatar limit")
+		}
+		images = append(images, data)
+	}
+	return images, nil
 }
 
 // readSeedAvatarImages reads a bounded, filename-sorted pool before any seed writes.

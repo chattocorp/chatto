@@ -9,8 +9,11 @@ import (
 	"image/png"
 	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -21,6 +24,81 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )
+
+type seedAvatarTransport func(*http.Request) (*http.Response, error)
+
+func (f seedAvatarTransport) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+func TestDownloadSeedAvatarsBoundsPoolAndUsesSyntheticKeys(t *testing.T) {
+	var portrait bytes.Buffer
+	require.NoError(t, png.Encode(&portrait, image.NewRGBA(image.Rect(0, 0, 16, 16))))
+	var keys []string
+	client := &http.Client{Transport: seedAvatarTransport(func(req *http.Request) (*http.Response, error) {
+		require.Equal(t, "https", req.URL.Scheme)
+		require.Equal(t, "i.pravatar.cc", req.URL.Host)
+		require.Equal(t, "/128", req.URL.Path)
+		keys = append(keys, req.URL.Query().Get("u"))
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(portrait.Bytes())), Header: make(http.Header)}, nil
+	})}
+	images, err := downloadSeedAvatars(context.Background(), client, -42, 5000)
+	require.NoError(t, err)
+	require.Len(t, images, 20)
+	require.Equal(t, "chatto-seed--42-0", keys[0])
+	require.Equal(t, "chatto-seed--42-19", keys[19])
+	_, err = assets.InspectImage(bytes.NewReader(images[0]))
+	require.NoError(t, err)
+}
+
+func TestDownloadSeedAvatarsRejectsFailuresWithoutRetry(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{"rate limit", 429, "slow down"},
+		{"HTML", 200, "<html>not a portrait</html>"},
+		{"oversized", 200, strings.Repeat("x", (1<<20)+1)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			calls := 0
+			client := &http.Client{Transport: seedAvatarTransport(func(*http.Request) (*http.Response, error) {
+				calls++
+				return &http.Response{StatusCode: test.status, Body: io.NopCloser(strings.NewReader(test.body)), Header: make(http.Header)}, nil
+			})}
+			images, err := downloadSeedAvatars(context.Background(), client, 42, 2)
+			require.Error(t, err)
+			require.Nil(t, images)
+			require.Equal(t, 1, calls)
+		})
+	}
+}
+
+func TestSeedAvatarCancellationAndRedirects(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	client := &http.Client{Transport: seedAvatarTransport(func(req *http.Request) (*http.Response, error) {
+		return nil, req.Context().Err()
+	})}
+	_, err := downloadSeedAvatars(ctx, client, 42, 1)
+	require.ErrorIs(t, err, context.Canceled)
+	for _, address := range []string{"http://i.pravatar.cc/128", "https://example.com/image", "https://localhost/image"} {
+		parsed, err := url.Parse(address)
+		require.NoError(t, err)
+		require.Error(t, seedAvatarRedirect(&http.Request{URL: parsed}, nil))
+	}
+	parsed, err := url.Parse("https://i.pravatar.cc/128?img=1")
+	require.NoError(t, err)
+	require.NoError(t, seedAvatarRedirect(&http.Request{URL: parsed}, nil))
+	require.Error(t, seedAvatarRedirect(&http.Request{URL: parsed}, make([]*http.Request, 3)))
+}
+
+func TestSeedAvatarSourcesAreMutuallyExclusive(t *testing.T) {
+	cmd := operatorSeedCmd()
+	cmd.SetArgs([]string{"--pravatar", "--avatar-dir", "unused"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	require.ErrorContains(t, cmd.Execute(), "none of the others can be")
+}
 
 func TestSeedCLIUploadsLocalAvatars(t *testing.T) {
 	env := newOperatorCLITestEnv(t)

@@ -197,7 +197,21 @@ IDs and timestamps change. Each run adds data. A failed run can leave partial
 data. Add `--json` to get the generated IDs and text, or `--help` for options.
 Seeding is available only in development and test builds.
 
-To give generated users face avatars, place JPEG, PNG, or WebP portraits in a
+To download face avatars automatically, opt in to Pravatar:
+
+```sh
+mise seed -- --seed 42 --users 20 --rooms 1 --messages 100 --thread-replies 99 --pravatar
+```
+
+The CLI downloads up to 20 portraits from `https://i.pravatar.cc`, then stores
+them as normal Chatto avatars. Larger datasets cycle through this pool. Requests
+use stable keys based on the seed and image index; the provider can change its
+images. Pravatar receives your IP address and these synthetic keys, but no
+account names, credentials, or Chatto server data. Viewing the avatars contacts
+only your Chatto server. Downloads are bounded and must succeed before any seed
+data is created. The command does not retry failed downloads automatically.
+
+For an offline source, place JPEG, PNG, or WebP portraits in a
 local directory and add `--avatar-dir`:
 
 ```sh
@@ -210,6 +224,8 @@ upload limit. The converted pool must fit within 512 KiB. Images are stored by
 Chatto; neither seeding nor viewing the avatars contacts an external image
 provider. Obtain images separately from a source you can use. The example above
 creates one root message with 99 replies for a populated thread preview.
+`--avatar-dir` and `--pravatar` cannot be combined. Without either option,
+seeding creates no avatars and makes no requests to an image provider.
 
 ## Local Development with Conductor
 
