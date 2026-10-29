@@ -44,7 +44,8 @@ test('My Threads searches older replies, deduplicates threads, and clears the fi
     await expect(myThreads.threadItems).toHaveCount(1, { timeout: TIMEOUTS.UI_FAST });
     await expect(myThreads.threadItems).toContainText(rootText);
   }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
-  await expect(myThreads.threadItems).toContainText('Latest reply without the search word');
+  // Replies still match search, but the result identifies the original message.
+  await expect(myThreads.threadItems).not.toContainText('Latest reply without the search word');
   await page.getByRole('radio', { name: 'Unread', exact: true }).check();
   await expect(page.getByText('All caught up', { exact: true })).toBeVisible();
   await page.getByRole('radio', { name: 'All', exact: true }).check();
