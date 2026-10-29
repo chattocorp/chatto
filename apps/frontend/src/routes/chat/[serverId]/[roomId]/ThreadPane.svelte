@@ -214,7 +214,7 @@
                 <button
                   type="button"
                   class={[
-                    'relative pane-header-icon-button rounded-full hover:z-10 focus-visible:z-10',
+                    'relative pane-header-icon-button rounded-full focus-visible:z-10',
                     index > 0 && '-ms-4'
                   ]}
                   title={name}
