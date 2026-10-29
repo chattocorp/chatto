@@ -127,9 +127,11 @@ replace these interactive checks.
 
 Download `chatto-desktop_<version>_Windows_X64_Setup.exe` from the Chatto release
 and run it. The installer installs for the current Windows user without
-administrator rights and adds a **Chatto Desktop** Start menu shortcut. Run a
-newer installer to update the application. Automatic updates are not available.
-Close Chatto Desktop before an update.
+administrator rights and adds a **Chatto Desktop** Start menu shortcut.
+Use **Updates → Release Channel** to select Stable or Beta, and the **Updates**
+menu to check for updates and restart to install them. If an older installation
+has no Updates menu, close Chatto Desktop and run a newer installer once.
+ZIP copies do not support automatic updates.
 
 The installer uses the same profile as the ZIP application. Existing server
 registrations and sessions remain available. Quit the ZIP application before
