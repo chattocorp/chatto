@@ -5,6 +5,10 @@
   import { RoomKind } from '@chatto/client/api/roomDirectory';
   import EntityLinkPill from './EntityLinkPill.svelte';
 
+  const serverLogo = `data:image/svg+xml,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#6750a4"/><path d="M8 8h16v12H14l-6 5z" fill="white"/></svg>'
+  )}`;
+
   const { Story } = defineMeta({ title: 'Messages/Entity links', component: EntityLinkPill });
   const user = {
     id: 'alice',
@@ -26,7 +30,7 @@
   };
 </script>
 
-{#snippet examples()}
+{#snippet examples(logoUrl?: string)}
   Meet
   <EntityLinkPill
     target={{ kind: 'user', serverId: 'demo', id: user.id }}
@@ -49,12 +53,18 @@
     path={resolve('/chat/[serverId]', { serverId: '-' })}
     href="https://chat.example.test"
     name="Community server"
+    {logoUrl}
   />.
 {/snippet}
 
 <Story name="Inline identities" asChild>
-  <div class="prose max-w-xl bg-background p-4">{@render examples()}</div>
+  <div class="prose max-w-xl bg-background p-4"><p>{@render examples()}</p></div>
 </Story>
 <Story name="Narrow message" asChild>
-  <div class="prose w-64 bg-background p-4">{@render examples()}</div>
+  <div class="prose w-64 bg-background p-4"><p>{@render examples()}</p></div>
+</Story>
+<Story name="Large text and server image" asChild>
+  <div class="text-2xl">
+    <div class="prose max-w-xl bg-background p-4"><p>{@render examples(serverLogo)}</p></div>
+  </div>
 </Story>

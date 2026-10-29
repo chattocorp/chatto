@@ -6,12 +6,17 @@
   import type { RoomListItem } from '@chatto/client/server/rooms';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
-  import { createRoomCommandAPI } from '@chatto/client/api/rooms';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { serverRegistry } from '$lib/client';
   import { serverIdToSegment } from '$lib/navigation';
-  import { userPath, conversationPath } from '$lib/navigation/conversationPath';
+  import { userPath } from '$lib/navigation/conversationPath';
+  import {
+    archiveRoomFromMenu,
+    joinRoomFromMenu,
+    openLeaveRoomDialog,
+    openRoomSettings
+  } from '$lib/navigation/roomActions';
   import {
     markNavigationRoomAsRead,
     markNavigationServerAsRead
@@ -19,7 +24,6 @@
   import { copyRoomLinkToClipboard } from '$lib/copyChatLink';
   import { copyToClipboard } from '$lib/utils/copyToClipboard';
   import { toast } from '$lib/ui/toast';
-  import { toastError } from '$lib/utils/errorMessage';
   import { m } from '$lib/i18n/messages';
   import {
     ContextMenu,
@@ -48,7 +52,7 @@
     onclose: () => void;
   } = $props();
   const scope = useServerScope();
-  const { serverId, store, connection } = scope;
+  const { serverId, store } = scope;
   const segment = serverIdToSegment(serverId);
   const unread = serverUi(store).roomUnread;
   let dialog = $state<'archive' | 'invite' | null>(null);
@@ -56,35 +60,18 @@
 
   function leaveRoom() {
     if (!room) return;
-    pushState('', { modal: { type: 'leaveRoom', serverId, roomId: room.id, roomName: room.name } });
+    openLeaveRoomDialog(serverId, room);
     onclose();
   }
 
   async function joinRoom() {
     if (!room) return;
-    if (room.viewerInvitation) {
-      void goto(conversationPath(serverId, room.id));
-      onclose();
-      return;
-    }
-    const result = await serverUi(store).roomDirectory.joinRoom(room.id);
-    if (!scope.isCurrent()) return;
-    if (result.ok) {
-      toast.success(m('room.join.success', { room: room.name }));
-      onclose();
-    } else toast.error(m('room.join.failed'));
+    if (await joinRoomFromMenu(scope, room)) onclose();
   }
 
   async function archiveRoom() {
     if (!room) return;
-    try {
-      await connection.getAPI(createRoomCommandAPI).archiveRoom(room.id);
-      if (!scope.isCurrent()) return;
-      toast.success(m('room.management.room_archived'));
-      onclose();
-    } catch (error) {
-      toastError(error);
-    }
+    if (await archiveRoomFromMenu(scope, room.id)) onclose();
   }
 
   async function markRead() {
@@ -102,7 +89,7 @@
     {user}
     position={menu.position}
     presentation={menu.presentation}
-    canSendMessage={true}
+    canSendMessage={store.permissions.canStartDMs}
     onSendMessage={() => {
       void goto(userPath(serverId, user.id));
       onclose();
@@ -152,12 +139,7 @@
         onJoin={() => void joinRoom()}
         onMarkRead={() => void markRead()}
         onConfigure={() => {
-          void goto(
-            resolve('/chat/[serverId]/manage/rooms/[roomId]', {
-              serverId: segment,
-              roomId: room.id
-            })
-          );
+          openRoomSettings(serverId, room.id);
           onclose();
         }}
         onLeave={leaveRoom}

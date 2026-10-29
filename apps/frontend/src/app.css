@@ -1818,7 +1818,30 @@
 
 /* Native links with live entity names, sized to fit message text. */
 .entity-link {
-  @apply inline-flex max-w-full cursor-pointer items-center gap-1 rounded-sm bg-action/15 px-1 align-middle font-semibold text-text no-underline hover:bg-action/25;
+  @apply inline-flex max-w-full cursor-pointer items-baseline gap-1 rounded-sm bg-action/15 px-1 align-baseline leading-[1.25] font-semibold text-text no-underline hover:bg-action/25;
+}
+
+.entity-link-with-image {
+  padding-inline-start: 0;
+}
+
+/* Overlay the image so the hairline does not change its size or get covered by it. */
+.entity-link-image {
+  position: relative;
+}
+
+.entity-link-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 0.5px solid color-mix(in srgb, var(--color-text) 20%, transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.entity-link[data-entity-kind='user'] {
+  border-start-start-radius: 9999px;
+  border-end-start-radius: 9999px;
 }
 
 .message-timestamp {

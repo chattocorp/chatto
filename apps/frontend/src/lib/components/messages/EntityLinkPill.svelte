@@ -45,6 +45,7 @@
 <a
   href={path}
   class="entity-link"
+  class:entity-link-with-image={!!user || !room}
   data-entity-kind={target.kind}
   data-entity-server={target.serverId}
   title={href}
@@ -58,15 +59,16 @@
   {@attach trigger}
 >
   {#if user}
-    <span class="inline-flex shrink-0" aria-hidden="true"
-      ><UserAvatar {user} size="xs" useLiveProfile={false} /></span
+    <span
+      class="entity-link-image inline-flex size-[1.25em] shrink-0 self-center rounded-full [&>div]:size-full"
+      aria-hidden="true"><UserAvatar {user} size="xs" useLiveProfile={false} /></span
     >
   {:else if room}
     {#if room.type === RoomKind.DM || room.isUniversal}
       <span
         aria-hidden="true"
         class={[
-          'iconify shrink-0',
+          'iconify shrink-0 self-center',
           room.type === RoomKind.DM ? 'icon-[uil--comments]' : 'icon-[uil--globe]'
         ]}
       ></span>
@@ -74,7 +76,10 @@
       <span aria-hidden="true" class="shrink-0">#</span>
     {/if}
   {:else}
-    <span class="inline-block size-5 shrink-0 overflow-hidden rounded-sm" aria-hidden="true">
+    <span
+      class="entity-link-image inline-flex size-[1.25em] shrink-0 self-center rounded-sm"
+      aria-hidden="true"
+    >
       <ServerLogo server={{ name, logoUrl }} compact />
     </span>
   {/if}

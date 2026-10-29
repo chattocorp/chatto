@@ -214,6 +214,23 @@ describe('entity links in messages', () => {
     await vi.waitFor(() => expect(container.textContent).toContain(action));
   });
 
+  it.each([true, false])('respects the linked server DM permission (%s)', async (allowed) => {
+    const store = client.registry.getStore('known');
+    vi.spyOn(store, 'permissions', 'get').mockReturnValue({
+      ...store.permissions,
+      canStartDMs: allowed
+    });
+    const { container } = render(MessageContent, {
+      body: `${origin}/chat/-/user/${userId}`
+    });
+    await vi.waitFor(() => expect(container.querySelector('.entity-link')).not.toBeNull());
+    container
+      .querySelector('.entity-link')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(container.textContent).toContain('Copy user ID'));
+    expect(container.textContent?.includes('Open conversation')).toBe(allowed);
+  });
+
   it('restores ordinary links when their server is removed', async () => {
     const { container } = render(MessageContent, {
       body: `${origin}/chat/-/user/${userId}`
