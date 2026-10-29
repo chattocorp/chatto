@@ -66,6 +66,7 @@ func (c *ChattoCore) ImportHistoricalMessages(ctx context.Context, operations []
 		}
 		return pos, err
 	}
+	var lastErr error
 	for range 8 {
 		pos, err := wait()
 		if err != nil {
@@ -88,6 +89,7 @@ func (c *ChattoCore) ImportHistoricalMessages(ctx context.Context, operations []
 		// A competing batch can commit a parent and child between receipt reads.
 		// Resolve local references again before treating a fingerprint conflict as
 		// changed input. The same room guard also covers thread creation races.
+		lastErr = err
 		latest, readErr := c.EventPublisher.LastSubjectPosition(ctx, agg.AllEventsFilter())
 		if readErr != nil {
 			return nil, readErr
@@ -96,7 +98,9 @@ func (c *ChattoCore) ImportHistoricalMessages(ctx context.Context, operations []
 			return nil, err
 		}
 	}
-	return nil, events.ErrConflict
+	// Room activity can trigger retries of non-conflict failures too. Preserve
+	// the actual cause when those retries cannot make progress.
+	return nil, lastErr
 }
 
 func (c *ChattoCore) prepareHistoricalMessages(ctx context.Context, operations []HistoricalMessageOperation) ([]preparedHistoricalMessage, error) {

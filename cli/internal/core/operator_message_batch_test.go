@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"testing"
@@ -10,8 +11,54 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 )
+
+type historicalBatchRetryContextKey struct{}
+
+// Advance the real room tail between each failed preparation and its retry
+// decision. Only the marked import call is intercepted; background readers
+// and fixture setup use the original stream behavior.
+type historicalBatchAdvancingStream struct {
+	jetstream.Stream
+	filter  string
+	reads   int
+	advance func(context.Context) error
+}
+
+func (s *historicalBatchAdvancingStream) GetLastMsgForSubject(ctx context.Context, subject string) (*jetstream.RawStreamMsg, error) {
+	if ctx.Value(historicalBatchRetryContextKey{}) != nil && subject == s.filter {
+		s.reads++
+		if s.reads%2 == 0 {
+			if err := s.advance(ctx); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return s.Stream.GetLastMsgForSubject(ctx, subject)
+}
+
+func TestHistoricalMessageBatchExhaustionPreservesError(t *testing.T) {
+	t.Parallel()
+	c, _ := newTestCore(t)
+	original := c.EventPublisher
+	stream := &historicalBatchAdvancingStream{Stream: c.storage.serverEvtStream}
+	c.EventPublisher = evtstream.NewPublisher(c.js, stream, testCoreLogger())
+	startCoreServices(t, c)
+	ctx := testContext(t)
+	_, room, _ := setupReactionTest(t, c, ctx)
+	agg := evtstream.RoomAggregate(room.Id)
+	stream.filter = agg.AllEventsFilter()
+	stream.advance = func(ctx context.Context) error {
+		e := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RoomUpdated{RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: room.Id, Name: room.Name, Description: "concurrent update"}}})
+		_, err := original.AppendEventually(ctx, agg.SubjectFor(e), e)
+		return err
+	}
+	_, err := c.ImportHistoricalMessages(context.WithValue(ctx, historicalBatchRetryContextKey{}, true), []HistoricalMessageOperation{{Message: HistoricalMessageInput{RoomID: room.Id, AuthorID: "missing", CreatedAt: time.Date(2020, 3, 14, 0, 0, 0, 0, time.UTC), Body: "body", OperationKey: uuid.NewString()}}})
+	require.Equal(t, 16, stream.reads, "all eight attempts must observe concurrent room writes")
+	require.ErrorIs(t, err, ErrNotFound, "retry exhaustion must retain the missing-author error")
+}
 
 func TestHistoricalMessageBatchReferencesAndRetries(t *testing.T) {
 	t.Parallel()
