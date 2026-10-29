@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -74,7 +76,7 @@ func (c *ChattoCore) SeedPerformanceFixture(ctx context.Context, options Perform
 		return nil, err
 	}
 
-	users := make([]*evtv1.User, 0, options.Users)
+	users := make([]*readmodel.User, 0, options.Users)
 	for index := 1; index <= options.Users; index++ {
 		login := performanceFixtureUserLogin(index)
 		user, err := c.CreateUser(ctx, SystemActorID, login, fmt.Sprintf("Performance User %04d", index), "")
@@ -159,7 +161,7 @@ func (c *ChattoCore) SeedPerformanceFixture(ctx context.Context, options Perform
 	return result, nil
 }
 
-func (c *ChattoCore) createPerformanceFixtureRoom(ctx context.Context) (*evtv1.Room, error) {
+func (c *ChattoCore) createPerformanceFixtureRoom(ctx context.Context) (*readmodel.Room, error) {
 	rooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, fmt.Errorf("list rooms for performance fixture: %w", err)

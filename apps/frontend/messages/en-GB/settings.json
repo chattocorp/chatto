@@ -118,10 +118,10 @@
       "conflict": "This profile changed while you were editing it. Reload the page, then save your changes again.",
       "save_button": "Save changes",
       "bio": {
-        "label": "Bio",
+        "label": "About",
         "description": "Up to {max} characters, shown on your profile.",
         "placeholder": "Tell others a little about yourself",
-        "too_long": "Bio must be {max} characters or fewer."
+        "too_long": "About text must be {max} characters or fewer."
       }
     },
     "preferences": {
@@ -142,6 +142,18 @@
           "label": "Dark",
           "description": "Use the dark interface on this browser"
         }
+      },
+      "animations": {
+        "title": "Animations",
+        "automatic": {
+          "label": "Automatic",
+          "description": "Follow your system’s reduced-motion preference"
+        },
+        "enabled": {
+          "label": "Enabled",
+          "description": "Always show animations"
+        },
+        "disabled": { "label": "Disabled", "description": "Show changes without animations" }
       },
       "thread_pane": {
         "title": "Thread pane",
@@ -425,6 +437,7 @@
         "title": "Password",
         "add_description": "Add a password so you can sign in directly and disconnect your last SSO provider.",
         "change_description": "Change the password used for direct sign-in.",
+        "sso_managed": "You cannot add or change a password because this server uses single sign-on (SSO). Manage your sign-in details with your identity provider.",
         "current_label": "Current Password",
         "current_required": "Enter your current password.",
         "add_button": "Add password",
@@ -437,6 +450,9 @@
         "already_set": "This account already has a password."
       },
       "sso": {
+        "username_unavailable": "Your sign-in provider’s username cannot be assigned. Contact the server operator.",
+        "username_managed": "Your username is managed by your sign-in provider and cannot be edited here.",
+        "unlink_disabled": "The server operator does not allow this provider to be disconnected.",
         "popup_blocked": "Allow pop-ups for this site, then try linking again.",
         "account_mismatch": "Sign in to the correct account on this server, then start linking again from the original window.",
         "provider_unavailable": "This sign-in provider is no longer available.",
@@ -449,6 +465,7 @@
         "link_button": "Link",
         "link_failed": "Failed to link sign-on provider",
         "fresh_auth_required": "Sign in again before linking another provider.",
+        "sso_fresh_auth_required": "Open account settings on the server that owns this account. Sign out and sign in again through your SSO provider, then retry the action there.",
         "provider_unconfigured": "Provider no longer configured",
         "disconnect_button": "Disconnect",
         "disconnecting": "Disconnecting...",
@@ -462,7 +479,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provider cannot be disconnected",
-          "body": "{provider} is your only sign-in method. Add a password or link another provider first."
+          "body": "Set up another sign-in method supported by this server before disconnecting {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirm password",

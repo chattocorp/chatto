@@ -76,6 +76,21 @@ export class AdminMember extends Message<AdminMember> {
    */
   primaryVerifiedEmail?: string;
 
+  /**
+   * Deactivated accounts retain their data but cannot use the server.
+   *
+   * @generated from field: bool deactivated = 14;
+   */
+  deactivated = false;
+
+  /**
+   * Whether the caller may deactivate or reactivate this account.
+   * Absent on servers that do not support account deactivation.
+   *
+   * @generated from field: optional bool viewer_can_change_deactivation = 15;
+   */
+  viewerCanChangeDeactivation?: boolean;
+
   constructor(data?: PartialMessage<AdminMember>) {
     super();
     proto3.util.initPartial(data, this);
@@ -92,6 +107,8 @@ export class AdminMember extends Message<AdminMember> {
     { no: 11, name: "last_login_change", kind: "message", T: Timestamp },
     { no: 12, name: "user", kind: "message", T: User },
     { no: 13, name: "primary_verified_email", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 14, name: "deactivated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 15, name: "viewer_can_change_deactivation", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminMember {
@@ -884,5 +901,89 @@ export class DeleteUserResponse extends Message<DeleteUserResponse> {
 
   static equals(a: DeleteUserResponse | PlainMessage<DeleteUserResponse> | undefined, b: DeleteUserResponse | PlainMessage<DeleteUserResponse> | undefined): boolean {
     return proto3.util.equals(DeleteUserResponse, a, b);
+  }
+}
+
+/**
+ * Set account access without deleting user data.
+ *
+ * @generated from message chatto.admin.v1.SetUserDeactivatedRequest
+ */
+export class SetUserDeactivatedRequest extends Message<SetUserDeactivatedRequest> {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * @generated from field: bool deactivated = 2;
+   */
+  deactivated = false;
+
+  constructor(data?: PartialMessage<SetUserDeactivatedRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.SetUserDeactivatedRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "deactivated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetUserDeactivatedRequest {
+    return new SetUserDeactivatedRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetUserDeactivatedRequest {
+    return new SetUserDeactivatedRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetUserDeactivatedRequest {
+    return new SetUserDeactivatedRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetUserDeactivatedRequest | PlainMessage<SetUserDeactivatedRequest> | undefined, b: SetUserDeactivatedRequest | PlainMessage<SetUserDeactivatedRequest> | undefined): boolean {
+    return proto3.util.equals(SetUserDeactivatedRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.admin.v1.SetUserDeactivatedResponse
+ */
+export class SetUserDeactivatedResponse extends Message<SetUserDeactivatedResponse> {
+  /**
+   * Updated administrative member record.
+   *
+   * @generated from field: chatto.admin.v1.AdminMember member = 1;
+   */
+  member?: AdminMember;
+
+  constructor(data?: PartialMessage<SetUserDeactivatedResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.SetUserDeactivatedResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "member", kind: "message", T: AdminMember },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetUserDeactivatedResponse {
+    return new SetUserDeactivatedResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetUserDeactivatedResponse {
+    return new SetUserDeactivatedResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetUserDeactivatedResponse {
+    return new SetUserDeactivatedResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetUserDeactivatedResponse | PlainMessage<SetUserDeactivatedResponse> | undefined, b: SetUserDeactivatedResponse | PlainMessage<SetUserDeactivatedResponse> | undefined): boolean {
+    return proto3.util.equals(SetUserDeactivatedResponse, a, b);
   }
 }

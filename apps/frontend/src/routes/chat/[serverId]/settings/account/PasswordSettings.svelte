@@ -1,20 +1,31 @@
 <script lang="ts">
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { passwordChangeUnavailableMessage } from '$lib/actionAvailability';
+  import {
+    PasswordChangeAvailability,
+    passwordChangeAvailabilityWithFallback
+  } from '@chatto/client/api/actionAvailability';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '@chatto/client/api/account';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
-  import { Panel } from '$lib/ui';
+  import { Hint, Panel } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { Button, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   let {
     currentUser,
-    getAccountAPI
+    directLoginEnabled,
+    getAccountAPI,
+    onPasswordSet
   }: {
     currentUser: CurrentUserState;
+    /** Server policy also controls password self-service. */
+    directLoginEnabled: boolean;
     getAccountAPI: () => AccountAPI;
+    /** Refresh identity actions after adding a new sign-in method. */
+    onPasswordSet?: () => Promise<void>;
   } = $props();
 
   let currentPassword = $state('');
@@ -24,6 +35,12 @@
   let passwordSubmitting = $state(false);
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
+  const passwordAvailability = $derived(
+    passwordChangeAvailabilityWithFallback(
+      currentUser.user?.actions?.changePassword,
+      directLoginEnabled
+    )
+  );
   const passwordValidationError = $derived(password ? validateNewPassword(password) : undefined);
   const currentPasswordError = $derived(
     hasPassword && password && !currentPassword
@@ -36,7 +53,8 @@
       : undefined
   );
   const canChangePassword = $derived(
-    password !== '' &&
+    passwordAvailability === PasswordChangeAvailability.ALLOWED &&
+      password !== '' &&
       confirmPassword !== '' &&
       (!hasPassword || currentPassword !== '') &&
       !passwordValidationError &&
@@ -47,6 +65,7 @@
 
   async function handleChangePassword(e: Event) {
     e.preventDefault();
+    if (passwordAvailability !== PasswordChangeAvailability.ALLOWED) return;
     if (!canChangePassword) {
       passwordError =
         passwordValidationError ||
@@ -69,6 +88,7 @@
       confirmPassword = '';
       if (!wasChangingPassword) {
         await currentUser.load();
+        await onPasswordSet?.();
       }
       toast.success(
         wasChangingPassword
@@ -76,6 +96,12 @@
           : m('settings.account.password.saved')
       );
     } catch (err) {
+      if (
+        err instanceof ConnectError &&
+        (err.code === Code.FailedPrecondition || err.code === Code.PermissionDenied)
+      ) {
+        await currentUser.load();
+      }
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
         passwordError = wasChangingPassword
           ? m('settings.account.password.already_set')
@@ -91,18 +117,22 @@
 
 <Panel title={m('settings.account.password.title')} icon="iconify icon-[uil--key-skeleton]">
   <form class="flex max-w-md flex-col gap-4" onsubmit={handleChangePassword}>
-    <p class="text-sm text-muted">
-      {hasPassword
-        ? m('settings.account.password.change_description')
-        : m('settings.account.password.add_description')}
-    </p>
+    {#if passwordAvailability !== PasswordChangeAvailability.ALLOWED}
+      <Hint>{passwordChangeUnavailableMessage(passwordAvailability)}</Hint>
+    {:else}
+      <p class="text-sm text-muted">
+        {hasPassword
+          ? m('settings.account.password.change_description')
+          : m('settings.account.password.add_description')}
+      </p>
+    {/if}
     {#if hasPassword}
       <TextInput
         id="current-password"
         label={m('settings.account.password.current_label')}
         type="password"
         bind:value={currentPassword}
-        disabled={passwordSubmitting}
+        disabled={passwordAvailability !== PasswordChangeAvailability.ALLOWED || passwordSubmitting}
         autocomplete="current-password"
         error={currentPasswordError}
       />
@@ -113,7 +143,7 @@
       type="password"
       bind:value={password}
       placeholder={m('common.password_bytes_placeholder')}
-      disabled={passwordSubmitting}
+      disabled={passwordAvailability !== PasswordChangeAvailability.ALLOWED || passwordSubmitting}
       autocomplete="new-password"
       error={passwordValidationError}
     />
@@ -123,7 +153,7 @@
       type="password"
       bind:value={confirmPassword}
       placeholder={m('common.password_confirm_placeholder')}
-      disabled={passwordSubmitting}
+      disabled={passwordAvailability !== PasswordChangeAvailability.ALLOWED || passwordSubmitting}
       autocomplete="new-password"
       error={confirmPasswordError}
     />

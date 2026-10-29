@@ -6,16 +6,23 @@ import { fileURLToPath } from 'node:url';
 import {
   app,
   BrowserWindow,
+  clipboard,
   desktopCapturer,
   dialog,
   ipcMain,
   MessageChannelMain,
+  Menu,
+  MenuItem,
   net,
   protocol,
   session,
   shell
 } from 'electron';
-import { APP_ORIGIN, createFrontendProtocolHandler } from './frontend_protocol.mjs';
+import { createFrontendProtocolHandler } from './frontend_protocol.mjs';
+import { configureYouTubeEmbeds } from './youtube.mjs';
+import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
+import { configureNativeNavigation } from './native_navigation.mjs';
+import { configureLastServer } from './last_server.mjs';
 import {
   gameCaptureCancelListSourcesChannel,
   gameCaptureListSourcesChannel,
@@ -28,8 +35,24 @@ import {
   supportsMacOSGameCapture
 } from './game_capture.mjs';
 import { hasAppOrigin, isAuthorizationLaunchUrl, isDesktopPermissionAllowed } from './security.mjs';
+import packageJson from './package.json' with { type: 'json' };
+import { desktopBuildProfile } from './build_profile.mjs';
+import { StreamDiagnostics } from './stream_diagnostics.mjs';
+import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
+import { passwordLogin } from './password_login.mjs';
+import { configureUpdateMenu } from './update_menu.mjs';
+
+const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
+if (buildProfile.variant === 'development') {
+  app.setName(buildProfile.productName);
+  app.setPath('userData', path.join(app.getPath('appData'), buildProfile.productName));
+}
+const streamDiagnostics = new StreamDiagnostics();
+let screenShareMode = defaultScreenShareMode;
 
 const desktopRoot = path.dirname(fileURLToPath(import.meta.url));
+// Match the NSIS shortcut identity for Windows taskbar grouping and notifications.
+if (process.platform === 'win32') app.setAppUserModelId('run.chatto.desktop');
 const frontendRoot = app.isPackaged
   ? path.join(process.resourcesPath, 'build')
   : path.resolve(desktopRoot, '../frontend/build');
@@ -99,7 +122,21 @@ async function start() {
   );
   configureSession(session.defaultSession);
   configureGameCaptureIPC();
+  ipcMain.handle('chatto:password-login', (event, request) => {
+    if (
+      !mainWindow ||
+      event.sender !== mainWindow.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame ||
+      !hasAppOrigin(event.senderFrame.url)
+    ) {
+      throw new Error('Password sign-in is available only to the Chatto renderer.');
+    }
+    return passwordLogin(request);
+  });
   mainWindow = createMainWindow();
+  configureDiagnosticsMenu();
+  // Update setup errors must not prevent local startup or expose request URLs.
+  void configureUpdateMenu(packageJson).catch(() => console.error('Update setup failed.'));
 
   app.on('second-instance', () => {
     if (!mainWindow) return;
@@ -427,6 +464,8 @@ function createMainWindow() {
   });
 
   protectNavigation(window);
+  protectReloadShortcuts(window.webContents, app.isPackaged);
+  configureNativeNavigation(window);
   window.on('closed', () => {
     if (mainWindow === window) {
       cancelActiveGameCaptureSourceList();
@@ -434,15 +473,18 @@ function createMainWindow() {
       mainWindow = undefined;
     }
   });
-  window.loadURL(APP_ORIGIN);
+  window.loadURL(
+    configureLastServer(window.webContents, path.join(app.getPath('userData'), 'last-server.json'))
+  );
   return window;
 }
 
 function mainWindowWebPreferences() {
   const preferences = secureWebPreferences();
-  if (isGameCaptureAvailable()) {
-    preferences.preload = path.join(desktopRoot, 'preload.cjs');
-  }
+  preferences.preload = path.join(desktopRoot, 'preload.cjs');
+  preferences.additionalArguments = isGameCaptureAvailable()
+    ? ['--chatto-native-screen-share']
+    : [];
   return preferences;
 }
 
@@ -505,6 +547,10 @@ function configureGameCaptureIPC() {
 
 function startGameCaptureSession(source, publisherRequest, port) {
   stopActiveGameCaptureSession();
+  const requestedCodec = screenShareMode.codec;
+  // Snapshot the next-share settings so menu changes cannot relabel an active share.
+  const { simulcast, tunedH264, rateControl: tunedRateControl } = screenShareMode;
+  streamDiagnostics.recordLifecycle('start', requestedCodec, simulcast, tunedH264);
   const sourceArguments = [
     source.kind === 'window' ? '--window' : '--display',
     String(source.nativeId)
@@ -541,7 +587,17 @@ function startGameCaptureSession(source, publisherRequest, port) {
         if (lineEnd < 0) break;
         const line = stdout.slice(0, lineEnd).trim();
         stdout = stdout.slice(lineEnd + 1);
-        if (line) port.postMessage(parseGameCapturePublisherStatus(line));
+        if (line) {
+          const value = JSON.parse(line);
+          if (value?.kind === 'diagnostic') {
+            const record = streamDiagnostics.recordNative(value);
+            console.info('[screen-share]', JSON.stringify(record));
+          } else {
+            const status = parseGameCapturePublisherStatus(line);
+            streamDiagnostics.recordLifecycle('started', requestedCodec, simulcast, tunedH264);
+            port.postMessage(status);
+          }
+        }
       }
     } catch {
       port.postMessage({
@@ -557,12 +613,19 @@ function startGameCaptureSession(source, publisherRequest, port) {
     if (stderr.length > 64 * 1024) stderr = stderr.slice(-64 * 1024);
   });
   child.once('error', () => {
+    streamDiagnostics.recordLifecycle('failed', requestedCodec, simulcast, tunedH264);
     port.postMessage({
       kind: 'error',
       message: 'The native screen-share helper could not start.'
     });
   });
   child.once('exit', (code, signal) => {
+    streamDiagnostics.recordLifecycle(
+      code === 0 || stopping ? 'ended' : 'failed',
+      requestedCodec,
+      simulcast,
+      tunedH264
+    );
     clearTimeout(forceStopTimer);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
     if (!stopping && (code !== 0 || signal)) {
@@ -585,13 +648,18 @@ function startGameCaptureSession(source, publisherRequest, port) {
       protocolVersion: 1,
       livekitURL: publisherRequest.livekitUrl,
       token: publisherRequest.token,
-      e2eeKey: publisherRequest.e2eeKey
+      e2eeKey: publisherRequest.e2eeKey,
+      videoCodec: requestedCodec,
+      videoSimulcast: simulcast,
+      videoTunedH264: tunedH264,
+      videoTunedRateControl: tunedH264 ? tunedRateControl : undefined
     })
   );
 
   function stop() {
     if (stopping) return;
     stopping = true;
+    streamDiagnostics.recordLifecycle('stop', requestedCodec, simulcast, tunedH264);
     if (activeGameCaptureSession === session) activeGameCaptureSession = undefined;
     if (child.exitCode === null && child.signalCode === null) {
       child.kill('SIGTERM');
@@ -601,6 +669,46 @@ function startGameCaptureSession(source, publisherRequest, port) {
       forceStopTimer.unref();
     }
   }
+}
+
+/** Copy only our bounded, allowlisted report. Nothing is sent to a service. */
+function configureDiagnosticsMenu() {
+  const menu = Menu.getApplicationMenu() ?? new Menu();
+  menu.append(
+    new MenuItem({
+      label: 'Diagnostics',
+      submenu: [
+        {
+          label: 'Copy Screen Sharing Diagnostics',
+          click: () => {
+            void clipboard
+              .writeText(
+                streamDiagnostics.report({
+                  version: app.getVersion(),
+                  electron: process.versions.electron,
+                  platform: process.platform,
+                  arch: process.arch,
+                  variant: buildProfile.variant
+                })
+              )
+              .catch(() => {
+                dialog.showErrorBox('Copy failed', 'Could not copy screen sharing diagnostics.');
+              });
+          }
+        },
+        { type: 'separator' },
+        ...screenShareModes.map((mode) => ({
+          label: `${mode.label} for Next Share`,
+          type: 'radio',
+          checked: screenShareMode === mode,
+          click: () => {
+            screenShareMode = mode;
+          }
+        }))
+      ]
+    })
+  );
+  Menu.setApplicationMenu(menu);
 }
 
 function stopActiveGameCaptureSession() {
@@ -653,6 +761,7 @@ function protectNavigation(window) {
 }
 
 function configureSession(appSession) {
+  configureYouTubeEmbeds(appSession);
   appSession.setPermissionCheckHandler((_contents, permission, origin) =>
     isDesktopPermissionAllowed(permission, origin)
   );

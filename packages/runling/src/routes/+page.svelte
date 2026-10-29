@@ -186,6 +186,21 @@
     stream.addEventListener('runs', (event) => {
       liveRuns = JSON.parse(event.data);
       listConnected = true;
+      const latest = liveRuns?.find((run) => run.id === selected);
+      if (
+        detail &&
+        latest &&
+        (latest.executionStartedAt ?? latest.startedAt) !==
+          (detail.executionStartedAt ?? detail.startedAt)
+      ) {
+        // Reactivation starts a new detail stream, even if the prior execution
+        // was cached as completed. This also refreshes its live title.
+        const id = selected;
+        detailCache.delete(id);
+        selected = '';
+        detail = null;
+        void selectRun(id);
+      }
     });
     stream.onerror = () => {
       listConnected = false;
@@ -304,7 +319,10 @@
               >
                 <span class="flex min-w-0 items-center gap-2">
                   <StatusBadge status={run.status} waiting={isRunWaiting(run.activity)} />
-                  <span class="min-w-0 flex-1 truncate text-sm font-medium">{run.workflow}</span>
+                  <span
+                    class="min-w-0 flex-1 truncate text-sm font-medium"
+                    title={run.title ?? run.workflow}>{run.title ?? run.workflow}</span
+                  >
                 </span>
                 <span
                   class="mt-1 flex min-w-0 items-center justify-between gap-2 pl-1 text-xs text-base-content/50"
@@ -360,7 +378,7 @@
       >
         <option value="">Select a run</option>
         {#each visibleRuns as run (run.id)}<option value={run.id}
-            >{run.workflow} · {run.status} · {run.reference ?? run.id}</option
+            >{run.title ?? run.workflow} · {run.status} · {run.reference ?? run.id}</option
           >{/each}
       </select>
       {#if selectedHook}

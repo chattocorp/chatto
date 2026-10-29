@@ -53,6 +53,11 @@ fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries
 
+`GET /oauth/authorize` accepts the optional `screen_hint=signup` display hint.
+After normal client and PKCE validation, it opens `/register` with a safe
+authorization continuation. This does not change registration permissions or
+the persisted authorization state.
+
 `webserver.bind_address` selects the address for the main HTTP or HTTPS
 listener and the optional ACME HTTP listener. An empty value listens on all
 interfaces. The configured address does not change the public URL or proxy
@@ -96,6 +101,14 @@ window of at most 24 hours.
 | Trusted NATS services               | `svc.chatto.>` and `svc.chatto_ext.>`                                                                                                                                                                                                           | Versioned protobuf request/reply through NATS micro services                                                                                                                                                                                                                                                                               | NATS account permissions; extension providers receive only their configured service and upstream Core subjects                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Reflection                          | `/api/connect/grpc.reflection.v1*` and `v1alpha*`                                                                                                                                                                                               | Public service descriptors                                                                                                                                                                                                                                                                                                                 | Public; restricted resolver excludes internal `chatto.core.*` types                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
+When `[search].enabled` is true, MCP also exposes `search_messages` under
+`chatto:messages:read`. The HTTP server supplies the shared public search
+operation to the MCP adapter. It validates the request and carries the verified
+runtime credential through scope resolution, provider calls, current-message
+hydration, and user-bound cursor checks. See
+[`mcpserver/search.go`](../../cli/internal/mcpserver/search.go) and
+[FDR-033](../fdr/FDR-033-message-search.md).
+
 MCP accepts any nonempty subset of the four supported room/message OAuth
 scopes. Protected-resource metadata requests room-read access for initial
 discovery. Any valid grant permits discovery and identity tools. Each other
@@ -136,6 +149,18 @@ socket.
 
 ## Mounted public services
 
+`RoomService` owns member-only channel notice reads and version-checked publish
+and clear commands. `RoomCommandModel` evaluates membership and
+`room.manage-notice`, rejects archived writes, and commits through room aggregate
+OCC. Commands wait for the Room Directory projection before returning. See
+[FDR-054](../fdr/FDR-054-room-notices.md).
+
+`MyAccountService` and the operator identity service use the same configured
+sign-in policy for unlinking identities. The core user mutation checks that an
+enabled sign-in method remains inside its OCC loop. Account identity listings
+also expose a disconnect hint; it is not mutation authorization. See
+[FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
+
 | Package               | Public services                                                                                                                                                                                                                                                                                                                                                  | Auth policy                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `chatto.auth.v1`      | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService`                                                                                                                                                                                                                                                                                                  | Public capability-token flows                                                                              |
@@ -169,6 +194,13 @@ The shared posting check combines membership, room policy,
 read access, and broad or interaction-scoped write authority. The write model
 repeats this check inside the room aggregate's OCC attempt. Interaction posting
 uses the existing thread projection; it adds no durable events or runtime keys.
+
+`MessageService.CreateMessage` accepts an optional UUID `idempotency_key`.
+ConnectRPC and MCP `post_message` delegate this key to `MessageModel`.
+Exact retries retain the message ID for
+30 minutes; changed arguments fail. See
+[ADR-117](../adr/ADR-117-message-post-idempotency.md).
+
 `MessageService.CreateMessage` accepts attachment descriptions keyed by an asset
 ID in the same request. `MessageService.SetAttachmentDescription` replaces or
 clears one current description with message-edit authorization. Hydrated message
@@ -236,6 +268,12 @@ rows and their role summaries together under server/session-scoped admin query
 keys. Permission loss, logout, and account deletion cancel older reads and clear
 private snapshots. Pagination advances by returned IDs, not hydrated rows.
 
+`AdminUserService.SetUserDeactivated` delegates access changes to the
+[account lifecycle operation](../../cli/internal/core/user_deactivation.go).
+`AdminMember` exposes the flag and the caller's authority to change it.
+The public user profile exposes the deactivation flag. Administrative details
+remain private.
+
 `AdminRoleService` separates role details from explicit membership pages.
 Its `ListMembers` gates each request with `role.assign`; it selects assignment IDs
 before bounded user-profile hydration. It does not require `admin.view-users`.
@@ -283,8 +321,9 @@ Older servers omit this value, so clients must not treat absence as a denial.
 `RoomService.AddMember` and `RemoveMember` accept room managers, account
 managers, bot owners, and human bot managers. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.
-Without either override, a bot manager needs the bot's effective `room.join`,
-including its owner's ceiling. Suspensions and archived rooms prevent adding.
+Without either override, the acting human bot manager needs their own effective
+`room.join`. The bot's grant controls self-service joins. Suspensions and
+archived rooms prevent adding.
 Removal does not require join permission and works in archived rooms.
 Both operations recheck authorization within room aggregate OCC retries and
 reuse the existing membership and audit events. Neither changes grants.
@@ -342,12 +381,24 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 
 ## Mounted operator services
 
+The operator socket serves individual user, room, message, and upload APIs.
+It does not accept archives. `ImportRoomEvent` and `ImportMessageChange` apply
+typed historical transitions. Optional operation keys on creation and message
+import provide permanent exact retry protection. See
+[FDR-053](../fdr/FDR-053-history-import-export.md).
+
+`ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
+retains that ID for retries; receipts from older servers return no event ID.
+
+`OperatorMessageService.ImportReaction` accepts individual room join and leave
+event IDs for historical imports, without live delivery or notifications.
+
 | Package              | Service                  | Access policy                                                                                      |
 | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | `chatto.operator.v1` | `OperatorUserService`    | Root-equivalent account and external identity management over the private Unix socket              |
 | `chatto.operator.v1` | `OperatorRoomService`    | Root-equivalent channel lookup, creation, and explicit membership add over the private Unix socket |
 | `chatto.operator.v1` | `OperatorAssetService`   | Root-equivalent attachment upload for a mapped author over the private Unix socket                 |
-| `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message import over the private Unix socket                             |
+| `chatto.operator.v1` | `OperatorMessageService` | Root-equivalent historical message, thread, and reaction import over the private Unix socket       |
 | `chatto.operator.v1` | `OperatorSeedService`    | Private Unix socket; compiled only with `bootstrap` or `test_endpoints`                            |
 
 The [operator identity handlers](../../cli/internal/connectapi/operator_external_identities.go)
@@ -361,6 +412,11 @@ The [synthetic data generator](../../cli/internal/core/seed_development.go) uses
 existing account, channel, membership, and message operations. Its CLI is
 `chatto operator seed`. It adds no event types, streams, or projections and waits
 for serving projections before success. The
+optional avatar image pool uses the existing user-avatar operation and asset
+storage. The CLI can opt in to Pravatar downloads before the seed RPC; the server
+does not fetch external avatar URLs. Optional notification fixtures use the
+historical message import service and notification command model to populate an
+existing account's inbox across several days, without Web Push. The
 [test-only HTTP wrapper](../../cli/internal/http_server/seed_test_endpoint.go)
 also mounts `POST /auth/test/seed` and `POST /auth/test/create-session` in
 `test_endpoints` builds. Session creation accepts an existing human account ID
@@ -427,6 +483,12 @@ the authenticated public status does not expose server-wide event-log scale.
 `ListNeighborhoodServers` support side-effect-free GET. They also receive wildcard public CORS and conditional-response caching.
 Other bundled-client Connect traffic uses POST.
 
+`GET /.well-known/chatto` serves the `GetServer` JSON response through the
+same handler, with the same CORS and cache behavior and no query parameters.
+The HTTP adapter supplies an empty request for Connect GET calls that omit
+`message` and use JSON or protobuf without compression. Connect still enforces
+GET eligibility, authentication, and request validation.
+
 The discovery response includes the server software version as public
 pre-authentication state, along with configured provider metadata and the
 independently configured direct-registration and direct-login capabilities.
@@ -456,6 +518,12 @@ provider ID, authentication method, status, and allow-listed OAuth error codes.
 The verifier's key-fetch transport removes unsupported JWK types and curves
 from mixed key sets, with a 1 MiB response limit. Supported keys still use the
 OIDC library's validation, signature verification, and rotating-key cache.
+
+After a verified OIDC sign-in matches an existing account, the callback
+completes any legacy hash-only identity metadata before group-role sync and
+session issuance. The core operation reuses `UserExternalIdentityLinked` with
+user OCC and projection catch-up. It does not recreate a concurrently removed
+link. Group-role mappings are not required for this upgrade step.
 
 `MessageSearchService.GetStatus` remains the authority for configured search
 availability and transient provider readiness. Viewer permissions remain the

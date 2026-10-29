@@ -6,6 +6,15 @@
       "confirmation": "15分間、このサーバーで割り当てられている追加の権限を有効にします。"
     },
     "notifications": {
+      "all_notifications": "すべての通知",
+      "all_types": "すべての種類",
+      "filter_status": "状態",
+      "filter_type": "種類",
+      "reactions": "リアクション",
+      "replies": "返信",
+      "mentions": "メンション",
+      "next_unread_source": "次の未読の通知元に移動",
+      "no_unread": "未読の通知はありません",
       "title": "通知",
       "subtitle": "新機能はこちら",
       "clear_read": "既読を削除",
@@ -28,12 +37,6 @@
         "activity": "{actor}さんから通知が届きました",
         "room_invitation": "{actor} があなたをルームに招待しました"
       }
-    },
-    "sign_out": {
-      "title": "サインアウト",
-      "current_server": "現在のサーバー",
-      "all_servers": "すべてのサーバー",
-      "description": "選択したサーバーのみからサインアウトするか、すべてのサーバーをこのクライアントから切断します。"
     },
     "overview": {
       "title": "概要"

@@ -7,6 +7,8 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { UserAvatarUserView } from '../timeline/users.js';
 import type { RoomStores } from './roomStores.js';
 import { TimelineSync, type TimelineSyncOptions } from './timelineSync.js';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { messageToTimelineEvent } from '../api/roomTimeline.js';
 
 function deferred() {
   let resolve!: () => void;
@@ -36,6 +38,7 @@ function fakeTimeline() {
       }
     ),
     applyMessageRetraction: vi.fn(),
+    captureThreadSummaries: vi.fn(() => new Map<string, (root: TimelineEventView) => void>()),
     ingestEvent: vi.fn()
   };
 }
@@ -68,6 +71,7 @@ function makeSync(
       timelines
     } as unknown as RoomStores,
     readMessages: vi.fn(async () => []),
+    readThreadRoot: vi.fn(async () => null),
     generation: () => 1,
     eventCursor: () => 'cursor',
     track,
@@ -82,6 +86,95 @@ async function flush(): Promise<void> {
 }
 
 describe('TimelineSync', () => {
+  it('shares a root read across room and thread views, using the event cursor', async () => {
+    const room = fakeTimeline();
+    const thread = fakeTimeline();
+    const other = fakeTimeline();
+    const applyRoom = vi.fn();
+    const applyThread = vi.fn();
+    room.captureThreadSummaries.mockReturnValue(new Map([['ROOT', applyRoom]]));
+    thread.captureThreadSummaries.mockReturnValue(new Map([['ROOT', applyThread]]));
+    const root = messageToTimelineEvent(new Message({ id: 'ROOT', roomId: 'R1' }), {})!;
+    const readThreadRoot = vi.fn(async () => root);
+    const { sync, track } = makeSync(
+      { R1: { messages: room, threads: { ROOT: thread } }, R2: { messages: other } },
+      { readThreadRoot }
+    );
+
+    sync.retract('R1', 'REPLY', '2026-10-23T12:00:00Z');
+    await track.mock.calls[0][0];
+
+    expect(readThreadRoot).toHaveBeenCalledExactlyOnceWith('R1', 'ROOT', 'cursor');
+    expect(applyRoom).toHaveBeenCalledExactlyOnceWith(root);
+    expect(applyThread).toHaveBeenCalledExactlyOnceWith(root);
+    expect(other.captureThreadSummaries).not.toHaveBeenCalled();
+    expect(track).toHaveBeenCalledExactlyOnceWith(expect.any(Promise), 1);
+  });
+
+  it.each(['newer retraction', 'room invalidation', 'reset', 'generation change'])(
+    'discards an old shared summary after %s',
+    async (boundary) => {
+      const pending = deferred();
+      const room = fakeTimeline();
+      const apply = vi.fn();
+      room.captureThreadSummaries.mockReturnValue(new Map([['ROOT', apply]]));
+      const root = messageToTimelineEvent(new Message({ id: 'ROOT', roomId: 'R1' }), {})!;
+      const readThreadRoot = vi
+        .fn()
+        .mockReturnValueOnce(pending.promise.then(() => root))
+        .mockResolvedValue(root);
+      let generation = 1;
+      const { sync, track } = makeSync(
+        { R1: { messages: room } },
+        { readThreadRoot, generation: () => generation }
+      );
+      sync.retract('R1', 'REPLY', '2026-10-23T12:00:00Z');
+      if (boundary === 'newer retraction') {
+        sync.retract('R1', 'OTHER-REPLY', '2026-10-23T12:01:00Z');
+        await track.mock.calls[1][0];
+      } else if (boundary === 'room invalidation') sync.invalidateRoom('R1');
+      else if (boundary === 'reset') sync.reset();
+      else generation++;
+      pending.resolve();
+      await track.mock.calls[0][0];
+      expect(apply).toHaveBeenCalledTimes(boundary === 'newer retraction' ? 1 : 0);
+    }
+  );
+
+  it('tracks a shared summary failure and permits a retry', async () => {
+    const room = fakeTimeline();
+    const apply = vi.fn();
+    room.captureThreadSummaries.mockReturnValue(new Map([['ROOT', apply]]));
+    const failure = new Error('offline');
+    const readThreadRoot = vi.fn().mockRejectedValueOnce(failure).mockResolvedValue(null);
+    const { sync, track } = makeSync({ R1: { messages: room } }, { readThreadRoot });
+    sync.retract('R1', 'REPLY', '2026-10-23T12:00:00Z');
+    await expect(track.mock.calls[0][0]).rejects.toBe(failure);
+    sync.retract('R1', 'REPLY', '2026-10-23T12:00:00Z');
+    await track.mock.calls[1][0];
+    expect(readThreadRoot).toHaveBeenCalledTimes(2);
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it('ignores a failed summary read after its room was invalidated', async () => {
+    const pending = deferred();
+    const room = fakeTimeline();
+    room.captureThreadSummaries.mockReturnValue(new Map([['ROOT', vi.fn()]]));
+    const { sync, track } = makeSync(
+      { R1: { messages: room } },
+      {
+        readThreadRoot: async () => {
+          await pending.promise;
+          return null;
+        }
+      }
+    );
+    sync.retract('R1', 'REPLY', '2026-10-23T12:00:00Z');
+    sync.invalidateRoom('R1');
+    pending.reject(new Error('obsolete read failed'));
+    await expect(track.mock.calls[0][0]).resolves.toBeUndefined();
+  });
+
   it('runs one window read at a time for each timeline and keeps distinct requests', async () => {
     const room = fakeTimeline();
     const { sync, track } = makeSync({ R1: { messages: room } });
@@ -170,13 +263,15 @@ describe('TimelineSync', () => {
   it('removes a retracted message from every timeline when the event has no room', () => {
     const room = fakeTimeline();
     const other = fakeTimeline();
-    const { sync } = makeSync({ R1: { messages: room }, R2: { messages: other } });
+    const { sync, track } = makeSync({ R1: { messages: room }, R2: { messages: other } });
 
     sync.retract('', 'M1', '2026-09-27T12:00:00.000Z');
 
     for (const store of [room, other]) {
       expect(store.applyMessageRetraction).toHaveBeenCalledWith('M1', '2026-09-27T12:00:00.000Z');
+      expect(store.captureThreadSummaries).toHaveBeenCalledOnce();
     }
+    expect(track).toHaveBeenCalledTimes(2);
   });
 
   it('shows a post preview with the fields of the event and empty resource fields', () => {

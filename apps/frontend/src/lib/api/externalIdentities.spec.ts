@@ -1,9 +1,11 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import { createExternalIdentityAPI, createExternalIdentityFlowAPI } from './externalIdentities';
 import { ExternalIdentityFlowKind } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
+import { UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
 import {
   fakeServer,
   mockService,
@@ -27,6 +29,20 @@ beforeEach(() => {
 });
 
 describe('createExternalIdentityFlowAPI', () => {
+  it.each([
+    undefined,
+    UsernameChoiceAvailability.UNSPECIFIED,
+    UsernameChoiceAvailability.ALLOWED,
+    99 as UsernameChoiceAvailability
+  ])('preserves optional username choice state %s', async (chooseUsername) => {
+    flow.getPendingExternalIdentity.mockReturnValue({
+      pending: { kind: ExternalIdentityFlowKind.CREATE_ACCOUNT, chooseUsername }
+    });
+    const pending = await createExternalIdentityFlowAPI(config()).getPending('token-1');
+    expect(pending).not.toBeNull();
+    expect(pending?.chooseUsername).toBe(chooseUsername);
+  });
+
   it('maps pending external identity metadata', async () => {
     flow.getPendingExternalIdentity.mockReturnValue({
       pending: {
@@ -50,6 +66,7 @@ describe('createExternalIdentityFlowAPI', () => {
       providerLabel: 'GitHub',
       verifiedEmail: null,
       loginHint: 'octo',
+      chooseUsername: undefined,
       displayNameHint: 'Octo',
       boundUserId: null,
       redirectPath: '/chat/-/settings/account'
@@ -88,6 +105,20 @@ describe('createExternalIdentityFlowAPI', () => {
 });
 
 describe('createExternalIdentityAPI', () => {
+  it.each([
+    DisconnectEligibility.ALLOWED,
+    DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+    DisconnectEligibility.DISABLED_BY_OPERATOR,
+    DisconnectEligibility.UNSPECIFIED,
+    99
+  ])('preserves disconnect eligibility: %s', async (disconnectEligibility) => {
+    account.listExternalIdentities.mockReturnValue({
+      linkedIdentities: [{ subjectHash: 'identity', disconnectEligibility }]
+    });
+    const result = await createExternalIdentityAPI(config()).list();
+    expect(result.linkedIdentities[0]?.disconnectEligibility).toBe(disconnectEligibility);
+  });
+
   it('lists providers and resolves provider links against the server origin', async () => {
     account.listExternalIdentities.mockReturnValue({
       providers: [
@@ -132,7 +163,8 @@ describe('createExternalIdentityAPI', () => {
           providerId: 'github-main',
           providerType: 'github',
           providerLabel: 'GitHub',
-          subjectHash: 'abc123'
+          subjectHash: 'abc123',
+          disconnectEligibility: DisconnectEligibility.UNSPECIFIED
         }
       ]
     });

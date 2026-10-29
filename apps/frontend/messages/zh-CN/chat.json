@@ -6,6 +6,15 @@
       "confirmation": "这会在 15 分钟内启用你在此服务器上获得的额外权限。"
     },
     "notifications": {
+      "all_notifications": "所有通知",
+      "all_types": "所有类型",
+      "filter_status": "状态",
+      "filter_type": "类型",
+      "reactions": "表情回应",
+      "replies": "回复",
+      "mentions": "提及",
+      "next_unread_source": "前往下一个未读通知来源",
+      "no_unread": "没有未读通知",
       "title": "通知",
       "subtitle": "最新动态",
       "clear_read": "清除已读",
@@ -28,12 +37,6 @@
         "activity": "{actor} 向你发送了一条通知",
         "room_invitation": "{actor} 邀请你加入房间"
       }
-    },
-    "sign_out": {
-      "title": "退出登录",
-      "current_server": "当前服务器",
-      "all_servers": "所有服务器",
-      "description": "仅退出所选服务器，或断开此客户端与所有服务器的连接。"
     },
     "overview": {
       "title": "概览"

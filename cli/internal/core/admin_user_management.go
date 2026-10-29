@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -37,14 +39,16 @@ type AdminMemberRole struct {
 }
 
 type AdminMember struct {
-	ID          string
-	Login       string
-	DisplayName string
-	AvatarURL   string
-	Roles       []string
-	CreatedAt   *timestamppb.Timestamp
-	Deleted     bool
-	IsBot       bool
+	ID                          string
+	Login                       string
+	DisplayName                 string
+	AvatarURL                   string
+	Roles                       []string
+	CreatedAt                   *timestamppb.Timestamp
+	Deleted                     bool
+	Deactivated                 bool
+	ViewerCanChangeDeactivation bool
+	IsBot                       bool
 	// BotOwnerUserID identifies the human owner of a bot.
 	BotOwnerUserID   string
 	HasVerifiedEmail bool
@@ -282,7 +286,7 @@ func (c *ChattoCore) requireCanAssignAdminRole(ctx context.Context, actorID, tar
 	return nil
 }
 
-func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *evtv1.User, roles []string) (*AdminMember, error) {
+func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *readmodel.User, roles []string) (*AdminMember, error) {
 	avatarURL, err := c.GetUserAvatarURL(ctx, user.GetId(), nil, nil, "")
 	if err != nil {
 		return nil, err
@@ -296,6 +300,7 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		Roles:          roles,
 		CreatedAt:      user.GetCreatedAt(),
 		Deleted:        user.GetDeleted(),
+		Deactivated:    user.GetDeactivated(),
 		IsBot:          user.GetIsBot(),
 		BotOwnerUserID: user.GetBotOwnerUserId(),
 		CustomStatus:   user.GetCustomStatus(),
@@ -323,6 +328,11 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 	}
 
 	if actorID != user.GetId() {
+		canChangeDeactivation, err := c.CanChangeUserDeactivation(ctx, actorID, user.GetId())
+		if err != nil {
+			return nil, err
+		}
+		member.ViewerCanChangeDeactivation = canChangeDeactivation
 		viewerCanDeleteAccount, err := c.CanDeleteUser(ctx, actorID, user.GetId())
 		if err != nil {
 			return nil, err

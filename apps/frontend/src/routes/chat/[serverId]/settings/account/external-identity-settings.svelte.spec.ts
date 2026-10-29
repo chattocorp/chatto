@@ -1,4 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
+import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { page as browserPage } from 'vitest/browser';
 import { flushSync } from 'svelte';
@@ -23,6 +24,7 @@ const { mocks } = vi.hoisted(() => ({
     serverId: 'origin',
     accountId: 'user-alice' as string | null,
     scopeCurrent: true,
+    directLoginEnabled: true,
     beginExplicitSignOutRedirect: vi.fn(),
     cancelExplicitSignOutRedirect: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
@@ -70,6 +72,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: mocks.serverId,
     connection,
     store: {
+      serverInfo: {
+        get directLoginEnabled() {
+          return mocks.directLoginEnabled;
+        }
+      },
       get accountId() {
         return mocks.accountId;
       }
@@ -91,6 +98,7 @@ vi.mock('$lib/auth/signOutRedirect', () => ({
 vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 
 const currentUser = {
+  load: vi.fn().mockResolvedValue(undefined),
   user: { id: 'user-alice', hasPassword: true }
 } as unknown as CurrentUserState;
 
@@ -126,7 +134,8 @@ function linkedIdentityList() {
         providerId: 'github-main',
         providerType: 'github',
         providerLabel: 'GitHub',
-        subjectHash: 'subject-1'
+        subjectHash: 'subject-1',
+        disconnectEligibility: DisconnectEligibility.UNSPECIFIED
       }
     ]
   };
@@ -134,6 +143,7 @@ function linkedIdentityList() {
 
 describe('external identity settings query lifecycle', () => {
   beforeEach(() => {
+    mocks.directLoginEnabled = true;
     queryClient.clear();
     mocks.url = new URL('http://localhost/chat/-/settings/account');
     mocks.replaceState.mockImplementation((url: string | URL) => {
@@ -150,6 +160,152 @@ describe('external identity settings query lifecycle', () => {
   });
 
   afterEach(() => vi.restoreAllMocks());
+
+  it('blocks the last SSO provider despite a stored password on older servers', async () => {
+    mocks.directLoginEnabled = false;
+    renderSettings();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeDisabled();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('uses the server hint instead of counting unusable linked identities', async () => {
+    mocks.directLoginEnabled = false;
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], {
+      disconnectEligibility: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD
+    });
+    list.linkedIdentities.push({
+      providerId: 'obsolete',
+      providerType: 'oidc',
+      providerLabel: 'Obsolete',
+      subjectHash: 'obsolete-subject',
+      disconnectEligibility: DisconnectEligibility.UNSPECIFIED
+    });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }).first())
+      .toBeDisabled();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { reason: 99 as DisconnectEligibility, notice: 'This action is currently unavailable.' },
+    {
+      reason: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+      notice: 'Set up another sign-in method supported by this server before disconnecting GitHub.'
+    }
+  ])('shows the disconnect-specific notice for state $reason', async ({ reason, notice }) => {
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], {
+      disconnectEligibility: reason
+    });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeDisabled();
+    await expect.element(browserPage.getByText(notice)).toBeVisible();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('disables unlinking when the operator forbids it', async () => {
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], {
+      disconnectEligibility: DisconnectEligibility.DISABLED_BY_OPERATOR
+    });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeDisabled();
+    await expect
+      .element(
+        browserPage.getByText(
+          'The server operator does not allow this provider to be disconnected.'
+        )
+      )
+      .toBeVisible();
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
+
+  it.each([DisconnectEligibility.ALLOWED])(
+    'allows the server to check eligibility %s',
+    async (disconnectEligibility) => {
+      mocks.directLoginEnabled = false;
+      const list = linkedIdentityList();
+      Object.assign(list.linkedIdentities[0], { disconnectEligibility });
+      mocks.list.mockResolvedValue(list);
+      renderSettings();
+      await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+      await expect
+        .element(browserPage.getByRole('dialog', { name: 'Disconnect provider' }))
+        .toBeVisible();
+    }
+  );
+
+  it.each([
+    { disconnectEligibility: DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD },
+    { disconnectEligibility: DisconnectEligibility.DISABLED_BY_OPERATOR },
+    {
+      disconnectEligibility: 99 as DisconnectEligibility
+    }
+  ])(
+    'refreshes a stale disconnect hint %s before asking for reauthentication',
+    async (decision) => {
+      const list = linkedIdentityList();
+      Object.assign(list.linkedIdentities[0], {
+        disconnectEligibility: DisconnectEligibility.ALLOWED
+      });
+      mocks.list.mockResolvedValue(list);
+      renderSettings();
+      await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+      const refreshed = linkedIdentityList();
+      Object.assign(refreshed.linkedIdentities[0], decision);
+      mocks.list.mockResolvedValue(refreshed);
+      mocks.disconnect.mockRejectedValue(new ConnectError('last method', Code.FailedPrecondition));
+      await browserPage
+        .getByRole('dialog', { name: 'Disconnect provider' })
+        .getByRole('button', { name: 'Disconnect', exact: true })
+        .click();
+      await expect
+        .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+        .toBeVisible();
+      await expect
+        .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
+        .not.toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+    DisconnectEligibility.DISABLED_BY_OPERATOR
+  ])('closes password confirmation when disconnect becomes blocked (%s)', async (decision) => {
+    mocks.list.mockResolvedValue(linkedIdentityList());
+    mocks.disconnect.mockRejectedValue(
+      new ConnectError('fresh authentication', Code.FailedPrecondition)
+    );
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await browserPage
+      .getByRole('dialog', { name: 'Disconnect provider' })
+      .getByRole('button', { name: 'Disconnect', exact: true })
+      .click();
+    const passwordDialog = browserPage.getByRole('dialog', { name: 'Confirm password' });
+    await expect.element(passwordDialog).toBeVisible();
+    await passwordDialog.getByLabelText('Current Password', { exact: true }).fill('test-password');
+    const refreshed = linkedIdentityList();
+    refreshed.linkedIdentities[0].disconnectEligibility = decision;
+    mocks.list.mockResolvedValue(refreshed);
+    await passwordDialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Provider cannot be disconnected' }))
+      .toBeVisible();
+    await expect.element(passwordDialog).not.toBeInTheDocument();
+    expect(document.querySelector('input[type="password"]')).toBeNull();
+  });
 
   it('passes cancellation through and revalidates a cached callback snapshot', async () => {
     const first = renderSettings();
@@ -327,6 +483,7 @@ function unlinkedIdentityList() {
 
 describe('identity link popup and continuation', () => {
   beforeEach(() => {
+    mocks.directLoginEnabled = true;
     queryClient.clear();
     vi.clearAllMocks();
     mocks.url = new URL('http://localhost/chat/-/settings/account');
@@ -589,6 +746,18 @@ describe('identity link popup and continuation', () => {
     expect(close).not.toHaveBeenCalled();
     expect(mocks.startLink).not.toHaveBeenCalled();
     expect(mocks.url.search).toBe('');
+  });
+
+  it('requires SSO reauthentication instead of a stored password on SSO-only servers', async () => {
+    mocks.directLoginEnabled = false;
+    continuation();
+    renderSettings();
+    await expect
+      .element(browserPage.getByText(/Open account settings on the server that owns this account/))
+      .toBeVisible();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
+      .not.toBeInTheDocument();
   });
 
   it('opens the password dialog ready for input', async () => {

@@ -10,6 +10,7 @@ import { isWebConfig, type WebConfig } from './web-config.ts';
 /** Reload project modules without replacing active runs or installed packages. */
 export class ConfigReloader {
   private current?: WebConfig;
+  private readonly fixed: boolean;
   private hasLoadedFile = false;
   private pending?: Promise<WebConfig>;
   private timer?: ReturnType<typeof setTimeout>;
@@ -23,8 +24,14 @@ export class ConfigReloader {
   /** Load once by default. Explicit reload() remains available without a watcher. */
   constructor(
     readonly path: string,
-    options: { watch?: boolean } = {}
+    options: { watch?: boolean; config?: WebConfig } = {}
   ) {
+    this.fixed = options.config !== undefined;
+    if (options.config) {
+      if (!isWebConfig(options.config)) throw new TypeError('Invalid Runling configuration');
+      this.current = options.config;
+      return;
+    }
     if (!options.watch) return;
     const root = dirname(path);
     const watcher = (this.watcher = watch(root, {
@@ -67,6 +74,7 @@ export class ConfigReloader {
     return this.current ? Promise.resolve(this.current) : (this.pending ?? this.reload());
   }
   reload(): Promise<WebConfig> {
+    if (this.fixed) return Promise.resolve(this.current!);
     if (this.pending) return this.pending;
     this.pending = this.read().finally(() => {
       this.pending = undefined;

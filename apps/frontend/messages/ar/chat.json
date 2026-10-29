@@ -6,6 +6,15 @@
       "confirmation": "لمدة 15 دقيقة، يؤدي هذا إلى تفعيل الأذونات الإضافية المعيّنة لك على هذا الخادم."
     },
     "notifications": {
+      "all_notifications": "كل الإشعارات",
+      "all_types": "كل الأنواع",
+      "filter_status": "الحالة",
+      "filter_type": "النوع",
+      "reactions": "تفاعلات",
+      "replies": "ردود",
+      "mentions": "إشارات",
+      "next_unread_source": "انتقل إلى المصدر التالي غير المقروء",
+      "no_unread": "لا توجد إشعارات غير مقروءة",
       "title": "الإشعارات",
       "subtitle": "إليك ما هو جديد",
       "clear_read": "حذف المقروءة",
@@ -28,12 +37,6 @@
         "activity": "أرسل إليك {actor} إشعارًا",
         "room_invitation": "دعاك {actor} إلى غرفة"
       }
-    },
-    "sign_out": {
-      "title": "تسجيل الخروج",
-      "current_server": "الخادم الحالي",
-      "all_servers": "كافة الخوادم",
-      "description": "سجّل الخروج من الخادم المحدد فقط، أو افصل جميع الخوادم عن هذا العميل."
     },
     "overview": {
       "title": "نظرة عامة"

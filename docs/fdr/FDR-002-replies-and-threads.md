@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-10-18
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -20,6 +20,9 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   or has an existing thread, including a thread with no replies. The linked
   message is highlighted in the thread pane. A message without a thread opens
   in the room timeline. Thread existence is checked when the link is opened.
+- A message jump marks its destination with a soft accent fill and a leading-edge
+  marker, then fades the cue. With reduced motion, the cue stays still before it
+  clears. Repeating a jump marks the destination again.
 - Integrations can read all distinct authors of current thread replies in
   bounded pages. Retracted replies and erased authors do not contribute. The
   root author is included only if they also replied. Counts cover the full set.
@@ -51,6 +54,16 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   notifications in that thread. Emoji reactions do not activate this dot. They
   remain in the notification list and notification counts.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- Below 1024 px viewport width, the thread header has one back arrow to return to the room and no trailing close button. Desktop controls remain available at wider widths. Header targets are at least 44 px square whenever touch input is available.
+- The thread header shows up to 3, 5, 8, or 12 participant avatars at pane widths
+  below 360 px, from 360 px, from 480 px, or from 640 px respectively, plus the
+  number of additional participants. It adapts when the pane is resized.
+  Timeline and followed-thread responses include up to 12 participant identities
+  for this preview. The total count can be larger.
+  Left-click, right-click, or long-press an avatar to
+  open the user context menu. The menu includes the full profile action.
+  Participants are authors of current replies; the root author appears only
+  if they also replied. The preview stays compact to leave room for header controls.
 - A root message with an attached thread does not group with adjacent messages
   from the same author. The root and the next message show a full author header.
   This also applies to an empty thread. Plain messages inside a thread can still
@@ -82,6 +95,10 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   reply, participant preview, reply count, activity time, reply unread state,
   and client-side decoration for a matching unread notification.
 - An open thread overlays the dimmed, inactive room timeline by default. A user can instead select a side-by-side layout in App Preferences. The side-by-side layout keeps both panes interactive when the room area is wide enough and uses the overlay when the area becomes too narrow. The side-by-side thread pane is resizable, and the app remembers its width on the device.
+- The thread pane opens and closes with a short slide. Switching to another thread
+  in the same room gives the pane a brief fade and small movement without remounting
+  it for animation. New replies, message jumps within the same thread, and changes
+  to the pane layout do not replay this effect. Reduced motion disables both effects.
 - A visible thread in a focused app reads incoming replies automatically. Its
   unread and notification indicators stay hidden while the user views it.
   After a successful read, the client refreshes the thread state even if no

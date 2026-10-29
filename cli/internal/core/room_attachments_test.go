@@ -6,6 +6,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -353,7 +355,7 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	}
 }
 
-func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context) (*evtv1.Room, *evtv1.User) {
+func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context) (*readmodel.Room, *readmodel.User) {
 	t.Helper()
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {

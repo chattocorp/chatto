@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "קיצורי מקלדת",
+      "app": "יישום",
+      "undo": "בטל פעולה",
+      "redo": "בצע שוב",
+      "new_line": "שורה חדשה",
+      "edit_last": "ערוך את ההודעה האחרונה (טיוטה ריקה)",
+      "complete": "השלם אזכור או אימוג׳י"
+    },
+    "action_unavailable": "פעולה זו אינה זמינה כעת.",
+    "edit": "עריכה",
     "copy_failed": "לא ניתן להעתיק ללוח. בחר את הטקסט והעתק אותו ידנית.",
     "cancel": "בטל",
     "close_sidebar": "סגור סרגל צד",
@@ -22,12 +33,12 @@
     "password_placeholder": "הסיסמה שלך",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 בתי UTF-8",
+    "password_bytes_placeholder": "בחר סיסמה",
     "password_confirm_placeholder": "הזן שוב סיסמה",
     "validation": {
       "email": "אנא הזן כתובת דוא\"ל חוקית",
-      "password_min_bytes": "השתמש ב-8 בתי UTF-8 לפחות. תווים מסוימים תופסים יותר מבית אחד.",
-      "password_max": "השתמש ב-72 בתי UTF-8 לכל היותר. תווים מסוימים תופסים יותר מבית אחד.",
+      "password_min_bytes": "הסיסמה קצרה מדי",
+      "password_max": "הסיסמה ארוכה מדי",
       "username_min": "חייב להיות בן 2 תווים לפחות",
       "username_max": "חייב להיות באורך של 32 תווים לכל היותר",
       "username_charset": "רק אותיות, מספרים, נקודות, מקפים, קווים תחתונים",

@@ -11,6 +11,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
+  import { toast } from '$lib/ui/toast';
 
   onMount(() => {
     quickSwitcher.open();
@@ -22,5 +23,9 @@
   <button type="button" class="btn-secondary" onclick={() => quickSwitcher.open()}
     >Open quick finder</button
   >
-  <QuickSwitcher />
+  <QuickSwitcher
+    onNextUnread={async () => {
+      toast.info('No unread notifications');
+    }}
+  />
 </Story>

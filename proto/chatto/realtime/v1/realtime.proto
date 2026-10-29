@@ -170,6 +170,9 @@ message RealtimeEvent {
     RoomInvitationCreatedEvent room_invitation_created = 69;
     RoomInvitationAcceptedEvent room_invitation_accepted = 70;
     RoomInvitationDeclinedEvent room_invitation_declined = 71;
+    RoomNoticeChangedEvent room_notice_changed = 72;
+    UserAccountDeactivationChangedEvent user_account_deactivation_changed = 73;
+    RoomMembershipEventsVisibilityChangedEvent room_membership_events_visibility_changed = 74;
   }
 }
 

@@ -52,6 +52,11 @@
       "subtitle": "Serveridentiteit, branding en berichten"
     },
     "members": {
+      "deactivate": "Account deactiveren",
+      "reactivate": "Account heractiveren",
+      "deactivate_description": "De gebruiker kan deze server niet meer gebruiken. Alle sessies eindigen onmiddellijk. De gegevens blijven bewaard. Je kunt het account later heractiveren.",
+      "deactivated_description": "Dit account is gedeactiveerd. Na heractivering kan de gebruiker weer inloggen. Oude sessies blijven ongeldig.",
+      "deactivation_failed": "De accounttoegang kon niet worden gewijzigd.",
       "title": "Leden",
       "subtitle": "Bekijk en beheer serverleden en hun rollen",
       "search": "Leden zoeken",
@@ -249,6 +254,10 @@
         "name_title": "Naam en beschrijving",
         "name_subtitle": "Leden zien deze in de lijst met kamers en bovenaan de kamer.",
         "visibility_title": "Zichtbaarheid",
+        "membership_events_title": "Ledenactiviteit",
+        "show_membership_events": "Toon deelname- en vertrekgebeurtenissen",
+        "membership_events_description": "Toon wanneer mensen deze kamer betreden of verlaten, ook in de geschiedenis. Deze activiteit verbergen verwijdert deze niet.",
+        "membership_events_unavailable": "Werk deze server bij om te wijzigen hoe ledenactiviteit wordt weergegeven.",
         "visibility_subtitle": "Kies wie lid is van deze kamer.",
         "universal_description": "Elk lid dat deze kamer kan betreden, is automatisch lid.",
         "visibility_help": "Gebruik een universele kamer voor nieuws dat alle leden moeten krijgen, zoals aankondigingen. Leden kunnen een universele kamer niet verlaten, maar ze kunnen de kamer dempen. Als je universeel uitzet, blijven de leden die eerder lid werden in de kamer.",

@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "插入表情符号",
     "attach_file": "添加文件",
     "formatting_options": "格式选项",
     "send": "发送消息",
@@ -25,6 +26,8 @@
     "drop_files_title": "将文件拖放到此处",
     "drop_files_subtitle": "图片和视频将添加到消息中",
     "send_failed": "消息发送失败",
+    "send_retry_expired": "重试发送的期限已过。再次发送前，请确认你的消息是否已送达。",
+    "send_retry_reset": "连接已重置。再次发送前，请确认你的消息是否已送达。",
     "slow_mode_ready": "慢速模式：每 {interval} 可发送一条消息。",
     "slow_mode_waiting": "慢速模式：{countdown} 后可再次发送。",
     "slow_mode_bypassed": "慢速模式：{interval}（你不受限制）。",
@@ -44,9 +47,11 @@
       "remove": "移除 {filename}",
       "video_disabled": "此服务器已禁用视频上传。",
       "prepare_failed": "准备附件失败",
+      "too_many": "每条消息最多可附加 {max} 个文件。超出的文件未添加。",
       "too_large": "{filename} 太大（{size}）。上限为 {limit}。"
     },
     "format": {
+      "underline": "下划线",
       "bold": "粗体",
       "italic": "斜体",
       "inline_code": "行内代码",

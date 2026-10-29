@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { UserSummary } from '@chatto/client/api/users';
@@ -39,6 +40,7 @@ const api = {
   updateUserProfile: vi.fn(),
   clearUsernameCooldown: vi.fn(),
   changeUserPassword: vi.fn(),
+  setUserDeactivated: vi.fn(),
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
   uploadAvatar: vi.fn(),
@@ -76,6 +78,7 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 import MemberDetailTestHarness from './MemberDetailTestHarness.svelte';
+import MemberOverviewPanel from './MemberOverviewPanel.svelte';
 
 function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
   return {
@@ -156,6 +159,7 @@ function buttonByText(root: ParentNode, text: string): HTMLButtonElement {
 }
 
 describe('server member detail queries', () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
@@ -194,6 +198,35 @@ describe('server member detail queries', () => {
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
+
+  it.each([
+    { canViewMemberEmails: true, verifiedEmails: ['member@example.test'] },
+    { canViewMemberEmails: true, verifiedEmails: ['first@example.test', 'second@example.test'] },
+    { canViewMemberEmails: false, verifiedEmails: ['hidden@example.test'] },
+    { canViewMemberEmails: true, verifiedEmails: [] }
+  ])(
+    'offers copying only for visible email addresses: %j',
+    async ({ canViewMemberEmails, verifiedEmails }) => {
+      const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+      const { container } = render(MemberOverviewPanel, {
+        member: member('alice', { verifiedEmails }),
+        roles: [],
+        canViewMemberEmails
+      });
+      const buttons = container.querySelectorAll<HTMLButtonElement>(
+        'button[aria-label="Copy to clipboard"]'
+      );
+      const canCopyEmail = canViewMemberEmails && verifiedEmails.length > 0;
+      expect(buttons).toHaveLength(canCopyEmail ? 2 : 1);
+      if (canCopyEmail) {
+        await userEvent.click(buttons[1]);
+        expect(writeText).toHaveBeenCalledWith(verifiedEmails.join(', '));
+      } else {
+        expect(writeText).not.toHaveBeenCalled();
+        if (!canViewMemberEmails) expect(container.textContent).not.toContain(verifiedEmails[0]);
+      }
+    }
+  );
 
   it('marks a bot account in the member overview', async () => {
     api.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
@@ -436,6 +469,37 @@ describe('server member detail queries', () => {
       current: link.getAttribute('aria-current')
     }));
   }
+
+  it('confirms deactivation and offers reactivation without deletion permission', async () => {
+    api.getMember.mockResolvedValue(
+      details(member('alice', { viewerCanDeleteAccount: false, viewerCanChangeDeactivation: true }))
+    );
+    api.setUserDeactivated.mockResolvedValue(
+      member('alice', {
+        viewerCanDeleteAccount: false,
+        viewerCanChangeDeactivation: true,
+        deactivated: true
+      })
+    );
+    const rendered = renderSection('account');
+    await settle();
+    await rendered.getByRole('button', { name: 'Deactivate Account', exact: true }).click();
+    expect(api.setUserDeactivated).not.toHaveBeenCalled();
+    const dialog = rendered.getByRole('dialog');
+    await expect.element(dialog).toHaveTextContent('Their data will remain intact.');
+    await dialog.getByRole('button', { name: 'Deactivate Account', exact: true }).click();
+    await settle();
+    expect(api.setUserDeactivated).toHaveBeenCalledWith('alice', true);
+    await expect
+      .element(rendered.getByRole('button', { name: 'Reactivate Account', exact: true }))
+      .toBeVisible();
+  });
+
+  it('hides deactivation when the server does not authorize it', async () => {
+    const rendered = renderSection('account');
+    await settle();
+    expect(rendered.container.textContent).not.toContain('Deactivate Account');
+  });
 
   it('offers every section to an account manager and marks the current one', async () => {
     const rendered = renderSection('roles');

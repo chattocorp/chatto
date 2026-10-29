@@ -102,7 +102,10 @@ test('a context without a parent has an empty inbox, no run, and discards messag
   // There is no parent to read updates, so emitting never fills a buffer.
   for (let i = 0; i < 100; i++) await ctx.emit(i);
   expect(ctx.run).toBeUndefined();
-  expect(createRootContext(undefined, undefined, { id: 'run' }).run).toEqual({ id: 'run' });
+  expect(createRootContext(undefined, undefined, { id: 'run' }).run).toMatchObject({
+    id: 'run',
+    setTitle: expect.any(Function)
+  });
 });
 
 test('a host signal cancels the context', () => {

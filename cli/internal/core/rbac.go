@@ -14,6 +14,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -494,7 +496,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 		return nil, ErrRoleAlreadyExists
 	}
 
-	var role *evtv1.Role
+	var role *readmodel.Role
 	event := newEvent(actorID, &evtv1.Event{})
 	if _, err := c.appendRBACEventWithMentionableCheck(ctx, event, func() error {
 		if c.rbacModel.roleExists(name) {
@@ -503,7 +505,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 		if err := c.requireRoleMentionHandleAvailable(name); err != nil {
 			return err
 		}
-		role = &evtv1.Role{
+		role = &readmodel.Role{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
@@ -545,7 +547,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		return nil, err
 	}
 
-	var updated *evtv1.Role
+	var updated *readmodel.Role
 	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleDisplayNameChanged{
 		RbacRoleDisplayNameChanged: &evtv1.RbacRoleDisplayNameChangedEvent{RoleName: name, DisplayName: displayName},
 	}}), func() error {
@@ -557,7 +559,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 			updated = existing
 			return errRBACNoop
 		}
-		updated = &evtv1.Role{
+		updated = &readmodel.Role{
 			Name:        existing.GetName(),
 			DisplayName: displayName,
 			Description: existing.GetDescription(),
@@ -582,7 +584,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 			updated = existing
 			return errRBACNoop
 		}
-		updated = &evtv1.Role{
+		updated = &readmodel.Role{
 			Name:        existing.GetName(),
 			DisplayName: existing.GetDisplayName(),
 			Description: description,
@@ -609,7 +611,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 				updated = existing
 				return errRBACNoop
 			}
-			updated = &evtv1.Role{
+			updated = &readmodel.Role{
 				Name:        existing.GetName(),
 				DisplayName: existing.GetDisplayName(),
 				Description: existing.GetDescription(),

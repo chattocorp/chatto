@@ -6,6 +6,15 @@
       "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
     },
     "notifications": {
+      "all_notifications": "Alle varsler",
+      "all_types": "Alle typer",
+      "filter_status": "Status",
+      "filter_type": "Type",
+      "reactions": "Reaksjoner",
+      "replies": "Svar",
+      "mentions": "Omtaler",
+      "next_unread_source": "Gå til neste uleste kilde",
+      "no_unread": "Ingen uleste varsler",
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",
       "clear_read": "Fjern leste",
@@ -28,12 +37,6 @@
         "activity": "{actor} sendte deg et varsel",
         "room_invitation": "{actor} inviterte deg til et rom"
       }
-    },
-    "sign_out": {
-      "title": "Logg av",
-      "current_server": "Nåværende server",
-      "all_servers": "Alle servere",
-      "description": "Logg av kun den valgte serveren, eller koble hver server fra denne klienten."
     },
     "overview": {
       "title": "Oversikt"

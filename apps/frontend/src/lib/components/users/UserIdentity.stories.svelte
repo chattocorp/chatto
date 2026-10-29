@@ -31,7 +31,7 @@
 <Story name="Compact owner with room actions" asChild>
   <div class="flex items-center gap-2 p-4">
     <span class="text-muted">Owned by</span>
-    <UserIdentity {user} size="xs" openOnClick {onSendMessage} {onOpenProfile} />
+    <UserIdentity {user} size="xs" {onSendMessage} {onOpenProfile} />
   </div>
 </Story>
 
@@ -41,7 +41,6 @@
     <UserIdentity
       user={{ ...user, displayName: 'Alice with a very long display name' }}
       size="xs"
-      openOnClick
       {onSendMessage}
       {onOpenProfile}
     />

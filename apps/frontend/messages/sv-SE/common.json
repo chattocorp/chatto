@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Kortkommandon",
+      "app": "App",
+      "undo": "Ångra",
+      "redo": "Gör om",
+      "new_line": "Ny rad",
+      "edit_last": "Redigera senaste meddelandet (tomt utkast)",
+      "complete": "Komplettera omnämnande eller emoji"
+    },
+    "action_unavailable": "Den här åtgärden är inte tillgänglig just nu.",
+    "edit": "Redigera",
     "copy_failed": "Det gick inte att kopiera till urklipp. Markera texten och kopiera den manuellt.",
     "cancel": "Avbryt",
     "close_sidebar": "Stäng sidofältet",
@@ -22,12 +33,12 @@
     "password_placeholder": "Ditt lösenord",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8-byte",
+    "password_bytes_placeholder": "Välj ett lösenord",
     "password_confirm_placeholder": "Ange lösenordet igen",
     "validation": {
       "email": "Ange en giltig e-postadress",
-      "password_min_bytes": "Använd minst 8 UTF-8-byte. Vissa tecken använder mer än en byte.",
-      "password_max": "Använd högst 72 UTF-8-byte. Vissa tecken använder mer än en byte.",
+      "password_min_bytes": "Lösenordet är för kort",
+      "password_max": "Lösenordet är för långt",
       "username_min": "Måste bestå av minst 2 tecken",
       "username_max": "Måste vara högst 32 tecken",
       "username_charset": "Endast bokstäver, siffror, punkter, bindestreck, understreck",

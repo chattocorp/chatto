@@ -133,7 +133,7 @@ test.describe('Password Reset', () => {
       await authPage.confirmPasswordInput.focus();
 
       // Should show length error
-      await authPage.expectError(/at least 8 UTF-8 bytes/i);
+      await authPage.expectError(/password is too short/i);
     });
   });
 

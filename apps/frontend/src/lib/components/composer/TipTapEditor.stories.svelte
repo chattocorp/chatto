@@ -24,6 +24,7 @@
   let formattingState = $state<ComposerFormattingState>({
     bold: false,
     italic: false,
+    underline: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -53,6 +54,19 @@
     api.setContent(source);
   }
 </script>
+
+<Story name="Shared formatting" asChild>
+  {@const preview =
+    '# Heading\n**Strong** and *emphasis*, `code`, [link](https://example.com).\n> Quote with **strong**, *emphasis*, and `code`.'}
+  <div class="flex w-xl max-w-full flex-col gap-3">
+    <div class="rounded-md border border-border bg-surface p-3">
+      <TipTapEditor placeholder="Visual formatting" onReady={(api) => api.setContent(preview)} />
+    </div>
+    <div class="rounded-md border border-border bg-surface p-3">
+      <MarkdownEditor placeholder="Source formatting" onReady={(api) => api.setContent(preview)} />
+    </div>
+  </div>
+</Story>
 
 <Story name="Blockquote emphasis" asChild>
   <div class="flex w-xl max-w-full flex-col gap-3">

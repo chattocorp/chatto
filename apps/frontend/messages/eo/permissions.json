@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publikigi, korekti, reanonci kaj forigi ĉambrajn avizojn",
       "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
       "server_manage_neighbors": "Administri la publikan najbaran katalogon",
       "room_create": "Krei novajn ĉambrojn",

@@ -5,7 +5,7 @@ package chatto.core.projection.v1;
 import "google/protobuf/timestamp.proto";
 import "chatto/core/evt/v1/asset_events.proto";
 import "chatto/core/evt/v1/event.proto";
-import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/event_values.proto";
 import "chatto/core/evt/v1/notification_policy.proto";
 import "chatto/core/notification/v1/notification.proto";
 import "chatto/core/evt/v1/rbac_events.proto";
@@ -136,7 +136,7 @@ message ProjectionReplayGuardSnapshot {
 }
 
 message RoomDirectoryProjectionSnapshot {
-  repeated chatto.core.evt.v1.Room rooms = 1;
+  repeated RoomSnapshot rooms = 1;
   repeated RoomMembershipSnapshot memberships = 2;
   repeated RoomBanSnapshot bans = 3;
   uint64 catalog_sequence = 4;
@@ -164,7 +164,7 @@ message RoomGroupLayoutProjectionSnapshot {
 }
 
 message RoomGroupStateSnapshot {
-  chatto.core.evt.v1.RoomGroup group = 1;
+  RoomGroupSnapshot group = 1;
 }
 
 // NotificationDecisionProjectionSnapshot combines the exact event-time
@@ -273,7 +273,7 @@ message ContentKeyProjectionSnapshot {
 }
 
 message RBACProjectionSnapshot {
-  repeated chatto.core.evt.v1.Role roles = 1;
+  repeated RoleSnapshot roles = 1;
   repeated RBACAssignmentSnapshot assignments = 2;
   repeated RBACDecisionSnapshot decisions = 3;
   ProjectionReplayGuardSnapshot replay_guard = 4;
@@ -429,7 +429,7 @@ message UserProfileProjectionSnapshot {
 
 message ProjectedUserProfileSnapshot {
   string user_id = 1;
-  chatto.core.evt.v1.User user = 2;
+  UserSnapshot user = 2;
   ProjectedEncryptedUserStringSnapshot login = 3;
   string login_hash = 4;
   ProjectedEncryptedUserStringSnapshot display_name = 5;
@@ -526,4 +526,96 @@ message AssetMessageOwnerSnapshot {
   string room_id = 2;
   string message_event_id = 3;
   string author_id = 4;
+}
+
+// Snapshot records are projection-owned serialization contracts, not runtime read models.
+
+// RoomSnapshot stores room state for projection restore.
+message RoomSnapshot {
+  string id = 1;
+  string name = 3;
+  string description = 4;
+  bool archived = 5;
+  // Canonical kind discriminator.
+  chatto.core.evt.v1.RoomKind kind = 8;
+  // Universal channel rooms grant effective membership to every server member
+  // who is currently eligible to join the room. Explicit memberships are
+  // preserved separately so disabling universal restores the previous state.
+  bool universal = 9;
+  // Minimum number of seconds a non-exempt member must wait between original
+  // message posts. Channel rooms only; zero disables slow mode.
+  uint32 slow_mode_seconds = 10;
+  // Thread policy for channel rooms. See chatto.core.evt.v1.RoomThreadingMode for legacy and DM
+  // normalization rules.
+  chatto.core.evt.v1.RoomThreadingMode threading_mode = 11;
+  // Independent per-user thread interval. Absence in legacy records uses
+  // slow_mode_seconds; explicit zero disables thread slow mode.
+  optional uint32 thread_slow_mode_seconds = 12;
+  // Creation-event timestamp, retained by the room catalog and its snapshot.
+  google.protobuf.Timestamp created_at = 13;
+  // Separate room purpose retained by history interchange.
+  string purpose = 14;
+  // Member-only notice state. Never expose this through room discovery.
+  RoomNoticeSnapshot notice = 15;
+  // Room-owned display setting. Membership facts remain available.
+  bool show_membership_events = 16;
+}
+
+// RoomNoticeSnapshot stores room notice state for projection restore.
+message RoomNoticeSnapshot {
+  // ID of the latest notice-change event, including clear operations.
+  string version = 1;
+  // ID of the last announcement event. Empty after clear.
+  string publication_id = 2;
+  // Current Markdown source. Empty after clear.
+  string body = 3;
+  // Source event time of the current publication; corrections preserve it.
+  google.protobuf.Timestamp published_at = 4;
+}
+
+// UserSnapshot stores non-hydrated user state. Login, display name, and bio
+// exist only as encrypted values in ProjectedUserProfileSnapshot.
+message UserSnapshot {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
+  bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
+  chatto.core.evt.v1.CustomUserStatus custom_status = 6; // Optional durable user-authored status, hidden after expires_at.
+  // True for an automated bot identity. False for human accounts, including
+  // historical accounts created before bot identities existed.
+  bool is_bot = 7;
+  // Human owner of this bot. Empty for human accounts.
+  string bot_owner_user_id = 8;
+  // Reversible account access state, retained across snapshot restore.
+  bool deactivated = 10;
+}
+
+// RoleSnapshot stores role state for projection restore.
+message RoleSnapshot {
+  string name = 1; // Unique identifier, lowercase + dashes only, e.g., "owner", "moderator", "content-reviewer"
+  string display_name = 2; // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
+  string description = 3;
+  int32 position = 4; // Display/order position; not an authorization rank.
+  bool pingable = 5; // Whether messages can ping users assigned to this role.
+}
+
+// RoomGroupSnapshot stores room group state for projection restore.
+message RoomGroupSnapshot {
+  string id = 1;                    // NanoID for stable identity across renames
+  string name = 2;                  // Display name (e.g., "General", "Projects")
+  repeated string room_ids = 3;     // Ordered list of room IDs in this group
+  string description = 4;           // Optional public group description
+  // Ordered mixed sidebar entries. ROOM entries reference Room records by ID;
+  // SIDEBAR_LINK entries reference payloads in sidebar_links by ID.
+  repeated chatto.core.evt.v1.SidebarGroupEntry entries = 5;
+
+  // Link payloads owned by this group. Kept separate from entries so reorders
+  // can move stable IDs without duplicating mutable label/URL data.
+  repeated SidebarLinkSnapshot sidebar_links = 6;
+}
+
+// SidebarLinkSnapshot stores sidebar link state for projection restore.
+message SidebarLinkSnapshot {
+  string id = 1;     // NanoID for stable identity across renames/moves
+  string label = 2;  // Display label shown in the server sidebar
+  string url = 3;    // Absolute http(s) URL or server-local path starting with /
 }

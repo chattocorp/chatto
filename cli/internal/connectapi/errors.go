@@ -45,6 +45,7 @@ var connectErrorCodes = []struct {
 		core.ErrNeighborMatchesServerOrigin,
 	}},
 	{connect.CodeAlreadyExists, []error{
+		core.ErrMessageIdempotencyConflict,
 		core.ErrRoomNameExists,
 		core.ErrLoginAlreadyTaken,
 		core.ErrEmailAlreadyVerified,
@@ -115,6 +116,9 @@ var connectErrorCodes = []struct {
 		core.ErrCannotLeaveUniversalRoom,
 		core.ErrCannotRevokeSelfAdmin,
 		core.ErrExternalIdentityLastMethod,
+		core.ErrExternalIdentityUnlinkDisabled,
+		core.ErrUsernameManaged,
+		core.ErrProviderUsernameUnavailable,
 		core.ErrCannotDeleteSystemRole,
 		core.ErrRoomGroupHasRooms,
 		core.ErrRoomGroupOrderMismatch,

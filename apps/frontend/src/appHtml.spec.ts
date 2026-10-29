@@ -58,6 +58,7 @@ function runThemeScript({
   preferences,
   legacyTheme,
   systemDark,
+  systemReducedMotion = false,
   storedLocale,
   legacyStoredLocale,
   browserLanguages,
@@ -67,6 +68,7 @@ function runThemeScript({
   preferences?: unknown;
   legacyTheme?: string;
   systemDark: boolean;
+  systemReducedMotion?: boolean;
   storedLocale?: string;
   legacyStoredLocale?: string;
   browserLanguages?: string[];
@@ -134,9 +136,9 @@ function runThemeScript({
       ? { navigator: { languages: browserLanguages, language: browserLanguages[0] } }
       : {}),
     window: {
-      matchMedia: () => ({
+      matchMedia: (query: string) => ({
         get matches() {
-          return dark;
+          return query === '(prefers-reduced-motion: reduce)' ? systemReducedMotion : dark;
         },
         addEventListener: (_type: string, handler: () => void) => {
           changeHandler = handler;
@@ -156,6 +158,28 @@ function runThemeScript({
     }
   };
 }
+
+describe('app.html animation preference bootstrap', () => {
+  it.each([
+    [undefined, false, 'automatic', 'full'],
+    [undefined, true, 'automatic', 'reduced'],
+    ['invalid', true, 'automatic', 'reduced'],
+    ['automatic', true, 'automatic', 'reduced'],
+    ['enabled', true, 'enabled', 'full'],
+    ['disabled', false, 'disabled', 'reduced']
+  ])(
+    'resolves %s with system reduced motion %s before first paint',
+    (animations, systemReducedMotion, preference, motion) => {
+      const { root } = runThemeScript({
+        preferences: { animations },
+        systemDark: false,
+        systemReducedMotion
+      });
+      expect(root.dataset.animations).toBe(preference);
+      expect(root.dataset.motion).toBe(motion);
+    }
+  );
+});
 
 function firstPaintDirection(locale: string): string {
   if (!directionFunction) throw new Error('textDirection function not found');

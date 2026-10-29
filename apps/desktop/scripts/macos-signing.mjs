@@ -11,6 +11,10 @@ export function macOSDistributionOptions(platform, environment) {
     appleApiKeyId: environment.CHATTO_MACOS_NOTARY_API_KEY_ID?.trim() || undefined
   };
   const requestedNotarisation = Object.values(notaryValues).some(Boolean);
+  // Local development needs a stable certificate identity, but no online
+  // timestamp. Notarised builds still require Apple's secure timestamp.
+  const localDevelopment =
+    environment.CHATTO_DESKTOP_BUILD === 'development' && !requestedNotarisation;
 
   if (requestedNotarisation && identity === '-') {
     throw new Error('CHATTO_MACOS_SIGN_IDENTITY is required when notarisation is configured.');
@@ -26,8 +30,10 @@ export function macOSDistributionOptions(platform, environment) {
     osxSign: {
       identity,
       identityValidation: identity !== '-',
+      continueOnError: false,
       optionsForFile: () => ({
-        hardenedRuntime: identity !== '-'
+        hardenedRuntime: identity !== '-',
+        ...(localDevelopment ? { timestamp: 'none' } : {})
       })
     }
   };

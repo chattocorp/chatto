@@ -52,7 +52,7 @@ for (const destination of ['room', 'thread'] as const) {
     await expect(pane.getByTestId('reply-indicator')).toContainText(excerpt);
 
     const posted = page.waitForRequest((request) => request.url().endsWith('/CreateMessage'));
-    await pane.getByRole('button', { name: 'Send message', exact: true }).click();
+    await pane.getByRole('button', { name: 'Send: Send message', exact: true }).click();
     const request = CreateMessageRequest.fromBinary((await posted).postDataBuffer()!);
     expect(request.inReplyTo).toBe(targetId);
     expect(request.threadRootEventId).toBe(inThread ? rootId : '');

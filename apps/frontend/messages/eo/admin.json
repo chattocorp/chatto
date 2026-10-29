@@ -52,6 +52,11 @@
       "subtitle": "Servila identeco, marko kaj mesaĝoj"
     },
     "members": {
+      "deactivate": "Malaktivigi konton",
+      "reactivate": "Reaktivigi konton",
+      "deactivate_description": "La uzanto ne plu povos uzi ĉi tiun servilon. Ĉiuj seancoj tuj finiĝos. La datumoj restos konservitaj. Vi povos reaktivigi la konton poste.",
+      "deactivated_description": "Ĉi tiu konto estas malaktiva. Reaktivigo permesos al la uzanto denove ensaluti. Malnovaj seancoj restos nevalidaj.",
+      "deactivation_failed": "Ne eblis ŝanĝi la aliron al la konto.",
       "title": "Membroj",
       "subtitle": "Rigardu kaj administru servilmembrojn kaj iliajn rolojn",
       "search": "Serĉu membrojn",
@@ -249,6 +254,10 @@
         "name_title": "Nomo kaj priskribo",
         "name_subtitle": "Membroj vidas ilin en la listo de ĉambroj kaj supre en la ĉambro.",
         "visibility_title": "Videbleco",
+        "membership_events_title": "Agado de membroj",
+        "show_membership_events": "Montri aliĝojn kaj forirojn",
+        "membership_events_description": "Montri kiam homoj aliĝas al ĉi tiu ĉambro aŭ forlasas ĝin, ankaŭ en ĝia historio. Kaŝi ĉi tiun agadon ne forigas ĝin.",
+        "membership_events_unavailable": "Ĝisdatigu ĉi tiun servilon por ŝanĝi la montradon de membra agado.",
         "visibility_subtitle": "Elektu, kiu estas membro de ĉi tiu ĉambro.",
         "universal_description": "Ĉiu membro, kiu povas aliĝi al ĉi tiu ĉambro, estas aŭtomate membro.",
         "visibility_help": "Uzu universalan ĉambron por novaĵoj, kiujn ĉiuj membroj devas ricevi, ekzemple anoncoj. Membroj ne povas forlasi universalan ĉambron, sed ili povas silentigi ĝin. Se vi malŝaltas la universalan reĝimon, la membroj, kiuj aliĝis antaŭe, restas en la ĉambro.",

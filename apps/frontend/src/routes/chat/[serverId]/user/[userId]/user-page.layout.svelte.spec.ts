@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = vi.hoisted(() => ({
-  page: { params: { serverId: '-', userId: 'recipient' } },
+  page: { params: { serverId: '-', userId: 'recipient' } as Record<string, string> },
   startDM: vi.fn(),
   ensureRoomAvailable: vi.fn(),
   goto: vi.fn(),
@@ -61,10 +61,14 @@ function deferred<T>() {
 
 let mounted: ReturnType<typeof render> | undefined;
 let server: TestServerScope;
+// SvelteKit replaces this object on navigation, including thread-only changes.
+class TestPage {
+  params = $state.raw<Record<string, string>>({ serverId: '-', userId: 'recipient' });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
-  const page = $state({ params: { serverId: '-', userId: 'recipient' } });
-  mocks.page = page;
+  mocks.page = new TestPage();
   server = createTestServerScope({
     serverId: 'origin',
     viewer: { id: 'self' },
@@ -80,6 +84,46 @@ afterEach(async () => {
 });
 
 describe('user page', () => {
+  it('keeps the conversation mounted across thread and message navigation', async () => {
+    mounted = render(Destination);
+    const conversation = mounted.getByText('Conversation: dm-room');
+    await expect.element(conversation).toBeVisible();
+    const original = conversation.element();
+
+    const selections: Record<string, string>[] = [
+      { threadId: 'thread-1' },
+      { threadId: 'thread-2' },
+      { threadId: 'thread-2', messageId: 'message-1' },
+      {}
+    ];
+    for (const selection of selections) {
+      mocks.page.params = { serverId: '-', userId: 'recipient', ...selection };
+      flushSync();
+      expect(original.isConnected).toBe(true);
+      await expect.element(conversation).toBeVisible();
+      expect(conversation.element()).toBe(original);
+      expect(mocks.startDM).toHaveBeenCalledOnce();
+      expect(mocks.ensureRoomAvailable).toHaveBeenCalledOnce();
+    }
+  });
+
+  it.each(['command', 'refresh'])('keeps a pending %s during thread navigation', async (stage) => {
+    const pending = deferred<{ id: string }>();
+    if (stage === 'command') mocks.startDM.mockReturnValue(pending.promise);
+    else mocks.ensureRoomAvailable.mockReturnValue(pending.promise);
+    mounted = render(Destination);
+    await vi.waitFor(() =>
+      expect(stage === 'command' ? mocks.startDM : mocks.ensureRoomAvailable).toHaveBeenCalledOnce()
+    );
+
+    mocks.page.params = { serverId: '-', userId: 'recipient', threadId: 'thread-1' };
+    flushSync();
+    expect(mocks.startDM).toHaveBeenCalledOnce();
+    pending.resolve({ id: 'dm-room' });
+    await expect.element(mounted.getByText('Conversation: dm-room')).toBeVisible();
+    expect(mocks.ensureRoomAvailable).toHaveBeenCalledOnce();
+  });
+
   it('shows loading until both the command and authoritative room refresh finish', async () => {
     const command = deferred<{ id: string }>();
     const refresh = deferred<void>();
@@ -132,7 +176,7 @@ describe('user page', () => {
     mocks.startDM.mockReturnValueOnce(old.promise);
     mounted = render(Destination);
     await vi.waitFor(() => expect(mocks.startDM).toHaveBeenCalledOnce());
-    mocks.page.params.userId = 'self';
+    mocks.page.params = { serverId: '-', userId: 'self' };
     flushSync();
     await expect.element(mounted.getByText('Conversation: dm-room')).toBeVisible();
     expect(mocks.startDM).toHaveBeenLastCalledWith([]);
@@ -146,7 +190,7 @@ describe('user page', () => {
   it('waits for the account before opening a conversation', async () => {
     const viewer = server.currentUser.user;
     server.currentUser.user = undefined;
-    mocks.page.params.userId = 'self';
+    mocks.page.params = { serverId: '-', userId: 'self' };
     mounted = render(Destination);
     await expect.element(mounted.getByRole('status', { name: 'Loading...' })).toBeInTheDocument();
     expect(mocks.startDM).not.toHaveBeenCalled();

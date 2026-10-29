@@ -52,6 +52,11 @@
       "subtitle": "Serveridentitet, merkevarebygging og meldinger"
     },
     "members": {
+      "deactivate": "Deaktiver konto",
+      "reactivate": "Aktiver konto igjen",
+      "deactivate_description": "Brukeren vil ikke lenger kunne bruke denne serveren. Alle økter avsluttes umiddelbart. Alle data beholdes. Du kan aktivere kontoen igjen senere.",
+      "deactivated_description": "Denne kontoen er deaktivert. Når den aktiveres igjen, kan brukeren logge inn på nytt. Gamle økter forblir ugyldige.",
+      "deactivation_failed": "Kunne ikke endre kontotilgangen.",
       "title": "Medlemmer",
       "subtitle": "Se og administrer tjenermedlemmer og deres roller",
       "search": "Søk etter medlemmer",
@@ -249,6 +254,10 @@
         "name_title": "Navn og beskrivelse",
         "name_subtitle": "Medlemmer ser dette i romlisten og øverst i rommet.",
         "visibility_title": "Synlighet",
+        "membership_events_title": "Medlemsaktivitet",
+        "show_membership_events": "Vis når medlemmer blir med eller forlater",
+        "membership_events_description": "Vis når personer blir med i eller forlater rommet, også i historikken. Å skjule aktiviteten sletter den ikke.",
+        "membership_events_unavailable": "Oppdater serveren for å endre hvordan medlemsaktivitet vises.",
         "visibility_subtitle": "Velg hvem som er medlem av dette rommet.",
         "universal_description": "Alle medlemmer som kan bli med i dette rommet, er automatisk medlemmer.",
         "visibility_help": "Bruk et universelt rom for nyheter som alle medlemmer må få, for eksempel kunngjøringer. Medlemmer kan ikke forlate et universelt rom, men de kan dempe det. Hvis du slår av universell, blir medlemmene som ble med tidligere, værende i rommet.",

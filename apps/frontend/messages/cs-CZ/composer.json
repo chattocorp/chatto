@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Vložte emoji",
     "attach_file": "Připojit soubor",
     "formatting_options": "Možnosti formátování",
     "send": "Odeslat zprávu",
@@ -25,6 +26,8 @@
     "drop_files_title": "Sem přetáhněte soubory",
     "drop_files_subtitle": "Do vaší zprávy budou přidány obrázky a videa",
     "send_failed": "Odeslání zprávy se nezdařilo",
+    "send_retry_expired": "Lhůta pro opakování odeslání vypršela. Než zprávu odešlete znovu, zkontrolujte, zda dorazila.",
+    "send_retry_reset": "Připojení bylo obnoveno. Než zprávu odešlete znovu, zkontrolujte, zda dorazila.",
     "slow_mode_ready": "Pomalý režim: jedna zpráva za {interval}.",
     "slow_mode_waiting": "Pomalý režim: další zprávu můžete poslat za {countdown}.",
     "slow_mode_bypassed": "Pomalý režim: {interval} (máte výjimku).",
@@ -44,9 +47,11 @@
       "remove": "Odebrat {filename}",
       "video_disabled": "Nahrávání videí je na tomto serveru zakázáno.",
       "prepare_failed": "Přílohu se nepodařilo připravit",
+      "too_many": "Ke zprávě můžete připojit nejvýše {max} souborů. Další soubory nebyly přidány.",
       "too_large": "Soubor {filename} je příliš velký ({size}). Maximum je {limit}."
     },
     "format": {
+      "underline": "Podtržení",
       "bold": "Tučné",
       "italic": "kurzíva",
       "inline_code": "Vložený kód",

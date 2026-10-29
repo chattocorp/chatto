@@ -54,6 +54,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     store: {
+      projection: { users: { get: () => undefined } },
       accountId: 'viewer',
       permissions: {
         canAdminViewUsers: mocks.canViewAccounts,

@@ -72,10 +72,12 @@ export type RealtimeServerRegistration = {
   /** Canonical store reducer that must be present before transport startup. */
   projectionHandler: ProjectionHandler;
   /** Refresh auxiliary state at caught-up. The optional generation selects a
-   * privilege-only refresh after an uninterrupted, successfully resumed stream. */
+   * privilege-only refresh after an uninterrupted, successfully resumed stream.
+   * `inactivePoll` is true for the catch-up of an inactive server's poll. */
   completeProjectionCatchUp?: (
     cursor: string,
-    authorizationRefreshGeneration?: number
+    authorizationRefreshGeneration?: number,
+    inactivePoll?: boolean
   ) => Promise<void>;
   /** Wait for event-triggered reads without fetching unrelated resources. */
   waitForProjectionReconciliation?: () => Promise<void>;
@@ -519,6 +521,7 @@ export class EventBusManager {
                 try {
                   await cursorReconciliation;
                   if (stopped || socket !== nextSocket) return;
+                  const inactivePoll = mode === 'polling';
                   if (
                     privilegeRefreshGeneration !== undefined &&
                     privilegeRefreshGeneration === authorizationRefreshGeneration &&
@@ -528,9 +531,19 @@ export class EventBusManager {
                   ) {
                     await completeProjectionCatchUp?.(
                       frame.frame.value.cursor,
-                      privilegeRefreshGeneration
+                      privilegeRefreshGeneration,
+                      inactivePoll
                     );
                   } else {
+                    await completeProjectionCatchUp?.(
+                      frame.frame.value.cursor,
+                      undefined,
+                      inactivePoll
+                    );
+                  }
+                  // A promotion during the catch-up of a poll keeps this socket.
+                  // Complete the reads that the inactive catch-up skipped.
+                  if (inactivePoll && mode === 'live' && !stopped && socket === nextSocket) {
                     await completeProjectionCatchUp?.(frame.frame.value.cursor);
                   }
                 } catch (error) {

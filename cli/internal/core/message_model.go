@@ -6,6 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
+	"google.golang.org/protobuf/proto"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -23,6 +27,12 @@ type MessagePostInput struct {
 	AlsoSendToChannel       bool
 	CreateThread            bool
 	LinkPreview             *evtv1.LinkPreview
+	// LinkPreviewToken is resolved only when a new write is needed. Exact
+	// retries remain valid after the original preview token expires.
+	LinkPreviewToken string
+	// IdempotencyKey is an optional account-scoped caller UUID. It reserves a
+	// server-generated message identity for 30 minutes without entering EVT.
+	IdempotencyKey          string
 	automaticThreadCreation bool
 }
 
@@ -64,7 +74,7 @@ func authorizationInputForPost(input MessagePostInput, threadRootEventID string)
 
 // MessagePostAuthorization is the resolved room context for an authorized post.
 type MessagePostAuthorization struct {
-	Room *evtv1.Room
+	Room *readmodel.Room
 	Kind RoomKind
 }
 
@@ -150,6 +160,47 @@ type MessageModel struct {
 // requires message.post. Echoing a thread reply additionally
 // requires message.echo and message.post.
 func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
+	claim, err := s.claimMessagePost(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if claim != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, claim.expiresAt)
+		defer cancel()
+		if event, err := s.claimedMessage(ctx, input, claim); event != nil || err != nil {
+			return messagePostResult(event), err
+		}
+	}
+	result, err := s.postMessage(ctx, input, claim)
+	if err != nil && claim != nil && ctx.Err() == nil {
+		// Another attempt can commit between our absence check and validation,
+		// or our own publish can commit despite a lost acknowledgement. Resolve
+		// that identity before treating a mutable validation failure as a reject.
+		if event, readErr := s.claimedMessage(ctx, input, claim); event != nil || readErr != nil {
+			return messagePostResult(event), readErr
+		}
+	}
+	return result, err
+}
+
+func messagePostResult(event *evtv1.Event) *MessagePostResult {
+	if event == nil {
+		return nil
+	}
+	return &MessagePostResult{Event: event}
+}
+
+func (s *MessageModel) postMessage(ctx context.Context, input MessagePostInput, claim *messagePostClaim) (*MessagePostResult, error) {
+	if input.LinkPreviewToken != "" {
+		preview, err := s.core.ResolveLinkPreviewToken(ctx, input.LinkPreviewToken)
+		if err != nil {
+			return nil, err
+		}
+		input.LinkPreview = preview
+	} else if input.LinkPreview != nil {
+		input.LinkPreview = proto.Clone(input.LinkPreview).(*evtv1.LinkPreview)
+	}
 	preparedInput, err := s.applyAutomaticThreadCreation(ctx, input)
 	if err != nil {
 		return nil, err
@@ -163,6 +214,9 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	kind := preflight.Authorization.Kind
 
 	options := make([]PostMessageOption, 0, 2)
+	if claim != nil {
+		options = append(options, func(options *postMessageOptions) { options.claim = claim })
+	}
 	descriptions, err := normalizeAttachmentDescriptionInputs(input.AttachmentAssetIDs, input.AttachmentDescriptions)
 	if err != nil {
 		return nil, err
@@ -337,6 +391,16 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	if !isMember {
 		return nil, ErrNotRoomMember
 	}
+	if kind == KindDM {
+		participants := s.core.roomModel.explicitRoomMemberIDs(room.Id)
+		if len(participants) == 2 {
+			for _, participantID := range participants {
+				if participantID != input.ActorID && s.core.userModel.deactivated(participantID) {
+					return nil, ErrPermissionDenied
+				}
+			}
+		}
+	}
 	// Match the commit path's inference for replies to a thread reply or echo.
 	// Attribution to a room root remains a room post unless a thread is explicit.
 	if input.ThreadRootEventID == "" && input.InReplyTo != "" {
@@ -420,7 +484,7 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	return &MessagePostAuthorization{Room: room, Kind: kind}, nil
 }
 
-func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *evtv1.Room, input MessagePostAuthorizationInput) error {
+func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *readmodel.Room, input MessagePostAuthorizationInput) error {
 	mode := EffectiveRoomThreadingMode(room)
 	threadRootID := strings.TrimSpace(input.ThreadRootEventID)
 	inReplyTo := strings.TrimSpace(input.InReplyTo)
@@ -496,7 +560,7 @@ func (s *MessageModel) bypassesSlowMode(ctx context.Context, actorID string, kin
 // slowModeNextPostAt returns a future eligibility timestamp, or zero when the
 // actor is currently allowed to post. The caller supplies now so boundary
 // behavior can be tested without sleeping.
-func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypasses bool, now time.Time) time.Time {
+func (s *MessageModel) slowModeNextPostAt(room *readmodel.Room, actorID string, bypasses bool, now time.Time) time.Time {
 	if room == nil || KindOfRoom(room) != KindChannel || room.GetSlowModeSeconds() == 0 || bypasses {
 		return time.Time{}
 	}
@@ -509,7 +573,7 @@ func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypa
 
 // EffectiveThreadSlowModeSeconds preserves the interval of legacy room facts.
 // New configuration facts store an explicit thread interval, including zero.
-func EffectiveThreadSlowModeSeconds(room *evtv1.Room) uint32 {
+func EffectiveThreadSlowModeSeconds(room *readmodel.Room) uint32 {
 	if room == nil {
 		return 0
 	}
@@ -519,7 +583,7 @@ func EffectiveThreadSlowModeSeconds(room *evtv1.Room) uint32 {
 	return room.GetThreadSlowModeSeconds()
 }
 
-func (s *MessageModel) threadSlowModeNextPostAt(room *evtv1.Room, threadID, actorID string, bypasses bool, now time.Time) time.Time {
+func (s *MessageModel) threadSlowModeNextPostAt(room *readmodel.Room, threadID, actorID string, bypasses bool, now time.Time) time.Time {
 	if room == nil || KindOfRoom(room) != KindChannel || EffectiveThreadSlowModeSeconds(room) == 0 || bypasses {
 		return time.Time{}
 	}
@@ -726,7 +790,7 @@ func (s *MessageModel) DeleteLinkPreview(ctx context.Context, input MessageLinkP
 // actor must be a room member and must be authorized to read the destination
 // timeline. There is intentionally no message-posting permission check.
 func (s *MessageModel) SendTypingIndicator(ctx context.Context, input TypingIndicatorInput) error {
-	var room *evtv1.Room
+	var room *readmodel.Room
 	var kind RoomKind
 	var err error
 	if input.ThreadRootEventID == nil {

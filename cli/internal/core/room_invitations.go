@@ -90,6 +90,9 @@ func (m *RoomInvitationModel) eligible(ctx context.Context, sender, recipient, r
 		if user.GetIsBot() {
 			return invalidArgument("room invitations require human accounts")
 		}
+		if user.GetDeactivated() {
+			return invalidArgument("deactivated accounts cannot receive invitations")
+		}
 	}
 	member, err := c.RoomMembershipExists(ctx, KindChannel, sender, roomID)
 	if err != nil {

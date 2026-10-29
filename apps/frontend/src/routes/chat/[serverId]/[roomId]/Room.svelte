@@ -1,4 +1,7 @@
 <script lang="ts">
+  import RoomNoticeBanner from './RoomNoticeBanner.svelte';
+  import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
+  import { timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { conversationPath, userConversationRoomId } from '$lib/navigation/conversationPath';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -138,6 +141,19 @@
   const roomPinsStore = $derived(
     room.roomData && canReadMessages && !room.isDM ? stores.rooms.pins(roomId) : null
   );
+  const roomNoticeStore = $derived(
+    room.roomData && !room.isDM && stores.projection.rooms.get(roomId)?.viewerState?.isMember
+      ? stores.rooms.notice(roomId)
+      : null
+  );
+  const retainNotice: Attachment = () => roomNoticeStore?.retain();
+  const noticeMentions: MarkdownMentionOptions = $derived({
+    members: roomMembersStore.members,
+    roles: stores.mentionRoles.roles,
+    viewerLogin: stores.currentUser.user?.login,
+    searchMembers: (query: string) => roomMembersStore.searchMembers(query),
+    onMentionClick: (userId: string) => appUi.openMemberProfile(userId)
+  });
 
   $effect(() => {
     if (!stores.isAuthenticated) return;
@@ -342,11 +358,17 @@
   );
   const sharedRoomSidebarProps = $derived({
     roomId,
+    roomName: room.roomData?.room.name ?? '',
+    roomDescription: room.roomData?.room.description ?? '',
+    roomCreatedAt: room.roomData?.room.createdAt ?? null,
     hasActiveCall: hasActiveRoomCall,
     loading: room.isRoomLoading,
     searchStore: roomMessageSearchStore,
     filesStore: roomFilesStore,
     pinsStore: roomPinsStore ?? undefined,
+    noticeStore: roomNoticeStore ?? undefined,
+    canManageNotice: room.roomData?.canManageNotice ?? false,
+    noticeMentions,
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
     isUniversal: room.roomData?.room.isUniversal ?? false,
@@ -514,6 +536,8 @@
   onkeydown={(e) => {
     // The modal owns keyboard actions while the room remains visible behind it.
     if (page.state.modal) return;
+    // An open menu or sheet consumes Escape before the underlying room panels.
+    if (e.key === 'Escape' && document.querySelector(':popover-open, dialog[open]')) return;
     handleWindowKeydown(e);
     if (e.defaultPrevented) return;
 
@@ -528,7 +552,11 @@
       closeThread();
     }
   }}
-  onpointerdown={(e) => {
+  onpointerdowncapture={(e) => {
+    // Check before the menu's outside-pointer handler removes it. One press
+    // dismisses only the menu, not the room overlay underneath it.
+    if (document.querySelector(':popover-open')) return;
+
     if (hasMobileRoomSidebar && e.button === 0) {
       const target = e.target as HTMLElement;
       if (
@@ -545,11 +573,9 @@
     if (!threadId || splitThreadLayout || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
-    // A thread is an overlay over the room view, so only the dimmed room
-    // surface behind it should behave as a click-outside dismissal target.
-    // Controls elsewhere in the app (such as the room extras sidebar) manage
-    // their own state and must not close the thread as a side effect.
-    if (!target.closest('[data-thread-dismiss-surface]')) return;
+    // The dimmed room, left sidebar, and server gutter dismiss the overlay.
+    // The room extras sidebar keeps its independent controls.
+    if (!target.closest('[data-thread-dismiss-surface], [data-app-sidebar]')) return;
     closeThread();
   }}
 />
@@ -615,6 +641,7 @@
           hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
+        data-navigation-content
         inert={(threadId && canReadMessages && !splitThreadLayout) || hasMobileRoomSidebar
           ? true
           : undefined}
@@ -715,6 +742,18 @@
               {/if}
             {/snippet}
           </PaneHeader>
+          {#if roomNoticeStore && stores.viewerId}
+            <div class="flex min-h-0 flex-col" {@attach retainNotice}>
+              <RoomNoticeBanner
+                store={roomNoticeStore}
+                serverId={activeServerId}
+                viewerId={stores.viewerId}
+                canManage={room.roomData?.canManageNotice ?? false}
+                mentions={noticeMentions}
+                timeSettings={timeFormatSettingsFor(stores.currentUser.user?.settings)}
+              />
+            </div>
+          {/if}
         {/snippet}
       </ConversationPane>
 

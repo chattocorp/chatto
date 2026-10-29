@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publiser, rett, kunngjør på nytt og fjern romkunngjøringer",
       "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
       "server_manage_neighbors": "Administrer den offentlige nabokatalogen",
       "room_create": "Opprett nye rom",

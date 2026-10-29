@@ -151,6 +151,7 @@ func isUserAuthEvent(event *evtv1.Event) bool {
 		*evtv1.Event_UserExternalIdentityUnlinked,
 		*evtv1.Event_OauthConsentGranted,
 		*evtv1.Event_UserAccountDeleted,
+		*evtv1.Event_UserAccountDeactivationChanged,
 		*evtv1.Event_UserKeyShreddingRequested,
 		*evtv1.Event_UserKeyShredded:
 		return true

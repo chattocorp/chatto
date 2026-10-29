@@ -9,6 +9,12 @@ Dependency manifests and lockfiles in this repository remain the authoritative
 set of third-party packages, including transitive dependencies, used to build
 each artifact.
 
+Slack conversion data:
+
+- emoji-data (https://github.com/iamcal/emoji-data) - MIT License
+  Copyright (c) 2013 Cal Henderson. Generated alias and skin-tone mappings only;
+  no upstream image assets are included.
+
 ChattoBot:
 
 - Paseo client SDK (https://github.com/getpaseo/paseo) - Apache License 2.0
@@ -50,6 +56,10 @@ Server and CLI Go Components:
 - Goth OAuth/OIDC authentication (https://github.com/markbates/goth) -
   MIT License
 - imageorient (https://github.com/disintegration/imageorient) - MIT License
+- heic (https://github.com/gen2brain/heic) - MIT License. Its embedded WASM
+  decoder includes imazen/heic (https://github.com/imazen/heic), AGPL-3.0-only.
+- purego (https://github.com/ebitengine/purego) - Apache License 2.0
+- wazero (https://github.com/tetratelabs/wazero) - Apache License 2.0
 - jellydator/ttlcache (https://github.com/jellydator/ttlcache) - MIT License
 - rs/cors (https://github.com/rs/cors) - MIT License
 - SCS session management (https://github.com/alexedwards/scs) - MIT License
@@ -73,6 +83,8 @@ Server and CLI Go Components:
 
 Frontend, Examples, and Documentation Components:
 
+- xterm.js headless terminal (https://github.com/xtermjs/xterm.js) - MIT License
+
 - Astro and Starlight (https://astro.build/) - MIT License
 - Buf Protobuf runtime and ES code generation for TypeScript
   (https://github.com/bufbuild/protobuf-es) - Apache License 2.0
@@ -84,10 +96,11 @@ Frontend, Examples, and Documentation Components:
 - Fontsource IBM Plex Sans and IBM Plex Mono
   (https://fontsource.org/fonts/ibm-plex-sans,
   https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
-- Plus Jakarta Sans, bundled by Runling through Fontsource
-  (https://fontsource.org/fonts/plus-jakarta-sans) - SIL Open Font License 1.1
 - daisyUI, used by the Runling console (https://daisyui.com/) - MIT License
 - gemoji (https://github.com/github/gemoji) - MIT License
+- Unicode Emoji 15.0 data (https://www.unicode.org/Public/emoji/15.0/)
+  - Unicode Data Files and Software License (Unicode-DFS-2016)
+  - Copyright © 2022 Unicode, Inc. Used to generate skin-tone emoji mappings.
 - heic2any (https://github.com/alexcorvi/heic2any) - MIT License
 - highlight.js (https://highlightjs.org/) - BSD 3-Clause License
 - hls.js (https://github.com/video-dev/hls.js) - Apache License 2.0
@@ -97,17 +110,20 @@ Frontend, Examples, and Documentation Components:
 - LiveKit client SDK for JS (https://github.com/livekit/client-sdk-js) -
   Apache License 2.0
 - lowlight (https://github.com/wooorm/lowlight) - MIT License
+- lru-cache, used by @chatto/client (https://github.com/isaacs/node-lru-cache) - Blue Oak Model License 1.0.0
 - machina (https://github.com/ifandelse/machina.js) - MIT License
 - markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
 - markdown-it-footnote (https://github.com/markdown-it/markdown-it-footnote) - MIT License
 - node-semver (https://github.com/npm/node-semver) - ISC License
 - Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
 - Undici, used by the Runling bot for address-pinned web requests (https://github.com/nodejs/undici) - MIT License
-- Runling workflow runner (packages/runling, originally https://github.com/chattocorp/runling) - MIT License; Copyright (c) 2026 Hendrik Mans and contributors
-- Pi coding agent, AI SDK, and terminal UI, used by Runling (https://github.com/earendil-works/pi) - MIT License
+- Runling workflow runner, also used by the Botto example (packages/runling, originally https://github.com/chattocorp/runling) - MIT License; Copyright (c) 2026 Hendrik Mans and contributors
+- Pi coding agent, AI SDK, MCP client, and terminal UI, used by Runling and the Botto example (https://github.com/earendil-works/pi) - MIT License
+- smol-toml, used by the Botto example (https://github.com/squirrelchat/smol-toml) - BSD-3-Clause License
+- TypeBox, used by the Botto example (https://github.com/sinclairzx81/typebox) - MIT License
 - Playwright (https://playwright.dev/) - Apache License 2.0
 - Prettier and plugins (https://prettier.io/) - MIT License
-- Sharp image toolkit (https://sharp.pixelplumbing.com/) - Apache License 2.0
+- Sharp image toolkit, also used by Botto for image crops (https://sharp.pixelplumbing.com/) - Apache License 2.0
 - Storybook packages (https://storybook.js.org/) - MIT License
 - Svelte, SvelteKit, Svelte check, and Svelte tooling
   (https://svelte.dev/) - MIT License
@@ -137,6 +153,16 @@ Mobile Components:
 
 Desktop Components:
 
+- electron-builder (https://www.electron.build/) - MIT License
+  (Windows installer, macOS disk-image, and Linux AppImage packaging)
+- electron-updater (https://www.electron.build/) - MIT License. Bundled
+  dependency licence texts are in app.asar/updater-licenses.txt.
+- esbuild (https://github.com/evanw/esbuild) - MIT License (build tool)
+- macOS disk-image background artwork (`apps/desktop/icons/background*.png`) -
+  Apache License 2.0, as specified in REUSE.toml
+- NSIS (https://nsis.sourceforge.io/) - zlib/libpng License; installer components
+  include bzip2 and LZMA code under their respective licences
+
 - Electron (https://www.electronjs.org/) - MIT License; Copyright OpenJS
   Foundation and Electron contributors
 - LiveKit client SDK for Swift (https://github.com/livekit/client-sdk-swift) -
@@ -146,7 +172,8 @@ Desktop Components:
 - LiveKit WebRTC XCFramework (https://github.com/livekit/webrtc-xcframework) -
   MIT License; Copyright 2021 WebRTC SDKs; bundled WebRTC is BSD 3-Clause and
   includes third-party components under their respective licences
-- Swift Protobuf (https://github.com/apple/swift-protobuf) - Apache License 2.0
+- nanopb (https://github.com/nanopb/nanopb), bundled by the LiveKit Swift SDK -
+  zlib License; Copyright 2011 Petteri Aimonen
 - Chromium (https://www.chromium.org/) - BSD 3-Clause License and other
   licences included in Electron's bundled `LICENSES.chromium.html`
 
@@ -180,7 +207,7 @@ Chatto's source code uses mixed licensing. The default repository license is
 the GNU Affero General Public License version 3 or any later version, with
 Apache License 2.0 exceptions for the independently versioned shared framework
 modules and selected frontend, integration, and documentation surfaces, and
-MIT License exceptions for Runling and the client packages under `packages/`,
+MIT License exceptions for Runling and ChattoBot under `packages/`,
 as annotated in REUSE.toml. These licenses do not grant permission to use the
 "Chatto" name, Chatto logos, or other Chatto marks except as otherwise
 permitted by law. "Chatto" and the Chatto logos are marks and trade names of

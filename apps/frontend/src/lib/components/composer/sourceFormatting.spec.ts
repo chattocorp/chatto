@@ -45,6 +45,22 @@ describe('applySourceFormatting', () => {
 });
 
 describe('getSourceFormattingState', () => {
+  it.each([
+    ['__text__', 4, false, true],
+    ['__**text**__', 6, true, true],
+    ['`__text__`', 5, false, false],
+    ['```\n__text__\n```', 8, false, false]
+  ])('distinguishes underline from bold and code in %s', (doc, anchor, bold, underline) => {
+    const state = EditorState.create({ doc, selection: { anchor }, extensions: [markdown()] });
+    expect(getSourceFormattingState(state)).toMatchObject({ bold, underline });
+  });
+
+  it('toggles underline around a selection', () => {
+    const wrapped = applySourceFormatting('hello', { anchor: 0, head: 5 }, 'underline');
+    expect(wrapped.text).toBe('__hello__');
+    expect(applySourceFormatting(wrapped.text, wrapped, 'underline').text).toBe('hello');
+  });
+
   it('derives active marks and structures from the Markdown syntax tree', () => {
     const state = EditorState.create({
       doc: '> ## **bold** and `code`',

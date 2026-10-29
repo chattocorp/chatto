@@ -4,9 +4,11 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 /**
  * Observed presence of the users of one server.
  *
- * The server store writes it from the realtime stream of that server, whether
- * or not the server is on screen. A user without an entry has no known
- * presence; readers then use the presence of the profile they already have.
+ * The server store writes it from the realtime stream of that server. While a
+ * client polls the server (see `liveServers`), presence is not kept current.
+ * It becomes current at the full catch-up when the server becomes live. A user
+ * without an entry has no known presence; readers then use the presence of the
+ * profile they already have.
  */
 export class ServerPresence {
   #statuses = new ReactiveMap<string, PresenceStatus>();

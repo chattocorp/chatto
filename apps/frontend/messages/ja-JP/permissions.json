@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "ルームのお知らせの公開、修正、再告知、削除",
       "server_manage": "サーバー設定の更新 (名前、説明、ロゴ)",
       "server_manage_neighbors": "公開ネイバーディレクトリを管理する",
       "room_create": "新しいルームを作成する",

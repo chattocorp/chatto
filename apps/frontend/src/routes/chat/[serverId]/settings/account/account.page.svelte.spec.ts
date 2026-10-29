@@ -6,6 +6,10 @@ import { adminQueryKeys } from '$lib/query/admin';
 import { settingsQueryKeys } from '$lib/query/settings';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import AccountPage from './+page.svelte';
+import {
+  PasswordChangeAvailability,
+  AccountDeletionAvailability
+} from '@chatto/client/api/actionAvailability';
 
 const mocks = vi.hoisted(() => ({
   listExternalIdentities: vi.fn(),
@@ -89,6 +93,84 @@ describe('Account settings page', () => {
     expect(container.querySelectorAll('.panel-shell')).toHaveLength(4);
     await expect.element(getByText('User ID')).toBeVisible();
     await expect.element(getByText('U123abcetc.')).toBeVisible();
+  });
+
+  it.each([
+    PasswordChangeAvailability.UNSPECIFIED,
+    PasswordChangeAvailability.UNSUPPORTED_ACCOUNT,
+    99 as PasswordChangeAvailability
+  ])(
+    'keeps password restriction %s disabled without borrowing another action reason',
+    async (reason) => {
+      server.currentUser.user!.actions = {
+        changePassword: reason
+      };
+      const { getByLabelText, getByText } = render(AccountPage);
+      await settle();
+      await expect.element(getByLabelText('Current Password', { exact: true })).toBeDisabled();
+      await expect.element(getByText('This action is currently unavailable.')).toBeVisible();
+    }
+  );
+
+  it('keeps password controls visible but disabled on SSO-only servers', async () => {
+    server.scope.store.serverInfo.directLoginEnabled = false;
+    const { getByRole, getByLabelText, getByText } = render(AccountPage);
+    await settle();
+
+    await expect.element(getByText(/You cannot add or change a password/)).toBeVisible();
+    await expect.element(getByLabelText('Current Password', { exact: true })).toBeDisabled();
+    await expect.element(getByLabelText('New Password', { exact: true })).toBeDisabled();
+    await expect
+      .element(getByRole('button', { name: 'Change password', exact: true }))
+      .toBeDisabled();
+  });
+
+  it.each([AccountDeletionAvailability.UNSPECIFIED, 99 as AccountDeletionAvailability])(
+    'does not use the legacy deletion grant for explicit state %s',
+    async (deleteAccount) => {
+      server.currentUser.user!.viewerCanDeleteAccount = true;
+      server.currentUser.user!.actions = { deleteAccount };
+      const { getByRole } = render(AccountPage);
+      await settle();
+      await expect
+        .element(getByRole('button', { name: 'Delete account', exact: true }))
+        .not.toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    { deleteAccount: undefined, legacy: true },
+    { deleteAccount: AccountDeletionAvailability.ALLOWED, legacy: false }
+  ])(
+    'uses the deletion decision, with a legacy fallback only for absence: $deleteAccount',
+    async ({ deleteAccount, legacy }) => {
+      server.currentUser.user!.viewerCanDeleteAccount = legacy;
+      server.currentUser.user!.actions = { deleteAccount };
+      const { getByRole } = render(AccountPage);
+      await settle();
+      await expect
+        .element(getByRole('button', { name: 'Delete account', exact: true }))
+        .toBeVisible();
+    }
+  );
+
+  it('allows password input when direct login is enabled', async () => {
+    const { getByLabelText, getByText } = render(AccountPage);
+    await settle();
+
+    await expect.element(getByLabelText('Current Password', { exact: true })).toBeEnabled();
+    await expect.element(getByText(/You cannot add or change a password/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the add-password controls disabled for passwordless SSO accounts', async () => {
+    server.scope.store.serverInfo.directLoginEnabled = false;
+    server.currentUser.user = { ...server.currentUser.user!, hasPassword: false };
+    const { getByRole, getByLabelText, getByText } = render(AccountPage);
+    await settle();
+
+    await expect.element(getByText(/You cannot add or change a password/)).toBeVisible();
+    await expect.element(getByLabelText('New Password', { exact: true })).toBeDisabled();
+    await expect.element(getByRole('button', { name: 'Add password', exact: true })).toBeDisabled();
   });
 
   it('shows verified email addresses and their primary actions', async () => {

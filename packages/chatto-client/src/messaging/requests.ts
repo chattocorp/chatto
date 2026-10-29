@@ -3,7 +3,8 @@
  *
  * A {@link Connection} and a stateless `Api` both expose these helpers. They
  * need no realtime connection. Each request has a ten-second timeout and is
- * never retried: a failed write can still have reached the server.
+ * not automatically retried: a failed write can still have reached the server.
+ * Retain a `prepareMessage` operation for explicit retries of one message.
  */
 
 import type { ServiceType } from '@bufbuild/protobuf';
@@ -18,6 +19,8 @@ import type { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { withTyping } from './typing.js';
+import { createMessageSend, type MessageSendOperation } from './messageSend.js';
+import { StaleResponseError } from '../api/connect.js';
 import type {
   AttachmentContent,
   AttachmentReadOptions,
@@ -44,12 +47,49 @@ const DEFAULT_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 /** Timeout of one attachment download. */
 const ATTACHMENT_TIMEOUT_MS = 30_000;
 
-/** Why a message is addressed to the viewer; see `addressedMessage`. */
-export type AddressingReason = 'direct_message' | 'mention' | 'reply';
+/**
+ * Why a message is addressed to the viewer; see `addressedMessage`.
+ *
+ * - `direct_message`: a message in a direct message room.
+ * - `mention`: a mention of the viewer by name.
+ * - `role_mention`: a mention of a role that the viewer has.
+ * - `here_mention`: an `@here` mention while the viewer was not offline.
+ * - `all_mention`: an `@all` mention.
+ * - `reply`: a reply to one of the viewer's messages.
+ */
+export type AddressingReason = (typeof ADDRESSING_REASONS)[number];
+
+/** Every {@link AddressingReason}. */
+export const ADDRESSING_REASONS = Object.freeze([
+  'direct_message',
+  'mention',
+  'role_mention',
+  'here_mention',
+  'all_mention',
+  'reply'
+] as const);
+
+/** The reasons that `addressedMessage` recognizes by default. */
+export const DEFAULT_ADDRESSING_REASONS: readonly AddressingReason[] = Object.freeze([
+  'direct_message',
+  'mention',
+  'reply'
+] as const);
+
+/** The reason for each kind of mention that includes the viewer. */
+const MENTION_REASONS = {
+  direct: 'mention',
+  role: 'role_mention',
+  here: 'here_mention',
+  all: 'all_mention'
+} as const satisfies Record<string, AddressingReason>;
 
 /** Options for `addressedMessage`. */
 export interface AddressingOptions extends RequestOptions {
-  /** The reasons to recognize. Default: all three. */
+  /**
+   * The reasons to recognize. Default: {@link DEFAULT_ADDRESSING_REASONS},
+   * so role, `@here`, and `@all` mentions do not address the viewer.
+   */
   reasons?: readonly AddressingReason[];
 }
 
@@ -121,15 +161,18 @@ export class MessagingRequests {
   readonly #rooms: Client<typeof RoomService>;
   readonly #threads: Client<typeof ThreadService>;
   readonly #viewerId: (options: RequestOptions) => Promise<string>;
+  readonly #dataGeneration?: () => number;
 
   /**
    * `viewerId` returns the account of the source's token. Thread reads and
    * addressing use it. `assets` lets `readAttachment` fetch attachment content.
+   * `dataGeneration` binds prepared sends to the current account and privacy scope.
    */
   constructor(
     source: ServiceSource,
     viewerId: (options: RequestOptions) => Promise<string>,
-    assets?: AssetAccess
+    assets?: AssetAccess,
+    dataGeneration?: () => number
   ) {
     this.#assetService = source.service(AssetService);
     this.#assets = assets;
@@ -137,6 +180,7 @@ export class MessagingRequests {
     this.#rooms = source.service(RoomService);
     this.#threads = source.service(ThreadService);
     this.#viewerId = viewerId;
+    this.#dataGeneration = dataGeneration;
   }
 
   /**
@@ -159,6 +203,9 @@ export class MessagingRequests {
       authorId: message.actorId,
       ...(message.threadRootEventId ? { threadRootId: message.threadRootEventId } : {}),
       ...(message.inReplyTo ? { inReplyTo: message.inReplyTo } : {}),
+      ...(message.attachments.length
+        ? { attachments: message.attachments.map(attachmentInfo) }
+        : {}),
       // A message without text has an empty body; report it as absent.
       ...(message.body ? { body: message.body } : {})
     };
@@ -172,20 +219,37 @@ export class MessagingRequests {
   async createMessage(
     destination: Destination,
     body: string,
-    { signal, inReplyTo }: RequestOptions & { inReplyTo?: string } = {}
+    { signal, ...options }: RequestOptions & { inReplyTo?: string; idempotencyKey?: string } = {}
   ): Promise<{ id: string }> {
-    const response = await this.#messages.createMessage(
-      {
-        roomId: destination.roomId,
-        body,
-        threadRootEventId: destination.threadRootId,
-        inReplyTo: inReplyTo ?? destination.inReplyTo ?? ''
+    return this.prepareMessage(destination, body, options).send({ signal });
+  }
+
+  /** Prepare one message for retries with a stable UUID and exact arguments. */
+  prepareMessage(
+    destination: Destination,
+    body: string,
+    { inReplyTo, idempotencyKey }: { inReplyTo?: string; idempotencyKey?: string } = {}
+  ): MessageSendOperation<{ id: string }> {
+    const generation = this.#dataGeneration?.();
+    const request = {
+      roomId: destination.roomId,
+      body,
+      threadRootEventId: destination.threadRootId,
+      inReplyTo: inReplyTo ?? destination.inReplyTo ?? ''
+    };
+    return createMessageSend({
+      idempotencyKey,
+      assertScope: () => {
+        if (generation !== this.#dataGeneration?.()) throw new StaleResponseError(false);
       },
-      callOptions(signal)
-    );
-    const id = response.message?.id;
-    if (!id) throw new Error('Chatto did not return the ID of the new message');
-    return { id };
+      prepare: async (key) => ({ ...request, idempotencyKey: key }),
+      post: async (request, { signal }) => {
+        const response = await this.#messages.createMessage(request, callOptions(signal));
+        const id = response.message?.id;
+        if (!id) throw new Error('Chatto did not return the ID of the new message');
+        return { id };
+      }
+    });
   }
 
   /**
@@ -409,8 +473,9 @@ export class MessagingRequests {
   }
 
   /**
-   * Recognize a realtime event as a message addressed to the viewer: a
-   * textual direct message, a mention of the viewer, or a reply to one of the
+   * Recognize a realtime event as a message addressed to the viewer for one of
+   * the enabled reasons (see {@link AddressingReason}): a textual direct
+   * message, a mention that includes the viewer, or a reply to one of the
    * viewer's messages. Only an unmentioned reply needs a lookup, which
    * verifies the author, room, and thread. The viewer's own messages,
    * other events, and messages without text return undefined. Lookup errors
@@ -418,7 +483,7 @@ export class MessagingRequests {
    */
   async addressedMessage(
     event: RealtimeEvent,
-    { signal, reasons: enabled = ['direct_message', 'mention', 'reply'] }: AddressingOptions = {}
+    { signal, reasons: enabled = DEFAULT_ADDRESSING_REASONS }: AddressingOptions = {}
   ): Promise<AddressedMessage | undefined> {
     signal?.throwIfAborted();
     if (event.event.case !== 'messagePosted' || !event.id || !event.actorId) return;
@@ -429,8 +494,11 @@ export class MessagingRequests {
     const reasons: AddressingReason[] = [];
     if (enabled.includes('direct_message') && message.roomKind === RoomKind.DM)
       reasons.push('direct_message');
-    if (enabled.includes('mention') && message.mentions.some((mention) => mention.includesViewer))
-      reasons.push('mention');
+    for (const mention of message.mentions) {
+      if (!mention.includesViewer || !mention.cause.case) continue;
+      const reason = MENTION_REASONS[mention.cause.case];
+      if (enabled.includes(reason) && !reasons.includes(reason)) reasons.push(reason);
+    }
     if (enabled.includes('reply') && !reasons.length && message.inReplyTo) {
       const target = await this.getMessage(
         { roomId: message.roomId, messageId: message.inReplyTo },

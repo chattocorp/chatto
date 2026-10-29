@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
-import { copyFile, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, dirname, delimiter } from 'node:path';
 import { createServer } from 'node:net';
@@ -16,10 +16,28 @@ const directory = await mkdtemp(resolve(tmpdir(), 'runling-consumer-'));
 let server;
 let serverOutput = '';
 try {
-  const { stdout } = await exec('npm', ['pack', '--json', '--pack-destination', directory], {
+  // pnpm applies publishConfig exports, keeping the workspace on TypeScript source.
+  await exec('pnpm', ['pack', '--pack-destination', directory], {
     cwd: root
   });
-  const [packed] = JSON.parse(stdout);
+  const archives = (await readdir(directory)).filter((file) => file.endsWith('.tgz'));
+  assert.equal(archives.length, 1);
+  const filename = archives[0];
+  const { stdout: contents } = await exec('tar', ['-tzf', resolve(directory, filename)]);
+  const { stdout: packedManifest } = await exec('tar', [
+    '-xOf',
+    resolve(directory, filename),
+    'package/package.json'
+  ]);
+  const packed = {
+    ...JSON.parse(packedManifest),
+    filename,
+    files: contents
+      .trim()
+      .split('\n')
+      .map((path) => ({ path: path.replace(/^package\//, '') }))
+  };
+  assert.equal(packed.exports['.'].default, './dist/src/runtime/index.js');
   assert.equal(packed.name, 'runling');
   const manifest = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
   assert.equal(packed.version, manifest.version);
@@ -417,7 +435,8 @@ export default defineWebConfig({ webhooks: { echo: startWorkflow(echo) }, source
     .split('\n')
     .map((line) => JSON.parse(line));
   assert(serverLog.some((record) => record.event === 'server.listening'));
-  assert(serverLog.some((record) => record.event === 'http.response' && record.status === 200));
+  assert(!serverLog.some((record) => record.event === 'http.response' && record.status === 200));
+  assert(serverLog.some((record) => record.event === 'http.response' && record.status === 404));
   assert(serverLog.some((record) => record.event === 'run.finished' && record.runId === id));
   assert(serverLog.some((record) => record.event === 'config.reload_failed'));
   assert(serverLog.some((record) => record.event === 'run.started' && record.source === 'source'));

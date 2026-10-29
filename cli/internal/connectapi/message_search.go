@@ -11,7 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"buf.build/go/protovalidate"
+	"connectrpc.com/authn"
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
@@ -28,6 +31,25 @@ const (
 
 type messageSearchService struct {
 	api *API
+}
+
+// SearchMessages reuses the public search operation for an in-process adapter.
+// The caller must supply a verified runtime credential. Validate here because
+// in-process calls do not pass through the Connect validation interceptor.
+func (a *API) SearchMessages(ctx context.Context, request *apiv1.SearchMessagesRequest) (*apiv1.SearchMessagesResponse, error) {
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok || credential.UserID == "" {
+		return nil, core.ErrNotAuthenticated
+	}
+	if err := protovalidate.Validate(request); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid search arguments"))
+	}
+	ctx = authn.SetInfo(ctx, Caller{UserID: credential.UserID})
+	response, err := (&messageSearchService{api: a}).SearchMessages(ctx, connect.NewRequest(request))
+	if err != nil {
+		return nil, err
+	}
+	return response.Msg, nil
 }
 
 func (s *messageSearchService) GetStatus(ctx context.Context, _ *connect.Request[apiv1.GetStatusRequest]) (*connect.Response[apiv1.GetStatusResponse], error) {

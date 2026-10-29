@@ -1,5 +1,7 @@
 import { dispatchRoute } from './routing.ts';
 import { serverLog } from './server-log.ts';
+import { log } from './log.ts';
+import { withRunlingEventScope } from './events.ts';
 import type { EventSource, WebhookContext, WebConfig, SourceRun } from './web-config.ts';
 
 interface RunningSource {
@@ -16,7 +18,7 @@ export class SourceManager {
 
   constructor(
     private start: (name: string) => WebhookContext['start'],
-    private runs: (name: string) => SourceRun[] = () => []
+    private runs: (name: string, options?: { includeFinished?: boolean }) => SourceRun[] = () => []
   ) {}
 
   replace(config: WebConfig): Promise<void> {
@@ -39,22 +41,35 @@ export class SourceManager {
     let accepting = true;
     const completion = Promise.resolve()
       .then(() =>
-        source({
-          signal: controller.signal,
-          state,
-          runs: () => this.runs(name),
-          dispatch: (route, input) => {
-            if (!accepting || controller.signal.aborted)
-              return Promise.reject(new Error('Event source has stopped'));
-            const delivery = dispatchRoute(route, input, this.start(name));
-            deliveries.add(delivery);
-            void delivery.then(
-              () => deliveries.delete(delivery),
-              () => deliveries.delete(delivery)
-            );
-            return delivery;
-          }
-        })
+        withRunlingEventScope(
+          (event) => {
+            if (event.type === 'log')
+              serverLog(event.level, 'source.log', {
+                source: name,
+                message: event.message,
+                fields: event.fields
+              });
+          },
+          () =>
+            log.withDestination('silent', () =>
+              source({
+                signal: controller.signal,
+                state,
+                runs: (options) => this.runs(name, options),
+                dispatch: (route, input) => {
+                  if (!accepting || controller.signal.aborted)
+                    return Promise.reject(new Error('Event source has stopped'));
+                  const delivery = dispatchRoute(route, input, this.start(name));
+                  deliveries.add(delivery);
+                  void delivery.then(
+                    () => deliveries.delete(delivery),
+                    () => deliveries.delete(delivery)
+                  );
+                  return delivery;
+                }
+              })
+            )
+        )
       )
       .catch(() => {
         if (!controller.signal.aborted) serverLog('error', 'source.failed', { source: name });

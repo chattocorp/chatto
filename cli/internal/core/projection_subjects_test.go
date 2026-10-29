@@ -127,6 +127,7 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
 				evtstream.UserEventTypeFilter(evtstream.EventOAuthScopedConsentGranted),
 				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeactivationChanged),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),

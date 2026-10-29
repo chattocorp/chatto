@@ -27,6 +27,12 @@ import {
 } from './pushRegistrationCoordinator';
 import { notificationPermission } from './pushPermission.svelte';
 import { pushDeviceOptOut } from './pushDeviceOptOut.svelte';
+import {
+  BrowserPushRegistrationPaused,
+  captureBrowserPushRecovery,
+  createBrowserPushSubscription,
+  type BrowserPushRecovery
+} from './browserPushRegistration';
 
 export type PushRegistrationTarget = {
   serverId: string;
@@ -388,12 +394,13 @@ async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResul
     };
   }
 
+  const recovery = captureBrowserPushRecovery();
   const registrations = await Promise.all(
     targets.map(async (target): Promise<PushRegistrationResult> => {
       try {
-        // A checkbox activation may create a browser subscription even after an
-        // automatic attempt failed in this page.
-        return { ...target, registered: await ensureRegistered(target, { manual: true }) };
+        // One recovery snapshot covers the complete action. A new browser
+        // failure stops creation for the remaining servers too.
+        return { ...target, registered: await ensureRegistered(target, { recovery }) };
       } catch (error) {
         console.error('Failed to enable push notifications:', error);
         return { ...target, registered: false };
@@ -448,7 +455,7 @@ async function currentBrowserEndpoint(serverId: string): Promise<string | null> 
 export async function retryPushRegistration(serverId: string): Promise<boolean> {
   if (getPermission() !== 'granted') return false;
   const target = getPushRegistrationTargets().find((candidate) => candidate.serverId === serverId);
-  return target ? ensureRegistered(target, { manual: true }) : false;
+  return target ? ensureRegistered(target, { recovery: captureBrowserPushRecovery() }) : false;
 }
 
 /**
@@ -525,45 +532,40 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return outputArray;
 }
 
-/**
- * The latest failed browser subscribe in this page session, or null. Chrome
- * keeps a push service registration for every failed attempt and refuses new
- * ones once a profile holds about 1,000; it then reports "push service error".
- * After any failure, automatic saves create no new browser subscriptions for
- * any server until a manual retry creates one or the page reloads. Saves of
- * an existing browser subscription continue, because they create no
- * registration.
- */
-let browserSubscribeFailure: unknown = null;
-/** Serializes browser subscribe calls so that one failure stops the others. */
-let browserSubscribeTail: Promise<unknown> = Promise.resolve();
-
-/** Creates a browser subscription, one at a time across all servers. */
+/** Creates a browser subscription through the durable, origin-wide gate. */
 function subscribeInBrowser(
   serverId: string,
   signal: AbortSignal,
   registration: ServiceWorkerRegistration,
   applicationServerKey: Uint8Array<ArrayBuffer>,
-  manual: boolean
+  recovery?: BrowserPushRecovery
 ): Promise<PushSubscription | null> {
-  const operation = browserSubscribeTail.then(async () => {
-    // Work cancelled while it waited for its turn creates no subscription.
-    if (isPushRegistrationSuspended(serverId, signal)) return null;
-    if (browserSubscribeFailure && !manual) throw browserSubscribeFailure;
-    try {
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey
-      });
-      browserSubscribeFailure = null;
+  return createBrowserPushSubscription({
+    recovery,
+    cancelled: () => isPushRegistrationSuspended(serverId, signal),
+    existing: async () => {
+      const subscription = await registration.pushManager.getSubscription();
+      if (
+        subscription?.options.applicationServerKey &&
+        !arrayBuffersEqual(subscription.options.applicationServerKey, applicationServerKey)
+      ) {
+        throw new Error('The browser still has a subscription for a different VAPID key');
+      }
       return subscription;
-    } catch (error) {
-      browserSubscribeFailure = error;
-      throw error;
+    },
+    subscribe: async () => {
+      console.debug('[push] Creating browser subscription', { serverId });
+      try {
+        return await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey
+        });
+      } catch (error) {
+        console.debug('[push] Browser subscription creation failed', { serverId });
+        throw error;
+      }
     }
   });
-  browserSubscribeTail = operation.catch(() => undefined);
-  return operation;
 }
 
 /**
@@ -572,31 +574,25 @@ function subscribeInBrowser(
  * for permission; without a granted permission it returns false. Saves for
  * one server run one after another.
  *
- * @param options.manual - An explicit user retry. It may create a browser
- *   subscription even after the browser's push service failed in this page.
+ * @param options.recovery - Snapshot from one explicit user recovery action.
+ *   It permits retrying that failure, but stops after a new browser failure.
  */
 export async function ensureRegistered(
   target: PushRegistrationTarget,
-  options: { manual?: boolean } = {}
+  options: { recovery?: BrowserPushRecovery } = {}
 ): Promise<boolean> {
   const saved = { endpoint: null as string | null, failure: 'Unknown failure' };
   let registered = false;
   try {
     registered = await enqueuePushRegistration(target.serverId, (signal) =>
-      ensureRegisteredOnce(
-        target.serverId,
-        target.vapidPublicKey,
-        signal,
-        options.manual === true,
-        {
-          saved: (endpoint) => {
-            saved.endpoint = endpoint;
-          },
-          failed: (reason) => {
-            saved.failure = reason;
-          }
+      ensureRegisteredOnce(target.serverId, target.vapidPublicKey, signal, options.recovery, {
+        saved: (endpoint) => {
+          saved.endpoint = endpoint;
+        },
+        failed: (reason) => {
+          saved.failure = reason;
         }
-      )
+      })
     );
   } catch (error) {
     saved.failure = technicalReason(error);
@@ -622,7 +618,7 @@ async function ensureRegisteredOnce(
   serverId: string,
   vapidPublicKey: string,
   signal: AbortSignal,
-  manual: boolean,
+  recovery: BrowserPushRecovery | undefined,
   report: { saved: (endpoint: string) => void; failed: (reason: string) => void }
 ): Promise<boolean> {
   if (!isSupported()) {
@@ -653,6 +649,8 @@ async function ensureRegisteredOnce(
   let subscriptionAuth: string | null = null;
   let cleanupToken: string | null = null;
   let api: PushNotificationAPI | null = null;
+  let stage: 'browser-lookup' | 'browser-unsubscribe' | 'browser-create' | 'server-save' =
+    'browser-lookup';
 
   try {
     const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
@@ -668,6 +666,8 @@ async function ensureRegisteredOnce(
       subscription?.options.applicationServerKey &&
       !arrayBuffersEqual(subscription.options.applicationServerKey, applicationServerKey)
     ) {
+      savedRegistrations.delete(serverId);
+      stage = 'browser-unsubscribe';
       await subscription.unsubscribe();
       void pushAPI(serverId)
         .unsubscribe(subscription.endpoint)
@@ -677,12 +677,16 @@ async function ensureRegisteredOnce(
     }
 
     if (!subscription) {
+      // A previous server save no longer proves that this browser can receive
+      // push. Clear it before creation, including when the gate pauses creation.
+      savedRegistrations.delete(serverId);
+      stage = 'browser-create';
       subscription = await subscribeInBrowser(
         serverId,
         signal,
         registration,
         applicationServerKey,
-        manual
+        recovery
       );
       if (!subscription) return false;
       if (isPushRegistrationSuspended(serverId, signal)) {
@@ -718,6 +722,7 @@ async function ensureRegisteredOnce(
       }
       return false;
     }
+    stage = 'server-save';
     const saved = await api.subscribe(input, { signal });
 
     if (isPushRegistrationSuspended(serverId, signal)) {
@@ -747,8 +752,16 @@ async function ensureRegisteredOnce(
     await retireLegacyOriginSubscription(serverId, subscription.endpoint);
     return true;
   } catch (error) {
-    console.error('Failed to subscribe to push:', error);
-    report.failed(technicalReason(error));
+    if (error instanceof BrowserPushRegistrationPaused) {
+      console.debug('[push] Browser subscription creation skipped: recovery required', {
+        serverId
+      });
+      // Keep this page's original cause when later checks only skip creation.
+      report.failed(failedRegistrations.get(serverId) ?? technicalReason(error));
+    } else {
+      console.error('Failed to register push:', { serverId, stage }, error);
+      report.failed(technicalReason(error));
+    }
     // A failed save keeps the browser subscription, so the next check saves it
     // again without creating another push service registration. Cancelled
     // work still removes what it may have stored.

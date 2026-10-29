@@ -24,6 +24,7 @@ type UserAuthProjection struct {
 	replayGuard             projectionReplayGuard
 	nextBotAPIKeyWatcherID  uint64
 	botAPIKeyWatchersByUser map[string]map[uint64]botAPIKeyWatcher
+	accountAccessWatchers   map[string]map[chan struct{}]struct{}
 }
 
 type botAPIKeyWatcher struct {
@@ -33,6 +34,7 @@ type botAPIKeyWatcher struct {
 
 type projectedUserAuth struct {
 	deleted             bool
+	deactivated         bool
 	isBot               bool
 	botOwnerUserID      string
 	botAPIKeys          map[string]projectedBotAPIKey
@@ -76,6 +78,7 @@ func (p *UserAuthProjection) Subjects() []string {
 		evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
 		evtstream.UserEventTypeFilter(evtstream.EventOAuthScopedConsentGranted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeactivationChanged),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),
@@ -140,6 +143,26 @@ func (p *UserAuthProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyOAuthScopedConsentGranted(e.OauthScopedConsentGranted)
 	case *evtv1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		if value := e.UserAccountDeactivationChanged; value != nil && value.GetUserId() != "" {
+			u := p.ensureUserLocked(value.GetUserId())
+			u.deactivated = value.GetDeactivated()
+			// Both transitions invalidate proofs issued before the transition.
+			u.authGeneration = seq
+			for watcher := range p.accountAccessWatchers[value.GetUserId()] {
+				close(watcher)
+			}
+			delete(p.accountAccessWatchers, value.GetUserId())
+			if value.GetDeactivated() {
+				// Resolve current ownership at the transition. A bot can have
+				// changed owners since its realtime connection opened.
+				for botID, bot := range p.users {
+					if bot.isBot && bot.botOwnerUserID == value.GetUserId() {
+						p.closeBotAPIKeyWatchersLocked(botID)
+					}
+				}
+			}
+		}
 	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId(), seq)
 	case *evtv1.Event_UserKeyShredded:
@@ -585,7 +608,7 @@ func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier [
 	p.Lock()
 	u := p.users[userID]
 	active := false
-	if u != nil && !u.deleted && u.isBot {
+	if u != nil && !u.deleted && u.isBot && p.users[u.botOwnerUserID] != nil && !p.users[u.botOwnerUserID].deactivated {
 		for _, credential := range u.botAPIKeys {
 			if bytes.Equal(credential.verifier, verifier) {
 				active = true
@@ -697,7 +720,7 @@ func (p *UserAuthProjection) AuthGeneration(userID string) (uint64, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
-	if u == nil || u.deleted {
+	if u == nil || u.deleted || u.deactivated {
 		return 0, false
 	}
 	return u.authGeneration, true

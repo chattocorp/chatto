@@ -3,10 +3,11 @@ package connectapi
 import (
 	"context"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -176,6 +177,7 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 			permissionGrant(core.PermMessageReact, state.CanReact),
 			permissionGrant(core.PermMessageEcho, state.CanEchoMessage),
 			permissionGrant(core.PermMessagePin, state.CanPinMessages),
+			permissionGrant(core.PermRoomManageNotice, state.CanManageNotice),
 			permissionGrant(core.PermMessageManage, state.CanManageOthersMessage),
 			permissionGrant(core.PermRoomManage, state.CanManageRoom),
 			permissionGrant(core.PermRoomMemberRemove, state.CanBanRoomMembers),
@@ -275,7 +277,7 @@ func roomDirectoryScopeIncludesDMs(scope apiv1.RoomDirectoryScope) bool {
 		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS
 }
 
-func apiSidebarLink(link *evtv1.SidebarLink) *apiv1.SidebarLink {
+func apiSidebarLink(link *readmodel.SidebarLink) *apiv1.SidebarLink {
 	if link == nil {
 		return nil
 	}

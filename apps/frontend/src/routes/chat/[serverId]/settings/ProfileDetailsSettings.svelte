@@ -1,5 +1,13 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import {
+    UsernameChangeState,
+    canChangeUsername,
+    legacyUsernameChangeAvailability
+  } from '@chatto/client/api/actionAvailability';
+  import { usernameChangeUnavailableMessage } from '$lib/actionAvailability';
+  import Interval from '$lib/lifecycle/Interval.svelte';
+  import { Code, ConnectError } from '@connectrpc/connect';
   import type { UserAPI } from '@chatto/client/api/users';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
@@ -8,8 +16,6 @@
   import { m } from '$lib/i18n/messages';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import {
-    formatCooldownRemaining,
-    getLoginChangeCooldownRemaining,
     MAX_BIO_LENGTH,
     startsLoginCooldown,
     validateAndNormalizeBio,
@@ -43,6 +49,7 @@
   let pendingDisplayName = $state<string | undefined>(undefined);
   let pendingLogin = $state<string | undefined>(undefined);
   let pendingBio = $state<string | undefined>(undefined);
+  let now = $state(Date.now());
 
   const viewerLastLoginChange = $derived(
     currentUser.user?.lastLoginChange ? new Date(currentUser.user.lastLoginChange) : null
@@ -52,9 +59,17 @@
   const loginModified = $derived(login !== baseline.login);
   const bioModified = $derived(bio !== baseline.bio);
   const isModified = $derived(displayNameModified || loginModified || bioModified);
-  const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const canBypassLoginCooldown = $derived(serverScope.store.permissions.canAdminManageAccounts);
-  const canChangeLogin = $derived(canBypassLoginCooldown || cooldownRemaining === 0);
+  const usernameAvailability = $derived(
+    currentUser.user?.actions?.changeUsername ??
+      legacyUsernameChangeAvailability(lastLoginChange?.toISOString(), canBypassLoginCooldown)
+  );
+  const canChangeLogin = $derived(canChangeUsername(usernameAvailability, now));
+  const waitingForUsername = $derived(
+    usernameAvailability.state === UsernameChangeState.ALLOWED &&
+      usernameAvailability.availableAt !== undefined &&
+      Date.parse(usernameAvailability.availableAt) > now
+  );
 
   function clearMessages() {
     error = '';
@@ -76,10 +91,8 @@
 
     let normalizedLogin: string | undefined;
     if (loginModified) {
-      if (!canChangeLogin) {
-        error = m('settings.profile.username.cooldown_error', {
-          remaining: formatCooldownRemaining(cooldownRemaining)
-        });
+      if (!canChangeUsername(usernameAvailability)) {
+        error = usernameChangeUnavailableMessage(usernameAvailability);
         return;
       }
       const validation = validateAndNormalizeLogin(login);
@@ -137,6 +150,7 @@
     successMessage = '';
 
     try {
+      const refreshActions = !!normalizedLogin && !!currentUser.user?.actions;
       const updated = await getUserAPI().updateUserProfile(userId, {
         displayName: normalizedDisplayName,
         login: normalizedLogin,
@@ -147,7 +161,8 @@
         displayName: updated.displayName,
         login: updated.login,
         bio: updated.bio ?? '',
-        lastLoginChange: startedCooldown ? new Date().toISOString() : user.lastLoginChange
+        lastLoginChange: startedCooldown ? new Date().toISOString() : user.lastLoginChange,
+        actions: normalizedLogin ? undefined : user.actions
       }));
 
       baseline = {
@@ -161,14 +176,26 @@
 
       if (startedCooldown) localLastLoginChange = new Date();
 
+      if (refreshActions) await currentUser.load();
+
       successMessage = m('settings.profile.saved');
     } catch (saveError) {
+      if (
+        saveError instanceof ConnectError &&
+        (saveError.code === Code.FailedPrecondition || saveError.code === Code.PermissionDenied)
+      ) {
+        await currentUser.load();
+      }
       error = profileSaveErrorMessage(saveError, m('settings.profile.save_failed'));
     } finally {
       isSaving = false;
     }
   }
 </script>
+
+{#if waitingForUsername}
+  <Interval milliseconds={1000} ontick={() => (now = Date.now())} />
+{/if}
 
 <Panel title={m('settings.profile.title')} icon="iconify icon-[uil--user]">
   <Form onsubmit={handleSubmit} maxWidth="max-w-md" {error}>
@@ -189,6 +216,10 @@
       oninput={clearMessages}
     />
 
+    {#if !canChangeLogin}
+      <Hint>{usernameChangeUnavailableMessage(usernameAvailability, now)}</Hint>
+    {/if}
+
     <UserBioEditor
       bind:value={bio}
       editorKind={userPreferences.composerEditor}
@@ -196,14 +227,6 @@
       disabled={isSaving}
       oninput={clearMessages}
     />
-
-    {#if !canChangeLogin}
-      <p class="text-sm text-muted">
-        {m('settings.profile.username.cooldown_notice', {
-          remaining: formatCooldownRemaining(cooldownRemaining)
-        })}
-      </p>
-    {/if}
 
     {#if successMessage}
       <Hint tone="success">{successMessage}</Hint>

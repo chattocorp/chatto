@@ -3,14 +3,14 @@
 
 Shared frame of the member detail sections. It loads the member, renders the
 header and the section tabs, and provides the member to the Profile, Account,
-Roles, and Permissions pages through `memberDetailContext`. The account
-deletion page is outside this route group and has its own frame.
+Roles, and Permissions pages through `memberDetailContext`.
 -->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { formatAccountName } from '@chatto/client/timeline/accountName';
   import { onDestroy, type Snippet } from 'svelte';
   import { resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import {
     createAdminUserManagementAPI,
@@ -21,7 +21,8 @@ deletion page is outside this route group and has its own frame.
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
   import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
-  import { createQuery, queryClient } from '$lib/query/client';
+  import { createQuery, queryClient, removeAdminUserQueries } from '$lib/query/client';
+  import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createSessionGuard } from '$lib/state/server/sessionGuard.svelte';
   import {
@@ -51,6 +52,9 @@ deletion page is outside this route group and has its own frame.
   const backHref = resolve('/chat/[serverId]/manage/server/members', { serverId: serverSegment });
 
   const session = createSessionGuard(serverScope);
+  // Deletion may remove the member before the RPC returns. Keep navigation
+  // fenced to the session and route without invalidating it on that removal.
+  const deletionSession = createSessionGuard(serverScope);
   let removedMember = $state<{ serverId: string; userId: string } | null>(null);
 
   const removeUserRemovalListener = registerAdminUserRemovalListener((serverId, removedUserId) => {
@@ -89,6 +93,20 @@ deletion page is outside this route group and has its own frame.
   }
 
   provideMemberDetail({
+    async deleteMember() {
+      if (!canDeleteHere) return;
+      const target = { ...deletionSession.snapshot(), userId };
+      await target.connection
+        .getAPI(createAdminUserManagementAPI)
+        .deleteUser({ userId: target.userId });
+      if (!deletionSession.isCurrent(target) || target.userId !== userId) return;
+      toast.success(m('admin.member_delete.success'));
+      removeAdminUserQueries(target.serverId, target.userId);
+      void queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
+      });
+      await goto(backHref);
+    },
     get userId() {
       return userId;
     },
@@ -222,6 +240,9 @@ deletion page is outside this route group and has its own frame.
       {:else if !details || !member}
         <Hint tone="danger">{m('admin.members.not_found')}</Hint>
       {:else}
+        {#if member.deactivated}
+          <Hint tone="warning">{m('admin.members.deactivated_description')}</Hint>
+        {/if}
         {@render children()}
       {/if}
     </div>

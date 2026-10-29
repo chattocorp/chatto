@@ -6,6 +6,15 @@
       "confirmation": "Tas uz 15 minūtēm aktivizē tev šajā serverī piešķirtās papildu atļaujas."
     },
     "notifications": {
+      "all_notifications": "Visi paziņojumi",
+      "all_types": "Visi veidi",
+      "filter_status": "Statuss",
+      "filter_type": "Veids",
+      "reactions": "Reakcijas",
+      "replies": "Atbildes",
+      "mentions": "Pieminējumi",
+      "next_unread_source": "Pāriet uz nākamo nelasīto avotu",
+      "no_unread": "Nav nelasītu paziņojumu",
       "title": "Paziņojumi",
       "subtitle": "Lūk, kas jauns",
       "clear_read": "Dzēst izlasītos",
@@ -28,12 +37,6 @@
         "activity": "{actor} nosūtīja jums paziņojumu",
         "room_invitation": "{actor} uzaicināja jūs uz telpu"
       }
-    },
-    "sign_out": {
-      "title": "Izrakstīties",
-      "current_server": "Pašreizējais serveris",
-      "all_servers": "Visi serveri",
-      "description": "Izrakstieties tikai no atlasītā servera vai atvienojiet katru serveri no šī klienta."
     },
     "overview": {
       "title": "Pārskats"

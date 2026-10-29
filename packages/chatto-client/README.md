@@ -7,8 +7,10 @@ that bots and integrations use. It keeps server data only: state of a host's
 UI belongs to the host. It has no dependency on a UI framework. The bundled
 Chatto frontend, ChattoBot, and the Runling bot example use it.
 
-It is an internal workspace package and is not published to npm yet. Module
-paths can change.
+Install with `npm install @chatto/client`. The npm package contains ES modules
+and TypeScript declarations, including generated protocol types. Use Node.js
+22 or later for bots. Svelte is optional; install Svelte 5 when you use
+`@chatto/client/svelte`. Module paths can change before 1.0.
 
 ## Clients and servers
 
@@ -37,15 +39,22 @@ try {
 `connect()` adds a server with a fixed bearer token, such as a bot API key,
 and returns it. The token is kept only in memory: it is never renewed or
 written to device storage. `client.server(id)` returns a server that the
-client has. Both return the same `Server` type: the server's data, events,
-and requests are one object.
+client has. Both return the same `Server` type: the server's data, events, and
+requests are one object.
+
+`server.reportPresence()` shows the account as online while the server is
+open: once the server accepts the key, the client sends a presence heartbeat
+every 30 seconds. After `close()`, the account shows as offline within 60
+seconds. It never changes the account's saved presence choice.
 
 ### Answering messages
 
 `server.run(handler)` waits until the server accepted the key, also while
 the server is unreachable, then calls `handler` for each message addressed to
-the viewer (the account of the key):
-direct messages, mentions, and replies to the viewer's messages. Messages are
+the viewer (the account of the key). By default, these are direct messages,
+mentions of the viewer by name, and replies to the viewer's messages. Role,
+`@here`, and `@all` mentions are separate reasons (`role_mention`,
+`here_mention`, `all_mention`) that you enable with `reasons`. Messages are
 handled in order. The handler receives a context:
 
 ```ts
@@ -60,7 +69,7 @@ await server.run(
   },
   {
     signal, // stops the loop; without it, the loop stops when the server closes
-    reasons: ['mention', 'direct_message'], // default: all three
+    reasons: ['mention', 'direct_message'], // default: also 'reply'
     onStatus: (status) => console.log(status.state),
     onError: (error) => console.error(error) // keep running after a failure
   }
@@ -97,6 +106,32 @@ the server rejects the key or does not support this client, and, without
   `notifications.occurrences`, `projection.users`, and `rooms.messages(id)`
   for a paged, live room timeline.
 
+### Live timelines and room stores
+
+`rooms.messages(roomId)` and `rooms.thread(roomId, rootId)` return a live
+timeline. The timeline reads its latest page when you first get it. Realtime
+delivery then adds new messages and applies edits and deletions, so a host
+does not read the thread again for each change.
+
+- `isCurrent` is true when the latest page loaded and no read or reconnect
+  reload is pending. `events` then has the latest messages.
+- `loadError` has the error of a failed read, or of lost room access. Call
+  `restoreLatestWindow()` to read again after a failed read.
+- By default, the client keeps the stores of the 10 most recently used rooms
+  (timeline, file list, pin list, and member list) and the 20 most recently
+  used threads.
+  A call to `rooms.messages`, `rooms.files`, `rooms.pins`, or `rooms.members`
+  uses the room; a call to `rooms.thread` uses only the thread. The client
+  disposes the stores of older ones; the next call returns a new store, which
+  reads again. Do not use more rooms or threads at the same time. To keep
+  more, set the client option `keepRecent`, for example
+  `createClient({ keepRecent: { threads: 50 } })`.
+- A disposed timeline gets no more updates and is never current. If you keep
+  a timeline across a long wait, for example until `isCurrent`, also stop when
+  `isDisposed` becomes true, and get the timeline again.
+
+Use `readThread` instead when you need one snapshot and no live updates.
+
 ### Readiness and failures
 
 - `ready()` rejects when the server rejects the key, when the server is
@@ -117,26 +152,81 @@ the server rejects the key or does not support this client, and, without
 ### Requests
 
 A server and a stateless `Api` have the same request helpers. Each
-request has a ten-second timeout and is never retried; a failed write can
+request has a ten-second timeout and is not automatically retried; a failed write can
 still have reached the server.
 
-| Helper                                            | Does                                                      |
-| ------------------------------------------------- | --------------------------------------------------------- |
-| `getMessage({ roomId, messageId })`               | Reads one message                                         |
-| `createMessage(destination, body, { inReplyTo })` | Sends one message; returns its `id`                       |
-| `postMessage(destination, body)`                  | Sends text of any length, in parts of 8000 code points    |
-| `reply(message, body)`                            | Posts in the message's thread with a reference to it      |
-| `readThread(location, { after, limit })`          | Reads a thread; `after` reads only newer messages         |
-| `readAttachment({ roomId, attachmentId }, opts)`  | Reads a file; `maxImageSize` resizes images on the server |
-| `refreshTyping(destination)`                      | Refreshes the typing indicator once                       |
-| `withTyping(destination, work)`                   | Shows the typing indicator while `work` runs              |
-| `addReaction({ roomId, messageId }, emoji)`       | Reacts to a message                                       |
-| `addressedMessage(event, { reasons })`            | Recognizes an event as a message to the viewer            |
+| Helper                                             | Does                                                                        |
+| -------------------------------------------------- | --------------------------------------------------------------------------- |
+| `getMessage({ roomId, messageId })`                | Reads one message, including attachment metadata without download addresses |
+| `createMessage(destination, body, { inReplyTo })`  | Sends one message; returns its `id`                                         |
+| `prepareMessage(destination, body, { inReplyTo })` | Prepares one logical send for explicit retries                              |
+| `postMessage(destination, body)`                   | Sends text of any length, in parts of 8000 code points                      |
+| `reply(message, body)`                             | Posts in the message's thread with a reference to it                        |
+| `readThread(location, { after, limit })`           | Reads a thread; `after` reads only newer messages                           |
+| `readAttachment({ roomId, attachmentId }, opts)`   | Reads a file; `maxImageSize` resizes images on the server                   |
+| `refreshTyping(destination)`                       | Refreshes the typing indicator once                                         |
+| `withTyping(destination, work)`                    | Shows the typing indicator while `work` runs                                |
+| `addReaction({ roomId, messageId }, emoji)`        | Reacts to a message                                                         |
+| `addressedMessage(event, { reasons })`             | Recognizes an event as a message to the viewer                              |
 
-Every helper takes `{ signal }` as its last argument. `postMessage`, `reply`,
+Request helpers take `{ signal }` as their last argument. A prepared operation
+takes it in `send({ signal })`. `postMessage`, `reply`,
 and `ctx.reply` return the `ids` of the new messages. Other helpers are
 `conversationKey`, `replyDestination`, `withTyping` and `startTyping` for
 custom typing updates, and `createDeliveryTracker` for replay filters.
+
+For a final reply, await `withTyping(destination, work)` before posting the
+message. The helper stops its timer and waits for any pending refresh, with
+a two-second request timeout. This prevents a successful refresh from arriving
+after the message and restoring the typing indicator.
+
+Message bodies can contain emoji shortcodes, such as `Hello :wave:`. The
+server keeps this text. Clients choose how to display it. For custom renderers,
+`@chatto/client/messaging/emojiShortcodes` exports `resolveEmoji(name)` for
+case-sensitive built-in names and `emojiShortcodes(text)` for source ranges
+with Unicode or unknown results. Tags beside Unicode letters, numbers, combining
+marks, or underscores stay literal. `emojiShortcodeQuery(textBeforeCursor)`
+reads a partial name with the same opening boundary for autocomplete. Parse
+Markdown first and scan only prose; leave code and URLs unchanged. Custom emoji
+assets are not supported yet.
+
+Skin-tone shortcodes use Slack syntax: `:thumbsup::skin-tone-4:` displays as
+👍🏽. Tones range from 2 (light) to 6 (dark). Supported mixed-tone pairs use two
+numbers in one suffix, such as `:couple::skin-tone-2-6:`. Unsupported combinations
+stay literal. Reaction APIs take the same name without the surrounding colons.
+Older servers can reject these reaction names; no connection-floor increase is
+required. Existing names and Unicode message content remain unchanged.
+
+`emojiNameFromUnicode(emoji)` returns a stable reaction name for a selected
+Unicode emoji, including its tone. Unknown sequences return `undefined`.
+Use this helper for new selections; keep existing reaction names unchanged.
+
+`mise codegen-emoji` builds the client tone map, server map, and converter map
+(`tools/emoji-map.json`) from gemoji and the bundled Unicode Emoji 15.0 data.
+Converters should look up complete names in this map rather than append a
+modifier to a base glyph. The generated maps require no network calls at runtime.
+
+For a send that needs retry safety, retain the prepared operation:
+
+```ts
+const send = server.prepareMessage(destination, 'Hello');
+const { id } = await send.send({ signal });
+// After a lost response, call send.send() again with the same operation.
+```
+
+Each prepared send allocates one UUID. Exact retries use that key and the same
+arguments. The UI message API also exposes `prepareMessage(input)` and retains
+uploaded attachment IDs. Prepared sends stay in memory. They stop retries at
+30 minutes from the first post attempt and throw `MessageSendExpiredError`.
+Check the original result before starting a new send. Retry safety requires
+all serving replicas to support message-create idempotency; older servers can
+ignore the key. `postMessage` and `reply` can send multiple parts; retrying the
+whole helper starts new sends for those parts.
+
+For a server with renewable credentials, a privacy reset invalidates retained
+sends. Their next `send()` throws `StaleResponseError` without posting again.
+Check the original result before starting a new send. Fixed-token sends remain
+valid across privacy resets, but cannot send after the server is closed.
 
 For any other request, `service(Service)` creates a typed Connect client with
 the server's authentication. `@chatto/client/types` has the protocol's
@@ -270,4 +360,8 @@ mise test-chatto-client   # type checks, lint, and tests
 `@chatto/api-types`; `mise codegen-proto` updates them, and the package
 check fails when they are out of date.
 
-The package keeps its MIT license.
+See [MAINTAINING.md](https://github.com/chattocorp/chatto/blob/main/packages/chatto-client/MAINTAINING.md)
+for package checks and release instructions.
+
+The client and bundled generated protocol code use Apache-2.0;
+the npm package includes its license and a `NOTICE` file.

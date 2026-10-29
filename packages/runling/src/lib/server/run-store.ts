@@ -15,14 +15,18 @@ import {
   runOwnerAlive,
   type RunJournal
 } from '../../runtime/run-journal.ts';
+import type { AnyTask, Channel, WorkflowExecution } from 'runling';
+
+import { runtime } from './runtime.ts';
+const { createChannel, runWorkflow } = runtime;
 import {
-  createChannel,
-  runWorkflow,
-  type AnyTask,
-  type Channel,
-  type WorkflowExecution
-} from 'runling';
-import { type RunDetail, type RunRecord, type RunSummary } from '../runs.ts';
+  continueRun,
+  projectRecord,
+  runUsage,
+  type RunDetail,
+  type RunRecord,
+  type RunSummary
+} from '../runs.ts';
 
 import { summarizeRunActivity } from '../run-activity.ts';
 import { WorkflowStateStore } from '../../runtime/workflow-state.ts';
@@ -41,14 +45,17 @@ function summary(run: RunDetail): RunSummary {
 
 // Server-owned event arrays can grow in place. Browser state uses applyRecord.
 function applyStoredRecord(run: RunDetail, record: RunRecord, includeDetails = true) {
+  record = projectRecord(run, record);
   if (record.type === 'event') {
+    if (record.event.type === 'run.title') run.title = record.event.title;
     if (includeDetails) run.events.push(record.event);
-    if (record.event.type === 'usage.updated') run.usage = record.event.usage;
+    if (record.event.type === 'usage.updated') run.usage = runUsage(run, record.event.usage);
   } else if (record.type === 'finished') {
     const { type: _, output, error, ...result } = record;
-    Object.assign(run, result);
+    Object.assign(run, result, { usage: runUsage(run, result.usage) });
     if (includeDetails) Object.assign(run, { output, error });
   }
+  return record;
 }
 
 /** Keeps the run history of one journal directory. The server writes its own runs; runs that
@@ -62,6 +69,9 @@ export class RunStore {
   private inboxes = new Map<string, { task: AnyTask; channel: Channel<unknown> }>();
   private executions = new Set<Promise<WorkflowExecution>>();
   private handles = new Map<string, RunHandle>();
+  /** Reservations cover asynchronous registration as well as task execution. */
+  private registrations = new Set<Promise<unknown>>();
+  private reactivating = new Set<string>();
   private listeners = new Set<Listener>();
   private references = new Set<string>();
   private readonly shutdownReason = new Error('Runling server stopped.');
@@ -88,7 +98,7 @@ export class RunStore {
       if (!file.endsWith('.jsonl') || !validId.test(id)) continue;
       const path = resolve(this.directory, file);
       try {
-        const { run, end, lastTimestamp } = await this.read(id, false);
+        const { run, end, lastTimestamp, attemptUsage } = await this.read(id, false);
         if (!run) continue;
         if (run.reference) this.references.add(run.reference);
         // Another process, such as `runling run`, can still write this journal.
@@ -101,7 +111,7 @@ export class RunStore {
             finishedAt: Date.now(),
             durationMs: lastTimestamp,
             output: null,
-            usage: run.usage,
+            usage: attemptUsage,
             error: 'The server stopped before this run finished.'
           };
           await appendFile(path, `${JSON.stringify(record)}\n`);
@@ -156,6 +166,7 @@ export class RunStore {
         !file.endsWith('.jsonl') ||
         !validId.test(id) ||
         this.controllers.has(id) ||
+        this.reactivating.has(id) ||
         this.journals.has(id)
       )
         continue;
@@ -233,21 +244,23 @@ export class RunStore {
         pid: process.pid,
         status: 'running',
         startedAt: Date.now(),
+        executionStartedAt: undefined,
         finishedAt: undefined,
         durationMs: undefined,
         output: null,
         error: null,
         events: [],
-        usage: emptyTokenUsage()
+        previousUsage: previous.usage,
+        usage: previous.usage
       };
       this.journals.set(id, await createRunJournal(this.directory, run, true));
-      this.launch(run, task, saved.input, true);
+      this.launch(continueRun(previous, run), task, saved.input, true);
     }
   }
 
   list(): RunSummary[] {
     return [...this.runs.values()]
-      .sort((a, b) => b.startedAt - a.startedAt)
+      .sort((a, b) => (b.executionStartedAt ?? b.startedAt) - (a.executionStartedAt ?? a.startedAt))
       .slice(0, 100)
       .map((run) => {
         const detail = this.details.get(run.id);
@@ -255,16 +268,26 @@ export class RunStore {
       });
   }
 
-  /** Live handles for one source, so it can reconnect thread or session routing after restart. */
-  sourceRuns(name: string): SourceRun[] {
-    return [...this.handles].flatMap(([id, handle]) => {
-      const run = this.details.get(id);
+  /** Source routing can include retained executions without starting them again. */
+  sourceRuns(name: string, options: { includeFinished?: boolean } = {}): SourceRun[] {
+    return [...this.runs].flatMap(([id, run]) => {
+      const handle = this.handles.get(id);
       const saved = this.state.data.workflows[id];
-      return run?.source === 'source' && run.sourceName === name
+      return run.source === 'source' &&
+        run.sourceName === name &&
+        (handle || (options.includeFinished && saved && run.status !== 'running'))
         ? [
             {
-              ...handle,
-              input: saved ? saved.input : run.input,
+              ...(handle ?? {
+                id,
+                steer: async () => {
+                  throw new RunNotActiveError();
+                },
+                closeSteering: () => {},
+                cancel: () => {},
+                finished: Promise.resolve()
+              }),
+              input: saved?.input,
               workflow: saved?.task ?? run.workflow
             }
           ]
@@ -307,6 +330,7 @@ export class RunStore {
     const keepAlive = setInterval(() => {}, 1000);
     try {
       await this.recovery;
+      await Promise.allSettled(this.registrations);
       await this.cleaning;
       for (const controller of this.controllers.values()) controller.abort(this.shutdownReason);
       await Promise.allSettled(this.executions);
@@ -320,6 +344,7 @@ export class RunStore {
     let run: RunDetail | undefined;
     let end = 0;
     let lastTimestamp = 0;
+    let attemptUsage = emptyTokenUsage();
     for await (const line of readRunJournal(resolve(this.directory, `${id}.jsonl`))) {
       end += line.bytes;
       const record = line.record;
@@ -327,8 +352,13 @@ export class RunStore {
       if (!run || record.type === 'started') {
         if (record.type !== 'started' || record.run.id !== id) break;
         lastTimestamp = 0;
+        attemptUsage = emptyTokenUsage();
+        // Derive older journals' baseline too. A started record contains no work
+        // from its new attempt, even when it carries totals from prior attempts.
+        const previousUsage = run?.usage ?? record.run.previousUsage;
+        const previous = run;
         run = includeDetails
-          ? record.run
+          ? { ...record.run }
           : {
               ...record.run,
               input: null,
@@ -336,12 +366,18 @@ export class RunStore {
               error: null,
               events: []
             };
+        if (previous) run = continueRun(previous, run);
+        if (!includeDetails) run.events = [];
+        run.previousUsage = previousUsage;
+        run.usage = { ...(previousUsage ?? record.run.usage) };
       } else {
+        if (record.type === 'finished') attemptUsage = record.usage;
+        else if (record.event.type === 'usage.updated') attemptUsage = record.event.usage;
         applyStoredRecord(run, record, includeDetails);
         if (record.type === 'event') lastTimestamp = record.event.timestamp;
       }
     }
-    return { run, end, lastTimestamp };
+    return { run, end, lastTimestamp, attemptUsage };
   }
 
   subscribe(listener: Listener): () => void {
@@ -362,20 +398,92 @@ export class RunStore {
       .append(record)
       .then(() => {
         const run = this.details.get(id)!;
-        applyStoredRecord(run, record);
+        const projected = applyStoredRecord(run, record);
         this.runs.set(id, summary(run));
-        this.publish(id, record);
+        this.publish(id, projected);
         if (record.type === 'finished') this.details.delete(id);
       });
   }
 
   /** Register and start a run. Resolves after registration, with a handle for its messages. */
-  async start(
+  start(
+    webhook: string,
+    workflow: AnyTask,
+    input: unknown,
+    source: 'webhook' | 'web' | 'source',
+    runId?: string
+  ): Promise<RunHandle & { completion: Promise<WorkflowExecution> }> {
+    const registration =
+      runId === undefined
+        ? this.startNew(webhook, workflow, input, source)
+        : this.reactivate(runId, webhook, workflow, input, source);
+    this.registrations.add(registration);
+    void registration.finally(() => this.registrations.delete(registration)).catch(() => {});
+    return registration;
+  }
+
+  /** Re-enter a finished root with fresh input, retaining its identity and state. */
+  private async reactivate(
+    id: string,
     webhook: string,
     workflow: AnyTask,
     input: unknown,
     source: 'webhook' | 'web' | 'source'
-  ): Promise<RunHandle & { completion: Promise<WorkflowExecution> }> {
+  ) {
+    if (this.closing) throw new Error('Run store is stopping');
+    if (this.reactivating.has(id) || this.handles.has(id) || this.journals.has(id))
+      throw new Error('This run is still active');
+    this.reactivating.add(id);
+    try {
+      await this.cleaning;
+      const saved = this.state.data.workflows[id];
+      const prior = this.runs.get(id);
+      if (
+        !prior ||
+        !saved ||
+        prior.source !== source ||
+        prior.webhook !== webhook ||
+        saved.task === null ||
+        this.workflows[saved.task] !== workflow
+      )
+        throw new Error('Run is not available for this route and task');
+      if (prior.status === 'running' || runOwnerAlive(prior))
+        throw new Error('This run is still active');
+      await parseBoundary(workflow.name, 'input', workflow.input, input);
+      const { run: previous, end } = await this.read(id, true);
+      if (!previous) throw new Error('Run history is unavailable');
+      const run: RunDetail = {
+        ...previous,
+        workflow: workflow.name,
+        input: input === undefined ? null : JSON.parse(JSON.stringify(input)),
+        pid: process.pid,
+        status: 'running',
+        startedAt: Date.now(),
+        executionStartedAt: undefined,
+        finishedAt: undefined,
+        durationMs: undefined,
+        output: null,
+        error: null,
+        events: [],
+        previousUsage: previous.usage,
+        usage: previous.usage
+      };
+      await truncate(resolve(this.directory, `${id}.jsonl`), end);
+      this.journals.set(id, await createRunJournal(this.directory, run, true));
+      saved.input = input === undefined ? undefined : run.input;
+      saved.open = true;
+      return this.launch(continueRun(previous, run), workflow, input);
+    } finally {
+      this.reactivating.delete(id);
+    }
+  }
+
+  private async startNew(
+    webhook: string,
+    workflow: AnyTask,
+    input: unknown,
+    source: 'webhook' | 'web' | 'source'
+  ) {
     if (this.closing) throw new Error('Run store is stopping');
     // Reserve before the first await so concurrent starts cannot share a reference.
     let reference: string | undefined;
@@ -423,13 +531,18 @@ export class RunStore {
     this.controllers.set(id, controller);
     this.inboxes.set(id, { task: workflow, channel: createChannel({ signal: controller.signal }) });
     this.publish(id, { type: 'started', run });
-    serverLog('info', 'run.started', {
-      runId: id,
-      runReference: run.reference,
-      webhook,
-      workflow: workflow.name,
-      source
-    });
+    serverLog(
+      'info',
+      'run.started',
+      {
+        runId: id,
+        runReference: run.reference,
+        webhook,
+        workflow: workflow.name,
+        source
+      },
+      { terminal: process.env.RUNLING_QUIET_LOG === '1' }
+    );
     const completion = this.execute(id, workflow, input, controller.signal, resumed);
     this.executions.add(completion);
     void completion.then(
@@ -449,9 +562,16 @@ export class RunStore {
     const handle = {
       id,
       completion,
-      steer: (message: unknown) => this.send(id, message),
-      closeSteering: () => this.closeSteering(id),
-      cancel: () => void this.cancel(id),
+      steer: (message: unknown) =>
+        this.controllers.get(id) === controller
+          ? this.send(id, message)
+          : Promise.reject(new RunNotActiveError()),
+      closeSteering: () => {
+        if (this.controllers.get(id) === controller) this.closeSteering(id);
+      },
+      cancel: () => {
+        if (this.controllers.get(id) === controller) this.cancel(id);
+      },
       finished: completion.then(
         () => {},
         () => {}
@@ -478,6 +598,7 @@ export class RunStore {
       run: {
         id,
         reference: this.runs.get(id)?.reference,
+        title: this.runs.get(id)?.title,
         resumed,
         filesDirectory: resolve(this.directory, id)
       },
@@ -520,13 +641,16 @@ export class RunStore {
         error: `Cannot save run history: ${cause instanceof Error ? cause.message : String(cause)}`
       };
       const run = this.details.get(id)!;
-      applyStoredRecord(run, record);
+      const projected = applyStoredRecord(run, record);
       this.runs.set(id, summary(run));
-      this.publish(id, record);
+      this.publish(id, projected);
       throw new Error(record.error!);
     } finally {
       this.journals.delete(id);
     }
+    // Persist the final state before the execution handle settles. A failed snapshot
+    // rejects completion; the journal still describes the actual task outcome.
+    await this.state.save();
     serverLog(
       status === 'failed'
         ? 'error'

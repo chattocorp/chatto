@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -12,6 +12,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Reply attribution shows the original message text when it has non-whitespace text. Otherwise, one attachment shows an icon and its translated type label (Image, Video, Audio, or File). Multiple attachments show a paperclip icon and the translated attachment count. The label uses loaded message metadata and does not load thumbnails.
 - PDF attachments open automatically in the browser's native PDF viewer when the browser reports inline PDF support. The file type must be PDF; a `.pdf` filename alone does not enable the preview. Browsers without this capability show the download fallback without loading the document. Native controls vary by browser. Download stays available when a document cannot render because the browser does not reliably report these failures to Chatto. Preview requests use the attachment server and its configured storage, with no external document-viewer service.
 - The composer accepts files via drag-and-drop, paste, and a file picker button when the viewer has `message.attach`.
+- A message can have up to 10 attachments. The composer adds only the valid files that fit and shows a warning when it skips extra files. Files still being prepared count toward this limit. A draft change discards unfinished preparation from the previous draft.
 - Draft attachments persist across room switches inside the same session.
 - Message attachments are uploaded through `chatto.api.v1.AssetUploadService` before message creation. The browser sends bounded unary chunks with SHA-256 checksums, then calls `MessageService.CreateMessage` with completed attachment asset IDs.
 - A completed asset can be attached only by its uploader and to one exact message. Reusing another member's asset ID, or reusing one's own already-attached asset ID, is rejected.
@@ -26,6 +27,8 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.
 - The room timeline loads attachment images within 960×400 bounds, while the lightbox loads a separate derivative within 2048×2048 bounds. The untouched upload remains available through the viewer’s Download action.
+- The attachment viewer opens and closes with a short zoom and fade. Reduced
+  motion disables the effect.
 - Right-clicking an image attachment in a message opens the message menu with **Copy Image**. It copies the displayed image as PNG. Other message menu actions remain available. The image URL is not offered as a copy action because it contains a temporary access ticket.
 - When enabled, videos and animated GIFs are processed by durable `asset-processing` runtime-unit workers. The processing marker commits atomically with the owning message, so a rejected message cannot create work and an accepted message remains queued while workers are offline. Workers may run inside `chatto run` or as separate `chatto asset-processing` processes.
 - Processing status: durable STARTED / COMPLETED / FAILED outcomes are stored as asset aggregate events (`evt.asset.{assetId}.*`) and delivered through the normal live EVT subscription path after room-membership authorization and the applicable message-read check for the owning thread. There is no separate `video_processed` live event or new runtime KV state for video progress; failed videos keep the original message visible and show a processing-failed state, while the retained original remains available through the attachment's original/download action.
@@ -54,10 +57,12 @@ Users can attach files to messages — images, videos, documents — via drag-an
 ### 1. Attachment uploads use chunked ConnectRPC sessions
 
 **Decision:** Public message attachment uploads use `AssetUploadService`: `CreateUpload`, `UploadChunk`, `GetUpload`, `CompleteUpload`, and `CancelUpload`. Chunks are bounded unary ConnectRPC requests instead of browser client-streaming RPCs. Each upload declares the final file size and lowercase SHA-256 digest, each chunk carries its offset and chunk SHA-256, and `CompleteUpload` verifies the assembled digest before creating the durable asset. `CreateMessage` accepts only completed, live, room-matching asset IDs uploaded by the caller and atomically attaches each asset exclusively to the message.
-New sessions accept chunks up to 10 MiB. Clients use the limit returned by the server. The limit is fixed; operators do not need to configure it. Larger chunks reduce the number of acknowledgement waits on connections with high latency. Each request needs more memory, and a failed chunk can require more bytes to be sent again.
+New sessions accept chunks up to 10 MiB. The client starts at 256 KiB or the server's maximum, whichever is smaller. It adjusts the next chunk toward 15 seconds per request, including server wait time, with at most twofold growth after each success. It uses at least 64 KiB unless the server's maximum is smaller. The final chunk can be smaller. This lets slow connections commit progress frequently while fast connections use larger chunks.
+
+Each chunk request has a 60-second client deadline. After a timeout, the client reduces the attempted chunk size to one quarter, down to its minimum. This permits recovery from a sharp bandwidth drop within the retry budget. Before it sends more bytes after a transient failure, it checks the server's committed offset. It retries transient chunk, status, and completion failures up to four times with increasing, randomized delays. Authorization failures stop the upload. Recovery stays in the same upload session; a page reload does not resume it automatically. The client does not retry session creation because a lost creation response leaves it without the session ID.
 
 **Why:** Attachments should remain inside the protobuf/ConnectRPC API surface instead of introducing a second REST upload endpoint. Unary chunks work with the current browser Connect stack and give resumable progress through the committed offset.
-**Tradeoff:** Clients must hash the full file before completion and issue several RPCs for larger files. Temporary chunks and open sessions need cleanup if the browser disappears before completion. Retrying a send after the first attempt actually committed must hydrate the created message rather than attach the same asset to a second message.
+**Tradeoff:** Clients must hash the full file before completion and issue several RPCs for larger files. Small initial chunks add acknowledgement waits on fast connections. Request duration includes storage and queue time, so a busy server can reduce the chosen chunk size. Extremely slow connections can still exceed the deadline at the minimum chunk size, and prolonged outages exhaust the retry budget. Temporary chunks and open sessions need cleanup if the browser disappears before completion. Retrying a send after the first attempt actually committed must hydrate the created message rather than attach the same asset to a second message.
 
 ### 2. Dual storage backends (NATS ObjectStore + S3)
 
@@ -152,6 +157,33 @@ already in the cache and newly posted attachments are inserted directly.
 **Decision:** GIFs, images, videos, and other files share one configured byte limit. Video upload enablement and processing limits remain separate controls. During migration, an explicitly set legacy video limit can raise the common limit; remove it after setting the desired general limit.
 **Why:** Users should not need to convert an animation to another file format to get a larger upload allowance. One setting gives operators and clients one clear policy.
 **Tradeoff:** A larger allowance also permits larger documents and images. Image dimensions, frame counts, and processing time still have independent bounds. Operators who relied on the old implicit 100 MB video default must set the general limit explicitly to keep that allowance.
+
+### 16. Upload and image memory has per-process bounds
+
+**Decision:** Each server process applies these bounds to uploads and image transforms:
+
+- `CompleteUpload` joins the chunks in a temporary file and streams the file to storage. Thus, its memory use does not increase with the file size. For an image, it reads only the image headers to get the dimensions and frame count. It does not decode pixels. Image derivatives from workers use the same header check.
+- At most four `UploadChunk` requests are in progress, and at most two for one user. Each bot counts as a separate user. Other chunk requests wait before the server reads their body. A request that holds a slot must send its body within five minutes.
+- Concurrent requests for the same image derivative share one transform, and only one of them reads the source. At most two distinct transforms read or hold source files at once. Other transforms wait before opening their source; cancellation ends this wait without a source read. An admitted transform holds its slot through reading, waiting for pixels, and transformation. Success, failure, or cancellation while waiting for pixels releases the slot. A separate budget of 40 million pixels limits decoding work. A large image waits until enough pixels are free, and transforms that start to wait for pixels later wait behind it.
+- When the `GOMEMLIMIT` environment variable is not set, `chatto run` sets the Go memory limit to 90% of the cgroup memory limit of the container.
+
+**Why:** A full decode of a 40 megapixel image needs approximately 160 MB. In a small container, the kernel can stop the process during uploads or when many clients load a new image together. Go does not read the container memory limit, so without a limit the heap can grow to twice the live data before Go frees memory.
+
+**Tradeoff:** An image with valid headers but damaged pixel data is accepted at upload. Its derivatives fail when a client requests them, and the original stays available for download. Chunk uploads and transforms can wait during peaks, and a client on a link slower than approximately 0.3 Mbit/s cannot send a full 10 MiB chunk. Only two distinct transforms can run concurrently, even for small images. An admitted transform waiting for pixels holds its source bytes, but later requests cannot accumulate an unbounded number of source buffers. This limits concurrent source files rather than total memory: file sizes, pixel formats, output buffers, and results retained by callers vary. An animated GIF counts as at most 40 million pixels although its frames together can have more. The bounds apply to each process, not to the cluster.
+
+### 17. HEIC attachments keep their original bytes
+
+**Decision:** The server accepts HEIC still images through both the public and
+Operator upload APIs. It keeps the original bytes, filename, and content type
+for download, and generates JPEG or WebP previews on request. Import tools do
+not need to convert HEIC files before upload.
+
+**Why:** Imports must preserve the source file and checksum while browsers need
+a supported display format.
+
+**Tradeoff:** HEIC image sequences are rejected because their decode cost is
+not covered by the still-image pixel limit. The bundled frontend retains its
+upload conversion for older servers.
 
 ## Permissions
 

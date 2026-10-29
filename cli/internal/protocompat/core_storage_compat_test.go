@@ -78,6 +78,8 @@ var packageExceptions = map[string]string{
 	"NotificationUnreadMarker": "chatto.core.runtime_state.v1",
 	"PushSubscription":         "chatto.core.runtime_state.v1",
 	"RoomLayout":               "chatto.core.runtime_state.v1",
+	"RoomGroup":                "chatto.core.runtime_state.v1",
+	"SidebarLink":              "chatto.core.runtime_state.v1",
 	"ThreadMetadata":           "chatto.core.runtime_state.v1",
 	"UserDataEncryptionKey":    "chatto.core.runtime_state.v1",
 	"VerifiedEmail":            "chatto.core.runtime_state.v1",
@@ -126,6 +128,33 @@ func TestCoreStorageWireCompatibility(t *testing.T) {
 			if compared == 0 {
 				t.Fatal("fixture contains no known stored core messages")
 			}
+		})
+	}
+}
+
+// TestEventValuesAndLegacyLayoutRelocation also checks the 0.5 schema immediately
+// before the read-model split. Older fixtures do not cover all current fields.
+// The fixture was generated from main at 25716bf633 with buf build, selecting
+// evt/v1/event.proto and runtime_state/v1/legacy_state.proto and their imports.
+func TestEventValuesAndLegacyLayoutRelocation(t *testing.T) {
+	t.Parallel()
+	files := loadDescriptorSet(t, "testdata/pre-readmodel-25716bf633.binpb")
+	for _, name := range []protoreflect.FullName{
+		"chatto.core.evt.v1.Event",
+		"chatto.core.evt.v1.RoomGroup",
+		"chatto.core.evt.v1.SidebarLink",
+		"chatto.core.runtime_state.v1.RoomLayout",
+		"chatto.core.runtime_state.v1.VideoProcessingState",
+	} {
+		t.Run(string(name), func(t *testing.T) {
+			descriptor, err := files.FindDescriptorByName(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			oldMessage := descriptor.(protoreflect.MessageDescriptor)
+			current := findCurrentMessage(t, relocatedDescriptorName(name))
+			compareMessageDescriptors(t, oldMessage, current, map[string]bool{})
+			verifyRepresentativePayloads(t, oldMessage, current)
 		})
 	}
 }
@@ -189,6 +218,13 @@ func compareMessageDescriptors(t *testing.T, oldMessage, newMessage protoreflect
 		}
 
 		fieldPath := fmt.Sprintf("%s field %s (%d)", pair, oldField.Name(), oldField.Number())
+		// Pre-package-split fixtures permit the historical source renames. The
+		// current-main fixture also protects names while a file moves, because
+		// Buf's FILE check reports deletion instead of inspecting that file.
+		preserveNames := !strings.HasPrefix(string(oldMessage.FullName()), "chatto.core.v1.")
+		if preserveNames && (oldField.Name() != newField.Name() || oldField.JSONName() != newField.JSONName()) {
+			t.Errorf("%s: stored field name or JSON name changed", fieldPath)
+		}
 		if oldField.Kind() != newField.Kind() {
 			t.Errorf("%s: kind changed from %s to %s", fieldPath, oldField.Kind(), newField.Kind())
 		}
@@ -208,6 +244,8 @@ func compareMessageDescriptors(t *testing.T, oldMessage, newMessage protoreflect
 			t.Errorf("%s: oneof membership changed", fieldPath)
 		} else if oldOneof != nil && oldOneof.IsSynthetic() != newOneof.IsSynthetic() {
 			t.Errorf("%s: optional presence encoding changed", fieldPath)
+		} else if preserveNames && oldOneof != nil && oldOneof.Name() != newOneof.Name() {
+			t.Errorf("%s: oneof name changed", fieldPath)
 		}
 
 		switch oldField.Kind() {
@@ -225,6 +263,12 @@ func compareMessageDescriptors(t *testing.T, oldMessage, newMessage protoreflect
 }
 
 func relocatedDescriptorName(oldName protoreflect.FullName) protoreflect.FullName {
+	switch oldName {
+	case "chatto.core.evt.v1.RoomGroup":
+		return "chatto.core.runtime_state.v1.RoomGroup"
+	case "chatto.core.evt.v1.SidebarLink":
+		return "chatto.core.runtime_state.v1.SidebarLink"
+	}
 	if !strings.HasPrefix(string(oldName), "chatto.core.v1.") {
 		return oldName
 	}
@@ -243,6 +287,12 @@ func compareEnums(t *testing.T, fieldPath string, oldEnum, newEnum protoreflect.
 		oldValue := oldValues.Get(i)
 		if newEnum.Values().ByNumber(oldValue.Number()) == nil {
 			t.Errorf("%s: enum number %d was removed", fieldPath, oldValue.Number())
+		}
+		if !strings.HasPrefix(string(oldEnum.FullName()), "chatto.core.v1.") {
+			current := newEnum.Values().ByName(oldValue.Name())
+			if current == nil || current.Number() != oldValue.Number() {
+				t.Errorf("%s: enum value %s changed name or number", fieldPath, oldValue.Name())
+			}
 		}
 	}
 }

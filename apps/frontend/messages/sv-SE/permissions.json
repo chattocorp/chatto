@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publicera, rätta, tillkännage igen och rensa rumsmeddelanden",
       "server_manage": "Uppdatera serverinställningar (namn, beskrivning, logotyp)",
       "server_manage_neighbors": "Hantera den offentliga grannkatalogen",
       "room_create": "Skapa nya rum",

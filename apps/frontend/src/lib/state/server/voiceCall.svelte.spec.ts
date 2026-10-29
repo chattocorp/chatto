@@ -837,7 +837,7 @@ describe('VoiceCallState', () => {
     );
     await state.join('wss://livekit.example.test', 'R1');
     expect(lastRoomOptions?.audioCaptureDefaults).toMatchObject({
-      deviceId: { exact: 'preferred-mic' },
+      deviceId: { ideal: 'preferred-mic' },
       autoGainControl: false
     });
     expect(lastRoomOptions?.videoCaptureDefaults).toMatchObject({
@@ -875,7 +875,7 @@ describe('VoiceCallState', () => {
     roomEventHandlers.get('ActiveDeviceChanged')?.('audioinput', 'reported-input');
     expect(state.selectedDeviceId).toBe('reported-input');
     await state.setAudioDevice('');
-    expect(lastRoom?.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default');
+    expect(lastRoom?.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default', false);
     expect(preferences.microphone).toBe('');
     await state.leave();
   });
@@ -904,7 +904,7 @@ describe('VoiceCallState', () => {
     );
     await state.toggleMute();
     expect(state.isMuted).toBe(false);
-    expect(lastRoom?.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default');
+    expect(lastRoom?.switchActiveDevice).toHaveBeenCalledWith('audioinput', 'default', false);
     expect(preferences.microphone).toBe('missing-mic');
     await state.refreshDevices();
     expect(state.selectedDeviceId).toBe('default');

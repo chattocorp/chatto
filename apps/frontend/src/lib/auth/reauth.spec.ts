@@ -178,40 +178,51 @@ describe('remote server OAuth popup', () => {
     vi.unstubAllGlobals();
   });
 
-  it('completes native PKCE without opening a popup and persists the mobile session', async () => {
-    native.available = true;
-    native.authorize.mockImplementation(async (raw: string, state: string) => {
-      const url = new URL(raw);
-      expect(url.searchParams.get('client_id')).toBe('eu.chattocorp.chatto.mobile');
-      expect(url.searchParams.get('redirect_uri')).toBe(
-        'eu.chattocorp.chatto.mobile:/oauth/callback'
+  it.each([undefined, 'chatto-id', 'signup'])(
+    'completes native PKCE with provider hint %s and persists the mobile session',
+    async (providerId) => {
+      native.available = true;
+      native.authorize.mockImplementation(async (raw: string, state: string) => {
+        const url = new URL(raw);
+        expect(url.searchParams.get('client_id')).toBe('eu.chattocorp.chatto.mobile');
+        expect(url.searchParams.get('redirect_uri')).toBe(
+          'eu.chattocorp.chatto.mobile:/oauth/callback'
+        );
+        expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+        expect(url.searchParams.get('code_challenge')).toBeTruthy();
+        expect(url.searchParams.get('state')).toBe(state);
+        expect(url.searchParams.get('provider_id')).toBe(
+          providerId === 'signup' ? null : (providerId ?? null)
+        );
+        expect(url.searchParams.get('screen_hint')).toBe(providerId === 'signup' ? 'signup' : null);
+        return { state, code: 'native-code' };
+      });
+      const open = vi.fn();
+      vi.stubGlobal('window', { open });
+      const exchange = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        tokenResponse()
       );
-      expect(url.searchParams.get('code_challenge_method')).toBe('S256');
-      expect(url.searchParams.get('code_challenge')).toBeTruthy();
-      expect(url.searchParams.get('state')).toBe(state);
-      return { state, code: 'native-code' };
-    });
-    const open = vi.fn();
-    vi.stubGlobal('window', { open });
-    const exchange = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      tokenResponse()
-    );
-    vi.stubGlobal('fetch', exchange);
-    const { startRemoteReauthentication } = await import('./reauth');
-    await startRemoteReauthentication(remote);
-    expect(open).not.toHaveBeenCalled();
-    expect(FakeBroadcastChannel.instances).toHaveLength(0);
-    expect(JSON.parse(exchange.mock.calls[0]?.[1]?.body as string)).toMatchObject({
-      code: 'native-code',
-      client_id: 'eu.chattocorp.chatto.mobile',
-      redirect_uri: 'eu.chattocorp.chatto.mobile:/oauth/callback'
-    });
-    expect(replaceServerAuthenticationMock).toHaveBeenCalledWith(
-      'remote',
-      expect.objectContaining({ token: 'cht_ATtoken' })
-    );
-    expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
-  });
+      vi.stubGlobal('fetch', exchange);
+      const { startRemoteReauthentication } = await import('./reauth');
+      await startRemoteReauthentication(
+        remote,
+        providerId === 'signup' ? undefined : providerId,
+        providerId === 'signup' ? 'signup' : undefined
+      );
+      expect(open).not.toHaveBeenCalled();
+      expect(FakeBroadcastChannel.instances).toHaveLength(0);
+      expect(JSON.parse(exchange.mock.calls[0]?.[1]?.body as string)).toMatchObject({
+        code: 'native-code',
+        client_id: 'eu.chattocorp.chatto.mobile',
+        redirect_uri: 'eu.chattocorp.chatto.mobile:/oauth/callback'
+      });
+      expect(replaceServerAuthenticationMock).toHaveBeenCalledWith(
+        'remote',
+        expect.objectContaining({ token: 'cht_ATtoken' })
+      );
+      expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
+    }
+  );
 
   it('stays on the route of the server that the user signs in to', async () => {
     native.available = true;
@@ -296,79 +307,93 @@ describe('remote server OAuth popup', () => {
     ).toBe('https://chat.example/oauth/frontend-client-metadata.json');
   });
 
-  it('keeps the main client mounted while completing PKCE through a popup', async () => {
-    const popup = fakePopup();
-    const { owner, open } = browserHarness(popup);
-    vi.stubGlobal('window', owner);
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        tokenResponse({ user: { id: 'user-1', login: 'alice', displayName: 'Alice' } })
-      )
-    );
-
-    const { startRemoteReauthentication } = await import('./reauth');
-    const completion = startRemoteReauthentication(remote);
-
-    // window.open happens before the first asynchronous PKCE operation, so it
-    // remains associated with the user's click and avoids popup blocking.
-    expect(open).toHaveBeenCalledOnce();
-    expect(open).toHaveBeenCalledWith(
-      expect.stringMatching(/^https:\/\/app\.example\/servers\/authorize#.+/),
-      expect.stringMatching(/^chatto-oauth-/),
-      expect.stringContaining('width=560,height=760')
-    );
-    await vi.waitFor(() => expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?'));
-    expect(popup.opener).toBeNull();
-
-    const authorizeURL = new URL(authorizationLaunchTarget(open)!);
-    const state = authorizeURL.searchParams.get('state');
-    expect(state).toBeTruthy();
-    expect(authorizeURL.searchParams.get('redirect_uri')).toBe(
-      'https://app.example/servers/callback?mode=popup'
-    );
-    expect(authorizeURL.searchParams.get('client_id')).toBe(
-      'https://app.example/oauth/frontend-client-metadata.json'
-    );
-    expect(authorizeURL.searchParams.has('provider_id')).toBe(false);
-
-    const responseChannel = FakeBroadcastChannel.instances.find(
-      (channel) => channel.name === `chatto:oauth-popup:${state}`
-    );
-    expect(responseChannel).toBeDefined();
-    responseChannel!.emit({
-      type: 'chatto:oauth-popup-response',
-      state,
-      code: 'cht_ACcode'
-    });
-
-    await completion;
-
-    expect(fetch).toHaveBeenCalledWith(
-      'https://remote.example/oauth/token',
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining(
-          '"redirect_uri":"https://app.example/servers/callback?mode=popup"'
+  it.each([undefined, 'chatto-id', 'signup'])(
+    'keeps the main client mounted while completing popup PKCE with provider hint %s',
+    async (providerId) => {
+      const popup = fakePopup();
+      const { owner, open } = browserHarness(popup);
+      vi.stubGlobal('window', owner);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () =>
+          tokenResponse({ user: { id: 'user-1', login: 'alice', displayName: 'Alice' } })
         )
-      })
-    );
-    expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)).toMatchObject({
-      client_id: 'https://app.example/oauth/frontend-client-metadata.json'
-    });
-    expect(updateRegistrationMock).toHaveBeenCalledWith('remote', {
-      name: 'Remote',
-      iconUrl: null
-    });
-    expect(replaceServerAuthenticationMock).toHaveBeenCalledWith(
-      'remote',
-      expect.objectContaining({ token: 'cht_ATtoken', userId: 'user-1', reauthRequiredAt: null })
-    );
-    expect(initServerInfoMock).toHaveBeenCalledOnce();
-    expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
-    expect(popup.close).toHaveBeenCalledOnce();
-    expect(localStorage.length).toBe(0);
-  });
+      );
+
+      const { startRemoteReauthentication } = await import('./reauth');
+      const completion = startRemoteReauthentication(
+        remote,
+        providerId === 'signup' ? undefined : providerId,
+        providerId === 'signup' ? 'signup' : undefined
+      );
+
+      // window.open happens before the first asynchronous PKCE operation, so it
+      // remains associated with the user's click and avoids popup blocking.
+      expect(open).toHaveBeenCalledOnce();
+      expect(open).toHaveBeenCalledWith(
+        expect.stringMatching(/^https:\/\/app\.example\/servers\/authorize#.+/),
+        expect.stringMatching(/^chatto-oauth-/),
+        expect.stringContaining('width=560,height=760')
+      );
+      await vi.waitFor(() =>
+        expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?')
+      );
+      expect(popup.opener).toBeNull();
+
+      const authorizeURL = new URL(authorizationLaunchTarget(open)!);
+      const state = authorizeURL.searchParams.get('state');
+      expect(state).toBeTruthy();
+      expect(authorizeURL.searchParams.get('redirect_uri')).toBe(
+        'https://app.example/servers/callback?mode=popup'
+      );
+      expect(authorizeURL.searchParams.get('client_id')).toBe(
+        'https://app.example/oauth/frontend-client-metadata.json'
+      );
+      expect(authorizeURL.searchParams.get('provider_id')).toBe(
+        providerId === 'signup' ? null : (providerId ?? null)
+      );
+      expect(authorizeURL.searchParams.get('screen_hint')).toBe(
+        providerId === 'signup' ? 'signup' : null
+      );
+
+      const responseChannel = FakeBroadcastChannel.instances.find(
+        (channel) => channel.name === `chatto:oauth-popup:${state}`
+      );
+      expect(responseChannel).toBeDefined();
+      responseChannel!.emit({
+        type: 'chatto:oauth-popup-response',
+        state,
+        code: 'cht_ACcode'
+      });
+
+      await completion;
+
+      expect(fetch).toHaveBeenCalledWith(
+        'https://remote.example/oauth/token',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining(
+            '"redirect_uri":"https://app.example/servers/callback?mode=popup"'
+          )
+        })
+      );
+      expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)).toMatchObject({
+        client_id: 'https://app.example/oauth/frontend-client-metadata.json'
+      });
+      expect(updateRegistrationMock).toHaveBeenCalledWith('remote', {
+        name: 'Remote',
+        iconUrl: null
+      });
+      expect(replaceServerAuthenticationMock).toHaveBeenCalledWith(
+        'remote',
+        expect.objectContaining({ token: 'cht_ATtoken', userId: 'user-1', reauthRequiredAt: null })
+      );
+      expect(initServerInfoMock).toHaveBeenCalledOnce();
+      expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
+      expect(popup.close).toHaveBeenCalledOnce();
+      expect(localStorage.length).toBe(0);
+    }
+  );
 
   it('opens before server discovery completes', async () => {
     const popup = fakePopup();
@@ -429,7 +454,7 @@ describe('remote server OAuth popup', () => {
     vi.stubGlobal('window', owner);
 
     const { startRemoteReauthentication } = await import('./reauth');
-    await expect(startRemoteReauthentication(remote)).rejects.toThrow('could not be opened');
+    await expect(startRemoteReauthentication(remote)).rejects.toMatchObject({ reason: 'blocked' });
 
     expect(gotoMock).not.toHaveBeenCalled();
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
@@ -452,10 +477,10 @@ describe('remote server OAuth popup', () => {
     const { startRemoteReauthentication } = await import('./reauth');
     const completion = startRemoteReauthentication(remote);
 
+    const cancelled = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
     (popup as unknown as { closed: boolean }).closed = true;
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await cancelled;
     rejectServerInfo?.(new Error('discovery failed'));
-    await expect(completion).rejects.toThrow('discovery failed');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     process.off('unhandledRejection', unhandled);
@@ -475,6 +500,19 @@ describe('remote server OAuth popup', () => {
 
     process.off('unhandledRejection', unhandled);
     expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it('identifies a closed remote sign-in window as cancellation', async () => {
+    const popup = fakePopup();
+    const { owner } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+    const { startRemoteReauthentication } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
+    const rejected = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
+    (popup as unknown as { closed: boolean }).closed = true;
+    await rejected;
+    expect(gotoMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 });
 

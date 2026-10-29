@@ -652,7 +652,7 @@ var File_chatto_core_evt_v1_room_group_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_room_group_events_proto_rawDesc = "" +
 	"\n" +
-	"*chatto/core/evt/v1/room_group_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"h\n" +
+	"*chatto/core/evt/v1/room_group_events.proto\x12\x12chatto.core.evt.v1\x1a%chatto/core/evt/v1/event_values.proto\"h\n" +
 	"\x15RoomGroupCreatedEvent\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -733,7 +733,7 @@ func file_chatto_core_evt_v1_room_group_events_proto_init() {
 	if File_chatto_core_evt_v1_room_group_events_proto != nil {
 		return
 	}
-	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_event_values_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

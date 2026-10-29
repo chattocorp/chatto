@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -38,7 +40,7 @@ type UserProjection struct {
 }
 
 type projectedUser struct {
-	user          *evtv1.User
+	user          *readmodel.User
 	login         *projectedUserPII
 	loginHash     string
 	displayName   *projectedUserPII
@@ -157,6 +159,8 @@ func (p *UserProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyCustomStatusCleared(e.UserCustomStatusCleared)
 	case *evtv1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted)
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		p.applyAccountDeactivationChanged(e.UserAccountDeactivationChanged)
 	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId())
 	case *evtv1.Event_UserKeyShredded:
@@ -268,6 +272,8 @@ func (p *UserProjection) applyPreparedContentEvent(event *evtv1.Event, seq uint6
 		p.applyCustomStatusCleared(value.UserCustomStatusCleared)
 	case *evtv1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(value.UserAccountDeleted)
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		p.applyAccountDeactivationChanged(value.UserAccountDeactivationChanged)
 	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyKeyShredded(value.UserKeyShreddingRequested.GetUserId())
 	case *evtv1.Event_UserKeyShredded:
@@ -333,7 +339,7 @@ func (p *UserProjection) applyAccountCreatedWithLogin(eventID string, e *evtv1.U
 	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
 	isBot := e.GetIsBot()
-	u.user = &evtv1.User{
+	u.user = &readmodel.User{
 		Id:             e.GetUserId(),
 		CreatedAt:      envelopeCreatedAt,
 		IsBot:          isBot,
@@ -388,7 +394,7 @@ func (p *UserProjection) applyLoginChangedWithLogin(eventID string, e *evtv1.Use
 	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user == nil {
-		u.user = &evtv1.User{Id: e.GetUserId(), CreatedAt: envelopeCreatedAt}
+		u.user = &readmodel.User{Id: e.GetUserId(), CreatedAt: envelopeCreatedAt}
 	}
 	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
 		delete(p.loginIndex, u.loginHash)
@@ -404,7 +410,7 @@ func (p *UserProjection) applyDisplayNameChanged(eventID string, e *evtv1.UserDi
 	}
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user == nil {
-		u.user = &evtv1.User{Id: e.GetUserId()}
+		u.user = &readmodel.User{Id: e.GetUserId()}
 	}
 	u.displayName = newProjectedUserPII(eventID, evtstream.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
 }
@@ -537,7 +543,7 @@ func (p *UserProjection) applyCustomStatusSet(e *evtv1.UserCustomStatusSetEvent)
 	}
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user == nil {
-		u.user = &evtv1.User{Id: e.GetUserId()}
+		u.user = &readmodel.User{Id: e.GetUserId()}
 	}
 	u.user.CustomStatus = proto.Clone(e.GetStatus()).(*evtv1.CustomUserStatus)
 }
@@ -549,6 +555,23 @@ func (p *UserProjection) applyCustomStatusCleared(e *evtv1.UserCustomStatusClear
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user != nil {
 		u.user.CustomStatus = nil
+	}
+}
+
+// Deactivated reads the account access flag without decrypting profile data.
+func (p *UserProjection) Deactivated(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	return u != nil && u.user.GetDeactivated()
+}
+
+func (p *UserProjection) applyAccountDeactivationChanged(e *evtv1.UserAccountDeactivationChangedEvent) {
+	if e == nil {
+		return
+	}
+	if u := p.users[e.GetUserId()]; u != nil && u.user != nil && !u.deleted {
+		u.user.Deactivated = e.GetDeactivated()
 	}
 }
 
@@ -598,7 +621,7 @@ func (p *UserProjection) applyKeyShredded(userID string) {
 			delete(p.emailIndex, hash)
 		}
 	}
-	u.user = &evtv1.User{Id: userID}
+	u.user = &readmodel.User{Id: userID}
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
@@ -727,7 +750,7 @@ type projectedPIISnapshot struct {
 }
 
 type projectedUserSnapshot struct {
-	user        *evtv1.User
+	user        *readmodel.User
 	login       *projectedPIISnapshot
 	displayName *projectedPIISnapshot
 	bio         *projectedPIISnapshot
@@ -767,9 +790,9 @@ func (p *UserProjection) userSnapshotLocked(userID string, u *projectedUser) *pr
 	if u == nil {
 		return nil
 	}
-	var user *evtv1.User
+	var user *readmodel.User
 	if u.user != nil {
-		user = proto.Clone(u.user).(*evtv1.User)
+		user = u.user.Clone()
 	}
 	var avatar *evtv1.AssetRecord
 	if u.avatar != nil {
@@ -829,7 +852,7 @@ func cloneProjectedUserSnapshot(source *projectedUserSnapshot) *projectedUserSna
 		shredded:    source.shredded,
 	}
 	if source.user != nil {
-		clone.user = proto.Clone(source.user).(*evtv1.User)
+		clone.user = source.user.Clone()
 	}
 	if source.avatar != nil {
 		clone.avatar = proto.Clone(source.avatar).(*evtv1.AssetRecord)
@@ -865,7 +888,7 @@ func (p *UserProjection) decryptPIISnapshot(ctx context.Context, userID string, 
 	return plaintext, true, nil
 }
 
-func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *projectedUserSnapshot, now time.Time) (*evtv1.User, bool, error) {
+func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *projectedUserSnapshot, now time.Time) (*readmodel.User, bool, error) {
 	if snapshot == nil || snapshot.deleted || snapshot.shredded || snapshot.user == nil {
 		return nil, false, nil
 	}
@@ -896,19 +919,19 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 	return snapshot.user, true, nil
 }
 
-func (p *UserProjection) GetContext(ctx context.Context, userID string) (*evtv1.User, bool, error) {
+func (p *UserProjection) GetContext(ctx context.Context, userID string) (*readmodel.User, bool, error) {
 	p.RLock()
 	snapshot := p.userSnapshotLocked(userID, p.users[userID])
 	p.RUnlock()
 	return p.hydrateUserSnapshot(WithDEKRequestCache(ctx), snapshot, time.Now())
 }
 
-func (p *UserProjection) Get(userID string) (*evtv1.User, bool) {
+func (p *UserProjection) Get(userID string) (*readmodel.User, bool) {
 	user, ok, _ := p.GetContext(context.Background(), userID)
 	return user, ok
 }
 
-func (p *UserProjection) GetReferenceContext(ctx context.Context, userID string) (*evtv1.User, bool, error) {
+func (p *UserProjection) GetReferenceContext(ctx context.Context, userID string) (*readmodel.User, bool, error) {
 	p.RLock()
 	snapshot := p.userSnapshotLocked(userID, p.users[userID])
 	p.RUnlock()
@@ -982,7 +1005,7 @@ func (p *UserProjection) ActiveDirectoryMetadata() []UserDirectoryMetadata {
 }
 
 // GetReferencesContext returns public user references aligned with userIDs. Unknown users are nil.
-func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
+func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []string) ([]*readmodel.User, error) {
 	p.RLock()
 	snapshots := make([]*projectedUserSnapshot, len(userIDs))
 	for i, userID := range userIDs {
@@ -992,7 +1015,7 @@ func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []str
 
 	ctx = WithDEKRequestCache(ctx)
 	now := time.Now()
-	users := make([]*evtv1.User, len(userIDs))
+	users := make([]*readmodel.User, len(userIDs))
 	for i, snapshot := range snapshots {
 		if snapshot == nil {
 			continue
@@ -1010,12 +1033,12 @@ func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []str
 	return users, nil
 }
 
-func (p *UserProjection) GetReferences(userIDs []string) []*evtv1.User {
+func (p *UserProjection) GetReferences(userIDs []string) []*readmodel.User {
 	users, _ := p.GetReferencesContext(context.Background(), userIDs)
 	return users
 }
 
-func (p *UserProjection) GetByLoginContext(ctx context.Context, login string) (*evtv1.User, bool, error) {
+func (p *UserProjection) GetByLoginContext(ctx context.Context, login string) (*readmodel.User, bool, error) {
 	lookupHash := userPIILookupHash(login)
 	p.RLock()
 	userID := p.loginIndex[lookupHash]
@@ -1033,12 +1056,12 @@ func (p *UserProjection) GetByLoginContext(ctx context.Context, login string) (*
 	return user, true, nil
 }
 
-func (p *UserProjection) GetByLogin(login string) (*evtv1.User, bool) {
+func (p *UserProjection) GetByLogin(login string) (*readmodel.User, bool) {
 	user, ok, _ := p.GetByLoginContext(context.Background(), login)
 	return user, ok
 }
 
-func (p *UserProjection) GetByEmailContext(ctx context.Context, email string) (*evtv1.User, bool, error) {
+func (p *UserProjection) GetByEmailContext(ctx context.Context, email string) (*readmodel.User, bool, error) {
 	lookupHash := emailHash(email)
 	p.RLock()
 	userID := p.emailIndex[lookupHash]
@@ -1066,16 +1089,16 @@ func (p *UserProjection) GetByEmailContext(ctx context.Context, email string) (*
 	return nil, false, nil
 }
 
-func (p *UserProjection) GetByEmail(email string) (*evtv1.User, bool) {
+func (p *UserProjection) GetByEmail(email string) (*readmodel.User, bool) {
 	user, ok, _ := p.GetByEmailContext(context.Background(), email)
 	return user, ok
 }
 
-func (p *UserProjection) GetByOIDCSubject(issuer, subject string) (*evtv1.User, bool) {
+func (p *UserProjection) GetByOIDCSubject(issuer, subject string) (*readmodel.User, bool) {
 	return p.GetByExternalIdentity(issuer, subject)
 }
 
-func (p *UserProjection) GetByExternalIdentityContext(ctx context.Context, issuer, subject string) (*evtv1.User, bool, error) {
+func (p *UserProjection) GetByExternalIdentityContext(ctx context.Context, issuer, subject string) (*readmodel.User, bool, error) {
 	userID, _ := p.auth.ExternalIdentityOwnerID(issuer, subject)
 	if userID == "" {
 		return nil, false, nil
@@ -1083,7 +1106,7 @@ func (p *UserProjection) GetByExternalIdentityContext(ctx context.Context, issue
 	return p.GetContext(ctx, userID)
 }
 
-func (p *UserProjection) GetByExternalIdentity(issuer, subject string) (*evtv1.User, bool) {
+func (p *UserProjection) GetByExternalIdentity(issuer, subject string) (*readmodel.User, bool) {
 	user, ok, _ := p.GetByExternalIdentityContext(context.Background(), issuer, subject)
 	return user, ok
 }
@@ -1294,7 +1317,7 @@ const usersHydrationConcurrency = 16
 // UsersContext decrypts every active user profile. The result order is not
 // defined. The cost grows with the number of users, so use it only for reads
 // that must inspect decrypted profile fields, such as substring search.
-func (p *UserProjection) UsersContext(ctx context.Context) ([]*evtv1.User, error) {
+func (p *UserProjection) UsersContext(ctx context.Context) ([]*readmodel.User, error) {
 	p.RLock()
 	snapshots := make([]*projectedUserSnapshot, 0, len(p.users))
 	for userID, u := range p.users {
@@ -1307,7 +1330,7 @@ func (p *UserProjection) UsersContext(ctx context.Context) ([]*evtv1.User, error
 
 	ctx = WithDEKRequestCache(ctx)
 	now := time.Now()
-	return parallel.MapNonNil(ctx, usersHydrationConcurrency, snapshots, func(ctx context.Context, _ int, snapshot *projectedUserSnapshot) (*evtv1.User, error) {
+	return parallel.MapNonNil(ctx, usersHydrationConcurrency, snapshots, func(ctx context.Context, _ int, snapshot *projectedUserSnapshot) (*readmodel.User, error) {
 		user, ok, err := p.hydrateUserSnapshot(ctx, snapshot, now)
 		if err != nil || !ok {
 			return nil, err
@@ -1316,7 +1339,7 @@ func (p *UserProjection) UsersContext(ctx context.Context) ([]*evtv1.User, error
 	})
 }
 
-func (p *UserProjection) Users() []*evtv1.User {
+func (p *UserProjection) Users() []*readmodel.User {
 	users, _ := p.UsersContext(context.Background())
 	return users
 }

@@ -105,6 +105,12 @@ message RoomUniversalChangedEvent {
   bool universal = 2;
 }
 
+// RoomNoticeChangedEvent asks current room members to read the latest notice.
+// It covers corrections, publication, republishing, and clear operations.
+message RoomNoticeChangedEvent {
+  string room_id = 1;
+}
+
 // RoomSlowModeChangedEvent reports the current slow-mode interval.
 message RoomSlowModeChangedEvent {
   string room_id = 1;
@@ -117,6 +123,14 @@ message RoomSlowModeChangedEvent {
 message RoomThreadingModeChangedEvent {
   string room_id = 1;
   chatto.api.v1.RoomThreadingMode threading_mode = 2;
+}
+
+// RoomMembershipEventsVisibilityChangedEvent changes how clients display room
+// join/leave activity, including history. Clients must still process membership
+// events when this setting is false.
+message RoomMembershipEventsVisibilityChangedEvent {
+  string room_id = 1;
+  bool show_membership_events = 2;
 }
 
 // UserJoinedRoomEvent reports that the actor joined a room.
@@ -290,6 +304,12 @@ message ServerMotdChangedEvent {
 message UserAccountCreatedEvent {
   string user_id = 1;
   bool is_bot = 2;
+}
+
+// Reports a reversible account access change. Administrative details are private.
+message UserAccountDeactivationChangedEvent {
+  string user_id = 1;
+  bool deactivated = 2;
 }
 
 // UserAccountDeletedEvent reports a deleted user account.

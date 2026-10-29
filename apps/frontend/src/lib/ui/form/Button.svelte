@@ -32,8 +32,8 @@
       | 'danger'
       | 'danger-secondary'
       | 'danger-ghost';
-    /** `icon` is a square 40 px control for a single icon; pass `label` as its accessible name. */
-    size?: 'sm' | 'md' | 'lg' | 'icon';
+    /** `compact` fits a 24 px header line; `xs` and `sm` have a 32 px minimum height. `icon` is a square 40 px control; pass `label` as its accessible name. */
+    size?: 'compact' | 'xs' | 'sm' | 'md' | 'lg' | 'icon';
     loading?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
@@ -66,6 +66,8 @@
   };
 
   const sizeClasses = {
+    compact: 'btn-compact',
+    xs: 'btn-xs',
     sm: 'btn-sm',
     md: '',
     lg: 'btn-lg',

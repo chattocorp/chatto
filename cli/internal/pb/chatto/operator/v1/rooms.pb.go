@@ -11,6 +11,7 @@ import (
 	v1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -141,7 +142,9 @@ type CreateRoomRequest struct {
 	// Optional room description.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	// Optional group ID. Empty selects the current default group.
-	GroupId       string `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupId string `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	// Optional UUID for permanent exact retry protection and historical creation.
+	OperationKey  string `protobuf:"bytes,4,opt,name=operation_key,json=operationKey,proto3" json:"operation_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -193,6 +196,13 @@ func (x *CreateRoomRequest) GetDescription() string {
 func (x *CreateRoomRequest) GetGroupId() string {
 	if x != nil {
 		return x.GroupId
+	}
+	return ""
+}
+
+func (x *CreateRoomRequest) GetOperationKey() string {
+	if x != nil {
+		return x.OperationKey
 	}
 	return ""
 }
@@ -353,21 +363,270 @@ func (x *AddMemberResponse) GetMember() *v1.DirectoryMember {
 	return nil
 }
 
+// One typed historical operation on an existing channel. No archive knowledge
+// is required. Exact keyed retries return without repeating the transition.
+type ImportRoomEventRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Destination non-universal channel.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required non-zero UUID, bound permanently to these arguments.
+	OperationKey string `protobuf:"bytes,2,opt,name=operation_key,json=operationKey,proto3" json:"operation_key,omitempty"`
+	// Absent means unknown source time.
+	OccurredAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	// Mapped source actor; empty means unknown.
+	ActorId string `protobuf:"bytes,4,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	// Reconciliation updates state without creating a visible timeline entry.
+	Hidden bool `protobuf:"varint,5,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	// Exactly one historical transition.
+	//
+	// Types that are valid to be assigned to Change:
+	//
+	//	*ImportRoomEventRequest_JoinedUserId
+	//	*ImportRoomEventRequest_LeftUserId
+	//	*ImportRoomEventRequest_Name
+	//	*ImportRoomEventRequest_Topic
+	//	*ImportRoomEventRequest_Purpose
+	//	*ImportRoomEventRequest_Archived
+	Change        isImportRoomEventRequest_Change `protobuf_oneof:"change"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportRoomEventRequest) Reset() {
+	*x = ImportRoomEventRequest{}
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportRoomEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportRoomEventRequest) ProtoMessage() {}
+
+func (x *ImportRoomEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportRoomEventRequest.ProtoReflect.Descriptor instead.
+func (*ImportRoomEventRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_rooms_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ImportRoomEventRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetOperationKey() string {
+	if x != nil {
+		return x.OperationKey
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+func (x *ImportRoomEventRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetHidden() bool {
+	if x != nil {
+		return x.Hidden
+	}
+	return false
+}
+
+func (x *ImportRoomEventRequest) GetChange() isImportRoomEventRequest_Change {
+	if x != nil {
+		return x.Change
+	}
+	return nil
+}
+
+func (x *ImportRoomEventRequest) GetJoinedUserId() string {
+	if x != nil {
+		if x, ok := x.Change.(*ImportRoomEventRequest_JoinedUserId); ok {
+			return x.JoinedUserId
+		}
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetLeftUserId() string {
+	if x != nil {
+		if x, ok := x.Change.(*ImportRoomEventRequest_LeftUserId); ok {
+			return x.LeftUserId
+		}
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetName() string {
+	if x != nil {
+		if x, ok := x.Change.(*ImportRoomEventRequest_Name); ok {
+			return x.Name
+		}
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetTopic() string {
+	if x != nil {
+		if x, ok := x.Change.(*ImportRoomEventRequest_Topic); ok {
+			return x.Topic
+		}
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetPurpose() string {
+	if x != nil {
+		if x, ok := x.Change.(*ImportRoomEventRequest_Purpose); ok {
+			return x.Purpose
+		}
+	}
+	return ""
+}
+
+func (x *ImportRoomEventRequest) GetArchived() bool {
+	if x != nil {
+		if x, ok := x.Change.(*ImportRoomEventRequest_Archived); ok {
+			return x.Archived
+		}
+	}
+	return false
+}
+
+type isImportRoomEventRequest_Change interface {
+	isImportRoomEventRequest_Change()
+}
+
+type ImportRoomEventRequest_JoinedUserId struct {
+	// Mapped member to add.
+	JoinedUserId string `protobuf:"bytes,10,opt,name=joined_user_id,json=joinedUserId,proto3,oneof"`
+}
+
+type ImportRoomEventRequest_LeftUserId struct {
+	// Mapped member to remove.
+	LeftUserId string `protobuf:"bytes,11,opt,name=left_user_id,json=leftUserId,proto3,oneof"`
+}
+
+type ImportRoomEventRequest_Name struct {
+	// Historical channel name; normal name uniqueness applies.
+	Name string `protobuf:"bytes,12,opt,name=name,proto3,oneof"`
+}
+
+type ImportRoomEventRequest_Topic struct {
+	// Historical displayed description.
+	Topic string `protobuf:"bytes,13,opt,name=topic,proto3,oneof"`
+}
+
+type ImportRoomEventRequest_Purpose struct {
+	// Historical purpose, separate from the displayed description.
+	Purpose string `protobuf:"bytes,14,opt,name=purpose,proto3,oneof"`
+}
+
+type ImportRoomEventRequest_Archived struct {
+	// True archives; false unarchives.
+	Archived bool `protobuf:"varint,15,opt,name=archived,proto3,oneof"`
+}
+
+func (*ImportRoomEventRequest_JoinedUserId) isImportRoomEventRequest_Change() {}
+
+func (*ImportRoomEventRequest_LeftUserId) isImportRoomEventRequest_Change() {}
+
+func (*ImportRoomEventRequest_Name) isImportRoomEventRequest_Change() {}
+
+func (*ImportRoomEventRequest_Topic) isImportRoomEventRequest_Change() {}
+
+func (*ImportRoomEventRequest_Purpose) isImportRoomEventRequest_Change() {}
+
+func (*ImportRoomEventRequest_Archived) isImportRoomEventRequest_Change() {}
+
+// Successful historical channel operation.
+type ImportRoomEventResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Committed room event ID, stable across retries; usable as a reaction target
+	// for join/leave events. Empty for receipts created by older servers.
+	EventId       string `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportRoomEventResponse) Reset() {
+	*x = ImportRoomEventResponse{}
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportRoomEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportRoomEventResponse) ProtoMessage() {}
+
+func (x *ImportRoomEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_rooms_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportRoomEventResponse.ProtoReflect.Descriptor instead.
+func (*ImportRoomEventResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_rooms_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ImportRoomEventResponse) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
 var File_chatto_operator_v1_rooms_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_rooms_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/operator/v1/rooms.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\"V\n" +
+	"\x1echatto/operator/v1/rooms.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\"V\n" +
 	"\x10ListRoomsRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
 	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"k\n" +
 	"\x11ListRoomsResponse\x12)\n" +
 	"\x05rooms\x18\x01 \x03(\v2\x13.chatto.api.v1.RoomR\x05rooms\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"d\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\x89\x01\n" +
 	"\x11CreateRoomRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
-	"\bgroup_id\x18\x03 \x01(\tR\agroupId\"=\n" +
+	"\bgroup_id\x18\x03 \x01(\tR\agroupId\x12#\n" +
+	"\roperation_key\x18\x04 \x01(\tR\foperationKey\"=\n" +
 	"\x12CreateRoomResponse\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"V\n" +
 	"\x10AddMemberRequest\x12 \n" +
@@ -375,8 +634,27 @@ const file_chatto_operator_v1_rooms_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"d\n" +
 	"\x11AddMemberResponse\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x126\n" +
-	"\x06member\x18\x02 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x06member2\xa6\x02\n" +
-	"\x13OperatorRoomService\x12X\n" +
+	"\x06member\x18\x02 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x06member\"\x84\x03\n" +
+	"\x16ImportRoomEventRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
+	"\roperation_key\x18\x02 \x01(\tR\foperationKey\x12;\n" +
+	"\voccurred_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x12\x19\n" +
+	"\bactor_id\x18\x04 \x01(\tR\aactorId\x12\x16\n" +
+	"\x06hidden\x18\x05 \x01(\bR\x06hidden\x12&\n" +
+	"\x0ejoined_user_id\x18\n" +
+	" \x01(\tH\x00R\fjoinedUserId\x12\"\n" +
+	"\fleft_user_id\x18\v \x01(\tH\x00R\n" +
+	"leftUserId\x12\x14\n" +
+	"\x04name\x18\f \x01(\tH\x00R\x04name\x12\x16\n" +
+	"\x05topic\x18\r \x01(\tH\x00R\x05topic\x12\x1a\n" +
+	"\apurpose\x18\x0e \x01(\tH\x00R\apurpose\x12\x1c\n" +
+	"\barchived\x18\x0f \x01(\bH\x00R\barchivedB\b\n" +
+	"\x06change\"4\n" +
+	"\x17ImportRoomEventResponse\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId2\x92\x03\n" +
+	"\x13OperatorRoomService\x12j\n" +
+	"\x0fImportRoomEvent\x12*.chatto.operator.v1.ImportRoomEventRequest\x1a+.chatto.operator.v1.ImportRoomEventResponse\x12X\n" +
 	"\tListRooms\x12$.chatto.operator.v1.ListRoomsRequest\x1a%.chatto.operator.v1.ListRoomsResponse\x12[\n" +
 	"\n" +
 	"CreateRoom\x12%.chatto.operator.v1.CreateRoomRequest\x1a&.chatto.operator.v1.CreateRoomResponse\x12X\n" +
@@ -396,36 +674,42 @@ func file_chatto_operator_v1_rooms_proto_rawDescGZIP() []byte {
 	return file_chatto_operator_v1_rooms_proto_rawDescData
 }
 
-var file_chatto_operator_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_chatto_operator_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chatto_operator_v1_rooms_proto_goTypes = []any{
-	(*ListRoomsRequest)(nil),   // 0: chatto.operator.v1.ListRoomsRequest
-	(*ListRoomsResponse)(nil),  // 1: chatto.operator.v1.ListRoomsResponse
-	(*CreateRoomRequest)(nil),  // 2: chatto.operator.v1.CreateRoomRequest
-	(*CreateRoomResponse)(nil), // 3: chatto.operator.v1.CreateRoomResponse
-	(*AddMemberRequest)(nil),   // 4: chatto.operator.v1.AddMemberRequest
-	(*AddMemberResponse)(nil),  // 5: chatto.operator.v1.AddMemberResponse
-	(*v1.PageRequest)(nil),     // 6: chatto.api.v1.PageRequest
-	(*v1.Room)(nil),            // 7: chatto.api.v1.Room
-	(*v1.PageInfo)(nil),        // 8: chatto.api.v1.PageInfo
-	(*v1.DirectoryMember)(nil), // 9: chatto.api.v1.DirectoryMember
+	(*ListRoomsRequest)(nil),        // 0: chatto.operator.v1.ListRoomsRequest
+	(*ListRoomsResponse)(nil),       // 1: chatto.operator.v1.ListRoomsResponse
+	(*CreateRoomRequest)(nil),       // 2: chatto.operator.v1.CreateRoomRequest
+	(*CreateRoomResponse)(nil),      // 3: chatto.operator.v1.CreateRoomResponse
+	(*AddMemberRequest)(nil),        // 4: chatto.operator.v1.AddMemberRequest
+	(*AddMemberResponse)(nil),       // 5: chatto.operator.v1.AddMemberResponse
+	(*ImportRoomEventRequest)(nil),  // 6: chatto.operator.v1.ImportRoomEventRequest
+	(*ImportRoomEventResponse)(nil), // 7: chatto.operator.v1.ImportRoomEventResponse
+	(*v1.PageRequest)(nil),          // 8: chatto.api.v1.PageRequest
+	(*v1.Room)(nil),                 // 9: chatto.api.v1.Room
+	(*v1.PageInfo)(nil),             // 10: chatto.api.v1.PageInfo
+	(*v1.DirectoryMember)(nil),      // 11: chatto.api.v1.DirectoryMember
+	(*timestamppb.Timestamp)(nil),   // 12: google.protobuf.Timestamp
 }
 var file_chatto_operator_v1_rooms_proto_depIdxs = []int32{
-	6, // 0: chatto.operator.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
-	7, // 1: chatto.operator.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.Room
-	8, // 2: chatto.operator.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
-	7, // 3: chatto.operator.v1.CreateRoomResponse.room:type_name -> chatto.api.v1.Room
-	9, // 4: chatto.operator.v1.AddMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
-	0, // 5: chatto.operator.v1.OperatorRoomService.ListRooms:input_type -> chatto.operator.v1.ListRoomsRequest
-	2, // 6: chatto.operator.v1.OperatorRoomService.CreateRoom:input_type -> chatto.operator.v1.CreateRoomRequest
-	4, // 7: chatto.operator.v1.OperatorRoomService.AddMember:input_type -> chatto.operator.v1.AddMemberRequest
-	1, // 8: chatto.operator.v1.OperatorRoomService.ListRooms:output_type -> chatto.operator.v1.ListRoomsResponse
-	3, // 9: chatto.operator.v1.OperatorRoomService.CreateRoom:output_type -> chatto.operator.v1.CreateRoomResponse
-	5, // 10: chatto.operator.v1.OperatorRoomService.AddMember:output_type -> chatto.operator.v1.AddMemberResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8,  // 0: chatto.operator.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
+	9,  // 1: chatto.operator.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.Room
+	10, // 2: chatto.operator.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
+	9,  // 3: chatto.operator.v1.CreateRoomResponse.room:type_name -> chatto.api.v1.Room
+	11, // 4: chatto.operator.v1.AddMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
+	12, // 5: chatto.operator.v1.ImportRoomEventRequest.occurred_at:type_name -> google.protobuf.Timestamp
+	6,  // 6: chatto.operator.v1.OperatorRoomService.ImportRoomEvent:input_type -> chatto.operator.v1.ImportRoomEventRequest
+	0,  // 7: chatto.operator.v1.OperatorRoomService.ListRooms:input_type -> chatto.operator.v1.ListRoomsRequest
+	2,  // 8: chatto.operator.v1.OperatorRoomService.CreateRoom:input_type -> chatto.operator.v1.CreateRoomRequest
+	4,  // 9: chatto.operator.v1.OperatorRoomService.AddMember:input_type -> chatto.operator.v1.AddMemberRequest
+	7,  // 10: chatto.operator.v1.OperatorRoomService.ImportRoomEvent:output_type -> chatto.operator.v1.ImportRoomEventResponse
+	1,  // 11: chatto.operator.v1.OperatorRoomService.ListRooms:output_type -> chatto.operator.v1.ListRoomsResponse
+	3,  // 12: chatto.operator.v1.OperatorRoomService.CreateRoom:output_type -> chatto.operator.v1.CreateRoomResponse
+	5,  // 13: chatto.operator.v1.OperatorRoomService.AddMember:output_type -> chatto.operator.v1.AddMemberResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_operator_v1_rooms_proto_init() }
@@ -433,13 +717,21 @@ func file_chatto_operator_v1_rooms_proto_init() {
 	if File_chatto_operator_v1_rooms_proto != nil {
 		return
 	}
+	file_chatto_operator_v1_rooms_proto_msgTypes[6].OneofWrappers = []any{
+		(*ImportRoomEventRequest_JoinedUserId)(nil),
+		(*ImportRoomEventRequest_LeftUserId)(nil),
+		(*ImportRoomEventRequest_Name)(nil),
+		(*ImportRoomEventRequest_Topic)(nil),
+		(*ImportRoomEventRequest_Purpose)(nil),
+		(*ImportRoomEventRequest_Archived)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_operator_v1_rooms_proto_rawDesc), len(file_chatto_operator_v1_rooms_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

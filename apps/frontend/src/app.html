@@ -231,12 +231,26 @@
           root.dir = textDirection(locale);
         }
 
-        // Restore accent, depth, and contrast before CSS loads.
+        // Restore motion, accent, depth, and contrast before CSS loads.
         // Keep this allowlist aligned with lib/state/userPreferences.svelte.ts.
         // The iOS shell serves its bundled page through this native-only scheme.
         const defaultDepth = location.protocol === 'capacitor:' ? 0 : 50;
+        let stored = {};
         try {
-          const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+          stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}') ?? {};
+        } catch {}
+        const animations =
+          stored.animations === 'enabled' || stored.animations === 'disabled'
+            ? stored.animations
+            : 'automatic';
+        root.dataset.animations = animations;
+        root.dataset.motion =
+          animations === 'disabled' ||
+          (animations === 'automatic' &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+            ? 'reduced'
+            : 'full';
+        try {
           const age = stored?.contrastAge;
           const contrastAge =
             typeof age === 'number' &&
@@ -369,7 +383,7 @@
           transform: translate(12%, 6%) scale(1.05);
         }
       }
-      @media (prefers-reduced-motion: reduce) {
+      :root[data-motion='reduced'] {
         #app-loading::before {
           animation: none;
         }

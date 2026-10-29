@@ -112,7 +112,7 @@ export class RoomPage {
 
   /** The member list inside the room extras pane */
   get memberList(): Locator {
-    return this.page.locator('aside[aria-label="Room extras"] nav[aria-label="Members"]');
+    return this.page.locator('aside[aria-label="Room extras"]:visible nav[aria-label="Members"]');
   }
 
   /** Open the room's Members panel when it is currently closed. */

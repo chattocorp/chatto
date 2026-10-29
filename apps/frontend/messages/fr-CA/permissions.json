@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publier, corriger, annoncer à nouveau et effacer les annonces du salon",
       "server_manage": "Mettre à jour les paramètres du serveur (nom, description, logo)",
       "server_manage_neighbors": "Gérer le répertoire public des voisins",
       "room_create": "Créer de nouvelles salles",

@@ -24,6 +24,9 @@ message CreateUserRequest {
   string verified_email = 4 [(buf.validate.field).string.max_len = 320];
   // Optional explicit roles to assign after creation.
   repeated string role_names = 5 [(buf.validate.field).repeated.max_items = 20];
+  // Optional UUID for permanent, exact retry protection. Keyed creation does
+  // not accept roles or passwords and records a historical account creation.
+  string operation_key = 6;
 }
 
 // Result of creating a user.

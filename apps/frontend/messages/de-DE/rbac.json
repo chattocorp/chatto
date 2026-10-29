@@ -147,6 +147,7 @@
       "call": "Anrufe"
     },
     "permission_help": {
+      "room_manage_notice": "Erlaubt einem Mitglied, den Hinweis in einem aktiven Kanalraum zu verwalten, aber nicht den Raum selbst. Neue Instanzen vergeben diese Berechtigung nur an Admin; Updates behalten bestehende Zuweisungen bei.",
       "server_manage": "Erlaubt einem Konto, den Servernamen, die Beschreibung, das Logo und andere Servereinstellungen zu ändern. Außerdem erlaubt sie Änderungen am öffentlichen Nachbarverzeichnis. Gib sie nur Personen, die für den ganzen Server sprechen können.",
       "server_manage_neighbors": "Erlaubt einem Konto, Einträge im öffentlichen Nachbarverzeichnis hinzuzufügen, zu ändern und zu entfernen. Andere Servereinstellungen kann es damit nicht ändern.",
       "room_create": "Erlaubt einem Konto, Kanalräume zu erstellen. Im Bereich einer Raumgruppe erlaubt sie neue Räume nur in dieser Gruppe.",

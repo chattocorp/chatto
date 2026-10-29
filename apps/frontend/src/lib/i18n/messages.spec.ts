@@ -144,9 +144,6 @@ describe('regional translated messages', () => {
   it('keeps critical Hebrew messages attached to the right keys', async () => {
     await selectLocale('he-IL');
 
-    expect(m('chat.sign_out.description')).toBe(
-      'צא רק מהשרת שנבחר, או נתק את כל השרתים מהלקוח הזה.'
-    );
     expect(m('error_page.missing_media_description')).toBe(
       'לא ניתן לפתוח את הקובץ מהקישור הזה. ייתכן שהוא הוסר, או שקישור המדיה הפרטי אינו זמין עוד.'
     );

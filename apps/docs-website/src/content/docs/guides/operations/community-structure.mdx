@@ -97,6 +97,15 @@ Explicit membership gives access independently of `room.list` and `room.join`.
 A deny of discovery or self-join does not remove current members. Examine the
 member list when you restrict a room.
 
+## Membership activity
+
+To reduce membership activity in the timeline, open
+**Server Admin → Rooms → [room] → General → Membership activity**,
+clear **Show join/leave events**, and select **Save changes**. You need
+`room.manage`. This setting applies to history and new activity. Turn it on to
+show the stored activity again. It does not remove members or delete events.
+Clients that do not support this setting can continue to show join/leave events.
+
 ## Slow Mode
 
 Open **Server Admin → Rooms → [room] → General → Slow Mode**. Select an
@@ -154,10 +163,13 @@ or decisions.
   **Pin message** or **Unpin message**. You need `message.pin`. To pin a
   message, you must also be able to read it. This permission does not require
   privileged mode or room management access.
-- To see pins, select the pin icon in the room header. The **Pins** sidebar
-  shows the full messages, newest pin first. Select a pin to open the
-  original message.
-- A dot on the pin icon shows a new pin since you last opened the sidebar in
+- To see pins, select the information icon in the room header. The **Room
+  information** sidebar has collapsible **General**, **Description**, and
+  **Pinned messages** sections. General shows the room name, creation time,
+  and member count, including effective members of universal rooms. Description appears when the room has a description.
+  Pins appear newest first. Select
+  a pin to open the original message.
+- A dot on the information icon shows a new pin since you last opened the sidebar in
   this browser.
 
 Grant `message.pin` at server, room-group, or room scope to the roles or
@@ -246,18 +258,29 @@ the same frontend address update automatically. The order does not sync
 between devices.
 
 Members select **Add Server** in the server gutter to open the Server
-Directory. The directory shows the Neighbors of each server that the member
-has added. It also shows Neighbors of Neighbors, for a maximum of two hops,
-when the two servers recommend each other. Each result shows the servers that
-recommend it. A result has a **Join** action, or **Open in new tab** when its
-version is not compatible. Servers that are offline or have no valid profile
+Directory. Select **Connect by address** to find and remember another server.
+A successful dialog lookup adds a compatible server to the gutter and opens
+its sign-in page. Back returns to the directory with the dialog closed.
+The app remembers the server on this device and loads its recommendations
+whenever you open the directory. On first use with an empty directory, lookup
+shows the server card first. Select that card to open its sign-in page.
+
+The directory combines registered servers, servers found by address, and their
+cached Neighborhoods. A Neighborhood contains direct Neighbors and mutually
+recommended Neighbors of Neighbors, for a maximum of two hops. Your registered
+and explicitly added servers appear first. Unregistered cards show **Added by you**
+or **Recommended by** in a darker footer. Select the recommendation line to see all sources.
+Registered cards show **Joined** when you are signed in, or **Needs login** otherwise.
+Selecting a registered server card opens that server. An incompatible server
+opens in a new tab. Servers that are offline or have no valid profile
 do not show.
 
 <Aside type="note">
-  The browser contacts each listed server directly. Each server can see the
-  member's IP address. The directory asks the member for consent on each device
-  before it makes these connections. The Neighbors administration page contacts
-  the listed servers when you open it.
+  The directory contacts registered servers and servers you explicitly find by
+  address. These servers can see your IP address. It loads recommendations and
+  their cached images from those sources, without contacting each recommended
+  server. Selecting an unregistered server card contacts that server. The Neighbors
+  administration page reads its own server's cached Neighborhood.
 </Aside>
 
 API clients can use `chatto.admin.v1.AdminServerService` to manage Neighbors

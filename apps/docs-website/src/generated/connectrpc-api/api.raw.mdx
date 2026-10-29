@@ -460,6 +460,110 @@ room read state, attachments, and live typing. Resource-specific services
 should still be preferred when an operation is not naturally room-scoped or
 when the resource needs an independent CRUD/batch surface.
 
+<a id="chatto-api-v1-RoomService-GetNotice"></a>
+
+### GetNotice
+
+Reads a channel notice. Requires current room membership, including in
+archived rooms. A room without a notice returns an empty body.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetNotice
+```
+
+<a id="chatto-api-v1-GetNoticeRequest"></a>
+
+#### Input: GetNoticeRequest
+
+Reads the current channel notice, including its version when cleared.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetNoticeResponse"></a>
+
+#### Result: GetNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomService-PublishNotice"></a>
+
+### PublishNotice
+
+Publishes, corrects, or explicitly republishes a notice. Requires current
+membership and room.manage-notice. Archived rooms reject writes. A stale
+expected_version returns ABORTED; preserve the draft and reload before retry.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/PublishNotice
+```
+
+<a id="chatto-api-v1-PublishNoticeRequest"></a>
+
+#### Input: PublishNoticeRequest
+
+Publishes or replaces a notice. Replacements preserve dismissals unless
+republish is true. A new publication always has a fresh dismissal revision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `body` | `string` | No field description provided. |
+| `expected_version` | `string` | No field description provided. |
+| `republish` | `bool` | True announces the replacement to members who dismissed the previous notice. False preserves dismissals. A first publication always announces the notice. |
+
+
+<a id="chatto-api-v1-PublishNoticeResponse"></a>
+
+#### Result: PublishNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomService-ClearNotice"></a>
+
+### ClearNotice
+
+Clears a notice under the same access and version rules as PublishNotice.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ClearNotice
+```
+
+<a id="chatto-api-v1-ClearNoticeRequest"></a>
+
+#### Input: ClearNoticeRequest
+
+Clears the current notice without removing its concurrency version.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `expected_version` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-ClearNoticeResponse"></a>
+
+#### Result: ClearNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
 <a id="chatto-api-v1-RoomService-GetRoomReadState"></a>
 
 ### GetRoomReadState
@@ -591,8 +695,9 @@ mask stay unchanged.
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
+| `show_membership_events` | `optional bool` | Whether clients show join/leave activity in this channel's history and live timeline. Requires room.manage. Selecting an absent value resets to true. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -927,7 +1032,8 @@ Batch room member response.
 Adds an account as an explicit channel-room member. room.manage for this
 room or user.manage-accounts overrides the target's missing room.join.
 Bot owners and bot.manage holders may also add bots, but without either
-override the bot needs effective room.join, bounded by its owner's authority.
+override the acting human needs effective room.join. The bot's own
+room.join is required only when the bot joins itself through JoinRoom.
 Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
 
 ```http
@@ -3524,7 +3630,7 @@ the original message. Users are ordered by user ID ascending.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Message or channel echo ID. |
-| `emoji` | `string` | Emoji shortcode, such as "thumbsup". |
+| `emoji` | `string` | Exact reaction name returned by the server, without surrounding colons. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
 
 
@@ -3608,6 +3714,7 @@ Request to create a message in a room or thread.
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 | `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires message.post (which includes thread posting). Cannot be combined with thread_root_event_id. |
 | `attachment_descriptions` | repeated [`MessageAttachmentDescriptionInput`](#chatto-api-v1-MessageAttachmentDescriptionInput) | Optional descriptions for assets in attachment_asset_ids. Asset IDs must be unique in this list. At most one description can target each asset. |
+| `idempotency_key` | `optional string` | Optional caller-generated UUID for this send. Reuse it with the same room and request when a response is lost. For 30 minutes after first acceptance, an exact retry returns the same message ID; changed arguments are rejected. Retries do not extend this period. After expiry, the key can be used again. Omit the key for ordinary posting without duplicate protection. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -3895,12 +4002,17 @@ treats it as an alias for the original thread reply and stores the reaction
 on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 current user already has 20 distinct emoji reactions on the canonical
 message; adding an emoji that already exists remains an idempotent success.
+Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+Names are case-sensitive and are stored unchanged, including
+unknown names. Clients can display an unknown name as :name:.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid. |
 
 
 <a id="chatto-api-v1-AddReactionResponse"></a>
@@ -3941,7 +4053,7 @@ from that original event.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Exact reaction name returned by the server, without surrounding colons. |
 
 
 <a id="chatto-api-v1-RemoveReactionResponse"></a>
@@ -5157,6 +5269,7 @@ Public user fields.
 | `bio` | `optional string` | Short Markdown biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
+| `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
 
 
 
@@ -5554,7 +5667,7 @@ Aggregated state for one message thread.
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
+| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve user IDs that have participated in this message's thread. |
 | `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
 
@@ -5828,6 +5941,23 @@ Public room metadata returned by room commands.
 | `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between root message posts. Channel rooms only; zero means slow mode is disabled. |
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
+| `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+| `show_membership_events` | `optional bool` | Whether clients show room join/leave activity. Absence on older servers means true. Membership state and event delivery are not affected. |
+
+
+
+<a id="chatto-api-v1-RoomNotice"></a>
+
+### RoomNotice
+
+Current member-only notice in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `body` | `string` | Markdown source. Empty means the notice has been cleared. |
+| `version` | `string` | Opaque write version. Send it with every mutation. Empty before first publish. |
+| `publication_id` | `string` | Opaque dismissal revision. Corrections preserve it; publish and republish replace it. Empty when there is no published notice. |
+| `published_at` | `google.protobuf.Timestamp` | Time of publication or explicit republishing. Corrections preserve it. Absent when cleared or unavailable on an older server. |
 
 
 
@@ -6016,6 +6146,36 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_type` | `string` | Provider type recorded when the identity was linked. |
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
+| `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
+
+
+
+<a id="chatto-api-v1-AccountActions"></a>
+
+### AccountActions
+
+Self-service decisions for the current viewer. Each action owns its states.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `change_username` | [`UsernameChangeAvailability`](#chatto-api-v1-UsernameChangeAvailability) | Changing the username, excluding input-specific exceptions such as case-only edits. |
+| `change_password` | optional [`PasswordChangeAvailability`](#chatto-api-v1-PasswordChangeAvailability) | Setting an initial password or changing an existing password. Absent on older servers. |
+| `delete_account` | optional [`AccountDeletionAvailability`](#chatto-api-v1-AccountDeletionAvailability) | Starting self-service account deletion. Absent on older servers. |
+
+
+
+<a id="chatto-api-v1-UsernameChangeAvailability"></a>
+
+### UsernameChangeAvailability
+
+Snapshot for changing a username. Missing means not reported. Commands still
+check policy and input, including case-only exceptions. ALLOWED enables it
+only when available_at is absent or has passed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`UsernameChangeAvailability.State`](#chatto-api-v1-UsernameChangeAvailability-State) | Unknown states remain disabled. Commands recheck authority and policy. |
+| `available_at` | `google.protobuf.Timestamp` | Independent earliest attempt time. Absent means no time restriction. Clients enable ALLOWED when this time passes; they should update a visible control once per second while waiting and stop its timer when it is removed or no longer waiting. This time never overrides a blocking or unknown state. |
 
 
 
@@ -6094,10 +6254,11 @@ Current authenticated user's public profile plus self-only settings.
 | --- | --- | --- |
 | `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
+| `viewer_can_delete_account` | `bool` | **Deprecated.** Whether the authenticated user may delete this account. New clients use actions.delete_account and fall back to this field only when that action is absent. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+| `actions` | [`AccountActions`](#chatto-api-v1-AccountActions) | Self-service account action snapshots. Absent on older servers. |
 
 
 
@@ -6764,6 +6925,66 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
+
+
+<a id="chatto-api-v1-DisconnectEligibility"></a>
+
+### DisconnectEligibility
+
+State of disconnecting a linked identity. Only ALLOWED enables the action.
+UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
+Unknown future states remain disabled.
+This does not replace fresh authentication or the mutation's eligibility check.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
+| `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
+| `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
+| `DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR` | `3` | The operator disabled user-initiated unlinking for this provider. |
+
+
+<a id="chatto-api-v1-AccountDeletionAvailability"></a>
+
+### AccountDeletionAvailability
+
+State of self-service account deletion. Only ALLOWED enables the action;
+commands still check authority and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `ACCOUNT_DELETION_AVAILABILITY_ALLOWED` | `1` | The user can attempt to start account deletion. |
+| `ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED` | `2` | The viewer lacks permission to delete this account. |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support self-service deletion. |
+
+
+<a id="chatto-api-v1-PasswordChangeAvailability"></a>
+
+### PasswordChangeAvailability
+
+State of setting or changing a password. Only ALLOWED enables the action;
+commands still validate passwords and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `PASSWORD_CHANGE_AVAILABILITY_ALLOWED` | `1` | The user can attempt to set or change a password. |
+| `PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED` | `2` | The operator disabled direct login and password self-service. |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support password self-service. |
+
+
+<a id="chatto-api-v1-UsernameChangeAvailability-State"></a>
+
+### UsernameChangeAvailability.State
+
+State of username self-service, including its primary blocking condition.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `STATE_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `STATE_ALLOWED` | `1` | Policy permits a username change, subject to available_at. |
+| `STATE_PROVIDER_MANAGED` | `2` | A linked provider manages the username. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

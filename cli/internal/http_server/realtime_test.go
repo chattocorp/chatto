@@ -11,11 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 	"github.com/chattocorp/chatto/cli/internal/publiccursor"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 )
@@ -1051,6 +1053,127 @@ func TestRealtimeWebSocketDeliversPublicCursorlessEvent(t *testing.T) {
 	}
 }
 
+func TestRealtimeAccountDeactivationUpdatesOtherViewersAndReplays(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "status-manager", "Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "status-target", "Target", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.Id, core.PermUserManageAccounts); err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, manager.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	if err := env.core.SetUserDeactivated(env.ctx, manager.Id, target.Id, true); err != nil {
+		t.Fatal(err)
+	}
+	event := readPublicRealtimeEvent(t, conn)
+	if event.GetUserAccountDeactivationChanged().GetUserId() != target.Id || !event.GetUserAccountDeactivationChanged().GetDeactivated() || event.GetActorId() != "" {
+		t.Fatalf("unexpected event: %v", event)
+	}
+	cursor := event.GetCursor()
+	conn.Close()
+	if err := env.core.SetUserDeactivated(env.ctx, manager.Id, target.Id, false); err != nil {
+		t.Fatal(err)
+	}
+	resumed := env.dialRealtime(t)
+	subscribeRealtime(t, resumed, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, cursor)
+	event = readPublicRealtimeEvent(t, resumed)
+	if event.GetUserAccountDeactivationChanged().GetUserId() != target.Id || event.GetUserAccountDeactivationChanged().GetDeactivated() {
+		t.Fatalf("unexpected reactivation replay: %v", event)
+	}
+}
+
+func TestRealtimeAccountWatchRejectsCredentialAfterReactivation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "watch-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "watch-manager", "Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.Id, core.PermUserManageAccounts); err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := authctx.WithCredential(env.ctx, authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindBearerToken, UserID: viewer.Id, Handle: token,
+	})
+	s := &HTTPServer{core: env.core}
+	if _, err := s.revalidateRealtimeCredential(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Model a complete account transition after initial authentication but
+	// before the long-lived connection registers its invalidation watch.
+	for _, deactivated := range []bool{true, false} {
+		if err := env.core.SetUserDeactivated(env.ctx, manager.Id, viewer.Id, deactivated); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, stop, err := s.watchRealtimeAccountAccess(ctx, viewer.Id)
+	if stop != nil {
+		stop()
+	}
+	if !errors.Is(err, core.ErrNotAuthenticated) {
+		t.Fatalf("old credential accepted after reactivation: %v", err)
+	}
+}
+
+func TestRealtimeWebSocketClosesForAccountDeactivation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-deactivated", "RT Deactivated", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-manager", "RT Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.GetId(), core.PermUserManageAccounts); err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	if err := env.core.SetUserDeactivated(env.ctx, manager.GetId(), viewer.GetId(), true); err != nil {
+		t.Fatal(err)
+	}
+	// Live frames can already be queued when account invalidation closes the
+	// stream. Require the terminal close within one deadline, not as the next frame.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			t.Fatal("deactivation did not promptly close the authenticated socket")
+		}
+		if frame.GetClose() == nil {
+			continue
+		}
+		if frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
+			t.Fatalf("deactivation close = %+v, want terminal authentication_required", frame.GetClose())
+		}
+		return
+	}
+}
+
 func TestRealtimeWebSocketUsesCloseFrameForSessionTermination(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-terminated", "RT Terminated", "password123")
@@ -1208,7 +1331,7 @@ func TestRealtimeWebSocketReportsCookieUserLookupFailureAsTemporary(t *testing.T
 		t.Fatalf("CreateUser: %v", err)
 	}
 	env.login(t, "rt-cookie-lookup", "password123")
-	env.httpServer.credentialUserLookup = func(context.Context, string) (*evtv1.User, error) {
+	env.httpServer.credentialUserLookup = func(context.Context, string) (*readmodel.User, error) {
 		return nil, errors.New("key store unavailable")
 	}
 

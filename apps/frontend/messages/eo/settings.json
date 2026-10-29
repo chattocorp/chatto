@@ -143,6 +143,21 @@
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
         }
       },
+      "animations": {
+        "title": "Animacioj",
+        "automatic": {
+          "label": "Aŭtomate",
+          "description": "Sekvi la sisteman preferon pri reduktita movado"
+        },
+        "enabled": {
+          "label": "Ŝaltitaj",
+          "description": "Ĉiam montri animaciojn"
+        },
+        "disabled": {
+          "label": "Malŝaltitaj",
+          "description": "Montri ŝanĝojn sen animacioj"
+        }
+      },
       "thread_pane": {
         "title": "Fadena panelo",
         "overlay": {
@@ -425,6 +440,7 @@
         "title": "Pasvorto",
         "add_description": "Aldonu pasvorton por ke vi povu rekte ensaluti kaj malkonekti vian lastan SSO-provizanton.",
         "change_description": "Ŝanĝu la pasvorton uzatan por rekta ensaluto.",
+        "sso_managed": "Vi ne povas aldoni aŭ ŝanĝi pasvorton, ĉar ĉi tiu servilo uzas ununuran ensaluton (SSO). Administru viajn ensalutajn datumojn ĉe via identeca provizanto.",
         "current_label": "Nuna Pasvorto",
         "current_required": "Enigu vian nunan pasvorton.",
         "add_button": "Aldonu Pasvorton",
@@ -437,6 +453,9 @@
         "already_set": "Ĉi tiu konto jam havas pasvorton."
       },
       "sso": {
+        "username_unavailable": "La uzantnomo de via ensaluta provizanto ne povas esti asignita. Kontaktu la servilan administranton.",
+        "username_managed": "Vian uzantnomon administras via ensaluta provizanto kaj ĝi ne povas esti ŝanĝita ĉi tie.",
+        "unlink_disabled": "La servila administranto ne permesas malkonekti ĉi tiun provizanton.",
         "popup_blocked": "Permesu ŝprucfenestrojn por ĉi tiu retejo, poste reprovu la ligon.",
         "account_mismatch": "Ensalutu en la ĝustan konton ĉe ĉi tiu servilo, poste rekomencu la ligon el la origina fenestro.",
         "provider_unavailable": "Ĉi tiu ensalutprovizanto ne plu disponeblas.",
@@ -449,6 +468,7 @@
         "link_button": "Ligo",
         "link_failed": "Malsukcesis ligi la ensalutprovizanton",
         "fresh_auth_required": "Ensalutu denove antaŭ ligi alian provizanton.",
+        "sso_fresh_auth_required": "Malfermu la kontajn agordojn sur la servilo, al kiu apartenas ĉi tiu konto. Elsalutu kaj ensalutu denove per via SSO-provizanto, poste reprovu la agon tie.",
         "provider_unconfigured": "Provizanto ne plu agordita",
         "disconnect_button": "Malkonekti",
         "disconnecting": "Malkonekto...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provizanto ne povas esti malkonektita",
-          "body": "{provider} estas via sola ensaluta metodo. Aldonu pasvorton aŭ ligu alian provizanton unue."
+          "body": "Agordu alian ensalutmetodon subtenatan de ĉi tiu servilo antaŭ ol malkonekti {provider}."
         },
         "fresh_auth_modal": {
           "title": "Konfirmu pasvorton",

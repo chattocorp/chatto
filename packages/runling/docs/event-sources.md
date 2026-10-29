@@ -75,4 +75,73 @@ active run, keep its run handle in `state`. New runs use the updated code. A
 process restart loses source state and queued messages. Registered roots can
 recover from [workflow state](workflow-state.md). Sources start after recovery and
 can use `ctx.runs()` to rebuild routing from each live run's original input and
-handle. Runling provides no durable inbox or automatic deduplication.
+handle. Runling provides no durable inbox. Batch queue deduplication is process-local.
+
+For finite roots, use `ctx.runs({ includeFinished: true })` to find retained
+workflows, including after restart. Select by application identity in their
+latest input, then call `routerContext.start(task, { input, runId: previous.id })`
+inside `dispatch`. Omit `runId` when there is no retained workflow. This ends each
+execution after its work without keeping a root waiting for future events.
+Only one execution can be active per run; sources own serialization.
+
+## Keyed batching
+
+Use `BatchQueue` from `runling` to collect input before executing work.
+Supply `key(item)`, `id(item)`, `delay(items)`, `run(items)`, and
+`failed(error)` callbacks, plus positive `maxKeys` and `maxItems` limits.
+The queue runs one batch at a time per key and permits separate keys to run
+concurrently. It does not create tasks or choose a workflow lifecycle.
+
+`accept(item)` returns `accepted`, `duplicate`, `full`, or `closed`.
+Capacity includes running and queued items. Retain input outside the queue
+when admission returns `full`. Duplicate detection is bounded and process-local.
+Failed items can be admitted again; the source decides whether retry is safe.
+
+`touch(predicate)` extends the quiet period for matching queued batches.
+`has(key)` includes active work; `queued(key)` exposes queued items for
+read-only policy decisions. Closing the queue discards queued items and waits
+for active callbacks. Signal cancellation first when those callbacks must stop.
+
+## Long-lived root tasks
+
+A root task can wait for several submissions and start child tasks for them.
+It uses the same task, messaging, cancellation, and state APIs as any other
+workflow. The application decides how sources find or start a root, what work
+they admit, and when the root ends. The parent retains its child handles and
+awaits their cleanup. A batch queue can own serial execution where required;
+the root need not add another serial queue.
+
+Use source-owned run handles and `ctx.runs()` to route to active or recovered
+roots. Scope routing keys to the application's identity. Recovery restores
+root state, not pending messages or child execution. See
+[task invocations](task-channels.md) and [workflow state](workflow-state.md).
+
+## Host in your application
+
+```ts
+import { serve } from 'runling/server';
+import { defineWebConfig } from 'runling/web';
+
+const server = await serve({
+  config: defineWebConfig({ sources: { messages: mySource } }),
+  dataDirectory: './data/runling',
+  host: '127.0.0.1',
+  port: 5173
+});
+console.info(server.url);
+// At explicit application shutdown:
+await server.close();
+```
+
+Build Runling's web assets before using the host. The API loads an object once,
+starts sources eagerly, and installs SIGINT/SIGTERM cleanup by default. Set
+`signals: false` when your application owns signals. `close()` and asynchronous
+disposal are idempotent and wait for source and task cleanup. Only one host can
+run in a process at a time. It uses the same Runling module as application tasks.
+
+The default bind address is `127.0.0.1`. The console has no authentication; use
+an authenticated proxy before exposing it beyond a trusted local environment.
+`dataDirectory` separates journals, snapshots, and server logs by instance.
+`directory` sets the base for relative paths without changing the working directory.
+For file configuration, pass a path as `config`; `watch: true` enables reload.
+Object configuration cannot be watched. Existing CLI commands remain supported.

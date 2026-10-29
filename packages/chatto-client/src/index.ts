@@ -28,6 +28,8 @@ export { Api, createApi, type ApiOptions } from './api.js';
 export {
   conversationKey,
   MessagingRequests,
+  ADDRESSING_REASONS,
+  DEFAULT_ADDRESSING_REASONS,
   replyDestination,
   type AddressedMessage,
   type AddressingOptions,
@@ -50,7 +52,13 @@ export type {
 } from './messaging/types.js';
 export { withTyping, startTyping, type TypingUpdate } from './messaging/typing.js';
 export { createDeliveryTracker, type DeliveryTracker } from './messaging/deliveries.js';
+export {
+  MessageSendExpiredError,
+  MESSAGE_SEND_RETRY_WINDOW_MS,
+  type MessageSendOperation
+} from './messaging/messageSend.js';
 export type { LiveServers } from './server/realtimeTransport.js';
+export type { KeepRecent } from './server/roomStores.js';
 export { setDebugLogging } from './util/debugLog.js';
 export { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 export { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';

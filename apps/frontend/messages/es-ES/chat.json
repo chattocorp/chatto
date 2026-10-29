@@ -6,6 +6,15 @@
       "confirmation": "Durante 15 minutos, esto activa los permisos adicionales que tienes asignados en este servidor."
     },
     "notifications": {
+      "all_notifications": "Todas las notificaciones",
+      "all_types": "Todos los tipos",
+      "filter_status": "Estado",
+      "filter_type": "Tipo",
+      "reactions": "Reacciones",
+      "replies": "Respuestas",
+      "mentions": "Menciones",
+      "next_unread_source": "Ir a la siguiente fuente sin leer",
+      "no_unread": "No hay notificaciones sin leer",
       "title": "Notificaciones",
       "subtitle": "Esto es lo nuevo",
       "clear_read": "Borrar leídas",
@@ -28,12 +37,6 @@
         "activity": "{actor} te ha enviado una notificación",
         "room_invitation": "{actor} te ha invitado a una sala"
       }
-    },
-    "sign_out": {
-      "title": "Cerrar sesión",
-      "current_server": "Servidor actual",
-      "all_servers": "Todos los servidores",
-      "description": "Cierra sesión solo en el servidor seleccionado o desconecta todos los servidores de este cliente."
     },
     "overview": {
       "title": "Descripción general"

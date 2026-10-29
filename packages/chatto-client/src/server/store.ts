@@ -5,6 +5,7 @@
 
 import { TimelineSync, type LocalMessageMutation } from './timelineSync.js';
 import { createMessageResourcesAPI } from '../api/messageResources.js';
+import { createRoomTimelineAPI } from '../api/roomTimeline.js';
 import { affectsViewerPermissions } from './permissionEvents.js';
 import { runResetHandlers } from './resetHandlers.js';
 import {
@@ -41,7 +42,7 @@ import { ReactiveMap, ReactiveSet, batch, computed, signal } from '../reactivity
 import { ServerProjectionStore } from './projection.js';
 import { clearUserStores, getUserStore } from './users.js';
 import type { RoomMember } from '../room/members.js';
-import { RoomStores, type RoomStoreAccess } from './roomStores.js';
+import { RoomStores, type KeepRecent, type RoomStoreAccess } from './roomStores.js';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -88,6 +89,8 @@ function viewerAuthorizationLost(
 export interface ServerStoreContext {
   /** The client's realtime transports. */
   readonly realtime: EventBusManager;
+  /** The number of recently used rooms and threads to keep; see {@link KeepRecent}. */
+  readonly keepRecent?: KeepRecent;
 }
 
 export class ServerStateStore {
@@ -357,12 +360,24 @@ export class ServerStateStore {
         // Only a DM projection lists every member of its room.
         const room = this.projection.rooms.get(roomId);
         return room?.room?.kind === RoomKind.DM ? room.memberUserIds : null;
-      }
+      },
+      keepRecent: context.keepRecent
     });
+    const threadTimelineAPI = serverConnection.getAPI(createRoomTimelineAPI);
     this.#timelines = new TimelineSync({
       rooms: this.#rooms,
       readMessages: (roomId, ids, cursor) =>
         serverConnection.getAPI(createMessageResourcesAPI).read(roomId, ids, cursor),
+      readThreadRoot: async (roomId, rootId, minimumCursor) => {
+        const page = await threadTimelineAPI.getThreadEventsAround({
+          roomId,
+          threadRootEventId: rootId,
+          eventId: rootId,
+          limit: 1,
+          minimumCursor
+        });
+        return page.events.find((event) => event.id === rootId) ?? null;
+      },
       generation: () => this.#realtimeProjectionGeneration,
       eventCursor: () => this.#currentEventMinimumCursor,
       track: (read, generation) => this.trackProjectionReconciliation(read, generation),
@@ -464,10 +479,17 @@ export class ServerStateStore {
   /** Complete auxiliary reads and event reconciliation through `cursor`.
    * The optional authorization generation reuses a privilege mutation's viewer
    * response on confirmed resume. Snapshot fallback always reads full state.
-   * Room-group permissions can change without a durable room-layout event. */
+   * Room-group permissions can change without a durable room-layout event.
+   * The catch-up of an inactive server's poll (`inactivePoll`) does not read
+   * users again after a resumed stream.
+   *
+   * Every full catch-up also reads the public server profile. A server upgrade
+   * restarts the server but emits no event, so a resumed stream alone would
+   * keep the old version and its compatibility warning until a reload. */
   async completeRealtimeCatchUp(
     cursor: string,
-    authorizationRefreshGeneration?: number
+    authorizationRefreshGeneration?: number,
+    inactivePoll = false
   ): Promise<void> {
     if (this.#privacyCleanupFailed) throw new Error('Private data cleanup did not complete');
     if (authorizationRefreshGeneration !== undefined && !this.#realtimeSnapshotPending) {
@@ -480,6 +502,7 @@ export class ServerStateStore {
     const batches = await Promise.all(
       (
         [
+          'server',
           'serverState',
           'viewer',
           'rooms',
@@ -497,52 +520,56 @@ export class ServerStateStore {
       }
     });
 
-    // Presence and other user current values are not durable replay events.
-    // Refresh every user that the retained projection still references after
-    // the authoritative room read has been applied.
-    const userIds = new Set(this.projection.users.keys());
-    for (const store of this.#rooms.all('members')) {
-      for (const member of store.members) userIds.add(member.id);
-    }
-    const viewerId = this.realtimeViewerId();
-    if (viewerId) userIds.add(viewerId);
-    for (const room of this.projection.rooms.values()) {
-      for (const userId of room.memberUserIds) userIds.add(userId);
-    }
-    // The snapshot user family is partial. Only this requested batch can
-    // confirm an omitted cached account, and a newer write wins the race.
-    const requestedCachedUsers = new Map(
-      [...userIds].flatMap((id) => {
-        const member = this.projection.users.get(id);
-        return member ? [[id, member] as const] : [];
-      })
-    );
-    const presenceReadVersion = this.presence.version;
-    const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
-    this.requireCurrentRealtimeProjection(generation);
-    const returnedUserIds = new Set(
-      userResources.flatMap((resource) =>
-        resource.resource.case === 'users'
-          ? resource.resource.value.users.flatMap((member) =>
-              member.user?.id ? [member.user.id] : []
-            )
-          : []
-      )
-    );
-    batch(() => {
-      for (const resource of userResources) {
-        this.publishProjectionUpdate(
-          new RealtimeProjectionUpdate({ resource }),
-          presenceReadVersion
-        );
+    // Read every user that the projection references again, because replay
+    // does not carry presence. Replay carries all other profile changes. The
+    // poll of an inactive server skips this read after a resumed stream, so its
+    // presence becomes stale until the server becomes active and catches up in
+    // full. After a snapshot, the read also detects deleted accounts.
+    if (!inactivePoll || this.#realtimeSnapshotPending) {
+      const userIds = new Set(this.projection.users.keys());
+      for (const store of this.#rooms.all('members')) {
+        for (const member of store.members) userIds.add(member.id);
       }
-      for (const [userId, member] of requestedCachedUsers) {
-        if (returnedUserIds.has(userId) || this.projection.users.get(userId) !== member) continue;
-        this.#deletedRealtimeUserIds.add(userId);
-        this.projection.removeUser(userId);
-        this.scrubRemovedUser(userId);
+      const viewerId = this.realtimeViewerId();
+      if (viewerId) userIds.add(viewerId);
+      for (const room of this.projection.rooms.values()) {
+        for (const userId of room.memberUserIds) userIds.add(userId);
       }
-    });
+      // The snapshot user family is partial. Only this requested batch can
+      // confirm an omitted cached account, and a newer write wins the race.
+      const requestedCachedUsers = new Map(
+        [...userIds].flatMap((id) => {
+          const member = this.projection.users.get(id);
+          return member ? [[id, member] as const] : [];
+        })
+      );
+      const presenceReadVersion = this.presence.version;
+      const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
+      this.requireCurrentRealtimeProjection(generation);
+      const returnedUserIds = new Set(
+        userResources.flatMap((resource) =>
+          resource.resource.case === 'users'
+            ? resource.resource.value.users.flatMap((member) =>
+                member.user?.id ? [member.user.id] : []
+              )
+            : []
+        )
+      );
+      batch(() => {
+        for (const resource of userResources) {
+          this.publishProjectionUpdate(
+            new RealtimeProjectionUpdate({ resource }),
+            presenceReadVersion
+          );
+        }
+        for (const [userId, member] of requestedCachedUsers) {
+          if (returnedUserIds.has(userId) || this.projection.users.get(userId) !== member) continue;
+          this.#deletedRealtimeUserIds.add(userId);
+          this.projection.removeUser(userId);
+          this.scrubRemovedUser(userId);
+        }
+      });
+    }
 
     if (this.#realtimeSnapshotPending) {
       await Promise.all(
@@ -713,9 +740,13 @@ export class ServerStateStore {
     );
   }
 
-  /** Load the latest room window at a route boundary when retained data needs it. */
+  /**
+   * Load the latest room window at a route boundary when retained data needs
+   * it. A room without a timeline needs nothing: a new timeline reads the
+   * latest window.
+   */
   restoreProjectedRoomWindow(roomId: string): void {
-    void this.#rooms.messages(roomId).restoreLatestWindow();
+    void this.#rooms.loaded(roomId)?.messages?.restoreLatestWindow();
   }
 
   private updateRoomMembership(roomId: string, userId: string, joined: boolean): void {
@@ -736,6 +767,7 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false, invitationId?: string): void {
+    this.#rooms.loaded(roomId)?.notice?.reset(true);
     this.#rooms.loaded(roomId)?.members?.resetProjectionState();
     this.projection.removeRoomCalls(roomId);
     if (this.notifications.clearRoom(roomId, invitationId)) {
@@ -764,6 +796,7 @@ export class ServerStateStore {
 
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
   private restoreRoomAccess(roomId: string): void {
+    this.#rooms.loaded(roomId)?.notice?.restoreAccess();
     this.notifications.restoreRoom(roomId);
     this.#rooms.restoreAccess(roomId);
     this.#events.roomAccessRestored.emit(roomId);
@@ -1305,6 +1338,9 @@ export class ServerStateStore {
         this.scrubRemovedUser(userId);
         return;
       }
+      case 'userAccountDeactivationChanged':
+        this.projection.users.setDeactivated(payload.value.userId, payload.value.deactivated);
+        return;
       case 'roomDeleted':
         this.projection.removeRoom(payload.value.roomId);
         this.scrubRemovedRoom(payload.value.roomId);
@@ -1317,6 +1353,9 @@ export class ServerStateStore {
         this.#timelines.refreshWindows(roomId, event.id || null);
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'roomNoticeChanged':
+        this.#rooms.loaded(payload.value.roomId)?.notice?.invalidate(event.cursor);
         return;
       case 'messagePosted':
       case 'messageEdited':
@@ -1394,6 +1433,7 @@ export class ServerStateStore {
       case 'roomUniversalChanged':
       case 'roomSlowModeChanged':
       case 'roomThreadingModeChanged':
+      case 'roomMembershipEventsVisibilityChanged':
       case 'userJoinedRoom':
         if (payload.case === 'roomUniversalChanged' && roomId) {
           this.#rooms.loaded(roomId)?.members?.resetProjectionState();

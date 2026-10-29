@@ -28,9 +28,13 @@ type ReactionAddedEvent struct {
 	// Event ID of the message being reacted to (NanoID)
 	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// The emoji used for the reaction (shortcode name)
-	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Emoji string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	// Historical reactor. Empty uses the envelope actor for ordinary reactions.
+	UserId string `protobuf:"bytes,5,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Preserve reaction state without notification or realtime activity.
+	HistoricalImport bool `protobuf:"varint,6,opt,name=historical_import,json=historicalImport,proto3" json:"historical_import,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ReactionAddedEvent) Reset() {
@@ -82,6 +86,20 @@ func (x *ReactionAddedEvent) GetEmoji() string {
 		return x.Emoji
 	}
 	return ""
+}
+
+func (x *ReactionAddedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ReactionAddedEvent) GetHistoricalImport() bool {
+	if x != nil {
+		return x.HistoricalImport
+	}
+	return false
 }
 
 type ReactionRemovedEvent struct {
@@ -151,11 +169,13 @@ var File_chatto_core_evt_v1_reaction_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_reaction_events_proto_rawDesc = "" +
 	"\n" +
-	"(chatto/core/evt/v1/reaction_events.proto\x12\x12chatto.core.evt.v1\"}\n" +
+	"(chatto/core/evt/v1/reaction_events.proto\x12\x12chatto.core.evt.v1\"\xc3\x01\n" +
 	"\x12ReactionAddedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
-	"\x05emoji\x18\x04 \x01(\tR\x05emojiJ\x04\b\x01\x10\x02R\bspace_id\"\x7f\n" +
+	"\x05emoji\x18\x04 \x01(\tR\x05emoji\x12\x17\n" +
+	"\auser_id\x18\x05 \x01(\tR\x06userId\x12+\n" +
+	"\x11historical_import\x18\x06 \x01(\bR\x10historicalImportJ\x04\b\x01\x10\x02R\bspace_id\"\x7f\n" +
 	"\x14ReactionRemovedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +

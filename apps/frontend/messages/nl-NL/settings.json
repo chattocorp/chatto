@@ -118,10 +118,10 @@
       "conflict": "Dit profiel is gewijzigd terwijl je het bewerkte. Laad de pagina opnieuw en sla je wijzigingen daarna opnieuw op.",
       "save_button": "Wijzigingen opslaan",
       "bio": {
-        "label": "Bio",
+        "label": "Over",
         "description": "Tot {max} tekens, zichtbaar in je profiel.",
         "placeholder": "Vertel anderen kort iets over jezelf",
-        "too_long": "De bio mag maximaal {max} tekens bevatten."
+        "too_long": "De tekst mag maximaal {max} tekens bevatten."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Donker",
           "description": "Gebruik de donkere interface in deze browser"
+        }
+      },
+      "animations": {
+        "title": "Animaties",
+        "automatic": {
+          "label": "Automatisch",
+          "description": "Volg de systeemvoorkeur voor minder beweging"
+        },
+        "enabled": {
+          "label": "Ingeschakeld",
+          "description": "Altijd animaties tonen"
+        },
+        "disabled": {
+          "label": "Uitgeschakeld",
+          "description": "Wijzigingen zonder animaties tonen"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Wachtwoord",
         "add_description": "Voeg een wachtwoord toe zodat u direct kunt inloggen en de verbinding met uw laatste SSO-provider kunt verbreken.",
         "change_description": "Wijzig het wachtwoord dat wordt gebruikt voor direct inloggen.",
+        "sso_managed": "U kunt geen wachtwoord toevoegen of wijzigen omdat deze server eenmalige aanmelding (SSO) gebruikt. Beheer uw inloggegevens bij uw identiteitsprovider.",
         "current_label": "Huidig wachtwoord",
         "current_required": "Voer uw huidige wachtwoord in.",
         "add_button": "Wachtwoord toevoegen",
@@ -437,6 +453,9 @@
         "already_set": "Dit account heeft al een wachtwoord."
       },
       "sso": {
+        "username_unavailable": "De gebruikersnaam van je aanmeldprovider kan niet worden toegewezen. Neem contact op met de serverbeheerder.",
+        "username_managed": "Je gebruikersnaam wordt beheerd door je aanmeldprovider en kan hier niet worden gewijzigd.",
+        "unlink_disabled": "De serverbeheerder staat niet toe dat deze provider wordt losgekoppeld.",
         "popup_blocked": "Sta pop-ups voor deze website toe en probeer opnieuw te koppelen.",
         "account_mismatch": "Meld je op deze server aan met het juiste account en start het koppelen opnieuw vanuit het oorspronkelijke venster.",
         "provider_unavailable": "Deze aanmeldprovider is niet meer beschikbaar.",
@@ -449,6 +468,7 @@
         "link_button": "Link",
         "link_failed": "Kan aanmeldingsprovider niet koppelen",
         "fresh_auth_required": "Log opnieuw in voordat u een andere provider koppelt.",
+        "sso_fresh_auth_required": "Open de accountinstellingen op de server waartoe dit account behoort. Log uit en log opnieuw in via uw SSO-provider. Probeer de actie daarna op die server opnieuw.",
         "provider_unconfigured": "Provider niet meer geconfigureerd",
         "disconnect_button": "Verbinding verbreken",
         "disconnecting": "Verbinding verbreken...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provider kan de verbinding niet verbreken",
-          "body": "{provider} is uw enige aanmeldingsmethode. Voeg een wachtwoord toe of koppel eerst een andere provider."
+          "body": "Stel een andere inlogmethode in die door deze server wordt ondersteund voordat u {provider} loskoppelt."
         },
         "fresh_auth_modal": {
           "title": "Bevestig wachtwoord",

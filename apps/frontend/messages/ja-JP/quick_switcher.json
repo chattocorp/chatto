@@ -1,5 +1,6 @@
 {
   "quick_switcher": {
+    "title": "クイック切り替え",
     "placeholder": "移動するか、? を入力してメッセージを検索...",
     "no_results": "結果はありませんでした",
     "recent": "最近の",

@@ -52,6 +52,11 @@
       "subtitle": "伺服器識別資訊、品牌與訊息"
     },
     "members": {
+      "deactivate": "停用帳戶",
+      "reactivate": "重新啟用帳戶",
+      "deactivate_description": "此使用者將無法再使用此伺服器。所有工作階段將立即結束。使用者資料將保留。你可以稍後重新啟用帳戶。",
+      "deactivated_description": "此帳戶已停用。重新啟用後，使用者可以再次登入。舊工作階段仍然無效。",
+      "deactivation_failed": "無法變更帳戶存取權限。",
       "title": "成員",
       "subtitle": "檢視及管理伺服器成員與角色",
       "search": "搜尋成員",
@@ -249,6 +254,10 @@
         "name_title": "名稱和描述",
         "name_subtitle": "成員會在聊天室清單和聊天室頂端看到這些資訊。",
         "visibility_title": "可見範圍",
+        "membership_events_title": "成員活動",
+        "show_membership_events": "顯示加入及離開事件",
+        "membership_events_description": "顯示人們加入或離開此聊天室的時間，包括歷史記錄。隱藏此活動不會將其刪除。",
+        "membership_events_unavailable": "更新此伺服器以變更成員活動的顯示方式。",
         "visibility_subtitle": "選擇誰是此聊天室的成員。",
         "universal_description": "每位可以加入此聊天室的成員都會自動成為其成員。",
         "visibility_help": "對於所有成員都必須收到的消息（例如公告），請使用全員聊天室。成員無法離開全員聊天室，但可以將其設為靜音。如果關閉全員模式，先前加入的成員仍會留在聊天室中。",

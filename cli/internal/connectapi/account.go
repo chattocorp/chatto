@@ -24,6 +24,9 @@ func (s *accountService) ChangePassword(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
+	if !s.api.config.Auth.DirectLoginOrDefault() {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("password changes are disabled because this server uses SSO"))
+	}
 	if req.Msg.GetPassword() == "" {
 		return nil, invalidArgument("password is required")
 	}

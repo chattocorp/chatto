@@ -259,10 +259,8 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	_, err = env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: env.viewer.Id}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err), "bot ownership must not authorize human lookups")
 	add := connect.NewRequest(&apiv1.AddMemberRequest{RoomId: room.Id, UserId: bot.User.Id})
-	_, err = env.rooms.AddMember(ctx, add)
-	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
-	require.NoError(t, env.core.SetUserPermissionState(env.ctx, env.viewer.Id, bot.User.Id,
-		core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.Id}, core.PermRoomJoin, core.PermissionStateAllow))
+	_, err = env.rooms.JoinRoom(withCaller(env.ctx, bot.User), connect.NewRequest(&apiv1.JoinRoomRequest{RoomId: room.Id}))
+	require.Equal(t, connect.CodePermissionDenied, errorCode(err), "bot cannot join itself without a grant")
 	added, err := env.rooms.AddMember(ctx, add)
 	require.NoError(t, err)
 	require.NotNil(t, added.Msg.Member)

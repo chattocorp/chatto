@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Aviso da sala",
+      "dismiss": "Fechar",
+      "body": "Aviso (Markdown)",
+      "too_long": "Os avisos podem conter no máximo {max} caracteres, incluindo espaços em branco.",
+      "help": "Salve correções sem mostrar o aviso novamente. Anuncie para mostrá-lo de novo aos membros que o fecharam em seus dispositivos.",
+      "conflict": "Este aviso mudou enquanto você o editava. Seu rascunho continua aqui. Copie-o se necessário e carregue o aviso atual antes de salvar novamente.",
+      "reload": "Carregar aviso atual",
+      "save": "Atualizar",
+      "republish": "Anunciar",
+      "clear": "Limpar",
+      "clear_confirm_title": "Limpar aviso da sala?",
+      "clear_confirm_description": "Isso remove imediatamente o aviso ativo para todos na sala. Suas alterações não salvas não serão publicadas.",
+      "empty": "Nenhum aviso foi publicado.",
+      "edit": "Editar aviso"
+    },
+    "information": {
+      "description": "Descrição",
+      "created": "Criada",
+      "title": "Informações da sala",
+      "basic": "Geral",
+      "pinned_messages": "Mensagens fixadas"
+    },
     "create": {
       "title": "Crie uma nova sala",
       "description": "Salas são conversas dentro do seu servidor.",
@@ -77,7 +100,8 @@
       "beginning": "Este é o início desta conversa.",
       "read_denied": "Você não tem permissão para ler mensagens nesta sala.",
       "limited_empty": "Ainda não há conversas que você possa ler.",
-      "loading": "Carregando mensagens..."
+      "loading": "Carregando mensagens...",
+      "load_failed": "Não foi possível carregar as mensagens."
     },
     "message": {
       "empty": "Nenhuma mensagem ainda",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Tópico em #{room}",
       "back_to_room": "De volta à sala",
+      "participants": "Participantes da conversa ({count})",
       "follow": "Seguir tópico",
       "unfollow": "Deixar de seguir o tópico",
       "close": "Fechar tópico",
@@ -263,6 +288,7 @@
     "unread_separator": "Novas mensagens",
     "close_extras": "Fechar extras do quarto",
     "dm": {
+      "deactivated_user_notice": "Esta conta está desativada. Esta pessoa não pode ler nem responder às mensagens.",
       "deleted_user_notice": "O outro usuário foi excluído."
     },
     "management": {

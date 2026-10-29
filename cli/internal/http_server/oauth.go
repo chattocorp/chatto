@@ -204,7 +204,13 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		if c.Request.URL.RawQuery != "" {
 			redirectTarget += "?" + c.Request.URL.RawQuery
 		}
-		c.Redirect(http.StatusTemporaryRedirect, "/login?redirect="+url.QueryEscape(redirectTarget))
+		// This display hint changes only the entry screen. Registration still
+		// enforces the server's account-creation and invitation policies.
+		entryPath := "/login"
+		if c.Query("screen_hint") == "signup" {
+			entryPath = "/register"
+		}
+		c.Redirect(http.StatusTemporaryRedirect, entryPath+"?redirect="+url.QueryEscape(redirectTarget))
 	})
 
 	// POST /oauth/token — OAuth 2.0 Token endpoint.

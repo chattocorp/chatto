@@ -57,6 +57,9 @@ const (
 	// AdminUserServiceDeleteUserProcedure is the fully-qualified name of the AdminUserService's
 	// DeleteUser RPC.
 	AdminUserServiceDeleteUserProcedure = "/chatto.admin.v1.AdminUserService/DeleteUser"
+	// AdminUserServiceSetUserDeactivatedProcedure is the fully-qualified name of the AdminUserService's
+	// SetUserDeactivated RPC.
+	AdminUserServiceSetUserDeactivatedProcedure = "/chatto.admin.v1.AdminUserService/SetUserDeactivated"
 )
 
 // AdminUserServiceClient is a client for the chatto.admin.v1.AdminUserService service.
@@ -85,6 +88,12 @@ type AdminUserServiceClient interface {
 	// Deletes a user account as an admin action. Requires user.delete-any for
 	// other users or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
+	// Deactivates or reactivates a human account. Requires user.manage-accounts.
+	// The caller cannot target their own account or an owner account.
+	// Deactivation immediately invalidates existing sessions and prevents sign-in.
+	// Reactivation permits new sign-ins; old sessions remain invalid.
+	// Repeating the current state succeeds without changing it.
+	SetUserDeactivated(context.Context, *connect.Request[v1.SetUserDeactivatedRequest]) (*connect.Response[v1.SetUserDeactivatedResponse], error)
 }
 
 // NewAdminUserServiceClient constructs a client for the chatto.admin.v1.AdminUserService service.
@@ -146,6 +155,12 @@ func NewAdminUserServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adminUserServiceMethods.ByName("DeleteUser")),
 			connect.WithClientOptions(opts...),
 		),
+		setUserDeactivated: connect.NewClient[v1.SetUserDeactivatedRequest, v1.SetUserDeactivatedResponse](
+			httpClient,
+			baseURL+AdminUserServiceSetUserDeactivatedProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("SetUserDeactivated")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -159,6 +174,7 @@ type adminUserServiceClient struct {
 	changeUserPassword    *connect.Client[v1.ChangeUserPasswordRequest, v1.ChangeUserPasswordResponse]
 	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
 	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
+	setUserDeactivated    *connect.Client[v1.SetUserDeactivatedRequest, v1.SetUserDeactivatedResponse]
 }
 
 // ListMembers calls chatto.admin.v1.AdminUserService.ListMembers.
@@ -201,6 +217,11 @@ func (c *adminUserServiceClient) DeleteUser(ctx context.Context, req *connect.Re
 	return c.deleteUser.CallUnary(ctx, req)
 }
 
+// SetUserDeactivated calls chatto.admin.v1.AdminUserService.SetUserDeactivated.
+func (c *adminUserServiceClient) SetUserDeactivated(ctx context.Context, req *connect.Request[v1.SetUserDeactivatedRequest]) (*connect.Response[v1.SetUserDeactivatedResponse], error) {
+	return c.setUserDeactivated.CallUnary(ctx, req)
+}
+
 // AdminUserServiceHandler is an implementation of the chatto.admin.v1.AdminUserService service.
 type AdminUserServiceHandler interface {
 	// Lists server members for the admin members screen. Requires
@@ -227,6 +248,12 @@ type AdminUserServiceHandler interface {
 	// Deletes a user account as an admin action. Requires user.delete-any for
 	// other users or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
+	// Deactivates or reactivates a human account. Requires user.manage-accounts.
+	// The caller cannot target their own account or an owner account.
+	// Deactivation immediately invalidates existing sessions and prevents sign-in.
+	// Reactivation permits new sign-ins; old sessions remain invalid.
+	// Repeating the current state succeeds without changing it.
+	SetUserDeactivated(context.Context, *connect.Request[v1.SetUserDeactivatedRequest]) (*connect.Response[v1.SetUserDeactivatedResponse], error)
 }
 
 // NewAdminUserServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -284,6 +311,12 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 		connect.WithSchema(adminUserServiceMethods.ByName("DeleteUser")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminUserServiceSetUserDeactivatedHandler := connect.NewUnaryHandler(
+		AdminUserServiceSetUserDeactivatedProcedure,
+		svc.SetUserDeactivated,
+		connect.WithSchema(adminUserServiceMethods.ByName("SetUserDeactivated")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.admin.v1.AdminUserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminUserServiceListMembersProcedure:
@@ -302,6 +335,8 @@ func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.Han
 			adminUserServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
 		case AdminUserServiceDeleteUserProcedure:
 			adminUserServiceDeleteUserHandler.ServeHTTP(w, r)
+		case AdminUserServiceSetUserDeactivatedProcedure:
+			adminUserServiceSetUserDeactivatedHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -341,4 +376,8 @@ func (UnimplementedAdminUserServiceHandler) ClearUsernameCooldown(context.Contex
 
 func (UnimplementedAdminUserServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.DeleteUser is not implemented"))
+}
+
+func (UnimplementedAdminUserServiceHandler) SetUserDeactivated(context.Context, *connect.Request[v1.SetUserDeactivatedRequest]) (*connect.Response[v1.SetUserDeactivatedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.SetUserDeactivated is not implemented"))
 }

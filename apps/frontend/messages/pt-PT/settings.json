@@ -118,10 +118,10 @@
       "conflict": "Este perfil mudou enquanto o editava. Recarregue a página e guarde novamente as suas alterações.",
       "save_button": "Guardar alterações",
       "bio": {
-        "label": "Bio",
+        "label": "Sobre",
         "description": "Até {max} caracteres, visível no seu perfil.",
         "placeholder": "Diga algo breve sobre si",
-        "too_long": "A bio pode ter no máximo {max} caracteres."
+        "too_long": "O texto pode ter no máximo {max} caracteres."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Escuro",
           "description": "Utilize a interface escura neste browser"
+        }
+      },
+      "animations": {
+        "title": "Animações",
+        "automatic": {
+          "label": "Automático",
+          "description": "Seguir a preferência do sistema por movimento reduzido"
+        },
+        "enabled": {
+          "label": "Ativadas",
+          "description": "Mostrar sempre animações"
+        },
+        "disabled": {
+          "label": "Desativadas",
+          "description": "Mostrar alterações sem animações"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Palavra-passe",
         "add_description": "Adicione uma palavra-passe para poder fazer login diretamente e desligar o seu último fornecedor de SSO.",
         "change_description": "Altere a palavra-passe utilizada para login direto.",
+        "sso_managed": "Não pode adicionar nem alterar uma palavra-passe porque este servidor utiliza autenticação única (SSO). Faça a gestão dos seus dados de acesso junto do seu fornecedor de identidade.",
         "current_label": "Palavra-passe atual",
         "current_required": "Introduza a sua palavra-passe atual.",
         "add_button": "Adicionar palavra-passe",
@@ -437,6 +453,9 @@
         "already_set": "Esta conta já tem uma palavra-passe."
       },
       "sso": {
+        "username_unavailable": "Não é possível atribuir o nome de utilizador do fornecedor de início de sessão. Contacta o operador do servidor.",
+        "username_managed": "O teu nome de utilizador é gerido pelo fornecedor de início de sessão e não pode ser alterado aqui.",
+        "unlink_disabled": "O operador do servidor não permite desvincular este fornecedor.",
         "popup_blocked": "Permite janelas pop-up para este site e tenta associar novamente.",
         "account_mismatch": "Inicia sessão na conta correta neste servidor e volta a iniciar a associação a partir da janela original.",
         "provider_unavailable": "Este fornecedor de início de sessão já não está disponível.",
@@ -449,6 +468,7 @@
         "link_button": "Link",
         "link_failed": "Falha ao ligar o fornecedor de login",
         "fresh_auth_required": "Faça login novamente antes de ligar outro fornecedor.",
+        "sso_fresh_auth_required": "Abra as definições da conta no servidor ao qual esta conta pertence. Termine a sessão e inicie sessão novamente através do seu fornecedor de SSO. Depois, tente realizar a ação novamente nesse servidor.",
         "provider_unconfigured": "O fornecedor já não está configurado",
         "disconnect_button": "Desligar",
         "disconnecting": "A desligar...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "O fornecedor não pode ser desligado",
-          "body": "{provider} é o seu único método de login. Adicione uma palavra-passe ou ligue primeiro outro fornecedor."
+          "body": "Configure outro método de início de sessão suportado por este servidor antes de desligar {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmar palavra-passe",

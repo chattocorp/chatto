@@ -1,8 +1,13 @@
 /** Define the journal events shared by workflows, the server, and the console. */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TokenUsage } from './usage.ts';
+import type { LogFields } from './log-fields.ts';
 
 export type RunlingEventPayload =
+  /** Console history boundary; closes unfinished activities before another execution. */
+  | { type: 'execution.finished' }
+  /** Display metadata for the workflow run, independent of task names and routing. */
+  | { type: 'run.title'; title: string }
   /** Links a task invocation's message channel to the step that runs the task. */
   | { type: 'task.linked'; channelId: string; taskId: string }
   | {
@@ -26,8 +31,10 @@ export type RunlingEventPayload =
     }
   | {
       type: 'log';
-      level: 'debug' | 'info' | 'success' | 'error';
+      level: 'debug' | 'info' | 'success' | 'warn' | 'error';
       message: string;
+      /** Host-supplied metadata, without model content or credentials. */
+      fields?: LogFields;
       depth: number;
       color: string;
       source?: 'step' | 'agent' | 'command';

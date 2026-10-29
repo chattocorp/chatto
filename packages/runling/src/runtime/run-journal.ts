@@ -16,6 +16,8 @@ export type RunSource = 'webhook' | 'web' | 'source' | 'cli';
 
 export interface RunSummary {
   id: string;
+  /** Optional plain-text display title, updated by run.title events. */
+  title?: string;
   /** Human-readable, journal-local reference. Older journals use their UUID. */
   reference?: string;
   /** Webhook or source name; `cli` for command-line runs. */
@@ -29,9 +31,14 @@ export interface RunSummary {
   pid?: number;
   status: RunStatus;
   startedAt: number;
+  /** Console projection only: current execution start when startedAt covers the full history. */
+  executionStartedAt?: number;
   finishedAt?: number;
   durationMs?: number;
+  /** Total usage across all execution attempts. */
   usage: TokenUsage;
+  /** Usage before the current attempt; added once to attempt-scoped journal records. */
+  previousUsage?: TokenUsage;
 }
 
 export interface RunDetail extends RunSummary {
@@ -56,9 +63,11 @@ export type RunRecord =
       error: string | null;
     };
 
-/** Journal directory for a project. Projects that still have only the legacy `.factory/runs`
- * directory keep using it. */
+/** Journal directory for an explicit instance or a project. Without RUNLING_DATA_DIRECTORY,
+ * projects that still have only the legacy `.factory/runs` directory keep using it. */
 export async function runJournalDirectory(cwd: string): Promise<string> {
+  if (process.env.RUNLING_DATA_DIRECTORY)
+    return resolve(cwd, process.env.RUNLING_DATA_DIRECTORY, 'runs');
   const current = resolve(cwd, '.runling/runs');
   const legacy = resolve(cwd, '.factory/runs');
   for (const path of [current, legacy]) {

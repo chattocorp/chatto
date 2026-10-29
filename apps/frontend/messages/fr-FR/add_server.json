@@ -11,28 +11,25 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Il ne semble pas s'agir d'un serveur Chatto.",
     "directory": {
+      "added_by_you": "Ajouté par vous",
+      "joined": "Rejoint",
+      "needs_login": "Connexion requise",
+      "learn_more": "Envie d’en savoir plus ?",
+      "learn_more_description": "Découvrez les possibilités de Chatto, apprenez à gérer votre propre serveur ou trouvez de l’aide.",
+      "welcome_title": "Place aux vraies discussions !",
       "title": "Annuaire des serveurs",
-      "subtitle": "Découvrez d’autres serveurs Chatto",
-      "lookup_description": "Saisissez l’adresse de n’importe quel serveur Chatto pour le rejoindre.",
+      "lookup_description": "Saisissez l’adresse d’un serveur pour l’ajouter à votre annuaire et charger ses recommandations.",
       "find": "Trouver un serveur",
       "connect_by_address": "Se connecter par adresse",
-      "servers_title": "Serveurs recommandés",
-      "servers_description": "Recommandés par les serveurs que vous avez rejoints. Les résultats ne sont pas classés.",
       "recommended_by": "Recommandé par {servers}",
-      "more_recommenders_count": {
-        "other": "{count} de plus"
-      },
-      "joined": "Rejoint",
       "join": "Rejoindre",
       "open": "Ouvrir",
       "open_in_new_tab": "Ouvrir dans un nouvel onglet",
       "sign_in_unavailable": "Connexion indisponible",
       "profile_unavailable": "Impossible de charger le profil public de ce serveur.",
-      "partial": "Certains serveurs rejoints n’ont pas pu fournir leurs recommandations.",
+      "partial": "Certains serveurs n’ont pas pu fournir leurs recommandations.",
       "unavailable_title": "Annuaire indisponible",
-      "unavailable_body": "Les serveurs rejoints n’ont pas pu fournir leurs recommandations. Vous pouvez quand même vous connecter directement.",
-      "empty_title": "Aucun serveur recommandé pour l’instant",
-      "empty_body": "Vous pouvez quand même vous connecter directement avec l’adresse d’un serveur."
+      "unavailable_body": "Les serveurs n’ont pas pu fournir leurs recommandations. Vous pouvez quand même vous connecter directement."
     }
   }
 }

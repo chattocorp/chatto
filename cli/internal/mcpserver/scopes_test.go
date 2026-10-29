@@ -38,7 +38,7 @@ func TestMCPParsedScopeGuard(t *testing.T) {
 		allowed bool
 	}{
 		{"get_server_info", true}, {"get_current_user", true}, {"list_rooms", true},
-		{"post_message", false}, {"new_unmapped_tool", false},
+		{"post_message", false}, {"search_messages", false}, {"new_unmapped_tool", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			called := false

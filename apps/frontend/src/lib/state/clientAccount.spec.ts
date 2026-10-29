@@ -4,17 +4,14 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string; url: string; token: string | null }>,
     originId: 'origin',
-    authenticated: new Set<string>(),
     beginExplicitSignOutRedirect: vi.fn(),
     cancelExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
-    signOutServers: vi.fn(),
     unsubscribePushBeforeLeaving: vi.fn(),
     notifyLogout: vi.fn(),
     clearLastRoom: vi.fn(),
     clearServerAuthentication: vi.fn(),
-    removeServer: vi.fn(),
-    resetToOrigin: vi.fn()
+    removeServer: vi.fn()
   }
 }));
 
@@ -27,23 +24,15 @@ vi.mock('$lib/client', async () => ({
     getServer: (id: string) => mocks.servers.find((server) => server.id === id),
     isOriginServer: (id: string) => id === mocks.originId,
     clearServerAuthentication: mocks.clearServerAuthentication,
-    removeServer: mocks.removeServer,
-    resetToOrigin: mocks.resetToOrigin
+    removeServer: mocks.removeServer
   }
-}));
-
-vi.mock('$lib/serverCatalogue', () => ({
-  firstAuthenticatedServerId: (excludedId?: string) =>
-    mocks.servers.find((server) => server.id !== excludedId && mocks.authenticated.has(server.id))
-      ?.id
 }));
 
 vi.mock('@chatto/client/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
   ServerLogoutRejectedError: class ServerLogoutRejectedError extends Error {},
-  signOutServer: mocks.signOutServer,
-  signOutServers: mocks.signOutServers
+  signOutServer: mocks.signOutServer
 }));
 vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 vi.mock('$lib/notifications/pushNotifications', () => ({
@@ -60,9 +49,7 @@ beforeEach(() => {
     { id: 'remote', url: 'https://remote.example', token: 'remote-token' }
   ];
   mocks.originId = 'origin';
-  mocks.authenticated = new Set(['origin', 'remote']);
   mocks.signOutServer.mockResolvedValue(new Response('{}'));
-  mocks.signOutServers.mockResolvedValue(undefined);
   mocks.unsubscribePushBeforeLeaving.mockResolvedValue(undefined);
 });
 
@@ -75,7 +62,7 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.clearLastRoom).toHaveBeenCalledWith('remote');
     expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote');
     expect(mocks.removeServer).not.toHaveBeenCalled();
-    expect(result).toEqual({ kind: 'soft', serverId: 'origin' });
+    expect(result).toEqual({ kind: 'soft', serverId: 'remote' });
   });
 
   it('keeps the origin registration while clearing its local session', async () => {
@@ -86,17 +73,7 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
     expect(mocks.removeServer).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
-    expect(result).toEqual({ kind: 'hard', serverId: 'remote' });
-  });
-
-  it('clears local state after signing out every server', async () => {
-    const result = await clientAccount.signOutAllServers();
-
-    expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
-    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(2);
-    expect(mocks.resetToOrigin).toHaveBeenCalledOnce();
-    expect(mocks.notifyLogout).toHaveBeenCalledOnce();
-    expect(result).toEqual({ kind: 'hard' });
+    expect(result).toEqual({ kind: 'hard', serverId: 'origin' });
   });
 
   it('preserves authentication when push cleanup cannot establish a delivery fence', async () => {
@@ -124,20 +101,6 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.cancelExplicitSignOutRedirect).toHaveBeenCalledOnce();
     expect(mocks.clearLastRoom).not.toHaveBeenCalled();
     expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
-    expect(mocks.notifyLogout).not.toHaveBeenCalled();
-  });
-
-  it('preserves all-server authentication when any push cleanup cannot establish a delivery fence', async () => {
-    mocks.unsubscribePushBeforeLeaving
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('remote browser lookup failed'));
-
-    await expect(clientAccount.signOutAllServers()).rejects.toThrow('remote browser lookup failed');
-
-    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(2);
-    expect(mocks.beginExplicitSignOutRedirect).not.toHaveBeenCalled();
-    expect(mocks.signOutServers).not.toHaveBeenCalled();
-    expect(mocks.resetToOrigin).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
 });

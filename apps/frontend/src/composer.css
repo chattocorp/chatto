@@ -1,0 +1,75 @@
+/* Shared preview typography. Source syntax stays visible; each editor owns
+   its block layout and editing controls. */
+.composer-code-palette {
+  --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
+  --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
+
+  & .ProseMirror blockquote,
+  & .cm-format-quote {
+    color: var(--composer-quote-text);
+    font-style: italic;
+  }
+
+  & .ProseMirror u,
+  & .cm-format-underline {
+    text-decoration: underline;
+  }
+
+  & .ProseMirror strong,
+  & .cm-format-strong {
+    font-weight: 600;
+  }
+
+  & .ProseMirror :is(h1, h2, h3, h4, h5, h6),
+  & .cm-format-heading {
+    font-size: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  & .ProseMirror a:not(.entity-link),
+  & .cm-format-link,
+  & .cm-link-label {
+    color: var(--color-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: break-word;
+  }
+
+  & .ProseMirror em,
+  & .cm-format-emphasis {
+    font-style: italic;
+  }
+
+  /* CodeMirror combines nested syntax tags on one span. */
+  & .ProseMirror blockquote em,
+  & .cm-format-quote.cm-format-emphasis {
+    font-style: normal;
+  }
+
+  /* Fenced code also receives this tag, but must not receive inline layout. */
+  & .cm-format-code {
+    font-style: normal;
+  }
+
+  & .ProseMirror code:not(pre code),
+  & .cm-line:not(.cm-code-fence-body) .cm-format-code {
+    border-radius: 0.25rem;
+    background: var(--color-surface-emphasized);
+    padding: 0.125rem 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    font-style: normal;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  & .cm-format-marker {
+    color: var(--color-muted);
+  }
+
+  /* Link labels wrap the syntax spans that carry quote and emphasis styles. */
+  & .cm-link-label .cm-format-quote {
+    color: inherit;
+  }
+}

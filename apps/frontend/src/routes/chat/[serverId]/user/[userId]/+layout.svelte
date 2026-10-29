@@ -18,8 +18,10 @@
   let failed = $state(false);
   let attempt = $state(0);
   let conversation = $state<{ userId: string; roomId: string } | null>(null);
+  // Thread navigation replaces page.params without changing the recipient.
+  const recipientId = $derived(page.params.userId!);
   const roomId = $derived(
-    conversation && conversation.userId === page.params.userId ? conversation.roomId : null
+    conversation && conversation.userId === recipientId ? conversation.roomId : null
   );
   const messageLink = $derived(page.route.id === '/chat/[serverId]/user/[userId]/m/[messageId]');
   // The self-conversation check needs the accepted account. The server enforces access.
@@ -28,18 +30,13 @@
   // Each recipient or retry owns one request. Cleanup prevents late results
   // from changing the page after the user leaves or selects a different recipient.
   $effect(() => {
-    const userId = page.params.userId!;
-    const serverSegment = page.params.serverId;
+    const userId = recipientId;
     const retry = attempt;
     const currentViewerId = viewerId;
     if (!currentViewerId) return;
     let cancelled = false;
     const isCurrent = () =>
-      !cancelled &&
-      scope.isCurrent() &&
-      attempt === retry &&
-      page.params.userId === userId &&
-      page.params.serverId === serverSegment;
+      !cancelled && scope.isCurrent() && attempt === retry && recipientId === userId;
 
     failed = false;
     conversation = null;

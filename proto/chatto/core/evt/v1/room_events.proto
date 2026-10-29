@@ -3,7 +3,7 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 import "google/protobuf/timestamp.proto";
 
-import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/event_values.proto";
 
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -12,7 +12,7 @@ option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/ev
 // Changing field numbers or structure below affects JetStream-stored data.
 //
 // Top-level Event oneof tags owned by this file:
-//   - 300-305, 307-308: room lifecycle on evt.room.{roomId}.*
+//   - 300-305, 307-309: room lifecycle and notice on evt.room.{roomId}.*
 //   - 310-311: room membership on evt.room.{roomId}.*
 //   - 320: server-wide account deletion fan-out
 //   - 330-333: voice call lifecycle and participant lifecycle on evt.room.{roomId}.*
@@ -24,6 +24,19 @@ option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/ev
 // ============================================================================
 // ROOM LIFECYCLE EVENTS
 // ============================================================================
+
+// RoomNoticeChangedEvent replaces the current notice, or clears it when the
+// body is empty. The envelope ID is the write version. An announcement also
+// uses the envelope ID and time as the publication ID and publication time.
+message RoomNoticeChangedEvent {
+  // Channel room that owns the notice.
+  string room_id = 1;
+  // Complete Markdown source. Empty removes the active notice.
+  string body = 2;
+  // True for first publication or explicit announcement. False for corrections
+  // and clear operations. Corrections retain the previous publication metadata.
+  bool announced = 3;
+}
 
 message RoomCreatedEvent {
   reserved 1;
@@ -42,6 +55,8 @@ message RoomCreatedEvent {
   // Threading policy for this channel. Historical events omit the field and
   // are interpreted as ENABLED. DM rooms leave it UNSPECIFIED.
   RoomThreadingMode threading_mode = 7;
+  // Separate source room purpose, retained for interchange exports.
+  string purpose = 8;
 }
 
 message RoomUpdatedEvent {
@@ -50,6 +65,8 @@ message RoomUpdatedEvent {
   string room_id = 2;
   string name = 3;
   string description = 4;
+  // Absence preserves the existing purpose for ordinary room edits.
+  optional string purpose = 5;
 }
 
 message RoomDeletedEvent {
@@ -97,6 +114,13 @@ message RoomSlowModeChangedEvent {
 message RoomThreadingModeChangedEvent {
   string room_id = 1;
   RoomThreadingMode threading_mode = 2;
+}
+
+// RoomMembershipEventsVisibilityChangedEvent records a channel's display setting.
+// It does not change membership facts, history reads, or realtime delivery.
+message RoomMembershipEventsVisibilityChangedEvent {
+  string room_id = 1;
+  bool show_membership_events = 2;
 }
 
 // ============================================================================

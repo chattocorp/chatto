@@ -1,5 +1,6 @@
 import type { RoomMember } from '$lib/state/room';
 import { searchEmojis } from '$lib/emoji';
+import { emojiShortcodeQuery } from '@chatto/client/messaging/emojiShortcodes';
 import type { ComposerEditorApi } from './editorTypes';
 import { rankMentionCandidates } from './mentionRanking';
 
@@ -39,7 +40,8 @@ export class AutocompleteState {
     private readonly getMembers: () => RoomMember[],
     private readonly getRoles: () => MentionRole[] = () => [],
     /** Users that rank first among matches, such as thread participants. */
-    private readonly getPrioritizedUserIds?: () => ReadonlySet<string> | undefined
+    private readonly getPrioritizedUserIds?: () => ReadonlySet<string> | undefined,
+    private readonly options: { openOnAt?: boolean; emojis?: boolean } = {}
   ) {}
 
   reset(): void {
@@ -144,6 +146,7 @@ export class AutocompleteState {
   }
 
   private updateEmoji(): void {
+    if (this.options.emojis === false) return;
     const partial = this.getEmojiPartialAtCursor();
     if (partial && searchEmojis(partial.query, 1).length > 0) {
       this.emoji = {
@@ -186,13 +189,12 @@ export class AutocompleteState {
     const editorApi = this.getEditorApi();
     if (!editorApi) return null;
 
-    const textBefore = editorApi.getTextBeforeCursor();
-    const match = textBefore.match(/(?:^|[\s]):([\w]{2,})$/);
-    if (!match) return null;
+    const match = emojiShortcodeQuery(editorApi.getTextBeforeCursor());
+    if (!match || match.name.length < 2) return null;
 
     return {
-      query: match[1],
-      start: textBefore.length - match[1].length - 1
+      query: match.name,
+      start: match.start
     };
   }
 
@@ -201,8 +203,9 @@ export class AutocompleteState {
     if (!editorApi) return null;
 
     const textBefore = editorApi.getTextBeforeCursor();
-    const match = textBefore.match(/(?:^|[\s])@([a-zA-Z0-9_.-]+)$/);
+    const match = textBefore.match(/(?:^|[\s])@([a-zA-Z0-9_.-]*)$/);
     if (!match) return null;
+    if (!match[1] && !this.options.openOnAt) return null;
 
     return {
       partial: match[1],

@@ -379,7 +379,11 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Warn("Provider returned auth error", "provider_id", providerRuntime.config.ID, "error", safeOAuthError(errCode))
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_denied")
+		if intent == "link" {
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_denied"))
+		} else {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_denied")
+		}
 		return
 	}
 
@@ -394,7 +398,11 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Error("Provider callback failed", "provider_id", providerRuntime.config.ID)
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		if intent == "link" {
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
+		} else {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		}
 		return
 	}
 	deleteProviderExchangeState(session, providerRuntime.config.ID)
@@ -460,6 +468,19 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	log.Info("Provider login matched by external identity", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "userId", user.Id)
 
+	// Enrich upgraded hash-only links even when group-role sync is disabled.
+	if providerRuntime.config.Type == config.AuthProviderTypeOpenIDConnect {
+		if err := s.core.CompleteLegacyOIDCIdentityLink(ctx, user.Id, providerRuntime.config.ID, identity.issuer, identity.subject); err != nil {
+			log.Error("Legacy OIDC identity completion failed", "provider_id", providerRuntime.config.ID, "userId", user.Id, "error", err)
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+			return
+		}
+	}
+
+	if err := s.core.SyncProviderUsername(ctx, user.Id, providerRuntime.config.ID, identity.providerUsername); err != nil {
+		log.Warn("Provider username sync failed", "provider_id", providerRuntime.config.ID, "user_id", user.Id, "error", err)
+	}
+
 	// Sync before the session exists, so a failed revocation cannot leave a
 	// signed-in user with a role that the provider removed.
 	if err := s.core.SyncProviderGroupRoles(ctx, user.Id, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
@@ -497,12 +518,13 @@ type authProviderRuntime struct {
 }
 
 type resolvedProviderIdentity struct {
-	issuer          string
-	subject         string
-	verifiedEmail   string
-	avatarURL       string
-	loginHint       string
-	displayNameHint string
+	issuer           string
+	subject          string
+	verifiedEmail    string
+	avatarURL        string
+	loginHint        string
+	providerUsername string
+	displayNameHint  string
 	// groups holds the OIDC groups claim when allowed_groups or group_roles
 	// needs it.
 	groups core.ProviderGroups
@@ -691,13 +713,24 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}
 
 	// UserInfo can supply names even when the ID token already has email.
-	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(discovery.oauth2Config.Scopes, "email")) || (needGroups && !groups.Known) {
+	usernameClaim := r.config.UsernameClaim
+	if usernameClaim == "" {
+		usernameClaim = "preferred_username"
+	}
+	providerUsername := ""
+	if r.config.ManageUsernames {
+		providerUsername = providerUsernameClaim(idToken.Claims, usernameClaim)
+	}
+	if claims.PreferredUser == "" || claims.Name == "" || (claims.Email == "" && slices.Contains(discovery.oauth2Config.Scopes, "email")) || (needGroups && !groups.Known) || (r.config.ManageUsernames && providerUsername == "") {
 		userInfo, err := discovery.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
 			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
 		} else {
 			if userInfo.Subject != idToken.Subject {
 				return resolvedProviderIdentity{}, errors.New("userinfo subject mismatch")
+			}
+			if r.config.ManageUsernames && providerUsername == "" {
+				providerUsername = providerUsernameClaim(userInfo.Claims, usernameClaim)
 			}
 			if needGroups && !groups.Known {
 				groups.Groups, groups.Known = groupsFromClaims(userInfo.Claims, r.config.GroupsClaimOrDefault())
@@ -728,14 +761,28 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		verifiedEmail = strings.ToLower(strings.TrimSpace(claims.Email))
 	}
 	return resolvedProviderIdentity{
-		issuer:          idToken.Issuer,
-		subject:         idToken.Subject,
-		verifiedEmail:   verifiedEmail,
-		avatarURL:       claims.Picture,
-		loginHint:       loginHintFromParts(claims.PreferredUser, verifiedEmail, claims.Name),
-		displayNameHint: displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
-		groups:          groups,
+		issuer:           idToken.Issuer,
+		subject:          idToken.Subject,
+		verifiedEmail:    verifiedEmail,
+		avatarURL:        claims.Picture,
+		loginHint:        loginHintFromParts(claims.PreferredUser, verifiedEmail, claims.Name),
+		providerUsername: providerUsername,
+		displayNameHint:  displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
+		groups:           groups,
 	}, nil
+}
+
+// providerUsernameClaim reads only a string from the configured verified claim.
+func providerUsernameClaim(read func(any) error, name string) string {
+	var claims map[string]json.RawMessage
+	if err := read(&claims); err != nil {
+		return ""
+	}
+	var username string
+	if err := json.Unmarshal(claims[name], &username); err != nil {
+		return ""
+	}
+	return username
 }
 
 // mappedGroups returns the groups that group_roles names. Pending account
@@ -793,14 +840,40 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 	if gothUser.UserID == "" {
 		return resolvedProviderIdentity{}, fmt.Errorf("provider returned empty user id")
 	}
+	verifiedEmail := r.verifiedEmailFromGothUser(c.Request.Context(), gothUser)
 	return resolvedProviderIdentity{
-		issuer:          r.config.ID,
-		subject:         gothUser.UserID,
-		verifiedEmail:   r.verifiedEmailFromGothUser(c.Request.Context(), gothUser),
-		avatarURL:       gothUser.AvatarURL,
-		loginHint:       loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
-		displayNameHint: displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
+		issuer:           r.config.ID,
+		subject:          gothUser.UserID,
+		verifiedEmail:    verifiedEmail,
+		avatarURL:        gothUser.AvatarURL,
+		loginHint:        loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
+		providerUsername: r.managedUsernameFromGothUser(gothUser, verifiedEmail),
+		displayNameHint:  displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
 	}, nil
+}
+
+// managedUsernameFromGothUser selects the provider's account identifier, never
+// its display name. The verified email is supplied by the provider-specific check.
+func (r *authProviderRuntime) managedUsernameFromGothUser(user goth.User, verifiedEmail string) string {
+	if !r.config.ManageUsernames {
+		return ""
+	}
+	switch r.config.Type {
+	case config.AuthProviderTypeGitHub, config.AuthProviderTypeGitLab:
+		return user.NickName
+	case config.AuthProviderTypeDiscord:
+		// Goth maps Discord's username to Name, not NickName. Discord's
+		// global display name must not be used for the account identifier.
+		return user.Name
+	case config.AuthProviderTypeGoogle:
+		// Google has no username. Its explicit source is the verified email's
+		// local part; Goth's NickName contains the display name instead.
+		local, domain, ok := strings.Cut(verifiedEmail, "@")
+		if ok && local != "" && domain != "" && !strings.Contains(domain, "@") {
+			return local
+		}
+	}
+	return ""
 }
 
 // authorizeGothSession exchanges the provider code with the bounded client.
@@ -910,18 +983,19 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, client *http.Client, a
 func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, invitationID string) {
 	ctx := c.Request.Context()
 	flow := core.PendingExternalIdentityFlow{
-		ProviderID:      providerConfig.ID,
-		ProviderType:    providerConfig.Type,
-		ProviderLabel:   providerConfig.LabelOrDefault(),
-		Issuer:          identity.issuer,
-		Subject:         identity.subject,
-		VerifiedEmail:   identity.verifiedEmail,
-		AvatarURL:       identity.avatarURL,
-		LoginHint:       identity.loginHint,
-		DisplayNameHint: identity.displayNameHint,
-		Groups:          mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
-		GroupsKnown:     identity.groups.Known,
-		RedirectPath:    providerReturnPath(session, "/"),
+		ProviderID:       providerConfig.ID,
+		ProviderType:     providerConfig.Type,
+		ProviderLabel:    providerConfig.LabelOrDefault(),
+		Issuer:           identity.issuer,
+		Subject:          identity.subject,
+		VerifiedEmail:    identity.verifiedEmail,
+		AvatarURL:        identity.avatarURL,
+		LoginHint:        identity.loginHint,
+		ProviderUsername: identity.providerUsername,
+		DisplayNameHint:  identity.displayNameHint,
+		Groups:           mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
+		GroupsKnown:      identity.groups.Known,
+		RedirectPath:     providerReturnPath(session, "/"),
 	}
 
 	if !providerConfig.AutoProvisionOrDefault() {

@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Room notice",
+      "dismiss": "Dismiss",
+      "body": "Notice (Markdown)",
+      "too_long": "Notices can contain at most {max} characters, including whitespace.",
+      "help": "Save corrections without showing the notice again. Announce to show it again to members who dismissed it on their devices.",
+      "conflict": "This notice changed while you were editing. Your draft is still here. Copy it if needed, then load the current notice before saving again.",
+      "reload": "Load current notice",
+      "save": "Update",
+      "republish": "Announce",
+      "clear": "Clear",
+      "clear_confirm_title": "Clear room notice?",
+      "clear_confirm_description": "This immediately removes the active notice for everyone in the room. Your unsaved edits will not be published.",
+      "empty": "No notice has been published.",
+      "edit": "Edit notice"
+    },
+    "information": {
+      "description": "Description",
+      "created": "Created",
+      "title": "Room information",
+      "basic": "General",
+      "pinned_messages": "Pinned messages"
+    },
     "create": {
       "title": "Create a New Room",
       "description": "Rooms are conversations within your server.",
@@ -77,7 +100,8 @@
       "beginning": "This is the beginning of this conversation.",
       "read_denied": "You do not have permission to read messages in this room.",
       "limited_empty": "No conversations you can read yet.",
-      "loading": "Loading messages..."
+      "loading": "Loading messages...",
+      "load_failed": "Could not load messages."
     },
     "message": {
       "empty": "No messages yet",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Thread in #{room}",
       "back_to_room": "Back to room",
+      "participants": "Thread participants ({count})",
       "follow": "Follow thread",
       "unfollow": "Unfollow thread",
       "close": "Close thread",
@@ -263,6 +288,7 @@
     "unread_separator": "New messages",
     "close_extras": "Close room extras",
     "dm": {
+      "deactivated_user_notice": "This account is deactivated. They cannot read or reply to messages.",
       "deleted_user_notice": "The other user has been deleted."
     },
     "management": {

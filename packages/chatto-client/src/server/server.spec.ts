@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import type { ConnectAPIConfig } from '../api/connect.js';
+import { StaleResponseError, type ConnectAPIConfig } from '../api/connect.js';
 import type { CurrentUser } from '../api/viewer.js';
 
 const mocks = vi.hoisted(() => ({
@@ -27,6 +27,9 @@ import { batch } from '../reactivity/index.js';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { inertRealtimeSocket } from '../testing/inertSocket.js';
+import { ServerConnection } from './serverConnection.js';
+import { fakeServer, mockService, receivedRequest } from '../testing/fakeServer.js';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 
 const profile = {
   name: 'Bot server',
@@ -72,6 +75,120 @@ describe('connections in Node', () => {
       expect(connection.accountId).toBe('bot');
     }
   );
+
+  it('exposes a prepared message that retains its key and arguments after a failed response', async () => {
+    const handlers = mockService(MessageService);
+    handlers.createMessage
+      .mockRejectedValueOnce(new ConnectError('response lost', Code.Unavailable))
+      .mockResolvedValue({ message: { id: 'posted' } });
+    const config = vi
+      .spyOn(ServerConnection.prototype, 'apiConfig', 'get')
+      .mockReturnValue(fakeServer((router) => router.service(MessageService, handlers)));
+    try {
+      connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      const key = 'de29b0b4-70dc-44dd-9aa1-e6113965b923';
+      const operation = connection.prepareMessage(
+        { roomId: 'room', threadRootId: 'root', inReplyTo: 'destination-reply' },
+        'Hello',
+        { idempotencyKey: key, inReplyTo: 'explicit-reply' }
+      );
+      expect(operation.idempotencyKey).toBe(key);
+      expect(handlers.createMessage).not.toHaveBeenCalled();
+      await expect(operation.send()).rejects.toThrow('response lost');
+      await expect(operation.send()).resolves.toEqual({ id: 'posted' });
+      expect(receivedRequest(handlers.createMessage)?.toJson()).toEqual({
+        roomId: 'room',
+        body: 'Hello',
+        threadRootEventId: 'root',
+        inReplyTo: 'explicit-reply',
+        idempotencyKey: key
+      });
+      expect(receivedRequest(handlers.createMessage, 1)?.toJson()).toEqual(
+        receivedRequest(handlers.createMessage)?.toJson()
+      );
+      await expect(operation.send({ signal: AbortSignal.abort() })).rejects.toThrow();
+      expect(handlers.createMessage).toHaveBeenCalledTimes(2);
+    } finally {
+      config.mockRestore();
+    }
+  });
+
+  it('accepts an explicit message send key through the Server createMessage options', async () => {
+    const handlers = mockService(MessageService);
+    handlers.createMessage.mockResolvedValue({ message: { id: 'posted' } });
+    const config = vi
+      .spyOn(ServerConnection.prototype, 'apiConfig', 'get')
+      .mockReturnValue(fakeServer((router) => router.service(MessageService, handlers)));
+    try {
+      connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      const key = 'de29b0b4-70dc-44dd-9aa1-e6113965b923';
+      await expect(
+        connection.createMessage({ roomId: 'room', threadRootId: '' }, 'Hello', {
+          idempotencyKey: key
+        })
+      ).resolves.toEqual({ id: 'posted' });
+      expect(receivedRequest(handlers.createMessage)?.idempotencyKey).toBe(key);
+    } finally {
+      config.mockRestore();
+    }
+  });
+
+  it.each([false, true])(
+    'rejects a prepared send after a privacy reset (already attempted: %s)',
+    async (attempted) => {
+      const handlers = mockService(MessageService);
+      handlers.createMessage.mockRejectedValue(new ConnectError('response lost', Code.Unavailable));
+      const transport = fakeServer((router) => router.service(MessageService, handlers)).transport;
+      const originalConfig = Object.getOwnPropertyDescriptor(
+        ServerConnection.prototype,
+        'apiConfig'
+      )!.get!;
+      const config = vi
+        .spyOn(ServerConnection.prototype, 'apiConfig', 'get')
+        .mockImplementation(function (this: ServerConnection) {
+          return { ...originalConfig.call(this), transport };
+        });
+      try {
+        client.registry.addServer(
+          { id: 'renewable', url: 'https://chat.example', name: 'chat', iconUrl: null, addedAt: 1 },
+          { ...emptyServerSession(), token: 'session-token' }
+        );
+        const server = client.registry.getStore('renewable');
+        const operation = server.prepareMessage({ roomId: 'room', threadRootId: '' }, 'Hello');
+        if (attempted) await expect(operation.send()).rejects.toThrow('response lost');
+        server.connection.invalidatePrivateData();
+        await expect(operation.send()).rejects.toBeInstanceOf(StaleResponseError);
+        expect(handlers.createMessage).toHaveBeenCalledTimes(attempted ? 1 : 0);
+      } finally {
+        config.mockRestore();
+      }
+    }
+  );
+
+  it('keeps fixed-token sends across privacy resets but rejects them after close', async () => {
+    const handlers = mockService(MessageService);
+    handlers.createMessage
+      .mockRejectedValueOnce(new ConnectError('response lost', Code.Unavailable))
+      .mockResolvedValue({ message: { id: 'posted' } });
+    const config = vi
+      .spyOn(ServerConnection.prototype, 'apiConfig', 'get')
+      .mockReturnValue(fakeServer((router) => router.service(MessageService, handlers)));
+    try {
+      connection = client.connect({ serverUrl: 'https://chat.example', apiKey: 'key' });
+      const operation = connection.prepareMessage({ roomId: 'room', threadRootId: '' }, 'Hello');
+      await expect(operation.send()).rejects.toThrow('response lost');
+      connection.connection.invalidatePrivateData();
+      await expect(operation.send()).resolves.toEqual({ id: 'posted' });
+      expect(receivedRequest(handlers.createMessage, 1)?.idempotencyKey).toBe(
+        operation.idempotencyKey
+      );
+      connection.close();
+      await expect(operation.send()).rejects.toMatchObject({ code: Code.Canceled });
+      expect(handlers.createMessage).toHaveBeenCalledTimes(2);
+    } finally {
+      config.mockRestore();
+    }
+  });
 
   it('never renews the fixed token and rejects when the server refuses it', async () => {
     mocks.viewer.mockImplementation(async (config) => {

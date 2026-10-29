@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} от {users}",
+    "tone_default": "Стандартный жёлтый",
+    "tone_light": "Светлый",
+    "tone_medium_light": "Умеренно светлый",
+    "tone_medium": "Средний",
+    "tone_medium_dark": "Умеренно тёмный",
+    "tone_dark": "Тёмный",
     "search_placeholder": "Поиск смайлов...",
     "no_results": "Смайлики не найдены",
     "recently_used": "Недавно использованные"

@@ -7,7 +7,6 @@
     "realtime_paused": "Atualizações em tempo real pausadas. Reconectando...",
     "update_available": "Está disponível uma nova versão",
     "reload": "Recarregar",
-    "sign_out": "Sair",
     "close": "Fechar",
     "auth_status": {
       "origin_title": "Sessão expirada",

@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // newRoomManagerForTest creates an account with room.manage on roomID and
@@ -25,7 +26,7 @@ func newRoomManagerForTest(t *testing.T, ctx context.Context, c *ChattoCore, log
 
 // setRoomUniversalForTest changes the universal flag through the production
 // room command path. actorID must hold room.manage on roomID.
-func setRoomUniversalForTest(t *testing.T, ctx context.Context, c *ChattoCore, actorID, roomID string, universal bool) *evtv1.Room {
+func setRoomUniversalForTest(t *testing.T, ctx context.Context, c *ChattoCore, actorID, roomID string, universal bool) *readmodel.Room {
 	t.Helper()
 	room, err := c.RoomCommands().UpdateRoom(ctx, RoomUpdateInput{ActorID: actorID, RoomID: roomID, Universal: &universal})
 	require.NoError(t, err)
@@ -459,19 +460,17 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	}
 
 	require.False(t, canJoin())
-	_, err = commands.AddMember(ctx, input)
-	require.ErrorIs(t, err, ErrPermissionDenied, "bot needs an explicit grant")
-	grant(PermissionStateAllow)
-	require.True(t, canJoin())
+	_, err = commands.JoinRoom(ctx, RoomIDInput{ActorID: bot.User.Id, RoomID: room.Id})
+	require.ErrorIs(t, err, ErrPermissionDenied, "self-service joins need the bot's grant")
 	otherInput := input
 	otherInput.ActorID = other.Id
 	_, err = commands.AddMember(ctx, otherInput)
 	require.ErrorIs(t, err, ErrPermissionDenied)
 	_, err = commands.AddMember(ctx, input)
-	require.NoError(t, err)
+	require.NoError(t, err, "owner can add the bot without a bot join grant")
+	require.False(t, canJoin(), "adding a member must not grant self-service join authority")
 	_, err = commands.AddMember(ctx, input)
 	require.NoError(t, err, "join is idempotent")
-	require.True(t, joined())
 	require.True(t, joined())
 	canRead, err := c.CanReadMessages(ctx, bot.User.Id, KindChannel, room.Id)
 	require.NoError(t, err)
@@ -487,6 +486,14 @@ func TestBotOwnerRoomMembership(t *testing.T) {
 	removed, err = commands.RemoveMember(ctx, input)
 	require.NoError(t, err)
 	require.False(t, removed, "leave is idempotent")
+
+	_, err = commands.JoinRoom(ctx, RoomIDInput{ActorID: owner.Id, RoomID: room.Id})
+	require.NoError(t, err)
+	_, err = c.roomMemberships.BanMember(ctx, SystemActorID, KindChannel, room.Id, owner.Id, "membership test", nil)
+	require.NoError(t, err)
+	_, err = commands.AddMember(ctx, input)
+	require.ErrorIs(t, err, ErrPermissionDenied, "a banned owner cannot add its bot")
+	require.NoError(t, c.roomMemberships.UnbanMember(ctx, SystemActorID, KindChannel, room.Id, owner.Id, "membership test"))
 
 	grant(PermissionStateAllow)
 	_, err = commands.AddMember(ctx, input)
@@ -577,11 +584,7 @@ func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
 	roomManagerID := newRoomManagerForTest(t, ctx, c, "retry-room-manager", room.Id)
 	input := RoomUserInput{ActorID: manager.Id, UserID: bot.User.Id, RoomID: room.Id}
 	_, err = c.RoomCommands().AddMember(ctx, input)
-	require.ErrorIs(t, err, ErrPermissionDenied, "global manager cannot bypass the bot allowlist")
-	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id,
-		PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.Id}, PermRoomJoin, PermissionStateAllow))
-	_, err = c.RoomCommands().AddMember(ctx, input)
-	require.NoError(t, err)
+	require.NoError(t, err, "bot manager uses its own join authority")
 	_, err = c.RoomCommands().RemoveMember(ctx, input)
 	require.NoError(t, err)
 

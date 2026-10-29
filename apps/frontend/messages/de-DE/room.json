@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Raumhinweis",
+      "dismiss": "Ausblenden",
+      "body": "Hinweis (Markdown)",
+      "too_long": "Hinweise dürfen höchstens {max} Zeichen einschließlich Leerzeichen enthalten.",
+      "help": "Speichere Korrekturen, ohne den Hinweis erneut anzuzeigen. Veröffentliche ihn erneut, damit Mitglieder ihn auf Geräten wieder sehen, auf denen sie ihn ausgeblendet haben.",
+      "conflict": "Dieser Hinweis wurde während deiner Bearbeitung geändert. Dein Entwurf ist noch vorhanden. Kopiere ihn bei Bedarf und lade den aktuellen Hinweis, bevor du erneut speicherst.",
+      "reload": "Aktuellen Hinweis laden",
+      "save": "Aktualisieren",
+      "republish": "Ankündigen",
+      "clear": "Entfernen",
+      "clear_confirm_title": "Raumhinweis entfernen?",
+      "clear_confirm_description": "Der aktive Hinweis wird sofort für alle im Raum entfernt. Deine ungespeicherten Änderungen werden nicht veröffentlicht.",
+      "empty": "Es wurde kein Hinweis veröffentlicht.",
+      "edit": "Hinweis bearbeiten"
+    },
+    "information": {
+      "description": "Beschreibung",
+      "created": "Erstellt",
+      "title": "Rauminformationen",
+      "basic": "Allgemein",
+      "pinned_messages": "Angeheftete Nachrichten"
+    },
     "create": {
       "title": "Neuen Raum erstellen",
       "description": "Räume sind Unterhaltungen innerhalb deines Servers.",
@@ -77,7 +100,8 @@
       "beginning": "Dies ist der Anfang dieser Unterhaltung.",
       "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen.",
       "limited_empty": "Noch keine Gespräche, die du lesen kannst.",
-      "loading": "Nachrichten werden geladen..."
+      "loading": "Nachrichten werden geladen...",
+      "load_failed": "Nachrichten konnten nicht geladen werden."
     },
     "message": {
       "empty": "Noch keine Nachrichten",
@@ -117,7 +141,7 @@
       "meta": {
         "echo": "Echo",
         "edited_short": "Bearbeitet",
-        "pinned": "Angepinnte Nachricht",
+        "pinned": "Angeheftete Nachricht",
         "thread": "Thread",
         "edited": "Nachricht bearbeitet",
         "echoed_to_channel": "Auch an den Kanal gesendet",
@@ -221,7 +245,7 @@
       "offline": "Offline ({count})",
       "no_files": "Noch keine Dateien in diesem Raum.",
       "files": "Dateien",
-      "pins": "Angepinnte Nachrichten",
+      "pins": "Angeheftete Nachrichten",
       "call": "Anruf",
       "jump_to_file": "Zu {filename} springen",
       "loading_files": "Dateien werden geladen...",
@@ -235,16 +259,16 @@
       "search": "Suchen"
     },
     "pins": {
-      "unseen": "Neue angepinnte Nachrichten",
-      "pin": "Nachricht anpinnen",
-      "unpin": "Pin entfernen",
-      "unpin_prompt": "Möchtest du den Pin dieser Nachricht wirklich entfernen?",
-      "loading": "Angepinnte Nachrichten werden geladen...",
-      "empty_title": "Keine angepinnten Nachrichten",
+      "unseen": "Neue angeheftete Nachrichten",
+      "pin": "Nachricht anheften",
+      "unpin": "Nachricht lösen",
+      "unpin_prompt": "Möchtest du diese Nachricht wirklich lösen?",
+      "loading": "Angeheftete Nachrichten werden geladen...",
+      "empty_title": "Keine angehefteten Nachrichten",
       "empty_description": "Angeheftete Nachrichten erscheinen hier.",
-      "error_title": "Angepinnte Nachrichten nicht verfügbar",
-      "error_description": "Angepinnte Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
-      "update_failed": "Angepinnte Nachricht konnte nicht aktualisiert werden"
+      "error_title": "Angeheftete Nachrichten nicht verfügbar",
+      "error_description": "Angeheftete Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
+      "update_failed": "Angeheftete Nachricht konnte nicht aktualisiert werden"
     },
     "title": {
       "direct_message": "Direktnachricht"
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Thread in #{room}",
       "back_to_room": "Zurück zum Raum",
+      "participants": "Thread-Teilnehmer ({count})",
       "follow": "Thread folgen",
       "unfollow": "Thread nicht mehr folgen",
       "close": "Thread schließen",
@@ -263,6 +288,7 @@
     "unread_separator": "Neue Nachrichten",
     "close_extras": "Raumdetails schließen",
     "dm": {
+      "deactivated_user_notice": "Dieses Konto ist deaktiviert. Das Mitglied kann Nachrichten weder lesen noch beantworten.",
       "deleted_user_notice": "Der andere Benutzer wurde gelöscht."
     },
     "management": {

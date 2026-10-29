@@ -3,7 +3,7 @@
 
 Renders a compact user identity with the shared avatar and display name. Native
 right-click and stationary touch long-press open the shared user profile menu.
-With openOnClick, a keyboard-accessible button also opens it on click or tap.
+A keyboard-accessible button also opens it on click or tap by default.
 -->
 <script lang="ts">
   import AccountName from './AccountName.svelte';
@@ -26,7 +26,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
   let {
     user,
     size = 'sm',
-    openOnClick = false,
+    openOnClick = true,
     class: className,
     viewerSettings,
     onSendMessage,
@@ -76,7 +76,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     ]}
     data-testid="user-identity"
     aria-haspopup="dialog"
-    aria-label={m('room.sidebar.view_profile', {
+    title={m('room.sidebar.view_profile', {
       name: formatAccountName(profileUser.displayName || profileUser.login, profileUser)
     })}
     onclick={(event) => profileMenu.open(user.id, event)}

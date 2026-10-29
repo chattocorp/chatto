@@ -897,7 +897,7 @@ var File_chatto_core_evt_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\xc1\x03\n" +
+	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a%chatto/core/evt/v1/event_values.proto\"\xc1\x03\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
@@ -1000,7 +1000,7 @@ func file_chatto_core_evt_v1_message_events_proto_init() {
 	if File_chatto_core_evt_v1_message_events_proto != nil {
 		return
 	}
-	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_event_values_proto_init()
 	file_chatto_core_evt_v1_message_events_proto_msgTypes[5].OneofWrappers = []any{
 		(*MessageMention_Direct)(nil),
 		(*MessageMention_Role)(nil),

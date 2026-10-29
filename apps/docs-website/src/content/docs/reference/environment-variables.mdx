@@ -372,7 +372,7 @@ environment variables from your configuration. These settings no longer have an 
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_DIRECT_LOGIN" toml="auth.direct_login" default="true">
-  Enable direct sign-in with a username or email address and password. When `false`, the password form and recovery link are hidden and the password login endpoint returns `403`. Existing sessions, registration, and authenticated password management are unaffected.
+  Enable direct sign-in with a username or email address and password. When `false`, the password login form and recovery link are hidden. Password sign-in, user password changes, and password recovery are disabled on the server. Account settings shows disabled password controls with an SSO notice. Sensitive account actions require fresh SSO authentication instead of local password proof. Existing sessions, stored passwords, registration, and operator recovery are unaffected.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">
@@ -440,6 +440,18 @@ For a CIMD-capable OIDC provider, set `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_ID` 
 To allow only the members of some groups of an OIDC provider, set `allowed_groups`. To give roles to group members, set `group_roles`. See [Map groups to roles](/guides/integrations/external-login-providers/#map-groups-to-roles). See [Restrict who can sign in](/guides/integrations/external-login-providers/#restrict-who-can-sign-in).
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
+
+Provider account settings also support counted environment variables:
+
+| TOML option | Environment suffix after `CHATTO_AUTH_PROVIDERS_0_` | Default |
+| --- | --- | --- |
+| `manage_usernames` | `MANAGE_USERNAMES` | `false` |
+| `update_usernames` | `UPDATE_USERNAMES` | `false`; requires `manage_usernames` |
+| `username_claim` | `USERNAME_CLAIM` | `preferred_username`; OIDC only |
+| `allow_unlinking` | `ALLOW_UNLINKING` | `true` |
+
+See [managed usernames and account links](/guides/integrations/external-login-providers/#manage-usernames-and-account-links)
+for collision handling, existing accounts, and operator controls.
 
 See [External Login Providers](/guides/integrations/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 

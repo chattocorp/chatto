@@ -13,6 +13,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -39,7 +41,7 @@ const legacyBotAPIKeySecretBytes = 32
 // Bot is the management view of a bot account. Raw credentials are populated
 // only by the command that issues them and must never be logged or persisted.
 type Bot struct {
-	User             *evtv1.User
+	User             *readmodel.User
 	OwnerUserID      string
 	APIKey           string
 	APIKeyID         string
@@ -206,7 +208,7 @@ func (c *ChattoCore) botCredentialVerifier(purpose, token string) []byte {
 
 // ValidateBotIncomingWebhookCredential authenticates an action-limited
 // incoming webhook credential against the latest verifier replayed from EVT.
-func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, token string) (*evtv1.User, error) {
+func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, token string) (*readmodel.User, error) {
 	botID, webhookID, ok := parseBotIncomingWebhookCredential(token)
 	if !ok {
 		return nil, ErrAuthTokenNotFound
@@ -225,7 +227,7 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 		return nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
-	if err != nil || owner.GetIsBot() {
+	if err != nil || owner.GetIsBot() || owner.GetDeactivated() {
 		return nil, ErrAuthTokenNotFound
 	}
 	c.credentialUsage.recordIfActive(botID, incomingWebhookUsageKey(webhookID), time.Now(), func() bool {
@@ -238,7 +240,7 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 // ValidateBotAPIKey authenticates a bot's non-expiring API key against the
 // latest verifier replayed from EVT. It returns ErrAuthTokenNotFound for every
 // malformed, stale, deleted, or otherwise unusable key.
-func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*evtv1.User, error) {
+func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*readmodel.User, error) {
 	user, _, err := c.ValidateBotAPIKeyCredential(ctx, token)
 	return user, err
 }
@@ -246,7 +248,7 @@ func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*evtv
 // ValidateBotAPIKeyCredential authenticates a bot API key and returns the
 // non-secret verifier generation needed to revoke long-lived transports when
 // a later durable revocation reaches this replica.
-func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token string) (*evtv1.User, []byte, error) {
+func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token string) (*readmodel.User, []byte, error) {
 	botID, ok := parseBotAPIKey(token)
 	if !ok {
 		return nil, nil, ErrAuthTokenNotFound
@@ -265,7 +267,7 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
-	if err != nil || owner.GetIsBot() {
+	if err != nil || owner.GetIsBot() || owner.GetDeactivated() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	c.credentialUsage.recordIfActive(botID, botAPIKeyUsageKey(credential.ID), time.Now(), func() bool {
@@ -288,14 +290,14 @@ func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error 
 	return c.authorization.requireHumanUser(ctx, userID)
 }
 
-func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
+func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*readmodel.User, error) {
 	return c.authorization.requireBotManager(ctx, actorID, botID)
 }
 
 // requireBotViewer permits bot owners, bot managers, and account managers to
 // read bot metadata. It does not grant authority over bot credentials or
 // lifecycle operations.
-func (c *ChattoCore) requireBotViewer(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
+func (c *ChattoCore) requireBotViewer(ctx context.Context, actorID, botID string) (*readmodel.User, error) {
 	if err := c.requireHumanUser(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -340,7 +342,7 @@ func (c *ChattoCore) requireBotReassignmentManager(ctx context.Context, actorID 
 	return nil
 }
 
-func (c *ChattoCore) botFromUser(user *evtv1.User) (*Bot, error) {
+func (c *ChattoCore) botFromUser(user *readmodel.User) (*Bot, error) {
 	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
 	}
@@ -546,7 +548,7 @@ func (c *ChattoCore) CreateBotAPIKey(ctx context.Context, actorID, botID, name s
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key creation"); err != nil {
 		return nil, err
 	}
-	var user *evtv1.User
+	var user *readmodel.User
 	if err := c.authorizeAtStableInputs(ctx, func() error {
 		var authorizeErr error
 		user, authorizeErr = c.requireBotManager(ctx, actorID, botID)
@@ -603,7 +605,7 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID, keyID 
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key revocation"); err != nil {
 		return nil, err
 	}
-	var user *evtv1.User
+	var user *readmodel.User
 	if err := c.authorizeAtStableInputs(ctx, func() error {
 		var authorizeErr error
 		user, authorizeErr = c.requireBotManager(ctx, actorID, botID)
@@ -709,7 +711,7 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot incoming webhook mutation"); err != nil {
 		return nil, err
 	}
-	var user *evtv1.User
+	var user *readmodel.User
 	if err := c.authorizeAtStableInputs(ctx, func() error {
 		var authorizeErr error
 		user, authorizeErr = c.requireBotManager(ctx, actorID, botID)
@@ -807,7 +809,7 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			return nil, fmt.Errorf("wait for user projection: %w", err)
 		}
 
-		var bot *evtv1.User
+		var bot *readmodel.User
 		if err := c.authorizeAtStableInputs(ctx, func() error {
 			if err := c.requireBotReassignmentManager(ctx, actorID); err != nil {
 				return err

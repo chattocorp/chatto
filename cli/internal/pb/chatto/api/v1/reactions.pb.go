@@ -29,6 +29,11 @@ const (
 // on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 // current user already has 20 distinct emoji reactions on the canonical
 // message; adding an emoji that already exists remains an idempotent success.
+// Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+// without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+// suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+// Names are case-sensitive and are stored unchanged, including
+// unknown names. Clients can display an unknown name as :name:.
 type AddReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message event.
@@ -36,7 +41,7 @@ type AddReactionRequest struct {
 	// Required. Event ID of the message being reacted to, or a channel echo of
 	// the message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	// Required. Emoji shortcode name, such as "thumbsup" or "heart".
+	// Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid.
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -160,7 +165,7 @@ type RemoveReactionRequest struct {
 	// Required. Event ID of the message whose reaction should be removed, or a
 	// channel echo of the message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	// Required. Emoji shortcode name, such as "thumbsup" or "heart".
+	// Required. Exact reaction name returned by the server, without surrounding colons.
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -281,7 +286,7 @@ type ListReactionUsersRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Message or channel echo ID.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	// Emoji shortcode, such as "thumbsup".
+	// Exact reaction name returned by the server, without surrounding colons.
 	Emoji string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	// Defaults to 50 results. Maximum: 100. Zero uses the default.
 	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`

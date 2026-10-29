@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Ĉambra avizo",
+      "dismiss": "Fermi",
+      "body": "Avizo (Markdown)",
+      "too_long": "Avizoj povas enhavi maksimume {max} signojn, inkluzive de blankspacoj.",
+      "help": "Konservu korektojn sen remontri la avizon. Anoncu ĝin por remontri ĝin al membroj, kiuj fermis ĝin sur siaj aparatoj.",
+      "conflict": "Ĉi tiu avizo ŝanĝiĝis dum via redaktado. Via malneto restas ĉi tie. Kopiu ĝin se necese, poste ŝargu la nunan avizon antaŭ ol denove konservi.",
+      "reload": "Ŝargi nunan avizon",
+      "save": "Ĝisdatigi",
+      "republish": "Anonci",
+      "clear": "Forigi",
+      "clear_confirm_title": "Forigi la ĉambran avizon?",
+      "clear_confirm_description": "Ĉi tio tuj forigas la aktivan avizon por ĉiuj en la ĉambro. Viaj nekonservitaj ŝanĝoj ne estos publikigitaj.",
+      "empty": "Neniu avizo estas publikigita.",
+      "edit": "Redakti avizon"
+    },
+    "information": {
+      "description": "Priskribo",
+      "created": "Kreita",
+      "title": "Informoj pri la ĉambro",
+      "basic": "Ĝenerala",
+      "pinned_messages": "Fiksitaj mesaĝoj"
+    },
     "create": {
       "title": "Kreu Novan Ĉambron",
       "description": "Ĉambroj estas konversacioj en via servilo.",
@@ -77,7 +100,8 @@
       "beginning": "Jen la komenco de ĉi tiu konversacio.",
       "read_denied": "Vi ne havas permeson legi mesaĝojn en ĉi tiu ĉambro.",
       "limited_empty": "Ankoraŭ neniuj konversacioj, kiujn vi povas legi.",
-      "loading": "Ŝarĝante mesaĝojn..."
+      "loading": "Ŝarĝante mesaĝojn...",
+      "load_failed": "Ne eblis ŝargi mesaĝojn."
     },
     "message": {
       "empty": "Ankoraŭ neniuj mesaĝoj",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Fadeno en #{room}",
       "back_to_room": "Reen al la ĉambro",
+      "participants": "Partoprenantoj de la fadeno ({count})",
       "follow": "Sekvu fadenon",
       "unfollow": "Malsekvu fadenon",
       "close": "Fermu fadenon",
@@ -263,6 +288,7 @@
     "unread_separator": "Novaj mesaĝoj",
     "close_extras": "Fermu ĉambrajn kromaĵojn",
     "dm": {
+      "deactivated_user_notice": "Ĉi tiu konto estas malaktivigita. La uzanto ne povas legi aŭ respondi mesaĝojn.",
       "deleted_user_notice": "La alia uzanto estis forigita."
     },
     "management": {

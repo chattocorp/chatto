@@ -6,10 +6,71 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"os"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 )
+
+func TestOperatorHEICUpload(t *testing.T) {
+	t.Parallel()
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chatto.CreateUser(ctx, SystemActorID, "heic-import", "Import", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "heic-import", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile("../assets/testdata/photo.heic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(content)
+	digest := hex.EncodeToString(sum[:])
+	for _, contentType := range []string{"image/heic", "image/heif"} {
+		t.Run(contentType, func(t *testing.T) {
+			upload, err := chatto.AssetUploads().CreateUpload(ctx, AssetUploadCreateInput{
+				ActorID: author.GetId(), Operator: true, RoomID: room.GetId(),
+				Filename: "photo.heic", ContentType: contentType, Size: int64(len(content)), SHA256: digest,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := chatto.AssetUploads().UploadChunk(ctx, AssetUploadChunkInput{
+				ActorID: SystemActorID, Operator: true, UploadID: upload.UploadID,
+				Content: content, ChunkSHA256: digest,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			_, attachment, err := chatto.AssetUploads().CompleteUpload(ctx, AssetUploadCompleteInput{
+				ActorID: SystemActorID, Operator: true, UploadID: upload.UploadID,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if attachment.GetContentType() != contentType || attachment.GetFilename() != "photo.heic" ||
+				attachment.GetSize() != int64(len(content)) || attachment.GetWidth() != 512 || attachment.GetHeight() != 512 {
+				t.Fatalf("unexpected attachment metadata: %+v", attachment)
+			}
+			reader, _, err := chatto.GetAttachmentReader(ctx, attachment)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stored, err := io.ReadAll(reader)
+			if err != nil || !bytes.Equal(stored, content) {
+				t.Fatalf("original changed: %v", err)
+			}
+			preview, err := assets.TransformImage(stored, 100, 100, assets.FitContain)
+			if err != nil || preview.ContentType != "image/jpeg" {
+				t.Fatalf("JPEG preview failed: %v", err)
+			}
+		})
+	}
+}
 
 func TestOperatorAssetUploadOwnershipAndPublicIsolation(t *testing.T) {
 	t.Parallel()
@@ -175,5 +236,13 @@ func TestOperatorAssetUploadTargetsAndCancellation(t *testing.T) {
 	}
 	if _, err := chatto.AssetUploads().CreateUpload(ctx, input); !errors.Is(err, ErrRoomArchived) {
 		t.Fatalf("CreateUpload archived room = %v, want archived", err)
+	}
+	input.Historical = true
+	if _, err := chatto.AssetUploads().CreateUpload(ctx, input); err != nil {
+		t.Fatalf("historical operator upload: %v", err)
+	}
+	input.Operator = false
+	if _, err := chatto.AssetUploads().CreateUpload(ctx, input); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("public historical upload = %v, want denied", err)
 	}
 }

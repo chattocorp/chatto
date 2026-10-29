@@ -6,6 +6,15 @@
       "confirmation": "למשך 15 דקות, פעולה זו מפעילה את ההרשאות הנוספות שהוקצו לך בשרת זה."
     },
     "notifications": {
+      "all_notifications": "כל ההתראות",
+      "all_types": "כל הסוגים",
+      "filter_status": "מצב",
+      "filter_type": "סוג",
+      "reactions": "תגובות רגש",
+      "replies": "תשובות",
+      "mentions": "אזכורים",
+      "next_unread_source": "עבור למקור הבא שלא נקרא",
+      "no_unread": "אין התראות שלא נקראו",
       "title": "התראות",
       "subtitle": "הנה מה חדש",
       "clear_read": "מחיקת הודעות שנקראו",
@@ -28,12 +37,6 @@
         "activity": "קיבלת התראה מאת {actor}",
         "room_invitation": "{actor} הזמין אותך לחדר"
       }
-    },
-    "sign_out": {
-      "title": "צא",
-      "current_server": "שרת נוכחי",
-      "all_servers": "כל השרתים",
-      "description": "צא רק מהשרת שנבחר, או נתק את כל השרתים מהלקוח הזה."
     },
     "overview": {
       "title": "סקירה כללית"

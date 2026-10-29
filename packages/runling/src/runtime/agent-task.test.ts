@@ -16,6 +16,32 @@ const answer = (summary: string) => ({
   usage: emptyTokenUsage()
 });
 
+test('cancellation closes session transports before waiting for a blocked tool', async () => {
+  const entered = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<void>();
+  const instance = session(async (_ctx, _prompt, options) => {
+    entered.resolve();
+    await released.promise;
+    options?.signal?.throwIfAborted();
+    return answer('Unexpected result');
+  });
+  instance.dispose = vi.fn(async () => {
+    released.resolve();
+  });
+  const child = createTaskContext().start(
+    agent({ name: 'Blocked transport', ...settings }, async () => instance),
+    'Work'
+  );
+  await entered.promise;
+  child.cancel();
+  try {
+    await vi.waitFor(() => expect(instance.dispose).toHaveBeenCalled(), { timeout: 100 });
+  } finally {
+    released.resolve();
+    await child[Symbol.asyncDispose]();
+  }
+});
+
 function session(run: RunlingAgent['runOutcome']): RunlingAgent {
   return {
     id: 'test-agent',
@@ -27,9 +53,9 @@ function session(run: RunlingAgent['runOutcome']): RunlingAgent {
     fork: async () => {
       throw new Error('unused');
     },
-    dispose: vi.fn(),
+    dispose: vi.fn(async () => {}),
     async [Symbol.asyncDispose]() {
-      this.dispose();
+      await this.dispose();
     }
   };
 }
@@ -38,7 +64,7 @@ test('an agent is a lazy reusable task with string input, output, and messages',
   const instances: RunlingAgent[] = [];
   const factory = vi.fn(async (_options: AgentOptions) => {
     const instance = session(async (_ctx, prompt, options) => {
-      options?.onText?.(`Answer: ${prompt}`);
+      options?.onText?.(`Answer: ${prompt}`, { hasToolCalls: false });
       return answer(`Answer: ${prompt}`);
     });
     instances.push(instance);
@@ -92,8 +118,8 @@ test('typed input is parsed before setup and prompt, including Standard Schema t
 
 test('agent tasks work as tools and forward completed replies as partial results', async () => {
   const instance = session(async (_ctx, prompt, options) => {
-    options?.onText?.('Checking');
-    options?.onText?.('Done');
+    options?.onText?.('Checking', { hasToolCalls: true });
+    options?.onText?.('Done', { hasToolCalls: false });
     return answer(prompt);
   });
   const worker = agent(
@@ -296,7 +322,7 @@ test('cancellation reaches a running turn and waits for cleanup', async () => {
 
 test('update delivery failure fails the task instead of silently losing replies', async () => {
   const instance = session(async (_ctx, _prompt, options) => {
-    for (let i = 0; i < 65; i++) options?.onText?.(`Reply ${i}`);
+    for (let i = 0; i < 65; i++) options?.onText?.(`Reply ${i}`, { hasToolCalls: false });
     return answer('Done');
   });
   const worker = agent({ name: 'Overflow', ...settings }, async () => instance);

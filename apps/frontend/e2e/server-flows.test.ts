@@ -6,7 +6,7 @@ import {
   createUserOnRemote,
   getRoomOnRemote,
   expectSignedOutViewGone,
-  joinServerAndStartSignIn,
+  startServerSignIn,
   postMessageOnRemote,
   startSecondServer,
   stopSecondServer
@@ -236,7 +236,8 @@ test.describe('Server Directory', () => {
     await chatPage.goto();
     await page.getByTitle('Add Server').click();
 
-    // URL input should be visible
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+    // The address form lives in the lookup modal.
     await expect(page.getByLabel('Server URL')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Find server' })).toBeVisible();
   });
@@ -246,6 +247,7 @@ test.describe('Server Directory', () => {
     await chatPage.goto();
     await page.getByTitle('Add Server').click();
 
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     // Enter an unreachable URL
     await page.getByLabel('Server URL').fill('https://nonexistent.invalid');
     await page.getByRole('button', { name: 'Find server' }).click();
@@ -276,17 +278,15 @@ test.describe('Add Server - Remote Auth Flow', () => {
 
   /**
    * Drive the directory up to (but not through) the OAuth popup: open it
-   * from the sidebar `+` button, fill the URL, find the server, and click the
-   * static "Join" button on the result card.
+   * from the sidebar `+` button, fill the URL, find the server, and continue
+   * from its sign-in view.
    */
   async function driveAddServerToOAuth(page: Page, hostname: string): Promise<Page> {
     await page.getByRole('link', { name: 'Add Server', exact: true }).click();
+    await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostname);
     await page.getByRole('button', { name: 'Find server' }).click();
-    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    return joinServerAndStartSignIn(page);
+    return startServerSignIn(page);
   }
 
   test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({
@@ -436,24 +436,15 @@ test.describe('Add Server - Remote Auth Flow', () => {
 });
 
 test.describe('Sign Out', () => {
-  test('sign out removes all instances and redirects to sign in', async ({ page, chatPage }) => {
+  test('server sign-out clears the session and redirects to sign in', async ({
+    page,
+    chatPage,
+    authPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    // Retry the click idempotently: the button can be visually hydrated
-    // before Svelte attaches its onclick handler, so the first click
-    // can be dropped. We only re-click if the dialog isn't open yet,
-    // to avoid clicking through an already-open dialog.
-    const dialog = page.getByRole('dialog');
-    await expect(async () => {
-      if (!(await dialog.isVisible())) {
-        await page.getByTitle('Sign Out').click();
-      }
-      await expect(dialog).toBeVisible({ timeout: 1000 });
-    }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [200, 500, 1000] });
-
-    // Confirm sign out
-    await dialog.getByRole('button', { name: 'All Servers' }).click();
+    await authPage.logoutViaUI();
 
     // Should end up at the login page (hard reload clears state)
     await page.waitForURL('/login');

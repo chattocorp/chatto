@@ -1,7 +1,9 @@
 package core
 
 import (
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -30,17 +32,22 @@ type RoomNameClaimSnapshot struct {
 }
 
 // roomCatalogEntry is the in-memory shape held per room. Not exposed
-// directly — callers go through Get() which clones into a *evtv1.Room
+// directly — callers go through Get() which clones into a *readmodel.Room
 // for type symmetry with the rest of the codebase.
 type roomCatalogEntry struct {
+	// Immutable provenance from the RoomCreated event envelope.
+	createdAt             *timestamppb.Timestamp
 	name                  string
 	description           string
+	purpose               string
 	kind                  evtv1.RoomKind
 	archived              bool
 	universal             bool
 	slowModeSeconds       uint32
 	threadSlowModeSeconds *uint32
 	threadingMode         evtv1.RoomThreadingMode
+	showMembershipEvents  bool
+	notice                *readmodel.RoomNotice
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -76,17 +83,27 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_RoomCreated:
 		c := e.RoomCreated
 		p.rooms[c.GetRoomId()] = &roomCatalogEntry{
-			name:          c.GetName(),
-			description:   c.GetDescription(),
-			kind:          c.GetKind(),
-			universal:     c.GetUniversal(),
-			threadingMode: c.GetThreadingMode(),
+			createdAt:            proto.Clone(event.GetCreatedAt()).(*timestamppb.Timestamp),
+			name:                 c.GetName(),
+			description:          c.GetDescription(),
+			purpose:              c.GetPurpose(),
+			kind:                 c.GetKind(),
+			universal:            c.GetUniversal(),
+			threadingMode:        c.GetThreadingMode(),
+			showMembershipEvents: true,
 		}
 	case *evtv1.Event_RoomUpdated:
 		u := e.RoomUpdated
 		if entry := p.rooms[u.GetRoomId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
+			if u.Purpose != nil {
+				entry.purpose = u.GetPurpose()
+			}
+		}
+	case *evtv1.Event_RoomNoticeChanged:
+		if entry := p.rooms[e.RoomNoticeChanged.GetRoomId()]; entry != nil {
+			entry.notice = noticeAfterChange(entry.notice, event)
 		}
 	case *evtv1.Event_RoomArchived:
 		if entry := p.rooms[e.RoomArchived.GetRoomId()]; entry != nil {
@@ -109,6 +126,10 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if entry := p.rooms[e.RoomThreadingModeChanged.GetRoomId()]; entry != nil {
 			entry.threadingMode = e.RoomThreadingModeChanged.GetThreadingMode()
 		}
+	case *evtv1.Event_RoomMembershipEventsVisibilityChanged:
+		if entry := p.rooms[e.RoomMembershipEventsVisibilityChanged.GetRoomId()]; entry != nil {
+			entry.showMembershipEvents = e.RoomMembershipEventsVisibilityChanged.GetShowMembershipEvents()
+		}
 	case *evtv1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
 	}
@@ -116,9 +137,9 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 }
 
 // Get returns the room's metadata, or (nil, false) if no such room
-// has been projected. The returned proto is a fresh value; callers
+// has been projected. The returned model is a fresh value; callers
 // may mutate it freely.
-func (p *RoomCatalogProjection) Get(roomID string) (*evtv1.Room, bool) {
+func (p *RoomCatalogProjection) Get(roomID string) (*readmodel.Room, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	entry, ok := p.rooms[roomID]
@@ -150,11 +171,11 @@ func (p *RoomCatalogProjection) Exists(roomID string) bool {
 
 // AllByKind returns every room of the given kind. Order is
 // unspecified; the caller sorts / joins with grouping info as needed.
-// The returned protos are fresh values.
-func (p *RoomCatalogProjection) AllByKind(kind evtv1.RoomKind) []*evtv1.Room {
+// The returned models are fresh values.
+func (p *RoomCatalogProjection) AllByKind(kind evtv1.RoomKind) []*readmodel.Room {
 	p.RLock()
 	defer p.RUnlock()
-	out := make([]*evtv1.Room, 0)
+	out := make([]*readmodel.Room, 0)
 	for id, entry := range p.rooms {
 		if entry.kind == kind {
 			out = append(out, entryToRoom(id, entry))
@@ -205,24 +226,25 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) Ro
 	return snapshot
 }
 
-// entryToRoom converts a private catalog entry into the public
-// *evtv1.Room shape, so consumers don't depend on the internal
-// representation. group_id is intentionally left unset — group
-// assignment lives in RoomGroupProjection.
-func entryToRoom(id string, entry *roomCatalogEntry) *evtv1.Room {
-	r := &evtv1.Room{
+// entryToRoom returns a detached read model. GroupId stays unset because
+// group assignment belongs to RoomGroupProjection.
+func entryToRoom(id string, entry *roomCatalogEntry) *readmodel.Room {
+	r := &readmodel.Room{
+		CreatedAt:             entry.createdAt,
+		Notice:                entry.notice,
 		Id:                    id,
 		Name:                  entry.name,
 		Description:           entry.description,
+		Purpose:               entry.purpose,
 		Archived:              entry.archived,
 		Kind:                  entry.kind,
 		Universal:             entry.universal,
 		SlowModeSeconds:       entry.slowModeSeconds,
 		ThreadSlowModeSeconds: entry.threadSlowModeSeconds,
 		ThreadingMode:         normalizedRoomThreadingMode(entry.kind, entry.threadingMode),
+		ShowMembershipEvents:  entry.showMembershipEvents,
 	}
-	// Defensive clone — the proto contains a Mutex internally that
-	// vet would flag if we ever returned the same pointer twice and
-	// it got passed by value. Cheap insurance.
-	return proto.Clone(r).(*evtv1.Room)
+	// Callers can change nested timestamps, notice state, and optional values
+	// without changing the projection.
+	return r.Clone()
 }

@@ -200,6 +200,54 @@ function touch(type: string, x: number, y = 120) {
   });
 }
 
+describe('main-view navigation fade', () => {
+  it('fades channel and page changes but leaves thread and query navigation steady', () => {
+    mocks.onNavigate.mockClear();
+    renderLayout();
+    const navigate = mocks.onNavigate.mock.calls[0][0];
+    const room = {
+      url: new URL('https://chat.example.test/chat/server/room'),
+      route: { id: '/chat/[serverId]/[roomId]' },
+      params: { serverId: 'server', roomId: 'room' }
+    };
+    expect(navigate({ from: null, to: room })).toBeUndefined();
+    expect(navigate({ from: room, to: null })).toBeUndefined();
+    expect(
+      navigate({ from: room, to: { ...room, url: new URL(`${room.url}?filter=1`) } })
+    ).toBeUndefined();
+    expect(
+      navigate({
+        from: room,
+        to: {
+          ...room,
+          url: new URL(`${room.url}/thread`),
+          route: { id: '/chat/[serverId]/[roomId]/[threadId]' }
+        }
+      })
+    ).toBeUndefined();
+    expect(
+      navigate({
+        from: room,
+        to: {
+          ...room,
+          url: new URL('https://chat.example.test/chat/server/other'),
+          params: { ...room.params, roomId: 'other' }
+        }
+      })
+    ).toBeTypeOf('function');
+    expect(
+      navigate({
+        from: room,
+        to: {
+          url: new URL('https://chat.example.test/chat/server/manage/server'),
+          route: { id: '/chat/[serverId]/manage/server' },
+          params: { serverId: 'server' }
+        }
+      })
+    ).toBeTypeOf('function');
+  });
+});
+
 describe('OAuth page layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();

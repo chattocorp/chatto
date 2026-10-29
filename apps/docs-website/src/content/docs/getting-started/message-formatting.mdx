@@ -20,11 +20,11 @@ Both editors provide the same formatting toolbar, mentions, emoji completion, at
 
 The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection. Use Tab or Shift+Tab to move keyboard focus out of the Markdown editor. Tab still accepts an active mention or emoji suggestion first, and repeated Tab presses cycle through matching mentions.
 
-## Profile bios
+## Profile text
 
-In **Settings → Profile**, the bio field uses your selected Markdown or visual editor and the same formatting toolbar. Use **Save** to save your changes. The bio limit is 1,000 characters, including Markdown syntax.
+In **Settings → Profile**, the **About** field uses your selected Markdown or visual editor and the same formatting toolbar. Use **Save** to save your changes. The limit is 1,000 characters, including Markdown syntax.
 
-Profile bios use the same Markdown formatting as messages, including paragraphs, headings, lists, quotes, code blocks, tables, links, and timestamps.
+About text uses the same Markdown formatting as messages, including paragraphs, headings, lists, quotes, code blocks, tables, links, and timestamps.
 
 ## Write and send
 
@@ -43,12 +43,50 @@ Select an image or file in a message to open the attachment viewer. For an image
 
 Use the arrow buttons or the left and right arrow keys to move between images in the same message. The viewer fits each new image to the screen. Press Escape to close the viewer.
 
+## Emoji shortcodes
+
+Select **Insert emoji** (the smiley button) beside the attachment and timestamp
+controls to open the emoji picker. Select an emoji to insert it at the cursor or
+replace selected text. This works in both editors, including thread replies and
+message edits.
+
+Type `:wave:`, `:heart:`, or `:+1:` to show 👋, ❤️, or 👍 after sending.
+Names are case-sensitive. Unknown names, such as `:custom-party:`, stay as text.
+You can also type or select Unicode emoji as before.
+
+Add a skin tone with `:thumbsup::skin-tone-4:` to show 👍🏽. Tone numbers range
+from 2 (light) to 6 (dark). Compound emoji also work, for example
+`:woman_health_worker::skin-tone-5:` shows 👩🏾‍⚕️. Unsupported combinations,
+such as `:heart::skin-tone-4:`, stay as text.
+
+In the emoji picker, select an emoji to open its skin-tone choices. Choose yellow
+or one of five skin tones. Back or Escape returns to the previous search. Recently used
+emoji select their exact tone immediately.
+In autocomplete, accept an emoji with Enter, Tab, or a click to open its skin-tone
+popup. Your saved tone is highlighted. Use Up and Down to choose a tone, then
+Enter or Tab to insert it. Escape returns to the emoji suggestions. You can also
+click a tone. Emoji without skin tones insert immediately.
+Chatto remembers the choice in this browser and uses it for supported picker
+and autocomplete choices, including reactions. Recently used emoji keep their
+original tones. A shortcode that you type explicitly keeps its specified tone.
+
+Separate shortcodes from letters, numbers, combining marks, and literal underscores.
+For example, `omg:poop:foo` stays as text, while `omg :poop: foo` shows an emoji.
+Punctuation and adjacent tags work: `(:wave:)!` shows (👋)!, and `:wave::heart:`
+shows 👋❤️. Emoji suggestions use the same opening boundary and appear after
+you type at least two characters of a name.
+
+Shortcodes stay visible as text while you edit. Chatto keeps them in the message
+source, so reopening a message or selecting **Copy message text** retains them.
+Put a shortcode in inline code, such as `` `:wave:` ``, to show it literally.
+Shortcodes in code blocks and URLs stay unchanged.
+
 ## Supported Markdown
 
 Chatto formats:
 
 - paragraphs and ATX headings such as `## Heading`;
-- bold and italic text;
+- bold, italic, and underlined text;
 - links and automatically detected URLs;
 - inline code, fenced code blocks, and indented code blocks;
 - blockquotes;
@@ -56,6 +94,12 @@ Chatto formats:
 - named footnotes;
 - GFM pipe tables, including column alignment and escaped pipes; and
 - Chatto timestamp tokens inserted from the composer toolbar.
+
+Use `__text__` for underline, `**text**` for bold, and `*text*` for italics.
+Double underscores mean underline in Chatto, including in existing messages.
+They do not add formatting inside inline code or code blocks.
+In either editor, select **Underline** in the formatting toolbar or press
+**Ctrl+U** (**⌘U** on macOS) to toggle underline on the selected text.
 
 ```md
 ## Release status
@@ -96,6 +140,32 @@ When you select one of these links in a message, known servers open in your
 current client. Unknown servers open externally.
 
 Right-click an image attachment in a message and select **Copy Image** to paste the image into another app. Use **Download** in the attachment viewer to save the original file.
+
+### ANSI art
+
+Put ANSI text inside a fenced code block labelled `ansi`. After you send the
+message, Chatto shows its colors and final screen layout. Cursor movement and
+erase commands can draw over earlier text. The composer shows the source.
+
+Bots can build a message body like this JavaScript example:
+
+```js
+const body = '```ansi\n\x1b[91mHello in red!\x1b[0m\n```';
+```
+
+The JavaScript string contains an actual Escape character (`U+001B`). Typing the
+literal text `\x1b` into the message editor does not create that character. Use
+Unicode text for block and box-drawing characters; raw CP437 files are not imported.
+
+Art uses 80 columns and up to 100 screen rows, with no scrollback. Content that
+scrolls above the screen is discarded. Wide or tall art scrolls inside its block.
+The background stays black in both themes. Chatto supports 16-color, 256-color,
+and true-color text. It does not play animations or blink text, and terminal
+links and clipboard commands have no effect.
+
+The first four ANSI blocks in a message render as art. Additional blocks show
+their source. The normal message size limit still applies. **Copy to clipboard**
+copies the original code, including its escape characters.
 
 ### Footnotes
 

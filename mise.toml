@@ -19,7 +19,8 @@ actionlint = "1.7.12"
 buf = "latest"
 go = "1.27.3"
 goreleaser = "latest"
-node = "lts"
+# Includes the Brotli decoder fix for CVE-2026-111497.
+node = "24.22.1"
 pnpm = "11.25.0"
 uv = "0.11.30"
 
@@ -198,6 +199,18 @@ run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
 description = "Check GitHub Actions workflows and repository shell scripts"
 run = ["actionlint", "shellcheck --severity=warning tools/*.sh"]
 
+[tasks.test-release-policy]
+description = "Test GitHub release publication and Latest selection"
+run = "node --test tools/release-policy.test.mjs"
+
+[tasks.test-interchange]
+description = "Validate draft interchange schemas and synthetic conformance fixtures"
+run = "uv run --script tools/test_interchange.py"
+
+[tasks.test-slack]
+description = "Test Slack conversion and legacy import with synthetic exports"
+run = "uv run --with 'jsonschema[format]==4.26.0' python -B -m unittest discover -s tools -p 'test_slack*.py'"
+
 # =============================================================================
 # Code Generation
 # =============================================================================
@@ -226,7 +239,7 @@ run = [
 ]
 
 [tasks.codegen-emoji]
-description = "Generate Go emoji map from gemoji npm package"
+description = "Generate server, client, and converter emoji maps from gemoji and Unicode data"
 depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
 
@@ -262,6 +275,22 @@ description = "Build the experimental Chatto desktop app for the host platform"
 depends = ["build-frontend"]
 dir = "apps/desktop"
 run = "pnpm build"
+
+[tasks.desktop-build-dev]
+description = "Build Chatto Desktop Dev with separate macOS permissions and app data"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+env.CHATTO_DESKTOP_BUILD = "development"
+run = "pnpm build"
+
+[tasks.desktop-run-dev]
+description = "Build and open Chatto Desktop Dev on macOS"
+depends = ["desktop-build-dev"]
+run = 'open "apps/desktop/dist/Chatto Desktop Dev.app"'
+
+[tasks.desktop-video-benchmark]
+description = "Compare macOS hardware encoder settings locally (pass --output <new-directory>)"
+run = "xcrun swift run --package-path apps/desktop/native/macos-capture-probe -c release chatto-video-benchmark"
 
 [tasks.mobile-ios-sync]
 description = "Bundle the shared frontend into the experimental iOS app"

@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Scorciatoie da tastiera",
+      "app": "App",
+      "undo": "Annulla",
+      "redo": "Ripristina",
+      "new_line": "Nuova riga",
+      "edit_last": "Modifica l’ultimo messaggio (bozza vuota)",
+      "complete": "Completa menzione o emoji"
+    },
+    "action_unavailable": "Questa azione non è attualmente disponibile.",
+    "edit": "Modifica",
     "copy_failed": "Impossibile copiare negli appunti. Seleziona il testo e copialo manualmente.",
     "cancel": "Annulla",
     "close_sidebar": "Chiudi la barra laterale",
@@ -22,12 +33,12 @@
     "password_placeholder": "La tua password",
     "email_placeholder": "tu@esempio.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "Da 8 a 72 byte UTF-8",
+    "password_bytes_placeholder": "Scegli una password",
     "password_confirm_placeholder": "Immettere nuovamente la password",
     "validation": {
       "email": "Inserisci un indirizzo email valido",
-      "password_min_bytes": "Usa almeno 8 byte UTF-8. Alcuni caratteri occupano più di un byte.",
-      "password_max": "Usa al massimo 72 byte UTF-8. Alcuni caratteri occupano più di un byte.",
+      "password_min_bytes": "La password è troppo corta",
+      "password_max": "La password è troppo lunga",
       "username_min": "Deve contenere almeno 2 caratteri",
       "username_max": "Deve contenere al massimo 32 caratteri",
       "username_charset": "Solo lettere, numeri, punti, trattini, trattini bassi",

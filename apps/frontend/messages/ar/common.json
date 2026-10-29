@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "اختصارات لوحة المفاتيح",
+      "app": "التطبيق",
+      "undo": "تراجع",
+      "redo": "إعادة",
+      "new_line": "سطر جديد",
+      "edit_last": "تعديل آخر رسالة (مسودة فارغة)",
+      "complete": "إكمال إشارة أو رمز تعبيري"
+    },
+    "action_unavailable": "هذا الإجراء غير متاح حاليًا.",
+    "edit": "تعديل",
     "copy_failed": "تعذر النسخ إلى الحافظة. حدد النص وانسخه يدويًا.",
     "cancel": "إلغاء",
     "close_sidebar": "إغلاق الشريط الجانبي",
@@ -22,12 +33,12 @@
     "password_placeholder": "كلمة المرور الخاصة بك",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "من 8 إلى 72 بايتًا UTF-8",
+    "password_bytes_placeholder": "اختر كلمة مرور",
     "password_confirm_placeholder": "أدخل كلمة المرور مرة أخرى",
     "validation": {
       "email": "الرجاء إدخال عنوان بريد إلكتروني صالح",
-      "password_min_bytes": "استخدم 8 بايتات UTF-8 على الأقل. تستخدم بعض الأحرف أكثر من بايت واحد.",
-      "password_max": "استخدم 72 بايتًا UTF-8 كحد أقصى. تستخدم بعض الأحرف أكثر من بايت واحد.",
+      "password_min_bytes": "كلمة المرور قصيرة جدًا",
+      "password_max": "كلمة المرور طويلة جدًا",
       "username_min": "يجب أن يتكون من حرفين على الأقل",
       "username_max": "يجب أن يتكون من 32 حرفًا على الأكثر",
       "username_charset": "فقط الحروف والأرقام والنقاط والشرطات والشرطات السفلية",

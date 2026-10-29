@@ -1,5 +1,5 @@
 /** Recovery tests use real snapshots and journals, including an abruptly killed process. */
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -7,6 +7,102 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { task, Type } from 'runling';
 import { RunStore } from './run-store.ts';
+import { applyRecord, type RunDetail } from '../runs.ts';
+import { createRunJournal, newRun } from '../../runtime/run-journal.ts';
+import { appendFile } from 'node:fs/promises';
+
+test('older attempts and an incomplete tail retain usage when interruption is repaired', async () => {
+  const history = await create();
+  const run = newRun({ webhook: 'legacy', workflow: 'Meter', source: 'cli', input: null });
+  const journal = await createRunJournal(history.directory, run);
+  const firstUsage = { input: 10, output: 1, cacheRead: 0, cacheWrite: 0, cost: 0.5 };
+  await journal.append({
+    type: 'event',
+    event: { type: 'usage.updated', timestamp: 1, usage: firstUsage }
+  });
+  await journal.append({
+    type: 'finished',
+    status: 'interrupted',
+    finishedAt: Date.now(),
+    durationMs: 1,
+    usage: firstUsage,
+    output: null,
+    error: null
+  });
+  // Legacy starts reset usage and have no previousUsage field.
+  await journal.append({ type: 'started', run });
+  const secondUsage = { input: 5, output: 2, cacheRead: 1, cacheWrite: 0 };
+  await journal.append({
+    type: 'event',
+    event: { type: 'usage.updated', timestamp: 1, usage: secondUsage }
+  });
+  await appendFile(journal.path, '{"type":"event"');
+  const repaired = await create(history.directory);
+  const expected = {
+    input: 15,
+    output: 3,
+    cacheRead: 1,
+    cacheWrite: 0,
+    cost: 0.5,
+    costIncomplete: true
+  };
+  expect((await repaired.get(run.id))?.usage).toEqual(expected);
+  const again = await create(history.directory);
+  expect((await again.get(run.id))?.usage).toEqual(expected);
+  expect(again.list()[0]?.usage).toEqual(expected);
+});
+
+test('run usage includes prior attempts in live records and repeated journal reads', async () => {
+  let history = await create();
+  let ready = Promise.withResolvers<void>();
+  let priced = true;
+  const root = task({ name: 'Meter', input: Type.Null(), result: Type.Null() }, async (ctx) => {
+    ctx.recordUsage({
+      input: 10,
+      output: 2,
+      cacheRead: 3,
+      cacheWrite: 4,
+      ...(priced ? { cost: 0.5 } : {})
+    });
+    ctx.recordUsage({ input: 1, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 });
+    ready.resolve();
+    for await (const _ of ctx.steering);
+    return null;
+  });
+  await history.restore({ meter: root });
+  const first = await history.start('meter', root, null, 'source');
+  await ready.promise;
+  await history.close();
+  stores.splice(stores.indexOf(history), 1);
+  for (let attempt = 2; attempt <= 3; attempt++) {
+    history = await create(history.directory);
+    ready = Promise.withResolvers<void>();
+    priced = false;
+    let browser: RunDetail | undefined;
+    const unsubscribe = history.subscribe((_id, record) => {
+      if (record.type === 'started') browser = structuredClone(record.run);
+      else browser = applyRecord(browser!, record);
+    });
+    await history.restore({ meter: root });
+    await ready.promise;
+    const expected = {
+      input: 11 * attempt,
+      output: 2 * attempt,
+      cacheRead: 3 * attempt,
+      cacheWrite: 4 * attempt,
+      cost: 0.5,
+      costIncomplete: true
+    };
+    await vi.waitFor(() => expect(browser?.usage).toEqual(expected));
+    expect(history.list()[0]?.usage).toEqual(expected);
+    if (attempt === 3) history.closeSteering(first.id);
+    await history.close();
+    unsubscribe();
+    stores.splice(stores.indexOf(history), 1);
+    expect((await history.get(first.id))?.usage).toEqual(expected);
+    expect((await history.get(first.id))?.usage).toEqual(expected);
+  }
+});
 
 const directories: string[] = [];
 const stores: RunStore[] = [];
@@ -170,15 +266,7 @@ test('a killed process recovers the last snapshot, not later unsaved mutations',
   await expect(
     promisify(execFile)(
       process.execPath,
-      [
-        '--conditions=runling-source',
-        '--import',
-        'tsx',
-        '--input-type=module',
-        '--eval',
-        program,
-        original.directory
-      ],
+      ['--import', 'tsx', '--input-type=module', '--eval', program, original.directory],
       { timeout: 15_000 }
     )
   ).rejects.toMatchObject({ signal: 'SIGKILL' });

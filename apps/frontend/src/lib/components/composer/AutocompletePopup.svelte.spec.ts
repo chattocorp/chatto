@@ -66,6 +66,16 @@ describe('AutocompletePopup', () => {
   });
 
   describe('keyboard navigation', () => {
+    it('keeps the keyboard highlight until the pointer actually moves', () => {
+      const { container } = renderPopup({ items: items('a', 'b') });
+      const second = container.querySelectorAll('button')[1];
+      second.dispatchEvent(new MouseEvent('mouseenter'));
+      flushSync();
+      expect(activeLabel(container)).toBe('a');
+      second.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+      flushSync();
+      expect(activeLabel(container)).toBe('b');
+    });
     it('ArrowDown advances to the next item and consumes the event', () => {
       const { container, component } = renderPopup({ items: items('a', 'b', 'c') });
       const { ev, handled } = press(component, 'ArrowDown');
@@ -173,7 +183,8 @@ describe('AutocompletePopup', () => {
         const active = container.querySelector<HTMLElement>('.menu-item-active');
         expect(activeLabel(container)).toBe('b');
         expect(spy).toHaveBeenCalledTimes(1);
-        expect(spy.mock.instances[0]).toBe(active);
+        // Scroll the complete row so attached variant controls remain visible.
+        expect(spy.mock.instances[0]).toBe(active?.closest('li'));
         expect(spy).toHaveBeenCalledWith({ block: 'nearest' });
       } finally {
         spy.mockRestore();

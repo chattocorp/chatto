@@ -34,7 +34,7 @@
     'danger-secondary',
     'danger-ghost'
   ] as const;
-  const sizes = ['sm', 'md', 'lg'] as const;
+  const sizes = ['compact', 'xs', 'sm', 'md', 'lg'] as const;
 </script>
 
 <Story
@@ -119,7 +119,7 @@
     docs: {
       description: {
         story:
-          'Use md by default. Use sm in dense tables/toolbars and lg only when the surrounding layout has matching scale.'
+          'Use md (40 px minimum height) by default. Use compact (24 px) for panel title-line actions, xs or sm (32 px) for dense actions, and lg only when the surrounding layout has matching scale. Toasts retain the 32 px xs size.'
       }
     }
   }}

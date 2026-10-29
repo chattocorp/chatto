@@ -22,7 +22,7 @@ func toolScope(name string) (string, bool) {
 		return "", true
 	case "list_rooms":
 		return config.MCPRoomsReadScope, true
-	case "list_room_messages":
+	case "list_room_messages", "search_messages":
 		return config.MCPMessagesReadScope, true
 	case "post_message":
 		return config.MCPMessagesWriteScope, true

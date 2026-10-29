@@ -18,6 +18,31 @@ also tells you how other Chatto clients connect to your server.
 | Organization SSO | Add [login providers](/guides/integrations/external-login-providers/) and turn off [password login](#sso-only-login). |
 | Mixed community | Keep password accounts and add selected login providers. |
 
+## Deactivate an Account
+
+Upgrade every server replica to a version that supports account deactivation
+before you use this feature. Older replicas do not enforce the access flag.
+
+To stop access and keep the user's data, open **Server configuration → Members**,
+select the member, and open **Account → Deactivate Account**. You need
+`admin.view-users` and `user.manage-accounts`. Confirm the account and effect.
+You cannot deactivate your own account or an owner account.
+
+One-to-one conversations show a notice when the other account is deactivated
+and stop accepting new messages.
+Deactivated accounts do not appear in new-conversation, mention, or invitation
+pickers. Existing messages and profiles remain readable. Reactivation restores
+these controls without a page reload. Administrative details remain private.
+
+Deactivation blocks sign-in and invalidates existing sessions. The profile,
+messages, files, memberships, and roles remain intact. The user's bots also
+lose access. Existing call connections are removed at the next participant
+permission check. The account's login and email addresses remain claimed.
+
+Select **Reactivate Account** to permit access again. The user must sign in
+again; old human sessions stay invalid. Bot credentials work again after
+reactivation. Account deletion remains a separate action that removes data.
+
 ## SSO-Only Login
 
 Configure and test at least one login provider first. Then disable password
@@ -46,6 +71,25 @@ CHATTO_AUTH_DIRECT_REGISTRATION=false
 With `direct_login = false`, the login page shows only the configured
 providers, and the password login endpoint returns `403`. Existing sessions
 stay valid. `direct_registration` controls registration separately.
+
+Users cannot add, change, or reset local passwords while password login is
+disabled. Account settings keeps the password controls visible but disabled,
+with an SSO notice. Stored passwords and operator recovery remain available.
+For sensitive account actions that require fresh authentication, sign in again
+through SSO on the server that owns the account, then complete the action in
+that server's account settings. A stored local password cannot replace this
+SSO authentication.
+
+Users cannot disconnect their last enabled sign-in method. On SSO-only
+servers, a stored password does not count as an alternative. Link another
+provider that the server still supports before disconnecting the current one.
+A link to a removed provider or an old OIDC issuer does not prevent lockout
+and does not count as an alternative.
+
+After an upgrade, an old OIDC link can contain only an identity hash. Sign in
+through that OIDC provider once to let Chatto record its verified issuer.
+Until then, the link does not count as an alternative when disconnecting
+another provider. This update does not require group-role mappings.
 
 <Aside type="caution">
   If no provider works, signed-out users cannot sign in. Keep an operator

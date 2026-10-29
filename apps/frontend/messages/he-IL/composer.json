@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "הוסף אימוג׳י",
     "attach_file": "צרף קובץ",
     "formatting_options": "אפשרויות עיצוב",
     "send": "שלח הודעה",
@@ -25,6 +26,8 @@
     "drop_files_title": "שחרר קבצים כאן",
     "drop_files_subtitle": "תמונות וסרטונים יתווספו להודעה שלך",
     "send_failed": "נכשל שליחת ההודעה",
+    "send_retry_expired": "פרק הזמן לניסיון שליחה חוזר הסתיים. בדוק אם ההודעה שלך הגיעה לפני שתשלח אותה שוב.",
+    "send_retry_reset": "החיבור אופס. בדוק אם ההודעה שלך הגיעה לפני שתשלח אותה שוב.",
     "slow_mode_ready": "מצב איטי: הודעה אחת בכל {interval}.",
     "slow_mode_waiting": "מצב איטי: ניתן לשלוח שוב בעוד {countdown}.",
     "slow_mode_bypassed": "מצב איטי: {interval} (ההגבלה לא חלה עליך).",
@@ -44,9 +47,11 @@
       "remove": "הסר את {filename}",
       "video_disabled": "העלאת סרטונים מושבתת בשרת זה.",
       "prepare_failed": "הכנת הקובץ המצורף נכשלה",
+      "too_many": "אפשר לצרף עד {max} קבצים לכל הודעה. הקבצים הנוספים לא נוספו.",
       "too_large": "{filename} גדול מדי ({size}). הגודל המרבי הוא {limit}."
     },
     "format": {
+      "underline": "קו תחתון",
       "bold": "מודגש",
       "italic": "נטוי",
       "inline_code": "קוד מוטבע",

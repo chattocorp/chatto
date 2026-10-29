@@ -2,8 +2,10 @@ package core
 
 import (
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"sort"
+
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"google.golang.org/protobuf/proto"
 
@@ -19,7 +21,7 @@ func (p *RBACProjection) Snapshot() ([]byte, error) {
 	defer p.RUnlock()
 	snapshot := &projectionv1.RBACProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	for _, roleName := range sortedMapKeys(p.roles) {
-		snapshot.Roles = append(snapshot.Roles, proto.Clone(p.roles[roleName]).(*evtv1.Role))
+		snapshot.Roles = append(snapshot.Roles, snapshotRole(p.roles[roleName]))
 	}
 	for _, userID := range sortedMapKeys(p.assignments) {
 		row := &projectionv1.RBACAssignmentSnapshot{UserId: userID, RoleNames: sortedMapKeys(p.assignments[userID])}
@@ -67,7 +69,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("RBAC snapshot replay guard: %w", err)
 	}
-	roles := make(map[string]*evtv1.Role, len(snapshot.GetRoles()))
+	roles := make(map[string]*readmodel.Role, len(snapshot.GetRoles()))
 	for _, role := range snapshot.GetRoles() {
 		if role.GetName() == "" {
 			return fmt.Errorf("RBAC snapshot has empty role name")
@@ -75,7 +77,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 		if _, duplicate := roles[role.GetName()]; duplicate {
 			return fmt.Errorf("RBAC snapshot repeats role %q", role.GetName())
 		}
-		roles[role.GetName()] = proto.Clone(role).(*evtv1.Role)
+		roles[role.GetName()] = restoreRole(role)
 	}
 	assignments := make(map[string]map[string]string, len(snapshot.GetAssignments()))
 	for _, assignment := range snapshot.GetAssignments() {

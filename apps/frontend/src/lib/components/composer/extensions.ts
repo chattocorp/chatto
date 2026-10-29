@@ -6,6 +6,8 @@ import {
 import {
   Extension,
   InputRule,
+  markInputRule,
+  markPasteRule,
   mergeAttributes,
   type MarkdownParseHelpers,
   type MarkdownRendererHelpers,
@@ -14,6 +16,13 @@ import {
 import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
+import Bold, {
+  starInputRegex,
+  starPasteRegex,
+  underscoreInputRegex,
+  underscorePasteRegex
+} from '@tiptap/extension-bold';
+import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import { entityLinkPreview } from './entityLinkPreview';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
@@ -29,6 +38,45 @@ const markdownAutolinkInputRegex = /(^|\s)<(https?:\/\/[^\s<>]+)>$/i;
 const codeFenceLineRegex = /^```([\w-]+)?$/;
 const markdownBulletListLineRegex = /^[ \t]{0,3}[-+*]\s(.*)$/;
 const markdownOrderedListLineRegex = /^[ \t]{0,3}(\d{1,9})[.)]\s(.*)$/;
+
+/** Use the Markdown parser's emphasis boundaries, including its code exclusions. */
+const ComposerBold = Bold.extend({
+  parseMarkdown(token, helpers) {
+    const content = helpers.parseInline(token.tokens ?? []);
+    if (!token.raw?.startsWith('__')) return helpers.applyMark('bold', content);
+    // Inline code excludes other marks in the editor schema. Keep its text
+    // literal even when a surrounding underline span contains it.
+    return content.map((node) =>
+      node.type === 'text' && !node.marks?.some((mark) => mark.type === 'code')
+        ? { ...node, marks: [...(node.marks ?? []), { type: 'underline' }] }
+        : node
+    );
+  },
+  addInputRules() {
+    return [markInputRule({ find: starInputRegex, type: this.type })];
+  },
+  addPasteRules() {
+    return [markPasteRule({ find: starPasteRegex, type: this.type })];
+  }
+});
+
+/** Underline uses double underscores; strong tokens are parsed by ComposerBold. */
+const ComposerUnderline = Underline.extend({
+  // An undefined field inherits Tiptap's ++ tokenizer. Override it explicitly;
+  // ComposerBold handles the standard parser's double-underscore tokens.
+  markdownTokenizer: {
+    name: 'underline',
+    level: 'inline',
+    tokenize: () => undefined
+  },
+  renderMarkdown: (node, helpers) => `__${helpers.renderChildren(node)}__`,
+  addInputRules() {
+    return [markInputRule({ find: underscoreInputRegex, type: this.type })];
+  },
+  addPasteRules() {
+    return [markPasteRule({ find: underscorePasteRegex, type: this.type })];
+  }
+});
 
 /** Tiptap must only decorate saved languages, never guess during rendering. */
 const editorCodeHighlighting = {
@@ -558,12 +606,15 @@ export function createComposerExtensions(placeholder: string, context?: Map<unkn
     StarterKit.configure({
       // Keep the composer subset aligned with the rendered message markdown.
       codeBlock: false,
+      bold: false,
       strike: false,
       underline: false,
       horizontalRule: false,
       trailingNode: false,
       link: false
     }),
+    ComposerBold.configure(),
+    ComposerUnderline.configure(),
     link.configure({
       autolink: true,
       shouldAutoLink: hasAutoLinkPrefix,

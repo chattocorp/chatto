@@ -6,6 +6,15 @@
       "confirmation": "Na 15 minut włączy to dodatkowe uprawnienia przypisane do ciebie na tym serwerze."
     },
     "notifications": {
+      "all_notifications": "Wszystkie powiadomienia",
+      "all_types": "Wszystkie typy",
+      "filter_status": "Stan",
+      "filter_type": "Typ",
+      "reactions": "Reakcje",
+      "replies": "Odpowiedzi",
+      "mentions": "Wzmianki",
+      "next_unread_source": "Przejdź do następnego nieprzeczytanego źródła",
+      "no_unread": "Brak nieprzeczytanych powiadomień",
       "title": "Powiadomienia",
       "subtitle": "Oto nowości",
       "clear_read": "Usuń przeczytane",
@@ -28,12 +37,6 @@
         "activity": "Masz nowe powiadomienie od {actor}",
         "room_invitation": "{actor} zaprasza Cię do pokoju"
       }
-    },
-    "sign_out": {
-      "title": "Wyloguj się",
-      "current_server": "Bieżący serwer",
-      "all_servers": "Wszystkie serwery",
-      "description": "Wyloguj się tylko z wybranego serwera lub odłącz każdy serwer od tego klienta."
     },
     "overview": {
       "title": "Przegląd"

@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Zveřejňovat, opravovat, znovu oznamovat a mazat oznámení místnosti",
       "server_manage": "Aktualizace nastavení serveru (název, popis, logo)",
       "server_manage_neighbors": "Spravovat veřejný adresář sousedů",
       "room_create": "Vytvořte nové místnosti",

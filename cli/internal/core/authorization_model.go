@@ -3,8 +3,9 @@ package core
 import (
 	"context"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 // AuthorizationModel owns shared permission decisions, effective room
@@ -87,7 +88,7 @@ func (a *AuthorizationModel) resolveCallPermissions(ctx context.Context, actorID
 }
 
 // requireBotManager admits the human owner or a caller with bot management authority.
-func (a *AuthorizationModel) requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
+func (a *AuthorizationModel) requireBotManager(ctx context.Context, actorID, botID string) (*readmodel.User, error) {
 	if err := a.requireHumanUser(ctx, actorID); err != nil {
 		return nil, err
 	}

@@ -1,6 +1,5 @@
 {
-  ".": "0.5.0-beta.19",
-  "apps/desktop": "0.1.0-alpha.2",
+  ".": "0.5.0-beta.24",
   "authling": "0.1.0-alpha.2",
   "packages/runling": "0.7.0",
   "pkg/appconfig": "0.0.0",

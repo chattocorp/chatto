@@ -38,4 +38,6 @@ message User {
   optional string timezone = 10;
   // Present for a bot identity; absent for humans and deleted-account references.
   BotInfo bot = 11;
+  // True while the account cannot use this server. Data is retained and access can be restored.
+  bool deactivated = 12;
 }

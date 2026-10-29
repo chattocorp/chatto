@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Tastenkürzel",
+      "app": "App",
+      "undo": "Rückgängig",
+      "redo": "Wiederholen",
+      "new_line": "Neue Zeile",
+      "edit_last": "Letzte Nachricht bearbeiten (leerer Entwurf)",
+      "complete": "Erwähnung oder Emoji vervollständigen"
+    },
+    "action_unavailable": "Diese Aktion ist derzeit nicht verfügbar.",
+    "edit": "Bearbeiten",
     "copy_failed": "Kopieren in die Zwischenablage fehlgeschlagen. Markiere den Text und kopiere ihn manuell.",
     "cancel": "Abbrechen",
     "close_sidebar": "Seitenleiste schließen",
@@ -22,12 +33,12 @@
     "password_placeholder": "Dein Passwort",
     "email_placeholder": "du@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8-Bytes",
+    "password_bytes_placeholder": "Passwort wählen",
     "password_confirm_placeholder": "Passwort erneut eingeben",
     "validation": {
       "email": "Bitte gib eine gültige E-Mail-Adresse ein",
-      "password_min_bytes": "Verwende mindestens 8 UTF-8-Bytes. Manche Zeichen benötigen mehrere Bytes.",
-      "password_max": "Verwende höchstens 72 UTF-8-Bytes. Manche Zeichen benötigen mehrere Bytes.",
+      "password_min_bytes": "Das Passwort ist zu kurz",
+      "password_max": "Das Passwort ist zu lang",
       "username_min": "Muss mindestens 2 Zeichen lang sein",
       "username_max": "Darf höchstens 32 Zeichen lang sein",
       "username_charset": "Nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche",

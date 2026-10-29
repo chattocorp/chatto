@@ -12,15 +12,21 @@ export const init: ServerInit = async () => {
 // The CLI awaits this hook before it closes its HTTP server.
 if (!building) {
   (
-    globalThis as typeof globalThis & { __runlingStopSources?: () => Promise<void> }
+    globalThis as typeof globalThis & {
+      __runlingStopSources?: () => Promise<void>;
+      __runlingStartSources?: typeof startSourceHost;
+    }
   ).__runlingStopSources = stopSourceHost;
+  (
+    globalThis as typeof globalThis & { __runlingStartSources?: typeof startSourceHost }
+  ).__runlingStartSources = startSourceHost;
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
   const started = performance.now();
   const response = await resolve(event);
   serverLog(
-    response.status >= 500 ? 'error' : response.status >= 400 ? 'warn' : 'info',
+    response.status >= 500 ? 'error' : response.status >= 400 ? 'warn' : 'debug',
     'http.response',
     {
       method: event.request.method,

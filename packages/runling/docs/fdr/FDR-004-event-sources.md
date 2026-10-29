@@ -12,6 +12,15 @@ a webhook endpoint. Webhooks and sources can coexist or be configured separately
 
 - Sources start eagerly in development and packaged serving, without a browser
   request. They use the same run store as HTTP routes.
+- Applications can host the packaged console and sources in their own process.
+  Object configuration loads once. The host owns signal cleanup by default and
+  also provides explicit, awaited shutdown. One host can run in a process at a time.
+- Sources can use a bounded batch queue to serialize work per application key
+  while separate keys run concurrently. Capacity includes running and queued
+  items. Applications select quiet periods and can extend them for queued work.
+- Batch duplicate detection is process-local. Failed items can be admitted again;
+  the source decides whether retry is safe. Closing the queue discards queued
+  items and awaits running callbacks. The queue does not create or recover tasks.
 - Each dispatch receives a fresh routing context and waits for all run
   registrations it initiated, not workflow completion. A failed registration
   rejects dispatch; successful registrations from the same delivery remain.
@@ -54,6 +63,9 @@ must reset incompatible credentials, identity, or routing state itself.
 
 ## Related
 
+- [ADR-012: Router-controlled workflow reactivation](../adr/ADR-012-router-controlled-reactivation.md)
+
+- [ADR-011: In-process hosting and keyed batching](../adr/ADR-011-hosting-and-batching.md)
 - [ADR-001: Process-local workflows](../adr/ADR-001-process-local-workflows.md)
 - [ADR-004: Event sources](../adr/ADR-004-event-sources.md)
 - [ADR-009: Typed task invocations](../adr/ADR-009-task-invocations.md)

@@ -7,6 +7,8 @@ describe('createComposerExtensions', () => {
 
     expect(extensions.map(({ name }) => name)).toEqual([
       'starterKit',
+      'bold',
+      'underline',
       'link',
       'markdown',
       'unsupportedLinkProtocol',

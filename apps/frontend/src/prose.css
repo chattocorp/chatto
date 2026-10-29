@@ -182,6 +182,20 @@
     white-space: normal;
   }
 
+  /* ANSI art uses terminal cell spacing and a fixed palette in both themes. */
+  & pre.markdown-ansi {
+    background: #000;
+    color: #aaa;
+    line-height: 1;
+    font-variant-ligatures: none;
+  }
+
+  & pre.markdown-ansi > code {
+    max-height: 32rem;
+    overflow: auto;
+    white-space: pre;
+  }
+
   & pre.markdown-code .markdown-code-language {
     @apply text-xs tracking-wide text-muted uppercase;
   }

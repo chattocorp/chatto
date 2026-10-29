@@ -1,0 +1,35 @@
+syntax = "proto3";
+package chatto.core.evt.v1;
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
+
+// ImportContext marks historical writes. Consumers must derive state without
+// sending live activity, notifications, invitations, or webhooks.
+message ImportContext {
+  string export_id = 1;
+  // Reconciliation facts update state without inventing timeline entries.
+  bool hidden_timeline = 2;
+  // The envelope time is an internal ordering time, not a known source time.
+  bool unknown_time = 3;
+  // Mapped source actor, when known. Native membership actors identify members.
+  optional string source_actor_id = 4;
+}
+
+// Legacy server-side archive progress, retained for persisted compatibility.
+// New imports use individual operator operations and a CLI-owned journal.
+// Tag 952 belongs to this fact; evt.import.server.import_progressed is its lane.
+message ImportProgressedEvent {
+  string fingerprint = 1;
+  uint64 operation_index = 2;
+  // Allocated resource identity, or the destination namespace at index zero.
+  string resource_id = 3;
+  bool complete = 4;
+}
+
+// A permanent result for one keyed operator operation, committed atomically
+// with its domain facts. This contains no archive state or source references.
+message OperatorOperationCompletedEvent {
+  // HMAC of the method and exact operation arguments; contains no plaintext PII.
+  string fingerprint = 1;
+  // Allocated or affected destination resource ID.
+  string resource_id = 2;
+}

@@ -128,6 +128,13 @@ export class User extends Message<User> {
    */
   bot?: BotInfo;
 
+  /**
+   * True while the account cannot use this server. Data is retained and access can be restored.
+   *
+   * @generated from field: bool deactivated = 12;
+   */
+  deactivated = false;
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -146,6 +153,7 @@ export class User extends Message<User> {
     { no: 9, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 10, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 11, name: "bot", kind: "message", T: BotInfo },
+    { no: 12, name: "deactivated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

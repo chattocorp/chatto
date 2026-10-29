@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -66,77 +67,96 @@ func readAndValidateImage(input io.Reader, maxBytes int64) ([]byte, error) {
 }
 
 func validateDecodedImageSize(data []byte) error {
-	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	_, err := InspectImage(bytes.NewReader(data))
+	return err
+}
+
+// ImageInfo describes an image from its headers, without its pixel data.
+type ImageInfo struct {
+	// Width and Height are the display dimensions after EXIF orientation.
+	Width  int
+	Height int
+	// Format is the name of the decoder, for example "jpeg", "png", or "gif".
+	Format string
+	// Frames is the number of GIF frames. It is 0 for other formats.
+	Frames int
+}
+
+// InspectImage reads the image headers from r and applies the decoded-size
+// limits. It does not decode pixel data, so its memory use does not increase
+// with the image dimensions. It starts at the beginning of r and leaves the
+// read position undefined.
+//
+// InspectImage does not prove that the pixel data is valid. A decoder that
+// later reads the pixels can still fail.
+func InspectImage(r io.ReadSeeker) (ImageInfo, error) {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return ImageInfo{}, fmt.Errorf("rewind image: %w", err)
+	}
+	config, format, err := imageorient.DecodeConfig(bufio.NewReader(r))
 	if err != nil {
-		return fmt.Errorf("failed to decode image configuration: %w", err)
+		return ImageInfo{}, fmt.Errorf("failed to decode image configuration: %w", err)
+	}
+	if format == "heic" {
+		if err := validateHEICStill(r); err != nil {
+			return ImageInfo{}, err
+		}
 	}
 	if config.Width <= 0 || config.Height <= 0 || config.Width > MaxDecodedImageDimension || config.Height > MaxDecodedImageDimension {
-		return fmt.Errorf("image dimensions %dx%d exceed the supported limit", config.Width, config.Height)
+		return ImageInfo{}, fmt.Errorf("image dimensions %dx%d exceed the supported limit", config.Width, config.Height)
 	}
 	pixels := int64(config.Width) * int64(config.Height)
 	if pixels > MaxDecodedImagePixels {
-		return fmt.Errorf("image contains %d pixels, exceeding the supported limit of %d", pixels, MaxDecodedImagePixels)
+		return ImageInfo{}, fmt.Errorf("image contains %d pixels, exceeding the supported limit of %d", pixels, MaxDecodedImagePixels)
 	}
-	if len(data) >= 6 && (string(data[:6]) == "GIF87a" || string(data[:6]) == "GIF89a") {
-		if _, err := inspectGIFFrames(data); err != nil {
-			return err
+	info := ImageInfo{Width: config.Width, Height: config.Height, Format: format}
+	if format == "gif" {
+		if _, err := r.Seek(0, io.SeekStart); err != nil {
+			return ImageInfo{}, fmt.Errorf("rewind image: %w", err)
+		}
+		if info.Frames, err = inspectGIFFrames(r); err != nil {
+			return ImageInfo{}, err
 		}
 	}
-	return nil
+	return info, nil
 }
 
 // inspectGIFFrames walks GIF block framing without decompressing image data,
 // allowing frame and per-frame dimension limits to be enforced before DecodeAll.
-func inspectGIFFrames(data []byte) (int, error) {
-	if len(data) < 13 {
+func inspectGIFFrames(input io.Reader) (int, error) {
+	r := bufio.NewReader(input)
+	var header [13]byte
+	if _, err := io.ReadFull(r, header[:]); err != nil {
 		return 0, fmt.Errorf("invalid GIF header")
 	}
-	offset := 13
-	packed := data[10]
-	if packed&0x80 != 0 {
-		offset += 3 * (1 << ((packed & 0x07) + 1))
-	}
-	if offset > len(data) {
+	if err := skipGIFColorTable(r, header[10]); err != nil {
 		return 0, fmt.Errorf("invalid GIF color table")
 	}
 
 	frames := 0
 	var cumulativePixels int64
-	skipSubBlocks := func() error {
-		for {
-			if offset >= len(data) {
-				return io.ErrUnexpectedEOF
-			}
-			size := int(data[offset])
-			offset++
-			if size == 0 {
-				return nil
-			}
-			if size > len(data)-offset {
-				return io.ErrUnexpectedEOF
-			}
-			offset += size
+	for {
+		marker, err := r.ReadByte()
+		if err != nil {
+			return 0, io.ErrUnexpectedEOF
 		}
-	}
-
-	for offset < len(data) {
-		switch data[offset] {
+		switch marker {
 		case 0x3b: // trailer
 			return frames, nil
 		case 0x21: // extension
-			offset += 2 // introducer and label
-			if offset > len(data) {
+			if _, err := r.ReadByte(); err != nil { // label
 				return 0, io.ErrUnexpectedEOF
 			}
-			if err := skipSubBlocks(); err != nil {
+			if err := skipGIFSubBlocks(r); err != nil {
 				return 0, fmt.Errorf("invalid GIF extension: %w", err)
 			}
 		case 0x2c: // image descriptor
-			if offset+10 > len(data) {
+			var descriptor [9]byte
+			if _, err := io.ReadFull(r, descriptor[:]); err != nil {
 				return 0, io.ErrUnexpectedEOF
 			}
-			width := int(binary.LittleEndian.Uint16(data[offset+5 : offset+7]))
-			height := int(binary.LittleEndian.Uint16(data[offset+7 : offset+9]))
+			width := int(binary.LittleEndian.Uint16(descriptor[4:6]))
+			height := int(binary.LittleEndian.Uint16(descriptor[6:8]))
 			if width <= 0 || height <= 0 || width > MaxDecodedImageDimension || height > MaxDecodedImageDimension {
 				return 0, fmt.Errorf("GIF frame dimensions %dx%d exceed the supported limit", width, height)
 			}
@@ -149,23 +169,44 @@ func inspectGIFFrames(data []byte) (int, error) {
 			if frames > MaxAnimatedImageFrames || cumulativePixels > MaxAnimatedImageCumulativePixels {
 				return 0, fmt.Errorf("animated image exceeds supported frame limits")
 			}
-			packed := data[offset+9]
-			offset += 10
-			if packed&0x80 != 0 {
-				offset += 3 * (1 << ((packed & 0x07) + 1))
-			}
-			if offset >= len(data) {
+			if err := skipGIFColorTable(r, descriptor[8]); err != nil {
 				return 0, io.ErrUnexpectedEOF
 			}
-			offset++ // LZW minimum code size
-			if err := skipSubBlocks(); err != nil {
+			if _, err := r.ReadByte(); err != nil { // LZW minimum code size
+				return 0, io.ErrUnexpectedEOF
+			}
+			if err := skipGIFSubBlocks(r); err != nil {
 				return 0, fmt.Errorf("invalid GIF image data: %w", err)
 			}
 		default:
-			return 0, fmt.Errorf("invalid GIF block marker 0x%x", data[offset])
+			return 0, fmt.Errorf("invalid GIF block marker 0x%x", marker)
 		}
 	}
-	return 0, io.ErrUnexpectedEOF
+}
+
+// skipGIFColorTable skips the color table that the packed field declares.
+func skipGIFColorTable(r *bufio.Reader, packed byte) error {
+	if packed&0x80 == 0 {
+		return nil
+	}
+	_, err := r.Discard(3 * (1 << ((packed & 0x07) + 1)))
+	return err
+}
+
+// skipGIFSubBlocks skips a chain of data sub-blocks, including its terminator.
+func skipGIFSubBlocks(r *bufio.Reader) error {
+	for {
+		size, err := r.ReadByte()
+		if err != nil {
+			return io.ErrUnexpectedEOF
+		}
+		if size == 0 {
+			return nil
+		}
+		if _, err := r.Discard(int(size)); err != nil {
+			return io.ErrUnexpectedEOF
+		}
+	}
 }
 
 func decodeBoundedImage(input io.Reader, cfg Config) (image.Image, error) {
@@ -231,7 +272,7 @@ func DetectImageContentType(data []byte) string {
 
 // IsAnimatedGIF checks if the given bytes represent an animated GIF (more than 1 frame).
 func IsAnimatedGIF(data []byte) bool {
-	frames, err := inspectGIFFrames(data)
+	frames, err := inspectGIFFrames(bytes.NewReader(data))
 	return err == nil && frames > 1
 }
 
@@ -313,50 +354,6 @@ func ProcessLinkPreviewImageWithConfig(input io.Reader, cfg Config) (io.Reader, 
 	}
 
 	return bytes.NewReader(buf.Bytes()), nil
-}
-
-// AttachmentImageResult holds the processed attachment image data.
-type AttachmentImageResult struct {
-	// Original contains the original image bytes (unchanged)
-	Original []byte
-	// Width of the original image
-	Width int
-	// Height of the original image
-	Height int
-}
-
-// ProcessAttachmentImage reads an image and extracts metadata (dimensions).
-// The original image is returned as-is (not re-encoded).
-// Thumbnails are generated on-the-fly via the transform system.
-// Uses default config values.
-func ProcessAttachmentImage(input io.Reader) (*AttachmentImageResult, error) {
-	return ProcessAttachmentImageWithConfig(input, DefaultConfig())
-}
-
-// ProcessAttachmentImageWithConfig reads an image and extracts metadata (dimensions).
-// The original image is returned as-is (not re-encoded).
-// Thumbnails are generated on-the-fly via the transform system.
-// Returns an error if the input exceeds cfg.MaxUploadSize or cannot be decoded.
-func ProcessAttachmentImageWithConfig(input io.Reader, cfg Config) (*AttachmentImageResult, error) {
-	// Read all input into memory (limited to MaxUploadSize)
-	originalBytes, err := readAndValidateImage(input, cfg.MaxUploadSize)
-	if err != nil {
-		return nil, err
-	}
-
-	// Decode the image to get dimensions (applies EXIF orientation for correct dimensions)
-	img, _, err := imageorient.Decode(bytes.NewReader(originalBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
-	}
-
-	bounds := img.Bounds()
-
-	return &AttachmentImageResult{
-		Original: originalBytes,
-		Width:    bounds.Dx(),
-		Height:   bounds.Dy(),
-	}, nil
 }
 
 // resizeToFit resizes an image to fit within the specified maximum width and height

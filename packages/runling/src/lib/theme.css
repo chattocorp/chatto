@@ -22,26 +22,34 @@
   }
 }
 
-/* Neutral surfaces for the dark theme; no app-specific color tokens. */
+/* Slate surfaces and muted status colors keep long activity lists quiet. */
 @plugin "daisyui/theme" {
   name: 'dark';
   color-scheme: dark;
-  --color-base-100: #111111;
-  --color-base-200: #191919;
-  --color-base-300: #2a2a2a;
-  --color-base-content: #ededed;
-  --color-primary: #507dc6;
-  --color-primary-content: #ffffff;
-  --color-secondary: #8864bb;
-  --color-secondary-content: #ffffff;
-  --color-accent: #338c86;
-  --color-accent-content: #ffffff;
-  --color-neutral: #242424;
-  --color-neutral-content: #ededed;
+  --color-base-100: #20252b;
+  --color-base-200: #252b32;
+  --color-base-300: #343c45;
+  --color-base-content: #d7dee5;
+  --color-primary: #93afd2;
+  --color-primary-content: #20252b;
+  --color-secondary: #b0a0c8;
+  --color-secondary-content: #20252b;
+  --color-accent: #8dbbb3;
+  --color-accent-content: #20252b;
+  --color-neutral: #303841;
+  --color-neutral-content: #d7dee5;
+  --color-info: #93afd2;
+  --color-info-content: #20252b;
+  --color-success: oklch(76% 0.177 163.223);
+  --color-success-content: #20252b;
+  --color-warning: #d1b582;
+  --color-warning-content: #20252b;
+  --color-error: #d69b9b;
+  --color-error-content: #20252b;
 }
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans Variable', 'Segoe UI', sans-serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'SFMono-Regular', Consolas, monospace;
   --animate-braille-spinner: braille-spinner 0.8s steps(10) infinite;
 

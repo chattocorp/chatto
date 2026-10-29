@@ -54,7 +54,12 @@
       enabled: querySearch.length > 0
     };
   });
-  const candidates = $derived(query.data ?? []);
+  const candidates = $derived((query.data ?? []).filter(isActive));
+  const activeSelected = $derived(selected.filter(isActive));
+
+  function isActive(user: RoomMemberCandidate): boolean {
+    return !(scope.store.projection.users.get(user.id)?.user?.deactivated ?? user.deactivated);
+  }
 
   /** Invalidate pending sends before the parent clears the dialog's room target. */
   function close(): void {
@@ -64,10 +69,10 @@
 
   async function send(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!selected.length || sending) return;
+    if (!activeSelected.length || sending) return;
     const snapshot = session.snapshot();
     const targetRoom = room.id;
-    const recipients = [...selected];
+    const recipients = [...activeSelected];
     const failures: string[] = [];
     sending = true;
     error = null;
@@ -110,7 +115,7 @@
   submitLabel={m('room.invitation.send')}
   submitIcon="iconify icon-[uil--user-plus]"
   loading={sending}
-  disabled={!selected.length}
+  disabled={!activeSelected.length}
   {error}
   onsubmit={send}
   oncloserequest={() => session.invalidate()}

@@ -2,7 +2,8 @@ import { loadWebConfig } from '$lib/server/web-config.ts';
 import { getRunStore } from '$lib/server/run-store.ts';
 import type { PageServerLoad } from './$types';
 import type { WebhookInfo } from '$lib/runs.ts';
-import { describeRouterSchemas } from 'runling/web';
+import { web } from '$lib/server/runtime.ts';
+const { describeRouterSchemas } = web;
 
 export const load: PageServerLoad = async () => {
   const config = await loadWebConfig();

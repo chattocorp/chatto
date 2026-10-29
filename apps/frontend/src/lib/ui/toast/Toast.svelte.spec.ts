@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import Toast from './Toast.svelte';
@@ -82,6 +83,10 @@ describe('Toast', () => {
     await expect.element(toastShell(container)).toHaveTextContent('A new version is available');
     await expect.element(actionButton(container, 'Reload')).toHaveClass('btn-secondary');
     await expect.element(actionButton(container, 'Reload')).toHaveClass('btn-xs');
+    expect(actionButton(container, 'Reload').getBoundingClientRect().height).toBeGreaterThanOrEqual(
+      32
+    );
+    expect(dismissButton(container).getBoundingClientRect().height).toBeGreaterThanOrEqual(32);
   });
 
   it('dismisses when clicked', () => {

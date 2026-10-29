@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 
@@ -76,13 +78,13 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{configSnapshotContractID, "v3", &projectionv1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &projectionv1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &projectionv1.MentionablesProjectionSnapshot{}},
-		{notificationDecisionSnapshotContractID, "v2", &projectionv1.NotificationDecisionProjectionSnapshot{}},
+		{notificationDecisionSnapshotContractID, "v3", &projectionv1.NotificationDecisionProjectionSnapshot{}},
 		{notificationSnapshotContractID, "v2", &projectionv1.NotificationProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v2", &projectionv1.RBACProjectionSnapshot{}},
-		{reactionSnapshotContractID, "v1", &projectionv1.ReactionProjectionSnapshot{}},
+		{reactionSnapshotContractID, "v2", &projectionv1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v2", &projectionv1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v10", &projectionv1.RoomTimelineProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v11", &projectionv1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v3", &projectionv1.ThreadProjectionSnapshot{}},
 		{userSnapshotContractID, "v4", &projectionv1.UserProfileProjectionSnapshot{}},
 	}
@@ -253,6 +255,53 @@ func TestRoomDirectorySnapshotPreservesThreadSlowModePresence(t *testing.T) {
 	}
 }
 
+func TestRoomGroupSnapshotLinkOrderDoesNotChangeLayout(t *testing.T) {
+	t.Parallel()
+	original := NewRoomGroupLayoutProjection()
+	original.Layout.groupIDs = []string{"G1"}
+	original.Groups.groups["G1"] = &roomGroupEntry{
+		name: "Lobby", roomIDs: []string{"R1"},
+		entries: []*evtv1.SidebarGroupEntry{
+			{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: "L2"},
+			{Kind: evtv1.SidebarGroupEntry_ROOM, Id: "R1"},
+			{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: "L1"},
+		},
+		links: map[string]*readmodel.SidebarLink{
+			"L1": {Id: "L1", Label: "First", Url: "/first"},
+			"L2": {Id: "L2", Label: "Second", Url: "/second"},
+			// Retained links need not occur in the display entries.
+			"L3": {Id: "L3", Label: "Orphan", Url: "/orphan"},
+		},
+	}
+	want, ok := original.Groups.Get("G1")
+	require.True(t, ok)
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	snapshot := &projectionv1.RoomGroupLayoutProjectionSnapshot{}
+	require.NoError(t, proto.Unmarshal(payload, snapshot))
+	links := snapshot.Groups[0].Group.SidebarLinks
+	require.Len(t, links, 3)
+	require.Equal(t, []string{"L1", "L2", "L3"}, []string{links[0].Id, links[1].Id, links[2].Id})
+
+	for _, previousOrder := range []bool{false, true} {
+		if previousOrder {
+			// Older snapshots stored link payloads in display order, then orphans.
+			links[0], links[1] = links[1], links[0]
+		}
+		encoded, err := proto.Marshal(snapshot)
+		require.NoError(t, err)
+		restored := NewRoomGroupLayoutProjection()
+		require.NoError(t, restored.Restore(encoded))
+		got, ok := restored.Groups.Get("G1")
+		require.True(t, ok)
+		require.Equal(t, want, got)
+		require.Equal(t, original.Layout.groupIDs, restored.Layout.groupIDs)
+		canonical, err := restored.Snapshot()
+		require.NoError(t, err)
+		require.Equal(t, payload, canonical)
+	}
+}
+
 func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	t.Parallel()
 
@@ -264,7 +313,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	}{
 		{"room_directory", func() snapshotProjection { return NewRoomDirectoryProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomDirectoryProjection)
-			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
+			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", purpose: "Imported purpose", kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
 			p.Catalog.seq = 41
 			p.Membership.addLocked("R1", "U1")
 			expires := now.Add(time.Hour)
@@ -290,7 +339,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"room_group_layout", func() snapshotProjection { return NewRoomGroupLayoutProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomGroupLayoutProjection)
-			p.Groups.groups["G1"] = &roomGroupEntry{name: "Lobby", roomIDs: []string{"R1"}, entries: []*evtv1.SidebarGroupEntry{{Kind: evtv1.SidebarGroupEntry_ROOM, Id: "R1"}}, links: map[string]*evtv1.SidebarLink{"L1": {Id: "L1", Label: "Docs", Url: "https://example.test"}}}
+			p.Groups.groups["G1"] = &roomGroupEntry{name: "Lobby", roomIDs: []string{"R1"}, entries: []*evtv1.SidebarGroupEntry{{Kind: evtv1.SidebarGroupEntry_ROOM, Id: "R1"}}, links: map[string]*readmodel.SidebarLink{"L1": {Id: "L1", Label: "Docs", Url: "https://example.test"}}}
 			p.Groups.seq = 42
 			p.Layout.groupIDs = []string{"G1"}
 		}},
@@ -385,7 +434,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"rbac", func() snapshotProjection { return NewRBACProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RBACProjection)
-			p.roles["member"] = &evtv1.Role{Name: "member", DisplayName: "Member"}
+			p.roles["member"] = &readmodel.Role{Name: "member", DisplayName: "Member"}
 			p.assignments["U1"] = map[string]string{"member": "", "moderator": "company"}
 			p.decisions[rbacDecisionKey{scope: ScopeServer, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessagePost}] = DecisionAllow
 			p.decisions[rbacDecisionKey{scope: ScopeDM, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessageRead}] = DecisionDeny
@@ -398,7 +447,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"users", func() snapshotProjection { return NewUserProjection(nil, nil) }, func(raw snapshotProjection) {
 			p := raw.(*UserProjection)
-			p.users["U1"] = &projectedUser{user: &evtv1.User{Id: "U1", CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
+			p.users["U1"] = &projectedUser{user: &readmodel.User{Id: "U1", CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
 			p.replayGuard.highestSeq = 41
 			p.replayGuard.completeReplay()
 		}},
@@ -406,8 +455,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v2-", "server_config": "v3-", "room_group_layout": "v1-",
-		"notification_decisions": "v2-", "notifications": "v2-",
-		"room_timeline": "v10-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
+		"notification_decisions": "v3-", "notifications": "v2-",
+		"room_timeline": "v11-", "threads": "v3-", "call_state": "v1-", "assets": "v3-", "reactions": "v2-",
 		"content_keys": "v1-", "rbac": "v2-", "mentionables": "v2-", "users": "v4-",
 	}
 	for _, tt := range tests {

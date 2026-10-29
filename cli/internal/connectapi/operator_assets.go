@@ -23,6 +23,7 @@ func (s *operatorAssetService) CreateUpload(ctx context.Context, req *connect.Re
 	upload, err := s.api.core.AssetUploads().CreateUpload(ctx, core.AssetUploadCreateInput{
 		ActorID:     req.Msg.GetAuthorId(),
 		Operator:    true,
+		Historical:  req.Msg.GetHistorical(),
 		RoomID:      req.Msg.GetRoomId(),
 		Filename:    req.Msg.GetFilename(),
 		ContentType: contentType,

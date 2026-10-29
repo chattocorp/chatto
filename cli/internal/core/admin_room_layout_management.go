@@ -5,17 +5,19 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type AdminRoomManagementDetails struct {
-	Room                 *evtv1.Room
+	Room                 *readmodel.Room
 	CanManageRoom        bool
 	CanManagePermissions bool
 }
 
 type AdminRoomGroupManagementDetails struct {
-	Group                *evtv1.RoomGroup
+	Group                *readmodel.RoomGroup
 	CanManageGroup       bool
 	CanManagePermissions bool
 }
@@ -72,14 +74,14 @@ func (m *RoomLayoutModel) GetAdminRoomGroup(ctx context.Context, actorID, groupI
 	}, nil
 }
 
-func (m *RoomLayoutModel) AdminCreateRoomGroup(ctx context.Context, actorID, name, description string) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) AdminCreateRoomGroup(ctx context.Context, actorID, name, description string) (*readmodel.RoomGroup, error) {
 	if err := m.policy.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return nil, err
 	}
 	return m.createRoomGroup(ctx, actorID, name, description, m.anyRoomAuthorityCheck(ctx, actorID))
 }
 
-func (m *RoomLayoutModel) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*readmodel.RoomGroup, error) {
 	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
@@ -113,7 +115,7 @@ func (m *RoomLayoutModel) AdminMoveRoomGroup(ctx context.Context, actorID, group
 	return m.placeRoomGroup(ctx, actorID, groupID, beforeGroupID, m.anyRoomAuthorityCheck(ctx, actorID))
 }
 
-func (m *RoomLayoutModel) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*evtv1.Room, error) {
+func (m *RoomLayoutModel) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*readmodel.Room, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -143,7 +145,7 @@ func (m *RoomLayoutModel) AdminMoveRoomToGroup(ctx context.Context, actorID, roo
 	return nil, fmt.Errorf("move room source authorization retry exhausted: %w", ErrRoomMoveSourceChanged)
 }
 
-func (m *RoomLayoutModel) AdminReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) AdminReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*evtv1.SidebarGroupEntry) (*readmodel.RoomGroup, error) {
 	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
@@ -156,7 +158,7 @@ func (m *RoomLayoutModel) AdminReorderSidebarItemsInGroup(ctx context.Context, a
 // AdminMoveSidebarItem places one room or sidebar link in a destination group.
 // Each OCC attempt validates the source and destination authorization inputs
 // with a stable request-time read.
-func (m *RoomLayoutModel) AdminMoveSidebarItem(ctx context.Context, actorID string, item *evtv1.SidebarGroupEntry, targetGroupID string, before *evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
+func (m *RoomLayoutModel) AdminMoveSidebarItem(ctx context.Context, actorID string, item *evtv1.SidebarGroupEntry, targetGroupID string, before *evtv1.SidebarGroupEntry) (*readmodel.RoomGroup, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -169,14 +171,14 @@ func (m *RoomLayoutModel) AdminMoveSidebarItem(ctx context.Context, actorID stri
 	return m.rooms.GetRoomGroup(ctx, targetGroupID)
 }
 
-func (m *RoomLayoutModel) AdminCreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) AdminCreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*readmodel.SidebarLink, error) {
 	if err := m.policy.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
 	return m.createSidebarLink(ctx, actorID, groupID, label, rawURL, m.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (m *RoomLayoutModel) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*readmodel.SidebarLink, error) {
 	groupID, err := m.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err
@@ -217,7 +219,7 @@ func (m *RoomLayoutModel) AdminDeleteSidebarLink(ctx context.Context, actorID, l
 	return m.deleteSidebarLinkInGroup(ctx, actorID, groupID, linkID, m.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (m *RoomLayoutModel) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) (*evtv1.SidebarLink, error) {
+func (m *RoomLayoutModel) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) (*readmodel.SidebarLink, error) {
 	sourceGroupID, err := m.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err

@@ -19,6 +19,7 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
 - `testid` - Optional data-testid for e2e tests
 - `class` - Additional classes for the menu, such as a wider-screen width
 - `item` - Snippet to render each item (receives { item, selected })
+- `initialSelectedKey` - Item highlighted when results change
 -->
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
@@ -35,6 +36,7 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
     testid?: string;
     class?: ClassValue;
     item: Snippet<[{ item: T; selected: boolean }]>;
+    initialSelectedKey?: string;
   };
 
   let {
@@ -45,7 +47,8 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
     onClose,
     testid,
     class: className,
-    item
+    item,
+    initialSelectedKey
   }: Props = $props();
 
   /** Viewport rect of the composer surface that the menu opens above. */
@@ -77,8 +80,10 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
   }
 
   let selectedIndex = $derived.by(() => {
-    void items;
-    return 0;
+    return Math.max(
+      0,
+      items.findIndex((entry) => getKey(entry) === initialSelectedKey)
+    );
   });
 
   export function handleKeyDown(event: KeyboardEvent): boolean {
@@ -120,16 +125,17 @@ never takes focus: the editor keeps focus and forwards keys to `handleKeyDown`.
         <!-- Scroll inside the section so the frame's inset and border stay visible. -->
         <ul class="min-h-0 overflow-y-auto menu-section">
           {#each items as entry, index (getKey(entry))}
-            <li>
+            <li
+              {@attach (el) => {
+                if (index === selectedIndex) el.scrollIntoView({ block: 'nearest' });
+              }}
+            >
               <button
                 type="button"
                 class={['menu-item', index === selectedIndex && 'menu-item-active']}
-                onmouseenter={() => (selectedIndex = index)}
+                onpointermove={() => (selectedIndex = index)}
+                onpointerdown={(event) => event.preventDefault()}
                 onclick={() => onSelect(entry, 'click')}
-                {@attach (el) => {
-                  // Keep the selected item in view during keyboard navigation
-                  if (index === selectedIndex) el.scrollIntoView({ block: 'nearest' });
-                }}
               >
                 {@render item({ item: entry, selected: index === selectedIndex })}
               </button>

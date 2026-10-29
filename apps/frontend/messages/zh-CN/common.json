@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "键盘快捷键",
+      "app": "应用",
+      "undo": "撤销",
+      "redo": "重做",
+      "new_line": "换行",
+      "edit_last": "编辑最后一条消息（草稿为空时）",
+      "complete": "补全提及或表情符号"
+    },
+    "action_unavailable": "此操作目前不可用。",
+    "edit": "编辑",
     "copy_failed": "无法复制到剪贴板。请选择文本并手动复制。",
     "cancel": "取消",
     "close_sidebar": "关闭侧边栏",
@@ -22,12 +33,12 @@
     "password_placeholder": "你的密码",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 个 UTF-8 字节",
+    "password_bytes_placeholder": "设置密码",
     "password_confirm_placeholder": "再次输入密码",
     "validation": {
       "email": "请输入有效的邮箱地址",
-      "password_min_bytes": "请使用至少 8 个 UTF-8 字节。 部分字符会使用多个字节。",
-      "password_max": "请使用最多 72 个 UTF-8 字节。 部分字符会使用多个字节。",
+      "password_min_bytes": "密码太短",
+      "password_max": "密码太长",
       "username_min": "至少需要 2 个字符",
       "username_max": "最多可输入 32 个字符",
       "username_charset": "只能使用字母、数字、点、短横线和下划线",

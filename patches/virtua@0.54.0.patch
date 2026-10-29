@@ -1,0 +1,35 @@
+diff --git a/lib/svelte/Virtualizer.svelte b/lib/svelte/Virtualizer.svelte
+index b7836faf4c3604de8347902ed9ddbbc5473d70ac..50984058f73582b3de86a935f623fbe8e3907860 100644
+--- a/lib/svelte/Virtualizer.svelte
++++ b/lib/svelte/Virtualizer.svelte
+@@ -82,6 +82,9 @@
+   });
+   let isScrolling = $derived(stateVersion && store.$isScrolling());
+   let totalSize = $derived(stateVersion && store.$getTotalSize());
++  // Retain keyed rows during async prepends, but wait for the layout before
++  // reading their offsets or cached sizes.
++  let layoutLength = $derived(stateVersion && layout.$getLength());
+ 
+   let indexes = $derived.by(() => {
+     // The each block runs before $effect.pre with experimental.async, so the store may still have the length before the update
+@@ -98,7 +101,8 @@
+         mounted.add(i);
+       }
+       for (const index of sort([...mounted])) {
+-        if (index < len) {
++        // Retained rows can move beyond the previous layout during a prepend.
++        if (index >= 0 && index < data.length) {
+           arr.push(index);
+         }
+       }
+@@ -199,8 +203,8 @@
+       {item}
+       {index}
+       as={itemAs}
+-      offset={stateVersion && store.$getItemOffset(index)}
+-      hide={stateVersion && layout.$isSizeEqual(index)}
++      offset={index < layoutLength ? stateVersion && store.$getItemOffset(index) : 0}
++      hide={index >= layoutLength || (stateVersion && layout.$isSizeEqual(index))}
+       {horizontal}
+       {isSSR}
+       resizer={driver.$observeItem}

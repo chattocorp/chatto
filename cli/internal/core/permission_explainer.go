@@ -81,13 +81,28 @@ func (r *PermissionResolver) explainRoomPermission(ctx context.Context, userID s
 // allows it for userID in ctx; otherwise an owner's ordinary decisions explain
 // the result.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	if _, known := GetPermissionMetadata(perm); !known {
+	metadata, known := GetPermissionMetadata(perm)
+	if !known {
 		return nil
 	}
 	if isBot, ownerUserID, exists := r.users.isBotAndOwner(userID); exists && isBot {
 		return r.collectBotFullTrace(ctx, userID, ownerUserID, kind, roomID, perm, exp)
 	}
-	return r.collectHumanFullTrace(ctx, userID, kind, roomID, perm, exp, privilegedModeAllows(ctx, userID, time.Now()))
+	privileged := privilegedModeAllows(ctx, userID, time.Now())
+	if err := r.collectHumanFullTrace(ctx, userID, kind, roomID, perm, exp, privileged); err != nil {
+		return err
+	}
+	// Match resolveWithGroup's session gate after collecting the entitlement
+	// trace. Bot owner ceilings call collectHumanFullTrace directly and must
+	// continue to describe entitlement without a human session gate.
+	if exp.State == DecisionAllow && metadata.RequiresPrivilegedMode && !privileged {
+		exp.State = DecisionDeny
+		exp.IncludedBy = ""
+		exp.DecidedAt = LevelServer
+		exp.DecidedByRole = "@privileged-mode"
+		exp.Trace = append([]TraceEntry{{Level: LevelServer, RoleName: exp.DecidedByRole, Decision: DecisionDeny, ObjectID: ObjectIdAny}}, exp.Trace...)
+	}
+	return nil
 }
 
 // collectHumanFullTrace explains a human decision. ownerOverride has the same

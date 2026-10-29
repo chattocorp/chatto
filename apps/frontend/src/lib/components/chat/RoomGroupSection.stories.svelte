@@ -99,7 +99,7 @@
           type="button"
           class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-start text-xs"
           aria-expanded={discoveryExpanded}
-          aria-label={discoveryExpanded ? 'Hide unjoined rooms' : 'Show 2 unjoined rooms'}
+          title={discoveryExpanded ? 'Hide unjoined rooms' : 'Show 2 unjoined rooms'}
           onclick={() => {
             discoveryExpanded = !discoveryExpanded;
           }}

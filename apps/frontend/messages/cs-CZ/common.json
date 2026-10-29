@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Klávesové zkratky",
+      "app": "Aplikace",
+      "undo": "Zpět",
+      "redo": "Znovu",
+      "new_line": "Nový řádek",
+      "edit_last": "Upravit poslední zprávu (prázdný koncept)",
+      "complete": "Doplnit zmínku nebo emoji"
+    },
+    "action_unavailable": "Tato akce je momentálně nedostupná.",
+    "edit": "Upravit",
     "copy_failed": "Do schránky se nepodařilo zkopírovat. Vyberte text a zkopírujte jej ručně.",
     "cancel": "Zrušit",
     "close_sidebar": "Zavřít postranní panel",
@@ -22,12 +33,12 @@
     "password_placeholder": "Vaše heslo",
     "email_placeholder": "vy@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 bajtů UTF-8",
+    "password_bytes_placeholder": "Zvolte heslo",
     "password_confirm_placeholder": "Zadejte heslo znovu",
     "validation": {
       "email": "Zadejte prosím platnou e-mailovou adresu",
-      "password_min_bytes": "Použijte alespoň 8 bajtů UTF-8. Některé znaky zabírají více než jeden bajt.",
-      "password_max": "Použijte nejvýše 72 bajtů UTF-8. Některé znaky zabírají více než jeden bajt.",
+      "password_min_bytes": "Heslo je příliš krátké",
+      "password_max": "Heslo je příliš dlouhé",
       "username_min": "Musí mít alespoň 2 znaky",
       "username_max": "Musí mít maximálně 32 znaků",
       "username_charset": "Pouze písmena, čísla, tečky, pomlčky, podtržítka",

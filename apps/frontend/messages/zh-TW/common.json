@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "鍵盤快捷鍵",
+      "app": "應用程式",
+      "undo": "復原",
+      "redo": "重做",
+      "new_line": "換行",
+      "edit_last": "編輯最後一則訊息（草稿為空時）",
+      "complete": "完成提及或表情符號"
+    },
+    "action_unavailable": "此操作目前無法使用。",
+    "edit": "編輯",
     "copy_failed": "無法複製到剪貼簿。請選取文字並手動複製。",
     "cancel": "取消",
     "close_sidebar": "關閉側邊欄",
@@ -22,12 +33,12 @@
     "password_placeholder": "你的密碼",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 個 UTF-8 位元組",
+    "password_bytes_placeholder": "設定密碼",
     "password_confirm_placeholder": "再次輸入密碼",
     "validation": {
       "email": "請輸入有效的電子郵件地址",
-      "password_min_bytes": "請使用至少 8 個 UTF-8 位元組。 部分字元會使用多個位元組。",
-      "password_max": "請使用最多 72 個 UTF-8 位元組。 部分字元會使用多個位元組。",
+      "password_min_bytes": "密碼太短",
+      "password_max": "密碼太長",
       "username_min": "至少須有 2 個字元",
       "username_max": "最多只能有 32 個字元",
       "username_charset": "只能使用英文字母、數字、句點、連字號及底線",

@@ -1,0 +1,43 @@
+syntax = "proto3";
+package chatto.operator.v1;
+
+// Legacy archive naming fields, retained only for wire compatibility.
+message ImportNaming {
+  option deprecated = true;
+  string channel_prefix = 1;
+  string channel_suffix = 2;
+  string username_prefix = 3;
+  string username_suffix = 4;
+}
+
+// Legacy archive request. No server endpoint accepts this payload.
+message ImportArchiveRequest {
+  option deprecated = true;
+  map<string, bytes> metadata = 1;
+  map<string, bytes> files = 2;
+  ImportNaming naming = 3;
+  bool validate_only = 4;
+  // Explicit acceptance of omissions declared by the source archive.
+  bool accept_omissions = 5;
+}
+
+// Legacy archive response, retained only for wire compatibility.
+message ImportArchiveResponse {
+  option deprecated = true;
+  uint32 users = 1;
+  uint32 rooms = 2;
+  uint32 assets = 3;
+  uint32 events = 4;
+  uint32 omissions = 5;
+  bool complete = 6;
+}
+
+// Legacy wire declaration only. No archive handler is mounted. Use the CLI,
+// which calls individual operator resource APIs.
+service OperatorImportService {
+  option deprecated = true;
+  // Removed endpoint. The import CLI now calls individual resource APIs.
+  rpc ImportArchive(ImportArchiveRequest) returns (ImportArchiveResponse) {
+    option deprecated = true;
+  }
+}

@@ -6,6 +6,30 @@ Structured JSON records go to `.runling/logs/server.jsonl`, relative to the
 directory that contains the Runling config file. `NO_COLOR` disables terminal
 colors.
 
+Applications use Runling's logger instead of writing their own terminal output:
+
+```ts
+import { log, step } from 'runling';
+
+log.info('Connected', { pending: 3 });
+log.warn('Retry scheduled', { delayMs: 1000 });
+await step('Read context', async () => {
+  /* application work */
+});
+```
+
+`log.info`, `log.warn`, `log.error`, `log.success`, and `log.debug` accept optional
+structured fields. `log.withFields(fields, work)` attaches fields to logs within
+an asynchronous operation. Concurrent operations keep separate fields. Fields
+must be host-owned metadata, never credentials, message text, or raw external
+errors. A step records its timing and failure; its error text enters the journal,
+so applications that handle private errors must supply a safe error at that boundary.
+
+Source logs use a `[source:name]` prefix and enter the server log. Task logs use
+run and task prefixes and enter the run journal. Both use the same renderer.
+The console displays structured fields beside the message. The server prints
+each root start once, without a second run-start message.
+
 By default, the server terminal shows each run's detailed log: agent reasoning,
 tool use, agent messages, and the errors of failed tasks. `runling run` also shows
 run details, but keeps intermediate agent replies and task updates in its journal.
@@ -42,7 +66,7 @@ Task numbers are terminal labels, not separate runs or persistent references.
 tail -f .runling/logs/server.jsonl
 ```
 
-Logs include server startup and shutdown, HTTP response status and duration,
+Logs include server startup and shutdown, failed HTTP response status and duration,
 request and config reload errors, webhook deliveries handled without a new run, and run starts,
 results, and recovery errors. Live runs also log task starts and finishes,
 agent starts and outcomes, tool and command activity, and waits for messages.
@@ -57,7 +81,11 @@ minutes apart. These reminders report silence, not progress. Run records include
 `runId` so you can find the full event history in `.runling/runs/<runId>.jsonl`.
 
 HTTP logs use route templates and omit request bodies, headers, and query
-strings. Error messages can contain workflow or service details. Log files are
+strings. Set `RUNLING_LOG_LEVEL=debug` to enable debug logs for server diagnostics,
+sources, and workflows, including successful HTTP responses. `log.level = 'debug'`
+also enables debug logging in that runtime. A workflow's `--verbose` option enables
+debug for that execution without changing other executions.
+Error messages can contain workflow or service details. Log files are
 private to the server user and ignored by Git.
 
 Activity records omit prompts, task labels, command text, tool arguments, message
@@ -68,8 +96,9 @@ terminal output. Agent labels must be static, host-owned text, never user data
 or model output. Loading historical runs does not replay their
 activity into the terminal. Explicit user cancellation is shown as cancelled,
 even if a workflow handles its abort signal and returns normally. Server shutdown
-is shown as interrupted. Those runs remain history only after restart; new inputs
-start new runs with separate references and timelines.
+is shown as interrupted. Runs with saved workflow state can resume under the same
+reference after restart. Their journals retain each execution attempt; their
+usage totals include all attempts. Runs without recoverable state remain history.
 
 At 10 MiB, the server moves the log to `server.jsonl.1`, replacing the previous
 backup. File write failures go to the console and do not stop workflows.

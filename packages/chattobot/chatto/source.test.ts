@@ -274,7 +274,10 @@ test.each(['mention', 'reply'])(
               threadRootEventId: 'root',
               bodyPlaintext: 'Please continue',
               inReplyTo: kind === 'reply' ? 'bot-message' : '',
-              mentions: kind === 'mention' ? [{ includesViewer: true }] : []
+              mentions:
+                kind === 'mention'
+                  ? [{ includesViewer: true, cause: { case: 'direct', value: {} } }]
+                  : []
             }
           }
         })
@@ -412,7 +415,10 @@ test.each([RoomKind.DM, RoomKind.CHANNEL])(
             threadRootEventId,
             inReplyTo,
             bodyPlaintext: 'Hello',
-            mentions: id === 'mention' ? [{ includesViewer: true }] : []
+            mentions:
+              id === 'mention'
+                ? [{ includesViewer: true, cause: { case: 'direct', value: {} } }]
+                : []
           }
         }
       });

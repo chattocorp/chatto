@@ -132,6 +132,7 @@ func (a *API) Handlers() []Handler {
 	botPath, botHandler := apiv1connect.NewBotServiceHandler(&botService{api: a}, options...)
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(&assetService{api: a}, options...)
 	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
+	assetUploadHandler = newUploadChunkLimiter(assetUploadHandler, assetUploadOptions...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	adminInviteLinkPath, adminInviteLinkHandler := adminv1connect.NewAdminInviteLinkServiceHandler(&adminInviteLinkService{api: a}, options...)

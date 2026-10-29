@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publicar, corrigir, anunciar novamente e limpar avisos da sala",
       "server_manage": "Atualizar configurações do servidor (nome, descrição, logotipo)",
       "server_manage_neighbors": "Gerenciar o diretório público de vizinhos",
       "room_create": "Criar novas salas",

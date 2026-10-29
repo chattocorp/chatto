@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Atalhos de teclado",
+      "app": "Aplicativo",
+      "undo": "Desfazer",
+      "redo": "Refazer",
+      "new_line": "Nova linha",
+      "edit_last": "Editar a última mensagem (rascunho vazio)",
+      "complete": "Completar menção ou emoji"
+    },
+    "action_unavailable": "Esta ação está indisponível no momento.",
+    "edit": "Editar",
     "copy_failed": "Não foi possível copiar para a área de transferência. Selecione o texto e copie-o manualmente.",
     "cancel": "Cancelar",
     "close_sidebar": "Fechar barra lateral",
@@ -22,12 +33,12 @@
     "password_placeholder": "Sua senha",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "De 8 a 72 bytes UTF-8",
+    "password_bytes_placeholder": "Escolha uma senha",
     "password_confirm_placeholder": "Digite a senha novamente",
     "validation": {
       "email": "Insira um endereço de e-mail válido",
-      "password_min_bytes": "Use pelo menos 8 bytes UTF-8. Alguns caracteres usam mais de um byte.",
-      "password_max": "Use no máximo 72 bytes UTF-8. Alguns caracteres usam mais de um byte.",
+      "password_min_bytes": "A senha é muito curta",
+      "password_max": "A senha é muito longa",
       "username_min": "Deve ter pelo menos 2 caracteres",
       "username_max": "Deve ter no máximo 32 caracteres",
       "username_charset": "Somente letras, números, pontos, traços, sublinhados",

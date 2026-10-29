@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import { PasswordChangeAvailability, AccountDeletionAvailability } from '../actionAvailability.js';
 
 import {
   createPrivilegedModeAPI,
@@ -21,6 +22,24 @@ function config(extra: Partial<ConnectAPIConfig> = {}) {
 }
 
 describe('getCurrentUserViaConnect', () => {
+  it.each([undefined, 0, 1, 99])(
+    'preserves optional action enum value %s across transport and mapping',
+    async (value) => {
+      mocks.getViewer.mockReturnValue({
+        user: {
+          profile: { id: 'U1', login: 'alice' },
+          actions: {
+            changePassword: value as PasswordChangeAvailability | undefined,
+            deleteAccount: value as AccountDeletionAvailability | undefined
+          }
+        }
+      });
+      const user = await getCurrentUserViaConnect(config());
+      expect(user.actions?.changePassword).toBe(value);
+      expect(user.actions?.deleteAccount).toBe(value);
+    }
+  );
+
   beforeEach(() => {
     vi.resetAllMocks();
   });

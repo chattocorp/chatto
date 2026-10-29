@@ -42,7 +42,7 @@ the pane header is at least 80 rem wide, the toggles also show their labels.
       name?: string;
     }[]
   >([
-    { id: 'pins', icon: 'icon-[mdi--pin-outline]', label: m('room.sidebar.pins') },
+    { id: 'pins', icon: 'icon-[uil--info-circle]', label: m('room.information.title') },
     { id: 'members', icon: 'icon-[uil--users-alt]', label: m('room.sidebar.members') },
     {
       id: 'search',

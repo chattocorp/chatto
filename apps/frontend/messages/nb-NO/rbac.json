@@ -147,6 +147,7 @@
       "call": "Samtaler"
     },
     "permission_help": {
+      "room_manage_notice": "Lar et medlem administrere kunngjøringen i et aktivt kanalrom, men ikke selve rommet. Nye instanser gir bare Admin denne tillatelsen; oppgraderinger beholder eksisterende tillatelser.",
       "server_manage": "Lar en konto endre servernavn, beskrivelse, logo og andre serverinnstillinger. Den tillater også endringer i den offentlige nabokatalogen. Gi den bare til personer som kan tale for hele serveren.",
       "server_manage_neighbors": "Lar en konto legge til, endre og fjerne oppføringer i den offentlige nabokatalogen. Den tillater ikke endringer i andre serverinnstillinger.",
       "room_create": "Lar en konto opprette kanalrom. På romgruppenivå tillater den nye rom bare i den gruppen.",

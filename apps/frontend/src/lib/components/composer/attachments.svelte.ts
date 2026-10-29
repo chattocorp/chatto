@@ -3,6 +3,7 @@ import { m } from '$lib/i18n/messages';
 import { prepareFiles } from '$lib/attachments/prepareFiles';
 import {
   attachmentUploadRejection,
+  MAX_MESSAGE_ATTACHMENTS,
   type AttachmentUploadLimits
 } from '@chatto/client/util/attachmentUpload';
 
@@ -19,6 +20,8 @@ export function formatFileSize(bytes: number): string {
 export class AttachmentsState {
   filesWithUrls = $state<FileWithUrl[]>([]);
   pendingCount = $state(0);
+  // Preparation results belong to the draft in which they started.
+  private preparationGeneration = 0;
 
   constructor(private readonly getLimits: () => AttachmentLimits) {}
 
@@ -33,6 +36,8 @@ export class AttachmentsState {
   }
 
   restore(files: FileWithUrl[]): void {
+    this.preparationGeneration++;
+    this.pendingCount = 0;
     this.filesWithUrls = files;
   }
 
@@ -71,20 +76,34 @@ export class AttachmentsState {
   }
 
   async stageFiles(files: File[]): Promise<void> {
-    const validFiles = this.validateFiles(files);
+    const available = Math.max(
+      0,
+      MAX_MESSAGE_ATTACHMENTS - this.filesWithUrls.length - this.pendingCount
+    );
+    const eligibleFiles = this.validateFiles(files);
+    const validFiles = eligibleFiles.slice(0, available);
+    if (eligibleFiles.length > available) {
+      toast.error(m('composer.upload.too_many', { max: MAX_MESSAGE_ATTACHMENTS }));
+    }
     if (validFiles.length === 0) return;
 
+    const generation = this.preparationGeneration;
+    // Reserve slots before asynchronous conversion so concurrent selections share the cap.
     this.pendingCount += validFiles.length;
     try {
       const prepared = await prepareFiles(validFiles);
+      if (generation !== this.preparationGeneration) return;
       if (prepared.length > 0) {
         this.filesWithUrls = [...this.filesWithUrls, ...this.filesToPreviewItems(prepared)];
       }
     } catch (err) {
+      if (generation !== this.preparationGeneration) return;
       console.error('Error preparing attachment files:', err);
       toast.error(m('composer.upload.prepare_failed'));
     } finally {
-      this.pendingCount -= validFiles.length;
+      if (generation === this.preparationGeneration) {
+        this.pendingCount -= validFiles.length;
+      }
     }
   }
 
@@ -101,6 +120,8 @@ export class AttachmentsState {
   }
 
   clear(): void {
+    this.preparationGeneration++;
+    this.pendingCount = 0;
     for (const { url } of this.filesWithUrls) {
       URL.revokeObjectURL(url);
     }

@@ -7,6 +7,8 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -38,7 +40,7 @@ func ProtoKindForRoomKind(kind RoomKind) evtv1.RoomKind {
 // KindOfRoom returns the canonical RoomKind for a Room. Reads
 // Room.kind directly; legacy `space_id`-based fallback was removed
 // when the field was retired from the proto.
-func KindOfRoom(room *evtv1.Room) RoomKind {
+func KindOfRoom(room *readmodel.Room) RoomKind {
 	switch room.Kind {
 	case evtv1.RoomKind_ROOM_KIND_DM:
 		return KindDM
@@ -82,7 +84,7 @@ func DMRoomID(participantIDs []string) string {
 //
 // For existing DMs, the caller must already be a participant.
 // For new DMs, all participants are automatically joined to the room.
-func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
+func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*readmodel.Room, bool, error) {
 	return c.roomCommands.findOrCreateDM(ctx, creatorID, participantIDs)
 }
 

@@ -111,7 +111,9 @@ export function createRoomTimelineAPI(config: ConnectAPIConfig): RoomTimelineAPI
   const threads = createChattoClient(ThreadService, config);
   const options = (minimumCursor?: string, signal?: AbortSignal) => ({
     headers: minimumCursorHeaders(minimumCursor),
-    timeoutMs: minimumCursor ? REALTIME_RESOURCE_TIMEOUT_MS : undefined,
+    // Every read has a deadline: a window refresh, and with it realtime
+    // reconciliation, waits for a pending timeline read.
+    timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS,
     signal
   });
   return {

@@ -1,6 +1,9 @@
 import { flushSync } from 'svelte';
 import { describe, expect, it } from 'vitest';
 import { computed, ReactiveMap, signal } from '../reactivity/index.js';
+import { MessagesStore } from '../room/messages/MessagesStore.js';
+import type { RoomTimelineAPI } from '../api/roomTimeline.js';
+import type { ServerConnection } from '../server/serverConnection.js';
 import './index.js';
 import { observe } from './test-harness.svelte.js';
 
@@ -33,6 +36,32 @@ describe('Svelte reactivity bridge', () => {
     flushSync();
     expect(observed.values).toEqual([1, 3]);
     observed.stop();
+  });
+
+  it('creates a timeline store inside $derived without unsafe state mutations', () => {
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => errors.push(args);
+    const timeline = {
+      getThreadEvents: () => new Promise(() => {})
+    } as unknown as RoomTimelineAPI;
+    try {
+      const observed = observe(
+        () =>
+          new MessagesStore(
+            {} as ServerConnection,
+            () => null,
+            { roomId: 'room', threadRootEventId: 'root' },
+            timeline
+          ).isInitialLoading,
+        { derived: true }
+      );
+      expect(observed.values).toEqual([true]);
+      observed.stop();
+    } finally {
+      console.error = original;
+    }
+    expect(errors).toEqual([]);
   });
 
   it('stops client subscriptions after Svelte effects are destroyed', async () => {

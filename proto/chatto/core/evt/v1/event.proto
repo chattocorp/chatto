@@ -5,6 +5,7 @@ package chatto.core.evt.v1;
 import "google/protobuf/timestamp.proto";
 import "chatto/core/evt/v1/auth_events.proto";
 import "chatto/core/evt/v1/setup_events.proto";
+import "chatto/core/evt/v1/import_events.proto";
 import "chatto/core/evt/v1/authorization_events.proto";
 import "chatto/core/evt/v1/asset_events.proto";
 import "chatto/core/evt/v1/message_events.proto";
@@ -56,6 +57,9 @@ message Event {
   // ID of the user who triggered this event.
   string actor_id = 3;
 
+  // Present only for portable archive writes; retained through replay.
+  ImportContext import_context = 4;
+
   reserved 500, 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
   reserved "server_config_changed", "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
@@ -65,6 +69,8 @@ message Event {
   oneof event {
     ServerSetupOfferedEvent server_setup_offered = 950;
     ServerInitializedEvent server_initialized = 951;
+    ImportProgressedEvent import_progressed = 952;
+    OperatorOperationCompletedEvent operator_operation_completed = 953;
     // =================================================================
     // PERSISTED VARIANTS (< 1000) — stored in JetStream.
     // Changing field numbers or message structure below affects stored
@@ -82,9 +88,11 @@ message Event {
     // feature; oneof tags don't reserve, so don't reuse that number.
     RoomSlowModeChangedEvent room_slow_mode_changed = 307;
     RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
+    RoomNoticeChangedEvent room_notice_changed = 309;
     RoomInvitationCreatedEvent room_invitation_created = 312;
     RoomInvitationAcceptedEvent room_invitation_accepted = 313;
     RoomInvitationDeclinedEvent room_invitation_declined = 314;
+    RoomMembershipEventsVisibilityChangedEvent room_membership_events_visibility_changed = 315;
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;
@@ -212,6 +220,7 @@ message Event {
     BotApiKeyAddedEvent bot_api_key_added = 726;
     BotApiKeyRevokedEvent bot_api_key_revoked = 727;
     UserPrimaryEmailChangedEvent user_primary_email_changed = 728;
+    UserAccountDeactivationChangedEvent user_account_deactivation_changed = 729;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

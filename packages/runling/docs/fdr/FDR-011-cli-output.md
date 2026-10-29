@@ -11,6 +11,18 @@ from the answer and use the journal to inspect intermediate replies.
 
 ## Behavior
 
+- Workspace CLI commands load TypeScript source without a prior Runling build.
+  Workspace serving uses Vite; npm installs use the compiled console. Both paths
+  share the host lifecycle. See [ADR-013](../adr/ADR-013-source-workspace-exports.md).
+
+- Runling owns application logging through `log`, including structured fields and
+  warning levels. Workflows, sources, and server diagnostics share one terminal
+  renderer. Source logs carry the source name; workflow logs carry run and task
+  context and remain in the run journal. Separate destinations do not require
+  application formatters. Applications must exclude private data from log fields.
+- The server prints the root task's start once. Successful HTTP responses are
+  debug diagnostics. `RUNLING_LOG_LEVEL=debug` enables debug logs for the server,
+  sources, and workflows. Verbose executions can also enable debug for their own work.
 - Normal output shows the run reference at startup, task and step progress,
   and agent activity, including tool use. Agent reasoning summaries can appear
   as part of this activity. `--verbose` also shows debug logs.

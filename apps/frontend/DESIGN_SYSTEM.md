@@ -36,11 +36,24 @@ message search results:
 - Use `ActivityListRow` for newest-first activity records that have one primary
   open action and optional row actions. It owns the important fill, pending
   state, and hover-reveal action shell. Put `ActivityAvatar` in its `leading`
-  snippet and `ActivityRowText` in its body: `ActivityRowText` shows unread
-  activity in bold and keeps read activity in the normal text color.
+  snippet. Notifications and Threads share `ActivityRowText`: a single-line
+  title, responsive location column, and timestamp. It shows unread activity
+  in bold and read activity in muted text, with subdued metadata.
+  Use small avatars and the row's `compact` and `overlayActions`
+  options; touch inputs keep a separate visible action.
+  Set the text body's `overlayActions` to the number of overlaid actions.
+  Its optional `location` snippet adds a truncated column before the time.
+  Put `@container/activity` on the row; this column hides below 36rem, matching
+  the notification room column. Location and time use `text-subdued`.
+  Cross-server notifications use `locationOnNarrow` to keep their server label
+  below the title when the room column hides.
+  Both feeds use `ActivityDaySection` and `groupByActivityDay` for calendar-day
+  headings. The section supplies a row-time formatter: relative time for Today,
+  local clock time for older days. Pass the same timestamp for grouping and
+  row formatting, including when a feed changes sort order.
 - Rows rest transparently on the owning `background` work plane. Threads
   uses an avatar dot for unread rows, so bold text is not the only unread cue.
-  Important notification attention keeps its own colour. Hover and keyboard
+  Notification and thread rows use neutral backgrounds for all attention levels. Hover and keyboard
   focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
 - Each row owns its rounded shape. The collection owns only the standard
@@ -60,10 +73,11 @@ Call cards use the same shell surface without an extra border. Supply avatar,
 badge, indicator, action, and optional body snippets. Avatar snippets normally use `UserAvatar`
 at size `sm`.
 
-Pass `identityAttributes` for a clickable identity. Put independent controls in
+Cards with a `menu` open it when the identity is clicked and use a pointer cursor.
+Pass `identityAttributes` to override the identity button. Put independent controls in
 the `actions` snippet so buttons never nest. Pass `menu` with a label, click
 callback, and expanded state for the standard three-dot button. Member entries
-use this button and leave identity text passive. Use `menu.revealOnHover` to
+use this button as well as the clickable identity. Use `menu.revealOnHover` to
 hide the button until hover or keyboard focus; touch devices keep it visible.
 Use `menu.oncontextmenu` for right-click access from the whole card.
 Icon actions in the `actions` snippet use `CompactActionButton`, the same format
@@ -104,7 +118,10 @@ move the full frame width to follow a finger. Select a destination, use the app-
 the inline start to close the drawer. Desktop sidebar sizing is unchanged.
 
 Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
-route. The shared primitive then uses a quiet action-coloured fill and an
+route. Rows keep compact spacing for both mouse and touch input.
+Text and icon sizes do not change. Keep long
+navigation lists in a scrollable region so all rows remain reachable.
+The shared primitive uses a quiet action-coloured fill and an
 action-coloured icon. Current links and selected menu rows use flat fills,
 without gradients, bevels, or shadows. A selected pane-header icon button
 uses the same flat action fill and action-coloured icon. It marks the panel
@@ -156,7 +173,7 @@ a side stripe or cast shadow for navigation selection.
 | Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                               |
 | Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                    |
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
-| Lazily loaded part failed to load           | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
+| Part or its data failed to load             | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
 
 `TextInput` and `Select` accept `labelHidden` when the surrounding context
 already names the control, for example a policy column in a table row. The
@@ -187,6 +204,19 @@ The quick finder uses `command-palette`, which composes the shared menu frame.
 It keeps a compact search field and aligned result rows through
 `command-palette-result`. The active result uses a flat neutral fill and a quiet
 Enter cue. `keycap` supplies the shared keyboard-hint shape.
+Quick switcher and keyboard-shortcut help share `PaletteFrame`. Below 768 px,
+`palette-dialog` fills the visible content area below the app header, with safe-area padding and a
+`PaneHeader` back arrow. Search stays available while the results scroll.
+Use the flat `bg-background` pane surface and normal text size on narrow
+screens, with header and search dividers. Do not retain the floating menu's
+raised surround or recessed section boxes in this layout.
+Keep the app header visible and undimmed, including while palette search
+opens the software keyboard.
+Narrow palettes are nonmodal. A header click dismisses the palette and runs
+the selected header action on the first click. Desktop palettes remain modal.
+Wider windows keep the compact floating frame. Layout changes retain the
+same input, query, and focus. `modalViewport` keeps top-layer content above
+the software keyboard; it is shared with task dialogs and bottom sheets.
 
 ## Attachment Description Icons
 
@@ -232,13 +262,12 @@ below the editor. Keep this layout until the draft is cleared or sent, or its
 destination or edit mode changes. The extra text width can remove a line wrap;
 keeping the expanded layout prevents repeated layout changes while typing.
 
-Both composer toolbars use 44 px targets and 20 px icons in narrow touch
-windows, including hybrid devices. Wide windows and mouse-only devices keep
-28 px controls and 15 px icons. Composer controls opt in through
-`mobile-presentation:pill-button-group-touch`. This is a composer-specific
-exception to touch target sizing at every viewport width.
+Both composer toolbars use 44 px targets and 20 px icons in comfortable
+density. Compact density uses 28 px controls and 15 px icons. Standalone composer actions use
+`CompactActionButton` with `touchFriendly`; joined formatting groups use
+`pill-button-group-touch`.
 The formatting shelf scrolls horizontally when its controls do not fit.
-In a wide, single-line composer, centre the editor and touch controls vertically.
+In a wide, single-line composer, centre the editor and comfortable controls vertically.
 The compact desktop controls retain their bottom offset; do not apply that offset
 to the taller touch controls.
 
@@ -319,6 +348,14 @@ lifecycle, focus restoration, backdrop handling, animation, and handle gestures.
 
 ## Standard Pane Pages
 
+Use `CenteredPage` for a single task, such as first-run setup or a welcome
+screen. It centers its content horizontally and vertically in the available
+pane, with the standard `max-w-pane` width and page padding. Its optional
+`header` snippet stays above the scroll viewport. Content taller than the
+viewport starts at the top and scrolls normally. Text alignment remains the
+caller's choice. Do not add a `pane-page` or `PaneContent` wrapper around it.
+See **UI/CenteredPage** in Storybook for introductions, forms, and tall content.
+
 Use the pane-page composition for primary application pages such as search,
 settings, and Server Admin. It gives these pages the same header, scrolling
 behaviour, content width, spacing, and panel hierarchy.
@@ -354,6 +391,7 @@ Follow these defaults:
 - Let `PaneContent` own scrolling, the `max-w-pane` content width, and page
   padding. Do not reproduce those constraints in each route. Set `wide` for a
   browsing grid, such as the room directory masonry, to use `max-w-pane-wide`.
+  Set `fluid` for server-card grids that fill the available pane width.
 - Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a
   deliberately dense surface, not as a page-by-page styling choice.
 - Give peer panels short, descriptive titles. A form panel names the task or
@@ -391,6 +429,15 @@ section?”. One exception applies: an activity list page whose list is the
 whole feature, such as the notification list or My Threads, renders the list
 directly in `PaneContent` without a `Panel`. Put its controls in a toolbar
 above the list or in `PaneHeader` actions.
+
+Panel subtitles follow the title on the same line by default. They use muted
+text and align with the title's baseline. When the available width is too
+small, the subtitle wraps below the title. This depends on the panel's actual
+width, not a viewport breakpoint, and applies to both text and rich subtitles.
+
+Use `Button size="compact"` for actions that must fit a panel's 24 px title
+line without increasing the header height. This is a header-specific size;
+toast actions and dismiss controls keep `btn-xs` with a 32 px minimum height.
 
 ### Settings And Preferences
 
@@ -550,6 +597,11 @@ floating-menu elevation independent of this setting. Accent swatches become
 solid in Flat, retain their gradient in 3D, and add sheen in Very 3D. New depth recipes must
 use these shared parameters instead of fixed decorative shadow opacity.
 
+`hover-lift` moves a surface up 2 px over 150 ms on hover. Put
+`hover-lift-group` on an enclosing label to trigger the same movement from
+the label. Server cards and Appearance swatches share this utility. It only
+moves on devices with hover support and respects reduced motion.
+
 `shimmer-hover` overlays one broad, soft highlight that crosses the surface in
 450 ms. It runs once per hover and respects reduced motion. Nested gutter
 logos defer to the outer shimmer so the effect does not stack.
@@ -559,6 +611,12 @@ or text, with no background, border, or lighting effect. Keep the 44 px hit
 area and the visible keyboard focus outline. The colour changes with
 `feedback-quick`. Text actions such as the version number use
 `app-header-text-action` for the same treatment at content width.
+
+For adjacent filter controls, put `SegmentedControl` components directly inside
+`segmented-control-group`. The group stays content-sized while the controls fit
+on one line. When they wrap, each control fills its line and its option pills
+expand with it. Wrapping follows the labels' actual widths, including translated
+labels. Do not add wrappers between the group and its controls.
 
 Form inputs and `SegmentedControl` share the `control-frame` utility. It owns
 their rounded corners, one-pixel border, and subtle inset shadow. Inputs and
@@ -664,6 +722,15 @@ contrast does not change. Use the semantic tokens, or `--tone-100` to
 
 For text, use `text-text` for normal copy, `text-text-top` for the strongest
 heading contrast, and `text-muted` for metadata. Use `link` for inline links.
+
+Use `text-subdued` for lower-priority metadata. This semantic utility applies
+Tailwind's `text-current/90`: it inherits the parent's text color at 90%
+opacity. At default contrast, this retains readable contrast with the normal
+and muted text tokens on the background. Set the source color on the parent,
+for example `text-muted`.
+It affects text color rather than the whole element's opacity. Do not nest
+the utility, because each level reduces the inherited color again. Reserve
+it for supporting metadata, not primary content, actions, or disabled states.
 
 The **Contrast** slider in the UI Style section of Appearance's Theme
 customisation panel runs from 0% to 100%.
@@ -849,9 +916,16 @@ Touch context menus keep their bottom-sheet presentation.
 ## Input And Responsive Layout
 
 Input capability selects control behavior. Available space selects content layout.
-Use `touch-input` for targets and actions that must work whenever
+Control spacing follows the primary pointer. A coarse primary pointer uses
+comfortable density; other primary pointers use compact density. A mouse-primary
+hybrid laptop thus uses compact controls. Use
+`comfortable-density` and `compact-density` for target sizes and spacing.
+CSS responds to primary-pointer changes automatically. There is no user setting.
+
+Keep capability checks separate from density. `touch-input` matches when
 `any-pointer: coarse` matches, including hybrid devices. `compact-input` applies
-only when no coarse pointer is available. `hover-actions` permits mouse hover
+only when no coarse pointer is available; it does not select density.
+`hover-actions` permits mouse hover
 actions on hybrid devices, but essential controls must also remain accessible
 through touch and keyboard input.
 
@@ -874,11 +948,12 @@ Narrow touch windows keep viewport-based drawers and device safe-area offsets.
 Use Svelte's `MediaQuery` with `NARROW_TOUCH_QUERY` from `inputMediaQueries.ts`
 when a component needs a reactive presentation decision. Keep this query and
 the CSS variants in sync. Do not select a layout from a device name or the last
-pointer event. Touch-safe menus can remain floating when hover is available;
-touch input still gets larger command targets and emoji targets at every width.
+pointer event. Menus can remain floating when hover is available;
+command and emoji targets follow primary-pointer density at every width.
 Keep the existing primary-pointer checks for keyboard and autofocus defaults.
-Mouse-primary hybrid devices retain mouse keyboard behavior; use touch capability,
-not the primary-pointer preference, to select target sizes and frame presentation.
+Mouse-primary hybrid devices retain mouse keyboard behavior. Frame presentation
+continues to use touch capability and width; control density does not
+change drawers, bottom sheets, or gesture support.
 
 Keep width or container queries for pane columns, navigation collapse, resize
 handles for docked panes, toolbar overflow, compact labels, header wrapping,
@@ -907,8 +982,19 @@ colour source for Safari's bottom toolbar. It does not receive pointer input
 or take layout space, so it cannot block controls or reduce the composer area.
 
 Set `collapseActions` on `PaneHeader` to collapse its `actions` snippet behind
-a three-dot button when the pane is narrower than 32 rem. Use `actionsLabel`
-for a context-specific accessible label. The button expands the actions inside the pane
+a three-dot button when the pane is narrower than 32 rem. Header icon buttons,
+back links, and labelled panel controls have targets at least 44 px wide and
+44 px high in comfortable density. Compact controls stay 40 px high.
+Icon sizes do not change.
+Both sizes fit inside the existing 56 px header row.
+Below the 1024 px room-layout breakpoint, thread and room-extras overlay
+headers show one back arrow before the title and no trailing close icon.
+The arrow exits the current level: a member profile returns to Members,
+and a fullscreen call returns to its panel. Desktop headers keep their
+existing controls. Placement follows layout width; target size follows
+the primary pointer. Mirror the back arrow in right-to-left layouts.
+Use `actionsLabel` for a context-specific accessible label.
+The button expands the actions inside the pane
 header; the room title truncates as needed. A second press or Escape collapses
 the actions. Wider panes keep the actions beside the title.
 Use the optional `collapsedActions` snippet for important actions that must

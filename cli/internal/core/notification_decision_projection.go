@@ -15,7 +15,7 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-var notificationDecisionSnapshotContractID = snapshotContractID("v2", &projectionv1.NotificationDecisionProjectionSnapshot{})
+var notificationDecisionSnapshotContractID = snapshotContractID("v3", &projectionv1.NotificationDecisionProjectionSnapshot{})
 
 // NotificationDecisionProjection keeps the compact current state needed to
 // derive notification recipients and policy while enforcing persistent

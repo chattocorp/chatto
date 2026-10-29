@@ -147,6 +147,7 @@
       "call": "Chiamate"
     },
     "permission_help": {
+      "room_manage_notice": "Consente a un membro di gestire l’avviso in una stanza di canale attiva, ma non la stanza stessa. Le nuove istanze concedono questo permesso solo ad Admin; gli aggiornamenti mantengono i permessi esistenti.",
       "server_manage": "Consente a un account di modificare il nome, la descrizione, il logo e le altre impostazioni del server. Consente anche di modificare la directory pubblica dei vicini. Concedila solo a persone che possono parlare a nome dell’intero server.",
       "server_manage_neighbors": "Consente a un account di aggiungere, modificare e rimuovere voci nella directory pubblica dei vicini. Non consente di modificare le altre impostazioni del server.",
       "room_create": "Consente a un account di creare stanze. Nell’ambito di un gruppo di stanze, consente di creare stanze solo in quel gruppo.",

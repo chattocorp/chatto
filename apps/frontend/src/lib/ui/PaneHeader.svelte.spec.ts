@@ -15,6 +15,29 @@ const collapsedActions = createRawSnippet(() => ({
 }));
 
 describe('PaneHeader responsive actions', () => {
+  it.each([false, true])('sizes back links and buttons for touch=%s', async (touch) => {
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+    try {
+      const link = render(PaneHeader, { props: { title: 'Settings', backHref: '#' } });
+      const button = render(PaneHeader, { props: { title: 'Thread', onBack: () => {} } });
+      for (const width of [320, 1280]) {
+        await page.viewport(width, 800);
+        for (const control of [
+          link.getByRole('link', { name: 'Back' }),
+          button.getByRole('button', { name: 'Back' })
+        ]) {
+          await expect.element(control).toHaveStyle({
+            width: touch ? '44px' : '40px',
+            height: touch ? '44px' : '40px'
+          });
+        }
+      }
+    } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+      await page.viewport(1280, 720);
+    }
+  });
+
   it('reclaims only opted-in header space on mobile and restores it on close', async () => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
     await page.viewport(390, 800);

@@ -24,6 +24,7 @@ import {
   persistedBearerSession,
   type NewBearerSession
 } from '../auth/bearerSession.js';
+import type { KeepRecent } from './roomStores.js';
 
 export type { ServerRegistration } from './catalog.js';
 export type { ServerSession } from './sessions.js';
@@ -357,6 +358,8 @@ export interface ServerRegistryOptions {
 export interface ServerRegistryContext {
   readonly connections: ServerConnectionManager;
   readonly realtime: EventBusManager;
+  /** The number of recently used rooms and threads that each server keeps. */
+  readonly keepRecent?: KeepRecent;
 }
 
 /**
@@ -1228,6 +1231,7 @@ export class ServerRegistry {
       serverConnection,
       {
         realtime: this.#context.realtime,
+        keepRecent: this.#context.keepRecent,
         remove: () => this.removeServer(serverId),
         fixedToken: this.#fixedTokenServers.has(serverId)
       },

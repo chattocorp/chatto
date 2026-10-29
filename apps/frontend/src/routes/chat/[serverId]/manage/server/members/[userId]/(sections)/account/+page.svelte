@@ -1,8 +1,8 @@
 <!--
 @component
 
-Account section of a member: identity and password settings for account
-managers, and the danger zone for viewers who may delete the account.
+Account section of a member: identity, password, and access settings for
+account managers, plus deletion for viewers with the required permission.
 -->
 <script lang="ts">
   import type { AdminMember } from '$lib/api/adminUsers';
@@ -26,6 +26,24 @@ managers, and the danger zone for viewers who may delete the account.
     roleNames: string[];
   };
   type PasswordMutationVariables = MemberMutationScope & { password: string };
+  type DeactivationVariables = MemberMutationScope & { deactivated: boolean };
+
+  const deactivationMutation = createMutation(() => ({
+    mutationFn: ({ api, userId, deactivated }: DeactivationVariables) =>
+      api.setUserDeactivated(userId, deactivated),
+    onSuccess: (updated, target) => {
+      if (!detail.isCurrentTarget(target)) return;
+      detail.updateCachedMember(target, () => updated);
+      detail.invalidateMemberLists(target);
+    }
+  }));
+
+  async function changeDeactivation(deactivated: boolean): Promise<boolean> {
+    const target = detail.mutationScope();
+    if (!target) return false;
+    await deactivationMutation.mutateAsync({ ...target, deactivated });
+    return detail.isCurrentTarget(target);
+  }
 
   const identityMutation = createMutation(() => ({
     mutationFn: ({ connection, userId: targetUserId, input }: IdentityMutationVariables) =>
@@ -102,8 +120,15 @@ managers, and the danger zone for viewers who may delete the account.
     {/key}
   {/if}
 
-  {#if detail.canDeleteHere}
-    <MemberDangerZone member={detail.member} />
+  {#if detail.canDeleteHere || detail.member.viewerCanChangeDeactivation}
+    {#key detail.userId}
+      <MemberDangerZone
+        member={detail.member}
+        canDelete={detail.canDeleteHere}
+        {changeDeactivation}
+        deleteMember={detail.deleteMember}
+      />
+    {/key}
   {/if}
 {:else}
   <Hint tone="danger">{m('ui.access_denied.message')}</Hint>

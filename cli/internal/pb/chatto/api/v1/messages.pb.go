@@ -107,8 +107,14 @@ type CreateMessageRequest struct {
 	// Optional descriptions for assets in attachment_asset_ids. Asset IDs must
 	// be unique in this list. At most one description can target each asset.
 	AttachmentDescriptions []*MessageAttachmentDescriptionInput `protobuf:"bytes,12,rep,name=attachment_descriptions,json=attachmentDescriptions,proto3" json:"attachment_descriptions,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Optional caller-generated UUID for this send. Reuse it with the same room
+	// and request when a response is lost. For 30 minutes after first acceptance,
+	// an exact retry returns the same message ID; changed arguments are rejected.
+	// Retries do not extend this period. After expiry, the key can be used again.
+	// Omit the key for ordinary posting without duplicate protection.
+	IdempotencyKey *string `protobuf:"bytes,13,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateMessageRequest) Reset() {
@@ -202,6 +208,13 @@ func (x *CreateMessageRequest) GetAttachmentDescriptions() []*MessageAttachmentD
 		return x.AttachmentDescriptions
 	}
 	return nil
+}
+
+func (x *CreateMessageRequest) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
 }
 
 // Result of creating a message.
@@ -1008,7 +1021,7 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"u\n" +
 	"!MessageAttachmentDescriptionInput\x12$\n" +
 	"\basset_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01(\x0fR\aassetId\x12*\n" +
-	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aR\vdescription\"\xa3\x04\n" +
+	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aR\vdescription\"\xf2\x04\n" +
 	"\x14CreateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12B\n" +
@@ -1022,7 +1035,9 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	" \x01(\tR\x10linkPreviewToken\x12#\n" +
 	"\rcreate_thread\x18\v \x01(\bR\fcreateThread\x12s\n" +
 	"\x17attachment_descriptions\x18\f \x03(\v20.chatto.api.v1.MessageAttachmentDescriptionInputB\b\xbaH\x05\x92\x01\x02\x10\n" +
-	"R\x16attachmentDescriptionsJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"R\x16attachmentDescriptions\x129\n" +
+	"\x0fidempotency_key\x18\r \x01(\tB\v\xbaH\br\x06\x98\x01$\xb0\x01\x01H\x00R\x0eidempotencyKey\x88\x01\x01B\x12\n" +
+	"\x10_idempotency_keyJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\a\x10\bR\flink_previewR\vattachmentsR\x1amention_confirmation_token\"u\n" +
 	"\x15CreateMessageResponse\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x14mention_confirmationR\bincludes\"\x94\x02\n" +
@@ -1174,6 +1189,7 @@ func file_chatto_api_v1_messages_proto_init() {
 	file_chatto_api_v1_link_previews_proto_init()
 	file_chatto_api_v1_message_types_proto_init()
 	file_chatto_api_v1_reactions_proto_init()
+	file_chatto_api_v1_messages_proto_msgTypes[1].OneofWrappers = []any{}
 	file_chatto_api_v1_messages_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

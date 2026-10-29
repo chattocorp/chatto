@@ -6,6 +6,15 @@
       "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
     },
     "notifications": {
+      "all_notifications": "Ĉiuj sciigoj",
+      "all_types": "Ĉiuj tipoj",
+      "filter_status": "Stato",
+      "filter_type": "Tipo",
+      "reactions": "Reagoj",
+      "replies": "Respondoj",
+      "mentions": "Mencioj",
+      "next_unread_source": "Iri al la sekva nelegita fonto",
+      "no_unread": "Neniuj nelegitaj sciigoj",
       "title": "Sciigoj",
       "subtitle": "Jen kio estas nova",
       "clear_read": "Forigi legitajn",
@@ -28,12 +37,6 @@
         "activity": "{actor} sendis al vi sciigon",
         "room_invitation": "{actor} invitis vin al ĉambro"
       }
-    },
-    "sign_out": {
-      "title": "Eliru",
-      "current_server": "Nuna Servilo",
-      "all_servers": "Ĉiuj Serviloj",
-      "description": "Elsaluti nur de la elektita servilo, aŭ malkonekti ĉiun servilon de ĉi tiu kliento."
     },
     "overview": {
       "title": "Superrigardo"

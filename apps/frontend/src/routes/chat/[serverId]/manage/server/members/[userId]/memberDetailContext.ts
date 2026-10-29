@@ -33,6 +33,8 @@ export interface MemberDetailContext {
   readonly canViewMemberEmails: boolean;
   /** True when this page may offer account deletion. */
   readonly canDeleteHere: boolean;
+  /** Deletes the current member, clears private caches, and returns to the list. */
+  deleteMember(): Promise<void>;
   /** The last member read error, for mutations that refetch the member. */
   readonly loadError: Error | null;
   /** Captures the current session and member, or `null` without a member. */

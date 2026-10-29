@@ -118,10 +118,10 @@
       "conflict": "Questo profilo è cambiato mentre lo modificavi. Ricarica la pagina, quindi salva di nuovo le modifiche.",
       "save_button": "Salva modifiche",
       "bio": {
-        "label": "Bio",
+        "label": "Informazioni",
         "description": "Fino a {max} caratteri, mostrato nel tuo profilo.",
         "placeholder": "Racconta brevemente di te",
-        "too_long": "La bio può contenere al massimo {max} caratteri."
+        "too_long": "Il testo può contenere al massimo {max} caratteri."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Buio",
           "description": "Utilizza l'interfaccia oscura su questo browser"
+        }
+      },
+      "animations": {
+        "title": "Animazioni",
+        "automatic": {
+          "label": "Automatico",
+          "description": "Segui la preferenza di sistema per il movimento ridotto"
+        },
+        "enabled": {
+          "label": "Attivate",
+          "description": "Mostra sempre le animazioni"
+        },
+        "disabled": {
+          "label": "Disattivate",
+          "description": "Mostra le modifiche senza animazioni"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Parola d'ordine",
         "add_description": "Aggiungi una password per poter accedere direttamente e disconnettere il tuo ultimo provider SSO.",
         "change_description": "Modificare la password utilizzata per l'accesso diretto.",
+        "sso_managed": "Non puoi aggiungere o modificare una password perché questo server utilizza l'accesso unico (SSO). Gestisci i tuoi dati di accesso presso il tuo provider di identità.",
         "current_label": "Password attuale",
         "current_required": "Inserisci la tua password attuale.",
         "add_button": "Aggiungi password",
@@ -437,6 +453,9 @@
         "already_set": "Questo account ha già una password."
       },
       "sso": {
+        "username_unavailable": "Non è possibile assegnare il nome utente del provider di accesso. Contatta il gestore del server.",
+        "username_managed": "Il tuo nome utente è gestito dal provider di accesso e non può essere modificato qui.",
+        "unlink_disabled": "Il gestore del server non consente di scollegare questo provider.",
         "popup_blocked": "Consenti i popup per questo sito, poi riprova il collegamento.",
         "account_mismatch": "Accedi all’account corretto su questo server, poi avvia di nuovo il collegamento dalla finestra originale.",
         "provider_unavailable": "Questo provider di accesso non è più disponibile.",
@@ -449,6 +468,7 @@
         "link_button": "Collegamento",
         "link_failed": "Impossibile collegare il provider di accesso",
         "fresh_auth_required": "Accedi nuovamente prima di collegare un altro provider.",
+        "sso_fresh_auth_required": "Apri le impostazioni dell'account sul server a cui appartiene questo account. Esci e accedi di nuovo tramite il tuo provider SSO, quindi riprova l'azione su quel server.",
         "provider_unconfigured": "Fornitore non più configurato",
         "disconnect_button": "Disconnetti",
         "disconnecting": "Disconnessione...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Il provider non può essere disconnesso",
-          "body": "{provider} è il tuo unico metodo di accesso. Aggiungi prima una password o collega prima un altro provider."
+          "body": "Configura un altro metodo di accesso supportato da questo server prima di scollegare {provider}."
         },
         "fresh_auth_modal": {
           "title": "Conferma la password",

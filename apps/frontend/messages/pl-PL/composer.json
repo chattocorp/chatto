@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Wstaw emoji",
     "attach_file": "Załącz plik",
     "formatting_options": "Opcje formatowania",
     "send": "Wyślij wiadomość",
@@ -25,6 +26,8 @@
     "drop_files_title": "Upuść pliki tutaj",
     "drop_files_subtitle": "Zdjęcia i filmy zostaną dodane do Twojej wiadomości",
     "send_failed": "Nie udało się wysłać wiadomości",
+    "send_retry_expired": "Czas na ponowienie wysyłania minął. Sprawdź, czy twoja wiadomość dotarła, zanim wyślesz ją ponownie.",
+    "send_retry_reset": "Połączenie zostało zresetowane. Sprawdź, czy twoja wiadomość dotarła, zanim wyślesz ją ponownie.",
     "slow_mode_ready": "Tryb powolny: jedna wiadomość co {interval}.",
     "slow_mode_waiting": "Tryb powolny: wyślij ponownie za {countdown}.",
     "slow_mode_bypassed": "Tryb powolny: {interval} (ograniczenie Cię nie dotyczy).",
@@ -44,9 +47,11 @@
       "remove": "Usuń {filename}",
       "video_disabled": "Przesyłanie filmów jest wyłączone na tym serwerze.",
       "prepare_failed": "Nie udało się przygotować załącznika",
+      "too_many": "Do jednej wiadomości możesz dołączyć maksymalnie {max} plików. Dodatkowe pliki nie zostały dodane.",
       "too_large": "Plik {filename} jest za duży ({size}). Maksymalny rozmiar to {limit}."
     },
     "format": {
+      "underline": "Podkreślenie",
       "bold": "Pogrubienie",
       "italic": "Kursywa",
       "inline_code": "Kod w wierszu",

@@ -10,6 +10,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 
@@ -90,6 +92,8 @@ type createRoomOptions struct {
 	universal                  bool
 	threadingMode              evtv1.RoomThreadingMode
 	applyAnnouncementsDefaults bool
+	importContext              *evtv1.ImportContext
+	importReceipt              func(string) evtstream.BatchEntry
 }
 
 // CreateRoomOption customizes room creation for trusted/internal callers.
@@ -129,7 +133,7 @@ func IsValidRoomThreadingMode(mode evtv1.RoomThreadingMode) bool {
 // channel events predate the field and therefore resolve UNSPECIFIED to
 // ENABLED. DMs always use ENABLED. Unknown future channel values fail closed
 // to DISABLED.
-func EffectiveRoomThreadingMode(room *evtv1.Room) evtv1.RoomThreadingMode {
+func EffectiveRoomThreadingMode(room *readmodel.Room) evtv1.RoomThreadingMode {
 	if room == nil {
 		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
 	}
@@ -146,7 +150,7 @@ func EffectiveRoomThreadingMode(room *evtv1.Room) evtv1.RoomThreadingMode {
 }
 
 func normalizedRoomThreadingMode(kind evtv1.RoomKind, mode evtv1.RoomThreadingMode) evtv1.RoomThreadingMode {
-	return EffectiveRoomThreadingMode(&evtv1.Room{Kind: kind, ThreadingMode: mode})
+	return EffectiveRoomThreadingMode(&readmodel.Room{Kind: kind, ThreadingMode: mode})
 }
 
 // WithAnnouncementsRoomDefaults applies the built-in announcements room's
@@ -185,7 +189,7 @@ func collectCreateRoomOptions(opts []CreateRoomOption) createRoomOptions {
 // Concurrent room mutations from any process (this one or another replica)
 // advance the filter's seq and cause our publish to fail; we re-check
 // uniqueness from the (now-caught-up) projection and retry.
-func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*evtv1.Room, error) {
+func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*readmodel.Room, error) {
 	return c.roomCommands.createRoom(ctx, actorID, kind, groupID, name, description, opts...)
 }
 
@@ -206,6 +210,7 @@ func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
 
 	appendRoleDecisions(RoleEveryone, DefaultAnnouncementsEveryoneDenials(), DecisionDeny)
 	appendRoleDecisions(RoleAdmin, DefaultAnnouncementsAdminPermissions(), DecisionAllow)
+	appendRoleDecisions(RoleOwner, []Permission{PermMessagePost}, DecisionAllow)
 	return decisions
 }
 
@@ -326,7 +331,7 @@ func (m *RoomCommandModel) DeleteRoom(ctx context.Context, actorID string, kind 
 // Authorization: Caller must verify CanManageAnyRoom before calling.
 //
 // ADR-035 phase 6: event-only.
-func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error) {
+func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*readmodel.Room, error) {
 	return c.roomCommands.archiveRoom(ctx, actorID, kind, roomID)
 }
 
@@ -335,7 +340,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 // Authorization: Caller must verify CanManageAnyRoom before calling.
 //
 // ADR-035 phase 6: event-only.
-func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error) {
+func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*readmodel.Room, error) {
 	return c.roomCommands.unarchiveRoom(ctx, actorID, kind, roomID)
 }
 
@@ -346,7 +351,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 // projected OR if its kind doesn't match the requested kind —
 // keeping the "the wrong kind is not found" semantic so callers
 // don't accidentally read a DM via a channel-kind probe.
-func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*evtv1.Room, error) {
+func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*readmodel.Room, error) {
 	return c.roomModel.GetRoom(ctx, kind, room_id)
 }
 
@@ -357,7 +362,7 @@ func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string)
 // wire), so resolvers and consumers downstream of those events use
 // this to recover both the room and the kind context (via
 // KindOfRoom on the result).
-func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*evtv1.Room, error) {
+func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*readmodel.Room, error) {
 	return c.roomModel.FindRoomByID(ctx, room_id)
 }
 
@@ -371,7 +376,7 @@ func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind
 // ListRooms retrieves all rooms of the given kind from the
 // RoomModel's room catalog, composed with its group-layout state for the
 // group_id field.
-func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*evtv1.Room, error) {
+func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*readmodel.Room, error) {
 	return c.roomModel.ListRooms(ctx, kind)
 }
 
@@ -387,12 +392,12 @@ type MemberRoomListOptions struct {
 // ListMemberRooms retrieves rooms of the given kind that the user participates
 // in. It is the shared room-list primitive for member-scoped room surfaces;
 // callers layer product policy on top with MemberRoomListOptions.
-func (m *RoomMembershipModel) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*evtv1.Room, error) {
+func (m *RoomMembershipModel) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*readmodel.Room, error) {
 	roomIDs := m.rooms.explicitRoomIDsForUser(userID)
 	seen := make(map[string]struct{}, len(roomIDs))
 
 	type listedRoom struct {
-		room          *evtv1.Room
+		room          *readmodel.Room
 		lastMessageAt time.Time
 	}
 	listed := make([]listedRoom, 0, len(roomIDs))
@@ -462,7 +467,7 @@ func (m *RoomMembershipModel) ListMemberRooms(ctx context.Context, kind RoomKind
 		})
 	}
 
-	rooms := make([]*evtv1.Room, len(listed))
+	rooms := make([]*readmodel.Room, len(listed))
 	for i, r := range listed {
 		rooms[i] = r.room
 	}

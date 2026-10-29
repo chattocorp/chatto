@@ -14,6 +14,7 @@
  */
 
 import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
+import { roomNoticeDismissalKey, writeNoticeDismissal } from '$lib/storage/roomNoticeDismissal';
 import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { createMessageSearchAPI, type MessageSearchAPI } from '@chatto/client/api/messageSearch';
 import { createRoomCommandAPI } from '@chatto/client/api/rooms';
@@ -140,6 +141,9 @@ export class ServerUi {
       this.#forEachSearch((search) => search.clearResults());
     });
     store.onRoomAccessLost(({ roomId, messagesOnly, removed }) => {
+      if (!messagesOnly && store.viewerId) {
+        writeNoticeDismissal(roomNoticeDismissalKey(store.serverId, store.viewerId, roomId), '');
+      }
       this.draftReplies.clearRoom(roomId);
       const highlight = this.pendingHighlights.current;
       if (highlight?.roomId === roomId) this.pendingHighlights.complete(highlight);

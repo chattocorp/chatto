@@ -178,7 +178,7 @@ async function createHumanOwner(
 }
 
 test.describe('Bot account lifecycle', () => {
-  test('updates bot permissions and join controls when management is armed and unarmed', async ({
+  test('keeps owner-managed bot joins available when management is armed and unarmed', async ({
     page
   }) => {
     const browserErrors: string[] = [];
@@ -200,7 +200,7 @@ test.describe('Bot account lifecycle', () => {
     await expect(page.getByRole('button', { name: 'Enable privileged mode' })).toBeVisible();
     const join = page.getByRole('button', { name: `Add account to #${roomName}`, exact: true });
     const post = page.locator('td[data-scope="server"][data-permission="message.post"] button');
-    await expect(join).toBeDisabled();
+    await expect(join).toBeEnabled();
     await expect(post).toBeEnabled();
     const botURL = page.url();
     const filter = page.getByTestId('permission-filter');
@@ -227,7 +227,7 @@ test.describe('Bot account lifecycle', () => {
               exact: true
             })
           ).toBeEnabled();
-          await expect(join).toBeEnabled({ enabled: active });
+          await expect(join).toBeEnabled();
           await expect(post).toBeEnabled();
           await expect(filter).toHaveValue('message');
           await expect(filter).toHaveAttribute('data-mount-marker', 'original');
@@ -236,6 +236,29 @@ test.describe('Bot account lifecycle', () => {
         }
       );
     }
+    await page.getByRole('button', { name: 'Disable privileged mode' }).click();
+    await expect(page.getByRole('button', { name: 'Enable privileged mode' })).toBeVisible();
+    await filter.fill('room.join');
+    const botJoinGrant = page.getByRole('button', {
+      name: `room.join is Disabled for bot at ${roomName}`,
+      exact: true
+    });
+    await expect(botJoinGrant).toBeVisible();
+    await join.click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', {
+        name: `Add account to #${roomName}`,
+        exact: true
+      })
+      .click();
+    await expect(
+      page.getByRole('button', {
+        name: `Remove account from #${roomName}`,
+        exact: true
+      })
+    ).toBeEnabled();
+    await expect(botJoinGrant).toBeVisible();
     expect(browserErrors).toEqual([]);
   });
 

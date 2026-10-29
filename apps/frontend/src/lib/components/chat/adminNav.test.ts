@@ -66,7 +66,7 @@ describe('getAdminNavItems', () => {
     expect(items.some((item) => item.label === 'Members')).toBe(false);
   });
 
-  it('hides Permissions without role management', () => {
+  it('shows Permissions for role assigners without role management', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
       permissions: permissions({
@@ -76,7 +76,7 @@ describe('getAdminNavItems', () => {
       })
     });
 
-    expect(items.some((item) => item.label === 'Permissions')).toBe(false);
+    expect(items.some((item) => item.label === 'Permissions')).toBe(true);
   });
 
   it('shows Permissions for role managers', () => {

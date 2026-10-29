@@ -5,7 +5,15 @@
   const { Story } = defineMeta({
     title: 'Composer/Formatting toolbar',
     component: ComposerFormattingToolbar,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: {
+          component:
+            'Formatting controls use 44 px touch targets at every viewport width. The shelf scrolls horizontally when the controls do not fit.'
+        }
+      }
+    }
   });
 </script>
 
@@ -17,6 +25,7 @@
   let formattingState = $state<ComposerFormattingState>({
     bold: true,
     italic: false,
+    underline: true,
     inlineCode: false,
     heading: false,
     bulletList: false,

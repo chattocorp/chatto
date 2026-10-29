@@ -1,6 +1,7 @@
 {
   "permissions": {
     "descriptions": {
+      "room_manage_notice": "Publikowanie, poprawianie, ponowne ogłaszanie i usuwanie ogłoszeń pokoju",
       "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
       "server_manage_neighbors": "Zarządzanie publicznym katalogiem sąsiadów",
       "room_create": "Utwórz nowe pokoje",

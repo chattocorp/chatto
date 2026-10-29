@@ -52,6 +52,11 @@
       "subtitle": "Identidade, marca e mensagens do servidor"
     },
     "members": {
+      "deactivate": "Desativar conta",
+      "reactivate": "Reativar conta",
+      "deactivate_description": "O utilizador deixará de poder usar este servidor. Todas as sessões terminarão imediatamente. Os dados serão preservados. Pode reativar a conta mais tarde.",
+      "deactivated_description": "Esta conta está desativada. A reativação permite que o utilizador inicie sessão novamente. As sessões antigas continuam inválidas.",
+      "deactivation_failed": "Não foi possível alterar o acesso à conta.",
       "title": "Membros",
       "subtitle": "Visualizar e gerir os membros do servidor e as suas funções",
       "search": "Pesquisar membros",
@@ -249,6 +254,10 @@
         "name_title": "Nome e descrição",
         "name_subtitle": "Os membros veem estas informações na lista de salas e no topo da sala.",
         "visibility_title": "Visibilidade",
+        "membership_events_title": "Atividade dos membros",
+        "show_membership_events": "Mostrar entradas e saídas",
+        "membership_events_description": "Mostrar quando as pessoas entram ou saem desta sala, incluindo no histórico. Ocultar esta atividade não a elimina.",
+        "membership_events_unavailable": "Atualize este servidor para alterar como a atividade dos membros é apresentada.",
         "visibility_subtitle": "Escolha quem é membro desta sala.",
         "universal_description": "Todos os membros que podem entrar nesta sala são membros automaticamente.",
         "visibility_help": "Utilize uma sala universal para notícias que todos os membros têm de receber, como anúncios. Os membros não podem sair de uma sala universal, mas podem silenciá-la. Se desativar a opção universal, os membros que entraram antes continuam na sala.",

@@ -6,6 +6,7 @@ import { NO_SERVER_PERMISSIONS, type ServerPermissions } from '@chatto/client/se
 import type { ServerScope } from '$lib/state/server/scope.svelte';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 import type { ServerStateStore } from '@chatto/client/server/store';
+import { UserStore } from '@chatto/client/server/users';
 import { setServerUiForTests } from '$lib/state/server/serverUi';
 import { DraftReplies } from '$lib/state/server/draftReplies';
 
@@ -159,7 +160,7 @@ function buildStore(
       draftReplies: new DraftReplies(),
       serverId: t.serverId,
       connection,
-      projection: { rooms: new Map(), activeCalls: [] },
+      projection: { rooms: new Map(), users: new UserStore(), activeCalls: [] },
       // A fake store reports no boundary events.
       onUpdate: subscribe,
       onReset: subscribe,
@@ -192,7 +193,7 @@ function buildStore(
       get permissions() {
         return t.permissions;
       },
-      serverInfo: withMembers(withMembers({}, serverInfo), {
+      serverInfo: withMembers(withMembers({ directLoginEnabled: true }, serverInfo), {
         get canConnect() {
           return t.canConnect;
         },

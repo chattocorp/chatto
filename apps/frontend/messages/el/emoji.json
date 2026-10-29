@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} από {users}",
+    "tone_default": "Προεπιλεγμένο κίτρινο",
+    "tone_light": "Ανοιχτός",
+    "tone_medium_light": "Μέτρια ανοιχτός",
+    "tone_medium": "Μεσαίος",
+    "tone_medium_dark": "Μέτρια σκούρος",
+    "tone_dark": "Σκούρος",
     "search_placeholder": "Αναζήτηση emoji...",
     "no_results": "Δεν βρέθηκαν emoji",
     "recently_used": "Πρόσφατα χρησιμοποιημένα"

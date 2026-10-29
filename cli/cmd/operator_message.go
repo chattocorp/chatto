@@ -20,12 +20,17 @@ var operatorMessageCmd = &cobra.Command{Use: "message", Short: "Manage historica
 func init() {
 	operatorCmd.AddCommand(operatorMessageCmd)
 	operatorMessageCmd.AddCommand(operatorMessageImportCmd())
+	operatorMessageCmd.AddCommand(operatorReactionImportCmd())
 }
 
 func operatorMessageImportCmd() *cobra.Command {
 	var roomID, authorID, createdAt, editedAt, inReplyTo, body, bodyFile string
 	var previewURL, previewTitle, previewDescription, previewType string
 	var bodyStdin bool
+	var threadRootID string
+	var idempotencyKey string
+	var createThread bool
+	var deleted bool
 	var assetIDs []string
 	cmd := &cobra.Command{
 		Use: "import", Short: "Import one historical channel message", Args: cobra.NoArgs,
@@ -81,7 +86,10 @@ func operatorMessageImportCmd() *cobra.Command {
 			request := &operatorv1.ImportMessageRequest{
 				RoomId: roomID, AuthorId: authorID, CreatedAt: timestamppb.New(created),
 				InReplyTo: inReplyTo, AttachmentAssetIds: assetIDs, Body: body,
-				PreviewUrl: previewURL, PreviewTitle: previewTitle, PreviewDescription: previewDescription, PreviewType: previewType,
+				ThreadRootEventId: threadRootID, CreateThread: createThread,
+				IdempotencyKey: idempotencyKey,
+				Deleted:        deleted,
+				PreviewUrl:     previewURL, PreviewTitle: previewTitle, PreviewDescription: previewDescription, PreviewType: previewType,
 			}
 			if editedAt != "" {
 				edited, err := time.Parse(time.RFC3339Nano, editedAt)
@@ -107,6 +115,11 @@ func operatorMessageImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&createdAt, "created-at", "", "original creation time in RFC3339")
 	cmd.Flags().StringVar(&editedAt, "edited-at", "", "original edit time in RFC3339")
 	cmd.Flags().StringVar(&inReplyTo, "in-reply-to", "", "Chatto message ID in the same room")
+	cmd.Flags().StringVar(&threadRootID, "thread-id", "", "thread ID (the root message ID) to place the message in")
+	cmd.Flags().StringVar(&idempotencyKey, "idempotency-key", "", "UUID for exact retries within 30 minutes of the first attempt")
+	cmd.Flags().BoolVar(&createThread, "create-thread", false, "establish an empty thread on the imported root")
+	cmd.Flags().BoolVar(&deleted, "deleted", false, "import a native tombstone without body, attachments, preview, or edit time")
+	cmd.MarkFlagsMutuallyExclusive("thread-id", "create-thread")
 	cmd.Flags().StringSliceVar(&assetIDs, "attachment-asset-id", nil, "attachment asset ID (repeatable)")
 	cmd.Flags().StringVar(&body, "body", "", "message body text")
 	cmd.Flags().StringVar(&bodyFile, "body-file", "", "read message body from a local file")
@@ -115,6 +128,34 @@ func operatorMessageImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&previewTitle, "preview-title", "", "exported preview title")
 	cmd.Flags().StringVar(&previewDescription, "preview-description", "", "exported preview description")
 	cmd.Flags().StringVar(&previewType, "preview-type", "", "exported preview type")
+	return cmd
+}
+
+func operatorReactionImportCmd() *cobra.Command {
+	var roomID, messageID, userID, emoji string
+	cmd := &cobra.Command{
+		Use: "import-reaction", Short: "Import a historical reaction for a mapped user", Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if strings.TrimSpace(roomID) == "" || strings.TrimSpace(messageID) == "" || strings.TrimSpace(userID) == "" || strings.TrimSpace(emoji) == "" {
+				return errors.New("--room-id, --message-event-id, --user-id, and --emoji are required")
+			}
+			client, err := newOperatorMessageClient()
+			if err != nil {
+				return err
+			}
+			response, err := client.ImportReaction(cmd.Context(), operatorRequest(&operatorv1.ImportReactionRequest{
+				RoomId: roomID, MessageEventId: messageID, UserId: userID, Emoji: emoji,
+			}))
+			if err != nil {
+				return err
+			}
+			return printOperatorOutput(cmd.OutOrStdout(), response.Msg, func() { fmt.Fprintln(cmd.OutOrStdout(), response.Msg.GetAdded()) })
+		},
+	}
+	cmd.Flags().StringVar(&roomID, "room-id", "", "active channel room ID")
+	cmd.Flags().StringVar(&messageID, "message-event-id", "", "message or channel echo ID")
+	cmd.Flags().StringVar(&userID, "user-id", "", "mapped Chatto reactor ID")
+	cmd.Flags().StringVar(&emoji, "emoji", "", "reaction name without colons")
 	return cmd
 }
 

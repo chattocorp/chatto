@@ -52,6 +52,11 @@
       "subtitle": "Serveridentitet, varumärke och meddelanden"
     },
     "members": {
+      "deactivate": "Inaktivera konto",
+      "reactivate": "Återaktivera konto",
+      "deactivate_description": "Användaren kommer inte längre att kunna använda den här servern. Alla sessioner avslutas omedelbart. Alla data bevaras. Du kan återaktivera kontot senare.",
+      "deactivated_description": "Det här kontot är inaktiverat. Efter återaktivering kan användaren logga in igen. Gamla sessioner förblir ogiltiga.",
+      "deactivation_failed": "Det gick inte att ändra kontoåtkomsten.",
       "title": "Medlemmar",
       "subtitle": "Visa och hantera servermedlemmar och deras roller",
       "search": "Sök medlemmar",
@@ -249,6 +254,10 @@
         "name_title": "Namn och beskrivning",
         "name_subtitle": "Medlemmar ser dessa i rumslistan och högst upp i rummet.",
         "visibility_title": "Synlighet",
+        "membership_events_title": "Medlemsaktivitet",
+        "show_membership_events": "Visa när medlemmar går med eller lämnar",
+        "membership_events_description": "Visa när personer går med i eller lämnar rummet, även i historiken. Att dölja aktiviteten tar inte bort den.",
+        "membership_events_unavailable": "Uppdatera servern för att ändra hur medlemsaktivitet visas.",
         "visibility_subtitle": "Välj vem som är medlem i det här rummet.",
         "universal_description": "Alla medlemmar som kan gå med i det här rummet är automatiskt medlemmar.",
         "visibility_help": "Använd ett universellt rum för nyheter som alla medlemmar måste få, till exempel tillkännagivanden. Medlemmar kan inte lämna ett universellt rum, men de kan tysta det. Om du stänger av universellt stannar medlemmarna som gick med tidigare kvar i rummet.",

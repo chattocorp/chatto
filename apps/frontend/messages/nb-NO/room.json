@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Romkunngjøring",
+      "dismiss": "Lukk",
+      "body": "Kunngjøring (Markdown)",
+      "too_long": "Kunngjøringer kan inneholde høyst {max} tegn, inkludert mellomrom.",
+      "help": "Lagre rettelser uten å vise kunngjøringen igjen. Kunngjør den for å vise den på nytt til medlemmer som har lukket den på enhetene sine.",
+      "conflict": "Denne kunngjøringen ble endret mens du redigerte. Utkastet ditt er fortsatt her. Kopier det om nødvendig, og last inn gjeldende kunngjøring før du lagrer på nytt.",
+      "reload": "Last inn gjeldende kunngjøring",
+      "save": "Oppdater",
+      "republish": "Kunngjør",
+      "clear": "Fjern",
+      "clear_confirm_title": "Fjerne romkunngjøringen?",
+      "clear_confirm_description": "Dette fjerner straks den aktive kunngjøringen for alle i rommet. Endringene du ikke har lagret, blir ikke publisert.",
+      "empty": "Ingen kunngjøring er publisert.",
+      "edit": "Rediger kunngjøring"
+    },
+    "information": {
+      "description": "Beskrivelse",
+      "created": "Opprettet",
+      "title": "Rominformasjon",
+      "basic": "Generelt",
+      "pinned_messages": "Festede meldinger"
+    },
     "create": {
       "title": "Opprett et nytt rom",
       "description": "Rom er samtaler på serveren din.",
@@ -77,7 +100,8 @@
       "beginning": "Dette er begynnelsen på denne samtalen.",
       "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet.",
       "limited_empty": "Ingen samtaler du kan lese ennå.",
-      "loading": "Laster inn meldinger ..."
+      "loading": "Laster inn meldinger ...",
+      "load_failed": "Kunne ikke laste inn meldinger."
     },
     "message": {
       "empty": "Ingen meldinger ennå",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Tråd i #{room}",
       "back_to_room": "Tilbake til rommet",
+      "participants": "Deltakere i tråden ({count})",
       "follow": "Følg tråden",
       "unfollow": "Slutt å følge tråden",
       "close": "Lukk tråden",
@@ -263,6 +288,7 @@
     "unread_separator": "Nye meldinger",
     "close_extras": "Lukk romtillegg",
     "dm": {
+      "deactivated_user_notice": "Denne kontoen er deaktivert. Brukeren kan ikke lese eller svare på meldinger.",
       "deleted_user_notice": "Den andre brukeren er slettet."
     },
     "management": {

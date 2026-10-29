@@ -3,7 +3,7 @@ import { TIMEOUTS } from './constants';
 import {
   getRoomOnRemote,
   expectSignedOutViewGone,
-  joinServerAndStartSignIn,
+  startServerSignIn,
   postMessageOnRemote
 } from './fixtures/multiServer';
 import { createProductionUser, startProductionServer } from './fixtures/productionServer';
@@ -69,12 +69,10 @@ test.describe('supported release baseline', () => {
       // Discover the released server and complete its real OAuth + PKCE flow.
       const remoteHost = new URL(remoteServer.baseURL).host;
       await page.getByTitle('Add Server').click();
+      await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
       await page.getByLabel('Server URL').fill(remoteHost);
       await page.getByRole('button', { name: 'Find server' }).click();
-      await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      const remoteLoginPage = await joinServerAndStartSignIn(page);
+      const remoteLoginPage = await startServerSignIn(page);
 
       await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
         timeout: TIMEOUTS.REALTIME_EVENT
@@ -141,7 +139,7 @@ test.describe('supported release baseline', () => {
       await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1\//);
       await roomPage.expectMessageVisible(sentMessage);
       await roomPage.expectMessageVisible(receivedMessage);
-      await expect(page.getByTitle('Sign out')).toBeVisible();
+      await expect(page.locator('a[href$="/settings"]')).toBeVisible();
     } finally {
       if (remoteServer) {
         await stopServer(remoteServer);
@@ -190,6 +188,7 @@ test.describe('unsupported release boundary', () => {
       });
 
       await page.getByTitle('Add Server').click();
+      await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
       await page.getByLabel('Server URL').fill(remoteHost);
       await page.getByRole('button', { name: 'Find server' }).click();
       const externalAction = page.getByRole('link', { name: 'Open in new tab', exact: true });

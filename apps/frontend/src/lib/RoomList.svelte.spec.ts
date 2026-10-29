@@ -3,7 +3,9 @@ import { NavigationStore } from '$lib/state/server/navigation';
 import { RoomListView } from '@chatto/client/server/rooms';
 import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomWithViewerState, RoomViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -577,23 +579,26 @@ describe('RoomList', () => {
         link.getAttribute('href')!.split('/').at(-1)
       );
     const allIds = Array.from({ length: count }, (_, index) => `dm-old-${index}`);
-    expect(visibleIds()).toEqual(allIds.slice(-3));
+    expect(visibleIds()).toEqual(allIds.slice(-3).reverse());
     if (count <= 3) {
       expect(container.querySelector('[data-testid="older-conversations"]')).toBeNull();
     } else {
       await browserPage.getByRole('button', { name: 'Show older (2)', exact: true }).click();
-      expect(visibleIds()).toEqual(allIds);
+      expect(visibleIds()).toEqual(allIds.toReversed());
       await browserPage.getByRole('button', { name: 'Show less', exact: true }).click();
-      await vi.waitFor(() => expect(visibleIds()).toEqual(allIds.slice(-3)));
+      await vi.waitFor(() => expect(visibleIds()).toEqual(allIds.slice(-3).reverse()));
     }
   });
 
   it.each([
-    { ages: [12, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 1 },
-    { ages: [12, 1, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 2 },
+    { ages: [12, 1, 10, 8], visibleIds: [1, 3, 2], hiddenCount: 1 },
+    { ages: [12, 1, 2, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 2 },
     { ages: [12, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3], hiddenCount: 3 },
     { ages: [12, 1, 1, 1, 1, 8, 10], visibleIds: [1, 2, 3, 4], hiddenCount: 3 }
   ])('fills the minimum for DM ages $ages', ({ ages, visibleIds, hiddenCount }) => {
+    // Equal ages must produce equal timestamps even when fixture creation crosses a millisecond.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-27T12:00:00Z'));
     const template = (mocks.store.navigation.rooms as RoomsListItem[]).find(
       (room) => room.type === RoomKind.DM
     )!;
@@ -611,6 +616,71 @@ describe('RoomList', () => {
       `Show older (${hiddenCount})`
     );
   });
+
+  it.each([false, true])(
+    'reorders a revived DM while mounted with older DMs shown: %s',
+    async (expanded) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+      const originalNavigation = mocks.store.navigation;
+      const projection = new ServerProjectionStore();
+      const updateRoom = (id: string, hours: number) => {
+        projection.rooms.set(
+          id,
+          new RoomWithViewerState({
+            room: new Room({
+              id,
+              name: id,
+              kind: RoomKind.DM
+            }),
+            lastMessageAt: Timestamp.fromDate(new Date(Date.now() - hours * 3600000)),
+            lastRootMessageAt: Timestamp.fromDate(new Date('2026-09-01T12:00:00Z')),
+            viewerState: new RoomViewerState({
+              isMember: true,
+              permissions: [new PermissionGrant({ permission: 'message.read', granted: true })]
+            }),
+            hasMessageHistory: true
+          })
+        );
+      };
+      // Deliberately keep insertion order different from posting order.
+      updateRoom('dm-two-days', 48);
+      updateRoom('dm-one-day', 24);
+      updateRoom('dm-three-days', 72);
+      updateRoom('dm-revived', 240);
+      mocks.store.navigation = new NavigationStore(
+        new RoomListView(projection, { hasUsableProjection: true }),
+        () => ({
+          unreadNotificationCount: 0,
+          importantUnreadNotificationCount: 0,
+          roomUnreadCounts: {},
+          roomImportantUnreadCounts: {}
+        })
+      ) as unknown as typeof originalNavigation;
+      try {
+        const { container } = render(RoomList);
+        const ids = () =>
+          Array.from(container.querySelectorAll('a[href^="/chat/-/dm-"]'), (link) =>
+            link.getAttribute('href')!.split('/').at(-1)
+          );
+        expect(ids()).toEqual(['dm-one-day', 'dm-two-days', 'dm-three-days']);
+        if (expanded) {
+          await browserPage.getByRole('button', { name: 'Show older (1)', exact: true }).click();
+          expect(ids()).toEqual(['dm-one-day', 'dm-two-days', 'dm-three-days', 'dm-revived']);
+        }
+        // A reply updates posting activity without changing root-message activity.
+        updateRoom('dm-revived', 1);
+        await vi.waitFor(() =>
+          expect(ids()).toEqual(['dm-revived', 'dm-one-day', 'dm-two-days', 'dm-three-days'])
+        );
+        await expect
+          .element(container.querySelector<HTMLTimeElement>('[href="/chat/-/dm-revived"] time'))
+          .toHaveTextContent('1h');
+      } finally {
+        mocks.store.navigation = originalNavigation;
+      }
+    }
+  );
 
   it('hides old DMs, reveals them on request, and keeps unknown activity visible', async () => {
     addRecentDMs();

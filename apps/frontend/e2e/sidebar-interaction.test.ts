@@ -11,6 +11,81 @@ import * as routes from './routes';
 
 test.use({ screenshot: 'only-on-failure', trace: 'retain-on-failure' });
 
+test.describe('Touch sidebar targets', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 667 } });
+
+  test('scrolls to the last room and opens it with a bottom-edge tap', async ({
+    page,
+    serverURL,
+    chatPage
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await createAndLoginTestUser(page);
+    const rooms = await withBootstrapAdminRequest(serverURL, async (request) => {
+      const groupId = await getDefaultRoomGroupIdViaConnect(request);
+      const result = [];
+      for (let index = 0; index < 12; index += 1) {
+        result.push(await createRoomViaConnect(request, `touch-room-${index}`, groupId));
+      }
+      return result;
+    });
+    for (const roomId of rooms) await joinRoomViaConnect(page, roomId);
+    await chatPage.goto();
+    await page.getByRole('button', { name: 'Toggle sidebar', exact: true }).tap();
+    const sidebar = page.getByTestId('server-sidebar');
+    await expect(chatPage.roomList).toBeVisible();
+    // Wait for the drawer to finish moving before sending viewport coordinates.
+    await expect.poll(async () => (await sidebar.boundingBox())?.x).toBe(68);
+    const scrollRegion = sidebar.getByRole('region');
+    const lastRoom = chatPage.roomList.getByRole('link').last();
+    await expect(chatPage.roomList.getByRole('link')).toHaveCount(14);
+    await expect(lastRoom).toHaveCSS('height', '32px');
+    await expect(lastRoom).not.toBeInViewport();
+    const href = await lastRoom.getAttribute('href');
+    expect(href).toBeTruthy();
+    const bounds = (await scrollRegion.boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    try {
+      // Keep each swipe inside the viewport. Explicit touch events exercise
+      // native scrolling and the app-wide swipe handler on Linux and macOS.
+      const x = bounds.x + bounds.width / 2;
+      const startY = bounds.y + bounds.height - 30;
+      const distance = bounds.height - 60;
+      for (let swipe = 0; swipe < 3; swipe += 1) {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchStart',
+          touchPoints: [{ x, y: startY }]
+        });
+        for (let step = 1; step <= 12; step += 1) {
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ x, y: startY - (distance * step) / 12 }]
+          });
+          await page.evaluate(
+            () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+          );
+        }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      }
+    } finally {
+      await cdp.detach();
+    }
+    await expect(lastRoom).toBeInViewport({ ratio: 1 });
+    await expect
+      .poll(() => scrollRegion.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+
+    // Tap near the bottom edge of the compact row to activate this link only.
+    await lastRoom.tap({ position: { x: 24, y: 30 } });
+    await expect(page).toHaveURL(new URL(href!, serverURL).href);
+    await expect(page.getByTestId('message-input')).toBeVisible();
+    await expect(chatPage.roomList).not.toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
 for (const touch of [false, true]) {
   test.describe(touch ? 'Sidebar touch input' : 'Sidebar mouse input', () => {
     test.use({

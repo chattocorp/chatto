@@ -1016,14 +1016,12 @@ Room sidebar panel for voice/video calls.
               {/if}
             {/each}
             {#each sortedParticipants as participant (participant.key)}
-              {@render participantCard(
-                participant,
-                isInThisCall &&
-                  hasVideo(participant) &&
-                  featuredStageTile?.key !== `${participant.key}:person`
-                  ? 'video'
-                  : 'compact'
-              )}
+              {#if featuredStageTile?.key !== `${participant.key}:person`}
+                {@render participantCard(
+                  participant,
+                  isInThisCall && hasVideo(participant) ? 'video' : 'compact'
+                )}
+              {/if}
             {/each}
           </div>
         </section>

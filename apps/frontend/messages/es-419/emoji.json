@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} de {users}",
+    "tone_default": "Amarillo predeterminado",
+    "tone_light": "Claro",
+    "tone_medium_light": "Medio claro",
+    "tone_medium": "Medio",
+    "tone_medium_dark": "Medio oscuro",
+    "tone_dark": "Oscuro",
     "search_placeholder": "Buscar emojis...",
     "no_results": "No se encontraron emojis",
     "recently_used": "Usados recientemente"

@@ -69,6 +69,59 @@ async function scanRoute(page: Page, state: string, route: string): Promise<void
 }
 
 test.describe('Route accessibility', () => {
+  test('server address dialog meets WCAG A and AA rules', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/chat/servers');
+    const connect = page.getByRole('button', { name: 'Connect by address', exact: true });
+    const grid = page.getByTestId('server-directory-grid');
+    const before = await grid.boundingBox();
+    await connect.click();
+    const dialog = page.getByRole('dialog', { name: 'Connect by address' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel('Server URL')).toBeFocused();
+    expect(await grid.boundingBox()).toEqual(before);
+    await expectNoAccessibilityViolations(page, 'server address dialog', 'dialog[open]');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(connect).toBeFocused();
+    await connect.click();
+    await page.goBack();
+    await expect(dialog).toBeHidden();
+  });
+
+  test('server recommendation info meets WCAG A and AA rules', async ({ page }) => {
+    await page.route(
+      '**/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers',
+      (route) =>
+        route.fulfill({
+          json: {
+            servers: [
+              {
+                origin: 'https://community.example',
+                directNeighbor: true,
+                profile: {
+                  name: 'Community',
+                  version: '0.5.0',
+                  description: 'A place for conversations.\n'.repeat(20)
+                }
+              }
+            ]
+          }
+        })
+    );
+    await page.goto('/chat/servers');
+    const info = page.getByTestId('server-recommendation-source');
+    await info.click();
+    await expect(page.getByRole('dialog', { name: 'About Community' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'server recommendation info', 'dialog[open]');
+    await page.getByRole('button', { name: 'Close', exact: true }).last().click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(info).toBeFocused();
+    await info.click();
+    await page.goBack();
+    await expect(page.getByRole('dialog')).toBeHidden();
+  });
+
   test('public authentication routes meet WCAG A and AA rules', async ({ page }) => {
     for (const [state, route, heading] of [
       ['login', routes.login, /sign in/i],
@@ -245,6 +298,11 @@ test.describe('Route accessibility', () => {
     await expectNoAccessibilityViolations(page, 'quick switcher', 'dialog[open]');
     await page.keyboard.press('Escape');
 
+    await page.keyboard.press('ControlOrMeta+Shift+K');
+    await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'keyboard shortcut help', 'dialog[open]');
+    await page.keyboard.press('Escape');
+
     await message.locator.hover({ position: { x: 4, y: 4 } });
     await message.locator.locator('.message-content-stack').click({ button: 'right' });
     const actionMenu = page.locator('[popover][role="menu"]');
@@ -281,14 +339,13 @@ test.describe('Route accessibility', () => {
     await expect(page.getByRole('dialog')).toBeHidden();
 
     await page.getByTitle('Add Server').click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expectNoAccessibilityViolations(page, 'add server dialog', 'dialog[open]');
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'server directory');
+    await page.goBack();
 
-    await page.getByTitle('Sign out').first().click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expectNoAccessibilityViolations(page, 'sign-out dialog', 'dialog[open]');
+    await page.locator('[data-testid="server-icon"][href$="/chat/-"]').click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Sign out of server' })).toBeVisible();
+    await expectNoAccessibilityViolations(page, 'server sign-out menu', '[role="menu"]');
   });
 
   test('right-to-left layouts meet WCAG A and AA rules', async ({ page, chatPage }) => {

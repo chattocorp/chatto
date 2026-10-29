@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Ievietot emocijzīmi",
     "attach_file": "Pievienojiet failu",
     "formatting_options": "Formatēšanas opcijas",
     "send": "Nosūtīt ziņu",
@@ -25,6 +26,8 @@
     "drop_files_title": "Nometiet failus šeit",
     "drop_files_subtitle": "Jūsu ziņojumam tiks pievienoti attēli un video",
     "send_failed": "Neizdevās nosūtīt ziņojumu",
+    "send_retry_expired": "Atkārtotas sūtīšanas mēģinājuma laiks ir beidzies. Pirms sūtāt vēlreiz, pārbaudiet, vai jūsu ziņojums ir saņemts.",
+    "send_retry_reset": "Savienojums tika atiestatīts. Pirms sūtāt vēlreiz, pārbaudiet, vai jūsu ziņojums ir saņemts.",
     "slow_mode_ready": "Lēnais režīms: viens ziņojums ik pēc {interval}.",
     "slow_mode_waiting": "Lēnais režīms: sūtiet vēlreiz pēc {countdown}.",
     "slow_mode_bypassed": "Lēnais režīms: {interval} (uz jums ierobežojums neattiecas).",
@@ -44,9 +47,11 @@
       "remove": "Noņemt {filename}",
       "video_disabled": "Video augšupielāde šajā serverī ir atspējota.",
       "prepare_failed": "Neizdevās sagatavot pielikumu",
+      "too_many": "Vienam ziņojumam var pievienot līdz {max} failiem. Papildu faili netika pievienoti.",
       "too_large": "{filename} ir pārāk liels ({size}). Maksimālais izmērs ir {limit}."
     },
     "format": {
+      "underline": "Pasvītrojums",
       "bold": "Treknrakstā",
       "italic": "Kursīvs",
       "inline_code": "Iekļauts kods",

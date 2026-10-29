@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 )
 
 // AdminUserView is the core representation returned by operator user
 // administration workflows.
 type AdminUserView struct {
-	User           *evtv1.User
+	User           *readmodel.User
 	RoleNames      []string
 	VerifiedEmails []VerifiedEmail
 }

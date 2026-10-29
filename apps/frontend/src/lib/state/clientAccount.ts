@@ -2,13 +2,11 @@ import {
   beginExplicitSignOutRedirect,
   cancelExplicitSignOutRedirect,
   ServerLogoutRejectedError,
-  signOutServer,
-  signOutServers
+  signOutServer
 } from '@chatto/client/auth/signOut';
 import { notifyLogout } from '$lib/auth/sessionChannel';
 import { clearLastRoom } from '$lib/storage/lastRoom';
 import { serverRegistry } from '$lib/client';
-import { firstAuthenticatedServerId } from '$lib/serverCatalogue';
 
 /**
  * Removes a server's push delivery to this device before leaving it. Loaded on
@@ -26,6 +24,7 @@ export interface ClientAccountNavigation {
 
 /** Coordinates user commands that cross the device-local catalogue and sessions. */
 class ClientAccountCoordinator {
+  /** Clear one session and return to that server's signed-out view. */
   async signOutCurrentServer(serverId: string): Promise<ClientAccountNavigation | null> {
     const server = serverRegistry.getServer(serverId);
     if (!server) return null;
@@ -49,28 +48,15 @@ class ClientAccountCoordinator {
       notifyLogout();
       return {
         kind: 'hard',
-        serverId: firstAuthenticatedServerId(serverId)
+        serverId
       };
     }
 
     serverRegistry.clearServerAuthentication(serverId);
     return {
       kind: 'soft',
-      serverId: firstAuthenticatedServerId(serverId)
+      serverId
     };
-  }
-
-  async signOutAllServers(): Promise<ClientAccountNavigation> {
-    for (const server of serverRegistry.servers) {
-      await unsubscribePushBeforeLeaving(server.id);
-    }
-    beginExplicitSignOutRedirect();
-    await signOutServers([...serverRegistry.servers], (serverId) =>
-      serverRegistry.isOriginServer(serverId)
-    );
-    serverRegistry.resetToOrigin();
-    notifyLogout();
-    return { kind: 'hard' };
   }
 }
 

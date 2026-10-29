@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -51,21 +53,23 @@ type PendingExternalIdentityLinkStart struct {
 }
 
 type PendingExternalIdentityFlow struct {
-	Kind            string    `json:"kind"`
-	ProviderID      string    `json:"provider_id"`
-	ProviderType    string    `json:"provider_type"`
-	ProviderLabel   string    `json:"provider_label"`
-	Issuer          string    `json:"issuer"`
-	Subject         string    `json:"subject"`
-	SubjectHash     string    `json:"subject_hash"`
-	VerifiedEmail   string    `json:"verified_email,omitempty"`
-	AvatarURL       string    `json:"avatar_url,omitempty"`
-	LoginHint       string    `json:"login_hint,omitempty"`
-	DisplayNameHint string    `json:"display_name_hint,omitempty"`
-	RedirectPath    string    `json:"redirect_path,omitempty"`
-	BoundUserID     string    `json:"bound_user_id,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	InvitationID    string    `json:"invitation_id,omitempty"`
+	Kind          string `json:"kind"`
+	ProviderID    string `json:"provider_id"`
+	ProviderType  string `json:"provider_type"`
+	ProviderLabel string `json:"provider_label"`
+	Issuer        string `json:"issuer"`
+	Subject       string `json:"subject"`
+	SubjectHash   string `json:"subject_hash"`
+	VerifiedEmail string `json:"verified_email,omitempty"`
+	AvatarURL     string `json:"avatar_url,omitempty"`
+	LoginHint     string `json:"login_hint,omitempty"`
+	// ProviderUsername is the verified username without email/display-name fallback.
+	ProviderUsername string    `json:"provider_username,omitempty"`
+	DisplayNameHint  string    `json:"display_name_hint,omitempty"`
+	RedirectPath     string    `json:"redirect_path,omitempty"`
+	BoundUserID      string    `json:"bound_user_id,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	InvitationID     string    `json:"invitation_id,omitempty"`
 	// Groups and GroupsKnown carry the provider groups claim to account
 	// creation for group role sync. Flows from older versions have neither.
 	Groups      []string `json:"groups,omitempty"`
@@ -264,18 +268,11 @@ func (c *ChattoCore) DeletePendingExternalIdentityFlow(ctx context.Context, toke
 	return nil
 }
 
-func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*evtv1.User, error) {
+func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*readmodel.User, error) {
 	if flow == nil || flow.Kind != ExternalIdentityFlowKindCreate {
 		return nil, ErrExternalIdentityFlowWrongKind
 	}
-	if displayName == "" {
-		displayName = login
-	}
-	user, err := c.createUserWithOptions(ctx, SystemActorID, login, displayName, "", userCreationOptions{
-		verifiedEmail: flow.VerifiedEmail,
-		external:      flow,
-		invitationID:  flow.InvitationID,
-	})
+	user, err := c.createProviderUser(ctx, login, displayName, flow)
 	if err != nil {
 		return nil, err
 	}
@@ -348,14 +345,6 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 	return c.userModel.externalIdentities(userID), nil
 }
 
-// DisconnectExternalIdentity removes a linked provider identity from a user.
-// It refuses to remove the last available sign-in method for passwordless
-// accounts so users created through SSO cannot lock themselves out.
-// Existing sessions remain valid; unlinking removes a future sign-in method.
-func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, subjectHash string) error {
-	return c.disconnectExternalIdentity(ctx, userID, userID, subjectHash, nil)
-}
-
 // ExternalIdentitySignInPolicy describes the sign-in methods enabled on the
 // serving replica. Issuers contains exact OIDC issuer URLs and configured
 // provider IDs for OAuth-only providers. Stored event-time provider IDs do not
@@ -372,15 +361,26 @@ func (p ExternalIdentitySignInPolicy) AllowsIdentity(identity ExternalIdentity) 
 	return slices.Contains(p.Issuers, identity.Issuer)
 }
 
+// CanDisconnect reports whether removing subjectHash from this snapshot leaves
+// an enabled sign-in method. It does not verify that the target exists or that
+// the caller is authorized. Mutations must check again inside the user OCC loop.
+func (p ExternalIdentitySignInPolicy) CanDisconnect(subjectHash string, identities []ExternalIdentity, hasPassword bool) bool {
+	if hasPassword && p.PasswordLoginEnabled {
+		return true
+	}
+	for _, identity := range identities {
+		if identity.SubjectHash != subjectHash && p.AllowsIdentity(identity) {
+			return true
+		}
+	}
+	return false
+}
+
 // DisconnectExternalIdentityAs removes a link with explicit actor attribution.
 // It refuses removal when no method enabled by policy would remain. The check
 // runs inside user OCC, so concurrent removals cannot remove both last methods.
 // Existing sessions remain valid. A missing link returns ErrExternalIdentityNotFound.
 func (c *ChattoCore) DisconnectExternalIdentityAs(ctx context.Context, actorID, userID, subjectHash string, policy ExternalIdentitySignInPolicy) error {
-	return c.disconnectExternalIdentity(ctx, actorID, userID, subjectHash, &policy)
-}
-
-func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, userID, subjectHash string, policy *ExternalIdentitySignInPolicy) error {
 	if actorID == "" {
 		return ErrNotAuthenticated
 	}
@@ -427,6 +427,9 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 		unlinked, err := c.checkExternalIdentityDisconnect(ctx, userID, subjectHash, policy)
 		if err != nil {
 			return err
+		}
+		if actorID != SystemActorID && c.IdentityUnlinkDisabled(unlinked) {
+			return ErrExternalIdentityUnlinkDisabled
 		}
 
 		entries := []evtstream.BatchEntry{{Subject: unlinkSubject, Event: unlink, Expect: events.ExpectFilterSeq(userFilter, userSeq)}}
@@ -479,29 +482,24 @@ func (c *ChattoCore) disconnectExternalIdentity(ctx context.Context, actorID, us
 
 // checkExternalIdentityDisconnect returns the identity to unlink. It refuses
 // removal when no sign-in method that policy enables would remain.
-func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string, policy *ExternalIdentitySignInPolicy) (ExternalIdentity, error) {
+func (c *ChattoCore) checkExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string, policy ExternalIdentitySignInPolicy) (ExternalIdentity, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return ExternalIdentity{}, err
 	}
 	var unlinked ExternalIdentity
 	found := false
-	remainingIdentity := false
-	for _, identity := range c.userModel.externalIdentities(userID) {
+	identities := c.userModel.externalIdentities(userID)
+	for _, identity := range identities {
 		if identity.SubjectHash == subjectHash {
 			found = true
 			unlinked = identity
-			continue
-		}
-		if policy == nil || policy.AllowsIdentity(identity) {
-			remainingIdentity = true
 		}
 	}
 	if !found {
 		return ExternalIdentity{}, ErrExternalIdentityNotFound
 	}
 	_, hasPassword := c.userModel.passwordHash(userID)
-	passwordAvailable := hasPassword && (policy == nil || policy.PasswordLoginEnabled)
-	if !passwordAvailable && !remainingIdentity {
+	if !policy.CanDisconnect(subjectHash, identities, hasPassword) {
 		return ExternalIdentity{}, ErrExternalIdentityLastMethod
 	}
 	return unlinked, nil

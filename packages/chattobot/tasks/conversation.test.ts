@@ -131,14 +131,14 @@ function harness({
         const result = answer(prompt);
         if (typeof result === 'object' && !Array.isArray(result)) return result;
         const texts = typeof result === 'string' ? [result] : result;
-        for (const text of texts) runOptions?.onText?.(text);
+        for (const text of texts) runOptions?.onText?.(text, { hasToolCalls: false });
         await afterText?.();
         return { outcome: 'completed', summary: texts.at(-1) ?? '', usage: emptyTokenUsage() };
       },
       run: () => Promise.reject(new Error('unused')),
       steer: async () => false,
       fork: () => Promise.reject(new Error('unused')),
-      dispose: () => void (disposed = true),
+      dispose: async () => void (disposed = true),
       async [Symbol.asyncDispose]() {
         disposed = true;
       }

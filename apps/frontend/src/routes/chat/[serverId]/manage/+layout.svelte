@@ -75,10 +75,13 @@
       return () => permissions.canModerateRooms;
     }
 
-    // Permissions pages call the server/group role permission matrix APIs,
-    // which require role.manage.
-    if (pathname.startsWith(permissionsBase)) {
+    // Role creation and editors require role.manage. Assigners may browse
+    // the role catalog and rosters; those pages hide the editing surfaces.
+    if (pathname === `${permissionsBase}/new` || pathname === `${permissionsBase}/new/`) {
       return () => permissions.canAdminManageRoles;
+    }
+    if (pathname.startsWith(permissionsBase)) {
+      return () => permissions.canAdminManageRoles || permissions.canAssignRoles;
     }
 
     // Security (blocked usernames) — server.manage

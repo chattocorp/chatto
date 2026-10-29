@@ -6,6 +6,15 @@
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {
+      "all_notifications": "Alle Benachrichtigungen",
+      "all_types": "Alle Typen",
+      "filter_status": "Status",
+      "filter_type": "Typ",
+      "reactions": "Reaktionen",
+      "replies": "Antworten",
+      "mentions": "Erwähnungen",
+      "next_unread_source": "Zur nächsten ungelesenen Quelle",
+      "no_unread": "Keine ungelesenen Benachrichtigungen",
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
       "clear_read": "Gelesene löschen",
@@ -18,22 +27,16 @@
       "unread": "Ungelesen",
       "activity": "Neue Aktivität",
       "summary": {
-        "direct_message": "{actor} hat dir eine Direktnachricht gesendet",
-        "reaction": "{actor} hat mit {emoji} auf deine Nachricht reagiert",
-        "reaction_group": "{actor} und andere haben mit {emoji} auf deine Nachricht reagiert",
-        "reply": "{actor} hat auf deine Nachricht geantwortet",
+        "direct_message": "{actor} hat dir geschrieben",
+        "reaction": "{actor} reagierte mit {emoji}",
+        "reaction_group": "{actor} und andere reagierten mit {emoji}",
+        "reply": "{actor} hat dir geantwortet",
         "mention": "{actor} hat dich erwähnt",
         "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst",
         "new_message": "{actor} hat eine neue Nachricht gepostet",
         "activity": "{actor} hat dir eine Benachrichtigung gesendet",
         "room_invitation": "{actor} hat dich in einen Raum eingeladen"
       }
-    },
-    "sign_out": {
-      "title": "Abmelden",
-      "current_server": "Aktueller Server",
-      "all_servers": "Alle Server",
-      "description": "Melde dich nur vom ausgewählten Server ab oder trenne alle Server von diesem Client."
     },
     "overview": {
       "title": "Übersicht"

@@ -6,6 +6,7 @@ export {
   createTaskContext,
   WorkflowAbortError,
   type RunIdentity,
+  type RunContext,
   type WorkflowState,
   type TaskContext
 } from './context.ts';
@@ -28,6 +29,7 @@ export { type Invocation } from './invocation.ts';
 export { agentSessionFile } from './agent-sessions.ts';
 export { AgentSessionStore, type AgentSessionLease } from './agent-session-store.ts';
 export { createClassifier } from './classifier.ts';
+export { createDescription } from './description.ts';
 export { createChoiceClassifier } from './choice-classifier.ts';
 export { usePrivateTempDirectory } from './private-temp.ts';
 export { taskTool, type TaskToolOptions } from './task-tool.ts';
@@ -61,6 +63,7 @@ export {
 export { WorkingDirectory, workingTreeHash } from './git.ts';
 export type { RunlingEvent, RunlingEventListener, RunlingEventPayload } from './events.ts';
 export { log, type LogLevel } from './log.ts';
+export type { LogFields } from './log-fields.ts';
 export { step, type StepWork } from './step.ts';
 export {
   shell,
@@ -75,6 +78,7 @@ export {
   type Shell
 } from './shell.ts';
 export { concat, type ConcatPart } from './utils.ts';
+export { BatchQueue, type BatchQueueOptions } from './batch-queue.ts';
 export { Type, type Static, type TSchema } from 'typebox';
 export {
   isWorkflowSchema,

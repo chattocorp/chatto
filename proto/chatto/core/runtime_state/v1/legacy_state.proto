@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chatto.core.runtime_state.v1;
 
-import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/event_values.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
@@ -26,7 +26,7 @@ message ThreadMetadata {
 // RoomLayout is the retained protobuf contract for the legacy room-layout KV
 // record.
 message RoomLayout {
-  repeated chatto.core.evt.v1.RoomGroup legacy_sections = 1 [deprecated = true];
+  repeated RoomGroup legacy_sections = 1 [deprecated = true];
   repeated string legacy_unsorted_room_ids = 2 [deprecated = true];
   repeated string group_ids = 3;
 }
@@ -59,4 +59,27 @@ message VideoVariant {
   int32 height = 4;
   int64 size = 5;
   chatto.core.evt.v1.Attachment attachment = 6;
+}
+
+// SidebarLink is retained for historical RoomLayout decoding.
+message SidebarLink {
+  string id = 1;     // NanoID for stable identity across renames/moves
+  string label = 2;  // Display label shown in the server sidebar
+  string url = 3;    // Absolute http(s) URL or server-local path starting with /
+}
+
+// RoomGroup is retained for historical RoomLayout decoding. Current layout
+// reads and projection snapshots have separate representations.
+message RoomGroup {
+  string id = 1;                    // NanoID for stable identity across renames
+  string name = 2;                  // Display name (e.g., "General", "Projects")
+  repeated string room_ids = 3;     // Ordered list of room IDs in this group
+  string description = 4;           // Optional public group description
+  // Ordered mixed sidebar entries. ROOM entries reference Room records by ID;
+  // SIDEBAR_LINK entries reference payloads in sidebar_links by ID.
+  repeated chatto.core.evt.v1.SidebarGroupEntry entries = 5;
+
+  // Link payloads owned by this group. Kept separate from entries so reorders
+  // can move stable IDs without duplicating mutable label/URL data.
+  repeated SidebarLink sidebar_links = 6;
 }

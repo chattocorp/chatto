@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "キーボードショートカット",
+      "app": "アプリ",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "new_line": "改行",
+      "edit_last": "最後のメッセージを編集（下書きが空の場合）",
+      "complete": "メンションまたは絵文字を補完"
+    },
+    "action_unavailable": "現在、この操作は利用できません。",
+    "edit": "編集",
     "copy_failed": "クリップボードにコピーできませんでした。テキストを選択して手動でコピーしてください。",
     "cancel": "キャンセル",
     "close_sidebar": "サイドバーを閉じる",
@@ -22,12 +33,12 @@
     "password_placeholder": "あなたのパスワード",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "UTF-8で8～72バイト",
+    "password_bytes_placeholder": "パスワードを設定してください",
     "password_confirm_placeholder": "パスワードを再入力してください",
     "validation": {
       "email": "有効なメール アドレスを入力してください",
-      "password_min_bytes": "UTF-8で8バイト以上にしてください。 文字によっては複数のバイトを使用します。",
-      "password_max": "UTF-8で72バイト以内にしてください。 文字によっては複数のバイトを使用します。",
+      "password_min_bytes": "パスワードが短すぎます",
+      "password_max": "パスワードが長すぎます",
       "username_min": "少なくとも 2 文字である必要があります",
       "username_max": "最大 32 文字である必要があります",
       "username_charset": "文字、数字、ドット、ダッシュ、アンダースコアのみ",

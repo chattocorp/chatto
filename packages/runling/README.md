@@ -5,6 +5,10 @@ Run and orchestrate TypeScript workflows of any size and kind.
 See the [documentation index](docs/README.md) for API guides, architecture
 decisions (ADRs), and feature records (FDRs).
 
+The console's Log view shows one updating row per activity. Expand a row for
+recorded details, or enable **Detailed log** for the chronological diagnostic
+lines. Logs and timeline activity remain visible across workflow reactivation.
+
 ## Tasks, runs, and messages
 
 A **task** is a function with schemas. It has a name, an input schema, and an
@@ -272,8 +276,15 @@ temporary consumer project, and checks the CLI, public types, webhooks, live
 events, and web assets. It contacts the npm registry to install dependencies.
 The test does not need agent-provider credentials.
 
-Use `mise build-runling` after source changes before running a workspace
-consumer. `mise dev-full` builds Runling before it starts the Chatto bot.
+Workspace consumers import Runling's TypeScript source. Use a TypeScript loader
+such as tsx, Vite, or jiti; the CLI installs its loader automatically. No Runling
+build or special export condition is required. Workspace `serve` uses Vite for
+the console and preserves the application's working directory.
+
+Builds remain necessary for publication. Pack with pnpm so `publishConfig`
+replaces source exports with compiled JavaScript and declarations. Published
+installs serve the compiled console without Vite. See
+[ADR-013](docs/adr/ADR-013-source-workspace-exports.md).
 
 To run the bundled demos, run `mise x -- pnpm --dir packages/runling dev` from
 the monorepo root. Demos that use agents need model-provider credentials in Pi

@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "ルームのお知らせ",
+      "dismiss": "閉じる",
+      "body": "お知らせ（Markdown）",
+      "too_long": "お知らせは空白を含めて最大 {max} 文字です。",
+      "help": "修正を保存しても、お知らせは再表示されません。告知すると、端末で閉じたメンバーにも再表示されます。",
+      "conflict": "編集中にこのお知らせが変更されました。下書きは保持されています。必要に応じてコピーし、現在のお知らせを読み込んでから再度保存してください。",
+      "reload": "現在のお知らせを読み込む",
+      "save": "更新",
+      "republish": "告知",
+      "clear": "削除",
+      "clear_confirm_title": "ルームのお知らせを削除しますか？",
+      "clear_confirm_description": "ルームの全員に対して、公開中のお知らせが直ちに削除されます。未保存の変更は公開されません。",
+      "empty": "お知らせはまだ公開されていません。",
+      "edit": "お知らせを編集"
+    },
+    "information": {
+      "description": "説明",
+      "created": "作成日時",
+      "title": "ルーム情報",
+      "basic": "概要",
+      "pinned_messages": "ピン留めされたメッセージ"
+    },
     "create": {
       "title": "新しいルームを作成する",
       "description": "ルームはサーバー内の会話です。",
@@ -77,7 +100,8 @@
       "beginning": "ここから会話が始まります。",
       "read_denied": "このルームのメッセージを読む権限がありません。",
       "limited_empty": "読める会話はまだありません。",
-      "loading": "メッセージを読み込んでいます..."
+      "loading": "メッセージを読み込んでいます...",
+      "load_failed": "メッセージを読み込めませんでした。"
     },
     "message": {
       "empty": "まだメッセージはありません",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "#{room} のスレッド",
       "back_to_room": "部屋に戻る",
+      "participants": "スレッドの参加者 ({count})",
       "follow": "スレッドをフォローする",
       "unfollow": "スレッドのフォローを解除",
       "close": "スレッドを閉じる",
@@ -263,6 +288,7 @@
     "unread_separator": "新しいメッセージ",
     "close_extras": "密室エクストラ",
     "dm": {
+      "deactivated_user_notice": "このアカウントは無効化されています。ユーザーはメッセージを読んだり返信したりできません。",
       "deleted_user_notice": "相手のユーザーは削除されました。"
     },
     "management": {

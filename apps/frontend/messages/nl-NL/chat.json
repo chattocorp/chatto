@@ -6,6 +6,15 @@
       "confirmation": "Hiermee schakel je gedurende 15 minuten de extra machtigingen in die je op deze server hebt gekregen."
     },
     "notifications": {
+      "all_notifications": "Alle meldingen",
+      "all_types": "Alle typen",
+      "filter_status": "Status",
+      "filter_type": "Type",
+      "reactions": "Reacties",
+      "replies": "Antwoorden",
+      "mentions": "Vermeldingen",
+      "next_unread_source": "Ga naar de volgende ongelezen bron",
+      "no_unread": "Geen ongelezen meldingen",
       "title": "Meldingen",
       "subtitle": "Dit is wat er nieuw is",
       "clear_read": "Gelezen wissen",
@@ -28,12 +37,6 @@
         "activity": "{actor} heeft je een melding gestuurd",
         "room_invitation": "{actor} heeft je uitgenodigd voor een ruimte"
       }
-    },
-    "sign_out": {
-      "title": "Uitloggen",
-      "current_server": "Huidige server",
-      "all_servers": "Alle servers",
-      "description": "Meld u alleen af bij de geselecteerde server, of ontkoppel elke server van deze client."
     },
     "overview": {
       "title": "Overzicht"

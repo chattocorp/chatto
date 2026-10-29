@@ -1,6 +1,9 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
+  import { disconnectEligibilityWithFallback } from '@chatto/client/api/actionAvailability';
+  import { identityDisconnectUnavailableMessage } from '$lib/actionAvailability';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
     openAuthorizationWindow,
@@ -108,6 +111,7 @@
         )
       ) {
         providerLinkWindow = null;
+        await currentUser.load();
         // The remote window closes itself. A detached cross-origin window
         // cannot be closed by its former opener in Chromium.
       }
@@ -216,6 +220,7 @@
   let disconnectCurrentPassword = $state('');
   let disconnectFreshAuthError = $state('');
   let blockedDisconnectProviderLabel = $state('');
+  let blockedDisconnectSubjectHash = $state('');
   let showDisconnectBlockedModal = $state(false);
 
   // Track requests in flight here, not with mutation state: an observer reports
@@ -230,6 +235,8 @@
   });
 
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
+  const directLoginEnabled = $derived(serverScope.store.serverInfo.directLoginEnabled);
+  const canUsePasswordProof = $derived(hasPassword && directLoginEnabled);
   const unconfiguredLinkedIdentities = $derived(
     linkedIdentities.filter(
       (identity) =>
@@ -237,7 +244,20 @@
     )
   );
   const hasRows = $derived(providers.length > 0 || unconfiguredLinkedIdentities.length > 0);
-  const disconnectWouldRemoveLastMethod = $derived(!hasPassword && linkedIdentities.length <= 1);
+  // Older servers lack the hint, so retain their count-based fallback.
+  // Explicit decisions remain authoritative until the list refreshes.
+  function canDisconnectIdentity(subjectHash: string | null) {
+    return disconnectAvailability(subjectHash) === DisconnectEligibility.ALLOWED;
+  }
+
+  function disconnectAvailability(subjectHash: string | null) {
+    const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
+    return disconnectEligibilityWithFallback(
+      identity?.disconnectEligibility,
+      canUsePasswordProof,
+      linkedIdentities.length
+    );
+  }
 
   function providerIcon(type: string): string {
     switch (type) {
@@ -283,7 +303,7 @@
       if (
         err instanceof ConnectError &&
         err.code === Code.FailedPrecondition &&
-        hasPassword &&
+        canUsePasswordProof &&
         currentPassword === undefined
       ) {
         linkFreshAuthProvider = provider;
@@ -294,7 +314,9 @@
         err.code === Code.FailedPrecondition &&
         currentPassword === undefined
       ) {
-        actionError = m('settings.account.sso.fresh_auth_required');
+        actionError = directLoginEnabled
+          ? m('settings.account.sso.fresh_auth_required')
+          : m('settings.account.sso.sso_fresh_auth_required');
       } else if (currentPassword !== undefined) {
         linkFreshAuthError = errorMessage(err, m('settings.account.sso.link_failed'));
       } else {
@@ -334,8 +356,9 @@
 
   function openDisconnectDialog(subjectHash: string, providerLabel: string) {
     actionError = '';
-    if (disconnectWouldRemoveLastMethod) {
+    if (!canDisconnectIdentity(subjectHash)) {
       blockedDisconnectProviderLabel = providerLabel;
+      blockedDisconnectSubjectHash = subjectHash;
       showDisconnectBlockedModal = true;
       return;
     }
@@ -357,6 +380,7 @@
   function closeDisconnectBlockedModal() {
     showDisconnectBlockedModal = false;
     blockedDisconnectProviderLabel = '';
+    blockedDisconnectSubjectHash = '';
   }
 
   async function confirmDisconnectIdentity(currentPassword?: string) {
@@ -389,22 +413,48 @@
       disconnectCurrentPassword = '';
       disconnectFreshAuthError = '';
       await identitiesQuery.refetch();
+      await currentUser.load();
     } catch (err) {
       if (!session.isCurrent(variables)) {
         return;
       }
-      if (
-        err instanceof ConnectError &&
-        err.code === Code.FailedPrecondition &&
-        currentPassword === undefined
-      ) {
+      if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
         disconnectTarget = null;
-        if (hasPassword) {
+        // Another session can remove a method after the list was loaded. Read
+        // the authoritative hint again before treating this as a freshness error.
+        const refreshed = await identitiesQuery.refetch();
+        if (!session.isCurrent(variables)) return;
+        const identity = refreshed.data?.linkedIdentities.find(
+          (identity) => identity.subjectHash === subjectHash
+        );
+        if (
+          identity &&
+          disconnectEligibilityWithFallback(
+            identity.disconnectEligibility,
+            canUsePasswordProof,
+            refreshed.data?.linkedIdentities.length ?? 0
+          ) !== DisconnectEligibility.ALLOWED
+        ) {
+          disconnectFreshAuthTarget = null;
+          disconnectCurrentPassword = '';
+          disconnectFreshAuthError = '';
+          blockedDisconnectProviderLabel = providerLabel;
+          blockedDisconnectSubjectHash = subjectHash;
+          showDisconnectBlockedModal = true;
+          return;
+        }
+        if (currentPassword !== undefined) {
+          disconnectFreshAuthError = errorMessage(err, m('settings.account.sso.disconnect_failed'));
+          return;
+        }
+        if (canUsePasswordProof) {
           disconnectFreshAuthTarget = { subjectHash, providerLabel };
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else {
-          actionError = m('settings.account.sso.disconnect_fresh_auth_required');
+          actionError = directLoginEnabled
+            ? m('settings.account.sso.disconnect_fresh_auth_required')
+            : m('settings.account.sso.sso_fresh_auth_required');
         }
       } else if (currentPassword !== undefined) {
         disconnectFreshAuthError = errorMessage(err, m('settings.account.sso.disconnect_failed'));
@@ -469,6 +519,14 @@
                   <div class="text-xs text-muted">
                     {#if provider.linked}
                       {m('settings.account.sso.linked')}
+                      {#if !canDisconnectIdentity(provider.linkedIdentitySubjectHash)}
+                        <p>
+                          {identityDisconnectUnavailableMessage(
+                            disconnectAvailability(provider.linkedIdentitySubjectHash),
+                            provider.label
+                          )}
+                        </p>
+                      {/if}
                     {:else}
                       {m('settings.account.sso.not_linked')}
                     {/if}
@@ -481,7 +539,9 @@
                     variant="danger-secondary"
                     size="sm"
                     loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
-                    disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                    disabled={!canDisconnectIdentity(provider.linkedIdentitySubjectHash) ||
+                      linkingProviderId !== '' ||
+                      disconnectingSubjectHash !== ''}
                     onclick={() => openDisconnectProvider(provider)}
                   >
                     <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
@@ -518,6 +578,14 @@
                   <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
                   <div class="text-xs text-muted">
                     {m('settings.account.sso.provider_unconfigured')}
+                    {#if !canDisconnectIdentity(identity.subjectHash)}
+                      <p>
+                        {identityDisconnectUnavailableMessage(
+                          disconnectAvailability(identity.subjectHash),
+                          identity.providerLabel
+                        )}
+                      </p>
+                    {/if}
                   </div>
                 </div>
               </div>
@@ -525,7 +593,9 @@
                 variant="danger-secondary"
                 size="sm"
                 loading={disconnectingSubjectHash === identity.subjectHash}
-                disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
+                disabled={!canDisconnectIdentity(identity.subjectHash) ||
+                  linkingProviderId !== '' ||
+                  disconnectingSubjectHash !== ''}
                 onclick={() => openDisconnectIdentity(identity)}
               >
                 <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
@@ -595,9 +665,10 @@
   onclose={closeDisconnectBlockedModal}
 >
   <Hint tone="warning">
-    {m('settings.account.sso.disconnect_blocked_modal.body', {
-      provider: blockedDisconnectProviderLabel
-    })}
+    {identityDisconnectUnavailableMessage(
+      disconnectAvailability(blockedDisconnectSubjectHash),
+      blockedDisconnectProviderLabel
+    )}
   </Hint>
 
   {#snippet dismissAction()}

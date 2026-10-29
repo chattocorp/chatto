@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Sneltoetsen",
+      "app": "App",
+      "undo": "Ongedaan maken",
+      "redo": "Opnieuw uitvoeren",
+      "new_line": "Nieuwe regel",
+      "edit_last": "Laatste bericht bewerken (leeg concept)",
+      "complete": "Vermelding of emoji aanvullen"
+    },
+    "action_unavailable": "Deze actie is momenteel niet beschikbaar.",
+    "edit": "Bewerken",
     "copy_failed": "Kopiëren naar het klembord is mislukt. Selecteer de tekst en kopieer deze handmatig.",
     "cancel": "Annuleren",
     "close_sidebar": "Zijbalk sluiten",
@@ -22,12 +33,12 @@
     "password_placeholder": "Je wachtwoord",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8-bytes",
+    "password_bytes_placeholder": "Kies een wachtwoord",
     "password_confirm_placeholder": "Voer het wachtwoord opnieuw in",
     "validation": {
       "email": "Voer een geldig e-mailadres in",
-      "password_min_bytes": "Gebruik minstens 8 UTF-8-bytes. Sommige tekens gebruiken meer dan één byte.",
-      "password_max": "Gebruik maximaal 72 UTF-8-bytes. Sommige tekens gebruiken meer dan één byte.",
+      "password_min_bytes": "Het wachtwoord is te kort",
+      "password_max": "Het wachtwoord is te lang",
       "username_min": "Moet minimaal 2 tekens lang zijn",
       "username_max": "Mag maximaal 32 tekens lang zijn",
       "username_charset": "Alleen letters, cijfers, punten, streepjes en onderstrepingstekens",

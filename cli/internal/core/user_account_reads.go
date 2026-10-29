@@ -3,11 +3,11 @@ package core
 import (
 	"context"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 )
 
 // GetUser retrieves a user from the user projection.
-func (m *UserModel) GetUser(ctx context.Context, userID string) (*evtv1.User, error) {
+func (m *UserModel) GetUser(ctx context.Context, userID string) (*readmodel.User, error) {
 	user, ok, err := m.user(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -19,7 +19,7 @@ func (m *UserModel) GetUser(ctx context.Context, userID string) (*evtv1.User, er
 }
 
 // GetUserByLogin retrieves a user by their login name using the login index.
-func (m *UserModel) GetUserByLogin(ctx context.Context, login string) (*evtv1.User, error) {
+func (m *UserModel) GetUserByLogin(ctx context.Context, login string) (*readmodel.User, error) {
 	user, ok, err := m.userByLogin(ctx, login)
 	if err != nil {
 		return nil, err

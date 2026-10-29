@@ -1,5 +1,13 @@
 # Durable Effect Inventory
 
+Operator file uploads use the existing upload lifecycle and configured
+attachment store (NATS Object Store or S3). Historical operations commit native
+facts and permanent operation receipts in one EVT batch. Historical room and
+message changes carry `ImportContext`; notification and realtime mapping
+suppress their historical effects. Asset deletion uses the normal durable
+cleanup path. See [historical operations](../../cli/internal/core/operator_history.go)
+and [FDR-053](../fdr/FDR-053-history-import-export.md).
+
 Key files: [`pkg/events/durable_worker.go`](../../pkg/events/durable_worker.go),
 [`cli/internal/evtstream/effects.go`](../../cli/internal/evtstream/effects.go),
 [`cli/internal/core/durable_delivery.go`](../../cli/internal/core/durable_delivery.go),

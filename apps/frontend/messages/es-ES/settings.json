@@ -118,10 +118,10 @@
       "conflict": "Este perfil ha cambiado mientras lo editabas. Vuelve a cargar la página y guarda tus cambios de nuevo.",
       "save_button": "Guardar cambios",
       "bio": {
-        "label": "Bio",
+        "label": "Acerca de",
         "description": "Hasta {max} caracteres, visible en tu perfil.",
         "placeholder": "Cuéntales algo breve sobre ti",
-        "too_long": "La bio no puede tener más de {max} caracteres."
+        "too_long": "El texto no puede tener más de {max} caracteres."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Oscuro",
           "description": "Usa la interfaz oscura en este navegador"
+        }
+      },
+      "animations": {
+        "title": "Animaciones",
+        "automatic": {
+          "label": "Automático",
+          "description": "Seguir la preferencia del sistema de reducir el movimiento"
+        },
+        "enabled": {
+          "label": "Activadas",
+          "description": "Mostrar siempre las animaciones"
+        },
+        "disabled": {
+          "label": "Desactivadas",
+          "description": "Mostrar cambios sin animaciones"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Contraseña",
         "add_description": "Agrega una contraseña para que puedas iniciar sesión directamente y desconectar tu último proveedor de SSO.",
         "change_description": "Cambiar la contraseña utilizada para el inicio de sesión directo.",
+        "sso_managed": "No puedes añadir ni cambiar una contraseña porque este servidor usa inicio de sesión único (SSO). Gestiona tus datos de inicio de sesión con tu proveedor de identidad.",
         "current_label": "Contraseña actual",
         "current_required": "Ingresa tu contraseña actual.",
         "add_button": "Agregar Contraseña",
@@ -437,6 +453,9 @@
         "already_set": "Esta cuenta ya tiene contraseña."
       },
       "sso": {
+        "username_unavailable": "No se puede asignar el nombre de usuario de tu proveedor de inicio de sesión. Contacta con el operador del servidor.",
+        "username_managed": "Tu nombre de usuario lo gestiona tu proveedor de inicio de sesión y no se puede editar aquí.",
+        "unlink_disabled": "El operador del servidor no permite desvincular este proveedor.",
         "popup_blocked": "Permite las ventanas emergentes de este sitio y vuelve a intentar la vinculación.",
         "account_mismatch": "Inicia sesión en la cuenta correcta de este servidor y vuelve a iniciar la vinculación desde la ventana original.",
         "provider_unavailable": "Este proveedor de inicio de sesión ya no está disponible.",
@@ -449,6 +468,7 @@
         "link_button": "Enlace",
         "link_failed": "No se pudo vincular el proveedor de inicio de sesión",
         "fresh_auth_required": "Ingresa nuevamente antes de vincular otro proveedor.",
+        "sso_fresh_auth_required": "Abre la configuración de la cuenta en el servidor al que pertenece esta cuenta. Cierra sesión e inicia sesión de nuevo a través de tu proveedor de SSO. Después vuelve a intentar la acción allí.",
         "provider_unconfigured": "Proveedor ya no configurado",
         "disconnect_button": "Desconectar",
         "disconnecting": "Desconectando...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "El proveedor no se puede desconectar",
-          "body": "{provider} es su único método de inicio de sesión. Agregue una contraseña o vincule otro proveedor primero."
+          "body": "Configura otro método de inicio de sesión compatible con este servidor antes de desconectar {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmar contraseña",

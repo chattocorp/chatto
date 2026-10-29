@@ -118,10 +118,10 @@
       "conflict": "Den här profilen ändrades medan du redigerade den. Läs in sidan igen och spara sedan dina ändringar på nytt.",
       "save_button": "Spara ändringar",
       "bio": {
-        "label": "Bio",
+        "label": "Om",
         "description": "Upp till {max} tecken, syns i din profil.",
         "placeholder": "Berätta lite om dig själv",
-        "too_long": "Biografin får vara högst {max} tecken."
+        "too_long": "Texten får vara högst {max} tecken."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Mörkt",
           "description": "Använd det mörka gränssnittet i den här webbläsaren"
+        }
+      },
+      "animations": {
+        "title": "Animationer",
+        "automatic": {
+          "label": "Automatiskt",
+          "description": "Följ systemets inställning för minskad rörelse"
+        },
+        "enabled": {
+          "label": "Aktiverat",
+          "description": "Visa alltid animationer"
+        },
+        "disabled": {
+          "label": "Inaktiverat",
+          "description": "Visa ändringar utan animationer"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Lösenord",
         "add_description": "Lägg till ett lösenord så att du kan logga in direkt och koppla bort din senaste SSO-leverantör.",
         "change_description": "Ändra lösenordet som används för direkt inloggning.",
+        "sso_managed": "Du kan inte lägga till eller ändra ett lösenord eftersom den här servern använder enkel inloggning (SSO). Hantera dina inloggningsuppgifter hos din identitetsleverantör.",
         "current_label": "Aktuellt lösenord",
         "current_required": "Ange ditt nuvarande lösenord.",
         "add_button": "Lägg till lösenord",
@@ -437,6 +453,9 @@
         "already_set": "Detta konto har redan ett lösenord."
       },
       "sso": {
+        "username_unavailable": "Användarnamnet från din inloggningsleverantör kan inte tilldelas. Kontakta serveroperatören.",
+        "username_managed": "Ditt användarnamn hanteras av din inloggningsleverantör och kan inte ändras här.",
+        "unlink_disabled": "Serveroperatören tillåter inte att den här leverantören kopplas bort.",
         "popup_blocked": "Tillåt popupfönster för denna webbplats och försök länka igen.",
         "account_mismatch": "Logga in på rätt konto på denna server och starta sedan länkningen igen från det ursprungliga fönstret.",
         "provider_unavailable": "Denna inloggningsleverantör är inte längre tillgänglig.",
@@ -449,6 +468,7 @@
         "link_button": "Länk",
         "link_failed": "Det gick inte att länka inloggningsleverantören",
         "fresh_auth_required": "Logga in igen innan du länkar en annan leverantör.",
+        "sso_fresh_auth_required": "Öppna kontoinställningarna på servern som kontot tillhör. Logga ut och logga in igen via din SSO-leverantör och försök sedan utföra åtgärden där igen.",
         "provider_unconfigured": "Leverantören är inte längre konfigurerad",
         "disconnect_button": "Koppla bort",
         "disconnecting": "Kopplar bort...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Leverantören kan inte kopplas bort",
-          "body": "{provider} är din enda inloggningsmetod. Lägg till ett lösenord eller länka till en annan leverantör först."
+          "body": "Konfigurera en annan inloggningsmetod som den här servern stöder innan du kopplar bort {provider}."
         },
         "fresh_auth_modal": {
           "title": "Bekräfta lösenord",

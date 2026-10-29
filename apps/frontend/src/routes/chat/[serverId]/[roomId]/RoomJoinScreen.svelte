@@ -7,6 +7,7 @@
   import { toast } from '$lib/ui/toast';
   import { PageTitle, LoadingFog } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import MessageContent from '$lib/components/MessageContent.svelte';
   import type { RoomsListItem } from '$lib/state/server/navigation';
 
   let {
@@ -75,7 +76,9 @@
       {/if}
 
       {#if description}
-        <p class="mt-4 text-base leading-7 text-pretty text-text">{description}</p>
+        <div class="mt-4 w-full min-w-0 text-start text-text">
+          <MessageContent body={description} />
+        </div>
       {/if}
 
       {#await serverUi(stores).roomDirectory.loadJoinPreview(room.id)}

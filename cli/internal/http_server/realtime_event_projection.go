@@ -16,7 +16,7 @@ import (
 // projectRealtimeEvent explicitly maps one durable EVT event to the independent
 // public catalogue. EVT field numbers and public field numbers need not match.
 func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.RealtimeEvent {
-	if source == nil || source.GetEvent() == nil {
+	if source == nil || source.GetEvent() == nil || source.GetImportContext() != nil {
 		return nil
 	}
 	target := &realtimev1.RealtimeEvent{Id: source.GetId(), CreatedAt: source.GetCreatedAt()}
@@ -79,9 +79,14 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 			threadSeconds = v.GetThreadSlowModeSeconds()
 		}
 		target.Event = &realtimev1.RealtimeEvent_RoomSlowModeChanged{RoomSlowModeChanged: &realtimev1.RoomSlowModeChangedEvent{RoomId: v.GetRoomId(), SlowModeSeconds: v.GetSlowModeSeconds(), ThreadSlowModeSeconds: &threadSeconds}}
+	case *evtv1.Event_RoomNoticeChanged:
+		target.Event = &realtimev1.RealtimeEvent_RoomNoticeChanged{RoomNoticeChanged: &realtimev1.RoomNoticeChangedEvent{RoomId: e.RoomNoticeChanged.GetRoomId()}}
 	case *evtv1.Event_RoomThreadingModeChanged:
 		v := e.RoomThreadingModeChanged
 		target.Event = &realtimev1.RealtimeEvent_RoomThreadingModeChanged{RoomThreadingModeChanged: &realtimev1.RoomThreadingModeChangedEvent{RoomId: v.GetRoomId(), ThreadingMode: realtimeRoomThreadingMode(v.GetThreadingMode())}}
+	case *evtv1.Event_RoomMembershipEventsVisibilityChanged:
+		v := e.RoomMembershipEventsVisibilityChanged
+		target.Event = &realtimev1.RealtimeEvent_RoomMembershipEventsVisibilityChanged{RoomMembershipEventsVisibilityChanged: &realtimev1.RoomMembershipEventsVisibilityChangedEvent{RoomId: v.GetRoomId(), ShowMembershipEvents: v.GetShowMembershipEvents()}}
 	case *evtv1.Event_UserJoinedRoom:
 		target.Event = &realtimev1.RealtimeEvent_UserJoinedRoom{UserJoinedRoom: &realtimev1.UserJoinedRoomEvent{RoomId: e.UserJoinedRoom.GetRoomId()}}
 	case *evtv1.Event_UserLeftRoom:
@@ -130,6 +135,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_MessageUnpinned{MessageUnpinned: &realtimev1.MessageUnpinnedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId()}}
 	case *evtv1.Event_ThreadCreated:
 		v := e.ThreadCreated
+		if v.GetHistoricalImport() {
+			return nil
+		}
 		target.Event = &realtimev1.RealtimeEvent_ThreadCreated{ThreadCreated: &realtimev1.ThreadCreatedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId()}}
 	case *evtv1.Event_AssetProcessingStarted:
 		v := e.AssetProcessingStarted
@@ -166,6 +174,10 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: &realtimev1.UserProfileChangedEvent{UserId: userID}}
 	case *evtv1.Event_UserAccountDeleted:
 		target.Event = &realtimev1.RealtimeEvent_UserAccountDeleted{UserAccountDeleted: &realtimev1.UserAccountDeletedEvent{UserId: e.UserAccountDeleted.GetUserId()}}
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		v := e.UserAccountDeactivationChanged
+		target.ActorId = nil
+		target.Event = &realtimev1.RealtimeEvent_UserAccountDeactivationChanged{UserAccountDeactivationChanged: &realtimev1.UserAccountDeactivationChangedEvent{UserId: v.GetUserId(), Deactivated: v.GetDeactivated()}}
 	case *evtv1.Event_ThreadFollowed:
 		v := e.ThreadFollowed
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: true}}
@@ -174,6 +186,9 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: false}}
 	case *evtv1.Event_ReactionAdded:
 		v := e.ReactionAdded
+		if v.GetHistoricalImport() {
+			return nil
+		}
 		target.Event = &realtimev1.RealtimeEvent_ReactionAdded{ReactionAdded: &realtimev1.ReactionAddedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId(), Emoji: v.GetEmoji()}}
 	case *evtv1.Event_ReactionRemoved:
 		v := e.ReactionRemoved

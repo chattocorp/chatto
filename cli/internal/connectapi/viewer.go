@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -216,7 +218,7 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	}, nil
 }
 
-func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerUser, error) {
+func viewerUser(ctx context.Context, api *API, user *readmodel.User) (*apiv1.ViewerUser, error) {
 	var (
 		hasVerifiedEmail bool
 		settings         *evtv1.ServerUserPreferences
@@ -224,8 +226,17 @@ func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerU
 		canDeleteAccount bool
 		lastLoginChange  time.Time
 		hasPassword      bool
+		usernameManaged  bool
 	)
 	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		if user.GetIsBot() {
+			return nil
+		}
+		var err error
+		usernameManaged, err = api.core.UsernameManaged(groupCtx, user.GetId())
+		return err
+	})
 	group.Go(func() error {
 		var err error
 		hasVerifiedEmail, err = api.core.HasVerifiedEmail(groupCtx, user.GetId())
@@ -260,11 +271,16 @@ func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerU
 		return nil, err
 	}
 
+	actions, err := accountActions(ctx, api, user, usernameManaged, canDeleteAccount, lastLoginChange)
+	if err != nil {
+		return nil, err
+	}
 	response := &apiv1.ViewerUser{
 		HasVerifiedEmail:       hasVerifiedEmail,
 		HasPassword:            hasPassword,
+		Actions:                actions,
 		Settings:               coreUserSettingsToAPI(settings),
-		ViewerCanDeleteAccount: canDeleteAccount,
+		ViewerCanDeleteAccount: actions.GetDeleteAccount() == apiv1.AccountDeletionAvailability_ACCOUNT_DELETION_AVAILABILITY_ALLOWED,
 		Profile:                apiUser,
 	}
 	if !lastLoginChange.IsZero() {

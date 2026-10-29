@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -80,6 +80,10 @@ the backend permission catalog. Update both catalogs together.
   Roster access requires `role.assign`, not access to the full administrative
   user directory. Only explicit assignments appear; `everyone` has no roster.
   Pages reflect current assignments, so concurrent changes can shift offsets.
+  In the bundled frontend, `role.assign` also gives access to the role list
+  and each role's roster. Without `role.manage`, the list is read-only and
+  shows no permission matrix, role editor, or role creation action. Roster
+  rows link to member management only when the viewer has `admin.view-users`.
 
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
@@ -179,7 +183,7 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 9. Defaults are one-time initialization, not startup policy
 
-**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not reset existing permission state during startup. A new permission that
+**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin` and `owner`. Owners can thus post without privileged mode. Do not reset existing permission state during startup. A new permission that
 gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 - Initialize each missing server-level `everyone` call permission once. Any

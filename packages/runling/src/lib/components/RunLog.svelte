@@ -3,19 +3,27 @@
   import { ansiTokens } from '$lib/ansi.ts';
   import { logTime, logTreeRows, nextLogFollow, type LogRow } from '$lib/run-log.ts';
   import AnsiText from './AnsiText.svelte';
+  import { duration } from '$lib/runs.ts';
+  import { activityStatus } from '$lib/timeline.ts';
+  import { formatLogFields } from '../../runtime/log-fields.ts';
+  import Usage from './Usage.svelte';
 
   let {
-    rows,
+    detailedRows,
+    compactRows,
     running,
     selectedActivity,
     onselectActivity
   }: {
-    rows: LogRow[];
+    detailedRows: LogRow[];
+    compactRows: LogRow[];
     running: boolean;
     selectedActivity: string;
     onselectActivity: (id: string) => void;
   } = $props();
   let viewport: HTMLDivElement;
+  let detailed = $state(false);
+  let rows = $derived(detailed ? detailedRows : compactRows);
   let limit = $state(500);
   let wrap = $state(true);
   let following = $state(true);
@@ -31,15 +39,25 @@
   let unread = $derived(Math.max(0, rows.length - seen));
 
   const marker = (level: LogRow['event']['level']) =>
-    level === 'success' ? '✓' : level === 'error' ? '✕' : level === 'debug' ? '·' : '•';
+    level === 'success'
+      ? '✓'
+      : level === 'error'
+        ? '✕'
+        : level === 'warn'
+          ? '!'
+          : level === 'debug'
+            ? '·'
+            : '•';
   const markerClass = (level: LogRow['event']['level']) =>
     level === 'success'
       ? 'text-success'
       : level === 'error'
         ? 'text-error'
-        : level === 'debug'
-          ? 'text-base-content/35'
-          : 'text-info';
+        : level === 'warn'
+          ? 'text-warning'
+          : level === 'debug'
+            ? 'text-base-content/35'
+            : 'text-info';
 
   function splitActivityMessage(row: LogRow) {
     const reference = row.activity!.reference;
@@ -137,8 +155,12 @@
     try {
       await navigator.clipboard.writeText(
         rows
-          .map(({ event }) =>
-            ansiTokens(event.message)
+          .map(({ event, summary }) =>
+            ansiTokens(
+              summary
+                ? `${event.message} · ${activityStatus(summary.node)}${summary.node.durationMs === undefined ? '' : ` · ${duration(summary.node.durationMs)}`}`
+                : event.message
+            )
               .map((token) => token.text)
               .join('')
           )
@@ -152,38 +174,100 @@
 </script>
 
 {#snippet message(row: LogRow)}
-  {@const parts = row.activity?.embedded ? splitActivityMessage(row) : undefined}
-  <span
-    use:measureLine={row.id}
-    class={[
-      'block min-w-0 text-base-content/90',
-      wrap ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'
-    ]}
-  >
-    {#if row.activity}
-      {#if parts}<AnsiText text={parts.before} />{/if}
-      <button
-        class={[
-          'rounded-sm px-1 -mx-1 font-mono text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary',
-          selectedActivity === row.activity.id &&
-            'bg-primary/15 font-semibold ring-1 ring-inset ring-primary/50'
-        ]}
-        aria-label={`Inspect ${row.activity.reference}`}
-        aria-pressed={selectedActivity === row.activity.id}
-        onclick={() => onselectActivity(row.activity!.id)}
-        >{parts && row.event.source !== 'agent'
-          ? row.activity.reference
-          : `[${row.activity.reference}]`}</button
+  {#if row.summary}
+    {@const item = row.summary}
+    <details class="group min-w-0 w-full font-sans">
+      <summary
+        class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded py-0.5 focus-visible:outline-2 focus-visible:outline-primary"
       >
-      {#if parts}
-        <AnsiText text={parts.after} />
+        <span
+          class="flex min-w-0 basis-full items-center gap-2 font-medium wrap-anywhere sm:basis-auto sm:flex-1"
+        >
+          <span
+            class="icon-[lucide--chevron-right] size-3 shrink-0 text-base-content/40 group-open:rotate-90"
+            aria-hidden="true"
+          ></span>
+          {row.event.message}
+        </span>
+        {#if item.node.kind === 'agent'}<span
+            class="max-w-48 truncate text-xs text-base-content/50"
+            title={item.node.label}>{item.node.label.split('/').at(-1)}</span
+          >{/if}
+        <span
+          class={activityStatus(item.node) === 'completed'
+            ? 'sr-only'
+            : 'text-xs text-base-content/70'}>{activityStatus(item.node)}</span
+        >
+        {#if item.node.durationMs !== undefined}<span
+            class="text-xs tabular-nums text-base-content/60">{duration(item.node.durationMs)}</span
+          >{/if}
+        {#if item.node.kind === 'agent' && item.node.usage}<Usage
+            usage={item.node.usage}
+            compact
+          />{/if}
+      </summary>
+      <div class="my-2 ml-6 space-y-3 border-l border-base-300 pl-4 text-xs">
+        <p class="m-0 text-base-content/70">Started at {logTime(row.event.timestamp)}</p>
+        {#if item.node.usage}<Usage usage={item.node.usage} detail />{/if}
+        {#if item.node.kind === 'agent'}<p class="m-0 text-base-content/60">
+            Model: {item.node.label}
+          </p>{/if}
+        <p class="m-0 break-all text-base-content/50">ID: {item.node.id}</p>
+        {#if item.fields}<pre
+            class="m-0 whitespace-pre-wrap wrap-anywhere text-base-content/60">{formatLogFields(
+              item.fields
+            ).trim()}</pre>{/if}
+        {#if item.logs.length}<pre
+            class="m-0 whitespace-pre-wrap wrap-anywhere text-base-content/80">{item.logs.join(
+              '\n'
+            )}</pre>{/if}
+        <button class="btn btn-ghost btn-xs" onclick={() => onselectActivity(item.node.id)}
+          >Inspect activity</button
+        >
+      </div>
+    </details>
+  {:else}
+    {@const parts = row.activity?.embedded ? splitActivityMessage(row) : undefined}
+    <span
+      use:measureLine={row.id}
+      class={[
+        'block min-w-0 text-base-content/90',
+        wrap ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'
+      ]}
+    >
+      {#if row.activity}
+        {#if parts}<AnsiText text={parts.before} />{/if}
+        <button
+          class={[
+            'rounded-sm px-1 -mx-1 font-mono text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary',
+            selectedActivity === row.activity.id &&
+              'bg-primary/15 font-semibold ring-1 ring-inset ring-primary/50'
+          ]}
+          aria-label={`Inspect ${row.activity.reference}`}
+          aria-pressed={selectedActivity === row.activity.id}
+          onclick={() => onselectActivity(row.activity!.id)}
+          >{parts && row.event.source !== 'agent'
+            ? row.activity.reference
+            : `[${row.activity.reference}]`}</button
+        >
+        {#if parts}
+          <AnsiText text={parts.after} />
+        {:else}
+          <AnsiText text={row.event.message} />
+        {/if}
       {:else}
         <AnsiText text={row.event.message} />
       {/if}
-    {:else}
-      <AnsiText text={row.event.message} />
+    </span>
+    {#if !detailed && row.event.fields}
+      <details class="mt-1 text-xs text-base-content/50">
+        <summary class="cursor-pointer">Details</summary>
+        <pre class="whitespace-pre-wrap wrap-anywhere">{formatLogFields(
+            row.event.fields
+          ).trim()}</pre>
+      </details>
     {/if}
-  </span>
+  {/if}
 {/snippet}
 
 <!-- The negative margin covers each row's vertical padding so adjacent strokes meet. -->
@@ -220,13 +304,16 @@
 {/snippet}
 
 <section class="flex min-h-0 flex-1 flex-col" aria-label="Run log">
-  <div
-    class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 bg-base-200/35 px-4 py-1.5 sm:px-6"
-  >
-    <span class="text-xs text-base-content/50 tabular-nums"
-      >{rows.length} {rows.length === 1 ? 'line' : 'lines'}</span
-    >
+  <div class="flex shrink-0 items-center justify-end gap-3 px-4 py-1.5 sm:px-6">
     <div class="flex items-center gap-1">
+      <button
+        class="btn btn-ghost btn-xs"
+        aria-pressed={detailed}
+        onclick={() => {
+          detailed = !detailed;
+          seen = 0;
+        }}>Detailed log</button
+      >
       <button
         class="btn btn-ghost btn-xs gap-1.5"
         aria-pressed={wrap}
@@ -262,12 +349,19 @@
       <ol class="m-0 list-none p-0 font-mono text-[13px] leading-5">
         {#each treeRows as { row, depth, joinsAbove, continuesBelow } (row.id)}
           <li
-            class="grid grid-cols-[4.5rem_1rem_minmax(0,1fr)] gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55 sm:grid-cols-[5rem_1rem_minmax(0,1fr)]"
+            class={[
+              'grid gap-x-2 rounded px-2 py-0.5 hover:bg-base-200/55',
+              detailed
+                ? 'grid-cols-[4.5rem_1rem_minmax(0,1fr)] sm:grid-cols-[5rem_1rem_minmax(0,1fr)]'
+                : 'grid-cols-[1rem_minmax(0,1fr)]'
+            ]}
             data-log-row={row.id}
+            title={!detailed ? `At ${logTime(row.event.timestamp)}` : undefined}
           >
-            <time class="select-none text-base-content/40 tabular-nums" title="Elapsed run time"
-              >{logTime(row.event.timestamp)}</time
-            >
+            {#if detailed}<time
+                class="select-none text-base-content/40 tabular-nums"
+                title="Elapsed run time">{logTime(row.event.timestamp)}</time
+              >{/if}
             <span
               class={markerClass(row.event.level)}
               title={row.event.level}
@@ -295,7 +389,14 @@
               <span class="flex min-w-0">
                 {@render treeGuide(depth, joinsAbove, continuesBelow)}
                 <!-- Clipping this outer span would cut the guide at each row boundary. -->
-                <span class="block min-w-0 max-h-20 flex-1 overflow-y-clip overflow-x-visible">
+                <span
+                  class={[
+                    'block min-w-0 flex-1',
+                    !row.summary &&
+                      (detailed || !row.event.fields) &&
+                      'max-h-20 overflow-y-clip overflow-x-visible'
+                  ]}
+                >
                   {@render message(row)}
                 </span>
               </span>

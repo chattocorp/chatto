@@ -3,16 +3,17 @@ package connectapi
 import (
 	"context"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type userService struct {
 	api *API
 }
 
-func userSummary(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
+func userSummary(ctx context.Context, api *API, user *readmodel.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
 	presence, err := api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, err
@@ -20,19 +21,20 @@ func userSummary(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.
 	return userSummaryWithPresence(ctx, api, user, avatar, presence)
 }
 
-func requiredUserSummary(ctx context.Context, api *API, user *evtv1.User) (*apiv1.User, error) {
+func requiredUserSummary(ctx context.Context, api *API, user *readmodel.User) (*apiv1.User, error) {
 	if user == nil {
 		return nil, core.ErrNotFound
 	}
 	return userSummary(ctx, api, user, nil)
 }
 
-func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
+func userSummaryWithPresence(ctx context.Context, api *API, user *readmodel.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
 	summary := &apiv1.User{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
 		Deleted:        user.GetDeleted(),
+		Deactivated:    user.GetDeactivated(),
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 	}

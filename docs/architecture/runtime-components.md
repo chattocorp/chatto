@@ -1,5 +1,12 @@
 # Runtime Component Inventory
 
+Core [historical operations](../../cli/internal/core/operator_history.go) apply
+individual typed room and message transitions through existing projections and
+encrypted message storage. [Operation receipts](../../cli/internal/core/operator_operations.go)
+provide permanent exact retry protection with atomic EVT batches. The server
+has no archive parser or import session. These operations add no background
+worker or runtime unit.
+
 This file lists the server-side components of the Chatto process: the core
 facade, runtime units, models, publishers, and workers. It does not list
 client runtimes (the bundled frontend, the desktop and mobile shells, and
@@ -43,6 +50,20 @@ listener address, and total startup duration. Optional runtime units and
 automatic TLS certificate issuance do not gate this message. If any listener
 cannot bind, startup closes the listeners already opened and does not log
 readiness. Shutdown and serve failures close all HTTP servers.
+
+The HTTP server owns a process-local
+[`imageTransforms`](../../cli/internal/http_server/image_transforms.go)
+coordinator for uncached image derivatives. It shares work for the same
+derivative and admits distinct operations before they open source files.
+Source admission covers reads, waits for the pixel budget, and transformation;
+the operation releases its slot when it returns. These memory controls are
+ephemeral and independent on each replica. Cache hits bypass the coordinator.
+See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
+
+The shared asset image decoder also accepts HEIC still images. Public and
+Operator uploads use header inspection; the image transform coordinator owns
+preview decoding. Original HEIC bytes remain in attachment storage. HEIC
+sequence containers are rejected before pixel decoding.
 
 INFO projection summaries report the projection name, rounded startup
 duration, replayed message count, restore source, and final sequence. Each
@@ -92,7 +113,9 @@ operations do not duplicate these outcomes.
   `search.BleveProvider`, started by `[search_provider].enabled` under
   `chatto run` or as `chatto search-provider`; opens existing EVT and encryption
   resources without starting `ChattoCore`, exposes status during startup replay,
-  and joins the shared query queue only after replay is current.
+  and joins the shared query queue only after replay is current. After query and
+  status endpoints are registered, it logs `stage=service_ready`; the operator's
+  standalone search wrapper uses this field to mark the pod ready.
 - **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):

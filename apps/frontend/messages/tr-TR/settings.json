@@ -118,10 +118,10 @@
       "conflict": "Bu profil siz düzenlerken değişti. Sayfayı yeniden yükleyin, ardından değişikliklerinizi tekrar kaydedin.",
       "save_button": "Değişiklikleri Kaydet",
       "bio": {
-        "label": "Bio",
+        "label": "Hakkında",
         "description": "En fazla {max} karakter, profilinizde görünür.",
         "placeholder": "Kendinizden kısaca bahsedin",
-        "too_long": "Bio en fazla {max} karakter olabilir."
+        "too_long": "Metin en fazla {max} karakter olabilir."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Karanlık",
           "description": "Bu tarayıcıdaki karanlık arayüzü kullanın"
+        }
+      },
+      "animations": {
+        "title": "Animasyonlar",
+        "automatic": {
+          "label": "Otomatik",
+          "description": "Sistemin azaltılmış hareket tercihini kullan"
+        },
+        "enabled": {
+          "label": "Etkin",
+          "description": "Animasyonları her zaman göster"
+        },
+        "disabled": {
+          "label": "Devre dışı",
+          "description": "Değişiklikleri animasyonsuz göster"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Şifre",
         "add_description": "Doğrudan oturum açabilmek ve son SSO sağlayıcınızın bağlantısını kesebilmek için bir şifre ekleyin.",
         "change_description": "Doğrudan oturum açmak için kullanılan şifreyi değiştirin.",
+        "sso_managed": "Bu sunucu tek oturum açma (SSO) kullandığı için şifre ekleyemez veya değiştiremezsiniz. Oturum açma bilgilerinizi kimlik sağlayıcınız üzerinden yönetin.",
         "current_label": "Mevcut Şifre",
         "current_required": "Mevcut şifrenizi girin.",
         "add_button": "Şifre Ekle",
@@ -437,6 +453,9 @@
         "already_set": "Bu hesabın zaten bir şifresi var."
       },
       "sso": {
+        "username_unavailable": "Oturum açma sağlayıcınızın kullanıcı adı atanamıyor. Sunucu yöneticisiyle iletişime geçin.",
+        "username_managed": "Kullanıcı adınız oturum açma sağlayıcınız tarafından yönetilir ve burada değiştirilemez.",
+        "unlink_disabled": "Sunucu yöneticisi bu sağlayıcının bağlantısının kesilmesine izin vermiyor.",
         "popup_blocked": "Bu site için açılır pencerelere izin ver ve bağlamayı tekrar dene.",
         "account_mismatch": "Bu sunucuda doğru hesapla oturum aç, ardından ilk pencereden bağlamayı yeniden başlat.",
         "provider_unavailable": "Bu oturum açma sağlayıcısı artık kullanılamıyor.",
@@ -449,6 +468,7 @@
         "link_button": "Bağlantı",
         "link_failed": "Oturum açma sağlayıcısına bağlanılamadı",
         "fresh_auth_required": "Başka bir sağlayıcıya bağlanmadan önce tekrar oturum açın.",
+        "sso_fresh_auth_required": "Bu hesabın ait olduğu sunucuda hesap ayarlarını açın. Oturumu kapatıp SSO sağlayıcınız üzerinden yeniden oturum açın, ardından işlemi o sunucuda tekrar deneyin.",
         "provider_unconfigured": "Sağlayıcı artık yapılandırılmadı",
         "disconnect_button": "Bağlantıyı kes",
         "disconnecting": "Bağlantı kesiliyor...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Sağlayıcının bağlantısı kesilemez",
-          "body": "{provider} tek oturum açma yönteminizdir. Önce bir şifre ekleyin veya başka bir sağlayıcıyı bağlayın."
+          "body": "{provider} bağlantısını kesmeden önce bu sunucunun desteklediği başka bir oturum açma yöntemi ayarlayın."
         },
         "fresh_auth_modal": {
           "title": "Şifreyi onayla",

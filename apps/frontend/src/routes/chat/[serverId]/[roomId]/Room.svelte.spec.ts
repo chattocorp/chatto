@@ -2,7 +2,8 @@ import type { MemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
-import { q } from '$lib/test-utils';
+import { q, testSnippet } from '$lib/test-utils';
+import ContextMenu from '$lib/ui/ContextMenu.svelte';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import { RealtimeProjectionUpdate } from '@chatto/client/realtime/eventBus';
@@ -258,6 +259,13 @@ vi.mock('./RoomSidebar.svelte', async () => {
 });
 
 vi.mock('./RoomSidebarToggle.svelte', async () => {
+  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
+  return { default: EmptyMock };
+});
+
+// The banner has its own browser tests; keep this room-layout fixture isolated
+// from its Markdown renderer and editor dependencies, like the other panels.
+vi.mock('./RoomNoticeBanner.svelte', async () => {
   const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
   return { default: EmptyMock };
 });
@@ -1674,7 +1682,7 @@ describe('Room local message echo', () => {
       .toHaveClass('end-0', 'border-s');
   });
 
-  it('keeps the mobile sidebar mounted during its close transition', async () => {
+  it('removes the mobile sidebar immediately when closed', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     stubMatchMedia(false);
     appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'mobile');
@@ -1686,7 +1694,7 @@ describe('Room local message echo', () => {
     appUi.closeMobileRoomSidebarPanel();
     await tick();
 
-    expect(pane.isConnected).toBe(true);
+    expect(pane.isConnected).toBe(false);
     await expect.element(pane).not.toBeInTheDocument();
   });
 
@@ -1730,28 +1738,98 @@ describe('Room local message echo', () => {
     });
   });
 
-  it('keeps the thread open when pressing the app sidebar surface', async () => {
+  it('closes the thread when pressing inside the app sidebar or server gutter', async () => {
     render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
     await tick();
     mocks.goto.mockClear();
 
     const appSidebar = document.createElement('div');
     appSidebar.dataset.appSidebar = 'true';
+    const control = document.createElement('button');
+    appSidebar.append(control);
     document.body.append(appSidebar);
 
     try {
-      appSidebar.dispatchEvent(
+      control.dispatchEvent(
         new PointerEvent('pointerdown', {
           bubbles: true,
           button: 0
         })
       );
 
-      expect(mocks.goto).not.toHaveBeenCalled();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
     } finally {
       appSidebar.remove();
     }
   });
+
+  it('dismisses the user menu with Escape before closing the thread', async () => {
+    render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    const onclose = vi.fn();
+    const menu = render(ContextMenu, {
+      position: { x: 20, y: 20 },
+      presentation: 'floating',
+      role: 'dialog',
+      ariaLabel: 'User profile',
+      onclose,
+      children: testSnippet('<button>View profile</button>')
+    });
+    await tick();
+    await new Promise(requestAnimationFrame);
+    mocks.goto.mockClear();
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(onclose).toHaveBeenCalledOnce();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await menu.unmount();
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+  });
+
+  it.each([
+    { surface: 'room', role: 'menu' },
+    { surface: 'sidebar', role: 'menu' },
+    { surface: 'room', role: 'dialog' },
+    { surface: 'sidebar', role: 'dialog' }
+  ])(
+    'dismisses only the context menu with role $role on the first $surface press',
+    async ({ surface, role }) => {
+      const { container } = render(Room, {
+        props: { roomId: 'room-1', threadId: 'thread-root' }
+      });
+      const onclose = vi.fn();
+      const menu = render(ContextMenu, {
+        position: { x: 20, y: 20 },
+        presentation: 'floating',
+        role,
+        onclose,
+        children: testSnippet('<button role="menuitem">Menu action</button>')
+      });
+      await tick();
+      await new Promise(requestAnimationFrame);
+      mocks.goto.mockClear();
+
+      const sidebar = document.createElement('div');
+      sidebar.dataset.appSidebar = 'true';
+      document.body.append(sidebar);
+      const target =
+        surface === 'sidebar' ? sidebar : q(container, '[data-testid="room-view-region"]')!;
+      try {
+        target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+        expect(onclose).toHaveBeenCalledOnce();
+        expect(mocks.goto).not.toHaveBeenCalled();
+
+        await menu.unmount();
+        target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+        expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+      } finally {
+        sidebar.remove();
+      }
+    }
+  );
 
   it('closes the thread when pressing the room view behind it', async () => {
     const { container } = render(Room, {

@@ -147,6 +147,7 @@
       "call": "Samtal"
     },
     "permission_help": {
+      "room_manage_notice": "Låter en medlem hantera meddelandet i ett aktivt kanalrum, men inte själva rummet. Nya instanser ger endast Admin denna behörighet; uppgraderingar behåller befintliga tilldelningar.",
       "server_manage": "Låter ett konto ändra serverns namn, beskrivning, logotyp och andra serverinställningar. Den tillåter också ändringar i den offentliga grannkatalogen. Ge den bara till personer som kan tala för hela servern.",
       "server_manage_neighbors": "Låter ett konto lägga till, ändra och ta bort poster i den offentliga grannkatalogen. Den tillåter inte ändringar av andra serverinställningar.",
       "room_create": "Låter ett konto skapa kanalrum. På rumsgruppsnivå tillåter den nya rum bara i den gruppen.",

@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Aviso de la sala",
+      "dismiss": "Cerrar",
+      "body": "Aviso (Markdown)",
+      "too_long": "Los avisos pueden contener como máximo {max} caracteres, incluidos los espacios en blanco.",
+      "help": "Guarda las correcciones sin volver a mostrar el aviso. Anúncialo para mostrarlo de nuevo a quienes lo cerraron en sus dispositivos.",
+      "conflict": "Este aviso cambió mientras lo editabas. Tu borrador sigue aquí. Cópialo si lo necesitas y carga el aviso actual antes de volver a guardar.",
+      "reload": "Cargar aviso actual",
+      "save": "Actualizar",
+      "republish": "Anunciar",
+      "clear": "Borrar",
+      "clear_confirm_title": "¿Borrar el aviso de la sala?",
+      "clear_confirm_description": "Esto elimina de inmediato el aviso activo para todos los miembros de la sala. Tus cambios sin guardar no se publicarán.",
+      "empty": "No se ha publicado ningún aviso.",
+      "edit": "Editar aviso"
+    },
+    "information": {
+      "description": "Descripción",
+      "created": "Creada",
+      "title": "Información de la sala",
+      "basic": "General",
+      "pinned_messages": "Mensajes fijados"
+    },
     "create": {
       "title": "Crear una Nueva Sala",
       "description": "Las salas son conversaciones dentro de tu servidor.",
@@ -77,7 +100,8 @@
       "beginning": "Este es el comienzo de esta conversación.",
       "read_denied": "No tienes permiso para leer mensajes en esta sala.",
       "limited_empty": "Aún no hay conversaciones que puedas leer.",
-      "loading": "Cargando mensajes..."
+      "loading": "Cargando mensajes...",
+      "load_failed": "No se han podido cargar los mensajes."
     },
     "message": {
       "empty": "Aún no hay mensajes",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Tema en #{room}",
       "back_to_room": "Regresar a la habitación",
+      "participants": "Participantes del hilo ({count})",
       "follow": "Seguir hilo",
       "unfollow": "Dejar de seguir el hilo",
       "close": "Cerrar hilo",
@@ -263,6 +288,7 @@
     "unread_separator": "Mensajes nuevos",
     "close_extras": "Cerrar extras de habitación",
     "dm": {
+      "deactivated_user_notice": "Esta cuenta está desactivada. Esta persona no puede leer ni responder mensajes.",
       "deleted_user_notice": "El otro usuario ha sido eliminado."
     },
     "management": {

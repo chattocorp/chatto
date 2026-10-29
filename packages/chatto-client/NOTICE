@@ -1,0 +1,6 @@
+Copyright (c) 2026 Hendrik Mans and contributors
+Copyright (c) 2026 ChattoCorp GmbH
+
+The Chatto client is licensed under Apache-2.0.
+The bundled generated protocol code in api-types/ is copyright ChattoCorp GmbH
+and contributors, and is licensed under Apache-2.0. See api-types/LICENSE.

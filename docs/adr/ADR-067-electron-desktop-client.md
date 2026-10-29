@@ -8,6 +8,10 @@
 which permits narrow optional preload capabilities while retaining the renderer
 sandbox and context isolation.
 
+The independent desktop release stream is superseded by
+[ADR-118](ADR-118-synchronized-chatto-desktop-releases.md), which synchronizes
+Desktop, server, and frontend releases.
+
 ## Context
 
 ADR-063 selected Deno Desktop and CEF for Chatto's experimental desktop client.
@@ -53,8 +57,10 @@ then permits HTTP or HTTPS navigation inside that child while denying nested
 windows. Main-window navigation away from the app origin is denied and normal
 web links open in the system browser.
 
-The host grants camera, microphone, and notification permission only to the
-fixed app origin. Screen capture requires a user gesture and an explicit native
+The host grants camera, microphone, notification, clipboard write, and fullscreen
+permission only to the fixed app origin. Clipboard reads and automatic fullscreen
+without a user gesture remain blocked.
+Screen capture requires a user gesture and an explicit native
 source choice. No preload bridge or Chatto domain API is exposed to renderer
 code.
 

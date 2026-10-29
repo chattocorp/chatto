@@ -5,7 +5,10 @@
   import { m } from '$lib/i18n/messages';
   import { Hint, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { Button, Checkbox, Select } from '$lib/ui/form';
-  import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
+  import {
+    availableCallDevice,
+    type CallPreferencesState
+  } from '$lib/state/server/callPreferences.svelte';
   import { CallDeviceTest } from '$lib/state/server/callDeviceTest.svelte';
 
   let {
@@ -69,7 +72,10 @@
       }))
     ];
     if (selected && !result.some((option) => option.value === selected))
-      result.push({ value: selected, label: m('voice.preferences.unavailable_device') });
+      result.push({
+        value: selected,
+        label: `${m('voice.preferences.system_default')} (${m('voice.preferences.unavailable_device')})`
+      });
     return result;
   }
 
@@ -91,7 +97,12 @@
   async function startTest() {
     await test.start(
       preferences.microphone,
-      preferences.speaker,
+      outputSupported
+        ? availableCallDevice(
+            preferences.speaker,
+            devices.filter((device) => device.kind === 'audiooutput')
+          )
+        : '',
       () => preferences.microphoneThreshold,
       () => preferences.effects
     );

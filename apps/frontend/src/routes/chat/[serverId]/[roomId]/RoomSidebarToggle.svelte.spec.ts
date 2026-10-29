@@ -87,7 +87,7 @@ describe('RoomSidebarToggle', () => {
     expect(onToggle).toHaveBeenCalledWith('files');
   });
 
-  it('puts the outlined pin control first and uses the notification colour for unseen pins', () => {
+  it('puts room information first and uses the notification colour for unseen pins', () => {
     const { container } = render(RoomSidebarToggle, {
       props: {
         activePanel: null,
@@ -99,9 +99,9 @@ describe('RoomSidebarToggle', () => {
     });
 
     const buttons = container.querySelectorAll('button');
-    expect(buttons[0]?.getAttribute('aria-label')).toContain('Pins');
+    expect(buttons[0]?.getAttribute('aria-label')).toContain('Room information');
     expect(buttons[0]?.querySelector('.pane-header-icon-glyph')?.className).toContain(
-      'pin-outline'
+      'info-circle'
     );
     expect(buttons[0]?.querySelector('[data-testid="unseen-pin-dot"]')?.classList).toContain(
       'bg-attention'

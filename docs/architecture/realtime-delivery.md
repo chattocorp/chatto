@@ -1,5 +1,14 @@
 # Realtime Delivery Inventory
 
+Historical message, thread-creation, and reaction-add facts are excluded from
+live room delivery and reconnect replay. Their durable historical markers also
+make the public event mapper reject them. Clients obtain imported state through
+resource reads. The older per-record tombstone API uses ordinary retractions,
+which remain eligible for live delivery and reconnect replay. Generic archive
+imports mark historical timeline facts with `ImportContext`; live and reconnect delivery
+and the public mapper exclude these facts, including retractions and membership
+changes. Hidden reconciliation facts also stay out of the visible room timeline.
+
 Key files:
 
 - [`realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
@@ -57,6 +66,11 @@ are `event`, `heartbeat`, and `close`. All terminal protocol results use
 `close`. WebSocket control frames provide ping and pong behavior.
 
 ## Public events
+
+`room_notice_changed` identifies a channel whose current notice changed. It is
+delivered to current members after Room Directory projection readiness. The
+public mapper omits notice text and storage state; recipients read the canonical
+notice through `RoomService.GetNotice` with the event's minimum cursor.
 
 `chatto.core.evt.v1.Event` contains durable EVT facts.
 `chatto.core.pubsub.v1.PubSubEvent` contains a restricted set of NATS Core
@@ -232,6 +246,10 @@ Slow Mode uses these same reads. Room viewer state carries the root-post
 deadline. Message viewer state and thread timeline responses carry the current
 viewer's deadline in the canonical thread, including before its first reply.
 Room Slow Mode changes invalidate open thread deadlines as well as room state.
+
+`RoomMembershipEventsVisibilityChangedEvent` follows the room-directory readiness
+and authorization path. Live delivery and catch-up map it to the dedicated public
+payload. It changes no membership-event delivery rules.
 
 The bundled frontend gives each cursor-bounded ConnectRPC call a 10-second
 deadline. A timeout fails reconciliation and closes the socket without cursor
@@ -445,17 +463,18 @@ reads at that cursor use the same boundary when they load profiles. An unknown
 typing user starts one shared profile read during a typing burst. Room and
 thread labels can use that profile before member-list loading finishes.
 Each server store keeps one presence map, `ServerStateStore.presence`, for the
-whole server. The store writes it from presence events and user resources,
-also while the server is not on screen. A partial user read without a presence
-value does not change a known value. A complete replacement, such as the
-snapshot, which never carries presence, removes all values until catch-up reads
-the users again. Presence dots and the member list read this map. Catch-up
-refreshes profiles and presence for retained members. A user read that this
-client starts does not replace a presence change that arrived during the read.
-An event during offset pagination restarts
-the membership read with the event's minimum cursor. Recovery resets and room
-access loss clear retained membership. Universal-room eligibility changes require
-a new authoritative read rather than client-side permission calculations.
+whole server. The store writes it from presence events and user resources. While
+the client polls an inactive server, presence is not kept current. It becomes
+current at the full catch-up when the server becomes active. A partial user read
+without a presence value does not change a known value. A complete replacement,
+such as the snapshot, which never carries presence, removes all values until
+catch-up reads the users again. Presence dots and the member list read this map.
+The catch-up of a live server refreshes profiles and presence for retained
+members. A user read that this client starts does not replace a presence change
+that arrived during the read. An event during offset pagination restarts the
+membership read with the event's minimum cursor. Recovery resets and room access
+loss clear retained membership. Universal-room eligibility changes require a new
+authoritative read rather than client-side permission calculations.
 
 [UserStore](../../packages/chatto-client/src/server/users.ts) stores
 public profiles by server, connection scope, and user ID. Directory and timeline
@@ -466,7 +485,10 @@ and disposal permanently fences the retired owner. Profile expiry timers have
 the same lifetime. See [ADR-101](../adr/ADR-101-shared-client-user-profiles.md).
 Snapshot user lists contain only referenced users. The client merges them into
 the shared store. During full recovery at `caught_up`, it requests cached user
-IDs at that cursor. A confirmed privilege-only resume reads only missing DM
+IDs at that cursor. The catch-up of an inactive server's poll does not make
+this request after a resumed stream. Replay carries every profile change, and
+only presence becomes stale. The full catch-up when the server becomes active
+makes the request. A confirmed privilege-only resume reads only missing DM
 profiles, as described above.
 Only an omitted ID from this requested set confirms account removal. A reset
 generation and per-user revisions fence late reads and changes during the check.
@@ -685,8 +707,19 @@ The frontend keeps its resource view during access-token rotation, cookie-sessio
 renewal, server switches, network reconnects, and tab wake. It replaces the
 socket and sends the same cursor. Human bearer credentials close at
 access-token expiry. Cookie connections close at the renewal boundary. The
-server revalidates the accepted credential before subscription and once per
-minute.
+server revalidates human credentials before subscription and once per minute.
+Each authenticated connection also watches account access through the durable
+user-auth projection. A deactivation transition closes human connections and
+connections of their owned bots with `AUTHENTICATION_REQUIRED`, without a
+reconnect instruction. Registration and the active-state check share the
+projection lock. This path does not depend on a transient session signal.
+Human credentials are validated again after watch registration, so a completed
+deactivation and reactivation before registration cannot revive an old session.
+
+Other viewers receive `UserAccountDeactivationChangedEvent` through the same
+durable live and replay path. Its payload contains the user ID and access flag;
+the public envelope omits the administrator ID. Profile reads and snapshots
+include `User.deactivated`, so reconnect also restores the current status.
 
 The browser resets its liveness timer on every server frame. A heartbeat can
 carry a fresh cursor for the last durable sequence that this socket has

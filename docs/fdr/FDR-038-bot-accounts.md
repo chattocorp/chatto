@@ -31,6 +31,9 @@ exercise more authority than its human owner currently possesses.
   It shows the section only when the room has bots. Bot presence does not move
   them to another section. Offline bots are not dimmed and have no presence
   dot. Bots with Online, Away, or Do Not Disturb presence show their normal dot.
+  A bot is Online while its host sends presence heartbeats with the bot's API
+  key, as `@chatto/client` does with `server.reportPresence()`. Without
+  heartbeats, the bot is Offline.
 
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card
@@ -171,8 +174,9 @@ exercise more authority than its human owner currently possesses.
   change takes effect immediately after confirmation. Cancel leaves membership
   unchanged; grants stay unchanged.
   `user.manage-accounts` or `room.manage` for the room can override a
-  missing join permission. Otherwise joining requires the bot's effective
-  `room.join`, including the owner's permission ceiling. Bans and archived
+  missing join permission. Otherwise adding the bot requires the acting human's
+  effective `room.join`. The bot's own `room.join` controls self-service joins,
+  not additions by its owner or a human bot manager. Bans and archived
   rooms prevent joining. Bot owners do not need `room.manage`. Removal does
   not require `room.join`. Archived channels have no matrix column; their
   permissions and membership stay unchanged. Unarchiving restores their columns

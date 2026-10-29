@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -31,7 +33,7 @@ func v04DefaultDecisions() []rbacSeedDecision {
 	return decisions
 }
 
-func appendV04RBACLog(t *testing.T, h *testEventHarness, roles map[string]*evtv1.Role, extra []rbacSeedDecision, extraEvents ...*evtv1.Event) {
+func appendV04RBACLog(t *testing.T, h *testEventHarness, roles map[string]*readmodel.Role, extra []rbacSeedDecision, extraEvents ...*evtv1.Event) {
 	t.Helper()
 	ctx := testContext(t)
 	maps.Copy(roles, defaultRBACRoles())
@@ -60,12 +62,12 @@ func TestUpgradePermissionsRestoreV04Behavior(t *testing.T) {
 
 	h := newTestEventHarness(t)
 	ctx := testContext(t)
-	custom := &evtv1.Role{Name: "helper", DisplayName: "Helper", Position: PositionCustomFirst}
-	gone := &evtv1.Role{Name: "gone", DisplayName: "Gone", Position: PositionCustomFirst + 1}
+	custom := &readmodel.Role{Name: "helper", DisplayName: "Helper", Position: PositionCustomFirst}
+	gone := &readmodel.Role{Name: "gone", DisplayName: "Gone", Position: PositionCustomFirst + 1}
 	legacyGrant := &evtv1.RbacPermissionGrantedEvent{Permission: string(permRoomMemberBanLegacy)}
 	legacyGrant.ProtoReflect().SetUnknown(legacyRBACPermissionUnknown("Glegacy", "legacy-role"))
 	appendV04RBACLog(t, h,
-		map[string]*evtv1.Role{custom.Name: custom, gone.Name: gone},
+		map[string]*readmodel.Role{custom.Name: custom, gone.Name: gone},
 		[]rbacSeedDecision{
 			{scope: ScopeRoom, scopeID: "Rhelp", subject: custom.Name, permission: permRoomMemberBanLegacy, decision: DecisionAllow},
 			{scope: ScopeGroup, scopeID: "Gmods", subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, subject: "Ualice", permission: permRoomMemberBanLegacy, decision: DecisionDeny},
@@ -125,7 +127,7 @@ func TestUpgradePermissionsSkipReviewedV05State(t *testing.T) {
 	} {
 		h := newTestEventHarness(t)
 		ctx := testContext(t)
-		appendV04RBACLog(t, h, map[string]*evtv1.Role{}, nil, event)
+		appendV04RBACLog(t, h, map[string]*readmodel.Role{}, nil, event)
 		require.NoError(t, (&ChattoCore{EventPublisher: h.publisher}).seedUpgradePermissions(ctx))
 		rbac, _ := replayRBACLog(t, h)
 		require.Equal(t, DecisionAllow, rbac.GetDecision(ScopeServer, "", RoleEveryone, PermCallJoin))
@@ -159,7 +161,7 @@ func TestUpgradePermissionsConcurrentReplicas(t *testing.T) {
 
 	h := newTestEventHarness(t)
 	ctx := testContext(t)
-	appendV04RBACLog(t, h, map[string]*evtv1.Role{}, nil)
+	appendV04RBACLog(t, h, map[string]*readmodel.Role{}, nil)
 	var group sync.WaitGroup
 	results := make(chan error, 3)
 	for range 3 {

@@ -163,6 +163,10 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	}
 	require.NoError(t, err)
 	require.Equal(t, []string{"M1"}, hitIDs(response))
+	// Match the operator wrapper's JSON readiness marker, not the human log text.
+	require.Eventually(t, func() bool {
+		return strings.Contains(unitLogs.String(), `"stage":"service_ready"`)
+	}, time.Second, 10*time.Millisecond)
 	require.Eventually(t, func() bool {
 		return strings.Contains(unitLogs.String(), "Projection startup complete")
 	}, time.Second, 10*time.Millisecond)
@@ -268,7 +272,9 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	require.NoError(t, err)
 	runtimeState, err := jetstreamutil.NewKeyValue(js, runtimeStateBucket)
 	require.NoError(t, err)
-	logger := log.New(io.Discard)
+	var unitLogs synchronizedBuffer
+	logger := log.New(&unitLogs)
+	logger.SetFormatter(log.JSONFormatter)
 	keyStore := kms.NewBuiltin(encryptionKeys, logger)
 
 	retraction := &evtv1.Event{
@@ -353,6 +359,7 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	finished = true
 	require.ErrorContains(t, unitErr, "behind retained stream start")
 	require.ErrorContains(t, unitErr, "move or delete")
+	require.NotContains(t, unitLogs.String(), `"stage":"service_ready"`)
 	afterContext, cancelAfter := context.WithTimeout(context.Background(), time.Second)
 	defer cancelAfter()
 	_, err = client.GetStatus(afterContext)

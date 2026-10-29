@@ -8,6 +8,7 @@ import { configureMarkdownLinks } from './markdownLinks';
 import { renderedLinkTarget } from '$lib/navigation/renderedLink';
 import { collectMentionHandles, MENTIONS_ENV_KEY, mentionPlugin } from '$lib/markdownMentions';
 import { m } from '$lib/i18n/messages';
+import { emojiPlugin } from './markdownEmoji';
 
 type CodeHighlightingModule = typeof import('$lib/codeHighlighting');
 
@@ -35,6 +36,8 @@ const MAX_TABLE_ROWS = 256;
 const MAX_TABLE_CELLS = 4_096;
 const MAX_TABLE_CELLS_PER_MESSAGE = 8_192;
 const tableCellCountKey = Symbol('tableCellCount');
+const ansiArtKey = Symbol('ansiArt');
+const MAX_ANSI_BLOCKS = 4;
 
 type MarkdownBlockRule = (
   state: StateBlock,
@@ -236,7 +239,9 @@ function escapeHtml(value: string): string {
 }
 
 function escapeAttribute(value: string): string {
-  return escapeHtml(value).replaceAll("'", '&#39;');
+  // HTML normalizes literal CR/CRLF before parsing attributes. An entity keeps
+  // carriage-return commands intact when code is copied from data-copy-source.
+  return escapeHtml(value).replaceAll("'", '&#39;').replaceAll('\r', '&#13;');
 }
 
 function renderClassName(value: unknown): string | null {
@@ -314,7 +319,7 @@ function renderPlainCodeLines(code: string): string[] {
 
 function renderCodeCopyButton(): string {
   const label = escapeAttribute(m('common.copy_to_clipboard'));
-  return `<button type="button" class="markdown-code-copy mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span></button>`;
+  return `<button type="button" class="markdown-code-copy copy-feedback mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span data-copy-icon class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span><span data-copy-check class="iconify icon-[uil--check] text-sm text-action" aria-hidden="true"></span></button>`;
 }
 
 function renderCodeActions(language?: string): string {
@@ -476,6 +481,15 @@ function initialize(): void {
   // runs are consumed as literal text.
   md.inline.ruler.before('emphasis', 'word_boundary_emphasis', wordBoundaryEmphasis);
 
+  // Reuse emphasis parsing so code, link destinations, and literal marker runs
+  // stay untouched. Only paired double underscores change their rendered tag.
+  for (const type of ['strong_open', 'strong_close']) {
+    md.renderer.rules[type] = (tokens, index, options, _env, self) => {
+      if (tokens[index].markup === '__') tokens[index].tag = 'u';
+      return self.renderToken(tokens, index, options);
+    };
+  }
+
   // CommonMark decodes entities in prose but leaves them literal in code. Turn
   // decoded NBSPs into collapsible spaces only in ordinary inline text so long
   // `&nbsp;` runs cannot create giant blank message rows without corrupting
@@ -484,6 +498,14 @@ function initialize(): void {
   // Recognize @mentions in the token tree after linkify, so URLs, links,
   // code, and blockquotes keep their text. See `$lib/markdownMentions`.
   md.use(mentionPlugin);
+  md.use(emojiPlugin);
+  const defaultFence = md.renderer.rules.fence!;
+  md.renderer.rules.fence = (tokens, index, options, env, self) => {
+    const token = tokens[index];
+    const art: string | undefined = env[ansiArtKey]?.get(token);
+    if (art === undefined) return defaultFence(tokens, index, options, env, self);
+    return `<pre class="markdown-code markdown-ansi" data-copy-source="${escapeAttribute(token.content)}"><code tabindex="0">${art}</code>${renderCodeActions('ansi')}</pre>\n`;
+  };
   md.renderer.rules.softbreak = renderChatLineBreak;
   md.renderer.rules.hardbreak = renderChatLineBreak;
   md.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0"><table>\n';
@@ -565,10 +587,34 @@ export async function renderMarkdown(
   { mentions = false }: RenderMarkdownOptions = {}
 ): Promise<string> {
   try {
-    await ensureFenceLanguagesLoaded(extractFenceLanguages(body));
+    await ensureFenceLanguagesLoaded(
+      extractFenceLanguages(body).filter((language) => language !== 'ansi')
+    );
     initialize();
 
-    return md!.render(body, { [MENTIONS_ENV_KEY]: mentions });
+    const env = { [MENTIONS_ENV_KEY]: mentions, [ansiArtKey]: new Map<Token, string>() };
+    const tokens = md!.parse(body, env);
+    // Work from parsed fences so quoted/list blocks work and inline examples do
+    // not load the terminal parser. Keep the results local to this render call.
+    const fences = tokens.filter(
+      (token) => token.type === 'fence' && normalizeCodeLanguage(token.info) === 'ansi'
+    );
+    if (fences.length) {
+      const { renderAnsiArt, MAX_SOURCE_LENGTH } = await import('$lib/ansiArt');
+      const sourceEndings = body.match(/\r\n|\r|\n/g) ?? [];
+      for (const token of fences) {
+        // Markdown normalizes CR to LF. In a terminal, a bare CR moves to
+        // column one without changing the row. Token maps count source lines,
+        // including those split by CR, so restore their original separators.
+        let line = (token.map?.[0] ?? 0) + 1;
+        token.content = token.content.replace(/\n/g, () => sourceEndings[line++] ?? '\n');
+      }
+      for (const token of fences.slice(0, MAX_ANSI_BLOCKS)) {
+        if (token.content.length > MAX_SOURCE_LENGTH) continue;
+        env[ansiArtKey].set(token, await renderAnsiArt(token.content));
+      }
+    }
+    return md!.renderer.render(tokens, md!.options, env);
   } catch (err) {
     console.error('[Markdown] renderMarkdown failed:', err, { bodyLength: body.length });
     throw err;

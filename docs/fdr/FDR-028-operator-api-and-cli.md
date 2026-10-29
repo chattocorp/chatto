@@ -1,7 +1,7 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-10-08
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -40,7 +40,11 @@ The Operator API gives server operators local, root-equivalent user administrati
 - `chatto operator room member add` adds an existing user as an explicit member of a channel room. An existing membership succeeds without another join fact. Missing resources, DM rooms, archived rooms, universal rooms, and active suspensions prevent the add.
 - `chatto operator asset upload` reads a local file, uploads it in bounded chunks, and returns a room-scoped asset ID owned by the mapped author. It uses normal attachment size, processing, storage, and pending-asset cleanup. The upload fact records the system actor. The CLI does not fetch source URLs.
 - `chatto operator message import` creates one encrypted historical message in an active channel. The event records the system actor and the mapped author separately. It preserves source creation and optional edit times, a same-room reply reference, attachment IDs, and an exported preview. It does not fetch preview URLs or infer thread membership from a reply.
-- Historical message facts do not create notifications, unread activity, thread follows, webhook deliveries, or live message-post frames. Projections retain this rule during replay. The command returns a new message ID on each success. Import scripts own source mappings and retry decisions.
+- `--create-thread` establishes an empty thread on the imported root. `--thread-id` takes the root message ID, places a reply in its thread, and establishes the thread if necessary. These options are mutually exclusive. A root must be a message in the same room, not a reply or channel echo. Imports preserve source placement independently of the room's interactive threading mode. They do not create channel echoes.
+- `--deleted` imports a native tombstone atomically, without a stored body. Body, attachments, preview, and edit time must be absent. Source creation time and author are retained; the retraction records import time, not an unknown source deletion time. The retraction uses ordinary live delivery and reconnect replay. Historical replies may target deleted roots. Retries use the same bounded identity reservation, and deleted state is part of the request fingerprint. No temporary visible placeholder or later cleanup is required.
+- `chatto operator message import-reaction` records an existing user as the reactor on a channel message or thread reply, including a deleted message. Reactions remain visible on native tombstones. Channel echoes resolve to their original reply. Repeating the same user/message/emoji succeeds without another reaction fact, including concurrent requests. The import bypasses membership and interactive reaction-count limits, but requires an active channel, existing user, valid message, and supported emoji. It does not notify users or send live reaction frames. The event time is the import time; the command does not invent a source reaction time.
+- `import-reaction` also accepts individual room join and leave event IDs. The same retry and historical suppression rules apply. These reactions are stored for import fidelity; the public timeline API and bundled frontend do not expose them. The interchange archive format does not yet support these targets.
+- Historical message facts do not create notifications, unread activity, thread follows, webhook deliveries, or live message-post frames. Projections retain this rule during replay. With `--idempotency-key UUID`, exact retries return the same message ID within a fixed 30-minute window. Changed arguments conflict; retries do not extend the window. Without a key, each success creates a new message. Import scripts own source mappings and must stop uncertain retries before expiry.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
@@ -49,9 +53,27 @@ The Operator API gives server operators local, root-equivalent user administrati
   seed select the dataset. Room membership varies. Joins and some leaves occur
   between messages; authors are current members. Each room keeps at least one
   member. The manifest lists final generated members. Activity is ordered
-  without artificial waits or backdated timestamps.
+  without artificial waits or backdated timestamps by default. Optional
+  notification fixtures add historical mentions, replies, and reactions for an
+  existing login over 1–30 days. They include message targets, room membership,
+  followed reply threads, and mixed read states. They use in-app delivery only.
   Accounts have no password or owner role. JSON output provides the created IDs
   and content for later operations and test assertions.
+- `mise seed -- --avatar-dir PATH` optionally reads JPEG, PNG, and WebP files
+  in filename order and cycles them across generated users. The image pool is
+  limited to 50 files and 512 KiB in total after the CLI converts them to avatar
+  size. Input files use the normal image upload limit. Images use normal Chatto avatar
+  storage. This local-file mode makes no requests to external image providers.
+  Image headers are checked before seeding; a later decode or storage failure
+  can still leave a partial dataset.
+- `--pravatar` is an alternative to `--avatar-dir`. Before seeding, the CLI
+  downloads up to 20 portraits from `i.pravatar.cc`, with bounded response sizes,
+  a request timeout, and HTTPS redirects restricted to that host. Keys contain
+  only the seed and image index. The provider receives these keys and the CLI's
+  source IP address; no account names or credentials are sent. Larger datasets
+  cycle the pool. Downloads must succeed before writes start, without automatic
+  retries. Images are stored in Chatto, so clients do not contact Pravatar.
+  Seeding without either avatar option has no image-provider requests.
 - A pinned data generator supplies natural names, room topics, and text. Visible
   resources contain no dataset labels or message markers. Tests use IDs and
   content from the manifest. Existing name collisions receive numeric suffixes.
@@ -128,9 +150,9 @@ fixture remains separate so its workload stays comparable.
 
 ### 11. Historical message import
 
-**Decision:** Historical imports use normal message encryption and attachment storage. Each message keeps the mapped author and records the import as a system action. A source reply stays a reply reference in the channel timeline, even when the target belongs to a Chatto thread. Imports do not cause new message activity, including after a server restart.
+**Decision:** Historical imports use normal message encryption and attachment storage. Each message keeps the mapped author and records the import as a system action. A reply reference alone stays in the channel timeline. Explicit thread placement creates a real thread reply; explicit thread creation can establish an empty thread. Neither follows the thread or creates new message activity, including after a server restart.
 **Why:** Scripts need source-time messages that ordinary readers can use without causing new attention or read activity.
-**Tradeoff:** A repeated import creates another message. The import script must save returned IDs and decide whether an uncertain request needs a retry. Message order in a channel follows import order; scripts should send messages in source order. All server replicas must run a version that understands the historical marker before import starts.
+**Tradeoff:** Keyed imports share the bounded retry mechanism in [ADR-117](../adr/ADR-117-message-post-idempotency.md). After 30 minutes, the same key can create another message. The script must retain returned IDs and reconcile older uncertain requests. Completed keyed imports return their original ID after archival or retraction under operator authority. Message order follows import order. All replicas must support historical imports and import keys before retries can rely on them.
 
 ### 12. Operator external identities
 
@@ -143,6 +165,12 @@ or enabling password login across the server.
 **Tradeoff:** The operator verifies the provider subject. Namespace availability
 comes from this replica's configuration, not a provider health check. A bulk
 issuer migration still needs explicit subject mappings and a separate design.
+
+### 13. Historical reaction membership
+
+**Decision:** Reaction imports record the mapped reactor separately from the system actor. They preserve membership without requiring a source timestamp and bypass the interactive reaction-count limit. Repeating an existing reaction is a no-op. Ordinary reaction removal still works for the mapped user.
+**Why:** Exports such as Slack's can list reactors without reaction times. Imported history must not create new attention or lose existing reactions because current posting limits differ.
+**Tradeoff:** Reaction ordering uses import time. All replicas must understand historical reaction attribution and suppression before import starts. Earlier binaries must not serve imported reaction state; they would attribute it to the system actor.
 
 ## Permissions
 
@@ -161,5 +189,5 @@ Sharing the socket with another container or host path is advanced usage and sho
 
 ## Related
 
-- **ADRs:** ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-085 (user-scoped MCP integration)
-- **FDRs:** FDR-018 (Account Lifecycle), FDR-021 (Admin Dashboard & System Monitoring), FDR-023 (Authentication & Sessions), FDR-043 (Model Context Protocol Integration)
+- **ADRs:** ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-085 (user-scoped MCP integration), [ADR-119](../adr/ADR-119-portable-history-interchange.md) (portable history interchange)
+- **FDRs:** FDR-018 (Account Lifecycle), FDR-021 (Admin Dashboard & System Monitoring), FDR-023 (Authentication & Sessions), FDR-043 (Model Context Protocol Integration), [FDR-053](FDR-053-history-import-export.md) (History Import and Export)

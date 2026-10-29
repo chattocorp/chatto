@@ -147,6 +147,7 @@
       "call": "Chamadas"
     },
     "permission_help": {
+      "room_manage_notice": "Permite que um membro gerencie o aviso de uma sala de canal ativa, mas não a sala em si. Novas instâncias concedem essa permissão somente a Admin; atualizações mantêm as permissões existentes.",
       "server_manage": "Permite que uma conta altere o nome, a descrição, o logotipo e outras configurações do servidor. Também permite alterar o diretório público de vizinhos. Conceda apenas a pessoas que possam falar pelo servidor inteiro.",
       "server_manage_neighbors": "Permite que uma conta adicione, altere e remova entradas no diretório público de vizinhos. Não permite alterar outras configurações do servidor.",
       "room_create": "Permite que uma conta crie salas. No escopo de um grupo de salas, permite criar salas apenas nesse grupo.",

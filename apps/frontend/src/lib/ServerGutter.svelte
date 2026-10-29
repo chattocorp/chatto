@@ -6,7 +6,6 @@ is connected to, plus the add-server button pinned to the bottom. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
-  import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverRegistry } from '$lib/client';
@@ -15,7 +14,9 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
   import { serverGutterOrder } from '$lib/state/serverGutterOrder.svelte';
   import type { Attachment } from 'svelte/attachments';
-  import { MediaQuery } from 'svelte/reactivity';
+  import { MediaQuery, SvelteSet } from 'svelte/reactivity';
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
+  import { fade } from 'svelte/transition';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
   import type { GutterItem } from './serverGutterDrag.svelte';
 
@@ -26,7 +27,12 @@ is connected to, plus the add-server button pinned to the bottom. See the
     servers.filter((server) => serverRegistry.tryGetStore(server.id)).map((server) => server.id)
   );
   const membership = $derived([...serverIds].sort().join('\0'));
-  const dragEnabled = $derived(!touchOnly.current && serverIds.length >= 2);
+  // Track nodes so an interrupted exit can resume dragging on introstart.
+  const exitingEntries = new SvelteSet<HTMLDivElement>();
+  // Outgoing entries remain in the DOM; the drag library requires one child per item.
+  const dragEnabled = $derived(
+    !touchOnly.current && serverIds.length >= 2 && exitingEntries.size === 0
+  );
   const orderedItems: GutterItem[] = $derived(
     serverGutterOrder.ordered(serverIds, originId).map((id) => ({ id, serverId: id }))
   );
@@ -88,30 +94,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   };
 
   const directoryHref = resolve('/chat/servers');
-  const directoryActive = $derived(
-    page.route.id === '/chat/servers' || page.state.modal?.type === 'addServer'
-  );
-
-  /**
-   * Open the Server Directory as a history-backed dialog over the current view.
-   * Modified clicks keep the link behavior, and the full page stays in place
-   * when it is already open.
-   */
-  function openAddServerDialog(event: MouseEvent) {
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey ||
-      directoryActive
-    ) {
-      return;
-    }
-    event.preventDefault();
-    pushState('', { modal: { type: 'addServer' } });
-  }
+  const directoryActive = $derived(page.route.id === '/chat/servers');
 </script>
 
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border" {@attach syncOrder}>
@@ -126,6 +109,12 @@ is connected to, plus the add-server button pinned to the bottom. See the
         {#each items as item (item.id)}
           {@const store = serverRegistry.tryGetStore(item.serverId)}
           <div
+            transition:fade={{
+              duration: userPreferences.reducedMotion || preview || item.isDndShadowItem ? 0 : 150
+            }}
+            onoutrostart={(event) => exitingEntries.add(event.currentTarget)}
+            onoutroend={(event) => exitingEntries.delete(event.currentTarget)}
+            onintrostart={(event) => exitingEntries.delete(event.currentTarget)}
             aria-hidden={item.isDndShadowItem || undefined}
             data-is-dnd-shadow-item-hint={item.isDndShadowItem || undefined}
           >
@@ -148,8 +137,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
       title={m('chat.server_gutter.add_server')}
       aria-label={m('chat.server_gutter.add_server')}
       aria-current={directoryActive ? 'page' : undefined}
-      onclick={openAddServerDialog}
-      class={['server-gutter-item cursor-pointer', directoryActive && 'server-gutter-item-active']}
+      class="server-gutter-item cursor-pointer"
     >
       <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
     </a>

@@ -52,6 +52,11 @@
       "subtitle": "Servera identitāte, zīmols un ziņojumi"
     },
     "members": {
+      "deactivate": "Deaktivizēt kontu",
+      "reactivate": "Atkārtoti aktivizēt kontu",
+      "deactivate_description": "Lietotājs vairs nevarēs izmantot šo serveri. Visas sesijas tiks nekavējoties beigtas. Dati tiks saglabāti. Kontu vēlāk varēsiet atkārtoti aktivizēt.",
+      "deactivated_description": "Šis konts ir deaktivizēts. Pēc atkārtotas aktivizēšanas lietotājs varēs atkal pierakstīties. Vecās sesijas paliks nederīgas.",
+      "deactivation_failed": "Neizdevās mainīt piekļuvi kontam.",
       "title": "Biedri",
       "subtitle": "Skatiet un pārvaldiet servera dalībniekus un viņu lomas",
       "search": "Meklēt dalībniekus",
@@ -249,6 +254,10 @@
         "name_title": "Nosaukums un apraksts",
         "name_subtitle": "Dalībnieki tos redz istabu sarakstā un istabas augšdaļā.",
         "visibility_title": "Redzamība",
+        "membership_events_title": "Dalībnieku aktivitāte",
+        "show_membership_events": "Rādīt pievienošanās un aiziešanas notikumus",
+        "membership_events_description": "Rādīt, kad cilvēki pievienojas šai istabai vai to atstāj, arī vēsturē. Šīs aktivitātes paslēpšana to neizdzēš.",
+        "membership_events_unavailable": "Atjauniniet šo serveri, lai mainītu dalībnieku aktivitātes attēlojumu.",
         "visibility_subtitle": "Izvēlieties, kas ir šīs istabas dalībnieki.",
         "universal_description": "Katrs dalībnieks, kurš var pievienoties šai istabai, automātiski ir tās dalībnieks.",
         "visibility_help": "Izmantojiet universālu istabu ziņām, kas jāsaņem visiem dalībniekiem, piemēram, paziņojumiem. Dalībnieki nevar pamest universālu istabu, taču viņi to var apklusināt. Ja izslēgsiet universālo režīmu, dalībnieki, kuri pievienojās iepriekš, paliks istabā.",

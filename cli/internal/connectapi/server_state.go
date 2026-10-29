@@ -6,13 +6,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/parallel"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -373,7 +374,7 @@ func (a *API) viewerHasUnreadRooms(ctx context.Context, userID string) (bool, er
 		return false, err
 	}
 	var found atomic.Bool
-	_, err = parallel.Map(ctx, maxConnectAPIHydrationConcurrency, rooms, func(ctx context.Context, _ int, room *evtv1.Room) (struct{}, error) {
+	_, err = parallel.Map(ctx, maxConnectAPIHydrationConcurrency, rooms, func(ctx context.Context, _ int, room *readmodel.Room) (struct{}, error) {
 		if found.Load() {
 			return struct{}{}, nil
 		}

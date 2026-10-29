@@ -24,7 +24,12 @@ export interface RunHandle<Steering = unknown> extends StartedRun {
 export interface WebhookContext {
   start<T extends AnyTask>(
     task: T,
-    options: { input: TaskInput<T> }
+    options: {
+      input: TaskInput<T>;
+      /** Reactivate a retained, finished run owned by this route and registered task.
+       * Rejects if an execution is still active. No prior input or effects are replayed. */
+      runId?: string;
+    }
   ): Promise<RunHandle<TaskSteering<T>>>;
 }
 
@@ -64,14 +69,15 @@ export interface EventSourceContext {
   signal: AbortSignal;
   /** Process-local adapter state. Removed when the source is removed. Never serialized. */
   state: Map<string, unknown>;
-  /** Current runs owned by this source, including recovered roots. Use their original input
-   * to rebuild application routing. Queued messages and adapter state are not restored. */
-  runs(): SourceRun[];
+  /** Active runs owned by this source, including recovered roots. Opt into retained finished
+   * runs to route a new execution by ID. Input is from the latest execution. Finished handles
+   * cannot receive messages. Queued messages and adapter state are not restored. */
+  runs(options?: { includeFinished?: boolean }): SourceRun[];
   /** Route one delivery and wait for all initiated registrations. Throws on routing failure. */
   dispatch<Input>(router: WebhookRouter<Input>, input: Input): Promise<StartedRun[]>;
 }
 
-/** A live run and the original input needed to rebuild a source's routing table. */
+/** A source-owned run and its latest input. Finished entries have inert execution handles. */
 export interface SourceRun extends RunHandle {
   workflow: string;
   input: unknown;

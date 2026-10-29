@@ -29,6 +29,10 @@ message ReactionAddedEvent {
 
   // The emoji used for the reaction (shortcode name)
   string emoji = 4;
+  // Historical reactor. Empty uses the envelope actor for ordinary reactions.
+  string user_id = 5;
+  // Preserve reaction state without notification or realtime activity.
+  bool historical_import = 6;
 }
 
 message ReactionRemovedEvent {

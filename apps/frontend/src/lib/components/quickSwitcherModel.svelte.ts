@@ -4,7 +4,7 @@ import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { accountNameToken } from '@chatto/client/timeline/accountName';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { onDestroy, untrack } from 'svelte';
+import { onDestroy, tick, untrack } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import {
   createMessageSearchAPI,
@@ -112,7 +112,7 @@ export class QuickSwitcherModel {
   #messageSearch = new SearchChannel<QuickSwitcherItem>();
   #messageSearchServerKey = '';
 
-  constructor() {
+  constructor(private readonly onNextUnread?: () => Promise<void> | undefined) {
     onDestroy(() => this.deactivate());
   }
 
@@ -222,6 +222,12 @@ export class QuickSwitcherModel {
   }
 
   async select(item: QuickSwitcherItem): Promise<void> {
+    if (item.kind === 'destination' && item.id === 'next-unread') {
+      quickSwitcher.close();
+      await tick();
+      await this.onNextUnread?.();
+      return;
+    }
     if (item.kind === 'user') {
       const store = serverRegistry.tryGetStore(item.serverId);
       // Recheck the live scope before an action from a row that may have become stale.
@@ -234,7 +240,7 @@ export class QuickSwitcherModel {
       const user = item.targetUserId
         ? store.projection.users.get(item.targetUserId)?.user
         : undefined;
-      if (!user || user.deleted) return;
+      if (!user || user.deleted || user.deactivated) return;
       quickSwitcher.close();
       try {
         await startDMWith(item.serverId, user.id);
@@ -411,7 +417,8 @@ export class QuickSwitcherModel {
       ) {
         for (const id of store.projection.users.keys()) {
           const user = store.projection.users.view(id);
-          if (!user?.id || user.deleted || directMessageUserIds.has(user.id)) continue;
+          if (!user?.id || user.deleted || user.deactivated || directMessageUserIds.has(user.id))
+            continue;
           items.push({
             kind: 'user',
             id: user.id,
@@ -428,6 +435,17 @@ export class QuickSwitcherModel {
       }
     }
 
+    if (this.onNextUnread)
+      items.push({
+        kind: 'destination',
+        id: 'next-unread',
+        label: m('chat.notifications.next_unread_source'),
+        detail: '',
+        serverId: '',
+        serverName: '',
+        icon: 'icon-[uil--bell]',
+        score: 0
+      });
     items.push({
       kind: 'destination',
       id: 'notifications',

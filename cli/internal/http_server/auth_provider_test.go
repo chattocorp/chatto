@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +20,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -26,6 +29,8 @@ import (
 	josejwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/markbates/goth"
 	gothgithub "github.com/markbates/goth/providers/github"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
@@ -126,6 +131,48 @@ func TestVerifiedEmailFromGothUser(t *testing.T) {
 			t.Fatalf("gitlab verified email = %q, want empty", got)
 		}
 	})
+}
+
+func TestManagedOAuthUsernameFields(t *testing.T) {
+	for _, tc := range []struct {
+		name, providerType, profile, want string
+	}{
+		{"github login", "github", `{"id":1,"login":"github-user","name":"Display Name","email":"other@example.com"}`, "github-user"},
+		{"gitlab username", "gitlab", `{"id":1,"username":"gitlab-user","name":"Display Name","email":"other@example.com"}`, "gitlab-user"},
+		{"discord username", "discord", `{"id":"1","username":"discord-user","global_name":"Display Name","email":"other@example.com"}`, "discord-user"},
+		{"google verified email", "google", `{"id":"1","name":"Alice","email":"Account.Name@example.com","verified_email":true}`, "account.name"},
+		{"google unverified email", "google", `{"id":"1","name":"Alice","email":"account@example.com","verified_email":false}`, ""},
+		{"google missing email", "google", `{"id":"1","name":"Alice"}`, ""},
+		{"google malformed email", "google", `{"id":"1","name":"Alice","email":"account","verified_email":true}`, ""},
+		{"github missing login", "github", `{"id":1,"name":"Alice","email":"other@example.com"}`, ""},
+		{"gitlab missing username", "gitlab", `{"id":1,"name":"Alice","email":"other@example.com"}`, ""},
+		{"discord missing username", "discord", `{"id":"1","global_name":"Alice","email":"other@example.com"}`, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runtime, err := newAuthProviderRuntime(config.AuthProviderConfig{
+				ID: tc.providerType, Type: tc.providerType, ClientID: "id", ClientSecret: "secret", ManageUsernames: true,
+			}, "http://chat.example/callback")
+			require.NoError(t, err)
+			// Exercise Goth's actual JSON mappings; its common field names differ
+			// between providers and are not a username contract on their own.
+			runtime.httpClient.Transport = handlerRoundTripper{handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if strings.HasSuffix(req.URL.Path, "/emails") {
+					_, _ = w.Write([]byte(`[]`))
+					return
+				}
+				_, _ = w.Write([]byte(tc.profile))
+			})}
+			session, err := runtime.goth.UnmarshalSession(`{"AccessToken":"test-access-token"}`)
+			require.NoError(t, err)
+			user, err := runtime.goth.FetchUser(session)
+			require.NoError(t, err)
+			verifiedEmail := runtime.verifiedEmailFromGothUser(t.Context(), user)
+			require.Equal(t, tc.want, runtime.managedUsernameFromGothUser(user, verifiedEmail))
+			runtime.config.ManageUsernames = false
+			require.Empty(t, runtime.managedUsernameFromGothUser(user, verifiedEmail))
+		})
+	}
 }
 
 func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
@@ -356,6 +403,37 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	}
 
 	issuer.SetSubject("subject-conflict")
+	// Failed account-link authorization must notify the original popup owner.
+	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+	for _, tc := range []struct{ providerError, wantError string }{
+		{"access_denied", "provider_denied"},
+		{"", "provider_failed"},
+	} {
+		failedStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", popupReturn, linkUser.Id)
+		if err != nil {
+			t.Fatalf("create failed link start: %v", err)
+		}
+		failedLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-no-email", url.Values{
+			"intent": {"link"}, "link_start": {failedStart},
+		})
+		issuer.tokenCheck = func(*http.Request) bool { return false }
+		failedResponse, err := client.Get(ts.URL + "/auth/providers/oidc-no-email/callback?" + url.Values{
+			"state": {authStateFromLocation(t, failedLocation)}, "error": {tc.providerError}, "code": {"test-code"},
+		}.Encode())
+		if err != nil {
+			t.Fatalf("fail provider authorization: %v", err)
+		}
+		failedResponse.Body.Close()
+		issuer.tokenCheck = nil
+		failedReturn, err := url.Parse(failedResponse.Header.Get("Location"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if failedReturn.Path != "/servers/callback" || failedReturn.Query().Get("state") != "popup-state" || failedReturn.Query().Get("mode") != "provider" || failedReturn.Query().Get("error") != tc.wantError {
+			t.Fatalf("failed link return = %q, want popup callback with %s", failedReturn, tc.wantError)
+		}
+	}
+
 	conflictToken, err := chattoCore.CreatePendingExternalIdentityCreateFlow(t.Context(), core.PendingExternalIdentityFlow{
 		ProviderID:    "oidc-no-email",
 		ProviderType:  config.AuthProviderTypeOpenIDConnect,
@@ -588,6 +666,56 @@ func TestProviderGroupRestrictionAppliesToEverySignInAndLink(t *testing.T) {
 	if identities, err := chattoCore.ExternalIdentitiesForUser(t.Context(), target.Id); err != nil || len(identities) != 0 {
 		t.Fatalf("ExternalIdentitiesForUser = %v, %v; want no link", identities, err)
 	}
+}
+
+// Hash-only links become usable alternatives after a verified sign-in, without
+// requiring a groups claim or group-role mappings.
+func TestOIDCLoginCompletesLegacyLinkWithoutGroupRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Auth.DirectLogin = new(false)
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "company", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(),
+			ClientID: "client-id", ClientSecret: "client-secret",
+		}}
+		s.setupOIDCRoutes()
+	})
+	ctx := t.Context()
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "legacy-login", "Legacy Login", "")
+	require.NoError(t, err)
+	issuer.SetSubject("legacy-subject")
+	digest := sha256.Sum256([]byte(issuer.URL() + ":legacy-subject"))
+	hash := hex.EncodeToString(digest[:])
+	legacy := &evtv1.Event{
+		Id: core.NewEventID(), ActorId: core.SystemActorID, CreatedAt: timestamppb.Now(),
+		Event: &evtv1.Event_UserOidcSubjectLinked{UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{
+			UserId: user.Id, SubjectHash: hash,
+		}},
+	}
+	_, err = chattoCore.EventPublisher.AppendEventually(ctx, evtstream.UserAggregate(user.Id).SubjectFor(legacy), legacy)
+	require.NoError(t, err)
+	// The next guarded user mutation catches up the legacy event before returning.
+	github, err := chattoCore.LinkExternalIdentityAs(ctx, core.SystemActorID, "github", "github", "github", "github-subject", user.Id)
+	require.NoError(t, err)
+	policy := core.ExternalIdentitySignInPolicy{Issuers: []string{issuer.URL(), "github"}}
+	require.ErrorIs(t, chattoCore.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, github.SubjectHash, policy), core.ErrExternalIdentityLastMethod)
+	for range 2 {
+		require.Equal(t, "/chat", completeNoEmailOIDCLogin(t, client, ts.URL, "company", "/chat"))
+	}
+	identities, err := chattoCore.ExternalIdentitiesForUser(ctx, user.Id)
+	require.NoError(t, err)
+	index := slices.IndexFunc(identities, func(identity core.ExternalIdentity) bool { return identity.SubjectHash == hash })
+	require.NotEqual(t, -1, index)
+	require.Equal(t, issuer.URL(), identities[index].Issuer)
+	require.Equal(t, "company", identities[index].ProviderID)
+	require.True(t, policy.CanDisconnect(github.SubjectHash, identities, false))
+	require.NoError(t, chattoCore.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, github.SubjectHash, policy))
+	linkedEvents, _, err := chattoCore.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserExternalIdentityLinked))
+	require.NoError(t, err)
+	require.Len(t, linkedEvents, 2, "one GitHub link and one idempotent OIDC completion")
 }
 
 // group_roles applies at sign-in, at identity links, and carries the groups

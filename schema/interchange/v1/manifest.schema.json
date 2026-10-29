@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatto.chat/schema/interchange/v1/manifest.schema.json",
+  "description": "Archive identity, capture time, and explicit limits. Format v1 is a draft.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "chatto-interchange"
+    },
+    "version": {
+      "const": 1
+    },
+    "export_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "captured_at": {
+      "$ref": "common.schema.json#/$defs/nullableTimestamp"
+    },
+    "consistency": {
+      "enum": ["consistent", "unknown"],
+      "description": "Whether the source guarantees a consistent capture cut. Unknown requires partial history and a declared history omission."
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_id": {
+          "$ref": "common.schema.json#/$defs/id"
+        }
+      },
+      "required": ["platform", "workspace_id"],
+      "additionalProperties": false
+    },
+    "history": {
+      "enum": ["complete", "partial"],
+      "description": "Complete means complete supported event history within the declared scope, not a complete server backup."
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "channels"
+        },
+        "coverage": {
+          "enum": ["all", "selected"]
+        }
+      },
+      "required": ["kind", "coverage"],
+      "additionalProperties": false
+    },
+    "omissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "enum": ["history", "content", "files", "users", "rooms", "unsupported"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          }
+        },
+        "required": ["category", "reason", "count"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "export_id",
+    "captured_at",
+    "consistency",
+    "source",
+    "history",
+    "scope",
+    "omissions"
+  ],
+  "additionalProperties": false
+}

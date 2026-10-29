@@ -36,6 +36,7 @@ describe('PERMISSION_DEFINITIONS', () => {
       'room.join',
       'room.list',
       'room.manage',
+      'room.manage-notice',
       'room.remove-member',
       'server.manage',
       'server.manage-neighbors',

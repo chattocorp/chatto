@@ -147,6 +147,7 @@
       "call": "Kõned"
     },
     "permission_help": {
+      "room_manage_notice": "Lubab liikmel hallata aktiivse kanaliruumi teadet, kuid mitte ruumi ennast. Uued paigaldused annavad selle õiguse ainult rollile Admin; uuendused säilitavad olemasolevad õigused.",
       "server_manage": "Lubab kontol muuta serveri nime, kirjeldust, logo ja muid serveri seadeid. Samuti lubab see muuta avalikku naabrite kataloogi. Andke see ainult inimestele, kes saavad rääkida kogu serveri nimel.",
       "server_manage_neighbors": "Lubab kontol lisada, muuta ja eemaldada kirjeid avalikus naabrite kataloogis. See ei luba muuta teisi serveri seadeid.",
       "room_create": "Lubab kontol luua kanaliruume. Ruumigrupi tasemel lubab see luua ruume ainult selles grupis.",

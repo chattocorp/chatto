@@ -216,6 +216,11 @@ func (r *PermissionResolver) resolveEntitlementWithGroup(ctx context.Context, us
 // whether an effective owner is allowed every known permission or resolves
 // through ordinary RBAC decisions.
 func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission, ownerOverride bool) (DecisionKind, error) {
+	// Retain assigned roles while denying use, including background call
+	// reconciliation and the authority ceiling for this human's bots.
+	if r.users.deactivated(userID) {
+		return DecisionDeny, nil
+	}
 	if _, known := GetPermissionMetadata(perm); known {
 		if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 			return DecisionDeny, nil

@@ -10,6 +10,7 @@ block in the DOM until it finishes.
 <script lang="ts">
   import { FadeScale, PillButtonGroup } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
+  import { usesAppleShortcutModifier } from '$lib/utils/platformShortcuts';
   import type {
     ComposerEditorApi,
     ComposerFormattingCommand,
@@ -41,6 +42,7 @@ block in the DOM until it finishes.
     [
       { command: 'bold', icon: 'icon-[mdi--format-bold]' },
       { command: 'italic', icon: 'icon-[mdi--format-italic]' },
+      { command: 'underline', icon: 'icon-[mdi--format-underline]' },
       { command: 'inlineCode', icon: 'icon-[mdi--code-tags]' },
       { command: 'footnote', icon: 'icon-[mdi--format-superscript]' }
     ],
@@ -61,6 +63,8 @@ block in the DOM until it finishes.
         return m('composer.format.bold');
       case 'italic':
         return m('composer.format.italic');
+      case 'underline':
+        return m('composer.format.underline');
       case 'inlineCode':
         return m('composer.format.inline_code');
       case 'heading':
@@ -89,7 +93,7 @@ block in the DOM until it finishes.
         compact
         gaps={false}
         label={m('composer.formatting_options')}
-        class="w-max shrink-0 mobile-presentation:pill-button-group-touch"
+        class="pill-button-group-touch w-max shrink-0 rounded-xl"
       >
         {#each formattingControls as control (control.command)}
           {@const label = formattingLabel(control.command)}
@@ -105,7 +109,10 @@ block in the DOM until it finishes.
                 (formattingState.codeBlock || formattingState.inlineCode))}
             aria-label={label}
             aria-pressed={active}
-            title={label}
+            aria-keyshortcuts={control.command === 'underline' ? 'Control+u Meta+u' : undefined}
+            title={control.command === 'underline'
+              ? `${label} (${usesAppleShortcutModifier() ? '⌘U' : 'Ctrl+U'})`
+              : label}
             class="pill-button"
           >
             <span aria-hidden="true" class={['iconify', control.icon]}></span>

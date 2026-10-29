@@ -35,7 +35,7 @@ test.describe('Message links', () => {
     const url = `${serverURL}/chat/-/${roomId}/${rootId}/m/${replyId}`;
     await roomPage.composer.fill(`[Eh](${url})`);
     await expect(page.getByTestId('message-preview-card')).toContainText(body);
-    await page.getByRole('button', { name: 'Send message', exact: true }).click();
+    await page.getByRole('button', { name: 'Send: Send message', exact: true }).click();
     await roomPage.recentThreadConfirmationDialog
       .getByRole('button', { name: 'Post as new message' })
       .click();

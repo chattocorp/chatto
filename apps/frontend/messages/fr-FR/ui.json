@@ -7,7 +7,6 @@
     "realtime_paused": "Les mises à jour en temps réel ont été suspendues. Reconnexion...",
     "update_available": "Une nouvelle version est disponible",
     "reload": "Recharger",
-    "sign_out": "Se déconnecter",
     "close": "Fermer",
     "auth_status": {
       "origin_title": "Session expirée",

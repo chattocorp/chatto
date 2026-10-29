@@ -21,11 +21,15 @@ export type ViewerRoomInvitation = {
 };
 
 export type DirectoryRoomSummary = {
+  /** Explicit notice-management grant for a current member of an active channel. */
+  canManageNotice?: boolean;
   invitation?: ViewerRoomInvitation;
   canInvite?: boolean;
   id: string;
   name: string;
   description: string | null;
+  /** Original room creation time; absent on older servers. */
+  createdAt?: string | null;
   kind: RoomKind;
   archived: boolean;
   isUniversal: boolean;
@@ -33,6 +37,8 @@ export type DirectoryRoomSummary = {
   /** Undefined for the legacy shared cooldown; zero disables thread cooldowns. */
   threadSlowModeSeconds?: number;
   threadingMode: RoomThreadingMode;
+  /** Absent on older servers; clients then show join/leave activity. */
+  showMembershipEvents?: boolean;
   slowModeNextPostAt: string | null;
   isMember: boolean;
   hasUnread: boolean;
@@ -210,15 +216,18 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     canInvite:
       entry.viewerState?.permissions.some((p) => p.permission === 'room.invite' && p.granted) ??
       false,
+    canManageNotice: hasRoomPermission(entry.viewerState, 'room.manage-notice'),
     id: entry.room.id,
     name: entry.room.name,
     description: entry.room.description || null,
+    createdAt: entry.room.createdAt?.toDate().toISOString() ?? null,
     kind: entry.room.kind,
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
     slowModeSeconds: entry.room.slowModeSeconds ?? 0,
     threadSlowModeSeconds: entry.room.threadSlowModeSeconds,
     threadingMode: normalizeRoomThreadingMode(entry.room.kind, entry.room.threadingMode),
+    showMembershipEvents: entry.room.showMembershipEvents,
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,

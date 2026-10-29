@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Snapshot for changing a username. Missing means not reported. Commands still
+// check policy and input, including case-only exceptions. ALLOWED enables it
+// only when available_at is absent or has passed.
+message UsernameChangeAvailability {
+  // State of username self-service, including its primary blocking condition.
+  enum State {
+    // No decision is supplied. This does not grant permission.
+    STATE_UNSPECIFIED = 0;
+    // Policy permits a username change, subject to available_at.
+    STATE_ALLOWED = 1;
+    // A linked provider manages the username.
+    STATE_PROVIDER_MANAGED = 2;
+  }
+  // Unknown states remain disabled. Commands recheck authority and policy.
+  State state = 1;
+  // Independent earliest attempt time. Absent means no time restriction.
+  // Clients enable ALLOWED when this time passes; they should update a visible
+  // control once per second while waiting and stop its timer when it is removed
+  // or no longer waiting. This time never overrides a blocking or unknown state.
+  google.protobuf.Timestamp available_at = 2;
+}
+
+// State of setting or changing a password. Only ALLOWED enables the action;
+// commands still validate passwords and authentication.
+enum PasswordChangeAvailability {
+  // No decision is supplied. This does not grant permission.
+  PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED = 0;
+  // The user can attempt to set or change a password.
+  PASSWORD_CHANGE_AVAILABILITY_ALLOWED = 1;
+  // The operator disabled direct login and password self-service.
+  PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED = 2;
+  // This account type does not support password self-service.
+  PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT = 3;
+}
+
+// State of self-service account deletion. Only ALLOWED enables the action;
+// commands still check authority and authentication.
+enum AccountDeletionAvailability {
+  // No decision is supplied. This does not grant permission.
+  ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED = 0;
+  // The user can attempt to start account deletion.
+  ACCOUNT_DELETION_AVAILABILITY_ALLOWED = 1;
+  // The viewer lacks permission to delete this account.
+  ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED = 2;
+  // This account type does not support self-service deletion.
+  ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT = 3;
+}
+
+// Self-service decisions for the current viewer. Each action owns its states.
+message AccountActions {
+  // Changing the username, excluding input-specific exceptions such as case-only edits.
+  UsernameChangeAvailability change_username = 1;
+  // Setting an initial password or changing an existing password. Absent on older servers.
+  optional PasswordChangeAvailability change_password = 2;
+  // Starting self-service account deletion. Absent on older servers.
+  optional AccountDeletionAvailability delete_account = 3;
+}

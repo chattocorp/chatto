@@ -111,7 +111,8 @@ export interface AgentResourceOptions {
   /** Directory containing global pi configuration and resources. */
   agentDir?: string;
   extensions?: boolean;
-  skills?: boolean;
+  /** Default discovery unless false. An array loads only these paths, relative to cwd. */
+  skills?: boolean | string[];
   promptTemplates?: boolean;
   themes?: boolean;
   contextFiles?: boolean;
@@ -182,8 +183,14 @@ export interface RunAgentOptions {
   /** In text mode, permit silence without an explicit terminating tool result.
    * Defaults to false. Provider errors still fail the turn. */
   allowEmptyText?: boolean;
-  /** Built-in and extension tools to expose. `report_outcome` is added in report mode. */
-  tools?: readonly string[];
+  /** Tool names to expose, or `extensions` for all extension tools without built-in tools.
+   * `report_outcome` is added in report mode. */
+  tools?: readonly string[] | 'extensions';
+  /** Execute tool calls sequentially when extensions share a lock or other serial resource. */
+  toolExecution?: 'parallel' | 'sequential';
+  /** Include model text, reasoning, tool arguments, and provider diagnostics in logs and
+   * progress events. Default: true. False does not redact private session transcripts. */
+  logContent?: boolean;
   resources?: AgentResourceOptions;
   /** Extensions instantiated only for this agent session. */
   extensions?: readonly AgentExtension[];
@@ -214,8 +221,9 @@ export interface RunAgentOptions {
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
 
 export interface AgentRunOptions {
-  /** Receive completed assistant text during this interaction (not reasoning or tool output). */
-  onText?: (text: string) => void;
+  /** Receive completed assistant text (not reasoning or tool output). `hasToolCalls`
+   * identifies text before tool execution; it is not a guarantee that the turn has ended. */
+  onText?: (text: string, message: { hasToolCalls: boolean }) => void;
   /** Abort this model turn without disposing the agent. */
   signal?: AbortSignal;
 }
@@ -240,8 +248,8 @@ export interface RunlingAgent extends AsyncDisposable {
   steer(text: string): Promise<boolean>;
   /** Create an independent in-memory agent with a copy of this conversation. */
   fork(): Promise<RunlingAgent>;
-  /** Release the underlying in-memory session. */
-  dispose(): void;
+  /** Cancel active work, await extension shutdown, and release the session. Idempotent. */
+  dispose(): Promise<void>;
 }
 
 export class AgentOutcomeError extends Error {
@@ -288,7 +296,7 @@ export async function runAgent(
   try {
     return await instance.runOutcome(ctx, prompt, { signal });
   } finally {
-    instance.dispose();
+    await instance.dispose();
   }
 }
 
@@ -340,6 +348,8 @@ async function createRunlingAgent(
   const inheritedMessages = convertToLlm(structuredClone(history));
   const agentId = randomId();
   const color = takeAgentColor();
+  const diagnostic = (message?: string) =>
+    options.logContent === false ? 'Details omitted' : toSingleLine(message ?? 'Unknown error');
   const progress = (text: string) => {
     const line = stripVTControlCharacters(text).replace(/\s+/g, ' ').trim();
     if (line) {
@@ -377,6 +387,7 @@ async function createRunlingAgent(
   };
   // Preserve reply events for journals and observers even when the host owns their display.
   const logReply = (message: string, markdown = false) => {
+    if (options.logContent === false) return;
     const write = () => writeAgentLog('info', message, true, markdown);
     if (executionServices()?.printAgentReplies === false) log.withDestination('silent', write);
     else write();
@@ -442,6 +453,7 @@ async function createRunlingAgent(
   const resources = options.resources;
   // Files with the complete output of long scripts, which the agent deletes when it ends.
   const codemodeFiles = new Set<string>();
+  let disposed = false;
   const extensionsEnabled = resources?.extensions !== false;
   const settingsManager = SettingsManager.create(cwd, agentDir);
   const retrySettings = settingsManager.getRetrySettings();
@@ -472,7 +484,8 @@ async function createRunlingAgent(
                   (options.codemode === true ? undefined : options.codemode.maxCalls) ??
                     DEFAULT_SCRIPT_MAX_CALLS
                 ),
-                keepFullOutput: (options.tools ?? ['read']).includes('read'),
+                keepFullOutput:
+                  options.tools !== 'extensions' && (options.tools ?? ['read']).includes('read'),
                 keptFiles: codemodeFiles,
                 ended: () => disposed
               })
@@ -482,7 +495,8 @@ async function createRunlingAgent(
       ...(options.extensions ?? [])
     ],
     noExtensions: !extensionsEnabled,
-    noSkills: resources?.skills === false,
+    noSkills: resources?.skills === false || Array.isArray(resources?.skills),
+    ...(Array.isArray(resources?.skills) ? { additionalSkillPaths: resources.skills } : {}),
     noPromptTemplates: resources?.promptTemplates === false,
     noThemes: resources?.themes === false,
     noContextFiles: resources?.contextFiles === false,
@@ -517,24 +531,46 @@ async function createRunlingAgent(
     sessionManager,
     settingsManager,
     customTools: textOutput ? [] : [reportOutcome],
-    tools: [
-      ...new Set([
-        ...(options.tools ?? [
-          'read',
-          'bash',
-          'edit',
-          'write',
-          ...(extensionsEnabled ? ['web_fetch'] : [])
-        ]),
-        ...(options.codemode ? ['codemode'] : []),
-        ...(textOutput ? [] : ['report_outcome'])
-      ])
-    ]
+    ...(options.tools === 'extensions'
+      ? { noTools: 'builtin' as const }
+      : {
+          tools: [
+            ...new Set([
+              ...(options.tools ?? [
+                'read',
+                'bash',
+                'edit',
+                'write',
+                ...(extensionsEnabled ? ['web_fetch'] : [])
+              ]),
+              ...(options.codemode ? ['codemode'] : []),
+              ...(textOutput ? [] : ['report_outcome'])
+            ])
+          ]
+        })
   });
 
-  let disposed = false;
+  if (options.toolExecution) session.agent.toolExecution = options.toolExecution;
+  // Native extensions start their connections on session_start. Pair even a
+  // partially failed startup with shutdown before releasing the Pi session.
+  let shutdown: Promise<void> | undefined;
+  const shutdownExtensions = () =>
+    (shutdown ??= session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' }));
+  try {
+    await session.bindExtensions({});
+  } catch (error) {
+    try {
+      await shutdownExtensions();
+    } finally {
+      session.dispose();
+    }
+    throw error;
+  }
+
   let running = false;
   let acceptingSteering = false;
+  let aborting: Promise<void> | undefined;
+  const abortModel = () => (aborting ??= session.abort());
   let interactionSignal: AbortSignal | undefined;
   const steering = new Map<object, (delivered: boolean) => void>();
   const finishSteering = () => {
@@ -543,13 +579,27 @@ async function createRunlingAgent(
     for (const resolve of steering.values()) resolve(false);
     steering.clear();
   };
-  const dispose = () => {
-    if (disposed) return;
+  let disposal: Promise<void> | undefined;
+  const dispose = (): Promise<void> => {
+    if (disposal) return disposal;
     disposed = true;
     finishSteering();
-    if (running) abortSession(session, agentLog);
-    session.dispose();
-    for (const file of codemodeFiles) void rm(file, { force: true }).catch(() => {});
+    return (disposal = (async () => {
+      try {
+        // Stop MCP transports as well as model work; tool calls can be waiting
+        // on a connection that only the extension can close.
+        const results = await Promise.allSettled([
+          running ? abortModel() : (aborting ?? Promise.resolve()),
+          shutdownExtensions()
+        ]);
+        for (const result of results) if (result.status === 'rejected') throw result.reason;
+      } finally {
+        session.dispose();
+        await Promise.all(
+          [...codemodeFiles].map((file) => rm(file, { force: true }).catch(() => {}))
+        );
+      }
+    })());
   };
 
   const runOutcome: RunlingAgent['runOutcome'] = async (
@@ -567,6 +617,7 @@ async function createRunlingAgent(
 
     signal?.throwIfAborted();
     running = true;
+    aborting = undefined;
     interactionSignal = signal;
     acceptingSteering = true;
     activeReport = undefined;
@@ -626,7 +677,10 @@ async function createRunlingAgent(
             }
           }
           if (update.type === 'text_start') lastTextUpdate = -Infinity;
-          if (update.type === 'text_delta' || update.type === 'text_end') {
+          if (
+            options.logContent !== false &&
+            (update.type === 'text_delta' || update.type === 'text_end')
+          ) {
             const now = performance.now();
             if (update.type === 'text_end' || now - lastTextUpdate >= 100) {
               const part = update.partial.content[update.contentIndex];
@@ -664,7 +718,10 @@ async function createRunlingAgent(
           toolStartedAt.set(event.toolCallId, performance.now());
           // A codemode script reports as one call; the calls in it appear only in the log.
           if (!event.parentToolCallId) activity(event.toolName, 'started');
-          const action = describeTool(event.toolName, event.args, cwd);
+          const action =
+            options.logContent === false
+              ? `Using ${event.toolName}`
+              : describeTool(event.toolName, event.args, cwd);
           agentLog.info(highlightToolAction(event.toolName, action));
         }
 
@@ -698,9 +755,7 @@ async function createRunlingAgent(
           if (event.aborted) {
             agentLog.info('Context compaction aborted');
           } else if (event.result === undefined) {
-            agentLog.error(
-              `Context compaction failed: ${toSingleLine(event.errorMessage ?? 'Unknown error')}`
-            );
+            agentLog.error(`Context compaction failed: ${diagnostic(event.errorMessage)}`);
           } else {
             const estimatedAfter = event.result.estimatedTokensAfter;
             agentLog.success(
@@ -714,7 +769,7 @@ async function createRunlingAgent(
         if (event.type === 'summarization_retry_scheduled') {
           agentLog.info(
             `Retrying context summary in ${formatDelay(event.delayMs)} ` +
-              `(attempt ${event.attempt}/${event.maxAttempts}): ${toSingleLine(event.errorMessage)}`
+              `(attempt ${event.attempt}/${event.maxAttempts}): ${diagnostic(event.errorMessage)}`
           );
         }
 
@@ -733,7 +788,7 @@ async function createRunlingAgent(
         if (event.type === 'auto_retry_start') {
           agentLog.info(
             `Retrying agent in ${formatDelay(event.delayMs)} ` +
-              `(attempt ${event.attempt}/${event.maxAttempts}): ${toSingleLine(event.errorMessage)}`
+              `(attempt ${event.attempt}/${event.maxAttempts}): ${diagnostic(event.errorMessage)}`
           );
         }
 
@@ -744,7 +799,7 @@ async function createRunlingAgent(
           } else {
             finalTextError = 'Agent provider failed after retries';
             agentLog.error(
-              `Agent retry failed after ${formatAttempts(event.attempt)}: ${toSingleLine(event.finalError ?? 'Unknown error')}`
+              `Agent retry failed after ${formatAttempts(event.attempt)}: ${diagnostic(event.finalError)}`
             );
           }
         }
@@ -756,11 +811,17 @@ async function createRunlingAgent(
               : undefined;
           finalText = answerText(event.message.content);
           const commentary = commentaryText(event.message.content);
-          if (commentary) agentLog.debug(`Commentary: ${commentary}`);
+          if (commentary && options.logContent !== false)
+            agentLog.debug(`Commentary: ${commentary}`);
 
           // Reasoning summaries are often the only account of what the agent is doing.
           for (const part of event.message.content)
-            if (part.type === 'thinking' && !part.redacted && part.thinking.trim())
+            if (
+              options.logContent !== false &&
+              part.type === 'thinking' &&
+              !part.redacted &&
+              part.thinking.trim()
+            )
               agentLog.markdown(`**Thinking**\n\n${part.thinking.trim()}`);
           if (finalText.trim()) logReply(finalText, true);
 
@@ -769,12 +830,17 @@ async function createRunlingAgent(
           emitRunlingEvent({ type: 'agent.usage', agentId, usage: { ...usage } });
           agentLog.debug(`Tokens: ${formatTokenUsage(usage)}`);
           // A message that failed or was aborted can hold partial text; a retry follows.
-          if (finalText.trim() && !finalTextError) onText?.(finalText);
+          if (finalText.trim() && !finalTextError)
+            onText?.(finalText, {
+              hasToolCalls: event.message.content.some((part) => part.type === 'toolCall')
+            });
         }
       })
     );
 
-    const abort = () => abortSession(session, agentLog);
+    const abort = () => {
+      void abortModel().catch(() => agentLog.error('Agent cancellation failed'));
+    };
 
     signal?.addEventListener('abort', abort, { once: true });
     let result: AgentResult | undefined;
@@ -853,7 +919,7 @@ async function createRunlingAgent(
             return { ...activeReport, ...(details !== undefined ? { details } : {}), usage };
           }
 
-          if (finalText !== undefined && finalText.trim() !== '') {
+          if (options.logContent !== false && finalText !== undefined && finalText.trim() !== '') {
             agentLog.debug(`Discarding unreported final text: ${toSingleLine(finalText)}`);
           }
 
@@ -934,20 +1000,9 @@ async function createRunlingAgent(
     dispose,
 
     async [Symbol.asyncDispose]() {
-      dispose();
+      await dispose();
     }
   };
-}
-
-function abortSession(
-  session: { abort(): Promise<void> },
-  agentLog: { error(message: string): void }
-) {
-  void session.abort().catch((error) => {
-    agentLog.error(
-      `Failed to abort agent: ${error instanceof Error ? error.message : String(error)}`
-    );
-  });
 }
 
 function formatDelay(delayMs: number): string {

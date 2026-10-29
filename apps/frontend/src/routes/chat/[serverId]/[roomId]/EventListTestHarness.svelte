@@ -24,9 +24,11 @@
     roomId = 'room-1',
     permalinkThreadRootEventId = null,
     eventKind = 'message',
+    eventKinds = {},
     scrollToEventId,
     onComplete,
     isLoading = false,
+    loadError = null,
     isJumpedMode = false,
     onJumpToPresent,
     onPresentRequested,
@@ -37,15 +39,21 @@
     unreadAfterEventId = null,
     onComposerReady,
     onStoreRead,
-    onReadPosition
+    onReadPosition,
+    onReachedBottom,
+    onClearAnchor,
+    onLoadMore
   }: {
     eventIds: string[];
     roomId?: string;
     permalinkThreadRootEventId?: string | null;
-    eventKind?: 'message' | 'join';
+    eventKind?: 'message' | 'join' | 'leave';
+    /** Override individual rows for mixed activity and message windows. */
+    eventKinds?: Record<string, 'message' | 'join' | 'leave' | 'deleted'>;
     scrollToEventId: string | null;
     onComplete?: () => void;
     isLoading?: boolean;
+    loadError?: unknown;
     isJumpedMode?: boolean;
     onJumpToPresent?: () => Promise<boolean>;
     onPresentRequested?: () => void;
@@ -57,6 +65,11 @@
     onComposerReady?: (context: ComposerContext) => void;
     onStoreRead?: () => void;
     onReadPosition?: (position: TimelineReadPosition) => void;
+    onReachedBottom?: () => void;
+    /** Called when the timeline clears the store's anchor. */
+    onClearAnchor?: () => void;
+    /** Supplies an older page for pagination tests. */
+    onLoadMore?: () => Promise<void>;
   } = $props();
 
   const composerContext = createComposerContext();
@@ -73,6 +86,7 @@
 
   const events = $derived(
     eventIds.map((id, index): TimelineEventView => {
+      const kind = eventKinds[id] ?? eventKind;
       const base = {
         id,
         createdAt: `2026-06-17T10:47:${String(index).padStart(2, '0')}Z`,
@@ -86,11 +100,12 @@
           presenceStatus: PresenceStatus.OFFLINE
         }
       };
-      if (eventKind === 'join') {
+      if (kind === 'join' || kind === 'leave') {
         return {
           ...base,
           event: {
-            kind: TimelineEventKind.UserJoinedRoom,
+            kind:
+              kind === 'join' ? TimelineEventKind.UserJoinedRoom : TimelineEventKind.UserLeftRoom,
             roomId
           }
         } as unknown as TimelineEventView;
@@ -100,7 +115,8 @@
         event: {
           kind: TimelineEventKind.MessagePosted,
           roomId,
-          body: id,
+          body: kind === 'deleted' ? null : id,
+          deletedAt: kind === 'deleted' ? base.createdAt : null,
           attachments: [],
           linkPreview: null,
           reactions: [],
@@ -124,11 +140,16 @@
     get isInitialLoading() {
       return isLoading;
     },
+    get loadError() {
+      return loadError;
+    },
     isLoadingMore: false,
     get hasReachedStart() {
       return hasReachedStart;
     },
-    loadMore: async () => {},
+    loadMore: async () => {
+      await onLoadMore?.();
+    },
     canLoadNewer: false,
     loadNewer: async () => ({ status: 'declined' }),
     jumpToLatest: async () => (await onJumpToPresent?.()) ?? false,
@@ -143,6 +164,7 @@
     },
     clearAnchor: () => {
       recoveryViewport = null;
+      onClearAnchor?.();
     },
     setAnchor: () => true,
     refreshCurrentWindow: async () => ({
@@ -173,4 +195,5 @@
   onScrollToEventComplete={onComplete}
   onJumpToPresent={onPresentRequested}
   {onReadPosition}
+  {onReachedBottom}
 />

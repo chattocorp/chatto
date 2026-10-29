@@ -1,13 +1,9 @@
 import { serverLog } from '../../runtime/server-log.ts';
-import { validateSchema } from 'runling';
+import { runtime, web } from './runtime.ts';
+const { validateSchema } = runtime;
+const { describeRouterSchemas } = web;
 import { dispatchRoute, RoutingError } from '../../runtime/routing.ts';
-import {
-  describeRouterSchemas,
-  type StartedRun,
-  type WebhookContext,
-  type WebhookRouter,
-  type WebConfig
-} from 'runling/web';
+import type { StartedRun, WebhookContext, WebhookRouter, WebConfig } from 'runling/web';
 
 export interface WebhookDependencies {
   config: WebConfig;

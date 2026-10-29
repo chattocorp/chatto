@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Rumsmeddelande",
+      "dismiss": "Stäng",
+      "body": "Meddelande (Markdown)",
+      "too_long": "Meddelanden får innehålla högst {max} tecken, inklusive blanksteg.",
+      "help": "Spara rättelser utan att visa meddelandet igen. Tillkännage det för att visa det igen för medlemmar som stängt det på sina enheter.",
+      "conflict": "Meddelandet ändrades medan du redigerade. Ditt utkast finns kvar. Kopiera det vid behov och läs in det aktuella meddelandet innan du sparar igen.",
+      "reload": "Läs in aktuellt meddelande",
+      "save": "Uppdatera",
+      "republish": "Tillkännage",
+      "clear": "Rensa",
+      "clear_confirm_title": "Rensa rumsmeddelandet?",
+      "clear_confirm_description": "Detta tar omedelbart bort det aktiva meddelandet för alla i rummet. Dina osparade ändringar publiceras inte.",
+      "empty": "Inget meddelande har publicerats.",
+      "edit": "Redigera meddelande"
+    },
+    "information": {
+      "description": "Beskrivning",
+      "created": "Skapat",
+      "title": "Rumsinformation",
+      "basic": "Allmänt",
+      "pinned_messages": "Fästa meddelanden"
+    },
     "create": {
       "title": "Skapa ett nytt rum",
       "description": "Rum är konversationer på din server.",
@@ -77,7 +100,8 @@
       "beginning": "Det här är början på den här konversationen.",
       "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet.",
       "limited_empty": "Det finns inga konversationer du kan läsa ännu.",
-      "loading": "Läser in meddelanden..."
+      "loading": "Läser in meddelanden...",
+      "load_failed": "Det gick inte att läsa in meddelanden."
     },
     "message": {
       "empty": "Inga meddelanden än",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Tråd i #{room}",
       "back_to_room": "Tillbaka till rummet",
+      "participants": "Deltagare i tråden ({count})",
       "follow": "Följ tråden",
       "unfollow": "Sluta följa tråden",
       "close": "Stäng tråden",
@@ -263,6 +288,7 @@
     "unread_separator": "Nya meddelanden",
     "close_extras": "Stäng extra rum",
     "dm": {
+      "deactivated_user_notice": "Det här kontot är inaktiverat. Användaren kan inte läsa eller svara på meddelanden.",
       "deleted_user_notice": "Den andra användaren har raderats."
     },
     "management": {

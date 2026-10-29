@@ -117,7 +117,11 @@ func (p *ReactionProjection) Apply(event *evtv1.Event, seq uint64) error {
 
 	switch e := payload.(type) {
 	case *evtv1.Event_ReactionAdded:
-		p.applyAdded(e.ReactionAdded, event.GetActorId(), eventCreatedNanos(event), event.GetId())
+		userID := e.ReactionAdded.GetUserId()
+		if userID == "" {
+			userID = event.GetActorId()
+		}
+		p.applyAdded(e.ReactionAdded, userID, eventCreatedNanos(event), event.GetId())
 	case *evtv1.Event_ReactionRemoved:
 		p.applyRemoved(e.ReactionRemoved, event.GetActorId())
 	}

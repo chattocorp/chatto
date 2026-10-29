@@ -7,11 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -203,7 +204,7 @@ func (s *HTTPServer) writeBrowserSessionCookie(c *gin.Context, name, token strin
 }
 
 type presentedRuntimeCredential struct {
-	user              *evtv1.User
+	user              *readmodel.User
 	auth              authctx.RuntimeCredential
 	cookieRecord      *runtimestatev1.CookieSession
 	presentedSessions []presentedCookieSession

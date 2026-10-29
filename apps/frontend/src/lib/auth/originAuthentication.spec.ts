@@ -83,4 +83,15 @@ describe('completeOriginAuthentication', () => {
 
     expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
   });
+
+  it('leaves copied return navigation to the opening tab during provider completion', async () => {
+    hasPendingReturnNavigationMock.mockReturnValue(true);
+    const { completeOriginAuthentication } = await loadModule();
+    await expect(completeOriginAuthentication({ resumeReturnNavigation: false })).resolves.toBe(
+      false
+    );
+    expect(resetAccountMock).toHaveBeenCalledOnce();
+    expect(invalidateAllMock).toHaveBeenCalledOnce();
+    expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
+  });
 });

@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} від {users}",
+    "tone_default": "Типовий жовтий",
+    "tone_light": "Світлий",
+    "tone_medium_light": "Помірно світлий",
+    "tone_medium": "Середній",
+    "tone_medium_dark": "Помірно темний",
+    "tone_dark": "Темний",
     "search_placeholder": "Пошук емодзі...",
     "no_results": "Емодзі не знайдено",
     "recently_used": "Нещодавно використані"

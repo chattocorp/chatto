@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/config"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
@@ -29,7 +31,7 @@ func setupGroupRolesCore(t *testing.T) *ChattoCore {
 }
 
 // newGroupMember creates a user with an identity of each test provider.
-func newGroupMember(t *testing.T, core *ChattoCore, login string) *evtv1.User {
+func newGroupMember(t *testing.T, core *ChattoCore, login string) *readmodel.User {
 	t.Helper()
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, login, login, "password123")
@@ -295,12 +297,11 @@ func TestUnlinkingLastProviderIdentityRevokesProviderRoles(t *testing.T) {
 			unlink := func(subject string) {
 				t.Helper()
 				hash := externalIdentityHash("https://id.example", subject)
-				var err error
+				actorID := user.Id
 				if admin {
-					err = core.DisconnectExternalIdentityAs(ctx, SystemActorID, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
-				} else {
-					err = core.DisconnectExternalIdentity(ctx, user.Id, hash)
+					actorID = SystemActorID
 				}
+				err := core.DisconnectExternalIdentityAs(ctx, actorID, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
 				if err != nil {
 					t.Fatalf("unlink %s: %v", subject, err)
 				}
@@ -371,7 +372,7 @@ func TestUnlinkingLegacyProviderIDIdentityRevokesOnlyProviderRoles(t *testing.T)
 		t.Fatal(err)
 	}
 	syncGroups(t, core, user.Id, "company", "chat-mods")
-	if err := core.DisconnectExternalIdentity(ctx, user.Id, externalIdentityHash(testIssuers["company"], "legacy")); err != nil {
+	if err := core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, externalIdentityHash(testIssuers["company"], "legacy"), ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}); err != nil {
 		t.Fatal(err)
 	}
 	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: false, "helper": true})
@@ -427,7 +428,7 @@ func TestSyncProviderGroupRolesCompletesLegacyHashOnlyLink(t *testing.T) {
 		}
 		requireRoles(t, core, user.Id, map[string]bool{RoleModerator: true})
 	}
-	if err := core.DisconnectExternalIdentity(ctx, user.Id, hash); err != nil {
+	if err := core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}); err != nil {
 		t.Fatal(err)
 	}
 	requireRoles(t, core, user.Id, map[string]bool{RoleModerator: false})
@@ -505,7 +506,7 @@ func TestProviderGroupRolesKeepPreUpgradeAssignments(t *testing.T) {
 			}
 			requireRoles(t, core, user.Id, preUpgrade)
 
-			if err := core.DisconnectExternalIdentity(ctx, user.Id, hash); err != nil {
+			if err := core.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}); err != nil {
 				t.Fatal(err)
 			}
 			requireRoles(t, core, user.Id, preUpgrade)

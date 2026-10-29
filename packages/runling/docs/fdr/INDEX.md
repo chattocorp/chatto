@@ -19,3 +19,5 @@ Planned behavior belongs in open questions. See the [documentation index](../REA
 | FDR-010 | [Messages between hosts, tasks, and runs](FDR-010-host-messages.md)         | Experimental | 2026-10-18    |
 | FDR-011 | [CLI run details and final output](FDR-011-cli-output.md)                   | Experimental | 2026-10-15    |
 | FDR-012 | [Workflow state and restart recovery](FDR-012-workflow-state.md)            | Experimental | 2026-10-18    |
+| FDR-013 | [Workflow run titles](FDR-013-run-titles.md)                                | Experimental | 2026-10-27    |
+| FDR-014 | [Compact activity log](FDR-014-activity-log.md)                              | Experimental | 2026-10-27    |

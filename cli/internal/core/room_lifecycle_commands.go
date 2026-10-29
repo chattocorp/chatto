@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -13,7 +15,7 @@ import (
 
 // createRoom serves trusted callers after authorization. It commits creation,
 // group membership and optional defaults atomically, then waits for their views.
-func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*evtv1.Room, error) {
+func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*readmodel.Room, error) {
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
 	}
@@ -52,14 +54,15 @@ func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind 
 	name = normalizeRoomName(name)
 	room_id := NewRoomID()
 
-	room := &evtv1.Room{
-		Id:            room_id,
-		Kind:          ProtoKindForRoomKind(kind),
-		Name:          name,
-		Description:   description,
-		GroupId:       groupID,
-		Universal:     options.universal,
-		ThreadingMode: threadingMode,
+	room := &readmodel.Room{
+		Id:                   room_id,
+		Kind:                 ProtoKindForRoomKind(kind),
+		Name:                 name,
+		Description:          description,
+		GroupId:              groupID,
+		Universal:            options.universal,
+		ThreadingMode:        threadingMode,
+		ShowMembershipEvents: true,
 	}
 
 	createdEvent := newEvent(actorID, &evtv1.Event{
@@ -76,6 +79,9 @@ func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind 
 	})
 
 	var defaultPermissionEntries []evtstream.BatchEntry
+	if options.importContext != nil {
+		createdEvent.ImportContext = options.importContext
+	}
 	if kind == KindChannel && options.applyAnnouncementsDefaults {
 		defaultPermissionEntries = rbacSeedEntries(nil, nil, defaultAnnouncementsRoomDecisions(room_id))
 	}
@@ -106,6 +112,12 @@ func (s *RoomCommandModel) createRoom(ctx context.Context, actorID string, kind 
 			})
 		}
 		entries = append(entries, defaultPermissionEntries...)
+		if options.importReceipt != nil {
+			for _, entry := range entries {
+				entry.Event.ImportContext = options.importContext
+			}
+			entries = append(entries, options.importReceipt(room_id))
+		}
 		return entries, nil
 	}
 	seqs, err := s.publishRoomEventWithNameOCCEntries(ctx, name, createdEvent, room_id, additionalEntries)
@@ -227,7 +239,7 @@ func (s *RoomCommandModel) publishRoomEventWithNameOCCEntries(
 }
 
 // archiveRoom serves trusted callers after authorization and waits for room views.
-func (s *RoomCommandModel) archiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error) {
+func (s *RoomCommandModel) archiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*readmodel.Room, error) {
 	room, err := s.rooms.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -254,7 +266,7 @@ func (s *RoomCommandModel) archiveRoom(ctx context.Context, actorID string, kind
 }
 
 // unarchiveRoom serves trusted callers after authorization and waits for room views.
-func (s *RoomCommandModel) unarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*evtv1.Room, error) {
+func (s *RoomCommandModel) unarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*readmodel.Room, error) {
 	room, err := s.rooms.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err

@@ -20,11 +20,6 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		return nil, err
 	}
 
-	linkPreview, err := s.api.core.ResolveLinkPreviewToken(ctx, req.Msg.GetLinkPreviewToken())
-	if err != nil {
-		return nil, err
-	}
-
 	descriptions := make([]core.MessageAttachmentDescriptionInput, 0, len(req.Msg.GetAttachmentDescriptions()))
 	for _, description := range req.Msg.GetAttachmentDescriptions() {
 		if description == nil {
@@ -44,7 +39,8 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		InReplyTo:              req.Msg.InReplyTo,
 		AlsoSendToChannel:      req.Msg.AlsoSendToChannel,
 		CreateThread:           req.Msg.CreateThread,
-		LinkPreview:            linkPreview,
+		LinkPreviewToken:       req.Msg.GetLinkPreviewToken(),
+		IdempotencyKey:         req.Msg.GetIdempotencyKey(),
 	})
 	if err != nil {
 		return nil, err

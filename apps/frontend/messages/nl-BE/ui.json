@@ -7,7 +7,6 @@
     "realtime_paused": "Realtime updates onderbroken. Opnieuw verbinding maken...",
     "update_available": "Er is een nieuwe versie beschikbaar",
     "reload": "Opnieuw laden",
-    "sign_out": "Meld u af",
     "close": "Sluiten",
     "auth_status": {
       "origin_title": "Sessie verlopen",

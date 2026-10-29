@@ -118,10 +118,10 @@
       "conflict": "See profiil muutus sinu muutmise ajal. Laadi leht uuesti ja salvesta seejärel muudatused uuesti.",
       "save_button": "Salvesta muudatused",
       "bio": {
-        "label": "Bio",
+        "label": "Teave",
         "description": "Kuni {max} tähemärki, nähtav sinu profiilis.",
         "placeholder": "Räägi lühidalt endast",
-        "too_long": "Bio võib olla kuni {max} tähemärki."
+        "too_long": "Tekst võib olla kuni {max} tähemärki."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Tume",
           "description": "Kasutage selles brauseris tumedat liidest"
+        }
+      },
+      "animations": {
+        "title": "Animatsioonid",
+        "automatic": {
+          "label": "Automaatne",
+          "description": "Järgi süsteemi vähendatud liikumise eelistust"
+        },
+        "enabled": {
+          "label": "Lubatud",
+          "description": "Kuva alati animatsioonid"
+        },
+        "disabled": {
+          "label": "Keelatud",
+          "description": "Kuva muudatused ilma animatsioonideta"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Parool",
         "add_description": "Lisage parool, et saaksite otse sisse logida ja oma viimase SSO pakkuja ühenduse katkestada.",
         "change_description": "Muutke otsesisselogimiseks kasutatavat parooli.",
+        "sso_managed": "Te ei saa parooli lisada ega muuta, sest see server kasutab ühekordset sisselogimist (SSO). Hallake oma sisselogimisandmeid oma identiteedipakkuja juures.",
         "current_label": "Praegune parool",
         "current_required": "Sisestage oma praegune parool.",
         "add_button": "Lisa parool",
@@ -437,6 +453,9 @@
         "already_set": "Sellel kontol on juba parool."
       },
       "sso": {
+        "username_unavailable": "Sisselogimisteenuse pakkuja kasutajanime ei saa määrata. Võta ühendust serveri haldajaga.",
+        "username_managed": "Sinu kasutajanime haldab sisselogimisteenuse pakkuja ja seda ei saa siin muuta.",
+        "unlink_disabled": "Serveri haldaja ei luba seda teenusepakkujat lahti ühendada.",
         "popup_blocked": "Luba selle saidi hüpikaknad ja proovi uuesti siduda.",
         "account_mismatch": "Logi selles serveris sisse õigesse kontosse ja alusta sidumist uuesti algsest aknast.",
         "provider_unavailable": "See sisselogimisteenuse pakkuja pole enam saadaval.",
@@ -449,6 +468,7 @@
         "link_button": "Link",
         "link_failed": "Sisselogimisteenuse pakkuja linkimine ebaõnnestus",
         "fresh_auth_required": "Enne teise pakkuja linkimist logige uuesti sisse.",
+        "sso_fresh_auth_required": "Avage konto seaded serveris, kuhu see konto kuulub. Logige välja ja logige oma SSO-pakkuja kaudu uuesti sisse ning proovige toimingut seejärel seal uuesti.",
         "provider_unconfigured": "Pakkuja pole enam konfigureeritud",
         "disconnect_button": "Katkesta ühendus",
         "disconnecting": "Ühenduse katkestamine...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Pakkuja ühendust ei saa katkestada",
-          "body": "{provider} on teie ainus sisselogimisviis. Esmalt lisage parool või linkige teine ​​pakkuja."
+          "body": "Enne pakkuja {provider} lahtiühendamist seadistage mõni muu selle serveri toetatud sisselogimisviis."
         },
         "fresh_auth_modal": {
           "title": "Kinnitage parool",

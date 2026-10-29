@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/api/externalIdentities', () => ({
+  ExternalIdentityFlowKind: { CREATE_ACCOUNT: 1 },
   createExternalIdentityFlowAPI: () => ({ getPending: mocks.getPending })
 }));
 
@@ -20,6 +21,34 @@ async function loadConfirmation(token?: string) {
 describe('SSO confirmation load', () => {
   beforeEach(() => {
     mocks.getPending.mockReset();
+  });
+
+  it('requires authentication while preserving the existing-account continuation', async () => {
+    mocks.getPending.mockResolvedValue({ kind: 1 });
+    const url = new URL('https://chat.example.test/sso/confirm?token=flow&existing=1');
+    await expect(
+      load({ url, parent: async () => ({ user: null }) } as never)
+    ).rejects.toMatchObject({
+      status: 302,
+      location: '/login?redirect=%2Fsso%2Fconfirm%3Ftoken%3Dflow%26existing%3D1'
+    });
+  });
+
+  it('offers linking only after an existing account authenticates', async () => {
+    const pending = { kind: 1, providerId: 'discord-main' };
+    mocks.getPending.mockResolvedValue(pending);
+    const url = new URL('https://chat.example.test/sso/confirm?token=flow&existing=1');
+    await expect(
+      load({ url, parent: async () => ({ user: { id: 'account' } }) } as never)
+    ).resolves.toEqual({ token: 'flow', pending, loadError: null, existingAccount: true });
+  });
+
+  it('does not redirect expired continuations to login', async () => {
+    mocks.getPending.mockResolvedValue(null);
+    const parent = vi.fn();
+    const url = new URL('https://chat.example.test/sso/confirm?token=expired&existing=1');
+    await expect(load({ url, parent } as never)).resolves.toMatchObject({ loadError: 'invalid' });
+    expect(parent).not.toHaveBeenCalled();
   });
 
   it('does not request a pending flow without a token', async () => {
@@ -80,6 +109,17 @@ describe('SSO confirmation load', () => {
       token: 'failed-token',
       pending: null,
       loadError: 'failed'
+    });
+  });
+
+  it('identifies provider usernames that need operator action', async () => {
+    mocks.getPending.mockRejectedValue(
+      new ConnectError('unavailable username', Code.FailedPrecondition)
+    );
+    await expect(loadConfirmation('valid-token')).resolves.toEqual({
+      token: 'valid-token',
+      pending: null,
+      loadError: 'provider_username'
     });
   });
 });

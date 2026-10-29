@@ -100,7 +100,8 @@ until a person or a router cancels it, or the process stops.
   [ADR-004](../adr/ADR-004-event-sources.md),
   [ADR-006](../adr/ADR-006-parent-child-communication.md),
   [ADR-009](../adr/ADR-009-task-invocations.md),
-  [ADR-010](../adr/ADR-010-workflow-state-snapshots.md)
+  [ADR-010](../adr/ADR-010-workflow-state-snapshots.md),
+  [ADR-012](../adr/ADR-012-router-controlled-reactivation.md)
 - **FDRs:** [FDR-001](FDR-001-agent-interactions.md),
   [FDR-004](FDR-004-event-sources.md), [FDR-011](FDR-011-cli-output.md)
 - Guides: [task invocations and messages](../task-channels.md),

@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// OperatorRoomServiceImportRoomEventProcedure is the fully-qualified name of the
+	// OperatorRoomService's ImportRoomEvent RPC.
+	OperatorRoomServiceImportRoomEventProcedure = "/chatto.operator.v1.OperatorRoomService/ImportRoomEvent"
 	// OperatorRoomServiceListRoomsProcedure is the fully-qualified name of the OperatorRoomService's
 	// ListRooms RPC.
 	OperatorRoomServiceListRoomsProcedure = "/chatto.operator.v1.OperatorRoomService/ListRooms"
@@ -46,6 +49,8 @@ const (
 
 // OperatorRoomServiceClient is a client for the chatto.operator.v1.OperatorRoomService service.
 type OperatorRoomServiceClient interface {
+	// Records one historical channel transition, without live delivery.
+	ImportRoomEvent(context.Context, *connect.Request[v1.ImportRoomEventRequest]) (*connect.Response[v1.ImportRoomEventResponse], error)
 	// Lists channel rooms, including archived rooms, without a user session or
 	// room membership. Pages are live reads; changes between requests can shift
 	// offsets. The service is available only on the Operator Unix socket.
@@ -72,6 +77,12 @@ func NewOperatorRoomServiceClient(httpClient connect.HTTPClient, baseURL string,
 	baseURL = strings.TrimRight(baseURL, "/")
 	operatorRoomServiceMethods := v1.File_chatto_operator_v1_rooms_proto.Services().ByName("OperatorRoomService").Methods()
 	return &operatorRoomServiceClient{
+		importRoomEvent: connect.NewClient[v1.ImportRoomEventRequest, v1.ImportRoomEventResponse](
+			httpClient,
+			baseURL+OperatorRoomServiceImportRoomEventProcedure,
+			connect.WithSchema(operatorRoomServiceMethods.ByName("ImportRoomEvent")),
+			connect.WithClientOptions(opts...),
+		),
 		listRooms: connect.NewClient[v1.ListRoomsRequest, v1.ListRoomsResponse](
 			httpClient,
 			baseURL+OperatorRoomServiceListRoomsProcedure,
@@ -95,9 +106,15 @@ func NewOperatorRoomServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // operatorRoomServiceClient implements OperatorRoomServiceClient.
 type operatorRoomServiceClient struct {
-	listRooms  *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
-	createRoom *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
-	addMember  *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
+	importRoomEvent *connect.Client[v1.ImportRoomEventRequest, v1.ImportRoomEventResponse]
+	listRooms       *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
+	createRoom      *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
+	addMember       *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
+}
+
+// ImportRoomEvent calls chatto.operator.v1.OperatorRoomService.ImportRoomEvent.
+func (c *operatorRoomServiceClient) ImportRoomEvent(ctx context.Context, req *connect.Request[v1.ImportRoomEventRequest]) (*connect.Response[v1.ImportRoomEventResponse], error) {
+	return c.importRoomEvent.CallUnary(ctx, req)
 }
 
 // ListRooms calls chatto.operator.v1.OperatorRoomService.ListRooms.
@@ -118,6 +135,8 @@ func (c *operatorRoomServiceClient) AddMember(ctx context.Context, req *connect.
 // OperatorRoomServiceHandler is an implementation of the chatto.operator.v1.OperatorRoomService
 // service.
 type OperatorRoomServiceHandler interface {
+	// Records one historical channel transition, without live delivery.
+	ImportRoomEvent(context.Context, *connect.Request[v1.ImportRoomEventRequest]) (*connect.Response[v1.ImportRoomEventResponse], error)
 	// Lists channel rooms, including archived rooms, without a user session or
 	// room membership. Pages are live reads; changes between requests can shift
 	// offsets. The service is available only on the Operator Unix socket.
@@ -140,6 +159,12 @@ type OperatorRoomServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewOperatorRoomServiceHandler(svc OperatorRoomServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	operatorRoomServiceMethods := v1.File_chatto_operator_v1_rooms_proto.Services().ByName("OperatorRoomService").Methods()
+	operatorRoomServiceImportRoomEventHandler := connect.NewUnaryHandler(
+		OperatorRoomServiceImportRoomEventProcedure,
+		svc.ImportRoomEvent,
+		connect.WithSchema(operatorRoomServiceMethods.ByName("ImportRoomEvent")),
+		connect.WithHandlerOptions(opts...),
+	)
 	operatorRoomServiceListRoomsHandler := connect.NewUnaryHandler(
 		OperatorRoomServiceListRoomsProcedure,
 		svc.ListRooms,
@@ -160,6 +185,8 @@ func NewOperatorRoomServiceHandler(svc OperatorRoomServiceHandler, opts ...conne
 	)
 	return "/chatto.operator.v1.OperatorRoomService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case OperatorRoomServiceImportRoomEventProcedure:
+			operatorRoomServiceImportRoomEventHandler.ServeHTTP(w, r)
 		case OperatorRoomServiceListRoomsProcedure:
 			operatorRoomServiceListRoomsHandler.ServeHTTP(w, r)
 		case OperatorRoomServiceCreateRoomProcedure:
@@ -174,6 +201,10 @@ func NewOperatorRoomServiceHandler(svc OperatorRoomServiceHandler, opts ...conne
 
 // UnimplementedOperatorRoomServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedOperatorRoomServiceHandler struct{}
+
+func (UnimplementedOperatorRoomServiceHandler) ImportRoomEvent(context.Context, *connect.Request[v1.ImportRoomEventRequest]) (*connect.Response[v1.ImportRoomEventResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorRoomService.ImportRoomEvent is not implemented"))
+}
 
 func (UnimplementedOperatorRoomServiceHandler) ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorRoomService.ListRooms is not implemented"))

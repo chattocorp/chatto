@@ -4,6 +4,7 @@ import { PresencePreference, PresenceStatus } from '@chatto/api-types/api/v1/pre
 import { PresencePreferences } from './presencePreference.js';
 import {
   createPresenceTracker,
+  sendPresenceHeartbeats,
   type PresenceReporter,
   type PresenceTracker
 } from './presenceTracking.js';
@@ -261,5 +262,44 @@ describe('shared account presence', () => {
     finish(choice(PresenceStatus.ONLINE));
     await settle();
     expect(presencePreferences.get(origin).status).toBe(PresenceStatus.OFFLINE);
+  });
+});
+
+describe('sendPresenceHeartbeats', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('refreshes presence now and every 30 seconds until it stops', async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const stop = sendPresenceHeartbeats(refresh);
+    expect(refresh).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    stop();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a failed heartbeat at the next interval and never overlaps', async () => {
+    let finish!: () => void;
+    const refresh = vi
+      .fn<() => Promise<unknown>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockImplementationOnce(() => new Promise<void>((done) => (finish = done)))
+      .mockResolvedValue(undefined);
+    const stop = sendPresenceHeartbeats(refresh);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    // The second heartbeat is still pending, so the next interval skips.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    finish();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(refresh).toHaveBeenCalledTimes(3);
+    stop();
   });
 });

@@ -293,3 +293,40 @@ Request to delete a user account as a server-admin action.
 #### Result: DeleteUserResponse
 
 Result of deleting a user account.
+
+
+<a id="chatto-admin-v1-AdminUserService-SetUserDeactivated"></a>
+
+### SetUserDeactivated
+
+Deactivates or reactivates a human account. Requires user.manage-accounts.
+The caller cannot target their own account or an owner account.
+Deactivation immediately invalidates existing sessions and prevents sign-in.
+Reactivation permits new sign-ins; old sessions remain invalid.
+Repeating the current state succeeds without changing it.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminUserService/SetUserDeactivated
+```
+
+<a id="chatto-admin-v1-SetUserDeactivatedRequest"></a>
+
+#### Input: SetUserDeactivatedRequest
+
+Set account access without deleting user data.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `deactivated` | `bool` | No field description provided. |
+
+
+<a id="chatto-admin-v1-SetUserDeactivatedResponse"></a>
+
+#### Result: SetUserDeactivatedResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated administrative member record. |

@@ -49,6 +49,56 @@ message Room {
   // Per-user interval within each thread, including its root. Zero disables
   // the interval. Absent on servers without independent thread slow mode.
   optional uint32 thread_slow_mode_seconds = 10;
+  // When the room was created. Absent when unavailable on an older server.
+  google.protobuf.Timestamp created_at = 11;
+  // Whether clients show room join/leave activity. Absence on older servers
+  // means true. Membership state and event delivery are not affected.
+  optional bool show_membership_events = 12;
+}
+
+// Current member-only notice in a channel room.
+message RoomNotice {
+  // Markdown source. Empty means the notice has been cleared.
+  string body = 1;
+  // Opaque write version. Send it with every mutation. Empty before first publish.
+  string version = 2;
+  // Opaque dismissal revision. Corrections preserve it; publish and republish
+  // replace it. Empty when there is no published notice.
+  string publication_id = 3;
+  // Time of publication or explicit republishing. Corrections preserve it.
+  // Absent when cleared or unavailable on an older server.
+  google.protobuf.Timestamp published_at = 4;
+}
+
+// Reads the current channel notice, including its version when cleared.
+message GetNoticeRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+message GetNoticeResponse {
+  RoomNotice notice = 1;
+}
+
+// Publishes or replaces a notice. Replacements preserve dismissals unless
+// republish is true. A new publication always has a fresh dismissal revision.
+message PublishNoticeRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string body = 2 [(buf.validate.field).string = {min_len: 1, max_len: 4000}];
+  string expected_version = 3;
+  // True announces the replacement to members who dismissed the previous notice.
+  // False preserves dismissals. A first publication always announces the notice.
+  bool republish = 4;
+}
+message PublishNoticeResponse {
+  RoomNotice notice = 1;
+}
+
+// Clears the current notice without removing its concurrency version.
+message ClearNoticeRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string expected_version = 2;
+}
+message ClearNoticeResponse {
+  RoomNotice notice = 1;
 }
 
 // Lightweight room reference for cross-resource rows.
@@ -113,7 +163,7 @@ message UpdateRoomRequest {
   // New threading policy. Direct-message rooms cannot set this field, and an
   // explicitly supplied UNSPECIFIED or unknown value is rejected.
   optional RoomThreadingMode threading_mode = 6;
-  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
+  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events.
   // Omit to infer populated fields; * selects all editable fields. An explicit
   // empty mask is invalid. Unselected values are ignored. Selected absent values
   // reset the field to its default, subject to field validation.
@@ -121,6 +171,9 @@ message UpdateRoomRequest {
   // Per-user interval within each thread. The root starts its author's timer.
   // Zero disables it. Updating this field does not change the root interval.
   optional uint32 thread_slow_mode_seconds = 8 [(buf.validate.field).uint32.lte = 21600];
+  // Whether clients show join/leave activity in this channel's history and live
+  // timeline. Requires room.manage. Selecting an absent value resets to true.
+  optional bool show_membership_events = 9;
 }
 
 // Result of updating a room.
@@ -423,6 +476,15 @@ message RefreshTypingIndicatorResponse {
 // should still be preferred when an operation is not naturally room-scoped or
 // when the resource needs an independent CRUD/batch surface.
 service RoomService {
+  // Reads a channel notice. Requires current room membership, including in
+  // archived rooms. A room without a notice returns an empty body.
+  rpc GetNotice(GetNoticeRequest) returns (GetNoticeResponse);
+  // Publishes, corrects, or explicitly republishes a notice. Requires current
+  // membership and room.manage-notice. Archived rooms reject writes. A stale
+  // expected_version returns ABORTED; preserve the draft and reload before retry.
+  rpc PublishNotice(PublishNoticeRequest) returns (PublishNoticeResponse);
+  // Clears a notice under the same access and version rules as PublishNotice.
+  rpc ClearNotice(ClearNoticeRequest) returns (ClearNoticeResponse);
   // Reads the current viewer's stored marker without changing it. Requires the
   // same membership and read access as MarkRoomAsRead. Missing resources
   // return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
@@ -474,7 +536,8 @@ service RoomService {
   // Adds an account as an explicit channel-room member. room.manage for this
   // room or user.manage-accounts overrides the target's missing room.join.
   // Bot owners and bot.manage holders may also add bots, but without either
-  // override the bot needs effective room.join, bounded by its owner's authority.
+  // override the acting human needs effective room.join. The bot's own
+  // room.join is required only when the bot joins itself through JoinRoom.
   // Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
   // Removes an explicit channel-room member. Requires room.manage for this room,

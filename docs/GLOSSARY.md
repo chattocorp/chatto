@@ -46,6 +46,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Quick Switcher** — Cmd-K / Ctrl-K palette for jumping between rooms, DMs, servers, and admin pages. Distinct from the Server Gutter — both let you change server, but the Quick Switcher is keyboard-first and searchable. See [FDR-015](fdr/FDR-015-quick-switcher.md).
 
+**About** — Public Markdown text on a human or bot account's profile. The API field is `bio`. See [FDR-022](fdr/FDR-022-user-profile.md).
+
 **Profile Card** — Compact user profile shown in a popover on pointer devices or a bottom sheet on touch devices. It contains public identity details and relevant actions. See [FDR-022](fdr/FDR-022-user-profile.md).
 
 **Role Badge** — Compact label that identifies one of a user's assigned roles. A server operator selects which roles provide badges. See [FDR-001](fdr/FDR-001-roles-and-permissions.md) and [FDR-022](fdr/FDR-022-user-profile.md).
@@ -70,13 +72,17 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Neighborhood** — Servers that one Chatto server discovers through its Neighbors: each direct Neighbor, plus servers that a mutually advertising Neighbor mutually recommends, to at most two mutual hops. The server discovers its Neighborhood in the background and publishes a cached result. See [FDR-042](fdr/FDR-042-chatto-neighbors.md) and [ADR-106](adr/ADR-106-server-side-neighborhood-discovery.md).
 
-**Server Directory** — Client surface that merges the cached Neighborhoods of all registered servers. The Server Gutter opens it in a history-backed dialog; `/chat/servers` shows it as a page. It contacts only registered servers, accepts a direct server address, keeps registered results visible as joined, and shows recommendation-source attribution on server profile cards. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
+**Known Server** — A server that the user explicitly found by address and that the client remembers on the device as a discovery source. This does not register the server, create a session, or add it to the Server Gutter. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
+
+**Server Directory** — Client page at `/chat/servers` that shows registered servers, known servers, and their cached Neighborhoods in one grid, in that order. The Server Gutter opens this page. Address lookup adds a known server; modal lookup also registers and opens it when compatible sign-in is available. Only registered and explicitly discovered servers supply discovery results. Selecting a card's recommendation line opens all its sources in a dialog. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
 **Client application** — Browser, desktop, mobile app, or integration that a user authorizes to access a Chatto server; its stable identity comes from CIMD or a built-in registration. A client appears in server administration after completing at least one user-approved authorization. Administrators may label it trusted or block it, but trust never replaces user consent. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
 **MCP server** — Optional Chatto public HTTP integration that lets an agent host discover and call bounded user-scoped tools through the Model Context Protocol. It has no Operator API authority. See [FDR-043](fdr/FDR-043-model-context-protocol-integration.md) and [ADR-085](adr/ADR-085-agent-integration-through-mcp.md).
 
 **MCP scope** — OAuth grant ceiling for one class of MCP tools, such as `chatto:rooms:read` or `chatto:messages:write`. It limits delegated agent authority in addition to normal Chatto permissions and resource visibility. It is not an RBAC permission.
+
+**Deactivated account** — An account that retains its data and assigned roles but cannot use the server. Reactivation permits new sign-ins; old human sessions stay invalid. See [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
 **Bot account** — Passwordless user identity for an integration, explicitly owned by a human and marked as a bot. It receives only directly configured permissions, capped by the owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
@@ -96,6 +102,8 @@ another address does not change the selection. See
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Room** — A channel or DM. Where messages live. Identified by `(serverId, roomId)`.
+
+**Room notice** — One current Markdown notice for a channel room's members. A correction preserves device-local dismissals; explicit republishing makes the notice appear again. See [FDR-054](fdr/FDR-054-room-notices.md).
 
 **Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
 
@@ -161,6 +169,8 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Privileged Mode** — Explicit, fixed 15-minute activation of the elevation-required permissions that a human is currently entitled to use on one server session. For an effective owner, it also activates the owner override. It does not grant a role or permission. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
 
+**Shield Mode** — User-facing name for Privileged Mode, controlled by the shield button for the current server. It temporarily activates eligible permissions and the effective-owner override for that session. See [FDR-046](fdr/FDR-046-privileged-mode.md).
+
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 
 **Effective owner** — A user with the durable `owner` role. A verified email listed in `owners.emails` causes Chatto to materialize this role. Effective owners are entitled to every known RBAC permission virtually. This owner override is effective only in privileged mode. Without it, an owner has only the permissions of their other roles, direct grants, and `everyone`. DM contents remain protected by participation checks at the API boundary.
@@ -221,6 +231,15 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 **Event** — `evtv1.Event` envelope and payload that describe one durable Chatto
 domain fact. EVT stores this value. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
+
+**Interchange archive** — Portable catalogs, an ordered event file, and local
+asset bytes for transferring supported channel history. Its draft contract is
+separate from EVT and server backups. See [the format specification](interchange/v1.md).
+
+**Interchange event** — A source historical fact or an explicit final-state
+snapshot in an interchange archive. Historical facts retain known occurrence
+times. Snapshots preserve state without inventing timeline activity. They are
+not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 

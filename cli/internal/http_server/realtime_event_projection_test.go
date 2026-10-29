@@ -17,6 +17,46 @@ import (
 	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 )
 
+func TestMembershipEventsVisibilityPublicMapping(t *testing.T) {
+	for _, show := range []bool{false, true} {
+		source := &evtv1.Event{Event: &evtv1.Event_RoomMembershipEventsVisibilityChanged{RoomMembershipEventsVisibilityChanged: &evtv1.RoomMembershipEventsVisibilityChangedEvent{RoomId: "room", ShowMembershipEvents: show}}}
+		projected := projectRealtimeEvent("viewer", source)
+		if projected == nil || projected.GetRoomMembershipEventsVisibilityChanged().GetRoomId() != "room" || projected.GetRoomMembershipEventsVisibilityChanged().GetShowMembershipEvents() != show {
+			t.Fatalf("unexpected public setting: %v", projected)
+		}
+	}
+}
+
+func TestAccountDeactivationPublicEventOmitsAdministrator(t *testing.T) {
+	for _, deactivated := range []bool{true, false} {
+		source := &evtv1.Event{ActorId: "administrator", Event: &evtv1.Event_UserAccountDeactivationChanged{
+			UserAccountDeactivationChanged: &evtv1.UserAccountDeactivationChangedEvent{UserId: "member", Deactivated: deactivated},
+		}}
+		projected := projectRealtimeEvent("viewer", source)
+		if projected == nil || projected.GetActorId() != "" || projected.GetUserAccountDeactivationChanged().GetUserId() != "member" || projected.GetUserAccountDeactivationChanged().GetDeactivated() != deactivated {
+			t.Fatalf("unexpected public status: %v", projected)
+		}
+		if source.GetActorId() != "administrator" {
+			t.Fatal("mapping mutated the audit event")
+		}
+	}
+}
+
+func TestImportedMembershipAndRetractionDoNotDeliverLive(t *testing.T) {
+	for _, source := range []*evtv1.Event{
+		{Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "room"}}},
+		{Event: &evtv1.Event_MessageRetracted{MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "room", EventId: "message"}}},
+	} {
+		if projectRealtimeEvent("viewer", source) == nil {
+			t.Fatal("ordinary event should deliver")
+		}
+		source.ImportContext = &evtv1.ImportContext{ExportId: "import"}
+		if projectRealtimeEvent("viewer", source) != nil {
+			t.Fatal("historical event delivered live")
+		}
+	}
+}
+
 func TestRealtimeMentionsCompactTargetsAndPreserveViewerResolution(t *testing.T) {
 	values := []*evtv1.MessageMention{
 		nil, {}, {UserId: "unknown-cause"},

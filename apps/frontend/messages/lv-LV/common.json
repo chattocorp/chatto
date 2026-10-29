@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Tastatūras īsinājumtaustiņi",
+      "app": "Lietotne",
+      "undo": "Atsaukt",
+      "redo": "Atcelt atsaukšanu",
+      "new_line": "Jauna rinda",
+      "edit_last": "Rediģēt pēdējo ziņojumu (tukšs melnraksts)",
+      "complete": "Pabeigt pieminējumu vai emocijzīmi"
+    },
+    "action_unavailable": "Šī darbība pašlaik nav pieejama.",
+    "edit": "Rediģēt",
     "copy_failed": "Neizdevās kopēt starpliktuvē. Atlasiet tekstu un kopējiet to manuāli.",
     "cancel": "Atcelt",
     "close_sidebar": "Aizvērt sānjoslu",
@@ -22,12 +33,12 @@
     "password_placeholder": "Jūsu parole",
     "email_placeholder": "tu@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8 baiti",
+    "password_bytes_placeholder": "Izvēlieties paroli",
     "password_confirm_placeholder": "Ievadiet paroli vēlreiz",
     "validation": {
       "email": "Lūdzu, ievadiet derīgu e-pasta adresi",
-      "password_min_bytes": "Izmantojiet vismaz 8 UTF-8 baitus. Dažas rakstzīmes aizņem vairāk nekā vienu baitu.",
-      "password_max": "Izmantojiet ne vairāk kā 72 UTF-8 baitus. Dažas rakstzīmes aizņem vairāk nekā vienu baitu.",
+      "password_min_bytes": "Parole ir pārāk īsa",
+      "password_max": "Parole ir pārāk gara",
       "username_min": "Jābūt vismaz 2 rakstzīmēm",
       "username_max": "Jābūt ne vairāk kā 32 rakstzīmēm",
       "username_charset": "Tikai burti, cipari, punkti, domuzīmes, pasvītras",

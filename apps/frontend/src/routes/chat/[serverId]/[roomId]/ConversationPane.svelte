@@ -126,6 +126,14 @@ thread IDs can change while the pane stays mounted.
     ) ?? false
   );
   const isThread = untrack(() => threadRootEventId !== null);
+  const hasDeactivatedPartner = $derived(
+    room.dmData?.participants.length === 2 &&
+      room.dmData.participants.some(
+        (participant) =>
+          participant.id !== room.dmData?.currentUserId &&
+          stores.projection.users.isDeactivated(participant.id)
+      )
+  );
 
   // The composer and the timeline below share this pane's context. A thread
   // pane shadows the room's context, so its jumps, replies, and scroll
@@ -371,7 +379,7 @@ thread IDs can change while the pane stays mounted.
 
   let isDraggingFiles = $state(false);
   const conversationDropZone = $derived(
-    canPost && canAttach
+    canPost && canAttach && !hasDeactivatedPartner
       ? dropZone({
           onDrop: (files) => composerApi?.addFiles(files),
           onDragStateChange: (dragging) => (isDraggingFiles = dragging)
@@ -401,6 +409,12 @@ thread IDs can change while the pane stays mounted.
 >
   <DropZoneOverlay visible={isDraggingFiles} />
   {@render header?.()}
+
+  {#if hasDeactivatedPartner}
+    <div class="px-4 pt-4" role="status">
+      <Hint tone="warning">{m('room.dm.deactivated_user_notice')}</Hint>
+    </div>
+  {/if}
 
   {#if hasDeletedPartner && !isThread}
     <div class="px-4 pt-4" role="status">
@@ -463,11 +477,13 @@ thread IDs can change while the pane stays mounted.
     {roomId}
     inThread={threadRootEventId ?? undefined}
     {mentionPriorityUserIds}
-    {canPost}
-    {canAttach}
+    canPost={canPost && !hasDeactivatedPartner}
+    canAttach={canAttach && !hasDeactivatedPartner}
     onReady={(api) => (composerApi = api)}
     inputStatus={canReadMessages ? typingStatus : undefined}
-    onTyping={canPost ? () => typingIndicator.sendTypingIndicator() : undefined}
+    onTyping={canPost && !hasDeactivatedPartner
+      ? () => typingIndicator.sendTypingIndicator()
+      : undefined}
     onMessageSent={(event) => {
       typingIndicator.resetDebounce();
       if (!event) {

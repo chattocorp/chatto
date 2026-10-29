@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/chattocorp/chatto/cli/internal/core/subjects"
@@ -213,7 +215,7 @@ func TestBadgeReactionAddsOnlyUnreadAttentionUntilRoomRead(t *testing.T) {
 
 // badgeTestRoom creates a channel with an author and the given number of other
 // members. Members keep the default policy, where room messages are Badge.
-func badgeTestRoom(t *testing.T, chattoCore *ChattoCore, name string, members int) (*evtv1.User, *evtv1.Room, []*evtv1.User) {
+func badgeTestRoom(t *testing.T, chattoCore *ChattoCore, name string, members int) (*readmodel.User, *readmodel.Room, []*readmodel.User) {
 	t.Helper()
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, name+"-author", "Badge Author", "password")
@@ -227,7 +229,7 @@ func badgeTestRoom(t *testing.T, chattoCore *ChattoCore, name string, members in
 	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
 		t.Fatal(err)
 	}
-	users := make([]*evtv1.User, 0, members)
+	users := make([]*readmodel.User, 0, members)
 	for index := range members {
 		user, err := chattoCore.CreateUser(ctx, SystemActorID, fmt.Sprintf("%s-member-%03d", name, index), "Badge Member", "password")
 		if err != nil {

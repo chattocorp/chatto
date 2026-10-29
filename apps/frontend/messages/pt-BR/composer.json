@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Inserir emoji",
     "attach_file": "Anexar arquivo",
     "formatting_options": "Opções de formatação",
     "send": "Enviar mensagem",
@@ -25,6 +26,8 @@
     "drop_files_title": "Solte os arquivos aqui",
     "drop_files_subtitle": "Imagens e vídeos serão adicionados à sua mensagem",
     "send_failed": "Falha ao enviar mensagem",
+    "send_retry_expired": "O prazo para tentar enviar novamente terminou. Confira se sua mensagem chegou antes de enviá-la novamente.",
+    "send_retry_reset": "A conexão foi restabelecida. Confira se sua mensagem chegou antes de enviá-la novamente.",
     "slow_mode_ready": "Modo lento: uma mensagem a cada {interval}.",
     "slow_mode_waiting": "Modo lento: envie novamente em {countdown}.",
     "slow_mode_bypassed": "Modo lento: {interval} (você está isento).",
@@ -44,9 +47,11 @@
       "remove": "Remover {filename}",
       "video_disabled": "Envios de vídeo estão desativados neste servidor.",
       "prepare_failed": "Falha ao preparar o anexo",
+      "too_many": "Você pode anexar até {max} arquivos por mensagem. Os arquivos extras não foram adicionados.",
       "too_large": "{filename} é grande demais ({size}). O máximo é {limit}."
     },
     "format": {
+      "underline": "Sublinhado",
       "bold": "Negrito",
       "italic": "Itálico",
       "inline_code": "Código em linha",

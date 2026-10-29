@@ -4,6 +4,8 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
@@ -16,7 +18,7 @@ import (
 // explicit permission decisions from durable evt.rbac.> events.
 type RBACProjection struct {
 	events.MemoryProjection
-	roles map[string]*evtv1.Role
+	roles map[string]*readmodel.Role
 	// assignments maps userID -> roleName -> owner. The owner is the identity
 	// issuer of the auth provider whose group_roles mapping created the
 	// assignment, or empty for an admin or configuration assignment. Only the
@@ -46,7 +48,7 @@ type ScopedRolePermissionDecision struct {
 
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
-		roles:       make(map[string]*evtv1.Role),
+		roles:       make(map[string]*readmodel.Role),
 		assignments: make(map[string]map[string]string),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
 		replayGuard: newProjectionReplayGuard(),
@@ -117,11 +119,11 @@ func (p *RBACProjection) CompleteStartupReplay() {
 	p.replayGuard.completeReplay()
 }
 
-func rbacRoleFromCreated(event *evtv1.RbacRoleCreatedEvent) *evtv1.Role {
+func rbacRoleFromCreated(event *evtv1.RbacRoleCreatedEvent) *readmodel.Role {
 	if event == nil {
 		return nil
 	}
-	return &evtv1.Role{
+	return &readmodel.Role{
 		Name:        event.GetRoleName(),
 		DisplayName: event.GetDisplayName(),
 		Description: event.GetDescription(),
@@ -130,11 +132,11 @@ func rbacRoleFromCreated(event *evtv1.RbacRoleCreatedEvent) *evtv1.Role {
 	}
 }
 
-func (p *RBACProjection) applyRoleUpsert(role *evtv1.Role) {
+func (p *RBACProjection) applyRoleUpsert(role *readmodel.Role) {
 	if role == nil || role.GetName() == "" {
 		return
 	}
-	p.roles[role.GetName()] = proto.Clone(role).(*evtv1.Role)
+	p.roles[role.GetName()] = role.Clone()
 }
 
 func (p *RBACProjection) applyRoleDisplayNameChanged(roleName, displayName string) {
@@ -145,7 +147,7 @@ func (p *RBACProjection) applyRoleDisplayNameChanged(roleName, displayName strin
 	if role == nil {
 		return
 	}
-	updated := proto.Clone(role).(*evtv1.Role)
+	updated := role.Clone()
 	updated.DisplayName = displayName
 	p.roles[roleName] = updated
 }
@@ -158,7 +160,7 @@ func (p *RBACProjection) applyRoleDescriptionChanged(roleName, description strin
 	if role == nil {
 		return
 	}
-	updated := proto.Clone(role).(*evtv1.Role)
+	updated := role.Clone()
 	updated.Description = description
 	p.roles[roleName] = updated
 }
@@ -171,7 +173,7 @@ func (p *RBACProjection) applyRolePingableChanged(roleName string, pingable bool
 	if role == nil {
 		return
 	}
-	updated := proto.Clone(role).(*evtv1.Role)
+	updated := role.Clone()
 	updated.Pingable = pingable
 	p.roles[roleName] = updated
 }
@@ -186,7 +188,7 @@ func (p *RBACProjection) applyRolesReordered(roleNames []string) {
 		for isSystemPosition(position) {
 			position++
 		}
-		updated := proto.Clone(role).(*evtv1.Role)
+		updated := role.Clone()
 		updated.Position = position
 		p.roles[roleName] = updated
 		position++
@@ -386,14 +388,14 @@ func rbacDecisionKeyFor(scope PermissionScope, scopeID, subject string, perm Per
 	}
 }
 
-func (p *RBACProjection) GetRole(name string) (*evtv1.Role, bool) {
+func (p *RBACProjection) GetRole(name string) (*readmodel.Role, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	role := p.roles[name]
 	if role == nil {
 		return nil, false
 	}
-	return proto.Clone(role).(*evtv1.Role), true
+	return role.Clone(), true
 }
 
 func (p *RBACProjection) RoleExists(name string) bool {
@@ -402,12 +404,12 @@ func (p *RBACProjection) RoleExists(name string) bool {
 	return p.roles[name] != nil
 }
 
-func (p *RBACProjection) ListRoles() []*evtv1.Role {
+func (p *RBACProjection) ListRoles() []*readmodel.Role {
 	p.RLock()
 	defer p.RUnlock()
-	roles := make([]*evtv1.Role, 0, len(p.roles))
+	roles := make([]*readmodel.Role, 0, len(p.roles))
 	for _, role := range p.roles {
-		roles = append(roles, proto.Clone(role).(*evtv1.Role))
+		roles = append(roles, role.Clone())
 	}
 	sort.SliceStable(roles, func(i, j int) bool {
 		if roles[i].GetPosition() != roles[j].GetPosition() {

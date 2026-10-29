@@ -43,7 +43,7 @@ the original message. Users are ordered by user ID ascending.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Message or channel echo ID. |
-| `emoji` | `string` | Emoji shortcode, such as "thumbsup". |
+| `emoji` | `string` | Exact reaction name returned by the server, without surrounding colons. |
 | `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
 
 
@@ -127,6 +127,7 @@ Request to create a message in a room or thread.
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 | `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires message.post (which includes thread posting). Cannot be combined with thread_root_event_id. |
 | `attachment_descriptions` | repeated [`MessageAttachmentDescriptionInput`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachmentDescriptionInput) | Optional descriptions for assets in attachment_asset_ids. Asset IDs must be unique in this list. At most one description can target each asset. |
+| `idempotency_key` | `optional string` | Optional caller-generated UUID for this send. Reuse it with the same room and request when a response is lost. For 30 minutes after first acceptance, an exact retry returns the same message ID; changed arguments are rejected. Retries do not extend this period. After expiry, the key can be used again. Omit the key for ordinary posting without duplicate protection. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -414,12 +415,17 @@ treats it as an alias for the original thread reply and stores the reaction
 on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 current user already has 20 distinct emoji reactions on the canonical
 message; adding an emoji that already exists remains an idempotent success.
+Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+Names are case-sensitive and are stored unchanged, including
+unknown names. Clients can display an unknown name as :name:.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid. |
 
 
 <a id="chatto-api-v1-AddReactionResponse"></a>
@@ -460,7 +466,7 @@ from that original event.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Exact reaction name returned by the server, without surrounding colons. |
 
 
 <a id="chatto-api-v1-RemoveReactionResponse"></a>

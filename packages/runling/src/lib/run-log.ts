@@ -1,5 +1,9 @@
 /** Project run journal entries into the console's ordered Log view. */
 import type { RunlingEvent } from 'runling';
+import { formatLogFields } from '../runtime/log-fields.ts';
+import { ansiTokens } from './ansi.ts';
+import { buildTimeline, type Activity } from './timeline.ts';
+import type { RunStatus } from './runs.ts';
 
 /** Journal event shape used by a visible log row. */
 export type LogEvent = Extract<RunlingEvent, { type: 'log' }>;
@@ -11,6 +15,143 @@ export interface LogRow {
   event: LogEvent;
   /** Activity that this line can open in the details pane. */
   activity?: { id: string; reference: string; embedded: boolean };
+  /** Compact activity row; its identity and position stay stable as work completes. */
+  summary?: { node: Activity; fields?: LogEvent['fields']; logs: string[] };
+}
+
+/** Project task lifecycles into single rows, preserving messages and diagnostics between them. */
+export function activityLogRows(
+  events: RunlingEvent[],
+  status: RunStatus,
+  activities = buildTimeline(events, status)
+): LogRow[] {
+  const nodes = new Map<string, Activity>();
+  const depths = new Map<string, number>();
+  const visit = (items: Activity[], depth: number) => {
+    for (const node of items) {
+      nodes.set(node.id, node);
+      depths.set(node.id, depth);
+      visit(node.children, depth + 1);
+    }
+  };
+  visit(activities, 0);
+  const detailed = new Map(runLogRows(events).map((row) => [row.id, row]));
+  const rows: LogRow[] = [];
+  const summaries = new Map<string, NonNullable<LogRow['summary']>>();
+  const agents = new Map<string, string>();
+  const pending = new Map<string | undefined, Map<string, string>>();
+  const plain = (text: string) =>
+    ansiTokens(text)
+      .map((token) => token.text)
+      .join('');
+
+  events.forEach((event, index) => {
+    if (event.type === 'execution.finished') {
+      agents.clear();
+      pending.clear();
+    }
+    const activityId =
+      event.type === 'agent.started'
+        ? `${event.agentId}:${index}`
+        : event.type === 'step.started' ||
+            event.type === 'command.started' ||
+            event.type === 'wait.started'
+          ? event.id
+          : undefined;
+    if (activityId) {
+      const node = nodes.get(activityId)!;
+      const summary = { node, logs: [] as string[] };
+      summaries.set(activityId, summary);
+      rows.push({
+        id: index,
+        summary,
+        event: {
+          type: 'log',
+          message: node.kind === 'agent' ? 'Agent' : node.label,
+          timestamp: node.startedAt,
+          depth: depths.get(activityId) ?? 0,
+          color: 'dodgerblue',
+          level:
+            node.status === 'running'
+              ? 'info'
+              : node.status === 'completed' || node.status === 'received'
+                ? 'success'
+                : 'error'
+        }
+      });
+      if (event.type === 'step.started') {
+        const labels = pending.get(event.activityId) ?? new Map<string, string>();
+        labels.set(event.label, event.id);
+        pending.set(event.activityId, labels);
+      }
+      if (event.type === 'agent.started') agents.set(event.agentId, activityId);
+      return;
+    }
+    if (event.type === 'log') {
+      let message = plain(event.message);
+      if (event.sourceId && (event.source === 'agent' || event.source === 'step')) {
+        const prefix = `[${event.sourceId}] `;
+        if (message.startsWith(prefix)) message = message.slice(prefix.length);
+      }
+      const stepId =
+        event.source === 'step' ? pending.get(event.activityId)?.get(message) : undefined;
+      const owner =
+        stepId ??
+        (event.source === 'agent'
+          ? agents.get(event.sourceId ?? '')
+          : (event.sourceId ?? event.activityId));
+      const summary = owner ? summaries.get(owner) : undefined;
+      if (summary) {
+        if (stepId) summary.fields = event.fields;
+        else summary.logs.push(message + formatLogFields(event.fields));
+      }
+      const diagnostic = event.level === 'warn' || event.level === 'error';
+      if (!diagnostic) {
+        if (stepId) {
+          pending.get(event.activityId)?.delete(message);
+          return;
+        }
+        // Match lifecycle positions as well as text, so replies discussing usage stay visible.
+        const next = events[index + 1];
+        if (
+          summary &&
+          event.source === 'agent' &&
+          ((summary.logs.length === 1 &&
+            message === `Agent started (model: ${summary.node.label})`) ||
+            (message.startsWith('Token usage: ') &&
+              next?.type === 'agent.finished' &&
+              next.agentId === event.sourceId))
+        )
+          return;
+        if (event.level === 'debug') return;
+      }
+      rows.push({ id: index, event: { ...event, message } });
+      return;
+    }
+    if (event.type === 'step.finished' && event.error) {
+      summaries.get(event.id)?.logs.push(event.error);
+      rows.push({
+        id: index,
+        event: {
+          type: 'log',
+          level: 'error',
+          message: event.error,
+          timestamp: event.timestamp,
+          depth: (depths.get(event.id) ?? 0) + 1,
+          color: 'crimson'
+        }
+      });
+    }
+    // Host messages remain visible. Lifecycle rows above replace synthetic start/finish lines.
+    if (event.type === 'message.sent') {
+      const row = detailed.get(index);
+      if (row) rows.push(row);
+    }
+  });
+  for (const summary of summaries.values()) {
+    if (!summary.logs.length) summary.logs = summary.node.logs;
+  }
+  return rows;
 }
 
 /** Visual guide data for one row in the chronological log outline. */
@@ -74,7 +215,7 @@ export function runLogRows(events: RunlingEvent[]): LogRow[] {
         if (startedId) pending?.delete(event.message);
         rows.push({
           id,
-          event,
+          event: { ...event, message: event.message + formatLogFields(event.fields) },
           activity: startedId
             ? { id: startedId, reference: event.message, embedded: true }
             : event.source === 'agent' && event.sourceId && agents.has(event.sourceId)

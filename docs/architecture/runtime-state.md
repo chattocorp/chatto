@@ -1,5 +1,10 @@
 # Runtime State Inventory
 
+Operator upload sessions retain a `historical` flag when explicitly requested.
+Only private operator sessions can use it to upload into archived channels.
+Public callers cannot select or consume those sessions. Completion rechecks
+the stored flag and operator authority; ordinary upload authorization is unchanged.
+
 Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 [`cli/internal/core/read_state_index.go`](../../cli/internal/core/read_state_index.go),
 [`cli/internal/core/notification_boundary_index.go`](../../cli/internal/core/notification_boundary_index.go),
@@ -24,6 +29,23 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 ## KV buckets
+
+Pending external identity creation records include the verified provider username
+for managed assignment. Core evaluates the serving replica's provider policy at
+confirmation. The username shares the existing pending-flow TTL and storage
+boundary; no provider-ownership record is added. See
+[provider account policy](../../cli/internal/core/provider_account_policy.go).
+
+Message-post claims use `message_post.{actorId}.{uuid}` in `RUNTIME_STATE`.
+The immutable protobuf `runtime_state.v1.MessagePostClaim` contains a
+server-generated message event ID and a request HMAC. Interactive sends and
+historical operator imports share leader reads and KV `Create`, with a fixed
+30-minute per-key TTL. Imports use `message_import.{systemActorId}.{uuid}` and
+bind author, source times, and placement in their request HMAC. Exact retries
+do not update the key. The existing 24-hour expiry-marker policy remains.
+EVT alone proves that the reserved message ID committed. There is no watcher,
+new consumer, or caller-key data in EVT. See
+[ADR-117](../adr/ADR-117-message-post-idempotency.md).
 
 | Bucket            | Storage | Backup | Description                                                                                                                                                                                                             |
 | ----------------- | ------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

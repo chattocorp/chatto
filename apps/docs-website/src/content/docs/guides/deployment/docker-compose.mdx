@@ -136,6 +136,8 @@ docker compose exec -u chatto chatto /chatto operator user set-password USER_ID
 
 Do not mount or publish the operator socket unless the target container or host is fully trusted; socket access is root-equivalent Chatto authority.
 
+If you set a memory limit on the Chatto container, Chatto sets the Go memory limit to 90% of it. Go then frees unused memory before the container reaches its limit. To use a different value, set the `GOMEMLIMIT` environment variable, for example `GOMEMLIMIT=900MiB`. Do not mount `/tmp` as a memory-backed `tmpfs`: uploads write temporary files there, and these files count against the container memory limit.
+
 ## Persistent Data
 
 | Storage | Contents |

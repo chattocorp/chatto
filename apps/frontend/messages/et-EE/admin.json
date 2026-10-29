@@ -52,6 +52,11 @@
       "subtitle": "Serveri identiteet, kaubamärk ja sõnumid"
     },
     "members": {
+      "deactivate": "Inaktiveeri konto",
+      "reactivate": "Aktiveeri konto uuesti",
+      "deactivate_description": "Kasutaja ei saa enam seda serverit kasutada. Kõik seansid lõpetatakse kohe. Andmed säilivad. Saate konto hiljem uuesti aktiveerida.",
+      "deactivated_description": "See konto on inaktiveeritud. Pärast uuesti aktiveerimist saab kasutaja taas sisse logida. Vanad seansid jäävad kehtetuks.",
+      "deactivation_failed": "Konto juurdepääsu ei saanud muuta.",
       "title": "liikmed",
       "subtitle": "Saate vaadata ja hallata serveriliikmeid ja nende rolle",
       "search": "Otsige liikmeid",
@@ -249,6 +254,10 @@
         "name_title": "Nimi ja kirjeldus",
         "name_subtitle": "Liikmed näevad neid ruumide loendis ja ruumi ülaosas.",
         "visibility_title": "Nähtavus",
+        "membership_events_title": "Liikmete tegevus",
+        "show_membership_events": "Näita liitumisi ja lahkumisi",
+        "membership_events_description": "Näita, millal inimesed selle toaga liituvad või sellest lahkuvad, ka ajaloos. Selle tegevuse peitmine ei kustuta seda.",
+        "membership_events_unavailable": "Liikmete tegevuse kuvamise muutmiseks uuenda seda serverit.",
         "visibility_subtitle": "Valige, kes on selle ruumi liige.",
         "universal_description": "Iga liige, kes saab selle ruumiga liituda, on automaatselt selle liige.",
         "visibility_help": "Kasutage universaalset tuba uudiste jaoks, mis peavad jõudma kõigi liikmeteni, näiteks teadaanded. Liikmed ei saa universaalsest toast lahkuda, kuid nad saavad selle vaigistada. Kui lülitate universaalsuse välja, jäävad varem liitunud liikmed ruumi.",

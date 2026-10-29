@@ -1,0 +1,122 @@
+name: build media E2E image
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  push:
+    branches: [main]
+    paths:
+      - '.github/images/media-e2e/**'
+      - '.github/workflows/build-media-e2e-image.yml'
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: media-e2e-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    if: github.event_name == 'pull_request' && github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      image: ${{ steps.select.outputs.image }}
+    steps:
+      - name: Select image changes
+        id: select
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          filters: |
+            image:
+              - '.github/images/media-e2e/**'
+              - '.github/workflows/build-media-e2e-image.yml'
+
+  image:
+    needs: changes
+    # Dependency updates request an image explicitly with the publication label.
+    # Keep label events outside path filters so Playwright upgrades can publish.
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'ci:publish-media-image') ||
+      (github.event.action != 'labeled' &&
+      (needs.changes.outputs.image == 'true' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:publish-media-image'))))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+          turbo-remote-cache: 'false'
+      - name: Resolve installed Playwright version
+        id: playwright
+        run: |
+          version="$(pnpm --dir apps/frontend exec playwright --version)"
+          echo "version=${version#Version }" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image for verification
+        uses: docker/build-push-action@v6
+        with:
+          context: .github/images/media-e2e
+          platforms: linux/amd64
+          load: true
+          pull: true
+          tags: media-e2e:check
+          build-args: PLAYWRIGHT_VERSION=${{ steps.playwright.outputs.version }}
+          cache-from: type=gha,scope=media-e2e
+          # Scheduled builds refresh OS packages even if the base is unchanged.
+          no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+          cache-to: type=gha,mode=max,scope=media-e2e
+      - name: Check codecs and Chromium
+        env:
+          PLAYWRIGHT_VERSION: ${{ steps.playwright.outputs.version }}
+        run: |
+          docker run --rm --init --ipc=host \
+            -e PLAYWRIGHT_VERSION media-e2e:check bash -euc '
+              test "$(cat /opt/media-e2e-playwright-version)" = "$PLAYWRIGHT_VERSION"
+              ffmpeg -v error -f lavfi -i color=size=64x64:rate=10 -t 1 -c:v libx264 /tmp/check.mp4
+              ffprobe -v error -show_entries stream=codec_name /tmp/check.mp4
+              npm exec --yes --package="playwright@$PLAYWRIGHT_VERSION" -- playwright screenshot --browser chromium about:blank /tmp/chromium.png
+            '
+      - name: Log in to GitHub Container Registry
+        if: >-
+          (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'ci:publish-media-image'))
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish verified image
+        if: >-
+          (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'ci:publish-media-image'))
+        env:
+          IMAGE: ghcr.io/chattocorp/media-e2e:pw-${{ steps.playwright.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          docker tag media-e2e:check "$IMAGE"
+          docker push "$IMAGE"
+          digest_ref="$(docker image inspect "$IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' | awk '/^ghcr.io\/chattocorp\/media-e2e@sha256:/ {print; exit}')"
+          test -n "$digest_ref"
+          {
+            echo "Published ${IMAGE} (linux/amd64)."
+            echo
+            echo "Update all test image digests in .github/workflows/ci.yml to ${digest_ref} in the same PR as any Playwright upgrade. Keep the frontend and Authling Playwright versions aligned."
+          } >> "$GITHUB_STEP_SUMMARY"

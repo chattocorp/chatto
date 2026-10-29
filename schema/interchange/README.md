@@ -1,0 +1,72 @@
+# Chatto interchange format
+
+**Status: draft v1.** This directory defines a portable JSON format for channel
+history. It is not a raw EVT dump or a server backup. Use
+`chatto operator import PATH --validate-only` to check the archive and destination
+through the operator socket. Omit the flag to import. Export is not implemented
+yet. The [Slack converter](../../tools/slack-export.md) produces this format;
+the legacy direct Slack importer remains available for existing runs.
+
+Start with the [converter guide](../../docs/interchange/converter-guide.md),
+then read the [v1 specification](../../docs/interchange/v1.md).
+The [conversation example](v1/examples/conversation/) contains synthetic data
+only. The schemas and examples are Apache-2.0 licensed.
+
+Run the contract tests with `mise test-interchange`. Tests validate the schemas,
+examples, reference rules, and representative invalid archives. They do not
+connect to Chatto or prove destination compatibility. Development dependency
+installation can contact the Python package registry; fixture validation itself
+uses only local schemas and files.
+
+The first importer accepts public channels and active human users. New accounts
+require usernames. Message creation times must be known. Unavailable content
+and files are not yet supported; tombstone snapshots are supported. Shared
+files are uploaded separately for each message. Original file bytes use the
+normal upload API and configured media processing. Record support is checked
+before writes; server media and account policies still apply to each API call.
+
+Use `--channel-prefix`, `--channel-suffix`, `--username-prefix`, and
+`--username-suffix` to decorate destination names. Defaults preserve source
+names. Collisions and invalid destination names fail validation. Reuse exactly
+the same archive and naming options when resuming. Declared omissions require
+`--accept-omissions` for writes. Import creates no passwords.
+
+The root-equivalent importer trusts source email claims. It trims whitespace
+and compares addresses case-insensitively using Chatto's email ownership index.
+An owned email reuses its existing account and preserves that account's profile,
+username, and credentials. Unowned emails are attached as verified addresses.
+They can be used by the server's configured email sign-in flow. Source records
+connected by shared emails resolve to one account; the first record supplies
+the profile for a new account. Emails pointing to different existing accounts
+fail validation. Names alone never cause account matching.
+
+The importer creates new channels and never merges existing channel history.
+Keep imported channels unused until completion. The CLI stores a private local
+journal in the user cache directory; `--progress PATH` selects another file.
+Keep that journal and the unchanged archive for resume. It binds source bytes,
+naming options, and the operator socket path. Server operation receipts prevent
+duplicates after lost responses. Completed imports can be repeated with the
+same journal without writes. Old server-side archive progress cannot be resumed
+by the new CLI. Do not point an existing journal at a replacement server.
+
+The Go reader checks the same schemas, references, final snapshots, deletion
+privacy, and attachment hashes. It rejects links and extra files. Event bodies
+and file bytes are streamed; catalogs and reference indexes use CLI memory.
+There is no total byte or record-count limit. A JSON record is limited to 1 MiB.
+Normal server upload expiry and per-file limits remain in effect. The server
+receives typed resource calls, not archive bytes or source paths.
+
+From `cli/`, run `mise x -- go test ./internal/interchange` to check the reader.
+After a schema change, run `mise x -- go generate ./internal/interchange` to
+update its embedded schema copy. A test checks that this copy matches the
+authoritative files. Validation does not fetch the schema URLs.
+
+The six `*.schema.json` files are the authoritative structural definitions.
+Each property has the meaning specified in the written specification. The
+`$id` URLs identify schemas; they are not currently hosted download endpoints.
+Resolve them from this directory, without network retrieval.
+
+Changes to this draft can still break compatibility. Do not use draft archives
+as the only copy of source data. Before v1 is released, freeze its schemas and
+semantics and publish the schemas at stable locations. A released version must
+not acquire new required fields, event types, or changed meanings in place.

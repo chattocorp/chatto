@@ -875,16 +875,16 @@ describe('RoomSidebar', () => {
       expect(memberButton).toBeTruthy();
     });
     const login = q(container, '[data-testid="room-member-login"]')!;
-    expect(login.closest('button')).toBeNull();
+    expect(login.closest('button')).toBeTruthy();
     expect(memberButton!.getAttribute('aria-haspopup')).toBe('dialog');
-    memberButton!.click();
+    login.closest('button')!.click();
 
     await vi.waitFor(() => {
       expect(buttonByText(document.body, 'Open conversation')).toBeTruthy();
     });
   });
 
-  it('opens a member context menu by right-clicking the passive identity', async () => {
+  it('opens a member context menu by right-clicking the identity', async () => {
     server.permissions.canStartDMs = true;
     const { container } = render(RoomSidebarTestHarness, {
       props: { roomData: roomData([], 0, false) }
@@ -973,7 +973,7 @@ describe('RoomSidebar', () => {
       .toBeInTheDocument();
   });
 
-  it('renders connected participant cards video-first and exposes call controls', async () => {
+  it('features the camera once and exposes the remaining participant and call controls', async () => {
     const videoTrack = {
       attach: vi.fn(),
       detach: vi.fn()
@@ -1028,24 +1028,25 @@ describe('RoomSidebar', () => {
     const participantCards = Array.from(
       container.querySelectorAll<HTMLElement>('[data-testid="call-participant-card"]')
     );
-    expect(participantCards).toHaveLength(2);
+    expect(participantCards).toHaveLength(1);
+    expect(participantCards[0].textContent).toContain('Bob');
     expect(participantCards[0].className).toContain('participant-card-compact');
     expect(q(container, '[data-testid="call-featured-stage-card"] video')).toBeTruthy();
+    expect(container.querySelectorAll('[data-stage-tile-key="viewer:person"]')).toHaveLength(1);
     expect(participantCards[0].querySelector('video')).toBeNull();
-    expect(participantCards[1].className).toContain('participant-card-compact');
-    const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
+    const mutedIndicator = q(participantCards[0], '[data-testid="call-muted-indicator"]');
     const participantMenuButton = q(
-      participantCards[1],
+      participantCards[0],
       '[data-testid="call-participant-menu-button"]'
     ) as HTMLButtonElement;
-    participantCards[1].style.width = '280px';
+    participantCards[0].style.width = '280px';
     await expect
-      .poll(() => q(participantCards[1], '[data-testid="call-feed-local-mute-button"]'))
+      .poll(() => q(participantCards[0], '[data-testid="call-feed-local-mute-button"]'))
       .toBeNull();
     await userEvent.click(participantMenuButton);
     expect(mutedIndicator).toBeTruthy();
-    expect(q(participantCards[1], '[data-testid="voice-activity"]')).toBeTruthy();
-    expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
+    expect(q(participantCards[0], '[data-testid="voice-activity"]')).toBeTruthy();
+    expect(q(participantCards[0], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
     await expect
       .element(page.getByRole('button', { name: 'Mute locally', exact: true }))
       .toBeVisible();
@@ -2108,6 +2109,30 @@ describe('RoomSidebar', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it.each(['members', 'search', 'files', 'pins', 'call'] as const)(
+    'uses one back arrow to exit the %s overlay',
+    async (activePanel) => {
+      const onClose = vi.fn();
+      const { container } = render(RoomSidebarTestHarness, {
+        props: {
+          roomData: roomData([member(1)], 1, false),
+          activePanel,
+          presentation: 'overlay',
+          onClose
+        }
+      });
+      const exits = container.querySelectorAll<HTMLButtonElement>(
+        '[aria-label="Hide room extras"]'
+      );
+      expect(exits).toHaveLength(1);
+      expect(exits[0].querySelector('[class~="icon-[uil--arrow-left]"]')).toBeTruthy();
+      expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
+      exits[0].click();
+      await tick();
+      expect(onClose).toHaveBeenCalledOnce();
+    }
+  );
+
   it('shows a desktop call maximize action and toggles to minimize copy', async () => {
     callStore.voiceCall.connected = true;
     callStore.voiceCall.roomId = 'room-1';
@@ -2177,59 +2202,89 @@ describe('RoomSidebar', () => {
     requestFullscreen.mockRestore();
   });
 
-  it('keeps a header close button that exits fullscreen without closing the call', async () => {
-    callStore.voiceCall.connected = true;
-    callStore.voiceCall.roomId = 'room-1';
-    const exitFullscreen = vi.spyOn(document, 'exitFullscreen').mockResolvedValue();
-    const props = {
-      activePanel: 'call' as const,
-      hasActiveCall: true,
-      livekitUrl: 'wss://livekit.example.test',
-      roomData: roomData([member(1)], 1, false),
-      onToggleMaximized: vi.fn(),
-      onClose: vi.fn()
-    };
-    const { container, rerender } = render(RoomSidebarTestHarness, { props });
-    const sidebar = container.querySelector<HTMLElement>('[aria-label="Room extras"]')!;
-    const matches = sidebar.matches.bind(sidebar);
-    vi.spyOn(sidebar, 'matches').mockImplementation(
-      (selector) => selector === ':fullscreen' || matches(selector)
-    );
-    const fullscreenElement = vi.spyOn(document, 'fullscreenElement', 'get');
-    fullscreenElement.mockReturnValue(sidebar);
-    document.dispatchEvent(new Event('fullscreenchange'));
-    await tick();
-
-    try {
-      expect(container.querySelector('[aria-label="Hide room extras"]')).toBeFalsy();
-      expect(container.querySelector('[aria-label="Maximise call"]')).toBeFalsy();
-      expect(container.querySelector('[aria-label="Resize room extras pane"]')).toBeFalsy();
-      expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
-      expect(q(container, '[data-testid="call-participants-list"]')).toBeFalsy();
-
-      expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
-      expect(q(container, '[data-testid="call-exit-fullscreen-button"]')).toBeNull();
-      const close = container.querySelector<HTMLButtonElement>(
-        '[aria-label="Exit fullscreen call"]'
-      )!;
-      expect(close.closest('[data-page-reveal]')?.textContent).toContain('Call');
-      expect(close.querySelector('[class~="icon-[uil--times]"]')).toBeTruthy();
-      close.click();
-      await Promise.resolve();
-      expect(exitFullscreen).toHaveBeenCalledOnce();
-      expect(props.onClose).not.toHaveBeenCalled();
-      expect(callStore.voiceCall.connected).toBe(true);
-
-      // Ending the call also ends fullscreen.
-      await rerender({ ...props, hasActiveCall: false });
-      expect(exitFullscreen).toHaveBeenCalledTimes(2);
-    } finally {
-      fullscreenElement.mockRestore();
-      exitFullscreen.mockRestore();
-      vi.mocked(sidebar.matches).mockRestore();
-      document.dispatchEvent(new Event('fullscreenchange'));
-    }
+  it('returns from an overlay profile to Members before closing the pane', async () => {
+    const onBackToMembers = vi.fn();
+    const onClose = vi.fn();
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([member(1)], 1, false),
+        presentation: 'overlay',
+        activeProfileUserId: member(1).id,
+        onBackToMembers,
+        onClose
+      }
+    });
+    const back = container.querySelector<HTMLButtonElement>('[aria-label="Members"]')!;
+    expect(back.querySelector('[class~="icon-[uil--arrow-left]"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Hide room extras"]')).toBeNull();
+    back.click();
+    expect(onBackToMembers).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
   });
+
+  it.each(['desktop', 'overlay'] as const)(
+    'keeps a header exit that leaves fullscreen without closing the call in %s',
+    async (presentation) => {
+      callStore.voiceCall.connected = true;
+      callStore.voiceCall.roomId = 'room-1';
+      const exitFullscreen = vi.spyOn(document, 'exitFullscreen').mockResolvedValue();
+      const props = {
+        presentation,
+        activePanel: 'call' as const,
+        hasActiveCall: true,
+        livekitUrl: 'wss://livekit.example.test',
+        roomData: roomData([member(1)], 1, false),
+        onToggleMaximized: vi.fn(),
+        onClose: vi.fn()
+      };
+      const { container, rerender } = render(RoomSidebarTestHarness, { props });
+      const sidebar = container.querySelector<HTMLElement>('[aria-label="Room extras"]')!;
+      const matches = sidebar.matches.bind(sidebar);
+      vi.spyOn(sidebar, 'matches').mockImplementation(
+        (selector) => selector === ':fullscreen' || matches(selector)
+      );
+      const fullscreenElement = vi.spyOn(document, 'fullscreenElement', 'get');
+      fullscreenElement.mockReturnValue(sidebar);
+      document.dispatchEvent(new Event('fullscreenchange'));
+      await tick();
+
+      try {
+        expect(container.querySelector('[aria-label="Hide room extras"]')).toBeFalsy();
+        expect(container.querySelector('[aria-label="Maximise call"]')).toBeFalsy();
+        expect(container.querySelector('[aria-label="Resize room extras pane"]')).toBeFalsy();
+        expect(q(container, '[data-testid="call-stage-grid"]')).toBeTruthy();
+        expect(q(container, '[data-testid="call-participants-list"]')).toBeFalsy();
+
+        expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+        expect(q(container, '[data-testid="call-exit-fullscreen-button"]')).toBeNull();
+        const close = container.querySelector<HTMLButtonElement>(
+          '[aria-label="Exit fullscreen call"]'
+        )!;
+        expect(close.closest('[data-page-reveal]')?.textContent).toContain('Call');
+        expect(
+          close.querySelector(
+            presentation === 'overlay'
+              ? '[class~="icon-[uil--arrow-left]"]'
+              : '[class~="icon-[uil--times]"]'
+          )
+        ).toBeTruthy();
+        close.click();
+        await Promise.resolve();
+        expect(exitFullscreen).toHaveBeenCalledOnce();
+        expect(props.onClose).not.toHaveBeenCalled();
+        expect(callStore.voiceCall.connected).toBe(true);
+
+        // Ending the call also ends fullscreen.
+        await rerender({ ...props, hasActiveCall: false });
+        expect(exitFullscreen).toHaveBeenCalledTimes(2);
+      } finally {
+        fullscreenElement.mockRestore();
+        exitFullscreen.mockRestore();
+        vi.mocked(sidebar.matches).mockRestore();
+        document.dispatchEvent(new Event('fullscreenchange'));
+      }
+    }
+  );
 
   it.each([
     { hasActiveCall: false, connected: false, roomId: null },

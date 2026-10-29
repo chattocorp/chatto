@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Hurtigtaster",
+      "app": "App",
+      "undo": "Angre",
+      "redo": "Gjør om",
+      "new_line": "Ny linje",
+      "edit_last": "Rediger siste melding (tomt utkast)",
+      "complete": "Fullfør omtale eller emoji"
+    },
+    "action_unavailable": "Denne handlingen er ikke tilgjengelig akkurat nå.",
+    "edit": "Rediger",
     "copy_failed": "Kunne ikke kopiere til utklippstavlen. Marker teksten og kopier den manuelt.",
     "cancel": "Avbryt",
     "close_sidebar": "Lukk sidefeltet",
@@ -22,12 +33,12 @@
     "password_placeholder": "Passordet ditt",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8-byte",
+    "password_bytes_placeholder": "Velg et passord",
     "password_confirm_placeholder": "Skriv inn passordet på nytt",
     "validation": {
       "email": "Vennligst skriv inn en gyldig e-postadresse",
-      "password_min_bytes": "Bruk minst 8 UTF-8-byte. Noen tegn bruker mer enn én byte.",
-      "password_max": "Bruk maksimalt 72 UTF-8-byte. Noen tegn bruker mer enn én byte.",
+      "password_min_bytes": "Passordet er for kort",
+      "password_max": "Passordet er for langt",
       "username_min": "Må bestå av minst 2 tegn",
       "username_max": "Må være på maksimalt 32 tegn",
       "username_charset": "Bare bokstaver, tall, prikker, bindestreker, understreker",

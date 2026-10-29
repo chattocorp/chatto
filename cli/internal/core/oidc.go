@@ -5,8 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"slices"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
@@ -25,7 +29,7 @@ func externalIdentityHash(issuer, subject string) string {
 }
 
 // GetUserByExternalIdentity looks up a user by provider issuer namespace and subject.
-func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*evtv1.User, error) {
+func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*readmodel.User, error) {
 	user, ok, err := c.userModel.userByExternalIdentity(ctx, issuer, subject)
 	if err != nil {
 		return nil, err
@@ -39,7 +43,7 @@ func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subj
 // GetUserByExternalIdentityForAuthentication returns the mapped user and the
 // authentication generation that was current in the same projection snapshot
 // as the identity mapping. Credential issuance must use that generation.
-func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*evtv1.User, uint64, error) {
+func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*readmodel.User, uint64, error) {
 	user, authGeneration, ok, err := c.userModel.userByExternalIdentityForAuthentication(ctx, issuer, subject)
 	if err != nil {
 		return nil, 0, err
@@ -48,6 +52,50 @@ func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Cont
 		return nil, 0, nil
 	}
 	return user, authGeneration, nil
+}
+
+// errLegacyIdentityCompleteOrMissing ends completion without writing when a
+// concurrent operation completed or removed the link.
+var errLegacyIdentityCompleteOrMissing = errors.New("legacy identity is complete or missing")
+
+// CompleteLegacyOIDCIdentityLink records metadata for an existing hash-only
+// link after the caller verifies the OIDC issuer and subject. It never creates
+// a missing link or overwrites a complete one. The user OCC check prevents a
+// concurrent unlink from being undone; a successful write waits for projections.
+// Repeat calls are idempotent.
+func (c *ChattoCore) CompleteLegacyOIDCIdentityLink(ctx context.Context, userID, providerID, issuer, subject string) error {
+	if userID == "" || providerID == "" || issuer == "" || subject == "" {
+		return ErrInvalidArgument
+	}
+	hash := externalIdentityHash(issuer, subject)
+	incomplete := func() bool {
+		return slices.ContainsFunc(c.userModel.externalIdentities(userID), func(identity ExternalIdentity) bool {
+			return identity.SubjectHash == hash && identity.Issuer == ""
+		})
+	}
+	if !incomplete() {
+		return nil
+	}
+	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
+		UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
+			UserId:       userID,
+			Issuer:       issuer,
+			Subject:      subject,
+			SubjectHash:  hash,
+			ProviderId:   providerID,
+			ProviderType: config.AuthProviderTypeOpenIDConnect,
+		},
+	}})
+	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
+		if !incomplete() {
+			return errLegacyIdentityCompleteOrMissing
+		}
+		return nil
+	})
+	if errors.Is(err, errLegacyIdentityCompleteOrMissing) {
+		return nil
+	}
+	return err
 }
 
 // LinkExternalIdentity links a verified provider subject to a user.

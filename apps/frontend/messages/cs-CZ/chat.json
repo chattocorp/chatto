@@ -6,6 +6,15 @@
       "confirmation": "Tímto na 15 minut zapnete další oprávnění, která vám byla na tomto serveru přidělena."
     },
     "notifications": {
+      "all_notifications": "Všechna oznámení",
+      "all_types": "Všechny typy",
+      "filter_status": "Stav",
+      "filter_type": "Typ",
+      "reactions": "Reakce",
+      "replies": "Odpovědi",
+      "mentions": "Zmínky",
+      "next_unread_source": "Přejít na další nepřečtený zdroj",
+      "no_unread": "Žádná nepřečtená oznámení",
       "title": "Oznámení",
       "subtitle": "Zde je novinka",
       "clear_read": "Odstranit přečtené",
@@ -28,12 +37,6 @@
         "activity": "Uživatel {actor} vám poslal oznámení",
         "room_invitation": "{actor} vás pozval do místnosti"
       }
-    },
-    "sign_out": {
-      "title": "Odhlásit se",
-      "current_server": "Aktuální server",
-      "all_servers": "Všechny servery",
-      "description": "Odhlaste se pouze z vybraného serveru nebo odpojte všechny servery od tohoto klienta."
     },
     "overview": {
       "title": "Přehled"

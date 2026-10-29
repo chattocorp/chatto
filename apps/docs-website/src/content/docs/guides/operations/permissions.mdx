@@ -58,8 +58,8 @@ roles does not change which setting wins.
 
 Moderators and admins get their member permissions from `everyone`. A new
 server also makes the `announcements` room read-only: in that room, it denies
-`message.post` for `everyone` and allows it for `admin`. Owners can post there
-only in privileged mode.
+`message.post` for `everyone` and allows it for `admin` and `owner`. Owners can
+post there without privileged mode.
 
 ## Privileged mode
 
@@ -111,6 +111,7 @@ Scopes: **S** Server, **G** Room group, **R** Room, **DM** Direct messages.
 | `room.join` | S, G, R | | Join channel rooms. |
 | `room.create` | S, G | Yes | Create channel rooms. |
 | `room.manage` | S, G, R | Yes | Configure, rename, archive, and delete rooms and room groups at that scope, and add or remove room members. At Server scope, also create and order room groups. |
+| `room.manage-notice` | S, G, R | No | Publish, correct, republish, and clear a channel notice. Requires current room membership. New instances grant it to Admin only. |
 | `room.remove-member` | S, G, R | Yes | Remove a member from a channel room, with a reason and an optional suspension. Replaces `room.ban-member`. |
 | `message.read` | All | | Read messages, threads, attachments, search results, and typing indicators. Includes `message.read-interactions`. |
 | `message.read-interactions` | All | | Read only threads that the account started, where another account mentioned it directly, or where it received a DM. It can read the full thread. |
@@ -221,6 +222,7 @@ bots.
 | Task | Where |
 | ---- | ----- |
 | Create roles and edit their permissions | Server Administration → **Permissions** |
+| View the members of a role (`role.assign` required) | Server Administration → **Permissions** → role |
 | Assign roles | Server Administration → **Members** → member → **Roles** |
 | Set permissions for one user | Server Administration → **Members** → member → **Permissions** |
 | Set permissions for one bot | Server Administration → **Bots** → bot → **Permissions** |
@@ -251,8 +253,9 @@ Make these changes on an upgraded server:
 - **Allow `bot.create`** for the roles that can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.
-- **Allow `message.post`** for `admin` in the `announcements` room if admins
-  must post there. Until you do this, admins cannot post there.
+- **Allow `message.post`** for `admin` and `owner` in the `announcements` room
+  if they must post there without privileged mode. New servers have these
+  grants; existing servers keep their current settings.
 - **Check `message.post`.** It now also allows thread replies, so a deny of
   `message.post-in-thread` does not stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
@@ -262,12 +265,31 @@ Make these changes on an upgraded server:
   Administrators, moderators, and owners must now enable
   [privileged mode](#privileged-mode) to use their administrative permissions.
   This also applies to custom `room.create` grants. Owners also need privileged
-  mode to see, join, or read rooms that deny this to `everyone`, and to post in
-  the `announcements` room. Give an owner the `admin` role or a room-level allow
-  if they need this access during normal use.
+  mode to see, join, or read rooms that deny this to `everyone` when no explicit
+  grant allows access. Give the `owner` role a room-level allow if owners need
+  this access during normal use.
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.
+
+## Room notices
+
+Grant `room.manage-notice` to the roles or accounts that should edit notices.
+New instances grant it to Admin. Upgrades keep existing permission grants.
+Select **Edit** in the notice banner, or open **Room information** and select
+**Edit notice**. Write up to 4,000 characters of Markdown. Use **Update** for
+edits that should keep existing dismissals. Use **Announce** when members should
+see the changed notice again. Both actions require a text change. **Clear** asks
+for confirmation before it removes the current notice for everyone in the room.
+The banner shows the publication date and time. Corrections preserve that time;
+**Announce** updates it.
+
+Notices belong to the room. Deleting an author's account does not remove notice
+text. Clearing a notice does not erase earlier versions from the event log.
+
+Members can dismiss the banner and read the notice in **Room information**. Dismissal
+applies only to the current device. Archived rooms keep their notices but reject
+edits. Non-members and room join previews cannot read notice content.
 
 ## Room invitations
 

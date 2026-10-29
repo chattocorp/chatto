@@ -37,10 +37,58 @@ still empty. Use it when the original input must not start an external action ag
 Runling does not restore the prior inbox. The root must decide how to reconnect
 resources, migrate its state, and reconcile actions whose outcome is uncertain.
 
+## Run titles
+
+Recorded workflows can set a descriptive title with
+`ctx.run?.setTitle('Compare JSON and SQLite')` and read it through `ctx.run?.title`.
+The setter normalizes whitespace and accepts 1–120 Unicode characters. It rejects
+empty values, other control characters, and updates after execution ends. Repeating
+the same title does not emit another event. Calls record updates through the host's
+normal journal path; they do not wait for disk persistence.
+
+The console displays the title instead of the workflow type as the main heading.
+The type and stable run reference remain unchanged. Titles survive restart and
+reactivation. They render as plain text and are visible in the run list, so exclude
+secrets and personal details. Older runs need no migration and fall back to their
+workflow type. Applications can wrap this operation in an agent tool; Runling has
+no automatic naming policy. See [FDR-013](fdr/FDR-013-run-titles.md).
+
+## Reactivate a finished workflow
+
+A root return ends its execution. To reuse its identity and state, a router calls
+`ctx.start(root, { input: nextInput, runId })`. Register `root` in `workflows` and
+use the same source kind and route name that created the run. Reactivation rejects
+while another execution is active. Queue inputs in the application when needed.
+
+The new execution uses fresh input and retained state. `ctx.run.resumed` is false;
+that flag identifies recovery after server interruption. Completed, failed, and
+cancelled executions are not restarted automatically. Their handles do not
+control later executions. Earlier inputs, results, and events remain in the
+journal. The console retains logs and timeline activity across executions, with
+total usage. Input, result, and status describe the latest execution.
+
+Sources can find retained runs through `ctx.runs({ includeFinished: true })`.
+Each entry supplies the latest input for application routing. The default
+`ctx.runs()` still returns active runs only. A finished entry's `finished` promise
+is settled, `steer` rejects, and cancellation and closing steering do nothing.
+
+No snapshot migration is required. To adopt this lifecycle, let the root return
+after its work and have the router select the retained ID for the next input.
+Interrupted roots still follow the recovery rules above. If retention has removed
+the run, the router must start a new run without `runId`.
+
 ## Saving and shutdown
 
-The server writes `.runling/runs/state.json` every 60 seconds and after task
-cleanup at graceful shutdown. Projects that use the legacy journal directory
+Set `RUNLING_DATA_DIRECTORY` before starting the host to select a separate
+storage directory for an instance. Run journals and snapshots go in its `runs/`
+subdirectory; server diagnostics go in `logs/`. An absolute path is recommended.
+Relative paths resolve from the server configuration directory, or from the
+working directory for `runling run`. Without this setting, existing `.runling/`
+and legacy journal-directory behavior is unchanged. Keep one owning process
+per storage directory. Restart the host after changing this setting.
+
+The server writes `.runling/runs/state.json` every 60 seconds, when an execution
+ends, and after task cleanup at graceful shutdown. Projects that use the legacy journal directory
 keep their snapshot there. Each write captures the complete object, writes a
 private temporary file, then renames it over the previous snapshot. Writes are
 ordered. There are no proxies or explicit save calls in task code.

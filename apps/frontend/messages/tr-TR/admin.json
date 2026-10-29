@@ -52,6 +52,11 @@
       "subtitle": "Sunucu kimliği, markalama ve mesajlar"
     },
     "members": {
+      "deactivate": "Hesabı devre dışı bırak",
+      "reactivate": "Hesabı yeniden etkinleştir",
+      "deactivate_description": "Kullanıcı artık bu sunucuyu kullanamayacak. Tüm oturumlar hemen sonlandırılacak. Verileri korunacak. Hesabı daha sonra yeniden etkinleştirebilirsiniz.",
+      "deactivated_description": "Bu hesap devre dışı. Yeniden etkinleştirme, kullanıcının tekrar giriş yapmasını sağlar. Eski oturumlar geçersiz kalır.",
+      "deactivation_failed": "Hesap erişimi değiştirilemedi.",
       "title": "Üyeler",
       "subtitle": "Sunucu üyelerini ve rollerini görüntüleyin ve yönetin",
       "search": "Üye ara",
@@ -249,6 +254,10 @@
         "name_title": "Ad ve açıklama",
         "name_subtitle": "Üyeler bunları oda listesinde ve odanın üst kısmında görür.",
         "visibility_title": "Görünürlük",
+        "membership_events_title": "Üye etkinliği",
+        "show_membership_events": "Katılma ve ayrılma olaylarını göster",
+        "membership_events_description": "Geçmiş dahil, kişilerin bu odaya ne zaman katıldığını veya odadan ayrıldığını göster. Bu etkinliği gizlemek onu silmez.",
+        "membership_events_unavailable": "Üye etkinliğinin gösterimini değiştirmek için bu sunucuyu güncelleyin.",
         "visibility_subtitle": "Bu odanın üyelerini seçin.",
         "universal_description": "Bu odaya katılabilen her üye otomatik olarak odanın üyesidir.",
         "visibility_help": "Tüm üyelerin alması gereken haberler, örneğin duyurular için evrensel oda kullanın. Üyeler evrensel bir odadan ayrılamaz, ancak odayı sessize alabilir. Evrensel seçeneğini kapatırsanız, daha önce katılan üyeler odada kalır.",

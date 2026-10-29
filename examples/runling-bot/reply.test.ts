@@ -77,7 +77,12 @@ function fixture(
         });
       }
       assert.ok(path.endsWith('CreateMessage'));
-      posts.push(requestJson(init));
+      const { idempotencyKey, ...message } = requestJson(init);
+      assert.match(
+        idempotencyKey,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
+      );
+      posts.push(message);
       return Response.json({ message: { id: 'reply' } }, { status: options.postStatus ?? 200 });
     },
     async (_r, context) => {

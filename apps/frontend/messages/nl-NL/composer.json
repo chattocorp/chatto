@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Emoji invoegen",
     "attach_file": "Bestand bijvoegen",
     "formatting_options": "Opmaakopties",
     "send": "Bericht verzenden",
@@ -25,6 +26,8 @@
     "drop_files_title": "Zet bestanden hier neer",
     "drop_files_subtitle": "Afbeeldingen en video's worden aan je bericht toegevoegd",
     "send_failed": "Kan bericht niet verzenden",
+    "send_retry_expired": "De termijn om opnieuw te verzenden is verstreken. Controleer of je bericht is aangekomen voordat je het opnieuw verzendt.",
+    "send_retry_reset": "De verbinding is opnieuw ingesteld. Controleer of je bericht is aangekomen voordat je het opnieuw verzendt.",
     "slow_mode_ready": "Langzame modus: één bericht per {interval}.",
     "slow_mode_waiting": "Langzame modus: opnieuw verzenden over {countdown}.",
     "slow_mode_bypassed": "Langzame modus: {interval} (je bent vrijgesteld).",
@@ -44,9 +47,11 @@
       "remove": "{filename} verwijderen",
       "video_disabled": "Video-uploads zijn uitgeschakeld op deze server.",
       "prepare_failed": "Kan bijlage niet voorbereiden",
+      "too_many": "Je kunt maximaal {max} bestanden per bericht bijvoegen. Extra bestanden zijn niet toegevoegd.",
       "too_large": "{filename} is te groot ({size}). Het maximum is {limit}."
     },
     "format": {
+      "underline": "Onderstrepen",
       "bold": "Vet",
       "italic": "Cursief",
       "inline_code": "Inline-code",

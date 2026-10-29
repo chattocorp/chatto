@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Klavkombinoj",
+      "app": "Aplikaĵo",
+      "undo": "Malfari",
+      "redo": "Refari",
+      "new_line": "Nova linio",
+      "edit_last": "Redakti la lastan mesaĝon (malplena malneto)",
+      "complete": "Kompletigi mencion aŭ emoĝion"
+    },
+    "action_unavailable": "Ĉi tiu ago nuntempe ne disponeblas.",
+    "edit": "Redakti",
     "copy_failed": "Ne eblis kopii al la tondujo. Elektu la tekston kaj kopiu ĝin permane.",
     "cancel": "Nuligi",
     "close_sidebar": "Fermu flankbreton",
@@ -22,12 +33,12 @@
     "password_placeholder": "Via pasvorto",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8-bajtoj",
+    "password_bytes_placeholder": "Elektu pasvorton",
     "password_confirm_placeholder": "Enigu pasvorton denove",
     "validation": {
       "email": "Bonvolu enigi validan retadreson",
-      "password_min_bytes": "Uzu almenaŭ 8 UTF-8-bajtojn. Iuj signoj uzas pli ol unu bajton.",
-      "password_max": "Uzu maksimume 72 UTF-8-bajtojn. Iuj signoj uzas pli ol unu bajton.",
+      "password_min_bytes": "La pasvorto estas tro mallonga",
+      "password_max": "La pasvorto estas tro longa",
       "username_min": "Devas esti almenaŭ 2 signoj",
       "username_max": "Devas esti maksimume 32 signoj",
       "username_charset": "Nur literoj, ciferoj, punktoj, streketoj, substrekoj",

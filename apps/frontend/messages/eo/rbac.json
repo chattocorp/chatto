@@ -147,6 +147,7 @@
       "call": "Vokoj"
     },
     "permission_help": {
+      "room_manage_notice": "Permesas al membro administri la avizon en aktiva kanala ĉambro, sed ne la ĉambron mem. Novaj instalaĵoj donas ĉi tiun permeson nur al Admin; ĝisdatigoj konservas ekzistantajn permesojn.",
       "server_manage": "Permesas al konto ŝanĝi la nomon, priskribon, emblemon kaj aliajn agordojn de la servilo. Ĝi ankaŭ permesas ŝanĝi la publikan najbaran katalogon. Donu ĝin nur al homoj, kiuj povas paroli por la tuta servilo.",
       "server_manage_neighbors": "Permesas al konto aldoni, ŝanĝi kaj forigi erojn en la publika najbara katalogo. Ĝi ne permesas ŝanĝi aliajn agordojn de la servilo.",
       "room_create": "Permesas al konto krei kanalajn ĉambrojn. Ĉe la nivelo de ĉambrogrupo, ĝi permesas novajn ĉambrojn nur en tiu grupo.",

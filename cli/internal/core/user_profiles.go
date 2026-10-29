@@ -8,6 +8,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -33,11 +35,11 @@ var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in th
 
 // UpdateUserDisplayName updates a user's display name.
 // Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*evtv1.User, error) {
+func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*readmodel.User, error) {
 	return c.updateUserDisplayNameAs(ctx, userID, userID, displayName)
 }
 
-func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userID, displayName string) (*evtv1.User, error) {
+func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userID, displayName string) (*readmodel.User, error) {
 	// Normalize and validate display name
 	displayName = NormalizeDisplayName(displayName)
 	if displayName == "" {
@@ -84,14 +86,14 @@ func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userI
 // AdminUpdateUserProfile updates a user's login, display name, and/or bio as a
 // single admin-authored mutation. When multiple fields are changed, their
 // durable events are appended atomically in one batch.
-func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*evtv1.User, error) {
+func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*readmodel.User, error) {
 	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName, bio, true)
 }
 
 // UpdateUserBio updates a user's public bio. An empty value clears it. A no-op
 // write (unchanged bio) appends no EVT event.
 // Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserBio(ctx context.Context, userID, bio string) (*evtv1.User, error) {
+func (c *ChattoCore) UpdateUserBio(ctx context.Context, userID, bio string) (*readmodel.User, error) {
 	return c.updateUserProfileAs(ctx, userID, userID, nil, nil, &bio, true)
 }
 
@@ -105,7 +107,7 @@ func normalizeBio(bio string) string {
 // cooldown and permission-based bypass. Conflicts are returned to the caller;
 // replacement values are never replayed after a concurrent profile edit.
 // Authorization: userID must identify the authenticated caller.
-func (c *ChattoCore) UpdateOwnUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*evtv1.User, error) {
+func (c *ChattoCore) UpdateOwnUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*readmodel.User, error) {
 	if err := requireAuthenticatedActor(userID); err != nil {
 		return nil, err
 	}
@@ -128,11 +130,11 @@ func (c *ChattoCore) UpdateOwnUserProfile(ctx context.Context, userID string, lo
 	return c.updateUserProfileWithCooldown(ctx, userID, userID, login, displayName, bio, false, enforceCooldown)
 }
 
-func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts bool) (*evtv1.User, error) {
+func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts bool) (*readmodel.User, error) {
 	return c.updateUserProfileWithCooldown(ctx, actorID, userID, login, displayName, bio, retryConflicts, false)
 }
 
-func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts, enforceCooldown bool) (*evtv1.User, error) {
+func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts, enforceCooldown bool) (*readmodel.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -147,6 +149,17 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 			return nil, err
 		}
 		loginChanged = user.GetLogin() != nextLogin
+		// Clients may include an unchanged username when updating other fields.
+		// Provider management prevents renames, not full-profile submissions.
+		if actorID == userID && loginChanged {
+			managed, err := c.UsernameManaged(ctx, userID)
+			if err != nil {
+				return nil, err
+			}
+			if managed {
+				return nil, ErrUsernameManaged
+			}
+		}
 		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
 		if loginNeedsMentionCheck {
 			if c.configModel.IsUsernameBlocked(nextLogin) {
@@ -250,6 +263,9 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	}
 
 	checkUserExists := func() error {
+		if actorID == userID && loginChanged && c.usernameManaged(userID) {
+			return ErrUsernameManaged
+		}
 		if err := checkCooldown(); err != nil {
 			return err
 		}
@@ -319,7 +335,7 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 // user.manage-accounts neither checks nor advances it. Conflicts are returned
 // to the caller; replacement values are never replayed after a concurrent
 // profile edit.
-func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targetUserID string, login, displayName, bio *string) (*evtv1.User, error) {
+func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targetUserID string, login, displayName, bio *string) (*readmodel.User, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -386,7 +402,7 @@ func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, tar
 // unless the user has user.manage-accounts. A bypassed change does not advance
 // the user's cooldown timestamp.
 // Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*evtv1.User, error) {
+func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*readmodel.User, error) {
 	bypassCooldown := false
 	if err := c.authorizeAtStableInputs(ctx, func() error {
 		canManageAccounts, err := c.CanManageUserAccounts(ctx, userID)
@@ -405,7 +421,7 @@ func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin strin
 // check and not advancing the cooldown timestamp. The user retains whatever
 // rename allowance they had prior to the admin edit.
 // Authorization: Caller must verify admin privileges.
-func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin string) (*evtv1.User, error) {
+func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin string) (*readmodel.User, error) {
 	user, err := c.applyLoginChange(ctx, SystemActorID, userID, newLogin, false)
 	if err != nil {
 		return nil, err
@@ -417,7 +433,22 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 // applyLoginChange performs the actual login change. When enforceCooldown is
 // true, the 30-day cooldown is checked before changing and a new timestamp is
 // recorded after a successful change.
-func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*evtv1.User, error) {
+func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*readmodel.User, error) {
+	return c.applyLoginChangeChecked(ctx, actorID, userID, newLogin, enforceCooldown, nil)
+}
+
+// applyLoginChangeChecked rechecks an optional source policy under the same
+// user guard as the rename, so unlinking cannot race provider synchronization.
+func (c *ChattoCore) applyLoginChangeChecked(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool, check func() error) (*readmodel.User, error) {
+	if actorID == userID {
+		managed, err := c.UsernameManaged(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if managed {
+			return nil, ErrUsernameManaged
+		}
+	}
 	// Trim (preserve original casing).
 	newLogin = strings.TrimSpace(newLogin)
 
@@ -483,6 +514,14 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	}
 	if !caseOnly {
 		_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			if check != nil {
+				if err := check(); err != nil {
+					return err
+				}
+			}
+			if actorID == userID && c.usernameManaged(userID) {
+				return ErrUsernameManaged
+			}
 			if _, err := c.GetUser(ctx, userID); err != nil {
 				return fmt.Errorf("user not found: %w", err)
 			}
@@ -490,8 +529,23 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 		})
 	} else {
 		_, err = c.appendUserBatch(ctx, userID, entries, evtstream.UserSubjectFilter(), func() error {
-			if _, err := c.GetUser(ctx, userID); err != nil {
+			if check != nil {
+				if err := check(); err != nil {
+					return err
+				}
+			}
+			if actorID == userID && c.usernameManaged(userID) {
+				return ErrUsernameManaged
+			}
+			current, err := c.GetUser(ctx, userID)
+			if err != nil {
 				return fmt.Errorf("user not found: %w", err)
+			}
+			// The uniqueness exemption is valid only for the source username.
+			// Recheck after projection catch-up on every OCC attempt: another
+			// rename can release that name for a different account to claim.
+			if current.Login != user.Login {
+				return events.ErrConflict
 			}
 			return nil
 		})
@@ -544,7 +598,7 @@ func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, us
 // SetUserCustomStatus stores or replaces a user's durable custom status.
 // Expiry is modeled on the event itself; readers hide expired statuses without
 // writing auxiliary runtime state.
-func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, text string, expiresAt *time.Time) (*evtv1.User, error) {
+func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, text string, expiresAt *time.Time) (*readmodel.User, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}
@@ -595,7 +649,7 @@ func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, tex
 
 // ClearUserCustomStatus removes a user's durable custom status. It is
 // idempotent and still records a clear event for explicit user action history.
-func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (*evtv1.User, error) {
+func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (*readmodel.User, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}

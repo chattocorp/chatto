@@ -674,6 +674,46 @@ export class RoomUniversalChangedEvent extends Message<RoomUniversalChangedEvent
 }
 
 /**
+ * RoomNoticeChangedEvent asks current room members to read the latest notice.
+ * It covers corrections, publication, republishing, and clear operations.
+ *
+ * @generated from message chatto.realtime.v1.RoomNoticeChangedEvent
+ */
+export class RoomNoticeChangedEvent extends Message<RoomNoticeChangedEvent> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<RoomNoticeChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoomNoticeChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomNoticeChangedEvent {
+    return new RoomNoticeChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomNoticeChangedEvent {
+    return new RoomNoticeChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomNoticeChangedEvent {
+    return new RoomNoticeChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomNoticeChangedEvent | PlainMessage<RoomNoticeChangedEvent> | undefined, b: RoomNoticeChangedEvent | PlainMessage<RoomNoticeChangedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomNoticeChangedEvent, a, b);
+  }
+}
+
+/**
  * RoomSlowModeChangedEvent reports the current slow-mode interval.
  *
  * @generated from message chatto.realtime.v1.RoomSlowModeChangedEvent
@@ -768,6 +808,53 @@ export class RoomThreadingModeChangedEvent extends Message<RoomThreadingModeChan
 
   static equals(a: RoomThreadingModeChangedEvent | PlainMessage<RoomThreadingModeChangedEvent> | undefined, b: RoomThreadingModeChangedEvent | PlainMessage<RoomThreadingModeChangedEvent> | undefined): boolean {
     return proto3.util.equals(RoomThreadingModeChangedEvent, a, b);
+  }
+}
+
+/**
+ * RoomMembershipEventsVisibilityChangedEvent changes how clients display room
+ * join/leave activity, including history. Clients must still process membership
+ * events when this setting is false.
+ *
+ * @generated from message chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEvent
+ */
+export class RoomMembershipEventsVisibilityChangedEvent extends Message<RoomMembershipEventsVisibilityChangedEvent> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: bool show_membership_events = 2;
+   */
+  showMembershipEvents = false;
+
+  constructor(data?: PartialMessage<RoomMembershipEventsVisibilityChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomMembershipEventsVisibilityChangedEvent {
+    return new RoomMembershipEventsVisibilityChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomMembershipEventsVisibilityChangedEvent {
+    return new RoomMembershipEventsVisibilityChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomMembershipEventsVisibilityChangedEvent {
+    return new RoomMembershipEventsVisibilityChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomMembershipEventsVisibilityChangedEvent | PlainMessage<RoomMembershipEventsVisibilityChangedEvent> | undefined, b: RoomMembershipEventsVisibilityChangedEvent | PlainMessage<RoomMembershipEventsVisibilityChangedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomMembershipEventsVisibilityChangedEvent, a, b);
   }
 }
 
@@ -1866,6 +1953,51 @@ export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
 
   static equals(a: UserAccountCreatedEvent | PlainMessage<UserAccountCreatedEvent> | undefined, b: UserAccountCreatedEvent | PlainMessage<UserAccountCreatedEvent> | undefined): boolean {
     return proto3.util.equals(UserAccountCreatedEvent, a, b);
+  }
+}
+
+/**
+ * Reports a reversible account access change. Administrative details are private.
+ *
+ * @generated from message chatto.realtime.v1.UserAccountDeactivationChangedEvent
+ */
+export class UserAccountDeactivationChangedEvent extends Message<UserAccountDeactivationChangedEvent> {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * @generated from field: bool deactivated = 2;
+   */
+  deactivated = false;
+
+  constructor(data?: PartialMessage<UserAccountDeactivationChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.UserAccountDeactivationChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "deactivated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserAccountDeactivationChangedEvent {
+    return new UserAccountDeactivationChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserAccountDeactivationChangedEvent {
+    return new UserAccountDeactivationChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserAccountDeactivationChangedEvent {
+    return new UserAccountDeactivationChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UserAccountDeactivationChangedEvent | PlainMessage<UserAccountDeactivationChangedEvent> | undefined, b: UserAccountDeactivationChangedEvent | PlainMessage<UserAccountDeactivationChangedEvent> | undefined): boolean {
+    return proto3.util.equals(UserAccountDeactivationChangedEvent, a, b);
   }
 }
 

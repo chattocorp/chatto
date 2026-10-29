@@ -44,6 +44,10 @@ type AuthProviderConfig struct {
 	Scopes                  []string `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
 	RequestEmail            *bool    `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
 	AutoProvision           *bool    `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
+	ManageUsernames         bool     `toml:"manage_usernames,commented" comment:"Assign usernames from this provider and prevent local username edits for linked accounts. Default: false."`
+	UsernameClaim           string   `toml:"username_claim,commented" comment:"OIDC top-level string claim for managed usernames. Default: preferred_username. No email or display-name fallback."`
+	UpdateUsernames         bool     `toml:"update_usernames,commented" comment:"Update managed usernames at sign-in. Requires manage_usernames. Default: false; existing names remain unchanged."`
+	AllowUnlinking          *bool    `toml:"allow_unlinking,commented" comment:"Allow users to disconnect this provider if another sign-in method remains. Operators can still disconnect it. Default: true."`
 	// AllowedGroups and GroupsClaim restrict every sign-in and identity link
 	// through this provider. See AdmitsGroups. GroupRoles maps the same groups
 	// to Chatto roles. See GroupRoleMappings and FDR-050.

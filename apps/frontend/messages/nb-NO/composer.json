@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Sett inn emoji",
     "attach_file": "Legg ved fil",
     "formatting_options": "Formateringsalternativer",
     "send": "Send melding",
@@ -25,6 +26,8 @@
     "drop_files_title": "Slipp filer her",
     "drop_files_subtitle": "Bilder og videoer vil bli lagt til meldingen din",
     "send_failed": "Kunne ikke sende melding",
+    "send_retry_expired": "Fristen for å prøve å sende på nytt er utløpt. Sjekk om meldingen din kom frem før du sender den på nytt.",
+    "send_retry_reset": "Tilkoblingen ble tilbakestilt. Sjekk om meldingen din kom frem før du sender den på nytt.",
     "slow_mode_ready": "Sakte modus: én melding hvert {interval}.",
     "slow_mode_waiting": "Sakte modus: send igjen om {countdown}.",
     "slow_mode_bypassed": "Sakte modus: {interval} (du er unntatt).",
@@ -44,9 +47,11 @@
       "remove": "Fjern {filename}",
       "video_disabled": "Videoopplasting er deaktivert på denne serveren.",
       "prepare_failed": "Kunne ikke klargjøre vedlegget",
+      "too_many": "Du kan legge ved opptil {max} filer per melding. Ekstra filer ble ikke lagt til.",
       "too_large": "{filename} er for stor ({size}). Maksimum er {limit}."
     },
     "format": {
+      "underline": "Understreking",
       "bold": "Fet",
       "italic": "Kursiv",
       "inline_code": "Innebygd kode",

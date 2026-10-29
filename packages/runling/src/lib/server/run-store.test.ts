@@ -195,7 +195,6 @@ test('shutdown keeps Node alive until cooperative cleanup and journal flush fini
   await promisify(execFile)(
     process.execPath,
     [
-      '--conditions=runling-source',
       '--import',
       'tsx',
       '--input-type=module',
@@ -397,7 +396,9 @@ test('recovers a truncated journal as interrupted and saves the recovery', async
   const again = new RunStore(history.directory);
   await again.init();
   expect(await again.get(run.id)).toEqual(await recovered.get(run.id));
-  expect(await readdir(history.directory)).toEqual([`${run.id}.jsonl`]);
+  expect((await readdir(history.directory)).sort()).toEqual(
+    [`${run.id}.jsonl`, 'state.json'].sort()
+  );
 });
 
 test('keeps a running journal of another live process, and interrupts one whose process ended', async () => {

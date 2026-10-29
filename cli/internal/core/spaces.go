@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nats-io/nats.go/jetstream"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 // DefaultGlobalRoom describes a channel that ships with a fresh
@@ -24,7 +24,8 @@ type DefaultGlobalRoom struct {
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
 // deployment. Each lands in the seed "Lobby" group. Normal rooms inherit the
 // server-tier everyone defaults; the "announcements" room is universal and
-// adds a room-tier everyone/message.post denial and admin/message.post grant.
+// adds a room-tier everyone/message.post denial and message.post grants for
+// admins and owners.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
 	{Name: AnnouncementsRoomName, Description: "Announcements and news", Universal: true},
 	{Name: "general", Description: "General discussion"},
@@ -113,7 +114,7 @@ func (c *ChattoCore) GetAssetCount(ctx context.Context) (int, error) {
 // ServerMemberWithRoles represents a server member with their assigned roles.
 type ServerMemberWithRoles struct {
 	UserID string
-	User   *evtv1.User
+	User   *readmodel.User
 	Roles  []string
 }
 
@@ -153,9 +154,9 @@ func (c *ChattoCore) GetServerMembers(ctx context.Context, search string, limit,
 	return result, totalCount, nil
 }
 
-func serverMemberUserPage(allUsers []*evtv1.User, search string, limit, offset int) ([]*evtv1.User, int) {
+func serverMemberUserPage(allUsers []*readmodel.User, search string, limit, offset int) ([]*readmodel.User, int) {
 	searchLower := strings.ToLower(strings.TrimSpace(search))
-	matches := make([]*evtv1.User, 0, len(allUsers))
+	matches := make([]*readmodel.User, 0, len(allUsers))
 	for _, user := range allUsers {
 		if searchLower != "" {
 			loginMatch := strings.Contains(strings.ToLower(user.GetLogin()), searchLower)
@@ -196,7 +197,7 @@ func serverMemberUserPage(allUsers []*evtv1.User, search string, limit, offset i
 
 	// Apply pagination
 	if offset >= len(matches) {
-		return []*evtv1.User{}, totalCount
+		return []*readmodel.User{}, totalCount
 	}
 	matches = matches[offset:]
 	if limit > 0 && len(matches) > limit {

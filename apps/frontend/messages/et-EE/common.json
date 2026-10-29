@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Klaviatuuri otseteed",
+      "app": "Rakendus",
+      "undo": "Võta tagasi",
+      "redo": "Tee uuesti",
+      "new_line": "Uus rida",
+      "edit_last": "Muuda viimast sõnumit (tühi mustand)",
+      "complete": "Lõpeta mainimine või emotikon"
+    },
+    "action_unavailable": "See toiming pole praegu saadaval.",
+    "edit": "Muuda",
     "copy_failed": "Lõikelauale kopeerimine ebaõnnestus. Valige tekst ja kopeerige see käsitsi.",
     "cancel": "Tühista",
     "close_sidebar": "Sule külgriba",
@@ -22,12 +33,12 @@
     "password_placeholder": "Teie parool",
     "email_placeholder": "sina@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8 baiti",
+    "password_bytes_placeholder": "Valige parool",
     "password_confirm_placeholder": "Sisestage parool uuesti",
     "validation": {
       "email": "Sisestage kehtiv e-posti aadress",
-      "password_min_bytes": "Kasutage vähemalt 8 UTF-8 baiti. Mõned märgid kasutavad rohkem kui ühte baiti.",
-      "password_max": "Kasutage kuni 72 UTF-8 baiti. Mõned märgid kasutavad rohkem kui ühte baiti.",
+      "password_min_bytes": "Parool on liiga lühike",
+      "password_max": "Parool on liiga pikk",
       "username_min": "Peab olema vähemalt 2 tähemärki",
       "username_max": "Peab olema kuni 32 tähemärki",
       "username_charset": "Ainult tähed, numbrid, punktid, sidekriipsud, allkriipsud",

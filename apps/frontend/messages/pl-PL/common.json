@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Skróty klawiszowe",
+      "app": "Aplikacja",
+      "undo": "Cofnij",
+      "redo": "Ponów",
+      "new_line": "Nowy wiersz",
+      "edit_last": "Edytuj ostatnią wiadomość (pusty szkic)",
+      "complete": "Uzupełnij wzmiankę lub emoji"
+    },
+    "action_unavailable": "Ta czynność jest obecnie niedostępna.",
+    "edit": "Edytuj",
     "copy_failed": "Nie udało się skopiować do schowka. Zaznacz tekst i skopiuj go ręcznie.",
     "cancel": "Anuluj",
     "close_sidebar": "Zamknij pasek boczny",
@@ -22,12 +33,12 @@
     "password_placeholder": "Twoje hasło",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 bajty UTF-8",
+    "password_bytes_placeholder": "Wybierz hasło",
     "password_confirm_placeholder": "Wprowadź hasło ponownie",
     "validation": {
       "email": "Proszę podać prawidłowy adres e-mail",
-      "password_min_bytes": "Użyj co najmniej 8 bajtów UTF-8. Niektóre znaki zajmują więcej niż jeden bajt.",
-      "password_max": "Użyj najwyżej 72 bajtów UTF-8. Niektóre znaki zajmują więcej niż jeden bajt.",
+      "password_min_bytes": "Hasło jest za krótkie",
+      "password_max": "Hasło jest za długie",
       "username_min": "Musi zawierać co najmniej 2 znaki",
       "username_max": "Musi mieć maksymalnie 32 znaki",
       "username_charset": "Tylko litery, cyfry, kropki, myślniki, podkreślenia",

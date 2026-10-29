@@ -4,6 +4,8 @@ import { stripVTControlCharacters } from 'node:util';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { emitRunlingEvent } from './events.ts';
 import { renderMarkdown } from './markdown.ts';
+import { terminalLogLine, type TerminalLogLevel } from './terminal-log.ts';
+import { formatLogFields, type LogFields } from './log-fields.ts';
 
 function paint(color: string, text: string) {
   if (!terminalColors(destinationStorage.getStore() === 'stderr' ? process.stderr : process.stdout))
@@ -38,28 +40,34 @@ interface LogSource {
 
 const destinationStorage = new AsyncLocalStorage<LogDestination>();
 const sourceStorage = new AsyncLocalStorage<LogSource>();
+const fieldsStorage = new AsyncLocalStorage<LogFields>();
 
 /** Start host-run logs at the root, without the dispatching task's indentation, color, or agent. */
 export const withRootLog = <T>(work: () => T): T =>
-  depthStorage.exit(() => colorStorage.exit(() => sourceStorage.exit(work)));
+  depthStorage.exit(() =>
+    colorStorage.exit(() => sourceStorage.exit(() => fieldsStorage.exit(work)))
+  );
 
 function indent(): string {
   return INDENT_UNIT.repeat(depthStorage.getStore() ?? 0);
 }
 
 function write(
-  level: 'debug' | 'info' | 'success' | 'error',
+  level: TerminalLogLevel,
   message: string,
   defaultColor: string,
   source?: 'step',
-  markdown?: { label: string; text: string }
+  markdown?: { label: string; text: string },
+  fields?: LogFields
 ): void {
   const color = colorStorage.getStore() ?? defaultColor;
   const contextualSource = sourceStorage.getStore();
+  const metadata = { ...fieldsStorage.getStore(), ...fields };
   emitRunlingEvent({
     type: 'log',
     level,
     message,
+    ...(Object.keys(metadata).length ? { fields: metadata } : {}),
     depth: depthStorage.getStore() ?? 0,
     color,
     source: source ?? contextualSource?.type,
@@ -69,13 +77,8 @@ function write(
   const destination = destinationStorage.getStore();
   if (destination === 'silent') return;
 
-  const symbol =
-    level === 'success' ? '✓' : level === 'error' ? '✗' : level === 'debug' ? '·' : '●';
-  const stderr = level === 'error' || destination === 'stderr';
+  const stderr = level === 'error' || level === 'warn' || destination === 'stderr';
   const stream = stderr ? process.stderr : process.stdout;
-  const colored = terminalColors(stream);
-  const ansi = ansiColor(color);
-  const marker = colored && ansi ? `${ansi}${symbol}\x1b[0m` : symbol;
   // Render only for a terminal. Journals and pipes retain the original Markdown.
   // The label gets its own line so it does not consume the answer's first-line width.
   const rendered =
@@ -85,9 +88,12 @@ function write(
           Math.max(1, (stream.columns || 80) - indent().length - 2)
         )}\n`
       : message;
-  const body = colored ? rendered : stripVTControlCharacters(rendered);
-  // Continuation lines align with the first line's text, under the marker.
-  const line = `${indent()}${marker} ${body.replace(/\n/g, `\n${indent()}  `)}`;
+  const line = terminalLogLine(level, rendered + formatLogFields(metadata), {
+    depth: depthStorage.getStore() ?? 0,
+    color,
+    stderr,
+    preserveStyles: true
+  });
   if (stderr) {
     console.error(line);
   } else {
@@ -118,21 +124,32 @@ export type LoggedWork<T> = () => T;
 let defaultLevel: LogLevel = 'info';
 
 export const log = {
+  /** Debug is enabled globally by the environment or level setter, or for a verbose run. */
   get level(): LogLevel {
-    const services = executionServices();
-    return services ? (services.verbose ? 'debug' : 'info') : defaultLevel;
+    return process.env.RUNLING_LOG_LEVEL === 'debug' || executionServices()?.verbose
+      ? 'debug'
+      : defaultLevel;
   },
   set level(value: LogLevel) {
     defaultLevel = value;
   },
-  debug: (message: string) => {
+  debug: (message: string, fields?: LogFields) => {
     if (log.level === 'debug') {
-      write('debug', message, 'gray');
+      write('debug', message, 'gray', undefined, undefined, fields);
     }
   },
-  info: (message: string) => write('info', message, 'dodgerblue'),
-  success: (message: string) => write('success', message, 'limegreen'),
-  error: (message: string) => write('error', message, 'crimson'),
+  info: (message: string, fields?: LogFields) =>
+    write('info', message, 'dodgerblue', undefined, undefined, fields),
+  success: (message: string, fields?: LogFields) =>
+    write('success', message, 'limegreen', undefined, undefined, fields),
+  warn: (message: string, fields?: LogFields) =>
+    write('warn', message, 'gold', undefined, undefined, fields),
+  error: (message: string, fields?: LogFields) =>
+    write('error', message, 'crimson', undefined, undefined, fields),
+  /** Attach safe metadata to logs for this asynchronous operation. Inner fields take precedence. */
+  withFields<T>(fields: LogFields, work: () => T): T {
+    return fieldsStorage.run({ ...fieldsStorage.getStore(), ...fields }, work);
+  },
   /** Renders `text` in the active contextual color, if there is one. */
   colorize(text: string): string {
     const color = colorStorage.getStore();

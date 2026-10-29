@@ -6,6 +6,15 @@
       "confirmation": "Bu işlem, bu sunucuda sana atanmış ek izinleri 15 dakika boyunca etkinleştirir."
     },
     "notifications": {
+      "all_notifications": "Tüm bildirimler",
+      "all_types": "Tüm türler",
+      "filter_status": "Durum",
+      "filter_type": "Tür",
+      "reactions": "Tepkiler",
+      "replies": "Yanıtlar",
+      "mentions": "Bahsetmeler",
+      "next_unread_source": "Sonraki okunmamış kaynağa gidin",
+      "no_unread": "Okunmamış bildirim yok",
       "title": "Bildirimler",
       "subtitle": "İşte yenilikler",
       "clear_read": "Okunanları temizle",
@@ -28,12 +37,6 @@
         "activity": "{actor} sana bir bildirim gönderdi",
         "room_invitation": "{actor} sizi bir odaya davet etti"
       }
-    },
-    "sign_out": {
-      "title": "Oturumu Kapat",
-      "current_server": "Mevcut Sunucu",
-      "all_servers": "Tüm Sunucular",
-      "description": "Yalnızca seçilen sunucudaki oturumu kapatın veya bu istemcideki tüm sunucuların bağlantısını kesin."
     },
     "overview": {
       "title": "Genel Bakış"

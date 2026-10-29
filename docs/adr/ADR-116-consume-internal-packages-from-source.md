@@ -41,22 +41,31 @@ differences in consumer settings, such as Node types, can still fail a
 consumer check; `mise check-workspace` finds them. Source consumers use the
 same TypeScript major version as the packages.
 
-Runling is not in scope. It is published to npm and keeps its build.
+Runling was originally outside this decision. Its own
+[ADR-013](../../packages/runling/docs/adr/ADR-013-source-workspace-exports.md)
+now uses source exports in the workspace and retains compiled npm packages.
 
 Translatto uses
 `build` to emit JavaScript and type declarations. pnpm `pack` applies
 `publishConfig` to replace the source exports in the published manifest. A
 package test installs the tarball outside the workspace and checks Node ESM
 imports and TypeScript declarations. Workspace consumers still use source.
-The current Turbo `^build` dependencies also run this build before dependent
+The client also has a publication build. It includes the private generated
+API types, rewrites their output imports to relative paths, and keeps their
+Apache-2.0 license. pnpm packs a separate publication directory with compiled
+exports and no dependency on the private package. Workspace links still use
+source. Its package test checks a clean installation, Node imports with and
+without Svelte, and TypeScript declarations.
+
+The current Turbo `^build` dependencies also run these builds before dependent
 package tasks. Removing these unnecessary builds is a follow-up task.
 
 ## Consequences
 
 A new worktree can run any frontend, client, or bot command after
 `mise setup`. Changes to package source take effect immediately, also in
-direct Vitest and svelte-check runs. The API types and client have no build
-task. Translatto has a build for npm publication. `mise codegen-proto` only
+direct Vitest and svelte-check runs. The API types have no build task.
+Translatto and the client have builds for npm publication. `mise codegen-proto` only
 generates source.
 
 Consumer type checks include the source of the packages that they import. This
@@ -64,7 +73,5 @@ makes those checks slightly slower. A change to package code can fail a
 consumer check that the package check accepts, when the consumer uses stricter
 settings.
 
-The Translatto package test covers its compiled npm output. The
-end-to-end bot test runs the client in a Node host through tsx. It does not
-show that a compiled package works for third-party bots. Add that test with
-the first published client build.
+The Translatto and client package tests cover their compiled npm output.
+The end-to-end bot test runs the workspace client in a Node host through tsx.

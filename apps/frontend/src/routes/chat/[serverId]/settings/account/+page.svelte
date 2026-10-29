@@ -1,4 +1,10 @@
 <script lang="ts">
+  import {
+    AccountDeletionAvailability,
+    accountDeletionAvailabilityWithFallback
+  } from '@chatto/client/api/actionAvailability';
+  import { queryClient } from '$lib/query/queryClient';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '@chatto/client/api/account';
@@ -50,13 +56,28 @@
         </dl>
       </Panel>
 
-      <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
+      <PasswordSettings
+        {currentUser}
+        directLoginEnabled={serverScope.store.serverInfo.directLoginEnabled}
+        getAccountAPI={accountAPI}
+        onPasswordSet={() =>
+          queryClient.invalidateQueries({
+            queryKey: settingsQueryKeys.externalIdentities(
+              serverScope.serverId,
+              serverScope.connection,
+              serverScope.store.accountId ?? ''
+            )
+          })}
+      />
       {#key serverScope.store.accountId ?? ''}
         <VerifiedEmailSettings />
       {/key}
       <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
       <DeleteAccountSection
-        canDeleteAccount={currentUser.user?.viewerCanDeleteAccount ?? false}
+        canDeleteAccount={accountDeletionAvailabilityWithFallback(
+          currentUser.user?.actions?.deleteAccount,
+          currentUser.user?.viewerCanDeleteAccount ?? false
+        ) === AccountDeletionAvailability.ALLOWED}
         getAccountAPI={accountAPI}
       />
     </div>

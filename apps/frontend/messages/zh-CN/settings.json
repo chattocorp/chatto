@@ -118,7 +118,7 @@
       "conflict": "你编辑时此个人资料已被更改。请重新加载页面，然后再次保存更改。",
       "save_button": "保存更改",
       "bio": {
-        "label": "个人简介",
+        "label": "简介",
         "description": "最多 {max} 个字符，显示在你的个人资料中。",
         "placeholder": "简单介绍一下自己",
         "too_long": "简介不能超过 {max} 个字符。"
@@ -141,6 +141,21 @@
         "dark": {
           "label": "深色",
           "description": "在此浏览器中使用深色界面"
+        }
+      },
+      "animations": {
+        "title": "动画",
+        "automatic": {
+          "label": "自动",
+          "description": "遵循系统的减少动态效果偏好设置"
+        },
+        "enabled": {
+          "label": "启用",
+          "description": "始终显示动画"
+        },
+        "disabled": {
+          "label": "禁用",
+          "description": "显示更改时不使用动画"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "密码",
         "add_description": "添加密码后，你可以直接登录，并可解绑最后一个 SSO 提供商。",
         "change_description": "更改直接登录所使用的密码。",
+        "sso_managed": "此服务器使用单点登录（SSO），因此你无法添加或更改密码。请在你的身份提供商处管理登录信息。",
         "current_label": "当前密码",
         "current_required": "请输入当前密码。",
         "add_button": "添加密码",
@@ -437,6 +453,9 @@
         "already_set": "此账号已有密码。"
       },
       "sso": {
+        "username_unavailable": "无法分配登录提供商的用户名。请联系服务器运营者。",
+        "username_managed": "你的用户名由登录提供商管理，无法在此修改。",
+        "unlink_disabled": "服务器运营者不允许解除与此提供商的关联。",
         "popup_blocked": "请允许此网站的弹出窗口，然后重试关联。",
         "account_mismatch": "请在此服务器上登录正确的账户，然后从原来的窗口重新开始关联。",
         "provider_unavailable": "此登录服务提供商已不可用。",
@@ -449,6 +468,7 @@
         "link_button": "关联",
         "link_failed": "登录提供商关联失败",
         "fresh_auth_required": "关联其他提供商前请重新登录。",
+        "sso_fresh_auth_required": "请在此账号所属的服务器上打开账号设置。退出登录，然后通过你的 SSO 提供商重新登录，再在该服务器上重试此操作。",
         "provider_unconfigured": "已不再配置此提供商",
         "disconnect_button": "解除关联",
         "disconnecting": "正在解除关联...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "无法解除提供商关联",
-          "body": "{provider} 是你唯一的登录方式。请先添加密码或关联其他提供商。"
+          "body": "解除与 {provider} 的关联前，请先设置此服务器支持的其他登录方式。"
         },
         "fresh_auth_modal": {
           "title": "确认密码",

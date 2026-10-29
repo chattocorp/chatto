@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-10-22
+**Last reviewed:** 2026-10-29
 
 ## Overview
 
@@ -11,6 +11,11 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 - Automatic links require `www.` or an allowed protocol: `https://`, `http://`, or `mailto:`. Bare domains, filenames, email addresses without `mailto:`, and protocol-relative URLs stay plain text. Explicit Markdown links also allow root-relative paths that start with one `/`, such as `[room](/chat/example.com/R8rLgzhPkYja7Gs)`. These paths do not produce link previews, and the visual editor preserves them. Other protocols stay unlinked. This rule prevents filenames such as `agents.md` and `foo.py` from becoming links. The source editor uses the same prefix rule for URL highlighting. Selecting a `mailto:` link opens the configured mail application.
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline code, fenced and indented code blocks, blockquotes, and ordered and unordered lists.
+- Built-in emoji shortcodes, such as `:wave:`, `:heart:`, and `:+1:`, render as Unicode emoji. Names are case-sensitive and use the gemoji catalogue, including its aliases, plus the entries in `tools/emoji-additions.json`. The additions supply newer emoji missing from the released dependency; `mise codegen-emoji` includes them in the server, client, and converter maps. The picker and shortcode resolver use the same base catalogue. Display depends on the device's emoji font. Adjacent tags work without spaces. Unknown names stay literal. Code, automatic URL labels, link destinations, and link titles stay unchanged. Explicit link labels, quotes, tables, footnotes, and inline Markdown previews support shortcodes.
+- Typed shortcodes remain in the stored message and in both editors. Editing, reopening, and copying the full message source retain them. Existing Unicode emoji and the picker's Unicode insertion still work. Other clients can show shortcode text without a server upgrade.
+- The smiley button beside the attachment and timestamp controls opens the same emoji picker used for reactions. Selecting an emoji inserts Unicode at the cursor or replaces selected text, then returns focus to the editor. Both editors support this in new messages, thread replies, and message edits. Search, skin-tone choices, and the per-server Recently Used list are shared with the reaction picker. Touch-primary devices show the picker in a bottom sheet. The button is disabled when the message input is disabled.
+- Shortcodes directly beside Unicode letters, numbers, combining marks, or literal underscores stay literal. For example, `omg:poop:foo` stays unchanged. Whitespace and punctuation permit conversion, so `(:wave:)!` and `:wave::heart:` work. Markdown formatting still applies around tags, such as `_:wave:_` for an italic emoji. Autocomplete uses the same opening boundary and shortcode name characters. Suggestions appear after two name characters, including signed aliases such as `:+1`.
+- Double underscores (`__text__`) mean underline, including in existing messages. Double asterisks (`**text**`) mean bold. Underline uses the normal emphasis boundaries and does not interpret underscores inside inline code, code blocks, or link destinations. Both editors provide an Underline toolbar button and Ctrl+U (⌘U on macOS). The visual editor retains underline when messages are saved, reopened, or switched to Markdown.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Messages, server welcome messages, and Markdown attachment previews support named footnotes. Notes are numbered in reference order and appear after the text. Each reference links to its note, and each note has a return link for every reference. These links stay inside the current message or preview.
 - Both composer editors can insert a footnote from the formatting toolbar. The visual editor shows numbered markers and editable notes, supports repeated references, and retains the named syntax when switching modes or editing a message. Typing `[^label]` in the visual editor creates a note or refers to its existing definition.
@@ -23,6 +28,9 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - The Markdown source editor enables spellcheck, autocorrection, sentence capitalization, and writing suggestions for chat text. Availability depends on browser support and keyboard settings.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. In the visual editor, pasting into an unlabelled code block or leaving a changed block starts language detection. A successful guess becomes the block's saved language and appears in the language selector. Users can override the guess, including with **TEXT** for plain text. Detection uses a fixed set of preferred languages and does not change blocks merely opened for editing. Unlabelled blocks without a match and unsupported languages remain plain code. Detection does not delay sending.
 - Rendered code blocks use the visual editor's spacing without line numbers. Each block has a button to copy its code without the Markdown fence or display-only tab spacing.
+- Code-copy buttons and shared copy controls briefly show a checkmark after the
+  clipboard write succeeds. Failed copies keep the copy icon and show an error.
+- Fenced blocks labelled `ansi` show static ANSI art after posting. They support terminal colors, Unicode text, cursor movement, and erase commands. Each block uses an 80-column, 100-row screen with no scrollback. Unused bottom rows are hidden. Wide or tall art scrolls inside the block. The first four ANSI blocks in a message render as art; additional blocks show their source. Copy retains the escape codes. Artwork uses a fixed black background in both themes. It cannot blink, open terminal links, access the clipboard, or make external connections.
 - The message menu offers **Copy message text** to copy the full Markdown source. When text is selected wholly within that message body, **Copy selected text** appears immediately above it and copies only the selected text. A selection outside the message or across messages does not show this action. The menu keeps the selected text when it opens, even if focus changes.
 - Plain URLs to known users, rooms, and servers appear as inline pills with the current name and an avatar or icon. This includes angle-bracket URLs and links to other registered servers. Explicit Markdown links retain their labels and normal link display. Selecting a message pill opens the entity. Right-clicking or long-pressing it opens entity actions.
 - The visual composer previews automatic entity links as pills immediately after paste, without a trailing space. Selecting a preview or moving the caret into its text reveals the URL for editing. Sending, copying, or switching editor modes retains the URL, not the displayed entity name.
@@ -35,7 +43,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Both editors provide toolbar actions to indent and outdent. In the visual editor they change list nesting. In the Markdown source editor they change the indentation of the current line or selected lines.
 - In the Markdown source editor, Tab and Shift+Tab move keyboard focus without changing the text. Autocomplete still handles these keys first: Tab selects a suggestion or completes a mention, and repeated Tab presses cycle through matching mentions. An Escape prefix is not required for normal focus navigation.
 - The composer shows message actions below the text in narrow panes. In wider panes, actions share the input row until the draft grows beyond one line. They then stay below the text until the draft is cleared or sent, or its destination or edit mode changes. This prevents the layout from switching repeatedly when the extra width removes a line wrap.
-- A Formatting options control shows or hides the formatting toolbar above the input. The toolbar is hidden by default. The app stores the last selection in the browser and applies it to all composers. Both toolbars use larger buttons and icons when touch input is available, including on hybrid devices. The formatting toolbar scrolls horizontally when its controls do not fit.
+- A Formatting options control shows or hides the formatting toolbar above the input. The toolbar is hidden by default. The app stores the last selection in the browser and applies it to all composers. Both toolbars use larger buttons and icons when touch is the primary input, at every viewport width. Mouse-primary hybrid devices use compact controls. Spacing changes automatically with the primary input. The formatting toolbar scrolls horizontally when its controls do not fit.
 - Touch-primary devices always use Return for editing and the visible Send button, even when Return-to-send is selected.
 
 ## Design Decisions
@@ -64,7 +72,19 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 **Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. They can also preserve their preferred chat shortcut and familiar keyboard editing behavior in paragraphs, lists, or code blocks.
 **Tradeoff:** App Preferences do not follow a person to another browser or device. Each editor must have the same composer integrations and formatting controls. A person must open the toolbar before they can select a formatting control. The indent controls operate differently in each editor. The alternate Return shortcut changes meaning with the selected send mode.
 
-### 5. Normal links carry entity references
+### 5. ANSI blocks show a static terminal screen
+
+**Decision:** Interpret terminal drawing commands only in `ansi` fences and show the final screen as selectable text. Use fixed screen dimensions and a limit on the number of rendered blocks.
+**Why:** People and bots can share colored art and cursor-based drawings through the existing message body. Fixed limits keep each message's display work bounded. Static output needs no active terminal session.
+**Tradeoff:** Terminal animations and raw CP437 file imports are not supported. Send Unicode text with actual escape characters. The composer shows source. Other clients can show the source if they do not support ANSI art.
+
+### 6. Emoji shortcodes are display syntax
+
+**Decision:** Resolve built-in shortcodes at word boundaries when displaying Markdown. Keep their source text in the message body and leave unknown names visible. Apply the same opening boundary to autocomplete.
+**Why:** People and bots can send readable emoji names through the existing message API. Boundaries prevent accidental conversion inside words or identifiers. Shared client rules keep name lookup consistent across hosts without changing stored messages or contacting an external service.
+**Tradeoff:** Older clients can show the literal shortcode. The visual editor keeps typed shortcodes as text. Custom emoji assets and stable references are not implemented; their identity and rename rules need a separate design.
+
+### 7. Normal links carry entity references
 
 **Decision:** Keep URLs and Markdown links in the message body. Replace only automatic URL displays with known entity names. Explicit Markdown labels keep their normal link display.
 **Why:** Existing links work across clients without a custom reference format. Current names identify plain URL destinations. Keeping explicit labels preserves the author's sentence.
@@ -72,5 +92,5 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ## Related
 
-- **FDRs:** FDR-004 (Message Editing & Deletion), FDR-006 (@Mentions), FDR-030 (Inline Message Timestamps)
+- **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions), FDR-030 (Inline Message Timestamps)
 - **Guide:** [Format Messages](../../apps/docs-website/src/content/docs/getting-started/message-formatting.mdx)

@@ -357,7 +357,24 @@ test.describe('Markdown composer on touch devices', () => {
     await roomPage.messageInput.pressSequentially(second);
     await expect(roomPage.getMessage(first).locator).not.toBeVisible();
 
-    await roomPage.sendButton.click();
+    await page.getByRole('button', { name: 'Formatting options', exact: true }).tap();
+    const formatting = page.getByTestId('composer-formatting-toolbar').getByRole('button');
+    await expect(formatting).toHaveCount(12);
+    for (const width of [390, 768, 1280, 1920]) {
+      await page.setViewportSize({ width, height: 800 });
+      await expect(roomPage.sendButton).toHaveCSS('height', '44px');
+      await expect
+        .poll(() =>
+          formatting.evaluateAll((buttons) =>
+            buttons.map((button) => button.getBoundingClientRect().height)
+          )
+        )
+        .toEqual(Array(12).fill(44));
+      await expect(roomPage.messageInput).toContainText(first);
+      await expect(roomPage.messageInput).toContainText(second);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    }
+    await roomPage.sendButton.tap({ position: { x: 22, y: 42 } });
     await expect(roomPage.getMessage(second).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   });
 });
@@ -571,7 +588,7 @@ for (const editor of ['visual', 'markdown'] as const) {
             await expect(input).toBeFocused();
             await input.fill('An intentional reply');
             await roomPage.threadPane
-              .getByRole('button', { name: 'Send message', exact: true })
+              .getByRole('button', { name: 'Send: Send message', exact: true })
               .click();
             await roomPage.expectTextInThreadPane('An intentional reply');
             await expect(input).not.toContainText('An intentional reply');

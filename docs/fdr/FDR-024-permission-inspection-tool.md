@@ -1,7 +1,7 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-10-26
 
 ## Overview
 
@@ -22,6 +22,11 @@ bundled permission-explainer UI.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
 - An owner explanation shows the owner override only when it applies to the inspected user in the request. An inspector checks a different user, so the trace for an owner shows their ordinary decisions. See ADR-105.
+- Human explanations apply the same privileged-mode gate as permission checks.
+  When a grant requires privileged mode and that mode is inactive, the result is deny and the
+  winning trace entry is `@privileged-mode`. The trace retains the underlying
+  grant. An inspector's session does not activate the target user's permissions.
+  Bot owner ceilings continue to use the owner's entitlement without this gate.
 
 ## Design Decisions
 

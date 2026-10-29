@@ -273,7 +273,7 @@ func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	for name, role := range p.roles {
 		roleBytes += projectionMapEntryOverhead + int64(len(name))
 		if role != nil {
-			roleBytes += int64(proto.Size(role))
+			roleBytes += int64(unsafe.Sizeof(*role)) + int64(len(role.Name)+len(role.DisplayName)+len(role.Description))
 		}
 	}
 	var assignmentBytes, assignments int64
@@ -608,7 +608,9 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 			users++
 		}
 		if user.user != nil {
-			userBytes += int64(proto.Size(user.user))
+			value := user.user
+			userBytes += int64(unsafe.Sizeof(*value)) + int64(len(value.Id)+len(value.Login)+len(value.DisplayName)+len(value.Bio)+len(value.BotOwnerUserId))
+			userBytes += int64(proto.Size(value.CreatedAt) + proto.Size(value.CustomStatus))
 		}
 		for _, pii := range []*projectedUserPII{user.login, user.displayName} {
 			if pii != nil {

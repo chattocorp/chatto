@@ -22,6 +22,7 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
   page: {
+    route: { id: '/chat/[serverId]/manage/server/members/[userId]/(sections)/account' },
     get params() {
       return { userId: routeUserId };
     }
@@ -39,6 +40,12 @@ vi.mock(
 );
 
 const api = { getMember: vi.fn(), deleteUser: vi.fn() };
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBotOwnerUserId: (_id: string, fallback: string | null) => fallback,
+  getLiveLogin: (_id: string, login: string) => login,
+  getLiveAvatarUrl: (_id: string, avatarUrl: string | null) => avatarUrl,
+  getLiveCustomStatus: () => null
+}));
 let server: TestServerScope;
 let routeUserId = $state('alice');
 
@@ -46,7 +53,7 @@ vi.mock('$lib/ui/toast', () => ({
   toast: { success: mocks.toastSuccess, error: vi.fn() }
 }));
 
-import DeletePage from './+page.svelte';
+import MemberDetailTestHarness from '../MemberDetailTestHarness.svelte';
 
 function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
   return {
@@ -94,7 +101,7 @@ async function settle(): Promise<void> {
   flushSync();
 }
 
-describe('server member delete page', () => {
+describe('server member delete modal', () => {
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
@@ -110,12 +117,19 @@ describe('server member delete page', () => {
     setReactiveLocale('en-GB');
   });
 
-  function renderPage() {
-    return render(DeletePage);
+  async function renderPage() {
+    const rendered = render(MemberDetailTestHarness, { props: { section: 'account' } });
+    await settle();
+    const button = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent?.trim() === 'Delete account'
+    );
+    button?.click();
+    flushSync();
+    return rendered;
   }
 
   it('stops the flow when a realtime removal of the member arrives', async () => {
-    const rendered = renderPage();
+    const rendered = await renderPage();
     await settle();
     expect(rendered.container.textContent).toContain('Danger Zone');
 
@@ -131,7 +145,7 @@ describe('server member delete page', () => {
   it('discards a delete result when a session cache purge arrives mid-flight', async () => {
     const deletion = deferred<void>();
     api.deleteUser.mockReturnValueOnce(deletion.promise);
-    const rendered = renderPage();
+    const rendered = await renderPage();
     await settle();
 
     const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
@@ -139,8 +153,8 @@ describe('server member delete page', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
-    const submit = [...rendered.container.querySelectorAll('button')].find(
-      (candidate) => candidate.getAttribute('type') === 'submit'
+    const submit = [...rendered.container.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('Permanently delete account')
     ) as HTMLButtonElement;
     submit.click();
     await vi.waitFor(() => expect(api.deleteUser).toHaveBeenCalledOnce());
@@ -158,7 +172,7 @@ describe('server member delete page', () => {
   it('discards a delete result after the route target changes', async () => {
     const deletion = deferred<void>();
     api.deleteUser.mockReturnValueOnce(deletion.promise);
-    const rendered = renderPage();
+    const rendered = await renderPage();
     await settle();
 
     const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
@@ -166,8 +180,8 @@ describe('server member delete page', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
-    const submit = [...rendered.container.querySelectorAll('button')].find(
-      (candidate) => candidate.getAttribute('type') === 'submit'
+    const submit = [...rendered.container.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('Permanently delete account')
     ) as HTMLButtonElement;
     submit.click();
     await vi.waitFor(() => expect(api.deleteUser).toHaveBeenCalledOnce());
@@ -191,10 +205,10 @@ describe('server member delete page', () => {
 
   it('blocks deleting the viewer account through this page', async () => {
     routeUserId = 'viewer';
-    const rendered = renderPage();
+    const rendered = await renderPage();
     await settle();
 
-    expect(rendered.container.textContent).toContain('You cannot delete this account.');
+    expect(rendered.container.querySelector('[role="dialog"], dialog')).toBeNull();
     expect(api.deleteUser).not.toHaveBeenCalled();
   });
 
@@ -202,26 +216,25 @@ describe('server member delete page', () => {
     api.getMember.mockResolvedValueOnce(
       details(member('alice', { viewerCanDeleteAccount: false }))
     );
-    const rendered = renderPage();
+    const rendered = await renderPage();
     await settle();
 
-    expect(rendered.container.textContent).toContain('You cannot delete this account.');
+    expect(rendered.container.querySelector('[role="dialog"], dialog')).toBeNull();
     expect(rendered.container.querySelector('#member-delete-confirm')).toBeNull();
     expect(api.deleteUser).not.toHaveBeenCalled();
   });
 
   it('keeps the submit button disabled until the login matches', async () => {
-    const rendered = renderPage();
+    const rendered = await renderPage();
     await settle();
 
-    const form = rendered.container.querySelector('form') as HTMLFormElement;
     const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
     input.value = 'ali';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
-    const submit = [...form.querySelectorAll('button')].find(
-      (candidate) => candidate.getAttribute('type') === 'submit'
+    const submit = [...rendered.container.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('Permanently delete account')
     ) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
 
@@ -231,8 +244,12 @@ describe('server member delete page', () => {
     expect(submit.disabled).toBe(false);
   });
 
-  it('deletes the member and returns to the members list', async () => {
-    const rendered = renderPage();
+  it('returns to the members list when realtime removal arrives before the delete response', async () => {
+    api.deleteUser.mockImplementationOnce(async () => {
+      removeRegisteredAdminUserQueries('server-1', 'alice');
+      flushSync();
+    });
+    const rendered = await renderPage();
     await settle();
 
     const membersKey = adminQueryKeys.member('server-1', server.scope.connection, 'alice');
@@ -245,8 +262,8 @@ describe('server member delete page', () => {
 
     expect(rendered.container.querySelector('#member-delete-password')).toBeNull();
 
-    const submit = [...rendered.container.querySelectorAll('button')].find(
-      (candidate) => candidate.getAttribute('type') === 'submit'
+    const submit = [...rendered.container.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('Permanently delete account')
     ) as HTMLButtonElement;
     submit.click();
     await settle();
@@ -254,12 +271,12 @@ describe('server member delete page', () => {
     expect(api.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
     expect(mocks.toastSuccess).toHaveBeenCalledOnce();
     expect(queryClient.getQueryData(membersKey)).toBeUndefined();
-    expect(mocks.goto).toHaveBeenCalledOnce();
+    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/-/manage/server/members');
   });
 
   it('shows a failure without navigating away', async () => {
     api.deleteUser.mockRejectedValueOnce(new Error('permission denied'));
-    const rendered = renderPage();
+    const rendered = await renderPage();
     await settle();
 
     const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
@@ -267,8 +284,8 @@ describe('server member delete page', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
-    const submit = [...rendered.container.querySelectorAll('button')].find(
-      (candidate) => candidate.getAttribute('type') === 'submit'
+    const submit = [...rendered.container.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('Permanently delete account')
     ) as HTMLButtonElement;
     submit.click();
     await vi.waitFor(() => expect(rendered.container.textContent).toContain('permission denied'));

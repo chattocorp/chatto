@@ -136,9 +136,9 @@ describe('renderMarkdown', () => {
       expect(html).toContain('<strong>bold</strong>');
     });
 
-    it('renders bold text with __', async () => {
-      const html = await renderMarkdown('__bold__');
-      expect(html).toContain('<strong>bold</strong>');
+    it('renders underlined text with __', async () => {
+      const html = await renderMarkdown('__underlined__');
+      expect(html).toContain('<u>underlined</u>');
     });
 
     it('renders italic text with *', async () => {

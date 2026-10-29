@@ -16,6 +16,20 @@ async function settle() {
 }
 
 describe('App Preferences appearance page', () => {
+  it('applies and persists animation choices from Appearance', async () => {
+    const screen = render(AppearancePage);
+    const group = screen.getByRole('radiogroup', { name: 'Animations', exact: true });
+    await group.getByRole('radio', { name: /^Disabled/ }).click();
+    expect(userPreferences.animations).toBe('disabled');
+    expect(document.documentElement.dataset.motion).toBe('reduced');
+    expect(JSON.parse(localStorage.getItem('chatto:preferences')!)).toMatchObject({
+      animations: 'disabled'
+    });
+    await group.getByRole('radio', { name: /^Enabled/ }).click();
+    expect(document.documentElement.dataset.motion).toBe('full');
+    await group.getByRole('radio', { name: /^Automatic/ }).click();
+    expect(userPreferences.animations).toBe('automatic');
+  });
   it('uses flat page sections on narrow screens while theme controls keep their borders', async () => {
     const screen = render(AppearancePage);
     screen.container.style.cssText = 'display:flex;flex-direction:column;width:100%;height:700px';
@@ -46,6 +60,7 @@ describe('App Preferences appearance page', () => {
   beforeEach(() => {
     localStorage.clear();
     userPreferences.displayTheme = 'system';
+    userPreferences.animations = 'automatic';
     userPreferences.accentColor = 'cyan';
     userPreferences.lightSurfaceTone = 'gray';
     userPreferences.darkSurfaceTone = 'neutral';
@@ -83,7 +98,7 @@ describe('App Preferences appearance page', () => {
     const { container } = render(AppearancePage);
     await settle();
 
-    expect(container.querySelectorAll('.panel-shell')).toHaveLength(3);
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(4);
     expect(container.textContent).toContain('Appearance');
     expect(container.textContent).toContain(
       'Choices for this app that apply across all your registered servers'
@@ -137,7 +152,8 @@ describe('App Preferences appearance page', () => {
     await getByRole('radio', { name: /^Dark/ }).click();
     await settle();
 
-    expect(userPreferences.displayTheme).toBe('dark');
+    // A View Transition applies the choice after the browser captures the old palette.
+    await vi.waitFor(() => expect(userPreferences.displayTheme).toBe('dark'));
     expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
       displayTheme: 'dark'
     });

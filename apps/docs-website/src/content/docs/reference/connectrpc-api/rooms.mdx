@@ -26,6 +26,110 @@ room read state, attachments, and live typing. Resource-specific services
 should still be preferred when an operation is not naturally room-scoped or
 when the resource needs an independent CRUD/batch surface.
 
+<a id="chatto-api-v1-RoomService-GetNotice"></a>
+
+### GetNotice
+
+Reads a channel notice. Requires current room membership, including in
+archived rooms. A room without a notice returns an empty body.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetNotice
+```
+
+<a id="chatto-api-v1-GetNoticeRequest"></a>
+
+#### Input: GetNoticeRequest
+
+Reads the current channel notice, including its version when cleared.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetNoticeResponse"></a>
+
+#### Result: GetNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](/reference/connectrpc-api/types/#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomService-PublishNotice"></a>
+
+### PublishNotice
+
+Publishes, corrects, or explicitly republishes a notice. Requires current
+membership and room.manage-notice. Archived rooms reject writes. A stale
+expected_version returns ABORTED; preserve the draft and reload before retry.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/PublishNotice
+```
+
+<a id="chatto-api-v1-PublishNoticeRequest"></a>
+
+#### Input: PublishNoticeRequest
+
+Publishes or replaces a notice. Replacements preserve dismissals unless
+republish is true. A new publication always has a fresh dismissal revision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `body` | `string` | No field description provided. |
+| `expected_version` | `string` | No field description provided. |
+| `republish` | `bool` | True announces the replacement to members who dismissed the previous notice. False preserves dismissals. A first publication always announces the notice. |
+
+
+<a id="chatto-api-v1-PublishNoticeResponse"></a>
+
+#### Result: PublishNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](/reference/connectrpc-api/types/#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
+<a id="chatto-api-v1-RoomService-ClearNotice"></a>
+
+### ClearNotice
+
+Clears a notice under the same access and version rules as PublishNotice.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ClearNotice
+```
+
+<a id="chatto-api-v1-ClearNoticeRequest"></a>
+
+#### Input: ClearNoticeRequest
+
+Clears the current notice without removing its concurrency version.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `expected_version` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-ClearNoticeResponse"></a>
+
+#### Result: ClearNoticeResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notice` | [`RoomNotice`](/reference/connectrpc-api/types/#chatto-api-v1-RoomNotice) | No field description provided. |
+
+
 <a id="chatto-api-v1-RoomService-GetRoomReadState"></a>
 
 ### GetRoomReadState
@@ -157,8 +261,9 @@ mask stay unchanged.
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](/reference/connectrpc-api/types/#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
+| `show_membership_events` | `optional bool` | Whether clients show join/leave activity in this channel's history and live timeline. Requires room.manage. Selecting an absent value resets to true. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -493,7 +598,8 @@ Batch room member response.
 Adds an account as an explicit channel-room member. room.manage for this
 room or user.manage-accounts overrides the target's missing room.join.
 Bot owners and bot.manage holders may also add bots, but without either
-override the bot needs effective room.join, bounded by its owner's authority.
+override the acting human needs effective room.join. The bot's own
+room.join is required only when the bot joins itself through JoinRoom.
 Preserves permission grants. Suspensions, archived, universal, and DM rooms prevent adding.
 
 ```http

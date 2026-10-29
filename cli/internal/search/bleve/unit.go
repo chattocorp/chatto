@@ -121,7 +121,9 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		<-projectorDone
 		return fmt.Errorf("register search provider ready status endpoint: %w", err)
 	}
-	env.Logger.Info("Search provider ready")
+	// The operator's standalone search readiness probe consumes this stage field.
+	// Emit it only after replay and both query/status endpoint registrations succeed.
+	env.Logger.Info("Search provider ready", "stage", "service_ready")
 
 	err = <-projectorDone
 	stopProjector()

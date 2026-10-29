@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "房间公告",
+      "dismiss": "关闭",
+      "body": "公告（Markdown）",
+      "too_long": "公告最多可包含 {max} 个字符，包括空白。",
+      "help": "保存修正不会再次显示公告。选择公告可向已在设备上关闭公告的成员再次显示。",
+      "conflict": "这则公告在你编辑时已更改。你的草稿仍保留在此。请按需复制草稿，然后加载当前公告再保存。",
+      "reload": "加载当前公告",
+      "save": "更新",
+      "republish": "公告",
+      "clear": "清除",
+      "clear_confirm_title": "清除房间公告？",
+      "clear_confirm_description": "这会立即为房间内所有人移除当前公告。你尚未保存的更改不会发布。",
+      "empty": "尚未发布任何公告。",
+      "edit": "编辑公告"
+    },
+    "information": {
+      "description": "描述",
+      "created": "创建时间",
+      "title": "聊天室信息",
+      "basic": "概览",
+      "pinned_messages": "置顶消息"
+    },
     "create": {
       "title": "创建新聊天室",
       "description": "聊天室是服务器内的对话空间。",
@@ -77,7 +100,8 @@
       "beginning": "这是本次对话的开端。",
       "read_denied": "你没有权限阅读此房间中的消息。",
       "limited_empty": "还没有你可以阅读的对话。",
-      "loading": "正在加载消息..."
+      "loading": "正在加载消息...",
+      "load_failed": "无法加载消息。"
     },
     "message": {
       "empty": "暂无消息",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "#{room} 中的话题串",
       "back_to_room": "返回聊天室",
+      "participants": "话题参与者 ({count})",
       "follow": "关注话题串",
       "unfollow": "取消关注话题串",
       "close": "关闭话题串",
@@ -263,6 +288,7 @@
     "unread_separator": "新消息",
     "close_extras": "关闭聊天室附加内容",
     "dm": {
+      "deactivated_user_notice": "此账号已停用。该用户无法阅读或回复消息。",
       "deleted_user_notice": "对方用户已被删除。"
     },
     "management": {

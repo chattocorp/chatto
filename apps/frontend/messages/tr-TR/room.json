@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Oda duyurusu",
+      "dismiss": "Kapat",
+      "body": "Duyuru (Markdown)",
+      "too_long": "Duyurular, boşluklar dahil en fazla {max} karakter içerebilir.",
+      "help": "Düzeltmeleri duyuruyu yeniden göstermeden kaydedin. Cihazlarında kapatan üyelere yeniden göstermek için duyurun.",
+      "conflict": "Bu duyuru siz düzenlerken değişti. Taslağınız hâlâ burada. Gerekirse kopyalayın ve yeniden kaydetmeden önce mevcut duyuruyu yükleyin.",
+      "reload": "Mevcut duyuruyu yükle",
+      "save": "Güncelle",
+      "republish": "Duyur",
+      "clear": "Temizle",
+      "clear_confirm_title": "Oda duyurusu temizlensin mi?",
+      "clear_confirm_description": "Bu işlem etkin duyuruyu odadaki herkes için hemen kaldırır. Kaydedilmemiş değişiklikleriniz yayımlanmaz.",
+      "empty": "Henüz bir duyuru yayımlanmadı.",
+      "edit": "Duyuruyu düzenle"
+    },
+    "information": {
+      "description": "Açıklama",
+      "created": "Oluşturuldu",
+      "title": "Oda bilgileri",
+      "basic": "Genel",
+      "pinned_messages": "Sabitlenmiş mesajlar"
+    },
     "create": {
       "title": "Yeni Oda Oluştur",
       "description": "Odalar sunucunuz içindeki konuşmalardır.",
@@ -77,7 +100,8 @@
       "beginning": "Bu, bu konuşmanın başlangıcıdır.",
       "read_denied": "Bu odadaki mesajları okuma izniniz yok.",
       "limited_empty": "Henüz okuyabileceğiniz konuşma yok.",
-      "loading": "Mesajlar yükleniyor..."
+      "loading": "Mesajlar yükleniyor...",
+      "load_failed": "Mesajlar yüklenemedi."
     },
     "message": {
       "empty": "Henüz mesaj yok",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "#{room} içindeki konu",
       "back_to_room": "Odaya geri dön",
+      "participants": "Konu katılımcıları ({count})",
       "follow": "Konuyu takip et",
       "unfollow": "Konuyu takip etmeyi bırak",
       "close": "Konuyu kapat",
@@ -263,6 +288,7 @@
     "unread_separator": "Yeni mesajlar",
     "close_extras": "Oda ekstralarını kapat",
     "dm": {
+      "deactivated_user_notice": "Bu hesap devre dışı. Kullanıcı mesajları okuyamaz veya yanıtlayamaz.",
       "deleted_user_notice": "Diğer kullanıcı silindi."
     },
     "management": {

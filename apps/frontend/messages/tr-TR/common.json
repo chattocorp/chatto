@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Klavye kısayolları",
+      "app": "Uygulama",
+      "undo": "Geri al",
+      "redo": "Yinele",
+      "new_line": "Yeni satır",
+      "edit_last": "Son mesajı düzenle (boş taslak)",
+      "complete": "Bahsetmeyi veya emojiyi tamamla"
+    },
+    "action_unavailable": "Bu işlem şu anda kullanılamıyor.",
+    "edit": "Düzenle",
     "copy_failed": "Panoya kopyalanamadı. Metni seçin ve elle kopyalayın.",
     "cancel": "İptal",
     "close_sidebar": "Kenar çubuğunu kapat",
@@ -22,12 +33,12 @@
     "password_placeholder": "Şifreniz",
     "email_placeholder": "sen@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8 baytı",
+    "password_bytes_placeholder": "Bir parola seçin",
     "password_confirm_placeholder": "Şifreyi tekrar girin",
     "validation": {
       "email": "Lütfen geçerli bir e-posta adresi girin",
-      "password_min_bytes": "En az 8 UTF-8 baytı kullanın. Bazı karakterler birden fazla bayt kullanır.",
-      "password_max": "En fazla 72 UTF-8 baytı kullanın. Bazı karakterler birden fazla bayt kullanır.",
+      "password_min_bytes": "Parola çok kısa",
+      "password_max": "Parola çok uzun",
       "username_min": "En az 2 karakter olmalı",
       "username_max": "En fazla 32 karakter olmalı",
       "username_charset": "Yalnızca harfler, sayılar, noktalar, kısa çizgiler, alt çizgiler",

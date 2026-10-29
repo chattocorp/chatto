@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Сочетания клавиш",
+      "app": "Приложение",
+      "undo": "Отменить",
+      "redo": "Повторить",
+      "new_line": "Новая строка",
+      "edit_last": "Изменить последнее сообщение (пустой черновик)",
+      "complete": "Дополнить упоминание или эмодзи"
+    },
+    "action_unavailable": "Это действие сейчас недоступно.",
+    "edit": "Изменить",
     "copy_failed": "Не удалось скопировать в буфер обмена. Выделите текст и скопируйте его вручную.",
     "cancel": "Отмена",
     "close_sidebar": "Закрыть боковую панель",
@@ -22,12 +33,12 @@
     "password_placeholder": "Ваш пароль",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 байта UTF-8",
+    "password_bytes_placeholder": "Выберите пароль",
     "password_confirm_placeholder": "Введите пароль еще раз",
     "validation": {
       "email": "Пожалуйста, введите действительный адрес электронной почты",
-      "password_min_bytes": "Используйте не менее 8 байт UTF-8. Некоторые символы занимают больше одного байта.",
-      "password_max": "Используйте не более 72 байт UTF-8. Некоторые символы занимают больше одного байта.",
+      "password_min_bytes": "Пароль слишком короткий",
+      "password_max": "Пароль слишком длинный",
       "username_min": "Должно быть минимум 2 символа",
       "username_max": "Должно быть не более 32 символов.",
       "username_charset": "Только буквы, цифры, точки, тире, подчеркивания.",

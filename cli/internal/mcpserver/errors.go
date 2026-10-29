@@ -37,6 +37,7 @@ type toolFailure struct {
 	MissingPermissions []string `json:"missingPermissions,omitempty" jsonschema:"Confirmed missing RBAC permissions; any one of these alternatives permits the permission gate."`
 	RequiredScope      string   `json:"requiredScope,omitempty" jsonschema:"OAuth scope that requires fresh consent."`
 	RetryAfterMs       int64    `json:"retryAfterMs,omitempty" jsonschema:"Minimum delay in milliseconds when retry is after_delay."`
+	RetrySameRequest   bool     `json:"retrySameRequest,omitempty" jsonschema:"Retry only with the same idempotency key and exact arguments, within 30 minutes of the first attempt."`
 }
 
 // Error permits a safe failure to pass through the typed domain adapter.
@@ -58,7 +59,7 @@ var toolFailureSchema = sync.OnceValue(func() *jsonschema.Schema {
 		panic(fmt.Sprintf("MCP error schema: %v", err))
 	}
 	fields := schema.Properties["error"].Properties
-	fields["code"].Enum = []any{"invalid_argument", "authentication_required", "insufficient_scope", "not_room_member", "permission_denied", "policy_denied", "not_found", "conflict", "rate_limited", "timeout", "temporary_failure"}
+	fields["code"].Enum = []any{"invalid_argument", "idempotency_conflict", "authentication_required", "insufficient_scope", "not_room_member", "permission_denied", "policy_denied", "not_found", "conflict", "rate_limited", "timeout", "temporary_failure"}
 	fields["nextAction"].Enum = []any{"fix_arguments", "authorize_scope", "join_room", "contact_administrator", "check_access", "retry", "check_result"}
 	fields["retry"].Enum = []any{"never", "after_change", "after_delay"}
 	fields["outcome"].Enum = []any{"not_applied", "applied", "unknown"}
@@ -160,13 +161,33 @@ func postedMessageResultError(err error) *toolFailure {
 	return f
 }
 
+// keyedPostFailure exposes retry safety only for uncertain transient failures.
+// Policy failures still need a caller decision. An omitted key keeps the
+// ordinary uncertain-write contract.
+func keyedPostFailure(err error, key string) error {
+	f, ok := errors.AsType[*toolFailure](err)
+	if !ok || key == "" || (f.Code != "timeout" && f.Code != "temporary_failure") {
+		return err
+	}
+	f.NextAction, f.Retry, f.RetrySameRequest = "retry", "after_delay", true
+	f.Message = "The message result is unavailable. Retry only the same key and exact arguments within 30 minutes of the first attempt."
+	return f
+}
+
 // classifyToolError never forwards backend error text. Known rejections happen
 // before a write; an unrecognized write failure can include a lost commit ACK.
 func classifyToolError(err error, name string) *toolFailure {
+	if applied, ok := errors.AsType[*core.MessagePostAppliedError](err); ok {
+		f := classifyToolError(applied.Cause, name)
+		f.Outcome, f.NextAction, f.Retry = "applied", "check_result", "never"
+		return f
+	}
 	if safe, ok := errors.AsType[*toolFailure](err); ok {
 		return safe
 	}
 	switch {
+	case errors.Is(err, core.ErrMessageIdempotencyConflict):
+		return failure("idempotency_conflict", "This send key already belongs to different arguments. Check the original send before starting another operation.", "check_result", "never")
 	case errors.Is(err, auth.ErrInvalidToken), errors.Is(err, core.ErrNotAuthenticated):
 		return failure("authentication_required", "Authorize this MCP connection again.", "authorize_scope", "after_change")
 	case errors.Is(err, core.ErrInvalidArgument), errors.Is(err, core.ErrMessageTooLong):
@@ -250,6 +271,10 @@ func toolRoomVisibleInView(ctx context.Context, chattoCore *core.ChattoCore, use
 // from an absent one. Failure to establish visibility is not proof of absence.
 func toolOperationError(ctx context.Context, chattoCore *core.ChattoCore, userID, roomID string, permissions []core.Permission, err error, name string) error {
 	f := classifyToolError(err, name)
+	_, applied := errors.AsType[*core.MessagePostAppliedError](err)
+	if applied {
+		permissions = []core.Permission{core.PermMessageRead}
+	}
 	if roomID == "" || f.Code == "temporary_failure" || f.Code == "timeout" || f.Code == "conflict" {
 		return f
 	}
@@ -275,7 +300,12 @@ func toolOperationError(ctx context.Context, chattoCore *core.ChattoCore, userID
 		return nil
 	})
 	if viewErr != nil {
-		return classifyToolError(viewErr, name)
+		f = classifyToolError(viewErr, name)
+	}
+	if applied {
+		// Visibility sanitization can replace the explanation, but it must
+		// retain the confirmed write outcome and prevent a new send.
+		f.Outcome, f.NextAction, f.Retry = "applied", "check_result", "never"
 	}
 	return f
 }

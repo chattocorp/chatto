@@ -31,7 +31,7 @@ export class AuthPage {
 
   /** Password input (works for login and registration complete) */
   get passwordInput(): Locator {
-    return this.page.locator('#password');
+    return this.page.getByLabel('Password', { exact: true });
   }
 
   /** Confirm Password input on registration complete page */
@@ -134,24 +134,9 @@ export class AuthPage {
 
   // --- Locators: Common Elements ---
 
-  /** Sign out button (visible when authenticated) */
+  /** Sign-out action in an authenticated server's gutter menu. */
   get logoutButton(): Locator {
-    return this.page.getByTitle('Sign out');
-  }
-
-  /** Logout confirmation dialog */
-  get logoutDialog(): Locator {
-    return this.page.getByRole('dialog');
-  }
-
-  /** Confirm sign out button in dialog */
-  get confirmLogoutButton(): Locator {
-    return this.page.getByRole('dialog').getByRole('button', { name: 'All Servers' });
-  }
-
-  /** Cancel logout button in dialog */
-  get cancelLogoutButton(): Locator {
-    return this.page.getByRole('dialog').getByRole('button', { name: 'Cancel' });
+    return this.page.getByRole('menuitem', { name: 'Sign out of server' });
   }
 
   /** Sign In heading on login page */
@@ -337,47 +322,38 @@ export class AuthPage {
    * a follow-up `goto('/login')` redirects back into the app instead of
    * showing the sign-in form.
    *
-   * Going through the UI button triggers the SPA's full sign-out path
-   * (serverRegistry.removeAll() + `window.location.href = '/'`), which
-   * forces a hard reload and lands cleanly on the sign-in page.
+   * The gutter action clears the origin session and reloads the page.
    */
   async logout(): Promise<void> {
     await this.logoutViaUI();
   }
 
   /**
-   * Open the logout confirmation dialog without choosing a sign-out action.
-   * Cold page initialization and lazy-loaded dialog code can delay opening.
-   * Retry only this idempotent open action; never repeat a sign-out mutation.
-   * If the dialog is already visible, leave it open.
+   * Open the origin server menu without changing the session.
    */
-  async openLogoutDialog(): Promise<void> {
-    await expect(async () => {
-      if (!(await this.logoutDialog.isVisible())) {
-        await this.logoutButton.click();
-      }
-      await expect(this.logoutDialog).toBeVisible({ timeout: 1000 });
-    }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [200, 500, 1000] });
+  async openLogoutMenu(): Promise<void> {
+    await this.page
+      .locator('[data-testid="server-icon"][href$="/chat/-"]')
+      .click({ button: 'right' });
+    await expect(this.logoutButton).toBeVisible();
   }
 
   /**
-   * Logout the current user by clicking the logout button.
-   * Confirms the logout dialog and waits for redirect to the sign-in page.
+   * Sign out of the origin server and wait for the sign-in page.
    */
   async logoutViaUI(): Promise<void> {
-    await this.openLogoutDialog();
-    await this.confirmLogoutButton.click();
+    await this.openLogoutMenu();
+    await this.logoutButton.click();
     await this.page.waitForURL('/login');
   }
 
   /**
-   * Click logout button and then cancel the confirmation.
-   * Verifies the dialog closes without logging out.
+   * Close the server menu without signing out.
    */
   async cancelLogoutViaUI(): Promise<void> {
-    await this.openLogoutDialog();
-    await this.cancelLogoutButton.click();
-    await expect(this.logoutDialog).not.toBeVisible();
+    await this.openLogoutMenu();
+    await this.page.keyboard.press('Escape');
+    await expect(this.logoutButton).not.toBeVisible();
   }
 
   // --- Email Verification Methods ---
@@ -585,6 +561,7 @@ export class AuthPage {
     subject: string;
     verifiedEmail?: string;
     loginHint?: string;
+    providerUsername?: string;
     displayNameHint?: string;
     boundUserId?: string;
     redirectPath?: string;
@@ -599,10 +576,11 @@ export class AuthPage {
   // --- Assertions ---
 
   /**
-   * Assert that the user is logged in (logout button visible).
+   * Assert that the origin server offers sign-out, then close its menu.
    */
   async expectLoggedIn(): Promise<void> {
-    await expect(this.logoutButton).toBeVisible();
+    await this.openLogoutMenu();
+    await this.page.keyboard.press('Escape');
   }
 
   /**

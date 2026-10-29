@@ -125,6 +125,21 @@ export class Room extends Message<Room> {
    */
   threadSlowModeSeconds?: number;
 
+  /**
+   * When the room was created. Absent when unavailable on an older server.
+   *
+   * @generated from field: google.protobuf.Timestamp created_at = 11;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * Whether clients show room join/leave activity. Absence on older servers
+   * means true. Membership state and event delivery are not affected.
+   *
+   * @generated from field: optional bool show_membership_events = 12;
+   */
+  showMembershipEvents?: boolean;
+
   constructor(data?: PartialMessage<Room>) {
     super();
     proto3.util.initPartial(data, this);
@@ -143,6 +158,8 @@ export class Room extends Message<Room> {
     { no: 8, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
     { no: 10, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 11, name: "created_at", kind: "message", T: Timestamp },
+    { no: 12, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Room {
@@ -159,6 +176,329 @@ export class Room extends Message<Room> {
 
   static equals(a: Room | PlainMessage<Room> | undefined, b: Room | PlainMessage<Room> | undefined): boolean {
     return proto3.util.equals(Room, a, b);
+  }
+}
+
+/**
+ * Current member-only notice in a channel room.
+ *
+ * @generated from message chatto.api.v1.RoomNotice
+ */
+export class RoomNotice extends Message<RoomNotice> {
+  /**
+   * Markdown source. Empty means the notice has been cleared.
+   *
+   * @generated from field: string body = 1;
+   */
+  body = "";
+
+  /**
+   * Opaque write version. Send it with every mutation. Empty before first publish.
+   *
+   * @generated from field: string version = 2;
+   */
+  version = "";
+
+  /**
+   * Opaque dismissal revision. Corrections preserve it; publish and republish
+   * replace it. Empty when there is no published notice.
+   *
+   * @generated from field: string publication_id = 3;
+   */
+  publicationId = "";
+
+  /**
+   * Time of publication or explicit republishing. Corrections preserve it.
+   * Absent when cleared or unavailable on an older server.
+   *
+   * @generated from field: google.protobuf.Timestamp published_at = 4;
+   */
+  publishedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RoomNotice>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomNotice";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "publication_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "published_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomNotice {
+    return new RoomNotice().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomNotice {
+    return new RoomNotice().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomNotice {
+    return new RoomNotice().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomNotice | PlainMessage<RoomNotice> | undefined, b: RoomNotice | PlainMessage<RoomNotice> | undefined): boolean {
+    return proto3.util.equals(RoomNotice, a, b);
+  }
+}
+
+/**
+ * Reads the current channel notice, including its version when cleared.
+ *
+ * @generated from message chatto.api.v1.GetNoticeRequest
+ */
+export class GetNoticeRequest extends Message<GetNoticeRequest> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<GetNoticeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNoticeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNoticeRequest {
+    return new GetNoticeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNoticeRequest {
+    return new GetNoticeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNoticeRequest {
+    return new GetNoticeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNoticeRequest | PlainMessage<GetNoticeRequest> | undefined, b: GetNoticeRequest | PlainMessage<GetNoticeRequest> | undefined): boolean {
+    return proto3.util.equals(GetNoticeRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.api.v1.GetNoticeResponse
+ */
+export class GetNoticeResponse extends Message<GetNoticeResponse> {
+  /**
+   * @generated from field: chatto.api.v1.RoomNotice notice = 1;
+   */
+  notice?: RoomNotice;
+
+  constructor(data?: PartialMessage<GetNoticeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNoticeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notice", kind: "message", T: RoomNotice },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNoticeResponse {
+    return new GetNoticeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNoticeResponse {
+    return new GetNoticeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNoticeResponse {
+    return new GetNoticeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNoticeResponse | PlainMessage<GetNoticeResponse> | undefined, b: GetNoticeResponse | PlainMessage<GetNoticeResponse> | undefined): boolean {
+    return proto3.util.equals(GetNoticeResponse, a, b);
+  }
+}
+
+/**
+ * Publishes or replaces a notice. Replacements preserve dismissals unless
+ * republish is true. A new publication always has a fresh dismissal revision.
+ *
+ * @generated from message chatto.api.v1.PublishNoticeRequest
+ */
+export class PublishNoticeRequest extends Message<PublishNoticeRequest> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string body = 2;
+   */
+  body = "";
+
+  /**
+   * @generated from field: string expected_version = 3;
+   */
+  expectedVersion = "";
+
+  /**
+   * True announces the replacement to members who dismissed the previous notice.
+   * False preserves dismissals. A first publication always announces the notice.
+   *
+   * @generated from field: bool republish = 4;
+   */
+  republish = false;
+
+  constructor(data?: PartialMessage<PublishNoticeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.PublishNoticeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "expected_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "republish", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PublishNoticeRequest {
+    return new PublishNoticeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PublishNoticeRequest {
+    return new PublishNoticeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PublishNoticeRequest {
+    return new PublishNoticeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PublishNoticeRequest | PlainMessage<PublishNoticeRequest> | undefined, b: PublishNoticeRequest | PlainMessage<PublishNoticeRequest> | undefined): boolean {
+    return proto3.util.equals(PublishNoticeRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.api.v1.PublishNoticeResponse
+ */
+export class PublishNoticeResponse extends Message<PublishNoticeResponse> {
+  /**
+   * @generated from field: chatto.api.v1.RoomNotice notice = 1;
+   */
+  notice?: RoomNotice;
+
+  constructor(data?: PartialMessage<PublishNoticeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.PublishNoticeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notice", kind: "message", T: RoomNotice },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PublishNoticeResponse {
+    return new PublishNoticeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PublishNoticeResponse {
+    return new PublishNoticeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PublishNoticeResponse {
+    return new PublishNoticeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PublishNoticeResponse | PlainMessage<PublishNoticeResponse> | undefined, b: PublishNoticeResponse | PlainMessage<PublishNoticeResponse> | undefined): boolean {
+    return proto3.util.equals(PublishNoticeResponse, a, b);
+  }
+}
+
+/**
+ * Clears the current notice without removing its concurrency version.
+ *
+ * @generated from message chatto.api.v1.ClearNoticeRequest
+ */
+export class ClearNoticeRequest extends Message<ClearNoticeRequest> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string expected_version = 2;
+   */
+  expectedVersion = "";
+
+  constructor(data?: PartialMessage<ClearNoticeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ClearNoticeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "expected_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClearNoticeRequest {
+    return new ClearNoticeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClearNoticeRequest {
+    return new ClearNoticeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClearNoticeRequest {
+    return new ClearNoticeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClearNoticeRequest | PlainMessage<ClearNoticeRequest> | undefined, b: ClearNoticeRequest | PlainMessage<ClearNoticeRequest> | undefined): boolean {
+    return proto3.util.equals(ClearNoticeRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chatto.api.v1.ClearNoticeResponse
+ */
+export class ClearNoticeResponse extends Message<ClearNoticeResponse> {
+  /**
+   * @generated from field: chatto.api.v1.RoomNotice notice = 1;
+   */
+  notice?: RoomNotice;
+
+  constructor(data?: PartialMessage<ClearNoticeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ClearNoticeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notice", kind: "message", T: RoomNotice },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClearNoticeResponse {
+    return new ClearNoticeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClearNoticeResponse {
+    return new ClearNoticeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClearNoticeResponse {
+    return new ClearNoticeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClearNoticeResponse | PlainMessage<ClearNoticeResponse> | undefined, b: ClearNoticeResponse | PlainMessage<ClearNoticeResponse> | undefined): boolean {
+    return proto3.util.equals(ClearNoticeResponse, a, b);
   }
 }
 
@@ -394,7 +734,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   threadingMode?: RoomThreadingMode;
 
   /**
-   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds.
+   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events.
    * Omit to infer populated fields; * selects all editable fields. An explicit
    * empty mask is invalid. Unselected values are ignored. Selected absent values
    * reset the field to its default, subject to field validation.
@@ -410,6 +750,14 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
    * @generated from field: optional uint32 thread_slow_mode_seconds = 8;
    */
   threadSlowModeSeconds?: number;
+
+  /**
+   * Whether clients show join/leave activity in this channel's history and live
+   * timeline. Requires room.manage. Selecting an absent value resets to true.
+   *
+   * @generated from field: optional bool show_membership_events = 9;
+   */
+  showMembershipEvents?: boolean;
 
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
@@ -427,6 +775,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
     { no: 6, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode), opt: true },
     { no: 7, name: "update_mask", kind: "message", T: FieldMask },
     { no: 8, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 9, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {

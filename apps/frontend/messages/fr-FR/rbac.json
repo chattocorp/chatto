@@ -147,6 +147,7 @@
       "call": "Appels"
     },
     "permission_help": {
+      "room_manage_notice": "Permet à un membre de gérer l’annonce d’un salon actif, mais pas le salon lui-même. Les nouvelles instances accordent ce droit uniquement à Admin ; les mises à niveau conservent les droits existants.",
       "server_manage": "Permet à un compte de modifier le nom, la description, le logo et les autres paramètres du serveur. Elle permet aussi de modifier l’annuaire public des voisins. Ne l’accordez qu’aux personnes qui peuvent parler au nom de tout le serveur.",
       "server_manage_neighbors": "Permet à un compte d’ajouter, de modifier et de supprimer des entrées dans l’annuaire public des voisins. Elle ne permet pas de modifier les autres paramètres du serveur.",
       "room_create": "Permet à un compte de créer des salons. Au niveau d’un groupe de salons, elle permet de créer des salons uniquement dans ce groupe.",

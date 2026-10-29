@@ -305,6 +305,27 @@ func TestMCPFailureRetryContract(t *testing.T) {
 	}
 }
 
+func TestMCPKeyedPostFailureRetryContract(t *testing.T) {
+	for _, err := range []error{context.DeadlineExceeded, errors.New("private-backend"), postedMessageResultError(context.DeadlineExceeded)} {
+		failure := classifyToolError(err, "post_message")
+		keyed, ok := errors.AsType[*toolFailure](keyedPostFailure(failure, "caller-key"))
+		if !ok || !keyed.RetrySameRequest || keyed.Retry != "after_delay" || keyed.NextAction != "retry" {
+			t.Fatalf("keyed retry = %#v", keyed)
+		}
+	}
+	for _, err := range []error{core.ErrMessageIdempotencyConflict, &core.MessagePostAppliedError{Cause: core.ErrPermissionDenied}} {
+		keyed, ok := errors.AsType[*toolFailure](keyedPostFailure(classifyToolError(err, "post_message"), "caller-key"))
+		if !ok || keyed.RetrySameRequest || keyed.Retry != "never" {
+			t.Fatalf("unsafe retry advertised: %#v", keyed)
+		}
+	}
+	failure := keyedPostFailure(classifyToolError(context.DeadlineExceeded, "post_message"), "")
+	plain, _ := errors.AsType[*toolFailure](failure)
+	if plain.RetrySameRequest || plain.Retry != "never" {
+		t.Fatalf("unkeyed timeout = %#v", plain)
+	}
+}
+
 func TestMCPAdmissionFailureContract(t *testing.T) {
 	called := false
 	handler := withAdmissionLimit(rate.NewLimiter(0, 0), http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))

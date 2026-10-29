@@ -4,10 +4,11 @@ import (
 	"context"
 	"sort"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 )
 
@@ -39,7 +40,13 @@ func (s *operatorRoomService) CreateRoom(ctx context.Context, req *connect.Reque
 	if err := core.ValidateRoomDescription(req.Msg.GetDescription()); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	room, err := s.api.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	var room *readmodel.Room
+	var err error
+	if req.Msg.GetOperationKey() != "" {
+		room, err = s.api.core.CreateHistoricalOperatorRoom(ctx, req.Msg.GetOperationKey(), req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	} else {
+		room, err = s.api.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +74,8 @@ func (s *operatorRoomService) AddMember(ctx context.Context, req *connect.Reques
 
 // operatorRoomPage retains every exact-name match, including archived rooms,
 // and applies offsets only after ordering by stable room ID.
-func operatorRoomPage(rooms []*evtv1.Room, name string, limit, offset int) ([]*evtv1.Room, int, bool) {
-	filtered := make([]*evtv1.Room, 0, len(rooms))
+func operatorRoomPage(rooms []*readmodel.Room, name string, limit, offset int) ([]*readmodel.Room, int, bool) {
+	filtered := make([]*readmodel.Room, 0, len(rooms))
 	for _, room := range rooms {
 		if name == "" || room.GetName() == name {
 			filtered = append(filtered, room)

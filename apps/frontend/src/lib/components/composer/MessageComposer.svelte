@@ -4,6 +4,7 @@
 
 <script lang="ts">
   import ComposerStatusRow from './ComposerStatusRow.svelte';
+  import ComposerShortcutHints from './ComposerShortcutHints.svelte';
   import SlowModeBadge from './SlowModeBadge.svelte';
   import { createMessageAPI } from '@chatto/client/api/messages';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -169,6 +170,7 @@
     },
     context: composerContext,
     getMembers: () => membersStore().members,
+    isUserDeactivated: (userId) => stores.projection.users.isDeactivated(userId),
     getMentionPriorityUserIds: () => mentionPriorityUserIds,
     get membersStore() {
       return membersStore();
@@ -235,6 +237,7 @@
     }
   }}
 >
+  <ComposerShortcutHints disabled={composer.inputDisabled} />
   <ComposerLinkPreview state={composer.linkPreviews} />
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
@@ -300,7 +303,7 @@
         class={[
           'grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1',
           !expandedDraft &&
-            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:mobile-presentation:items-center'
+            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:comfortable-density:items-center'
         ]}
       >
         {#if composer.autocomplete.emoji}
@@ -325,10 +328,8 @@
         {/if}
 
         <CompactActionButton
-          wrapperClass={[
-            'mobile-presentation:pill-button-group-touch',
-            !expandedDraft && '@min-[560px]/composer:desktop-presentation:mb-1'
-          ]}
+          touchFriendly
+          wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:compact-density:mb-1'}
           label={m('composer.formatting_options')}
           type="button"
           onpointerdown={(event) => event.preventDefault()}
@@ -362,7 +363,8 @@
           {:then { default: Editor }}
             <Editor
               placeholder={composer.currentPlaceholder}
-              editable={!composer.inputDisabled}
+              editable={composer.editorEditable}
+              readOnly={composer.submission.loading}
               autofocus={autoFocus && shouldAutoFocus()}
               testid={composer.testid}
               onUpdate={(text) => composer.handleEditorUpdate(text)}
@@ -378,6 +380,7 @@
         </div>
 
         <ComposerToolbar
+          serverId={serverScope.serverId}
           editorApi={composer.editorApi}
           inputDisabled={composer.inputDisabled}
           {canAttach}

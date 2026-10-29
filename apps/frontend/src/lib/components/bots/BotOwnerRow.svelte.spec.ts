@@ -62,7 +62,7 @@ it('shows the human owner as a compact profile button', async () => {
   mocks.batchGetUsers.mockResolvedValue([owner]);
   view = render(BotOwnerRow, { ownerId: 'owner' });
   await expect.element(page.getByText('Owned by')).toBeVisible();
-  await expect.element(page.getByRole('button', { name: 'View profile of Alice' })).toBeVisible();
+  await expect.element(page.getByRole('button', { name: 'Alice' })).toBeVisible();
   expect(mocks.batchGetUsers).toHaveBeenCalledWith(['owner']);
 });
 

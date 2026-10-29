@@ -143,6 +143,21 @@
           "description": "Izmantojiet tumšo interfeisu šajā pārlūkprogrammā"
         }
       },
+      "animations": {
+        "title": "Animācijas",
+        "automatic": {
+          "label": "Automātiski",
+          "description": "Ievērot sistēmas samazinātas kustības iestatījumu"
+        },
+        "enabled": {
+          "label": "Iespējotas",
+          "description": "Vienmēr rādīt animācijas"
+        },
+        "disabled": {
+          "label": "Atspējotas",
+          "description": "Rādīt izmaiņas bez animācijām"
+        }
+      },
       "thread_pane": {
         "title": "Pavediena rūts",
         "overlay": {
@@ -425,6 +440,7 @@
         "title": "Parole",
         "add_description": "Pievienojiet paroli, lai varētu tieši pierakstīties un atvienot savu pēdējo SSO nodrošinātāju.",
         "change_description": "Mainiet tiešās pierakstīšanās paroli.",
+        "sso_managed": "Jūs nevarat pievienot vai mainīt paroli, jo šis serveris izmanto vienoto pierakstīšanos (SSO). Pārvaldiet savus pierakstīšanās datus pie sava identitātes pakalpojumu sniedzēja.",
         "current_label": "Pašreizējā parole",
         "current_required": "Ievadiet savu pašreizējo paroli.",
         "add_button": "Pievienot paroli",
@@ -437,6 +453,9 @@
         "already_set": "Šim kontam jau ir parole."
       },
       "sso": {
+        "username_unavailable": "Nevar piešķirt pierakstīšanās pakalpojuma sniedzēja lietotājvārdu. Sazinies ar servera operatoru.",
+        "username_managed": "Tavu lietotājvārdu pārvalda pierakstīšanās pakalpojuma sniedzējs, un to šeit nevar mainīt.",
+        "unlink_disabled": "Servera operators neļauj atvienot šo pakalpojuma sniedzēju.",
         "popup_blocked": "Atļauj uznirstošos logus šai vietnei un mēģini saistīt vēlreiz.",
         "account_mismatch": "Pieraksties pareizajā kontā šajā serverī un sāc saistīšanu vēlreiz sākotnējā logā.",
         "provider_unavailable": "Šis pierakstīšanās pakalpojumu sniedzējs vairs nav pieejams.",
@@ -449,6 +468,7 @@
         "link_button": "Saite",
         "link_failed": "Neizdevās saistīt pierakstīšanās nodrošinātāju",
         "fresh_auth_required": "Pirms cita pakalpojumu sniedzēja saistīšanas pierakstieties vēlreiz.",
+        "sso_fresh_auth_required": "Atveriet konta iestatījumus serverī, kuram pieder šis konts. Izrakstieties un pierakstieties vēlreiz, izmantojot savu SSO pakalpojumu sniedzēju, un pēc tam atkārtojiet darbību šajā serverī.",
         "provider_unconfigured": "Pakalpojumu sniedzējs vairs nav konfigurēts",
         "disconnect_button": "Atvienot",
         "disconnecting": "Notiek atvienošana...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Pakalpojumu sniedzēju nevar atvienot",
-          "body": "{provider} ir jūsu vienīgā pierakstīšanās metode. Vispirms pievienojiet paroli vai piesaistiet citu pakalpojumu sniedzēju."
+          "body": "Pirms atvienojat {provider}, iestatiet citu šī servera atbalstītu pierakstīšanās metodi."
         },
         "fresh_auth_modal": {
           "title": "Apstipriniet paroli",

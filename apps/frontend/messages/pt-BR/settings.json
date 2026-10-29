@@ -118,10 +118,10 @@
       "conflict": "Este perfil mudou enquanto você o editava. Recarregue a página e salve suas alterações novamente.",
       "save_button": "Salvar alterações",
       "bio": {
-        "label": "Bio",
+        "label": "Sobre",
         "description": "Até {max} caracteres, visível no seu perfil.",
         "placeholder": "Conte um pouco sobre você",
-        "too_long": "A bio deve ter no máximo {max} caracteres."
+        "too_long": "O texto deve ter no máximo {max} caracteres."
       }
     },
     "preferences": {
@@ -141,6 +141,21 @@
         "dark": {
           "label": "Escuro",
           "description": "Use a interface escura neste navegador"
+        }
+      },
+      "animations": {
+        "title": "Animações",
+        "automatic": {
+          "label": "Automático",
+          "description": "Seguir a preferência do sistema por movimento reduzido"
+        },
+        "enabled": {
+          "label": "Ativadas",
+          "description": "Sempre mostrar animações"
+        },
+        "disabled": {
+          "label": "Desativadas",
+          "description": "Mostrar alterações sem animações"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "Senha",
         "add_description": "Adicione uma senha para poder fazer login diretamente e desconectar seu último provedor de SSO.",
         "change_description": "Altere a senha usada para login direto.",
+        "sso_managed": "Você não pode adicionar nem alterar uma senha porque este servidor usa login único (SSO). Gerencie seus dados de login com seu provedor de identidade.",
         "current_label": "Senha atual",
         "current_required": "Digite sua senha atual.",
         "add_button": "Adicionar senha",
@@ -437,6 +453,9 @@
         "already_set": "Esta conta já possui uma senha."
       },
       "sso": {
+        "username_unavailable": "Não foi possível atribuir o nome de usuário do provedor de login. Entre em contato com o operador do servidor.",
+        "username_managed": "Seu nome de usuário é gerenciado pelo provedor de login e não pode ser alterado aqui.",
+        "unlink_disabled": "O operador do servidor não permite desvincular este provedor.",
         "popup_blocked": "Permita pop-ups para este site e tente vincular novamente.",
         "account_mismatch": "Entre na conta correta neste servidor e inicie a vinculação novamente pela janela original.",
         "provider_unavailable": "Este provedor de login não está mais disponível.",
@@ -449,6 +468,7 @@
         "link_button": "Link",
         "link_failed": "Falha ao vincular provedor de login",
         "fresh_auth_required": "Faça login novamente antes de vincular outro provedor.",
+        "sso_fresh_auth_required": "Abra as configurações da conta no servidor ao qual esta conta pertence. Saia e entre novamente pelo seu provedor de SSO. Depois, tente realizar a ação novamente nesse servidor.",
         "provider_unconfigured": "Provedor não está mais configurado",
         "disconnect_button": "Desconectar",
         "disconnecting": "Desconectando...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "Provedor não pode ser desconectado",
-          "body": "{provider} é seu único método de login. Adicione uma senha ou vincule outro provedor primeiro."
+          "body": "Configure outro método de login compatível com este servidor antes de desconectar {provider}."
         },
         "fresh_auth_modal": {
           "title": "Confirmar senha",

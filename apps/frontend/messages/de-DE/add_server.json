@@ -11,18 +11,17 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Das scheint kein Chatto-Server zu sein.",
     "directory": {
+      "added_by_you": "Von dir hinzugefügt",
+      "joined": "Beigetreten",
+      "needs_login": "Anmeldung erforderlich",
+      "learn_more": "Du möchtest mehr erfahren?",
+      "learn_more_description": "Entdecke, was Chatto kann, erfahre, wie du deinen eigenen Server betreibst, oder finde Hilfe.",
+      "welcome_title": "Jetzt wird’s richtig Chat!",
       "title": "Serververzeichnis",
-      "subtitle": "Andere Chatto-Server entdecken",
-      "lookup_description": "Gib die Adresse eines Chatto-Servers ein, um ihm beizutreten.",
+      "lookup_description": "Gib eine Serveradresse ein, um den Server deinem Verzeichnis hinzuzufügen und seine Empfehlungen zu laden.",
       "find": "Server suchen",
       "connect_by_address": "Per Adresse verbinden",
-      "servers_title": "Empfohlene Server",
-      "servers_description": "Von Servern empfohlen, denen du beigetreten bist. Die Ergebnisse haben keine Rangfolge.",
       "recommended_by": "Empfohlen von {servers}",
-      "more_recommenders_count": {
-        "other": "{count} weitere"
-      },
-      "joined": "Beigetreten",
       "join": "Beitreten",
       "open": "Öffnen",
       "open_in_new_tab": "In neuem Tab öffnen",
@@ -30,9 +29,7 @@
       "profile_unavailable": "Das öffentliche Profil dieses Servers konnte nicht geladen werden.",
       "partial": "Einige deiner Server konnten keine Empfehlungen liefern.",
       "unavailable_title": "Verzeichnis nicht verfügbar",
-      "unavailable_body": "Deine Server konnten keine Empfehlungen liefern. Du kannst dich weiterhin direkt verbinden.",
-      "empty_title": "Noch keine empfohlenen Server",
-      "empty_body": "Du kannst dich weiterhin direkt über eine Serveradresse verbinden."
+      "unavailable_body": "Deine Server konnten keine Empfehlungen liefern. Du kannst dich weiterhin direkt verbinden."
     }
   }
 }

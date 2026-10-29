@@ -6,6 +6,15 @@
       "confirmation": "Durante 15 minutos, isto ativa as permissões adicionais que te foram atribuídas neste servidor."
     },
     "notifications": {
+      "all_notifications": "Todas as notificações",
+      "all_types": "Todos os tipos",
+      "filter_status": "Estado",
+      "filter_type": "Tipo",
+      "reactions": "Reações",
+      "replies": "Respostas",
+      "mentions": "Menções",
+      "next_unread_source": "Ir para a próxima origem não lida",
+      "no_unread": "Sem notificações por ler",
       "title": "Notificações",
       "subtitle": "Aqui estão as novidades",
       "clear_read": "Limpar lidas",
@@ -28,12 +37,6 @@
         "activity": "{actor} enviou-lhe uma notificação",
         "room_invitation": "{actor} convidou-te para uma sala"
       }
-    },
-    "sign_out": {
-      "title": "Sair",
-      "current_server": "Servidor Atual",
-      "all_servers": "Todos os servidores",
-      "description": "Saia apenas do servidor selecionado ou desligue todos os servidores deste cliente."
     },
     "overview": {
       "title": "Visão geral"

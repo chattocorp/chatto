@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chattocorp/chatto/cli/internal/assets"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -50,7 +49,9 @@ type AssetUploadCreateInput struct {
 	// owner for an operator upload. The operator fact uses SystemActorID.
 	ActorID string
 	// Operator is set only by the private Operator API handler.
-	Operator    bool
+	Operator bool
+	// Historical permits archived channels only on the private operator path.
+	Historical  bool
 	RoomID      string
 	Filename    string
 	ContentType string
@@ -87,7 +88,9 @@ type AssetUploadSession struct {
 	// ActorID owns the asset, including when the upload was started by an operator.
 	ActorID string `json:"actor_id"`
 	// Operator prevents public upload calls from using this session.
-	Operator        bool              `json:"operator,omitempty"`
+	Operator bool `json:"operator,omitempty"`
+	// Historical is fixed at creation and never grants access to a public caller.
+	Historical      bool              `json:"historical,omitempty"`
 	RoomID          string            `json:"room_id"`
 	Filename        string            `json:"filename"`
 	ContentType     string            `json:"content_type"`
@@ -124,7 +127,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 	if err := m.checkUploadSize(input.Size); err != nil {
 		return nil, err
 	}
-	if err := m.authorizeUploadForSession(ctx, input.ActorID, input.RoomID, input.Operator); err != nil {
+	if err := m.authorizeUploadForSession(ctx, input.ActorID, input.RoomID, input.Operator, input.Historical); err != nil {
 		return nil, err
 	}
 
@@ -133,6 +136,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 		UploadID:     NewAssetID(),
 		ActorID:      input.ActorID,
 		Operator:     input.Operator,
+		Historical:   input.Historical,
 		RoomID:       input.RoomID,
 		Filename:     filename,
 		ContentType:  contentType,
@@ -236,7 +240,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	if session.CommittedOffset != session.Size {
 		return nil, nil, invalidArgument("upload is incomplete")
 	}
-	if err := m.authorizeUploadForSession(ctx, session.ActorID, session.RoomID, session.Operator); err != nil {
+	if err := m.authorizeUploadForSession(ctx, session.ActorID, session.RoomID, session.Operator, session.Historical); err != nil {
 		return nil, nil, err
 	}
 	tmp, err := m.materializeUpload(ctx, session)
@@ -471,8 +475,11 @@ func (m *AssetUploadModel) authorizeUpload(ctx context.Context, actorID, roomID 
 
 // authorizeUploadForSession keeps operator uploads separate from user uploads.
 // The private operator listener is the authority for the bypass path.
-func (m *AssetUploadModel) authorizeUploadForSession(ctx context.Context, actorID, roomID string, operator bool) error {
+func (m *AssetUploadModel) authorizeUploadForSession(ctx context.Context, actorID, roomID string, operator, historical bool) error {
 	if !operator {
+		if historical {
+			return ErrPermissionDenied
+		}
 		return m.authorizeUpload(ctx, actorID, roomID)
 	}
 	if _, err := m.core.GetUser(ctx, actorID); err != nil {
@@ -482,7 +489,7 @@ func (m *AssetUploadModel) authorizeUploadForSession(ctx context.Context, actorI
 	if err != nil {
 		return err
 	}
-	if room.Archived {
+	if room.Archived && !historical {
 		return ErrRoomArchived
 	}
 	return nil
@@ -578,74 +585,12 @@ func (m *AssetUploadModel) materializeUpload(ctx context.Context, session *Asset
 }
 
 func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *AssetUploadSession, reader io.ReadSeeker) (*evtv1.Attachment, bool, error) {
-	attachmentID := NewAssetID()
-	contentType := session.ContentType
-	isImage := strings.HasPrefix(contentType, "image/")
-	var content []byte
-	var size int64
-	var width, height int32
-	var animatedGIF bool
-
-	if isImage {
-		result, err := assets.ProcessAttachmentImageWithConfig(reader, m.core.AssetsConfig())
-		if err != nil {
-			return nil, false, fmt.Errorf("failed to process image: %w", err)
-		}
-		content = result.Original
-		size = int64(len(content))
-		width = int32(result.Width)
-		height = int32(result.Height)
-		animatedGIF = contentType == "image/gif" && assets.IsAnimatedGIF(content)
-		reader = bytes.NewReader(content)
-	} else {
-		size = session.Size
-		if _, err := reader.Seek(0, io.SeekStart); err != nil {
-			return nil, false, fmt.Errorf("rewind upload temp file: %w", err)
-		}
+	attachment, image, err := m.core.mediaModel.storeSeekableAttachmentBinary(ctx, session.RoomID, session.Filename, session.ContentType, reader, session.Size)
+	if err != nil {
+		return nil, false, err
 	}
-
-	var storage *evtv1.DeprecatedAsset
-	if m.core.ShouldUseS3() {
-		s3Key := S3KeyAttachment(attachmentID)
-		if _, err := m.core.s3Client.PutObject(ctx, s3Key, reader, size, contentType); err != nil {
-			return nil, false, fmt.Errorf("failed to upload attachment to S3: %w", err)
-		}
-		storage = &evtv1.DeprecatedAsset{
-			Asset: &evtv1.DeprecatedAsset_S3{
-				S3: &evtv1.S3Asset{Key: s3Key, Bucket: new(m.core.s3Client.Bucket())},
-			},
-		}
-	} else {
-		if _, err := reader.Seek(0, io.SeekStart); err != nil {
-			return nil, false, fmt.Errorf("rewind upload temp file: %w", err)
-		}
-		if _, err := m.core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
-			Name: attachmentID,
-			Headers: map[string][]string{
-				"Content-Type": {contentType},
-				"Filename":     {session.Filename},
-				"Room-Id":      {session.RoomID},
-			},
-		}, reader); err != nil {
-			return nil, false, fmt.Errorf("failed to store attachment: %w", err)
-		}
-		storage = &evtv1.DeprecatedAsset{
-			Asset: &evtv1.DeprecatedAsset_Nats{
-				Nats: &evtv1.NATSAsset{Key: attachmentID},
-			},
-		}
-	}
-
-	return &evtv1.Attachment{
-		Id:          attachmentID,
-		RoomId:      session.RoomID,
-		Filename:    session.Filename,
-		ContentType: contentType,
-		Size:        size,
-		Width:       width,
-		Height:      height,
-		Storage:     storage,
-	}, animatedGIF, nil
+	animatedGIF := session.ContentType == "image/gif" && image.Frames > 1
+	return attachment, animatedGIF, nil
 }
 
 func (m *AssetUploadModel) deleteUploadChunks(ctx context.Context, session *AssetUploadSession) {

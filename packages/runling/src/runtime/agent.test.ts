@@ -76,8 +76,11 @@ vi.doMock('@earendil-works/pi-coding-agent', async () => {
       sessionOptions = options;
       let messages: any[] = sessionOptions.sessionManager.buildSessionContext().messages;
       const session = {
+        bindExtensions: vi.fn(async () => {}),
+        extensionRunner: { emit: vi.fn(async () => {}) },
         sessionManager: sessionOptions.sessionManager,
         agent: {
+          toolExecution: 'parallel',
           steer: vi.fn(),
           clearSteeringQueue: vi.fn(),
           state: {
@@ -132,9 +135,95 @@ test.each([
   expect(toolFailureCategory({ content: [{ type: 'text', text }] })).toBe(expected);
 });
 
+test('starts extensions, configures sequential tools, and waits for one shutdown', async () => {
+  const instance = await createAgentSession({
+    cwd: '/project',
+    model: 'anthropic/claude-opus-4-5',
+    output: 'text',
+    tools: 'extensions',
+    toolExecution: 'sequential'
+  });
+  const session = createdSessions[0];
+  expect(sessionOptions.noTools).toBe('builtin');
+  expect(sessionOptions.tools).toBeUndefined();
+  expect(session.agent.toolExecution).toBe('sequential');
+  expect(session.bindExtensions).toHaveBeenCalledOnce();
+  const closed = Promise.withResolvers<void>();
+  session.extensionRunner.emit.mockImplementation(() => closed.promise);
+  const first = instance.dispose();
+  const second = instance.dispose();
+  expect(disposed).toBe(false);
+  expect(session.extensionRunner.emit).toHaveBeenCalledExactlyOnceWith({
+    type: 'session_shutdown',
+    reason: 'quit'
+  });
+  closed.resolve();
+  await Promise.all([first, second]);
+  expect(disposed).toBe(true);
+});
+
 test('malformed failure details do not break activity reporting', () => {
   expect(toolFailureCategory({ content: [null, { type: 'text', text: 42 }] })).toBe('unknown');
   expect(toolFailureCategory(undefined)).toBe('unknown');
+});
+
+test('private agent content stays out of logs and events while results and usage remain available', async () => {
+  const events: RunlingEvent[] = [];
+  const output = vi.spyOn(console, 'info').mockImplementation(() => {});
+  promptImplementation = async () => {
+    eventHandler?.({
+      type: 'auto_retry_start',
+      delayMs: 100,
+      attempt: 1,
+      maxAttempts: 5,
+      errorMessage: 'PRIVATE_PROVIDER_ERROR'
+    });
+    eventHandler?.({
+      type: 'message_update',
+      assistantMessageEvent: {
+        type: 'text_delta',
+        contentIndex: 0,
+        partial: { content: [{ type: 'text', text: 'PRIVATE_PREVIEW' }] }
+      }
+    });
+    eventHandler?.({
+      type: 'tool_execution_start',
+      toolName: 'bash',
+      toolCallId: 'one',
+      args: { command: 'PRIVATE_ARGUMENT' }
+    });
+    eventHandler?.({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        stopReason: 'stop',
+        content: [
+          { type: 'thinking', thinking: 'PRIVATE_THOUGHT' },
+          { type: 'text', text: 'PRIVATE_ANSWER' }
+        ],
+        usage: { ...emptyUsage, input: 5 }
+      }
+    });
+  };
+  try {
+    const result = await observeRunlingEvents(
+      (event) => events.push(event),
+      () =>
+        runAgent(createTaskContext(), 'PRIVATE_PROMPT', {
+          cwd: '/project',
+          model: 'anthropic/claude-opus-4-5',
+          output: 'text',
+          logContent: false
+        })
+    );
+    expect(result.summary).toBe('PRIVATE_ANSWER');
+    expect(result.usage.input).toBe(5);
+    expect(JSON.stringify(events)).not.toContain('PRIVATE_');
+    expect(JSON.stringify(output.mock.calls)).not.toContain('PRIVATE_');
+    expect(events.some((event) => event.type === 'agent.tool')).toBe(true);
+  } finally {
+    output.mockRestore();
+  }
 });
 
 const { log } = await import('./log.ts');
@@ -1102,7 +1191,7 @@ describe('runAgent', () => {
       resources: {
         agentDir: '/tmp/agent',
         extensions: false,
-        skills: false,
+        skills: ['./skills'],
         promptTemplates: false,
         themes: false,
         contextFiles: false
@@ -1116,6 +1205,7 @@ describe('runAgent', () => {
       agentDir: '/tmp/agent',
       noExtensions: true,
       noSkills: true,
+      additionalSkillPaths: ['./skills'],
       noPromptTemplates: true,
       noThemes: true,
       noContextFiles: true,
@@ -1331,7 +1421,7 @@ describe('agent', () => {
       expect(promptCalls).toBe(2);
       expect(disposed).toBe(false);
     } finally {
-      instance.dispose();
+      await instance.dispose();
     }
 
     expect(disposed).toBe(true);
@@ -1727,7 +1817,7 @@ test('forwards completed assistant text during the interaction, excluding reason
     type: 'message_end',
     message: { role: 'toolResult', content: [{ type: 'text', text: 'file contents' }] }
   });
-  expect(onText.mock.calls).toEqual([['Here is the joke.']]);
+  expect(onText.mock.calls).toEqual([['Here is the joke.', { hasToolCalls: true }]]);
   gate.resolve();
   await run;
   await instance.runOutcome(createTaskContext(), 'Next');
@@ -1948,7 +2038,7 @@ test('text mode delivers a natural response once without report tools or retries
   try {
     const result = await bot.run(createTaskContext(), 'Hi', { onText: text });
     expect(result).toMatchObject({ outcome: 'completed', summary: 'Hello!' });
-    expect(text.mock.calls).toEqual([['Hello!']]);
+    expect(text.mock.calls).toEqual([['Hello!', { hasToolCalls: false }]]);
     expect(promptCalls).toBe(1);
     expect(sessionOptions.customTools).toEqual([]);
     expect(sessionOptions.tools).toEqual([]);
@@ -2019,7 +2109,10 @@ test('text mode keeps progress delivery but returns only the final response', as
     expect((await bot.run(createTaskContext(), 'Look it up', { onText: text })).summary).toBe(
       'Here is the answer.'
     );
-    expect(text.mock.calls).toEqual([['Checking the page.'], ['Here is the answer.']]);
+    expect(text.mock.calls).toEqual([
+      ['Checking the page.', { hasToolCalls: false }],
+      ['Here is the answer.', { hasToolCalls: false }]
+    ]);
   } finally {
     bot.dispose();
   }
@@ -2138,7 +2231,7 @@ test('a provider retry stays one interaction and does not deliver the failed tex
     () => instance.runOutcome(createTaskContext(), 'Investigate', { onText })
   );
   expect(result).toMatchObject({ outcome: 'completed', summary: 'Full answer' });
-  expect(onText.mock.calls).toEqual([['Full answer']]);
+  expect(onText.mock.calls).toEqual([['Full answer', { hasToolCalls: false }]]);
   expect(events.filter((event) => event.type === 'agent.started')).toHaveLength(1);
 });
 

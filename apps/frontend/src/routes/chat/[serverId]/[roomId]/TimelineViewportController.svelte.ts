@@ -61,15 +61,30 @@ export class TimelineViewportController {
     if (timelineKey === this.#timelineKey) return false;
 
     this.#timelineKey = timelineKey;
-    this.cancelBottomScroll();
-    this.initialScrollDone = false;
-    this.followBottom();
+    this.#startEntry();
     this.#lastSeenNewestId = null;
-    this.#previousOffset = null;
-    this.#scrollUpLockedUntil = 0;
     this.#wasJumpedMode = false;
     this.#enterUnreadLanding(timelineKey);
     return true;
+  }
+
+  /**
+   * Enter the current timeline again after its read failed and left it empty.
+   * The next window lands like a new entry: on the unread separator, or at
+   * the bottom. Clicking Retry does not count as an explicit viewport action.
+   */
+  retryEntry(): void {
+    this.#startEntry();
+    this.#unreadLandingKey = this.#timelineKey;
+    this.#unreadLanding = 'armed';
+  }
+
+  #startEntry(): void {
+    this.cancelBottomScroll();
+    this.initialScrollDone = false;
+    this.followBottom();
+    this.#previousOffset = null;
+    this.#scrollUpLockedUntil = 0;
   }
 
   /** Arm the landing when the given timeline has no landing decision yet. */

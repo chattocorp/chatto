@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -13,7 +15,7 @@ import (
 // findDM returns the existing DM for the caller and participant set.
 // The caller is automatically included in the participant set. A missing DM
 // returns (nil, false, nil). The caller must be a member of a found DM.
-func (s *RoomCommandModel) findDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
+func (s *RoomCommandModel) findDM(ctx context.Context, creatorID string, participantIDs []string) (*readmodel.Room, bool, error) {
 	// Ensure creator is in participants
 	allParticipants := ensureInList(participantIDs, creatorID)
 
@@ -55,7 +57,7 @@ func (s *RoomCommandModel) findDM(ctx context.Context, creatorID string, partici
 // Trusted callers must check DM creation policy before calling; public callers
 // use StartDM. For existing DMs, the caller must already be a participant.
 // For new DMs, all participants are automatically joined to the room.
-func (s *RoomCommandModel) findOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
+func (s *RoomCommandModel) findOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*readmodel.Room, bool, error) {
 	room, found, err := s.findDM(ctx, creatorID, participantIDs)
 	if err != nil {
 		return nil, false, err
@@ -105,13 +107,13 @@ func (s *RoomCommandModel) findOrCreateDM(ctx context.Context, creatorID string,
 //
 // Post-batch side effects (per-participant read markers) happen after the
 // batch acks, since they're outside the durable event log.
-func (s *RoomCommandModel) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*evtv1.Room, error) {
+func (s *RoomCommandModel) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*readmodel.Room, error) {
 	// Keep stored group conversations readable, but never create new ones.
 	if err := validateNewDMParticipants(participantIDs); err != nil {
 		return nil, err
 	}
 
-	room := &evtv1.Room{
+	room := &readmodel.Room{
 		Id:   roomID,
 		Kind: evtv1.RoomKind_ROOM_KIND_DM,
 		Name: "", // DMs don't have names - derived from participants in UI

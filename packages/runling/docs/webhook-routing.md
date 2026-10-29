@@ -65,6 +65,19 @@ independent of the HTTP connection.
 Runling does not add a global message registry or deduplicate deliveries
 automatically.
 
+## Reactivate a retained run
+
+Call `ctx.start(task, { input, runId })` to execute a finished workflow again with
+fresh input. Register the task in `workflows`. The retained run must belong to
+the same source kind, route name, and registered task. A missing run, invalid
+input, or an active execution rejects registration. The router owns queuing and
+authorization; do not use untrusted run IDs without checking application access.
+
+The new execution keeps the ID, reference, saved state, files, and journal.
+It does not replay prior work. Retain the new handle: an old handle cannot steer
+or cancel the new execution. See [workflow state](workflow-state.md#reactivate-a-finished-workflow)
+for persistence and retention rules.
+
 ## Keep a run and send it messages
 
 The run handle has these members:

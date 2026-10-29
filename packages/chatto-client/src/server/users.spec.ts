@@ -16,6 +16,42 @@ const member = (id: string, name = id) =>
 beforeEach(resetUserStoresForTests);
 
 describe('connection user store', () => {
+  it('reactively restores account access without losing identity or accepting stale state', async () => {
+    const store = new UserStore();
+    store.set('u1', member('u1', 'Alice'));
+    let finish!: (members: DirectoryMember[]) => void;
+    const read = store.readSnapshot(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    store.setDeactivated('u1', true);
+    expect(store.isDeactivated('u1')).toBe(true);
+    expect(store.view('u1')).toMatchObject({ displayName: 'Alice', deactivated: true });
+    finish([member('u1', 'Stale')]);
+    await read;
+    expect(store.view('u1')?.displayName).toBe('Alice');
+    store.setDeactivated('u1', false);
+    expect(store.isDeactivated('u1')).toBe(false);
+    expect(store.view('u1')?.deactivated).toBeFalsy();
+    expect(store.view('u1')?.avatarUrl).toBe('/avatar');
+  });
+
+  it('keeps transitions received before hydration and clears them on snapshot reset', () => {
+    const store = new UserStore();
+    store.setDeactivated('u1', true);
+    store.seed(member('u1'));
+    expect(store.view('u1')?.deactivated).toBe(true);
+    store.setDeactivated('u1', false);
+    const stale = member('u1');
+    stale.user!.deactivated = true;
+    store.set('u1', stale);
+    expect(store.isDeactivated('u1')).toBe(false);
+    store.clear();
+    store.set('u1', stale);
+    expect(store.isDeactivated('u1')).toBe(true);
+  });
   it('converts each stored profile once and shares the view until it is replaced', () => {
     const users = new UserStore();
     users.set('u1', member('u1', 'First'));

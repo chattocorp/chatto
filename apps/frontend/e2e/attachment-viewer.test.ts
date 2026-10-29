@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
@@ -7,6 +8,66 @@ import {
   getRoomOnRemote,
   postMessageAttachmentOnRemote
 } from './fixtures/multiServer';
+
+test('API-uploaded HEIC attachments render server previews and download original bytes', async ({
+  page,
+  chatPage,
+  serverURL
+}) => {
+  const sender = await createUserOnRemote(serverURL, 'heicsender', 'password123');
+  await joinDefaultRoomsOnRemote(serverURL, sender.token);
+  const roomId = await getRoomOnRemote(serverURL, sender.token, 'general');
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const filename = 'Imported photo.heic';
+  const fixturePath = fileURLToPath(
+    new URL('../../../cli/internal/assets/testdata/photo.heic', import.meta.url)
+  );
+  const pendingPreview = page.waitForResponse((response) => {
+    const path = new URL(response.url()).pathname;
+    return path.startsWith('/assets/files/') && path.includes('/image/');
+  });
+
+  // Upload original bytes through the API so browser-side HEIC conversion
+  // cannot hide a regression in server decoding or imported attachment display.
+  await postMessageAttachmentOnRemote(
+    serverURL,
+    sender.token,
+    roomId,
+    'Imported HEIC attachment',
+    fixturePath,
+    filename,
+    'image/heic'
+  );
+  const trigger = page.getByRole('button', { name: `View ${filename}`, exact: true });
+  const thumbnail = trigger.locator('img');
+  await expect(thumbnail).toBeVisible();
+  await expect.poll(() => thumbnail.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+  const previewResponse = await pendingPreview;
+  expect(previewResponse.ok()).toBe(true);
+  expect(previewResponse.headers()['content-type']).toBe('image/jpeg');
+
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: filename, exact: true });
+  const viewerImage = dialog.locator('img');
+  await expect(viewerImage).toBeVisible();
+  await expect(viewerImage).toHaveAttribute('src', /\/assets\/files\/[^/]+\/image\//);
+  await expect.poll(() => viewerImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+  await dialog.getByRole('button', { name: 'Details', exact: true }).click();
+  await expect(dialog.getByText('image/heic', { exact: true })).toBeVisible();
+
+  const pendingDownload = page.waitForEvent('download');
+  await dialog.getByRole('link', { name: 'Download', exact: true }).click();
+  const download = await pendingDownload;
+  expect(download.suggestedFilename()).toBe(filename);
+  expect(await readFile((await download.path())!)).toEqual(await readFile(fixturePath));
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
 
 test('Markdown attachments render automatically and download their original bytes', async ({
   page,

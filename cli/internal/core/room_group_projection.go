@@ -3,6 +3,8 @@ package core
 import (
 	"slices"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -28,7 +30,7 @@ type roomGroupEntry struct {
 	description string
 	roomIDs     []string
 	entries     []*evtv1.SidebarGroupEntry
-	links       map[string]*evtv1.SidebarLink
+	links       map[string]*readmodel.SidebarLink
 }
 
 type RoomGroupMoveSnapshot struct {
@@ -38,7 +40,7 @@ type RoomGroupMoveSnapshot struct {
 }
 
 type RoomGroupSnapshot struct {
-	Group  *evtv1.RoomGroup
+	Group  *readmodel.RoomGroup
 	Exists bool
 	Seq    uint64
 }
@@ -46,7 +48,7 @@ type RoomGroupSnapshot struct {
 type SidebarLinkMoveSnapshot struct {
 	TargetExists  bool
 	SourceGroupID string
-	Link          *evtv1.SidebarLink
+	Link          *readmodel.SidebarLink
 	Seq           uint64
 }
 
@@ -54,9 +56,9 @@ type SidebarLinkMoveSnapshot struct {
 // one relative sidebar-item move from a single projection generation.
 type SidebarItemPlacementSnapshot struct {
 	SourceGroupID string
-	SourceGroup   *evtv1.RoomGroup
-	TargetGroup   *evtv1.RoomGroup
-	Link          *evtv1.SidebarLink
+	SourceGroup   *readmodel.RoomGroup
+	TargetGroup   *readmodel.RoomGroup
+	Link          *readmodel.SidebarLink
 	Seq           uint64
 }
 
@@ -144,7 +146,7 @@ func (p *RoomGroupProjection) Apply(event *evtv1.Event, seq uint64) error {
 		a := e.SidebarLinkAddedToGroup
 		if entry := p.groups[a.GetGroupId()]; entry != nil {
 			entry.ensureMaps()
-			entry.links[a.GetLinkId()] = &evtv1.SidebarLink{
+			entry.links[a.GetLinkId()] = &readmodel.SidebarLink{
 				Id:    a.GetLinkId(),
 				Label: a.GetLabel(),
 				Url:   a.GetUrl(),
@@ -160,7 +162,7 @@ func (p *RoomGroupProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if entry := p.groups[u.GetGroupId()]; entry != nil {
 			entry.ensureMaps()
 			if _, ok := entry.links[u.GetLinkId()]; ok {
-				entry.links[u.GetLinkId()] = &evtv1.SidebarLink{
+				entry.links[u.GetLinkId()] = &readmodel.SidebarLink{
 					Id:    u.GetLinkId(),
 					Label: u.GetLabel(),
 					Url:   u.GetUrl(),
@@ -193,9 +195,9 @@ func (p *RoomGroupProjection) noteSeq(seq uint64) {
 }
 
 // Get returns the group's data, or (nil, false) if no such group has
-// been projected. The returned proto is a fresh value — including a
-// cloned room_ids slice — so callers may mutate freely.
-func (p *RoomGroupProjection) Get(groupID string) (*evtv1.RoomGroup, bool) {
+// been projected. The returned model and its nested values are detached,
+// so callers can change them without changing the projection.
+func (p *RoomGroupProjection) Get(groupID string) (*readmodel.RoomGroup, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	entry, ok := p.groups[groupID]
@@ -217,7 +219,7 @@ func (p *RoomGroupProjection) Snapshot(groupID string) RoomGroupSnapshot {
 }
 
 // PlacementSnapshot returns a consistent source/destination view for a room or
-// sidebar-link placement command. The returned protobuf messages are detached
+// sidebar-link placement command. The returned read models are detached
 // from projection state.
 func (p *RoomGroupProjection) PlacementSnapshot(item *evtv1.SidebarGroupEntry, targetGroupID string) SidebarItemPlacementSnapshot {
 	p.RLock()
@@ -238,7 +240,7 @@ func (p *RoomGroupProjection) PlacementSnapshot(item *evtv1.SidebarGroupEntry, t
 			snapshot.SourceGroupID = groupID
 			snapshot.SourceGroup = entryToGroup(groupID, entry)
 			if item.GetKind() == evtv1.SidebarGroupEntry_SIDEBAR_LINK {
-				snapshot.Link = cloneSidebarLink(entry.links[item.GetId()])
+				snapshot.Link = entry.links[item.GetId()].Clone()
 			}
 			return snapshot
 		}
@@ -255,12 +257,12 @@ func (p *RoomGroupProjection) Exists(groupID string) bool {
 }
 
 // All returns every group in the projection. Order is unspecified;
-// the layout aggregate (KV-backed for now) provides the operator-
-// preferred sort. Returned protos are fresh values.
-func (p *RoomGroupProjection) All() []*evtv1.RoomGroup {
+// RoomLayoutProjection provides the configured order. Returned models
+// and their nested values are detached.
+func (p *RoomGroupProjection) All() []*readmodel.RoomGroup {
 	p.RLock()
 	defer p.RUnlock()
-	out := make([]*evtv1.RoomGroup, 0, len(p.groups))
+	out := make([]*readmodel.RoomGroup, 0, len(p.groups))
 	for id, entry := range p.groups {
 		out = append(out, entryToGroup(id, entry))
 	}
@@ -298,7 +300,7 @@ func (p *RoomGroupProjection) SidebarLinkMoveSnapshot(linkID, targetGroupID stri
 	for groupID, entry := range p.groups {
 		if link := entry.link(linkID); link != nil {
 			snapshot.SourceGroupID = groupID
-			snapshot.Link = cloneSidebarLink(link)
+			snapshot.Link = link.Clone()
 			return snapshot
 		}
 	}
@@ -332,10 +334,10 @@ func (p *RoomGroupProjection) Count() int {
 	return len(p.groups)
 }
 
-// entryToGroup builds a public *evtv1.RoomGroup from the private
-// entry, including fresh slices for all sidebar layout state.
-func entryToGroup(id string, entry *roomGroupEntry) *evtv1.RoomGroup {
-	return &evtv1.RoomGroup{
+// entryToGroup builds a detached read model, including fresh slices and
+// nested values for all sidebar layout state.
+func entryToGroup(id string, entry *roomGroupEntry) *readmodel.RoomGroup {
+	return &readmodel.RoomGroup{
 		Id:           id,
 		Name:         entry.name,
 		Description:  entry.description,
@@ -347,7 +349,7 @@ func entryToGroup(id string, entry *roomGroupEntry) *evtv1.RoomGroup {
 
 func (e *roomGroupEntry) ensureMaps() {
 	if e.links == nil {
-		e.links = make(map[string]*evtv1.SidebarLink)
+		e.links = make(map[string]*readmodel.SidebarLink)
 	}
 }
 
@@ -408,7 +410,7 @@ func (e *roomGroupEntry) hasLink(linkID string) bool {
 	})
 }
 
-func (e *roomGroupEntry) link(linkID string) *evtv1.SidebarLink {
+func (e *roomGroupEntry) link(linkID string) *readmodel.SidebarLink {
 	if e.links == nil {
 		return nil
 	}
@@ -429,11 +431,11 @@ func (e *roomGroupEntry) clonedEntries() []*evtv1.SidebarGroupEntry {
 	return entries
 }
 
-func (e *roomGroupEntry) clonedLinks() []*evtv1.SidebarLink {
+func (e *roomGroupEntry) clonedLinks() []*readmodel.SidebarLink {
 	if len(e.links) == 0 {
 		return nil
 	}
-	links := make([]*evtv1.SidebarLink, 0, len(e.links))
+	links := make([]*readmodel.SidebarLink, 0, len(e.links))
 	used := make(map[string]struct{}, len(e.links))
 	for _, entry := range e.entries {
 		if entry.GetKind() != evtv1.SidebarGroupEntry_SIDEBAR_LINK {
@@ -443,7 +445,7 @@ func (e *roomGroupEntry) clonedLinks() []*evtv1.SidebarLink {
 		if link == nil {
 			continue
 		}
-		links = append(links, cloneSidebarLink(link))
+		links = append(links, link.Clone())
 		used[link.GetId()] = struct{}{}
 	}
 	var orphans []string
@@ -454,7 +456,7 @@ func (e *roomGroupEntry) clonedLinks() []*evtv1.SidebarLink {
 	}
 	slices.Sort(orphans)
 	for _, id := range orphans {
-		links = append(links, cloneSidebarLink(e.links[id]))
+		links = append(links, e.links[id].Clone())
 	}
 	return links
 }
@@ -479,17 +481,6 @@ func cloneSidebarEntry(entry *evtv1.SidebarGroupEntry) *evtv1.SidebarGroupEntry 
 	return &evtv1.SidebarGroupEntry{
 		Kind: entry.GetKind(),
 		Id:   entry.GetId(),
-	}
-}
-
-func cloneSidebarLink(link *evtv1.SidebarLink) *evtv1.SidebarLink {
-	if link == nil {
-		return nil
-	}
-	return &evtv1.SidebarLink{
-		Id:    link.GetId(),
-		Label: link.GetLabel(),
-		Url:   link.GetUrl(),
 	}
 }
 

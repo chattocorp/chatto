@@ -9,6 +9,10 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Behavior
 
+- Sidebar navigation rows have a minimum height of 48 px on touch-capable
+  devices, including wide windows and devices with a mouse. This makes room
+  selection easier without larger text or icons. Mouse-only devices keep
+  compact rows. Long lists scroll so all rooms remain reachable.
 - Collapsible sidebar sections slide their content in and out, including
   drag-enabled rows and footer controls. Highlighted rows remain visible when
   required. Reduced-motion preferences disable spatial animation.

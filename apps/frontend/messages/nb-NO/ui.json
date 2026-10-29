@@ -7,7 +7,6 @@
     "realtime_paused": "Sanntidsoppdateringer satt på pause. Kobler på nytt ...",
     "update_available": "En ny versjon er tilgjengelig",
     "reload": "Last inn på nytt",
-    "sign_out": "Logg av",
     "close": "Lukk",
     "auth_status": {
       "origin_title": "Økten er utløpt",

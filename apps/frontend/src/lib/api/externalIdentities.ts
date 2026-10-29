@@ -1,5 +1,6 @@
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
+import { type UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
   ExternalIdentityFlowKind,
@@ -7,6 +8,7 @@ import {
 } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import {
+  type DisconnectEligibility,
   type ExternalIdentityProvider as APIExternalIdentityProvider,
   type LinkedExternalIdentity as APILinkedExternalIdentity
 } from '@chatto/api-types/api/v1/external_identities_pb';
@@ -23,6 +25,7 @@ export type PendingExternalIdentityInfo = {
   providerLabel: string;
   verifiedEmail: string | null;
   loginHint: string;
+  chooseUsername?: UsernameChoiceAvailability;
   displayNameHint: string;
   boundUserId: string | null;
   redirectPath: string | null;
@@ -33,6 +36,8 @@ export type LinkedExternalIdentityInfo = {
   providerType: string;
   providerLabel: string;
   subjectHash: string;
+  /** Listing-time eligibility; unspecified on older servers. */
+  disconnectEligibility: DisconnectEligibility;
 };
 
 export type ExternalIdentityProviderInfo = {
@@ -145,6 +150,7 @@ function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalI
     providerLabel: pending.providerLabel,
     verifiedEmail: pending.verifiedEmail || null,
     loginHint: pending.loginHint,
+    chooseUsername: pending.chooseUsername,
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
     redirectPath: pending.redirectPath || null
@@ -186,7 +192,8 @@ function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIde
     providerId: identity.providerId,
     providerType: identity.providerType,
     providerLabel: identity.providerLabel,
-    subjectHash: identity.subjectHash
+    subjectHash: identity.subjectHash,
+    disconnectEligibility: identity.disconnectEligibility
   };
 }
 

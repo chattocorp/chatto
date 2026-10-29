@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ServerPresence } from './presence.js';
 import type { ServerConnection } from './serverConnection.js';
-import { RoomStores } from './roomStores.js';
+import {
+  RECENT_ROOM_LIMIT,
+  RECENT_THREAD_LIMIT,
+  RoomStores,
+  type KeepRecent
+} from './roomStores.js';
 
 const mocks = vi.hoisted(() => ({ clearRoomPinsSeenMarker: vi.fn() }));
 
@@ -30,14 +35,15 @@ vi.mock('../room/pins.js', () => ({
   clearRoomPinsSeenMarker: mocks.clearRoomPinsSeenMarker
 }));
 
-function makeRooms(viewerId: string | null = 'viewer'): RoomStores {
+function makeRooms(viewerId: string | null = 'viewer', keepRecent?: KeepRecent): RoomStores {
   return new RoomStores({
     serverId: 'server',
     connection: {} as ServerConnection,
     presence: {} as ServerPresence,
     realtimeViewerId: () => viewerId,
     viewerId: () => viewerId,
-    projectedMemberIds: () => null
+    projectedMemberIds: () => null,
+    keepRecent
   });
 }
 
@@ -74,31 +80,91 @@ describe('RoomStores', () => {
     expect(rooms.roomIds()).toEqual(['A', 'B', 'C']);
   });
 
-  it('clears a thread anchor only when its last consumer releases it', () => {
-    const rooms = makeRooms();
-    const thread = rooms.thread('A', 'T');
-    rooms.retainThread('A', 'T', thread);
-    rooms.retainThread('A', 'T', thread);
+  /** Use every store of a room, as a room view does. */
+  function useRoom(rooms: RoomStores, roomId: string) {
+    return [rooms.messages(roomId), rooms.files(roomId), rooms.pins(roomId), rooms.members(roomId)];
+  }
 
-    rooms.releaseThread('A', 'T', thread);
-    expect(thread.clearAnchor).not.toHaveBeenCalled();
-    rooms.releaseThread('A', 'T', thread);
-    expect(thread.clearAnchor).toHaveBeenCalledOnce();
-    expect(rooms.thread('A', 'T')).toBe(thread);
+  it('keeps the stores of only the most recently used rooms', () => {
+    const rooms = makeRooms();
+    const first = useRoom(rooms, 'R0');
+    const second = useRoom(rooms, 'R1');
+    for (let index = 2; index < RECENT_ROOM_LIMIT; index++) useRoom(rooms, `R${index}`);
+    // Using a room again makes it the most recently used one.
+    rooms.messages('R0');
+
+    useRoom(rooms, 'new');
+    for (const store of second) expect(store.dispose).toHaveBeenCalledOnce();
+    for (const store of first) expect(store.dispose).not.toHaveBeenCalled();
+    expect(rooms.loaded('R1')).toBeUndefined();
+    expect(rooms.messages('R1')).not.toBe(second[0]);
   });
 
-  it('ignores consumers of a thread store that it no longer owns', () => {
-    const rooms = makeRooms();
-    const stale = rooms.thread('A', 'T');
-    rooms.clearMessageAccess('A', true);
-    const current = rooms.thread('A', 'T');
-    rooms.retainThread('A', 'T', current);
+  it('keeps as many rooms and threads as keepRecent allows', () => {
+    const rooms = makeRooms('viewer', { rooms: 1, threads: 2 });
+    const first = useRoom(rooms, 'A');
+    useRoom(rooms, 'B');
+    expect(first[0].dispose).toHaveBeenCalledOnce();
 
-    rooms.retainThread('A', 'T', stale);
-    rooms.releaseThread('A', 'T', stale);
-    expect(stale.clearAnchor).not.toHaveBeenCalled();
-    rooms.releaseThread('A', 'T', current);
-    expect(current.clearAnchor).toHaveBeenCalledOnce();
+    const [oldest, ...kept] = [
+      rooms.thread('A', 'T0'),
+      rooms.thread('A', 'T1'),
+      rooms.thread('A', 'T2')
+    ];
+    expect(oldest.dispose).toHaveBeenCalledOnce();
+    for (const thread of kept) expect(thread.dispose).not.toHaveBeenCalled();
+  });
+
+  it('keeps the thread timelines of a disposed room', () => {
+    const rooms = makeRooms();
+    const roomStores = useRoom(rooms, 'A');
+    const thread = rooms.thread('A', 'T');
+    for (let index = 0; index < RECENT_ROOM_LIMIT; index++) useRoom(rooms, `B${index}`);
+
+    expect(roomStores[0].dispose).toHaveBeenCalledOnce();
+    expect(thread.dispose).not.toHaveBeenCalled();
+    expect(rooms.thread('A', 'T')).toBe(thread);
+    expect(rooms.timelines('A')).toEqual([thread]);
+  });
+
+  it('does not use a room when only its threads are used', () => {
+    const rooms = makeRooms();
+    const roomStores = useRoom(rooms, 'A');
+    for (let index = 0; index < RECENT_ROOM_LIMIT * 2; index++) rooms.thread(`B${index}`, 'T');
+    expect(roomStores[0].dispose).not.toHaveBeenCalled();
+  });
+
+  it('keeps only the most recently used thread stores', () => {
+    const rooms = makeRooms();
+    const first = rooms.thread('A', 'T0');
+    const second = rooms.thread('A', 'T1');
+    for (let index = 2; index < RECENT_THREAD_LIMIT; index++) rooms.thread('B', `T${index}`);
+    // Using a thread again makes it the most recently used one.
+    rooms.thread('A', 'T0');
+
+    rooms.thread('B', 'new');
+    expect(second.dispose).toHaveBeenCalledOnce();
+    expect(first.dispose).not.toHaveBeenCalled();
+    expect(rooms.timelines('A')).toEqual([first]);
+    const replacement = rooms.thread('A', 'T1');
+    expect(replacement).not.toBe(second);
+  });
+
+  it('forgets a room when its last store is disposed', () => {
+    const rooms = makeRooms();
+    rooms.thread('X', 'T');
+    for (let index = 0; index < RECENT_THREAD_LIMIT; index++) rooms.thread('B', `T${index}`);
+    expect(rooms.loaded('X')).toBeUndefined();
+    expect(rooms.roomIds()).toEqual(['B']);
+  });
+
+  it('forgets thread stores that a room disposes', () => {
+    const rooms = makeRooms();
+    const forgotten = rooms.thread('A', 'T');
+    rooms.clearMessageAccess('A', true);
+    for (let index = 0; index < RECENT_THREAD_LIMIT; index++) rooms.thread('B', `T${index}`);
+    expect(forgotten.dispose).toHaveBeenCalledOnce();
+    expect(rooms.timelines('B')).toHaveLength(RECENT_THREAD_LIMIT);
   });
 
   it('clears and restores the plaintext of one room', () => {
@@ -175,7 +241,8 @@ describe('RoomStores', () => {
 
     rooms.dispose();
 
-    for (const store of disposed) expect(store.dispose).toHaveBeenCalled();
+    for (const store of [...disposed, members]) expect(store.dispose).toHaveBeenCalled();
+    // Disposal of the registry also clears the member list.
     expect(members.resetProjectionState).toHaveBeenCalledOnce();
     expect(rooms.entries()).toEqual([]);
     expect(rooms.messages('A')).not.toBe(disposed[0]);

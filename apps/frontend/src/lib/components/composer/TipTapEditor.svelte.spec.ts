@@ -33,6 +33,75 @@ it('opens a registered Chatto link from the composer through local routing', asy
   expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
 });
 
+describe('Composer emoji shortcodes', () => {
+  it.each([TipTapEditor, MarkdownEditor])(
+    'preserves shortcodes through editing, reopening, and quote insertion',
+    async (Component) => {
+      let api: ComposerEditorApi | undefined;
+      const updates: string[] = [];
+      render(Component, {
+        placeholder: 'Emoji editor',
+        onReady: (ready) => (api = ready),
+        onUpdate: (markdown) => updates.push(markdown)
+      });
+      await vi.waitFor(() => expect(api).toBeDefined());
+      const source = ':wave: :woman_health_worker: :+1: :foo: 👋 `:heart:`.';
+      api!.setContent(source);
+      api!.focus('end');
+      api!.insertText(' :heart:');
+      await vi.waitFor(() => expect(updates.at(-1)).toBe(`${source} :heart:`));
+
+      const saved = updates.at(-1)!;
+      api!.setContent('');
+      api!.setContent(saved);
+      api!.focus('end');
+      api!.insertQuote(':wave: :foo:');
+      await vi.waitFor(() => expect(updates.at(-1)).toContain('> :wave: :foo:'));
+      expect(updates.at(-1)).toContain(saved);
+      expect(renderInlineMarkdown(saved)).toBe('👋 👩‍⚕️ 👍 :foo: 👋 <code>:heart:</code>. ❤️');
+    }
+  );
+});
+
+describe('Composer underline editing', () => {
+  it('converts typed underline syntax and toggles it with the platform shortcut', async () => {
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      placeholder: 'Underline editor',
+      onUpdate: (markdown) => updates.push(markdown)
+    });
+    const editor = page.getByRole('textbox', { name: 'Underline editor' });
+    await userEvent.click(editor);
+    await userEvent.type(editor, '__underlined__');
+    await vi.waitFor(() => expect(container.querySelector('u')?.textContent).toBe('underlined'));
+    expect(updates.at(-1)).toBe('__underlined__');
+    await userEvent.keyboard('{Shift>}{Home}{/Shift}');
+    editor.element().dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'u',
+        bubbles: true,
+        cancelable: true,
+        ...(navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true })
+      })
+    );
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('underlined'));
+    expect(container.querySelector('u')).toBeNull();
+  });
+
+  it('does not apply typed underline syntax inside a code block', async () => {
+    let api: ComposerEditorApi | undefined;
+    const { container } = render(TipTapEditor, {
+      placeholder: 'Underline editor',
+      onReady: (ready) => (api = ready)
+    });
+    await vi.waitFor(() => expect(api).toBeDefined());
+    api!.toggleFormatting('codeBlock');
+    await userEvent.type(page.getByRole('textbox', { name: 'Underline editor' }), '__literal__');
+    expect(container.querySelector('pre code')?.textContent).toBe('__literal__');
+    expect(container.querySelector('u')).toBeNull();
+  });
+});
+
 describe('Composer footnote editing', () => {
   it.each([
     { content: '- First item\n    - Second item', expected: '- Edited First item' },
@@ -782,5 +851,57 @@ describe('visual editor bare email addresses', () => {
     );
     await vi.waitFor(() => expect(textbox.element().textContent).toContain('foo@bar.com'));
     expect(container.querySelector('.tiptap a')).toBeNull();
+  });
+});
+
+describe('TipTapEditor read-only state', () => {
+  it('rejects pasted text while read-only', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const rendered = render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a reply',
+        readOnly: true,
+        onReady: (api: ComposerEditorApi) => readyApis.push(api)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0];
+    const editor = page.getByRole('textbox', { name: 'Write a reply' }).element();
+    api.setContent('Draft');
+    api.focus('end');
+
+    const paste = () => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/plain', ' pasted');
+      editor.dispatchEvent(
+        new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData })
+      );
+    };
+    paste();
+    expect(api.getText()).toBe('Draft');
+
+    await rendered.rerender({ readOnly: false });
+    paste();
+    expect(api.getText()).toBe('Draft pasted');
+  });
+
+  it('applies setContent and its plugin follow-ups while read-only', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a reply',
+        readOnly: true,
+        onReady: (api: ComposerEditorApi) => readyApis.push(api)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const editor = page.getByRole('textbox', { name: 'Write a reply' });
+    await expect.element(editor).toHaveAttribute('aria-readonly', 'true');
+
+    readyApis[0].setContent('```\ncode\n```');
+
+    // The trailing paragraph comes from a transaction that a plugin appends.
+    await expect.element(editor).toHaveTextContent('code');
+    expect(editor.element().lastElementChild?.tagName).toBe('P');
   });
 });

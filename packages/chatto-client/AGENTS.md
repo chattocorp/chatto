@@ -65,11 +65,15 @@ examples use it. See
 
 - Relative imports use `.js` extensions (NodeNext).
 - Every module is importable as `@chatto/client/<path>`. The exports point to
-  TypeScript source, and the package has no build (ADR-116). Consumers load it
+  TypeScript source in the workspace (ADR-116). Workspace consumers load it
   through a compiling tool; plain Node cannot load it. Consumers type-check
   the source with their own settings. `tsconfig.strict.json` applies
   ChattoBot's stricter settings, such as `noUncheckedIndexedAccess`, to the
   production source; the package check runs it.
+- npm releases contain compiled JavaScript and declarations. `build` includes
+  the private API types and rewrites their imports in the output. `prepack`
+  builds the publication directory. `test:package` checks the tarball outside
+  the workspace. See `MAINTAINING.md` for release instructions.
 - Consumers and how they load the source:
 
   | Consumer                                | Loader              |

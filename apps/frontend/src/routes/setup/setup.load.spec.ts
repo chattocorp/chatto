@@ -8,8 +8,18 @@ describe('setup route', () => {
   it('loads a fresh setup status', async () => {
     getPublicServerInfo.mockResolvedValue({ setupRequired: true });
     await expect(load({ url: new URL('https://chat.example/setup') } as never)).resolves.toEqual({
-      setupServer: { setupRequired: true }
+      setupServer: { setupRequired: true },
+      step: 'welcome'
     });
+  });
+  it.each([
+    ['?step=details', 'details'],
+    ['?step=unknown', 'welcome']
+  ])('loads the URL step %s', async (query, step) => {
+    getPublicServerInfo.mockResolvedValue({ setupRequired: true });
+    await expect(
+      load({ url: new URL(`https://chat.example/setup${query}`) } as never)
+    ).resolves.toMatchObject({ step });
   });
   it('redirects completed or disabled setup to login', async () => {
     getPublicServerInfo.mockResolvedValue({ setupRequired: false });

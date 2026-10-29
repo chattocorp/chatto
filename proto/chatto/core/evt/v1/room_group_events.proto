@@ -4,7 +4,7 @@ package chatto.core.evt.v1;
 
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
-import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/event_values.proto";
 
 // ============================================================================
 // ROOM GROUP EVENTS (group aggregate, evt.group.{groupId})

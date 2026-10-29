@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sort"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -43,8 +45,8 @@ func (c *ChattoCore) seedDefaultRBAC(ctx context.Context) error {
 	return nil
 }
 
-func defaultRBACRoles() map[string]*evtv1.Role {
-	return map[string]*evtv1.Role{
+func defaultRBACRoles() map[string]*readmodel.Role {
+	return map[string]*readmodel.Role{
 		RoleOwner: {
 			Name:        RoleOwner,
 			DisplayName: "Owner",
@@ -102,7 +104,7 @@ func defaultRBACDecisions() []rbacSeedDecision {
 	return decisions
 }
 
-func rbacSeedEntries(roles map[string]*evtv1.Role, assignments []rbacSeedAssignment, decisions []rbacSeedDecision) []evtstream.BatchEntry {
+func rbacSeedEntries(roles map[string]*readmodel.Role, assignments []rbacSeedAssignment, decisions []rbacSeedDecision) []evtstream.BatchEntry {
 	createdAt := timestamppb.Now()
 	var entries []evtstream.BatchEntry
 

@@ -30,8 +30,7 @@ await writeFile(
 process.env.RUNLING_WEB_CONFIG = configPath;
 // Match pnpm dev: the config loader and web host must use the same native runtime.
 const server = await createServer({
-  server: { middlewareMode: true },
-  ssr: { resolve: { externalConditions: ['runling-source'] } }
+  server: { middlewareMode: true }
 });
 let loader;
 try {

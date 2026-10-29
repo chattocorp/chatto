@@ -22,7 +22,7 @@ func (s *HTTPServer) setupMCPRoutes() error {
 		s.router.Any(mcpProtectedResourcePath, notFound)
 		return nil
 	}
-	handler, err := mcpserver.NewHandler(s.core, s.config, s.version)
+	handler, err := mcpserver.NewHandler(s.core, s.config, s.version, mcpserver.WithMessageSearch(s.connectAPI))
 	if err != nil {
 		return fmt.Errorf("configure MCP routes: %w", err)
 	}

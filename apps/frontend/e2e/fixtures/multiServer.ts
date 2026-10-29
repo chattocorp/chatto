@@ -457,32 +457,14 @@ export async function setMotdOnRemote(
 }
 
 /**
- * Joins the server that the Server Directory shows, opens it, then starts
- * sign-in from the server's signed-out view and returns the sign-in popup.
- * Joining only adds the server to the gutter: the directory stays open, and
- * the entry changes to the joined state with an Open action. `join` can also
- * be the Open action of a server that is already registered.
+ * Starts sign-in from the server's signed-out view and returns the sign-in popup.
+ * Address lookup opens this view before the helper runs.
  */
-export async function joinServerAndStartSignIn(
-  page: Page,
-  join = page.getByRole('button', { name: 'Join', exact: true })
-): Promise<Page> {
-  let popupsFromJoin = 0;
-  const countPopup = () => popupsFromJoin++;
-  page.on('popup', countPopup);
-  const label = (await join.textContent())?.trim();
-  await join.click();
-  if (label !== 'Open') {
-    const open = page.getByRole('button', { name: 'Open', exact: true });
-    await expect(open).toBeVisible({ timeout: 30_000 });
-    await open.click();
-  }
+export async function startServerSignIn(page: Page): Promise<Page> {
   const logIn = page
     .getByTestId('server-signed-out')
-    .getByRole('button', { name: 'Log in to server' });
+    .getByRole('button', { name: 'Continue on server' });
   await expect(logIn).toBeVisible({ timeout: 30_000 });
-  page.off('popup', countPopup);
-  expect(popupsFromJoin).toBe(0);
   const popupPromise = page.waitForEvent('popup');
   await logIn.click();
   return popupPromise;
@@ -553,7 +535,7 @@ export async function connectRemoteInstance(
     });
   });
 
-  // Drive the real UI: open the directory from the sidebar → URL → card →
+  // Drive the real UI: open the directory from the sidebar → URL →
   // signed-out view → popup /oauth/authorize (intercepted) →
   // /servers/callback → token exchange → session. Attach the close listener
   // as soon as Playwright observes the popup so the fast intercepted callback
@@ -562,11 +544,10 @@ export async function connectRemoteInstance(
     await page.goto('/chat/-');
   }
   await page.getByTitle('Add Server').click();
+  await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Find server' }).click();
-  const joinButton = page.getByRole('button', { name: /^(Join|Open)$/ });
-  await expect(joinButton).toBeVisible({ timeout: 30_000 });
-  const popup = await joinServerAndStartSignIn(page, joinButton);
+  const popup = await startServerSignIn(page);
   await popup.waitForEvent('close');
   await expectSignedOutViewGone(page);
 

@@ -3,7 +3,7 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 
 import "chatto/core/evt/v1/user_preferences.proto";
-import "chatto/core/evt/v1/models.proto";
+import "chatto/core/evt/v1/event_values.proto";
 
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -222,6 +222,12 @@ message UserLoginCooldownClearedEvent {
 
 message UserAccountDeletedEvent {
   string user_id = 1;
+}
+
+// Changes account access without deleting account data or credentials.
+message UserAccountDeactivationChangedEvent {
+  string user_id = 1;
+  bool deactivated = 2;
 }
 
 message UserCustomStatusSetEvent {

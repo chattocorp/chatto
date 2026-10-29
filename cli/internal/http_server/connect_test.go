@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
@@ -28,7 +30,6 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
@@ -496,100 +497,131 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 }
 
 func TestConnectServerDiscoveryServiceGetServerGET(t *testing.T) {
-	_, ts := setupConnectTestServer(t, config.AuthConfig{})
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.router.Use(s.corsMiddleware())
+	s.setupConnectAPI()
+	ts := httptest.NewServer(s.router)
+	t.Cleanup(ts.Close)
 	procedureURL := ts.URL + connectAPIPrefix + discoveryv1connect.ServerDiscoveryServiceGetServerProcedure
 
-	t.Run("serves and revalidates JSON", func(t *testing.T) {
-		query := url.Values{"connect": {"v1"}, "encoding": {"json"}, "message": {"{}"}}
-		req, err := http.NewRequest(http.MethodGet, procedureURL+"?"+query.Encode(), nil)
-		if err != nil {
-			t.Fatalf("new GET request: %v", err)
-		}
-		req.Header.Set("Origin", "https://client.example.com")
-		resp, err := ts.Client().Do(req)
-		if err != nil {
-			t.Fatalf("GET discovery: %v", err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("status = %d, want 200", resp.StatusCode)
-		}
-		if got := resp.Header.Get("Cache-Control"); got != "public, no-cache" {
-			t.Fatalf("Cache-Control = %q, want %q", got, "public, no-cache")
-		}
-		etag := resp.Header.Get("ETag")
-		if len(etag) != 66 || !strings.HasPrefix(etag, `"`) || !strings.HasSuffix(etag, `"`) {
-			t.Fatalf("ETag = %q, want quoted SHA-256", etag)
-		}
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("read JSON response: %v", err)
-		}
-		var msg discoveryv1.GetServerResponse
-		if err := protojson.Unmarshal(data, &msg); err != nil {
-			t.Fatalf("unmarshal JSON response: %v", err)
-		}
-		if msg.GetProfile().GetName() != "Chatto" {
-			t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
-		}
+	for _, endpoint := range []string{
+		procedureURL + "?connect=v1&encoding=json&message=%7B%7D",
+		procedureURL + "?connect=v1&encoding=json",
+		procedureURL + "?connect=v1&encoding=json&base64=1",
+		ts.URL + serverDiscoveryWellKnownPath,
+	} {
+		t.Run(endpoint, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+			if err != nil {
+				t.Fatalf("new GET request: %v", err)
+			}
+			req.Header.Set("Origin", "https://client.example.com")
+			resp, err := ts.Client().Do(req)
+			if err != nil {
+				t.Fatalf("GET discovery: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want 200", resp.StatusCode)
+			}
+			if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+				t.Fatalf("Access-Control-Allow-Origin = %q, want *", got)
+			}
+			if got := resp.Header.Get("Cache-Control"); got != "public, no-cache" {
+				t.Fatalf("Cache-Control = %q, want %q", got, "public, no-cache")
+			}
+			etag := resp.Header.Get("ETag")
+			if len(etag) != 66 || !strings.HasPrefix(etag, `"`) || !strings.HasSuffix(etag, `"`) {
+				t.Fatalf("ETag = %q, want quoted SHA-256", etag)
+			}
+			data, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("read JSON response: %v", err)
+			}
+			var msg discoveryv1.GetServerResponse
+			if err := protojson.Unmarshal(data, &msg); err != nil {
+				t.Fatalf("unmarshal JSON response: %v", err)
+			}
+			if msg.GetProfile().GetName() != "Chatto" {
+				t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
+			}
 
-		conditionalReq, err := http.NewRequest(http.MethodGet, procedureURL+"?"+query.Encode(), nil)
-		if err != nil {
-			t.Fatalf("new conditional GET request: %v", err)
-		}
-		conditionalReq.Header.Set("Origin", "https://client.example.com")
-		conditionalReq.Header.Set("If-None-Match", `"stale", W/`+etag)
-		conditionalResp, err := ts.Client().Do(conditionalReq)
-		if err != nil {
-			t.Fatalf("conditional GET discovery: %v", err)
-		}
-		defer conditionalResp.Body.Close()
-		if conditionalResp.StatusCode != http.StatusNotModified {
-			t.Fatalf("conditional status = %d, want 304", conditionalResp.StatusCode)
-		}
-		if got := conditionalResp.Header.Get("ETag"); got != etag {
-			t.Fatalf("conditional ETag = %q, want %q", got, etag)
-		}
-		if got := conditionalResp.Header.Values("ETag"); len(got) != 1 {
-			t.Fatalf("conditional ETag values = %q, want one value", got)
-		}
-		if got := conditionalResp.Header.Get("Cache-Control"); got != "public, no-cache" {
-			t.Fatalf("conditional Cache-Control = %q, want %q", got, "public, no-cache")
-		}
-		conditionalBody, err := io.ReadAll(conditionalResp.Body)
-		if err != nil {
-			t.Fatalf("read conditional response: %v", err)
-		}
-		if len(conditionalBody) != 0 {
-			t.Fatalf("conditional body = %q, want empty", conditionalBody)
-		}
-	})
+			conditionalReq, err := http.NewRequest(http.MethodGet, endpoint, nil)
+			if err != nil {
+				t.Fatalf("new conditional GET request: %v", err)
+			}
+			conditionalReq.Header.Set("Origin", "https://client.example.com")
+			conditionalReq.Header.Set("If-None-Match", `"stale", W/`+etag)
+			conditionalResp, err := ts.Client().Do(conditionalReq)
+			if err != nil {
+				t.Fatalf("conditional GET discovery: %v", err)
+			}
+			defer conditionalResp.Body.Close()
+			if conditionalResp.StatusCode != http.StatusNotModified {
+				t.Fatalf("conditional status = %d, want 304", conditionalResp.StatusCode)
+			}
+			if got := conditionalResp.Header.Get("ETag"); got != etag {
+				t.Fatalf("conditional ETag = %q, want %q", got, etag)
+			}
+			if got := conditionalResp.Header.Values("ETag"); len(got) != 1 {
+				t.Fatalf("conditional ETag values = %q, want one value", got)
+			}
+			if got := conditionalResp.Header.Get("Cache-Control"); got != "public, no-cache" {
+				t.Fatalf("conditional Cache-Control = %q, want %q", got, "public, no-cache")
+			}
+			conditionalBody, err := io.ReadAll(conditionalResp.Body)
+			if err != nil {
+				t.Fatalf("read conditional response: %v", err)
+			}
+			if len(conditionalBody) != 0 {
+				t.Fatalf("conditional body = %q, want empty", conditionalBody)
+			}
+		})
+	}
 
-	t.Run("serves protobuf", func(t *testing.T) {
-		query := url.Values{"base64": {"1"}, "connect": {"v1"}, "encoding": {"proto"}, "message": {""}}
-		resp, err := ts.Client().Get(procedureURL + "?" + query.Encode())
-		if err != nil {
-			t.Fatalf("GET protobuf discovery: %v", err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("status = %d, want 200", resp.StatusCode)
-		}
-		if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/proto") {
-			t.Fatalf("Content-Type = %q, want application/proto", ct)
-		}
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("read protobuf response: %v", err)
-		}
-		var msg discoveryv1.GetServerResponse
-		if err := proto.Unmarshal(data, &msg); err != nil {
-			t.Fatalf("unmarshal protobuf response: %v", err)
-		}
-		if msg.GetProfile().GetName() != "Chatto" {
-			t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
-		}
-	})
+	for _, query := range []string{"base64=1&connect=v1&encoding=proto&message=", "base64=1&connect=v1&encoding=proto"} {
+		t.Run(query, func(t *testing.T) {
+			resp, err := ts.Client().Get(procedureURL + "?" + query)
+			if err != nil {
+				t.Fatalf("GET protobuf discovery: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want 200", resp.StatusCode)
+			}
+			if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/proto") {
+				t.Fatalf("Content-Type = %q, want application/proto", ct)
+			}
+			data, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("read protobuf response: %v", err)
+			}
+			var msg discoveryv1.GetServerResponse
+			if err := proto.Unmarshal(data, &msg); err != nil {
+				t.Fatalf("unmarshal protobuf response: %v", err)
+			}
+			if msg.GetProfile().GetName() != "Chatto" {
+				t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
+			}
+		})
+	}
+
+	for _, query := range []string{
+		"connect=v1&encoding=json&message=",
+		"connect=v1&encoding=json&message=broken",
+		"connect=v1&encoding=json&compression=gzip",
+	} {
+		t.Run("rejects "+query, func(t *testing.T) {
+			resp, err := ts.Client().Get(procedureURL + "?" + query)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400", resp.StatusCode)
+			}
+		})
+	}
 
 	t.Run("POST remains uncached", func(t *testing.T) {
 		client := discoveryv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
@@ -604,6 +636,27 @@ func TestConnectServerDiscoveryServiceGetServerGET(t *testing.T) {
 			t.Fatalf("POST Cache-Control = %q, want empty", got)
 		}
 	})
+
+	t.Run("omitted message does not bypass authentication", func(t *testing.T) {
+		resp, err := ts.Client().Get(ts.URL + connectAPIPrefix + apiv1connect.MyAccountServiceListVerifiedEmailsProcedure + "?connect=v1&encoding=json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", resp.StatusCode)
+		}
+	})
+}
+
+func TestEmptyConnectGETMessagePreservesMethodSafety(t *testing.T) {
+	_, handler := apiv1connect.NewServerServiceHandler(apiv1connect.UnimplementedServerServiceHandler{})
+	request := httptest.NewRequest(http.MethodGet, apiv1connect.ServerServiceGetMotdProcedure+"?connect=v1&encoding=json", nil)
+	response := httptest.NewRecorder()
+	withEmptyConnectGETMessage(handler).ServeHTTP(response, request)
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", response.Code)
+	}
 }
 
 func TestConnectReflection(t *testing.T) {
@@ -946,7 +999,7 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 	})
 
 	t.Run("returns narrow Connect caller", func(t *testing.T) {
-		info, err := authenticateConnectRequest(authctx.WithUser(context.Background(), &evtv1.User{
+		info, err := authenticateConnectRequest(authctx.WithUser(context.Background(), &readmodel.User{
 			Id:          "user-123",
 			Login:       "should-not-leak",
 			DisplayName: "Should Not Leak",
@@ -1207,7 +1260,7 @@ func TestConnectAPIReportsCredentialUserLookupFailureAsUnavailable(t *testing.T)
 		return err
 	}
 
-	s.credentialUserLookup = func(context.Context, string) (*evtv1.User, error) {
+	s.credentialUserLookup = func(context.Context, string) (*readmodel.User, error) {
 		return nil, errors.New("key store unavailable")
 	}
 	if err := getViewer(); connect.CodeOf(err) != connect.CodeUnavailable {

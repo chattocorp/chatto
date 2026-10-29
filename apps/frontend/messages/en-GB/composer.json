@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Insert emoji",
     "attach_file": "Attach file",
     "formatting_options": "Formatting options",
     "send": "Send message",
@@ -25,6 +26,8 @@
     "drop_files_title": "Drop files here",
     "drop_files_subtitle": "Images and videos will be added to your message",
     "send_failed": "Failed to send message",
+    "send_retry_expired": "The send retry period has ended. Check whether your message arrived before sending again.",
+    "send_retry_reset": "The connection was reset. Check whether your message arrived before sending again.",
     "slow_mode_ready": "Slow Mode: one message every {interval}.",
     "slow_mode_waiting": "Slow Mode: send again in {countdown}.",
     "slow_mode_bypassed": "Slow Mode: {interval} (you're exempt).",
@@ -44,9 +47,11 @@
       "remove": "Remove {filename}",
       "video_disabled": "Video uploads are disabled on this server.",
       "prepare_failed": "Failed to prepare attachment",
+      "too_many": "You can attach up to {max} files per message. Extra files were not added.",
       "too_large": "{filename} is too large ({size}). Maximum is {limit}."
     },
     "format": {
+      "underline": "Underline",
       "bold": "Bold",
       "italic": "Italic",
       "inline_code": "Inline code",

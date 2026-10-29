@@ -28,21 +28,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
-      desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
+      desktop: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
       authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
       translatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.translatto == 'true' }}
       runling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
       chattobot: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chattobot == 'true' }}
+      botto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.botto == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
     steps:
+      # Push filters use git; pull request filters use the GitHub API.
+      - name: Checkout for push change detection
+        if: github.event_name == 'push'
+        uses: actions/checkout@v6
+
       - name: Select affected products
-        if: github.event_name == 'pull_request'
         id: select
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
+          # Compare the exact push endpoints, including multi-commit pushes.
+          # Pull requests use the API and do not need these git inputs.
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          ref: ${{ github.event_name == 'push' && github.sha || '' }}
           predicate-quantifier: some-with-excludes
           # Release-please writes changelogs and the release manifest. Only
           # release tooling reads the changelogs, so they do not select product
@@ -86,6 +96,13 @@ jobs:
               - 'packages/api-types/**'
               - 'proto/**'
               - '!**/CHANGELOG.md'
+            botto:
+              - 'examples/botto/**'
+              - 'packages/runling/**'
+              - 'packages/chatto-client/**'
+              - 'packages/api-types/**'
+              - 'proto/**'
+              - '!**/CHANGELOG.md'
             docs:
               - 'apps/docs-website/**'
               - '!**/CHANGELOG.md'
@@ -102,6 +119,7 @@ jobs:
               - '**'
               - '!{cli,pkg,authling,packages,proto,docker}/**'
               - '!apps/{frontend,desktop,docs-website}/**'
+              - '!examples/botto/**'
               - '!tools/test-desktop-*'
               - '!{docs,.agents,.claude,.conductor}/**'
               - '!*.md'
@@ -142,6 +160,25 @@ jobs:
       - run: mise test-runling
       - run: mise test-runling-bot
       - run: mise test-runling-package
+      - run: mise x -- pnpm --filter runling test:server
+
+  test-botto:
+    needs: changes
+    if: ${{ needs.changes.outputs.botto == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: 'false'
+      - run: mise x -- pnpm --filter runling build:runtime
+      - run: mise x -- pnpm --filter @chatto/example-botto check
+      - name: Test Botto without network access
+        working-directory: examples/botto
+        # Pi tests use mocks or local transcripts. A separate network namespace
+        # also prevents accidental provider requests, including from child processes.
+        run: sudo unshare --net -- env PI_OFFLINE=1 "$(mise which node)" node_modules/vitest/vitest.mjs run
 
   test-chattobot:
     needs: changes
@@ -155,6 +192,7 @@ jobs:
           install-cli-deps: 'false'
       - run: mise check-chattobot
       - run: mise test-chatto-client
+      - run: mise x -- pnpm --filter @chatto/client test:package
       - run: mise test-chattobot
 
   build-main-image-contexts:
@@ -221,7 +259,7 @@ jobs:
               cd cli
               # Chatto does not expose Gin's MessagePack binding; omit its large codec.
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
-                -tags=nomsgpack \
+                -tags=nomsgpack,nodynamic \
                 -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )
@@ -264,6 +302,12 @@ jobs:
 
       - name: Check workflows and shell scripts
         run: mise lint-actions
+
+      - name: Test release publication policy
+        run: mise test-release-policy
+
+      - name: Test interchange format contract
+        run: mise test-interchange
 
       - name: Test development launchers and routing
         run: mise test-dev-tooling
@@ -314,6 +358,27 @@ jobs:
           ARTIFACT_PATH: ${{ matrix.artifact-path }}
         run: test -e "$ARTIFACT_PATH"
 
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        run: mise x -- pnpm --filter chatto-desktop build:windows-installer
+
+      - name: Test Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.exe)
+          if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
+          ./tools/test-desktop-windows-installer.ps1 -Installer $installer[0].FullName
+
+      - name: Upload unsigned Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-windows-installer-unsigned
+          path: apps/desktop/dist/installer/*_Setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify macOS bundle signature
         if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
@@ -326,6 +391,21 @@ jobs:
           test -x "$helper"
           "$helper" help | grep -F 'publish --window'
           otool -l "$helper" | grep -F '@executable_path/../Frameworks'
+
+      - name: Build and test unsigned macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          mise x -- pnpm --filter chatto-desktop build:macos-dmg
+          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+
+      - name: Upload unsigned macOS DMG
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-macos-dmg-unsigned
+          path: apps/desktop/dist/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload desktop bundle
         uses: actions/upload-artifact@v7
@@ -355,6 +435,9 @@ jobs:
   codegen-proto-drift:
     needs: changes
     if: ${{ !cancelled() }}
+    # Always verify selection, but skip product checks for unrelated changes.
+    env:
+      RUN_PROTO_CHECKS: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -365,19 +448,26 @@ jobs:
         run: test "$SELECTION_RESULT" = success
 
       - name: Checkout code
+        if: env.RUN_PROTO_CHECKS == 'true'
         uses: actions/checkout@v6
         with:
           # The threshold check compares the PR head with its merge base.
           fetch-depth: 0
 
       - name: Setup environment
+        if: env.RUN_PROTO_CHECKS == 'true'
         uses: ./.github/actions/setup
 
       - name: Test server compatibility label check
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: mise x -- node --test tools/check-server-compatibility.test.mjs
 
+      - name: Test Slack importer
+        if: env.RUN_PROTO_CHECKS == 'true'
+        run: mise test-slack
+
       - name: Check server compatibility threshold labels
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -390,27 +480,30 @@ jobs:
       # public API breaks exist only on pull requests. The target branch can
       # also move during a push run, so a shallow fetch of it is not stable.
       - name: Fetch protobuf breaking base
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           base_ref="${GITHUB_BASE_REF}"
-          git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
+          git fetch --no-tags origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
       - name: Lint Chatto protobufs
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: mise lint-proto
 
       - name: Check storage, internal, and Operator protobuf breaking changes
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
+          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           base_ref="${GITHUB_BASE_REF}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"
 
       - name: Check projection snapshot schema contracts
+        if: env.RUN_PROTO_CHECKS == 'true'
         working-directory: cli
         run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
       - name: Check public protobuf packages without acknowledged breaks
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           base_ref="${GITHUB_BASE_REF}"
           cd proto
@@ -426,7 +519,7 @@ jobs:
           done
 
       - name: Check Authling persisted protobuf breaking changes
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           base_ref="${GITHUB_BASE_REF}"
           if git cat-file -e "origin/${base_ref}:authling/buf.yaml" 2>/dev/null; then
@@ -439,16 +532,19 @@ jobs:
           fi
 
       - name: Lint Authling protobufs
+        if: env.RUN_PROTO_CHECKS == 'true'
         working-directory: authling
         run: mise x -- buf lint
 
       - name: Regenerate protobuf bindings
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: |
           mise codegen-proto
           cd authling
           mise codegen-proto
 
       - name: Check generated protobuf bindings are current
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: |
           if ! git diff --exit-code; then
             git status --short
@@ -488,6 +584,13 @@ jobs:
     name: test-workspace (${{ matrix.name }})
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    # Only browser tests need the image; other workspace tests use the host.
+    container:
+      image: ${{ matrix.playwright && 'ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287' || '' }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -503,6 +606,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Trust the mounted checkout
+        if: matrix.playwright
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
@@ -511,9 +618,8 @@ jobs:
       - name: Setup Playwright
         if: matrix.playwright
         uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
         with:
-          save-cache: 'true'
+          use-image: 'true'
 
       - name: Run workspace unit tests
         env:
@@ -707,10 +813,19 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Trust the mounted checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -726,6 +841,7 @@ jobs:
         timeout-minutes: 15
         with:
           working-directory: authling
+          use-image: 'true'
 
       - name: Run Authling E2E tests
         working-directory: authling
@@ -746,6 +862,12 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 20
     # Each shard spends about two minutes on setup and builds, so more shards
     # give less benefit. The test-e2e job reports the result of all shards.
@@ -758,6 +880,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Trust the mounted checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
@@ -769,6 +894,8 @@ jobs:
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
+        with:
+          use-image: 'true'
 
       - name: Build E2E dependencies
         run: |
@@ -816,21 +943,41 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Update this digest in a PR to verify a new image before changing main.
+    container:
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 25
     steps:
+      - name: Check selected image
+        run: |
+          test -f /opt/media-e2e-playwright-version
+          ffmpeg -version
+          ffprobe -version
+
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Trust the mounted checkout
+        # The runner owns the mount; the container builds as root. Checkout's
+        # temporary Git configuration does not apply to later Go VCS stamping.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git status --porcelain
 
       - name: Setup environment
         uses: ./.github/actions/setup
         timeout-minutes: 15
         with:
           go-build-cache-scope: test-e2e
-          install-ffmpeg: 'true'
 
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
+        with:
+          use-image: 'true'
 
       - name: Build E2E server
         run: mise build-e2e-server
@@ -850,10 +997,19 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Trust the mounted checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -863,6 +1019,13 @@ jobs:
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
+        with:
+          use-image: 'true'
+
+      - name: Install performance summary dependency
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends -y jq
 
       - name: Build E2E server
         run: mise build-e2e-server

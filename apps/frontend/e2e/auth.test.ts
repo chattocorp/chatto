@@ -171,7 +171,7 @@ test.describe('Authentication', () => {
     await authPage.createUserViaApi(testLogin, testPassword);
     await authPage.login(testLogin, testPassword);
     await page.waitForURL((url) => url.pathname.startsWith('/chat'));
-    await expect(page.getByTitle('Sign out')).toBeVisible();
+    await authPage.expectLoggedIn();
 
     const originAuthState = await page.evaluate(() => {
       const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
@@ -197,10 +197,9 @@ test.describe('Authentication', () => {
     await page.reload();
     await page.waitForURL((url) => url.pathname.startsWith('/chat'));
     await expect(page.getByRole('heading', { name: 'Sign In' })).not.toBeVisible();
-    await expect(page.getByTitle('Sign out')).toBeVisible();
+    await authPage.expectLoggedIn();
 
-    await page.getByTitle('Sign out').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Current Server' }).click();
+    await authPage.logoutViaUI();
     await page.waitForURL(routes.login);
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
@@ -312,7 +311,7 @@ test.describe('Authentication', () => {
       await authPage.completeUsernameInput.focus();
 
       // Should show validation error
-      await authPage.expectError(/at least 8 UTF-8 bytes/i);
+      await authPage.expectError(/password is too short/i);
     });
 
     test('shows validation error for password mismatch', async ({ authPage }) => {
@@ -451,8 +450,8 @@ test.describe('Authentication', () => {
     });
   });
 
-  test.describe('Logout Confirmation', () => {
-    test('shows confirmation modal when clicking logout', async ({ authPage }) => {
+  test.describe('Server gutter sign-out', () => {
+    test('offers sign-out in the server menu, not the header', async ({ page, authPage }) => {
       const timestamp = Date.now();
       const testLogin = `logoutconfirm${timestamp}`;
       const testPassword = 'testpassword123';
@@ -462,17 +461,14 @@ test.describe('Authentication', () => {
       await authPage.login(testLogin, testPassword);
       await authPage.expectLoggedIn();
 
-      // Click sign out button - should show confirmation modal
-      await authPage.logoutButton.click();
-      await expect(authPage.logoutDialog).toBeVisible();
-      await expect(authPage.logoutDialog.getByText('disconnect every server')).toBeVisible();
-      await expect(
-        authPage.logoutDialog.getByRole('button', { name: 'Current Server' })
-      ).toBeVisible();
-      await expect(authPage.confirmLogoutButton).toBeVisible();
+      await expect(page.getByRole('banner').getByRole('button', { name: 'Sign out' })).toHaveCount(
+        0
+      );
+      await authPage.openLogoutMenu();
+      await expect(authPage.logoutButton).toBeVisible();
     });
 
-    test('can cancel logout and stay logged in', async ({ authPage }) => {
+    test('can dismiss the server menu and stay logged in', async ({ authPage }) => {
       const timestamp = Date.now();
       const testLogin = `logoutcancel${timestamp}`;
       const testPassword = 'testpassword123';
@@ -489,7 +485,7 @@ test.describe('Authentication', () => {
       await authPage.expectLoggedIn();
     });
 
-    test('can confirm logout and be redirected to sign in', async ({ authPage }) => {
+    test('can sign out and be redirected to sign in', async ({ authPage }) => {
       const timestamp = Date.now();
       const testLogin = `logoutconfirmyes${timestamp}`;
       const testPassword = 'testpassword123';

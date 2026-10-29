@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -828,7 +829,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		var user *evtv1.User
+		var user *readmodel.User
 		if s.config.Auth.InvitationRequired() {
 			if tokenData.InvitationID == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})
@@ -1012,8 +1013,12 @@ func (s *HTTPServer) setupAuthRoutes() {
 	})
 
 	// Forgot password endpoint - request a password reset email
-	// Always returns 200 to prevent email enumeration
+	// When enabled, always returns 200 to prevent email enumeration.
 	auth.POST("forgot-password", func(c *gin.Context) {
+		if !s.config.Auth.DirectLoginOrDefault() {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Password changes are disabled because this server uses SSO"})
+			return
+		}
 		var req struct {
 			Email string `json:"email" binding:"required,email"`
 		}
@@ -1066,6 +1071,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 	// Reset password endpoint - set a new password using a reset token
 	auth.POST("reset-password", func(c *gin.Context) {
+		if !s.config.Auth.DirectLoginOrDefault() {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Password changes are disabled because this server uses SSO"})
+			return
+		}
 		var req struct {
 			Token    string `json:"token" binding:"required"`
 			Password string `json:"password" binding:"required"`

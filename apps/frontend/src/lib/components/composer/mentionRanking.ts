@@ -22,6 +22,7 @@ export type MentionResult =
  * ranks first, then users in `prioritizedUserIds` (for example, participants
  * of the current thread), then the fuzzy score. The handle breaks ties.
  *
+ * An empty query lists available candidates for fields that open on bare @.
  * The popup and Tab completion both use this order, so they stay consistent.
  */
 export function rankMentionCandidates(
@@ -36,8 +37,8 @@ export function rankMentionCandidates(
   for (const member of members) {
     if (member.deleted || !member.login) continue;
 
-    const loginScore = fuzzyMatch(query, member.login);
-    const displayScore = fuzzyMatch(query, member.displayName);
+    const loginScore = query ? fuzzyMatch(query, member.login) : 1;
+    const displayScore = query ? fuzzyMatch(query, member.displayName) : 1;
     const score = Math.max(loginScore ?? -1, displayScore ?? -1);
 
     if (score > 0) {
@@ -50,7 +51,7 @@ export function rankMentionCandidates(
   }
 
   for (const handle of ['all', 'here'] as const) {
-    const score = fuzzyMatch(query, handle);
+    const score = query ? fuzzyMatch(query, handle) : 1;
     if (score && score > 0) {
       others.push({ type: 'virtual', handle, score, priority: 1 });
     }
@@ -58,7 +59,7 @@ export function rankMentionCandidates(
 
   for (const role of roles) {
     if (!role.pingable || role.name === 'everyone') continue;
-    const score = fuzzyMatch(query, role.name);
+    const score = query ? fuzzyMatch(query, role.name) : 1;
     if (score && score > 0) {
       others.push({ type: 'role', handle: role.name, role, score, priority: 2 });
     }

@@ -16,6 +16,14 @@ the realtime protocol in ways that require client changes.
 
 ## Compatibility policy
 
+Room notices add `GetNotice`, `PublishNotice`, and `ClearNotice` to
+`RoomService`, plus the `room_notice_changed` realtime event. Existing clients
+need no migration. Notice clients must retain the returned write version and
+send it as `expected_version`. On `ABORTED`, preserve the editor's draft and
+reload before another save. Treat `publication_id` as an opaque dismissal
+revision: corrections preserve it; explicit republishing changes it. Servers
+without these RPCs return `UNIMPLEMENTED`; disable the optional notice controls.
+
 Use `ServerRuntimeConfig.max_upload_size` to validate the size of every
 attachment, including GIFs and videos. The deprecated `max_video_upload_size`
 field now reports the same value. Video upload enablement remains a separate
@@ -57,6 +65,11 @@ The release notes describe each intentional breaking change and the required
 migration. They are not a complete compatibility report.
 
 ## Check the server version
+
+For room membership activity, an absent `Room.show_membership_events` means
+enabled. Do not offer to edit this setting when the field is absent. Supporting
+clients use it only for join/leave rows; older clients can continue to show them.
+No client migration is required for membership state or event delivery.
 
 The bundled client connects to remote servers running `0.5.0-beta.9` or newer.
 The client uses `0.5.0-beta.18` as its full-support version threshold. This version

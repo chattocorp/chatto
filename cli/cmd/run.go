@@ -18,6 +18,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/embedded_nats"
 	"github.com/chattocorp/chatto/cli/internal/exporter"
 	"github.com/chattocorp/chatto/cli/internal/http_server"
+	"github.com/chattocorp/chatto/cli/internal/memlimit"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/push"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
@@ -107,6 +108,11 @@ func runServer(configPath string) {
 		log.Warn("video.max_upload_size / CHATTO_VIDEO_MAX_UPLOAD_SIZE is deprecated; the larger upload limit now applies to all files. Set core.assets.max_upload_size / CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE and remove the video size setting")
 	}
 	log.Info("Starting Chatto", "version", Version)
+	if limit, err := memlimit.FromContainer(); err != nil {
+		log.Warn("Failed to set the Go memory limit from the container memory limit", "error", err)
+	} else if limit > 0 {
+		log.Info("Set the Go memory limit from the container memory limit", "go_memory_limit_bytes", limit)
+	}
 	if shouldPrintBanner(cfg.General.LogFormat, isLogOutputTerminal()) {
 		printBanner()
 	}
@@ -173,6 +179,7 @@ func runServer(configPath string) {
 
 	// Create Chatto core
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
+	cfg.Core.AuthProviders = cfg.Auth.Providers
 	cfg.Core.AuthAccessTokenTTL = cfg.Auth.AccessTokenTTLOrDefault()
 	cfg.Core.AuthLoopbackClientEnabled = cfg.Auth.LoopbackClientEnabled
 	cfg.Core.EmailOTP = cfg.Auth.EmailOTP

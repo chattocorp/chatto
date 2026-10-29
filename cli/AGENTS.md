@@ -71,7 +71,8 @@ authorization, live events, backup and restore, and backend tests.
   points and may assume their caller already performed the appropriate gate.
 - REST endpoints are acceptable for OAuth callbacks, webhooks, health checks,
   and uploaded assets. Public server discovery belongs to
-  `ServerDiscoveryService.GetServer` in the ConnectRPC API.
+  `ServerDiscoveryService.GetServer` in the ConnectRPC API. The public
+  `GET /.well-known/chatto` JSON alias uses that same handler.
 - `ServerDiscoveryService.GetServer` is compatibility-sensitive. Preserve its
   public CORS behavior, required JSON/protobuf fields, and OAuth discovery
   fields unless there is a rollout plan.

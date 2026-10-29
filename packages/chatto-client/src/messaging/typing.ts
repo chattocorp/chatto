@@ -3,7 +3,9 @@ export type TypingUpdate = (signal: AbortSignal) => Promise<unknown>;
 
 /**
  * Refresh typing during work without blocking it. Refreshes never overlap.
- * Completion or failure aborts an in-flight refresh and removes the timer.
+ * Completion or failure removes the timer and waits for an in-flight refresh
+ * (bounded by its two-second request timeout). A subsequent post can then clear
+ * typing without a pending refresh restoring it. Caller cancellation still aborts it.
  */
 export async function withTyping<Result>(
   signal: AbortSignal,
@@ -14,24 +16,27 @@ export async function withTyping<Result>(
   const controller = new AbortController();
   const refreshSignal = AbortSignal.any([signal, controller.signal]);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let stopped = false;
   const refresh = async () => {
-    if (refreshSignal.aborted) return;
+    if (stopped || refreshSignal.aborted) return;
     try {
       await update(AbortSignal.any([refreshSignal, AbortSignal.timeout(2000)]));
     } catch {
       // Presence is optional and must not prevent the primary operation.
     }
-    if (!refreshSignal.aborted)
+    if (!stopped && !refreshSignal.aborted)
       timer = setTimeout(() => {
-        void refresh();
+        pending = refresh();
       }, 3000);
   };
-  void refresh();
+  let pending = refresh();
   try {
     return await work();
   } finally {
-    controller.abort();
+    stopped = true;
     clearTimeout(timer);
+    await pending;
+    controller.abort();
   }
 }
 

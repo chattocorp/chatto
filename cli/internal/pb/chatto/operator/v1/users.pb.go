@@ -36,7 +36,10 @@ type CreateUserRequest struct {
 	// Optional email to add as already verified.
 	VerifiedEmail string `protobuf:"bytes,4,opt,name=verified_email,json=verifiedEmail,proto3" json:"verified_email,omitempty"`
 	// Optional explicit roles to assign after creation.
-	RoleNames     []string `protobuf:"bytes,5,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
+	RoleNames []string `protobuf:"bytes,5,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
+	// Optional UUID for permanent, exact retry protection. Keyed creation does
+	// not accept roles or passwords and records a historical account creation.
+	OperationKey  string `protobuf:"bytes,6,opt,name=operation_key,json=operationKey,proto3" json:"operation_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -104,6 +107,13 @@ func (x *CreateUserRequest) GetRoleNames() []string {
 		return x.RoleNames
 	}
 	return nil
+}
+
+func (x *CreateUserRequest) GetOperationKey() string {
+	if x != nil {
+		return x.OperationKey
+	}
+	return ""
 }
 
 // Result of creating a user.
@@ -1494,14 +1504,15 @@ var File_chatto_operator_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/operator/v1/users.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1dchatto/admin/v1/members.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\"\xe0\x01\n" +
+	"\x1echatto/operator/v1/users.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1dchatto/admin/v1/members.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\"\x85\x02\n" +
 	"\x11CreateUserRequest\x12\x1f\n" +
 	"\x05login\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x05login\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12$\n" +
 	"\bpassword\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\bpassword\x12/\n" +
 	"\x0everified_email\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xc0\x02R\rverifiedEmail\x12'\n" +
 	"\n" +
-	"role_names\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10\x14R\troleNames\"J\n" +
+	"role_names\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10\x14R\troleNames\x12#\n" +
+	"\roperation_key\x18\x06 \x01(\tR\foperationKey\"J\n" +
 	"\x12CreateUserResponse\x124\n" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"Z\n" +
 	"\x10ListUsersRequest\x12\x16\n" +

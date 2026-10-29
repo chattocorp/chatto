@@ -10,7 +10,6 @@ on:
   push:
     tags:
       - 'v*'
-      - 'chatto-desktop/v*'
   workflow_dispatch:
     inputs:
       target:
@@ -45,11 +44,31 @@ jobs:
       MANIFEST_FILE: .release-please-manifest.json
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release_please
         with:
           token: ${{ secrets.RELEASE_PLEASE_PAT }}
           config-file: ${{ env.CONFIG_FILE }}
           manifest-file: ${{ env.MANIFEST_FILE }}
           target-branch: ${{ env.TARGET_BRANCH }}
+
+      # Publish components only after creation as drafts, so they never claim
+      # the repository-wide Latest designation, even briefly.
+      - name: Publish component releases without Latest
+        if: steps.release_please.outputs.releases_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_PAT }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_OUTPUTS: ${{ toJSON(steps.release_please.outputs) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r path; do
+            tag="$(jq -er --arg path "$path" \
+              '.[$path + "--tag_name"] | select(type == "string" and contains("/"))' \
+              <<< "$RELEASE_OUTPUTS")"
+            gh release edit "$tag" --draft=false --latest=false
+          done < <(jq -r '.paths_released | fromjson | .[] | select(. != ".")' <<< "$RELEASE_OUTPUTS")
 
   build-image:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'image' }}
@@ -145,7 +164,7 @@ jobs:
             cd cli
             # Chatto does not expose Gin's MessagePack binding; omit its large codec.
             CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
-              -tags=nomsgpack \
+              -tags=nomsgpack,nodynamic \
               -ldflags="-s -w -X main.Version=${VERSION}" \
               -o "$context/chatto" .
           )
@@ -167,7 +186,7 @@ jobs:
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
   build-desktop-release:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     name: build-desktop-release (${{ matrix.platform }})
     environment: ${{ matrix.environment }}
     timeout-minutes: 45
@@ -201,9 +220,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch origin '+refs/heads/main:refs/remotes/origin/main'
-          if ! git merge-base --is-ancestor HEAD origin/main; then
-            echo "::error::Desktop signing is restricted to commits reachable from origin/main."
+          git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
+          trusted=false
+          while IFS= read -r ref; do
+            if git merge-base --is-ancestor HEAD "$ref"; then
+              trusted=true
+              break
+            fi
+          done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/main 'refs/remotes/origin/release-*')
+          if [[ "$trusted" != true ]]; then
+            echo "::error::Desktop signing is restricted to commits reachable from origin/main or an origin/release-* branch."
             exit 1
           fi
 
@@ -244,11 +270,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            version="${GITHUB_REF_NAME#chatto-desktop/v}"
-          else
-            version="$(jq -r '.version' apps/desktop/package.json)"
-          fi
+          version="$(jq -r '.version' apps/desktop/package.json)"
+          frontend_package_version="$(jq -r '.version' apps/frontend/package.json)"
           sha="$(git rev-parse HEAD)"
 
           if [[ -z "$version" || "$version" == "null" ]]; then
@@ -260,7 +283,24 @@ jobs:
             exit 1
           fi
 
-          frontend_version="${version}+${sha:0:12}"
+          if [[ "$version" != "$frontend_package_version" ]]; then
+            echo "::error::Desktop and frontend package versions must match."
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            if [[ "$version" != "${GITHUB_REF_NAME#v}" ]]; then
+              echo "::error::The Chatto tag and package versions must match."
+              exit 1
+            fi
+            frontend_version="$version"
+          else
+            development_version="$(mise env --json | jq -r '.CHATTO_DEVELOPMENT_VERSION // empty')"
+            if [[ -z "$development_version" ]]; then
+              echo "::error::CHATTO_DEVELOPMENT_VERSION is required for verification builds."
+              exit 1
+            fi
+            frontend_version="${development_version}+${sha:0:12}"
+          fi
           {
             echo "version=${version}"
             echo "sha=${sha}"
@@ -384,6 +424,8 @@ jobs:
         shell: bash
         env:
           CHATTO_BUILD_VERSION: ${{ steps.version.outputs.frontend_version }}
+          CHATTO_DESKTOP_AUTO_UPDATE: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          CHATTO_WINDOWS_EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
           DEBUG: ${{ runner.os == 'macOS' && 'electron-notarize*' || '' }}
         run: |
           if [[ "$RUNNER_OS" == "macOS" ]]; then
@@ -473,6 +515,26 @@ jobs:
           }
           Write-Host "Verified $($files.Count) valid, timestamped Windows executable signatures; chatto-desktop.exe is published by '$env:EXPECTED_PUBLISHER'."
 
+      # The signing hook also signs and verifies the generated uninstaller
+      # before NSIS embeds it, using the Azure login and module above.
+      - name: Build signed Windows installer
+        if: runner.os == 'Windows'
+        env:
+          CHATTO_WINDOWS_SIGN_INSTALLER: 'true'
+          CHATTO_WINDOWS_SIGNING_ENDPOINT: ${{ vars.CHATTO_WINDOWS_SIGNING_ENDPOINT }}
+          CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME: ${{ vars.CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME }}
+          CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME: ${{ vars.CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME }}
+          CHATTO_WINDOWS_EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
+        run: mise x -- pnpm --filter chatto-desktop build:windows-installer
+
+      - name: Test signed Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem apps/desktop/dist/installer/*_Setup.exe)
+          if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
+          ./tools/test-desktop-windows-installer.ps1 -Installer $installer[0].FullName
+
       - name: Package macOS release
         if: runner.os == 'macOS'
         shell: bash
@@ -482,12 +544,32 @@ jobs:
           helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
           test -x "$helper"
           codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
-          xcrun stapler validate "apps/desktop/dist/Chatto Desktop.app"
+          # Validation contacts Apple even after the ticket is stapled. Retry
+          # CloudKit failures, but keep other validation failures fatal.
+          for attempt in 1 2 3; do
+            if xcrun stapler validate "apps/desktop/dist/Chatto Desktop.app"; then
+              break
+            else
+              status=$?
+            fi
+            if [[ "$status" -ne 68 || "$attempt" -eq 3 ]]; then
+              exit "$status"
+            fi
+            sleep "$((attempt * 10))"
+          done
           spctl --assess --type execute --verbose=4 "apps/desktop/dist/Chatto Desktop.app"
           mkdir -p .context/desktop-release
           ditto -c -k --sequesterRsrc --keepParent \
             "apps/desktop/dist/Chatto Desktop.app" \
             ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${RUNNER_ARCH}.zip"
+
+      - name: Build and test signed macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mise x -- pnpm --filter chatto-desktop build:macos-dmg --release 2>&1 | tee -a "$RUNNER_TEMP/chatto-macos-notarization.log"
+          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+          cp apps/desktop/dist/dmg/*.dmg .context/desktop-release/
 
       - name: Upload macOS notarisation log
         if: runner.os == 'macOS' && always()
@@ -519,6 +601,8 @@ jobs:
           tar -C apps/desktop/dist -czf \
             ".context/desktop-release/chatto-desktop_${VERSION}_Linux_${RUNNER_ARCH}.tar.gz" \
             chatto-desktop
+          mise x -- pnpm --filter chatto-desktop build:linux-appimage
+          cp apps/desktop/dist/appimage/*.AppImage .context/desktop-release/
 
       - name: Package Windows release
         if: runner.os == 'Windows'
@@ -527,6 +611,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           New-Item -ItemType Directory -Force .context/desktop-release | Out-Null
+          Copy-Item apps/desktop/dist/installer/*_Setup.exe .context/desktop-release/
           Compress-Archive `
             -Path "apps/desktop/dist/windows" `
             -DestinationPath ".context/desktop-release/chatto-desktop_$env:VERSION`_Windows_$env:RUNNER_ARCH.zip"
@@ -540,18 +625,34 @@ jobs:
           retention-days: 1
 
   assemble-desktop-release:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     needs: build-desktop-release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
       - name: Download desktop release artifacts
         uses: actions/download-artifact@v8
         with:
           pattern: desktop-release-*
           path: .context/desktop-release
           merge-multiple: true
+
+      - name: Generate desktop update manifests
+        shell: bash
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          node apps/desktop/scripts/update-manifests.mjs .context/desktop-release "$version"
 
       - name: Generate checksums
         shell: bash
@@ -568,18 +669,20 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Upload and publish desktop release
+      # Keep this release hidden until both server and desktop jobs finish.
+      - name: Upload desktop assets to the Chatto release
         if: github.event_name == 'push'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
+          test "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" = true
           gh release upload "$GITHUB_REF_NAME" .context/desktop-release/* --clobber
-          gh release edit "$GITHUB_REF_NAME" --draft=false
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    environment: chatto-release
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     permissions:
@@ -588,6 +691,8 @@ jobs:
       id-token: write
     outputs:
       is_stable: ${{ steps.release_meta.outputs.is_stable }}
+      version: ${{ steps.release_meta.outputs.version }}
+      make_latest: ${{ steps.release_meta.outputs.push_latest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -639,7 +744,9 @@ jobs:
               .release-please-manifest-main.json|\
               CHANGELOG.md|\
               cli/version.go|\
-              apps/frontend/package.json)
+              apps/frontend/package.json|\
+              apps/desktop/package.json|\
+              packages/chatto-client/package.json)
                 ;;
               *)
                 disallowed+=("$path")
@@ -761,25 +868,35 @@ jobs:
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.licenses=Apache-2.0
 
+  finalize-release:
+    needs: [release, assemble-desktop-release]
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    environment: chatto-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
       - name: Publish GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
+          MAKE_LATEST: ${{ needs.release.outputs.make_latest }}
         run: |
           set -euo pipefail
 
           gh release edit "v${VERSION}" \
             --repo chattocorp/chatto \
-            --draft=false
+            --draft=false \
+            --latest="$MAKE_LATEST"
 
       - name: Update Homebrew tap
-        if: ${{ !contains(steps.version.outputs.version, '-') }}
+        if: ${{ needs.release.outputs.is_stable == 'true' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
 
@@ -869,7 +986,7 @@ jobs:
           git -C "${tap_dir}" push origin HEAD:main
 
   publish-stable-docs:
-    needs: release
+    needs: [release, finalize-release]
     if: ${{ github.event_name == 'push' && needs.release.outputs.is_stable == 'true' }}
     permissions:
       contents: read

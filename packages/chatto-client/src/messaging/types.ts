@@ -15,6 +15,8 @@ export interface ChattoMessage {
   inReplyTo?: string;
   /** The message text. Absent for a message without text. */
   body?: string;
+  /** Current attachment metadata, without signed download addresses. */
+  attachments?: MessageAttachmentInfo[];
 }
 
 /** Where to send a message: a room and a thread in it. */

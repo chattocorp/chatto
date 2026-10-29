@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Keyboard shortcuts",
+      "app": "App",
+      "undo": "Undo",
+      "redo": "Redo",
+      "new_line": "New line",
+      "edit_last": "Edit last message (empty draft)",
+      "complete": "Complete mention or emoji"
+    },
+    "action_unavailable": "This action is currently unavailable.",
+    "edit": "Edit",
     "copy_failed": "Could not copy to clipboard. Select the text and copy it manually.",
     "cancel": "Cancel",
     "close_sidebar": "Close sidebar",
@@ -22,12 +33,12 @@
     "password_placeholder": "Your password",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 UTF-8 bytes",
+    "password_bytes_placeholder": "Choose a password",
     "password_confirm_placeholder": "Enter password again",
     "validation": {
       "email": "Please enter a valid email address",
-      "password_min_bytes": "Use at least 8 UTF-8 bytes. Some characters use more than one byte.",
-      "password_max": "Use no more than 72 UTF-8 bytes. Some characters use more than one byte.",
+      "password_min_bytes": "Password is too short",
+      "password_max": "Password is too long",
       "username_min": "Must be at least 2 characters",
       "username_max": "Must be at most 32 characters",
       "username_charset": "Only letters, numbers, dots, dashes, underscores",

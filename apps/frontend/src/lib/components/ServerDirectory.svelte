@@ -1,17 +1,16 @@
 <!--
 @component
 
-The Server Directory: the merged cached Neighborhoods of all registered
-servers, and a direct server-address lookup that opens from a button. The
-`/chat/servers` page frames the directory in a titled panel; the Add Server
-dialog shows it directly on its work plane. See FDR-042.
+The Server Directory: registered servers, explicitly discovered servers,
+their cached Neighborhoods, and a direct server-address lookup. This is the
+single directory surface for every host and the standalone start page. See FDR-042.
 -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
   import { ConnectError } from '@connectrpc/connect';
   import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { goto } from '$app/navigation';
+  import { goto, pushState, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import {
     getPublicServerInfo,
@@ -21,7 +20,6 @@ dialog shows it directly on its work plane. See FDR-042.
   } from '@chatto/client/api/server';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
-  import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import {
     loadServerDirectory,
@@ -30,23 +28,12 @@ dialog shows it directly on its work plane. See FDR-042.
   } from '$lib/serverDirectory';
   import { canonicalServerOrigin, serverHost } from '$lib/serverUrl';
   import { evaluateServerCompatibility } from '@chatto/client/server/compatibility';
-  import { serverRegistry } from '$lib/client';
+  import { knownServers, serverRegistry } from '$lib/client';
   import { addSignedOutServer, findServerByUrl } from '$lib/serverCatalogue';
-  import { EmptyState, Hint, LoadingFog, Panel } from '$lib/ui';
+  import { serverDisplayName } from '@chatto/client/server/state';
+  import { Dialog, EmptyState, Hint, LoadingFog } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-
-  let {
-    inDialog = false
-  }: {
-    /**
-     * The directory is the content of the history-backed Add Server dialog.
-     * Sections then sit on the dialog's work plane with one lower heading
-     * level. Opening a server replaces the dialog's history entry, so Back
-     * does not reopen it. Joining a server keeps the dialog open.
-     */
-    inDialog?: boolean;
-  } = $props();
 
   /** A live profile from a direct lookup, or a cached Server Directory profile. */
   type ServerVersionProfile = PublicServerInfo | NeighborhoodServerProfile | null;
@@ -54,28 +41,51 @@ dialog shows it directly on its work plane. See FDR-042.
   /** The current profile does not let this client sign in. */
   class ServerJoinUnavailableError extends Error {}
 
-  /** The user asked for the direct address lookup. */
-  let lookupRequested = $state(false);
+  let {
+    lookupRequested = false,
+    onLookupClose
+  }: {
+    /** The pane header or lookup flow requested the direct address form. */
+    lookupRequested?: boolean;
+    /** Close the route-owned address dialog through browser history. */
+    onLookupClose?: () => void;
+  } = $props();
   let customInput = $state('');
-  let customOrigin = $state('');
-  let customProfile = $state<PublicServerInfo | null>(null);
   let customError = $state('');
   let probing = $state(false);
   let pendingOrigin = $state<string | null>(null);
   let directory = $state<ServerDirectory | null>(null);
   let directoryController: AbortController | null = null;
+  let lookupController: AbortController | null = null;
   /** Current profiles that a join action loaded; they replace cached profiles. */
   const liveProfiles = new SvelteMap<string, PublicServerInfo>();
 
-  const registeredOrigins = $derived.by(() => [
+  const discoveryOrigins = $derived.by(() => [
     ...new Set(
-      serverRegistry.servers.flatMap((server) => {
-        const origin = canonicalServerOrigin(server.url);
+      [
+        ...serverRegistry.servers.map((server) => server.url),
+        ...knownServers.servers.map((server) => server.origin)
+      ].flatMap((url) => {
+        const origin = canonicalServerOrigin(url);
         return origin ? [origin] : [];
       })
     )
   ]);
-  const entries = $derived(directory?.entries ?? []);
+  const savedServers = $derived(serverRegistry.servers);
+  const firstRun = $derived(savedServers.length === 0 && knownServers.servers.length === 0);
+  const entries = $derived.by(() => {
+    // Insertion order keeps explicitly added servers before recommendations,
+    // even when a later recommendation also names a known server.
+    const merged = new SvelteMap<string, ServerDirectoryEntry>();
+    for (const server of knownServers.servers) {
+      merged.set(server.origin, { ...server, imageOrigin: server.origin, sourceOrigins: [] });
+    }
+    for (const entry of directory?.entries ?? []) {
+      const known = merged.get(entry.origin);
+      merged.set(entry.origin, known ? { ...known, sourceOrigins: entry.sourceOrigins } : entry);
+    }
+    return [...merged.values()].filter((entry) => !findServerByUrl(entry.origin));
+  });
   const allSourcesFailed = $derived(
     !!directory &&
       directory.sourceCount > 0 &&
@@ -84,22 +94,20 @@ dialog shows it directly on its work plane. See FDR-042.
   const someSourcesFailed = $derived(
     !!directory && directory.failedSourceCount > 0 && !allSourcesFailed
   );
-  /** The lookup shows at once when the directory has nothing to recommend. */
-  const showLookup = $derived(lookupRequested || (!!directory && entries.length === 0));
 
   onMount(() => {
     void refreshDirectory();
     return () => directoryController?.abort();
   });
 
-  /** Load the cached Neighborhood of each registered server. */
+  /** Query registered and explicitly discovered sources, never their returned neighbors. */
   async function refreshDirectory() {
     directoryController?.abort();
     const controller = new AbortController();
     directoryController = controller;
     directory = null;
     try {
-      const loaded = await loadServerDirectory(registeredOrigins, { signal: controller.signal });
+      const loaded = await loadServerDirectory(discoveryOrigins, { signal: controller.signal });
       if (!controller.signal.aborted) directory = loaded;
     } catch {
       // Closing the directory aborts the request; no state remains to update.
@@ -116,9 +124,8 @@ dialog shows it directly on its work plane. See FDR-042.
   }
 
   async function probeCustomServer() {
+    if (probing) return;
     customError = '';
-    customProfile = null;
-    customOrigin = '';
     const initialOrigin = canonicalServerOrigin(normalizeCustomInput(customInput));
     if (!initialOrigin) {
       customError = m('add_server.invalid_url');
@@ -126,23 +133,50 @@ dialog shows it directly on its work plane. See FDR-042.
     }
 
     probing = true;
+    const controller = new AbortController();
+    lookupController = controller;
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]);
     try {
       let origin = initialOrigin;
       let profile: PublicServerInfo;
       try {
-        profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+        profile = await getPublicServerInfo(origin, { signal });
       } catch (error) {
+        signal.throwIfAborted();
         if (hasScheme(customInput) || !origin.startsWith('https://')) throw error;
         origin = `http://${origin.slice('https://'.length)}`;
-        profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+        profile = await getPublicServerInfo(origin, { signal });
       }
-      customOrigin = origin;
-      customProfile = profile;
+      signal.throwIfAborted();
+      const wasFirstRun = firstRun;
+      liveProfiles.set(origin, profile);
+      knownServers.remember(origin, profile);
+      customInput = '';
+      if (lookupRequested && canJoin(profile) && !opensInServerClient(origin, profile)) {
+        await openOrJoin(origin, profile);
+        return;
+      }
+      onLookupClose?.();
+      // First-run success remounts the directory, which loads these sources.
+      // An existing directory refreshes here without registering the server.
+      if (!wasFirstRun) void refreshDirectory();
     } catch (error) {
-      customError = discoveryError(error);
+      if (!controller.signal.aborted) customError = discoveryError(error);
     } finally {
-      probing = false;
+      if (lookupController === controller) {
+        lookupController = null;
+        probing = false;
+      }
     }
+  }
+
+  /** Closing or replacing the address form cancels its pending lookup. */
+  function lookupLifetime() {
+    return () => {
+      lookupController?.abort();
+      lookupController = null;
+      probing = false;
+    };
   }
 
   function actionLabel(origin: string, profile: ServerVersionProfile): string {
@@ -181,22 +215,23 @@ dialog shows it directly on its work plane. See FDR-042.
   }
 
   /**
-   * Open a registered server, or add a new one to the gutter. Adding a server
-   * neither opens it nor starts sign-in, so the user can add more servers
-   * before they close the directory. The entry then shows the joined state
-   * with an open action. The server's signed-out view offers **Log in to this
-   * server**. A Server Directory result has only the cached profile, so adding
-   * it first loads the server's current profile. The user starts this request
-   * explicitly.
+   * Open a registered server, or add a new one to the gutter and open it.
+   * Joining does not submit credentials or open an authorization window.
+   * The server's signed-out view offers sign-in. A Server Directory result
+   * has only the cached profile, so adding it first loads the server's current
+   * profile. The user starts this request explicitly.
    */
   async function openOrJoin(origin: string, profile: ServerVersionProfile) {
+    // Clear the shallow dialog state before a full navigation. Replacing a
+    // shallow entry with goto would make Back change only the URL, not the page.
+    if (lookupRequested) replaceState('', {});
     const joined = findServerByUrl(origin);
     if (!joined && !canJoin(profile)) return;
     pendingOrigin = origin;
     try {
       if (joined) {
         await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(joined.id) }), {
-          replaceState: inDialog
+          replaceState: false
         });
         return;
       }
@@ -213,9 +248,12 @@ dialog shows it directly on its work plane. See FDR-042.
         );
         return;
       }
-      addSignedOutServer(origin, {
+      const serverId = addSignedOutServer(origin, {
         name: current.name,
         iconUrl: current.iconUrl ?? null
+      });
+      await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }), {
+        replaceState: false
       });
     } catch {
       toast.error(m('common.error.generic'));
@@ -239,6 +277,8 @@ dialog shows it directly on its work plane. See FDR-042.
   }
 
   function sourceName(origin: string): string {
+    const known = knownServers.servers.find((server) => server.origin === origin);
+    if (known) return known.profile.name || serverHost(origin);
     const registered = findServerByUrl(origin);
     if (registered) return registered.name;
     const discovered = entries.find((entry) => entry.origin === origin);
@@ -246,135 +286,63 @@ dialog shows it directly on its work plane. See FDR-042.
     return serverHost(origin);
   }
 
-  function sourceAttribution(entry: ServerDirectoryEntry): { visible: string; full: string } {
-    const names = entry.sourceOrigins.map(sourceName);
-    const formatter = new Intl.ListFormat(getReactiveLocale(), {
-      style: 'long',
-      type: 'conjunction'
+  /** Keep the full cached provenance in the shallow history entry for Back/Close. */
+  function showRecommendationInfo(entry: ServerDirectoryEntry) {
+    pushState('', {
+      modal: {
+        type: 'serverRecommendation',
+        name: entry.profile.name || serverHost(entry.origin),
+        origin: entry.origin,
+        sources: entry.sourceOrigins.map((origin) => ({ origin, name: sourceName(origin) }))
+      }
     });
-    const remaining = names.length - 2;
-    const visibleNames =
-      remaining > 0
-        ? [
-            ...names.slice(0, 2),
-            m('add_server.directory.more_recommenders_count', { count: remaining })
-          ]
-        : names;
-    return {
-      visible: m('add_server.directory.recommended_by', {
-        servers: formatter.format(visibleNames)
-      }),
-      full: m('add_server.directory.recommended_by', { servers: formatter.format(names) })
-    };
   }
 </script>
 
-{#snippet entryAction(origin: string, profile: ServerVersionProfile, fullWidth: boolean)}
-  {@const joined = findServerByUrl(origin)}
-  {#if opensInServerClient(origin, profile)}
-    <Button href={origin} opensInNewTab variant="secondary" size="sm" {fullWidth}>
-      <span>{actionLabel(origin, profile)}</span>
-      <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
-    </Button>
-  {:else}
-    <Button
-      variant={joined ? 'secondary' : 'action'}
-      size="sm"
-      {fullWidth}
-      loading={pendingOrigin === origin}
-      disabled={!joined && !canJoin(profile)}
-      onclick={() => openOrJoin(origin, profile)}
-    >
-      {actionLabel(origin, profile)}
-    </Button>
-  {/if}
-{/snippet}
-
-{#snippet recommendationSources(entry: ServerDirectoryEntry, className: string)}
-  {@const attribution = sourceAttribution(entry)}
-  <p
-    class={['min-w-0 text-sm text-muted', className]}
-    aria-label={attribution.full}
-    title={attribution.full}
-    data-testid="server-recommendation-sources"
-  >
-    <bdi>{attribution.visible}</bdi>
-  </p>
-{/snippet}
-
-{#snippet lookupButton()}
-  <Button variant="secondary" size="sm" onclick={() => (lookupRequested = true)}>
-    <span class="iconify icon-[uil--globe]" aria-hidden="true"></span>
-    <span>{m('add_server.directory.connect_by_address')}</span>
-  </Button>
-{/snippet}
-
-{#snippet lookupForm()}
+{#snippet lookupForm(inDialog = false)}
   <section
-    class="flex flex-col gap-3 surface-box p-4"
-    aria-label={m('add_server.directory.connect_by_address')}
-    data-testid="server-directory-lookup"
+    {@attach lookupLifetime}
+    aria-label={inDialog ? m('add_server.directory.connect_by_address') : undefined}
+    aria-labelledby={inDialog ? undefined : 'server-directory-connect-title'}
   >
-    <p class="text-sm text-pretty text-muted">{m('add_server.directory.lookup_description')}</p>
-    <Form onsubmit={probeCustomServer} error={customError}>
-      <div class="flex flex-col items-stretch gap-3 sm:flex-row">
-        <div class="min-w-0 flex-1">
-          <TextInput
-            id="add-server-url"
-            label={m('add_server.url_label')}
-            labelHidden
-            bind:value={customInput}
-            placeholder={m('add_server.url_placeholder')}
-            leadingIcon="icon-[uil--globe]"
-            disabled={probing}
-            autofocus={lookupRequested}
-            required
-          />
-        </div>
-        <Button
-          type="submit"
-          loading={probing}
-          loadingText={m('add_server.connecting')}
-          disabled={!customInput.trim()}
-        >
-          {m('add_server.directory.find')}
-        </Button>
-      </div>
-    </Form>
-
-    {#if customProfile && customOrigin}
-      {@const profile = customProfile}
-      {@const joined = findServerByUrl(customOrigin)}
-      {@const external = opensInServerClient(customOrigin, profile)}
-      <div class="max-w-md">
-        {#snippet customActions()}
-          {@render entryAction(customOrigin, profile, true)}
-        {/snippet}
-        <ServerProfileCard
-          origin={customOrigin}
-          {profile}
-          badge={joined ? m('add_server.directory.joined') : undefined}
-          iconHref={external ? customOrigin : undefined}
-          iconOpensInNewTab={external}
-          onIconClick={external || (!joined && !canJoin(profile))
-            ? undefined
-            : () => openOrJoin(customOrigin, profile)}
-          iconActionLabel={actionLabel(customOrigin, profile)}
-          iconActionDisabled={pendingOrigin === customOrigin}
-          actions={customActions}
-          testId="server-directory-entry"
-          headingTag={inDialog ? 'h4' : 'h3'}
-        />
-      </div>
+    {#if !inDialog}
+      <h2 id="server-directory-connect-title" class="mb-4 text-xl font-semibold text-text-top">
+        {m('add_server.directory.connect_by_address')}
+      </h2>
     {/if}
+    <div class="flex flex-col gap-4" data-testid="server-directory-lookup">
+      <p class="text-pretty text-text">{m('add_server.directory.lookup_description')}</p>
+      <Form onsubmit={probeCustomServer} error={customError}>
+        <div class="flex flex-col items-stretch gap-3 sm:flex-row">
+          <div class="min-w-0 flex-1">
+            <TextInput
+              id="add-server-url"
+              label={m('add_server.url_label')}
+              labelHidden
+              bind:value={customInput}
+              placeholder={m('add_server.url_placeholder')}
+              leadingIcon="icon-[uil--globe]"
+              disabled={probing}
+              autofocus={lookupRequested}
+              required
+            />
+          </div>
+          <Button
+            type="submit"
+            loading={probing}
+            loadingText={m('add_server.connecting')}
+            disabled={!customInput.trim()}
+          >
+            <span class="iconify icon-[uil--search]" aria-hidden="true"></span>
+            {m('add_server.directory.find')}
+          </Button>
+        </div>
+      </Form>
+    </div>
   </section>
 {/snippet}
 
-{#snippet recommendationsBody()}
-  {#if showLookup}
-    {@render lookupForm()}
-  {/if}
-
+{#snippet directoryStatus()}
   {#if someSourcesFailed}
     <Hint tone="warning">{m('add_server.directory.partial')}</Hint>
   {/if}
@@ -393,77 +361,141 @@ dialog shows it directly on its work plane. See FDR-042.
         </Button>
       </div>
     </EmptyState>
-  {:else if entries.length === 0}
-    <EmptyState icon="icon-[uil--compass]" title={m('add_server.directory.empty_title')}>
-      {m('add_server.directory.empty_body')}
-    </EmptyState>
-  {:else}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {#each entries as entry (entry.origin)}
-        {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
-        {@const joined = findServerByUrl(entry.origin)}
-        {@const external = opensInServerClient(entry.origin, profile)}
-        {#snippet cardActions()}
-          <div class="flex items-center gap-3">
-            {@render recommendationSources(entry, 'line-clamp-2 flex-1')}
-            {@render entryAction(entry.origin, profile, false)}
-          </div>
-        {/snippet}
-        <ServerProfileCard
-          origin={entry.origin}
-          imageOrigin={entry.imageOrigin}
-          profile={entry.profile}
-          badge={joined ? m('add_server.directory.joined') : undefined}
-          iconHref={external ? entry.origin : undefined}
-          iconOpensInNewTab={external}
-          onIconClick={external || (!joined && !canJoin(profile))
-            ? undefined
-            : () => openOrJoin(entry.origin, profile)}
-          iconActionLabel={actionLabel(entry.origin, profile)}
-          iconActionDisabled={pendingOrigin === entry.origin}
-          actions={cardActions}
-          testId="server-directory-entry"
-          headingTag={inDialog ? 'h4' : 'h3'}
-        />
-      {/each}
-    </div>
   {/if}
 {/snippet}
 
-<!-- The recommendations lead. The direct address lookup opens from a button,
-     or shows at once when there is nothing to recommend. The page frames the
-     directory in a titled Panel; the dialog already owns one work plane, so
-     the directory sits directly on it. -->
-{#if inDialog}
-  <section class="flex flex-col gap-4" aria-labelledby="server-directory-recommended-title">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-      <div class="flex min-w-0 flex-col gap-1">
-        <h3
-          id="server-directory-recommended-title"
-          class="text-base font-semibold text-balance text-text-top"
+{#snippet recommendedCards()}
+  {#each entries as entry (entry.origin)}
+    {@const profile = liveProfiles.get(entry.origin) ?? entry.profile}
+    {@const joined = findServerByUrl(entry.origin)}
+    {@const addedByYou = knownServers.servers.some((server) => server.origin === entry.origin)}
+    {@const external = opensInServerClient(entry.origin, profile)}
+    {#snippet provenance()}
+      <div class="flex min-w-0 items-center justify-center text-muted">
+        {#if pendingOrigin === entry.origin}
+          <span role="status">{m('add_server.connecting')}</span>
+        {:else if !canJoin(profile)}
+          <span>{m('add_server.directory.sign_in_unavailable')}</span>
+        {:else if addedByYou}
+          <span>{m('add_server.directory.added_by_you')}</span>
+        {:else if entry.sourceOrigins.length > 0}
+          <button
+            type="button"
+            class="pointer-events-auto flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-sm text-center hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+            onclick={() => showRecommendationInfo(entry)}
+            data-testid="server-recommendation-source"
+          >
+            <span class="truncate"
+              ><bdi
+                >{m('add_server.directory.recommended_by', {
+                  servers: sourceName(entry.sourceOrigins[0]!)
+                })}</bdi
+              ></span
+            >
+            {#if entry.sourceOrigins.length > 1}
+              <span class="shrink-0" dir="ltr">+{entry.sourceOrigins.length - 1}</span>
+            {/if}
+          </button>
+        {/if}
+      </div>
+    {/snippet}
+    <ServerProfileCard
+      origin={entry.origin}
+      imageOrigin={liveProfiles.has(entry.origin) ? entry.origin : entry.imageOrigin}
+      {profile}
+      href={external ? entry.origin : undefined}
+      opensInNewTab={external}
+      onactivate={external ? undefined : () => openOrJoin(entry.origin, profile)}
+      actionLabel={actionLabel(entry.origin, profile)}
+      disabled={pendingOrigin === entry.origin || (!joined && !canJoin(profile))}
+      footer={provenance}
+      testId="server-directory-entry"
+      headingTag="h2"
+    />
+  {/each}
+{/snippet}
+
+<div
+  class={[
+    '@container/directory flex w-full flex-col gap-8',
+    firstRun && 'mx-auto max-w-3xl text-center'
+  ]}
+  data-testid="server-directory"
+>
+  {#if firstRun}
+    <!-- First-run onboarding deliberately uses an open layout rather than
+         the pane panels used for settings and administration. -->
+    <section class="flex flex-col items-center" aria-labelledby="server-directory-welcome-title">
+      <div class="flex flex-col items-center gap-6">
+        <h1
+          id="server-directory-welcome-title"
+          class="text-5xl leading-tight font-black tracking-tight text-balance text-text-top sm:text-6xl"
         >
-          {m('add_server.directory.servers_title')}
-          {#if entries.length}
-            <span class="font-normal text-muted tabular-nums">({entries.length})</span>
-          {/if}
-        </h3>
-        <p class="text-sm text-pretty text-muted">
-          {m('add_server.directory.servers_description')}
+          {m('add_server.directory.welcome_title')}
+        </h1>
+        <p class="max-w-2xl text-lg leading-relaxed text-balance text-text">
+          {m('auth.login.welcome_description')}
         </p>
       </div>
-      {#if !showLookup}
-        {@render lookupButton()}
-      {/if}
+    </section>
+    <div class="mx-auto w-full max-w-xl">
+      {@render lookupForm()}
     </div>
-    {@render recommendationsBody()}
-  </section>
-{:else}
-  <Panel
-    title={m('add_server.directory.servers_title')}
-    subtitle={m('add_server.directory.servers_description')}
-    count={entries.length || undefined}
-    actions={showLookup ? undefined : lookupButton}
-  >
-    <div class="flex flex-col gap-4">{@render recommendationsBody()}</div>
-  </Panel>
+    <section
+      class="mx-auto flex max-w-2xl flex-col items-center gap-4"
+      aria-labelledby="server-directory-learn-more-title"
+    >
+      <h2 id="server-directory-learn-more-title" class="text-xl font-semibold text-text-top">
+        {m('add_server.directory.learn_more')}
+      </h2>
+      <p class="text-balance text-text">
+        {m('add_server.directory.learn_more_description')}
+        <a href="https://chatto.run" target="_blank" rel="noopener noreferrer" class="link"
+          >www.chatto.run</a
+        >
+      </p>
+    </section>
+  {/if}
+
+  {#if !firstRun}
+    <div
+      class="grid grid-cols-2 gap-2 @min-[40rem]/directory:grid-cols-[repeat(auto-fill,18rem)] @min-[40rem]/directory:gap-4"
+      data-testid="server-directory-grid"
+    >
+      {#each savedServers as server (server.id)}
+        {@const info = serverRegistry.tryGetStore(server.id)?.serverInfo}
+        {@const profile = {
+          name: info ? serverDisplayName(info, server.name) : server.name,
+          iconUrl: info?.iconUrl ?? server.iconUrl,
+          bannerUrl: info?.bannerUrl ?? null,
+          description: info?.description ?? null
+        }}
+        {@const href = resolve('/chat/[serverId]', { serverId: serverIdToSegment(server.id) })}
+        {#snippet status()}
+          <span
+            >{serverRegistry.isAuthenticated(server.id)
+              ? m('add_server.directory.joined')
+              : m('add_server.directory.needs_login')}</span
+          >
+        {/snippet}
+        <ServerProfileCard
+          origin={server.url}
+          {profile}
+          {href}
+          actionLabel={m('add_server.directory.open')}
+          footer={status}
+          testId="saved-server-entry"
+          headingTag="h2"
+        />
+      {/each}
+      {@render recommendedCards()}
+    </div>
+    {@render directoryStatus()}
+  {/if}
+</div>
+
+{#if !firstRun && lookupRequested}
+  <Dialog visible title={m('add_server.directory.connect_by_address')} onclose={onLookupClose}>
+    {@render lookupForm(true)}
+  </Dialog>
 {/if}

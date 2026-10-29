@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "房間公告",
+      "dismiss": "關閉",
+      "body": "公告（Markdown）",
+      "too_long": "公告最多可包含 {max} 個字元，包括空白。",
+      "help": "儲存修正不會再次顯示公告。選擇公告可向已在裝置上關閉公告的成員再次顯示。",
+      "conflict": "這則公告在你編輯時已變更。你的草稿仍保留在此。請視需要複製草稿，然後載入目前的公告再儲存。",
+      "reload": "載入目前的公告",
+      "save": "更新",
+      "republish": "公告",
+      "clear": "清除",
+      "clear_confirm_title": "清除房間公告？",
+      "clear_confirm_description": "這會立即為房間內所有人移除目前的公告。你尚未儲存的變更不會發布。",
+      "empty": "尚未發布任何公告。",
+      "edit": "編輯公告"
+    },
+    "information": {
+      "description": "說明",
+      "created": "建立時間",
+      "title": "聊天室資訊",
+      "basic": "概覽",
+      "pinned_messages": "釘選訊息"
+    },
     "create": {
       "title": "建立新聊天室",
       "description": "聊天室是伺服器內的對話空間。",
@@ -77,7 +100,8 @@
       "beginning": "這是這段對話的開端。",
       "read_denied": "你沒有權限閱讀此房間中的訊息。",
       "limited_empty": "還沒有你可以閱讀的對話。",
-      "loading": "正在載入訊息..."
+      "loading": "正在載入訊息...",
+      "load_failed": "無法載入訊息。"
     },
     "message": {
       "empty": "尚無訊息",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "#{room} 中的討論串",
       "back_to_room": "返回聊天室",
+      "participants": "討論串參與者 ({count})",
       "follow": "追蹤討論串",
       "unfollow": "取消追蹤討論串",
       "close": "關閉討論串",
@@ -263,6 +288,7 @@
     "unread_separator": "新訊息",
     "close_extras": "關閉聊天室資訊",
     "dm": {
+      "deactivated_user_notice": "此帳號已停用。該使用者無法閱讀或回覆訊息。",
       "deleted_user_notice": "對方使用者已被刪除。"
     },
     "management": {

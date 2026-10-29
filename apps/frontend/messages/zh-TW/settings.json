@@ -118,7 +118,7 @@
       "conflict": "你編輯時此個人檔案已被變更。請重新載入頁面，然後再次儲存變更。",
       "save_button": "儲存變更",
       "bio": {
-        "label": "個人簡介",
+        "label": "簡介",
         "description": "最多 {max} 個字元，顯示在你的個人資料中。",
         "placeholder": "簡單介紹一下自己",
         "too_long": "簡介不能超過 {max} 個字元。"
@@ -141,6 +141,21 @@
         "dark": {
           "label": "深色",
           "description": "在此瀏覽器使用深色介面"
+        }
+      },
+      "animations": {
+        "title": "動畫",
+        "automatic": {
+          "label": "自動",
+          "description": "遵循系統的減少動態效果偏好設定"
+        },
+        "enabled": {
+          "label": "啟用",
+          "description": "一律顯示動畫"
+        },
+        "disabled": {
+          "label": "停用",
+          "description": "顯示變更時不使用動畫"
         }
       },
       "thread_pane": {
@@ -425,6 +440,7 @@
         "title": "密碼",
         "add_description": "新增密碼，即可直接登入並中斷最後一個 SSO 供應商的連結。",
         "change_description": "變更直接登入所使用的密碼。",
+        "sso_managed": "此伺服器使用單一登入（SSO），因此你無法新增或變更密碼。請在你的身分識別供應商處管理登入資訊。",
         "current_label": "目前密碼",
         "current_required": "請輸入目前密碼。",
         "add_button": "新增密碼",
@@ -437,6 +453,9 @@
         "already_set": "此帳號已有密碼。"
       },
       "sso": {
+        "username_unavailable": "無法指派登入供應商的使用者名稱。請聯絡伺服器營運者。",
+        "username_managed": "你的使用者名稱由登入供應商管理，無法在此修改。",
+        "unlink_disabled": "伺服器營運者不允許解除與此供應商的連結。",
         "popup_blocked": "請允許此網站的彈出式視窗，然後再試一次連結。",
         "account_mismatch": "請在此伺服器登入正確的帳號，然後從原本的視窗重新開始連結。",
         "provider_unavailable": "此登入服務供應商已無法使用。",
@@ -449,6 +468,7 @@
         "link_button": "連結",
         "link_failed": "無法連結登入供應商",
         "fresh_auth_required": "請重新登入後再連結其他供應商。",
+        "sso_fresh_auth_required": "請在此帳號所屬的伺服器上開啟帳號設定。登出後，透過你的 SSO 供應商重新登入，再於該伺服器上重試此操作。",
         "provider_unconfigured": "已不再設定此供應商",
         "disconnect_button": "中斷連結",
         "disconnecting": "正在中斷連結...",
@@ -462,7 +482,7 @@
         },
         "disconnect_blocked_modal": {
           "title": "無法中斷供應商連結",
-          "body": "{provider} 是您唯一的登入方式。請先新增密碼或連結其他供應商。"
+          "body": "中斷與 {provider} 的連結前，請先設定此伺服器支援的其他登入方式。"
         },
         "fresh_auth_modal": {
           "title": "確認密碼",

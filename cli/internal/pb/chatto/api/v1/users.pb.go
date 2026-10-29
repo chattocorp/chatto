@@ -92,7 +92,9 @@ type User struct {
 	// sharing or has no stored time zone.
 	Timezone *string `protobuf:"bytes,10,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	// Present for a bot identity; absent for humans and deleted-account references.
-	Bot           *BotInfo `protobuf:"bytes,11,opt,name=bot,proto3" json:"bot,omitempty"`
+	Bot *BotInfo `protobuf:"bytes,11,opt,name=bot,proto3" json:"bot,omitempty"`
+	// True while the account cannot use this server. Data is retained and access can be restored.
+	Deactivated   bool `protobuf:"varint,12,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -197,13 +199,20 @@ func (x *User) GetBot() *BotInfo {
 	return nil
 }
 
+func (x *User) GetDeactivated() bool {
+	if x != nil {
+		return x.Deactivated
+	}
+	return false
+}
+
 var File_chatto_api_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
 	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"-\n" +
 	"\aBotInfo\x12\"\n" +
-	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\xaf\x03\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\xd1\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -216,7 +225,8 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\x03bio\x18\t \x01(\tH\x01R\x03bio\x88\x01\x01\x12\x1f\n" +
 	"\btimezone\x18\n" +
 	" \x01(\tH\x02R\btimezone\x88\x01\x01\x12(\n" +
-	"\x03bot\x18\v \x01(\v2\x16.chatto.api.v1.BotInfoR\x03botB\r\n" +
+	"\x03bot\x18\v \x01(\v2\x16.chatto.api.v1.BotInfoR\x03bot\x12 \n" +
+	"\vdeactivated\x18\f \x01(\bR\vdeactivatedB\r\n" +
 	"\v_avatar_urlB\x06\n" +
 	"\x04_bioB\v\n" +
 	"\t_timezoneJ\x04\b\b\x10\tR\x06is_botB\xb7\x01\n" +

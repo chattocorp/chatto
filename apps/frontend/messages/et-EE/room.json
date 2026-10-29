@@ -1,5 +1,28 @@
 {
   "room": {
+    "notice": {
+      "title": "Ruumi teade",
+      "dismiss": "Sulge",
+      "body": "Teade (Markdown)",
+      "too_long": "Teated võivad sisaldada kuni {max} märki, sealhulgas tühimärke.",
+      "help": "Salvestage parandused teadet uuesti näitamata. Kuulutage see välja, et näidata seda uuesti liikmetele, kes selle oma seadmetes sulgesid.",
+      "conflict": "See teade muutus redigeerimise ajal. Teie mustand on alles. Vajaduse korral kopeerige see ja laadige enne uuesti salvestamist praegune teade.",
+      "reload": "Laadi praegune teade",
+      "save": "Uuenda",
+      "republish": "Kuuluta välja",
+      "clear": "Eemalda",
+      "clear_confirm_title": "Eemaldada ruumi teade?",
+      "clear_confirm_description": "See eemaldab aktiivse teate kohe kõigi ruumis viibijate jaoks. Teie salvestamata muudatusi ei avaldata.",
+      "empty": "Ühtegi teadet pole avaldatud.",
+      "edit": "Muuda teadet"
+    },
+    "information": {
+      "description": "Kirjeldus",
+      "created": "Loodud",
+      "title": "Ruumi teave",
+      "basic": "Üldine",
+      "pinned_messages": "Kinnitatud sõnumid"
+    },
     "create": {
       "title": "Looge uus tuba",
       "description": "Ruumid on vestlused teie serveris.",
@@ -77,7 +100,8 @@
       "beginning": "See on selle vestluse algus.",
       "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda.",
       "limited_empty": "Veel pole vestlusi, mida saad lugeda.",
-      "loading": "Sõnumite laadimine..."
+      "loading": "Sõnumite laadimine...",
+      "load_failed": "Sõnumeid ei õnnestunud laadida."
     },
     "message": {
       "empty": "Sõnumeid pole veel",
@@ -252,6 +276,7 @@
     "thread": {
       "title": "Lõim: #{room}",
       "back_to_room": "Tagasi tuppa",
+      "participants": "Lõime osalejad ({count})",
       "follow": "Jälgi lõime",
       "unfollow": "Lõpeta lõime jälgimine",
       "close": "Sule lõime",
@@ -263,6 +288,7 @@
     "unread_separator": "Uued sõnumid",
     "close_extras": "Sule ruumi lisad",
     "dm": {
+      "deactivated_user_notice": "See konto on deaktiveeritud. Kasutaja ei saa sõnumeid lugeda ega neile vastata.",
       "deleted_user_notice": "Teine kasutaja on kustutatud."
     },
     "management": {

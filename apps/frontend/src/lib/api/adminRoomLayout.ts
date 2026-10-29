@@ -21,6 +21,8 @@ export type AdminRoomInfo = {
   slowModeSeconds: number;
   threadSlowModeSeconds?: number;
   threadingMode: RoomThreadingMode;
+  /** Absent when the server cannot change membership event display. */
+  showMembershipEvents?: boolean;
 };
 
 export type AdminManagedRoom = AdminRoomInfo & {
@@ -252,7 +254,8 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
     isUniversal: room.universal ?? false,
     slowModeSeconds: room.slowModeSeconds ?? 0,
     threadSlowModeSeconds: room.threadSlowModeSeconds,
-    threadingMode: normalizeRoomThreadingMode(RoomKind.CHANNEL, room.threadingMode)
+    threadingMode: normalizeRoomThreadingMode(RoomKind.CHANNEL, room.threadingMode),
+    showMembershipEvents: room.showMembershipEvents
   };
 }
 

@@ -40,16 +40,17 @@
     )
   );
 
-  // Show sign-out button when any server is registered
+  // Show server navigation when any server is registered.
   const hasInstances = $derived(serverRegistry.servers.length > 0);
+  const notificationsServerId = $derived.by(() => {
+    const activeServerId = getActiveServer();
+    return activeServerId && serverRegistry.isAuthenticated(activeServerId) ? activeServerId : null;
+  });
   const preferencesServerId = $derived.by(() => {
     const activeServerId = getActiveServer();
     if (activeServerId && serverRegistry.isAuthenticated(activeServerId)) return activeServerId;
     return firstAuthenticatedServerId();
   });
-  function handleSignOut() {
-    pushState('', { modal: { type: 'logout' } });
-  }
 
   function showAboutChatto() {
     pushState('', { modal: { type: 'aboutChatto' } });
@@ -77,7 +78,11 @@
     {#if hasInstances}
       <!-- Notification bell - 44px tap target for mobile accessibility -->
       <a
-        href={resolve('/chat/notifications')}
+        href={notificationsServerId
+          ? resolve('/chat/[serverId]/notifications', {
+              serverId: serverIdToSegment(notificationsServerId)
+            })
+          : resolve('/chat/notifications')}
         aria-label={m('ui.notifications')}
         title={m('ui.notifications')}
         class="app-header-icon relative"
@@ -143,7 +148,7 @@
     <span class="flex-1"></span>
   {/if}
 
-  <!-- Actions: About + Logout -->
+  <!-- Client version and About action -->
   <div class="flex shrink-0 items-center gap-3">
     {#if version}
       <!-- Wide viewports have room to show the client version next to the About action. -->
@@ -158,19 +163,6 @@
         aria-label={m('ui.tooltip.about', { subject: 'Chatto' })}
       >
         <span class="iconify icon-[uil--info-circle] text-lg" aria-hidden="true"></span>
-      </button>
-    {/if}
-
-    {#if hasInstances}
-      <button
-        type="button"
-        class="app-header-icon"
-        onclick={handleSignOut}
-        title={m('ui.sign_out')}
-        aria-label={m('ui.sign_out')}
-      >
-        <span class="iconify icon-[uil--signout] text-lg rtl:-scale-x-100" aria-hidden="true"
-        ></span>
       </button>
     {/if}
   </div>

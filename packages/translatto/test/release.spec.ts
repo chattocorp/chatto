@@ -54,7 +54,8 @@ test('keeps the release independent and the workspace exports on source', async 
     'initial-version': '0.1.1',
     versioning: 'default',
     prerelease: false,
-    draft: false,
+    // The workflow publishes this draft with Latest explicitly disabled.
+    draft: true,
     'include-component-in-tag': true,
     'tag-separator': '/'
   });

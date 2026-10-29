@@ -1,5 +1,16 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Клавіатурні скорочення",
+      "app": "Застосунок",
+      "undo": "Скасувати",
+      "redo": "Повторити",
+      "new_line": "Новий рядок",
+      "edit_last": "Редагувати останнє повідомлення (порожня чернетка)",
+      "complete": "Доповнити згадку або емодзі"
+    },
+    "action_unavailable": "Ця дія зараз недоступна.",
+    "edit": "Редагувати",
     "copy_failed": "Не вдалося скопіювати в буфер обміну. Виділіть текст і скопіюйте його вручну.",
     "cancel": "Скасувати",
     "close_sidebar": "Закрити бічну панель",
@@ -22,12 +33,12 @@
     "password_placeholder": "Ваш пароль",
     "email_placeholder": "you@example.com",
     "username_placeholder": "your_username",
-    "password_bytes_placeholder": "8–72 байти UTF-8",
+    "password_bytes_placeholder": "Виберіть пароль",
     "password_confirm_placeholder": "Введіть пароль ще раз",
     "validation": {
       "email": "Введіть дійсну електронну адресу",
-      "password_min_bytes": "Використовуйте щонайменше 8 байтів UTF-8. Деякі символи займають більше одного байта.",
-      "password_max": "Використовуйте не більше 72 байтів UTF-8. Деякі символи займають більше одного байта.",
+      "password_min_bytes": "Пароль занадто короткий",
+      "password_max": "Пароль занадто довгий",
       "username_min": "Має бути принаймні 2 символи",
       "username_max": "Має містити не більше 32 символів",
       "username_charset": "Тільки літери, цифри, крапки, тире, підкреслення",

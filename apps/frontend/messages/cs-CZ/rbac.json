@@ -147,6 +147,7 @@
       "call": "Hovory"
     },
     "permission_help": {
+      "room_manage_notice": "Umožňuje členovi spravovat oznámení v aktivní místnosti kanálu, nikoli samotnou místnost. Nové instance udělují toto oprávnění pouze roli Admin; aktualizace zachovávají stávající oprávnění.",
       "server_manage": "Umožňuje účtu měnit název, popis, logo a další nastavení serveru. Umožňuje také měnit veřejný adresář sousedů. Udělte ho jen lidem, kteří mohou mluvit za celý server.",
       "server_manage_neighbors": "Umožňuje účtu přidávat, měnit a odebírat položky ve veřejném adresáři sousedů. Neumožňuje měnit další nastavení serveru.",
       "room_create": "Umožňuje účtu vytvářet kanálové místnosti. Na úrovni skupiny místností umožňuje nové místnosti jen v této skupině.",

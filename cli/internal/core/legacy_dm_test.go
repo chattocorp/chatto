@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
@@ -11,7 +13,7 @@ import (
 
 // createLegacyDMForTest replays the facts written by servers that allowed groups.
 // It does not bypass the creation rule in any production command.
-func createLegacyDMForTest(t *testing.T, c *ChattoCore, ctx context.Context, ids []string) *evtv1.Room {
+func createLegacyDMForTest(t *testing.T, c *ChattoCore, ctx context.Context, ids []string) *readmodel.Room {
 	t.Helper()
 	id := DMRoomID(ids)
 	agg := evtstream.RoomAggregate(id)
@@ -32,5 +34,5 @@ func createLegacyDMForTest(t *testing.T, c *ChattoCore, ctx context.Context, ids
 	if err := c.roomCommands.rooms.waitForTimeline(ctx, position); err != nil {
 		t.Fatal(err)
 	}
-	return &evtv1.Room{Id: id, Kind: evtv1.RoomKind_ROOM_KIND_DM}
+	return &readmodel.Room{Id: id, Kind: evtv1.RoomKind_ROOM_KIND_DM}
 }

@@ -19,7 +19,7 @@ message ImportMessageRequest {
   string in_reply_to = 5;
   // Existing unattached asset IDs owned by the author in this room.
   repeated string attachment_asset_ids = 6;
-  // Message text. Empty is valid only when attachments are present.
+  // Message text. Empty is valid with attachments or when deleted is true.
   string body = 7;
   // Exported HTTP or HTTPS preview URL; no external URL is fetched.
   string preview_url = 8;
@@ -29,6 +29,25 @@ message ImportMessageRequest {
   string preview_description = 10;
   // Exported preview type.
   string preview_type = 11;
+  // Existing root message in this room, including a deleted root.
+  // Creates the thread if necessary.
+  // Cannot be combined with create_thread. Does not create a channel echo.
+  string thread_root_event_id = 12;
+  // Establish this new root as an empty thread without following it.
+  bool create_thread = 13;
+  // Optional non-zero UUID. Exact retries return the same ID for 30 minutes.
+  // Scoped to operator imports; changed arguments conflict. Expiry permits reuse.
+  string idempotency_key = 14;
+  // Import a native tombstone atomically. Body, attachments, preview, and
+  // edited_at must be absent. Historical replies may target deleted roots.
+  bool deleted = 15;
+  // Optional UUID for permanent exact retry protection. Cannot be combined
+  // with idempotency_key. All facts, including tombstones, stay out of live delivery.
+  string operation_key = 16;
+  // Known deletion time for a keyed tombstone; absence means unknown.
+  google.protobuf.Timestamp deleted_at = 17;
+  // Mapped source actor for a keyed operation. Empty means unknown.
+  string source_actor_id = 18;
 }
 
 // Stable Chatto identity of the new historical message.
@@ -36,9 +55,84 @@ message ImportMessageResponse {
   string message_id = 1;
 }
 
+// Import a reaction for an existing user without membership or posting policy.
+// No source reaction time is required; the event time records the import.
+message ImportReactionRequest {
+  // Active channel containing the target event.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Message, channel echo, room join, or room leave event ID.
+  // Echoes resolve to their original reply.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Existing user shown as the reactor.
+  string user_id = 3 [(buf.validate.field).string.min_len = 1];
+  // Case-sensitive reaction name: 1–128 ASCII letters, digits, underscores,
+  // plus signs, or hyphens, without surrounding colons. Known emoji also accept
+  // valid Slack-style suffixes, such as thumbsup::skin-tone-4, within the same
+  // length limit. Unknown plain names are stored unchanged.
+  string emoji = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+// Whether this request stored a new historical reaction.
+message ImportReactionResponse {
+  // False when the canonical message already has this user's reaction.
+  bool added = 1;
+}
+
 // Private historical import. Only the Operator Unix socket serves this RPC.
 service OperatorMessageService {
+  // Records one historical mutation or thread declaration on an existing message.
+  rpc ImportMessageChange(ImportMessageChangeRequest) returns (ImportMessageChangeResponse);
   // Appends an encrypted historical message as a system operation. A repeated
-  // request creates another message; import scripts own retry decisions.
+  // request without a key creates another message. idempotency_key expires
+  // after 30 minutes; operation_key provides permanent exact retries.
   rpc ImportMessage(ImportMessageRequest) returns (ImportMessageResponse);
+  // Adds a historical reaction without notifications or live delivery. Repeats
+  // are idempotent. Bypasses the interactive per-user reaction count limit.
+  rpc ImportReaction(ImportReactionRequest) returns (ImportReactionResponse);
 }
+
+// Historical replacement content for an existing message.
+message HistoricalMessageEdit {
+  // Replacement Chatto Markdown body.
+  string body = 1;
+  // Complete replacement asset list, owned by the original author and room.
+  repeated string attachment_asset_ids = 2;
+}
+
+// Historical reaction transition. Accepts a supported Unicode sequence or reaction name.
+message HistoricalReactionChange {
+  // Mapped reactor account.
+  string user_id = 1;
+  // Supported Unicode sequence or reaction name. Unknown names are stored unchanged.
+  string emoji = 2;
+  // True adds the reaction; false removes it.
+  bool present = 3;
+}
+
+// One typed operation, independent of any archive or source platform.
+message ImportMessageChangeRequest {
+  // Destination channel containing the imported message.
+  string room_id = 1;
+  // Imported message ID; ordinary live messages cannot be changed here.
+  string message_id = 2;
+  // Required non-zero UUID, bound permanently to these arguments.
+  string operation_key = 3;
+  // Absent means unknown source time.
+  google.protobuf.Timestamp occurred_at = 4;
+  // Mapped source actor; empty means unknown.
+  string actor_id = 5;
+  // Exactly one historical transition.
+  oneof change {
+    // Replace readable content; deleted content cannot be restored.
+    HistoricalMessageEdit edit = 10;
+    // Must be true. Leaves a tombstone and removes readable content.
+    bool deleted = 11;
+    // Add or remove one user's reaction.
+    HistoricalReactionChange reaction = 12;
+    // Must be true. Declare an empty thread without following it.
+    bool create_thread = 13;
+  }
+}
+
+// Successful historical message operation.
+message ImportMessageChangeResponse {}

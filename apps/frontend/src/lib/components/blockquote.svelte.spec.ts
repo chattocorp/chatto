@@ -87,12 +87,19 @@ describe.each(['*', '_'])('Blockquote emphasis with %s', (delimiter) => {
           expect(getComputedStyle(emphasis).fontStyle).toBe('normal');
         }
         const emphasisWeight = getComputedStyle(quotes[0]!.querySelector('em')!).fontWeight;
-        const strongElements = container.querySelectorAll('blockquote strong');
+        const strongElements = container.querySelectorAll(
+          delimiter === '_' ? 'blockquote u' : 'blockquote strong'
+        );
         expect(strongElements).toHaveLength(4);
         for (const strong of strongElements) {
           const style = getComputedStyle(strong);
           expect(style.fontStyle).toBe('italic');
-          expect(Number(style.fontWeight)).toBeGreaterThan(Number(emphasisWeight));
+          if (delimiter === '_') {
+            expect(style.textDecorationLine).toContain('underline');
+            expect(style.fontWeight).toBe(emphasisWeight);
+          } else {
+            expect(Number(style.fontWeight)).toBeGreaterThan(Number(emphasisWeight));
+          }
         }
         const code = quotes[0]!.querySelector('code')!;
         expect(getComputedStyle(code).fontStyle).toBe('normal');

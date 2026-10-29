@@ -187,7 +187,7 @@
       event.preventDefault();
       removeSelection(selectedItems[selectedItems.length - 1]);
     } else if (event.key === 'Escape') {
-      if (open) {
+      if (showPopover) {
         event.preventDefault();
         open = false;
       }
@@ -278,7 +278,7 @@
       {#if text}
         <button
           type="button"
-          class="pane-header-icon-button"
+          class="icon-action"
           aria-label={clearLabel}
           title={clearLabel}
           {disabled}

@@ -14,13 +14,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+
 	"github.com/alexedwards/scs/v2"
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
-	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/search"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -56,6 +57,7 @@ type HTTPServer struct {
 	logger              *log.Logger
 	metrics             *processMetrics
 	realtimeCatchUps    *realtimeCatchUpAdmission
+	imageTransforms     imageTransforms
 	trustedProxies      trustedProxySet
 	oauthClientResolver *OAuthClientResolver
 	browserSessions     *scs.SessionManager
@@ -74,7 +76,7 @@ type HTTPServer struct {
 
 	// Optional test hook that replaces the user lookup after a runtime
 	// credential validates.
-	credentialUserLookup func(context.Context, string) (*evtv1.User, error)
+	credentialUserLookup func(context.Context, string) (*readmodel.User, error)
 }
 
 const (

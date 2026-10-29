@@ -71,23 +71,25 @@ const AuthServerID = "server"
 // string literals.
 const (
 	// Room aggregate
-	EventRoomCreated              = "room_created"
-	EventRoomUpdated              = "room_updated"
-	EventRoomArchived             = "room_archived"
-	EventRoomUnarchived           = "room_unarchived"
-	EventRoomUniversalChanged     = "room_universal_changed"
-	EventRoomSlowModeChanged      = "room_slow_mode_changed"
-	EventRoomThreadingModeChanged = "room_threading_mode_changed"
-	EventRoomDeleted              = "room_deleted"
-	EventUserJoinedRoom           = "user_joined"
-	EventUserLeftRoom             = "user_left"
-	EventRoomMemberBanned         = "room_member_banned"
-	EventRoomMemberUnbanned       = "room_member_unbanned"
-	EventRoomMemberAdded          = "room_member_added"
-	EventRoomInvitationCreated    = "room_invitation_created"
-	EventRoomInvitationAccepted   = "room_invitation_accepted"
-	EventRoomInvitationDeclined   = "room_invitation_declined"
-	EventRoomMemberRemoved        = "room_member_removed"
+	EventRoomCreated                           = "room_created"
+	EventRoomUpdated                           = "room_updated"
+	EventRoomArchived                          = "room_archived"
+	EventRoomUnarchived                        = "room_unarchived"
+	EventRoomUniversalChanged                  = "room_universal_changed"
+	EventRoomSlowModeChanged                   = "room_slow_mode_changed"
+	EventRoomNoticeChanged                     = "room_notice_changed"
+	EventRoomThreadingModeChanged              = "room_threading_mode_changed"
+	EventRoomMembershipEventsVisibilityChanged = "room_membership_events_visibility_changed"
+	EventRoomDeleted                           = "room_deleted"
+	EventUserJoinedRoom                        = "user_joined"
+	EventUserLeftRoom                          = "user_left"
+	EventRoomMemberBanned                      = "room_member_banned"
+	EventRoomMemberUnbanned                    = "room_member_unbanned"
+	EventRoomMemberAdded                       = "room_member_added"
+	EventRoomInvitationCreated                 = "room_invitation_created"
+	EventRoomInvitationAccepted                = "room_invitation_accepted"
+	EventRoomInvitationDeclined                = "room_invitation_declined"
+	EventRoomMemberRemoved                     = "room_member_removed"
 
 	// Messages (also under the room aggregate — every message event for
 	// a room lives under evt.room.{R}.message_*, so a subscriber on
@@ -165,32 +167,33 @@ const (
 	EventServerNeighborDeleted                  = "server_neighbor_deleted"
 
 	// User aggregate
-	EventUserAccountCreated           = "account_created"
-	EventUserLoginChanged             = "login_changed"
-	EventUserDisplayNameChanged       = "display_name_changed"
-	EventUserBioChanged               = "bio_changed"
-	EventUserAvatarSet                = "avatar_set"
-	EventUserAvatarCleared            = "avatar_cleared"
-	EventUserVerifiedEmailAdded       = "verified_email_added"
-	EventUserPrimaryEmailChanged      = "primary_email_changed"
-	EventUserPasswordHashChanged      = "password_hash_changed"
-	EventUserOIDCSubjectLinked        = "oidc_subject_linked"
-	EventUserExternalIdentityLinked   = "external_identity_linked"
-	EventUserExternalIdentityUnlinked = "external_identity_unlinked"
-	EventUserServerPreferencesChanged = "server_preferences_changed"
-	EventUserLoginCooldownStarted     = "login_cooldown_started"
-	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
-	EventUserAccountDeleted           = "account_deleted"
-	EventUserKeyShreddingRequested    = "user_key_shredding_requested"
-	EventUserKeyShredded              = "user_key_shredded"
-	EventUserDEKGenerated             = "dek_generated"
-	EventUserCustomStatusSet          = "custom_status_set"
-	EventUserCustomStatusCleared      = "custom_status_cleared"
-	EventBotAPIKeyCreated             = "bot_api_key_created"
-	EventBotAPIKeyRotated             = "bot_api_key_rotated"
-	EventBotAPIKeyAdded               = "bot_api_key_added"
-	EventBotAPIKeyRevoked             = "bot_api_key_revoked"
-	EventBotOwnerReassigned           = "bot_owner_reassigned"
+	EventUserAccountCreated             = "account_created"
+	EventUserLoginChanged               = "login_changed"
+	EventUserDisplayNameChanged         = "display_name_changed"
+	EventUserBioChanged                 = "bio_changed"
+	EventUserAvatarSet                  = "avatar_set"
+	EventUserAvatarCleared              = "avatar_cleared"
+	EventUserVerifiedEmailAdded         = "verified_email_added"
+	EventUserPrimaryEmailChanged        = "primary_email_changed"
+	EventUserPasswordHashChanged        = "password_hash_changed"
+	EventUserOIDCSubjectLinked          = "oidc_subject_linked"
+	EventUserExternalIdentityLinked     = "external_identity_linked"
+	EventUserExternalIdentityUnlinked   = "external_identity_unlinked"
+	EventUserServerPreferencesChanged   = "server_preferences_changed"
+	EventUserLoginCooldownStarted       = "login_cooldown_started"
+	EventUserLoginCooldownCleared       = "login_cooldown_cleared"
+	EventUserAccountDeleted             = "account_deleted"
+	EventUserAccountDeactivationChanged = "account_deactivation_changed"
+	EventUserKeyShreddingRequested      = "user_key_shredding_requested"
+	EventUserKeyShredded                = "user_key_shredded"
+	EventUserDEKGenerated               = "dek_generated"
+	EventUserCustomStatusSet            = "custom_status_set"
+	EventUserCustomStatusCleared        = "custom_status_cleared"
+	EventBotAPIKeyCreated               = "bot_api_key_created"
+	EventBotAPIKeyRotated               = "bot_api_key_rotated"
+	EventBotAPIKeyAdded                 = "bot_api_key_added"
+	EventBotAPIKeyRevoked               = "bot_api_key_revoked"
+	EventBotOwnerReassigned             = "bot_owner_reassigned"
 	// The enabled/disabled subject tokens predate the multiple-credential
 	// lifecycle. Keep them stable while the protobuf facts use create/revoke
 	// terminology.
@@ -258,6 +261,10 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventServerSetupOffered
 	case *evtv1.Event_ServerInitialized:
 		return EventServerInitialized
+	case *evtv1.Event_ImportProgressed:
+		return EventImportProgressed
+	case *evtv1.Event_OperatorOperationCompleted:
+		return "operator_operation_completed"
 	case *evtv1.Event_BotOutboundWebhookConfigured:
 		return "bot_outbound_webhook_configured"
 	case *evtv1.Event_BotOutboundWebhookRevoked:
@@ -276,8 +283,12 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventRoomUniversalChanged
 	case *evtv1.Event_RoomSlowModeChanged:
 		return EventRoomSlowModeChanged
+	case *evtv1.Event_RoomNoticeChanged:
+		return EventRoomNoticeChanged
 	case *evtv1.Event_RoomThreadingModeChanged:
 		return EventRoomThreadingModeChanged
+	case *evtv1.Event_RoomMembershipEventsVisibilityChanged:
+		return EventRoomMembershipEventsVisibilityChanged
 	case *evtv1.Event_RoomDeleted:
 		return EventRoomDeleted
 	case *evtv1.Event_UserJoinedRoom:
@@ -463,6 +474,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventUserLoginCooldownCleared
 	case *evtv1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
+	case *evtv1.Event_UserAccountDeactivationChanged:
+		return EventUserAccountDeactivationChanged
 	case *evtv1.Event_UserKeyShreddingRequested:
 		return EventUserKeyShreddingRequested
 	case *evtv1.Event_UserKeyShredded:
@@ -858,3 +871,9 @@ const (
 
 // SetupAggregate owns first-run eligibility and permanent completion.
 func SetupAggregate() Aggregate { return Aggregate{Type: AggregateSetup, ID: "server"} }
+
+// ImportAggregate binds the initial destination import and its durable receipts.
+func ImportAggregate() Aggregate { return Aggregate{Type: "import", ID: "server"} }
+
+// EventImportProgressed is a permanent import receipt, committed with its facts.
+const EventImportProgressed = "import_progressed"

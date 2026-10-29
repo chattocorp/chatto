@@ -20,6 +20,10 @@ func (s *operatorMessageService) ImportMessage(ctx context.Context, req *connect
 		return nil, invalidArgument("created_at must be a valid timestamp")
 	}
 	var editedAt *time.Time
+	deletedAt, err := operatorHistoricalTime(req.Msg.GetDeletedAt())
+	if err != nil {
+		return nil, err
+	}
 	if value := req.Msg.GetEditedAt(); value != nil {
 		if value.CheckValid() != nil {
 			return nil, invalidArgument("edited_at must be a valid timestamp")
@@ -41,9 +45,24 @@ func (s *operatorMessageService) ImportMessage(ctx context.Context, req *connect
 		RoomID: req.Msg.GetRoomId(), AuthorID: req.Msg.GetAuthorId(),
 		CreatedAt: createdAt.AsTime(), EditedAt: editedAt, InReplyTo: req.Msg.GetInReplyTo(),
 		AttachmentAssetIDs: req.Msg.GetAttachmentAssetIds(), Body: req.Msg.GetBody(), LinkPreview: preview,
+		ThreadRootEventID: req.Msg.GetThreadRootEventId(), CreateThread: req.Msg.GetCreateThread(),
+		IdempotencyKey: req.Msg.GetIdempotencyKey(),
+		Deleted:        req.Msg.GetDeleted(),
+		OperationKey:   req.Msg.GetOperationKey(),
+		DeletedAt:      deletedAt, SourceActorID: req.Msg.GetSourceActorId(),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&operatorv1.ImportMessageResponse{MessageId: event.GetId()}), nil
+}
+
+func (s *operatorMessageService) ImportReaction(ctx context.Context, req *connect.Request[operatorv1.ImportReactionRequest]) (*connect.Response[operatorv1.ImportReactionResponse], error) {
+	added, err := s.api.core.ImportHistoricalReaction(ctx, core.HistoricalReactionInput{
+		RoomID: req.Msg.GetRoomId(), MessageEventID: req.Msg.GetMessageEventId(), UserID: req.Msg.GetUserId(), Emoji: req.Msg.GetEmoji(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&operatorv1.ImportReactionResponse{Added: added}), nil
 }

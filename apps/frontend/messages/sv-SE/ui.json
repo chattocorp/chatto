@@ -7,7 +7,6 @@
     "realtime_paused": "Realtidsuppdateringar pausade. Återansluter...",
     "update_available": "En ny version är tillgänglig",
     "reload": "Ladda om",
-    "sign_out": "Logga ut",
     "close": "Stäng",
     "auth_status": {
       "origin_title": "Sessionen har löpt ut",

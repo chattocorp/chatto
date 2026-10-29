@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatto.chat/schema/interchange/v1/room.schema.json",
+  "description": "Final channel metadata at capture time. Historical metadata events do not override these final values.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "channel"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "topic": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "visibility": {
+      "enum": ["public", "private"]
+    },
+    "archived": {
+      "type": "boolean"
+    }
+  },
+  "required": ["id", "kind", "name", "topic", "purpose", "visibility", "archived"],
+  "additionalProperties": false
+}

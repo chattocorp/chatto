@@ -14,7 +14,7 @@ lint:
     ENUM_VALUE_PREFIX:
       # Legacy persisted core enum. Keep existing names for source/protojson
       # compatibility; public API enums still use prefixed values.
-      - chatto/core/evt/v1/models.proto
+      - chatto/core/evt/v1/event_values.proto
       - chatto/core/evt/v1/oauth_client_events.proto
 breaking:
   use:

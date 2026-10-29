@@ -83,7 +83,7 @@ describe('CallDeviceTest', () => {
     expect(play).not.toHaveBeenCalled();
     expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
       audio: {
-        deviceId: { exact: 'microphone' },
+        deviceId: { ideal: 'microphone' },
         channelCount: { ideal: 1 },
         echoCancellation: false,
         noiseSuppression: false,

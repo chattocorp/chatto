@@ -241,6 +241,9 @@ a snapshot or a ConnectRPC resource.
 | `event.room_invitation_created` | [`RoomInvitationCreatedEvent`](#chatto-realtime-v1-RoomInvitationCreatedEvent) | No field description provided. |
 | `event.room_invitation_accepted` | [`RoomInvitationAcceptedEvent`](#chatto-realtime-v1-RoomInvitationAcceptedEvent) | No field description provided. |
 | `event.room_invitation_declined` | [`RoomInvitationDeclinedEvent`](#chatto-realtime-v1-RoomInvitationDeclinedEvent) | No field description provided. |
+| `event.room_notice_changed` | [`RoomNoticeChangedEvent`](#chatto-realtime-v1-RoomNoticeChangedEvent) | No field description provided. |
+| `event.user_account_deactivation_changed` | [`UserAccountDeactivationChangedEvent`](#chatto-realtime-v1-UserAccountDeactivationChangedEvent) | No field description provided. |
+| `event.room_membership_events_visibility_changed` | [`RoomMembershipEventsVisibilityChangedEvent`](#chatto-realtime-v1-RoomMembershipEventsVisibilityChangedEvent) | No field description provided. |
 
 <a id="chatto-realtime-v1-AllMessageMention"></a>
 
@@ -616,6 +619,30 @@ RoomLayoutChangedEvent reports a change to room groups, their entries, or order.
 Refresh RoomDirectoryService.ListRoomGroups with this event's cursor as the
 minimum boundary. The event contains no room IDs or other hidden layout data.
 
+<a id="chatto-realtime-v1-RoomMembershipEventsVisibilityChangedEvent"></a>
+
+### RoomMembershipEventsVisibilityChangedEvent
+
+RoomMembershipEventsVisibilityChangedEvent changes how clients display room
+join/leave activity, including history. Clients must still process membership
+events when this setting is false.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `show_membership_events` | `bool` | No field description provided. |
+
+<a id="chatto-realtime-v1-RoomNoticeChangedEvent"></a>
+
+### RoomNoticeChangedEvent
+
+RoomNoticeChangedEvent asks current room members to read the latest notice.
+It covers corrections, publication, republishing, and clear operations.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
 <a id="chatto-realtime-v1-RoomReadStateChangedEvent"></a>
 
 ### RoomReadStateChangedEvent
@@ -732,6 +759,17 @@ UserAccountCreatedEvent reports a new public user account.
 | --- | --- | --- |
 | `user_id` | `string` | No field description provided. |
 | `is_bot` | `bool` | No field description provided. |
+
+<a id="chatto-realtime-v1-UserAccountDeactivationChangedEvent"></a>
+
+### UserAccountDeactivationChangedEvent
+
+Reports a reversible account access change. Administrative details are private.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `deactivated` | `bool` | No field description provided. |
 
 <a id="chatto-realtime-v1-UserAccountDeletedEvent"></a>
 
