@@ -36,14 +36,24 @@ message search results:
 - Use `ActivityListRow` for newest-first activity records that have one primary
   open action and optional row actions. It owns the important fill, pending
   state, and hover-reveal action shell. Put `ActivityAvatar` in its `leading`
-  snippet. Use `ActivityRowText` for a two-line body: it shows unread
-  activity in bold and keeps read activity in the normal text color.
-  Compact notification rows use a single-line grid, small avatars, muted read
-  summaries, and subdued metadata. Use the row's `compact` and `overlayActions`
+  snippet. Notifications and Threads share `ActivityRowText`: a single-line
+  title, responsive location column, and timestamp. It shows unread activity
+  in bold and read activity in muted text, with subdued metadata.
+  Use small avatars and the row's `compact` and `overlayActions`
   options; touch inputs keep a separate visible action.
+  Set the text body's `overlayActions` to the number of overlaid actions.
+  Its optional `location` snippet adds a truncated column before the time.
+  Put `@container/activity` on the row; this column hides below 36rem, matching
+  the notification room column. Location and time use `text-subdued`.
+  Cross-server notifications use `locationOnNarrow` to keep their server label
+  below the title when the room column hides.
+  Both feeds use `ActivityDaySection` and `groupByActivityDay` for calendar-day
+  headings. The section supplies a row-time formatter: relative time for Today,
+  local clock time for older days. Pass the same timestamp for grouping and
+  row formatting, including when a feed changes sort order.
 - Rows rest transparently on the owning `background` work plane. Threads
   uses an avatar dot for unread rows, so bold text is not the only unread cue.
-  Notification rows use neutral backgrounds for all attention levels. Hover and keyboard
+  Notification and thread rows use neutral backgrounds for all attention levels. Hover and keyboard
   focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
 - Each row owns its rounded shape. The collection owns only the standard

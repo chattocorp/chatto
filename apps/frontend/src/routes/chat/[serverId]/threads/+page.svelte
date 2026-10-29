@@ -30,7 +30,7 @@
     type FollowedThread
   } from '@chatto/client/api/threads';
   import { createReadStateAPI } from '@chatto/client/api/readState';
-  import DaySeparator from '$lib/components/DaySeparator.svelte';
+  import ActivityDaySection from '$lib/components/ActivityDaySection.svelte';
   import ThreadRow from './ThreadRow.svelte';
   import { threadRowActors } from './threadRowActors';
   import { createInfiniteQuery, queryClient } from '$lib/query/client';
@@ -42,11 +42,7 @@
     type FollowedThreadsData
   } from '$lib/query/threads';
   import { toast } from '$lib/ui/toast';
-  import {
-    formatRelativeTime,
-    groupByActivityDate,
-    timeFormatSettingsFor
-  } from '$lib/utils/formatTime';
+  import { groupByActivityDay, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -192,16 +188,14 @@
     filter === 'unread' ? threads.filter((t) => t.hasUnreadReplies) : threads
   );
   const dateSections = $derived.by(() => {
-    const sortDate = (thread: FollowedThread) =>
-      order === 'created' ? (thread.rootMessage?.createdAt ?? null) : threadActivityAt(thread);
-    const sections = groupByActivityDate(
+    const sections = groupByActivityDay(
       filteredThreads,
-      sortDate,
+      threadDate,
       () => userSettings,
       new Date(),
       activeLocale
     );
-    const undated = filteredThreads.filter((thread) => !sortDate(thread));
+    const undated = filteredThreads.filter((thread) => !threadDate(thread));
     if (undated.length)
       sections.push({ key: 'unknown', label: m('common.unknown'), items: undated });
     return sections;
@@ -308,16 +302,6 @@
     return preview?.title || preview?.siteName || preview?.url || m('chat.threads.message_missing');
   }
 
-  /** Author and excerpt of a message for a thread row line. */
-  function messageLine(event: FollowedThread['rootMessage']) {
-    return { name: actorName(event), identity: event?.actor, excerpt: messageExcerpt(event) };
-  }
-
-  function actorName(event: FollowedThread['rootMessage']): string {
-    const actor = event?.actor;
-    return actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : '';
-  }
-
   /** Participant preview for a row; see `threadRowActors`. */
   function rowActors(thread: FollowedThread): FollowedThread['participants'] {
     const others = thread.isDirectMessage
@@ -328,7 +312,7 @@
           getLiveDisplayName
         ).visibleParticipants
       : thread.participants;
-    return threadRowActors(primaryEvent(thread)?.actor, others, thread.rootMessage?.actor);
+    return threadRowActors(thread.rootMessage?.actor, others, thread.latestReply?.actor);
   }
 
   function roomLabel(thread: FollowedThread): string {
@@ -341,20 +325,15 @@
     ).label;
   }
 
-  function primaryEvent(thread: FollowedThread): FollowedThread['rootMessage'] {
-    return thread.latestReply ?? thread.rootMessage;
-  }
-
   function threadActivityAt(thread: FollowedThread): string | null {
     return (
       thread.lastReplyAt ?? thread.latestReply?.createdAt ?? thread.rootMessage?.createdAt ?? null
     );
   }
 
-  function replyCountLabel(count: number): string {
-    return count === 1
-      ? m('room.message.meta.reply_count_one')
-      : m('room.message.meta.reply_count_many', { count });
+  /** Keep day headings and row times aligned with the selected sort order. */
+  function threadDate(thread: FollowedThread): string | null {
+    return order === 'created' ? (thread.rootMessage?.createdAt ?? null) : threadActivityAt(thread);
   }
 </script>
 
@@ -458,53 +437,50 @@
         {:else}
           <div class="selectable-list pb-3" aria-busy={loadingMore}>
             {#each dateSections as section (section.key)}
-              <section
-                aria-label={section.key === 'today' ? section.label : undefined}
-                aria-labelledby={section.key === 'today' ? undefined : `thread-date-${section.key}`}
+              <ActivityDaySection
+                dayKey={section.key}
+                label={section.label}
+                id={`thread-date-${section.key}`}
               >
-                {#if section.key !== 'today'}
-                  <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
-                {/if}
-                {#each section.items as thread (thread.threadRootEventId)}
-                  {@const actors = rowActors(thread)}
-                  {@const primary = primaryEvent(thread)}
-                  {@const hasUnreadAttention =
-                    thread.hasUnreadReplies &&
-                    !serverUi(serverStore).readViews.covers(
+                {#snippet children(rowTime)}
+                  {#each section.items as thread (thread.threadRootEventId)}
+                    {@const actors = rowActors(thread)}
+                    {@const hasUnreadAttention =
+                      thread.hasUnreadReplies &&
+                      !serverUi(serverStore).readViews.covers(
+                        thread.roomId,
+                        thread.threadRootEventId
+                      )}
+                    {@const attention = notificationAttentionForThread(
+                      serverUi(serverStore).attention.occurrences,
                       thread.roomId,
                       thread.threadRootEventId
                     )}
-                  {@const attention = notificationAttentionForThread(
-                    serverUi(serverStore).attention.occurrences,
-                    thread.roomId,
-                    thread.threadRootEventId
-                  )}
-                  <ThreadRow
-                    participants={actors}
-                    latest={messageLine(primary)}
-                    root={thread.latestReply ? messageLine(thread.rootMessage) : null}
-                    time={formatRelativeTime(threadActivityAt(thread), userSettings, activeLocale)}
-                    replyCount={replyCountLabel(thread.replyCount)}
-                    unread={hasUnreadAttention}
-                    {attention}
-                    pending={actionThreadId === thread.threadRootEventId}
-                    canMarkRead={thread.hasUnreadReplies && thread.latestReply !== null}
-                    onopen={() => navigateToThread(thread)}
-                    onmarkread={() => void markThreadRead(thread)}
-                    onunfollow={() => void unfollowThread(thread)}
-                  >
-                    {#snippet room()}
-                      {#if thread.isDirectMessage}
-                        <DirectMessageName
-                          participants={thread.directMessageParticipants}
-                          currentUserId={serverStore.viewerId}
-                          getDisplayName={getLiveDisplayName}
-                        />
-                      {:else}{roomLabel(thread)}{/if}
-                    {/snippet}
-                  </ThreadRow>
-                {/each}
-              </section>
+                    <ThreadRow
+                      participants={actors}
+                      message={messageExcerpt(thread.rootMessage)}
+                      time={rowTime(threadDate(thread), userSettings, activeLocale)}
+                      unread={hasUnreadAttention}
+                      {attention}
+                      pending={actionThreadId === thread.threadRootEventId}
+                      canMarkRead={thread.hasUnreadReplies && thread.latestReply !== null}
+                      onopen={() => navigateToThread(thread)}
+                      onmarkread={() => void markThreadRead(thread)}
+                      onunfollow={() => void unfollowThread(thread)}
+                    >
+                      {#snippet room()}
+                        {#if thread.isDirectMessage}
+                          <DirectMessageName
+                            participants={thread.directMessageParticipants}
+                            currentUserId={serverStore.viewerId}
+                            getDisplayName={getLiveDisplayName}
+                          />
+                        {:else}{roomLabel(thread)}{/if}
+                      {/snippet}
+                    </ThreadRow>
+                  {/each}
+                {/snippet}
+              </ActivityDaySection>
             {/each}
             {#if hasMore}
               <div class="flex min-h-14 justify-center p-4" {@attach loadMoreWhenVisible}>

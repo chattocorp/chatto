@@ -33,12 +33,10 @@
   import { serverRegistry } from '$lib/client';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverDisplayName } from '@chatto/client/server/state';
-  import DaySeparator from '$lib/components/DaySeparator.svelte';
+  import ActivityDaySection from '$lib/components/ActivityDaySection.svelte';
   import NotificationRow from './NotificationRow.svelte';
   import type { ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import {
-    formatMessageTime,
-    formatRelativeTime,
     groupByActivityDay,
     timeFormatSettingsFor,
     type TimeFormatSettings
@@ -607,44 +605,42 @@
         {:else if filteredGroups.length > 0}
           <div class="selectable-list pb-3" aria-busy={loadingMore}>
             {#each dateSections as section (section.key)}
-              <section aria-labelledby={`notification-date-${section.key}`}>
-                <DaySeparator
-                  id={`notification-date-${section.key}`}
-                  label={section.label}
-                  testId="notification-date-heading"
-                />
-                {#each section.items as item (rowKey(item))}
-                  {@const occurrence = item.group.openTarget}
-                  {@const targetSupported = occurrence?.targetSupported !== false}
-                  {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
-                  {@const actor = primaryActor(item.group)}
-                  {@const emoji = isReaction ? badgeEmoji(item.group) : null}
-                  {@const roomName = groupRoomName(item.group)}
-                  {@const mutationPending =
-                    dismissingRead || pendingMutationKeys.has(mutationKey(item))}
-                  <NotificationRow
-                    summary={occurrenceSummary(item.group)}
-                    summaryAccounts={summaryAccounts(item.group)}
-                    {actor}
-                    signalKind={occurrence?.signalKind}
-                    reactionEmoji={emoji}
-                    {roomName}
-                    time={(section.key === 'today' ? formatRelativeTime : formatMessageTime)(
-                      item.group.latestAt,
-                      item.timeFormatSettings,
-                      activeLocale
-                    )}
-                    unread={item.group.unread}
-                    important={item.group.unread &&
-                      item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
-                    interactive={targetSupported}
-                    pending={mutationPending}
-                    server={showServerMarker ? item.server : null}
-                    onopen={() => openGroup(item)}
-                    ondismiss={() => dismiss(item)}
-                  />
-                {/each}
-              </section>
+              <ActivityDaySection
+                dayKey={section.key}
+                id={`notification-date-${section.key}`}
+                label={section.label}
+                testId="notification-date-heading"
+              >
+                {#snippet children(rowTime)}
+                  {#each section.items as item (rowKey(item))}
+                    {@const occurrence = item.group.openTarget}
+                    {@const targetSupported = occurrence?.targetSupported !== false}
+                    {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
+                    {@const actor = primaryActor(item.group)}
+                    {@const emoji = isReaction ? badgeEmoji(item.group) : null}
+                    {@const roomName = groupRoomName(item.group)}
+                    {@const mutationPending =
+                      dismissingRead || pendingMutationKeys.has(mutationKey(item))}
+                    <NotificationRow
+                      summary={occurrenceSummary(item.group)}
+                      summaryAccounts={summaryAccounts(item.group)}
+                      {actor}
+                      signalKind={occurrence?.signalKind}
+                      reactionEmoji={emoji}
+                      {roomName}
+                      time={rowTime(item.group.latestAt, item.timeFormatSettings, activeLocale)}
+                      unread={item.group.unread}
+                      important={item.group.unread &&
+                        item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
+                      interactive={targetSupported}
+                      pending={mutationPending}
+                      server={showServerMarker ? item.server : null}
+                      onopen={() => openGroup(item)}
+                      ondismiss={() => dismiss(item)}
+                    />
+                  {/each}
+                {/snippet}
+              </ActivityDaySection>
             {/each}
             {#if pageError}
               <div

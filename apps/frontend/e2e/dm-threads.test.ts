@@ -34,7 +34,8 @@ test.describe('Direct-message threads', () => {
       const item = myThreads.threadItems.filter({ hasText: rootText });
       await expect(item).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(item).toContainText(userA.displayName);
-      await expect(item.getByText('1 reply')).toBeVisible();
+      await expect(item.getByText('1 reply')).toHaveCount(0);
+      await expect(item).not.toContainText(replyText);
 
       await item.click();
       await room.expectThreadPaneVisible();

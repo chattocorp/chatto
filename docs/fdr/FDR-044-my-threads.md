@@ -13,7 +13,9 @@ find replies that they have not read.
 
 - Threads defaults to newest activity first. The Activity / Age control can
   instead sort by root-message creation, newest first.
-  Date groups use the selected sort date. Unknown dates appear last.
+  Calendar-day groups and row times use the selected sort date. Today has a
+  visible heading and relative times. Earlier days show local clock times.
+  Grouping follows the viewer's timezone. Unknown dates appear last, without a row time.
 - The sort selection stays with the page when users change tabs, filter,
   search, or return from a thread. It is not a device-wide preference.
 - Returning to the page or a cached tab refreshes its loaded pages from the
@@ -25,16 +27,18 @@ find replies that they have not read.
 - Followed is the first and default tab. Switching tabs keeps the search text and
   All/Unread selection. Both tabs require follow state: unfollowing removes a
   thread even when the current user started it.
-- Each row shows the room, root message, latest visible reply when one exists,
-  last activity, reply count, and a participant preview. The latest message is
-  on the first line with the time at its end. The room, the root message, and
-  the reply count are on the second line. The participant preview shows the
-  author of the latest message as the avatar and one other participant in a
+- Each row shows the original thread message on one line, with no reply preview
+  or byline. It includes the selected sort time and a participant preview.
+  The room has its own column before
+  the time. Long room labels truncate; the room column disappears on narrow
+  rows. Reply counts are not shown. The participant preview shows the
+  root author as the avatar and one other participant in a
   small badge.
-- A thread with unread replies shows its first line in bold and an avatar dot.
-  The dot is neutral unless notification attention
-  supplies its colour. Read threads use regular weight and the normal text
-  color. Every row reserves the same action width so dates and counts align.
+- A thread with unread replies shows its first line in bold and a neutral
+  avatar dot. Read threads use regular weight and muted text. Metadata uses
+  subdued text. Rows use compact spacing and small participant avatars.
+  Desktop row actions replace trailing metadata on hover or keyboard focus.
+  Touch inputs keep the actions visible beside the content.
 - A DM row uses participant names and avatars instead of a channel name. It
   does not show a `#` channel prefix.
 - The Unread filter includes only threads with replies after the user's thread
@@ -52,9 +56,9 @@ find replies that they have not read.
 - Search stays within the selected tab. The tab selects the root author;
   `from:username` selects the author of a matching root message or reply.
 - The search input receives focus when Threads opens.
-- A row with a matching unread notification uses notification orange for
-  Important attention and a neutral marker for Ambient attention. The client
-  reads this decoration from its current Notifications view.
+- A row with a matching unread notification uses a neutral marker for all
+  attention levels. The client reads this decoration from its current
+  Notifications view. Row backgrounds remain neutral.
 - A user can mark a thread with unread replies as read, or stop following any
   displayed thread, from its row.
 - Opening a thread uses the normal thread read behavior. This advances the read
@@ -70,7 +74,7 @@ find replies that they have not read.
 ### Sort threads by activity or creation
 
 **Decision:** Sort the full result set before pagination, including search.
-Keep latest activity as the default and keep each row's activity preview.
+Keep latest activity as the default and show the original message in each row.
 **Why:** Users can find new conversations without an older thread moving ahead
 of them each time it receives a reply.
 **Compatibility:** The API additions require no migration for existing callers.
@@ -127,12 +131,13 @@ move the offset until the list loads again.
 
 ### 3. The activity-list presentation makes the order clear
 
-**Decision:** Threads uses flat activity rows and date sections. The Today
-section has no visible heading or separator. Each row
-shows the latest visible reply first when one exists and keeps compact
-root-message context below it. A thread without replies shows its root as the
-primary activity.
-**Why:** The latest reply explains why the thread is active. Flat rows and date
+**Decision:** Threads uses flat activity rows and calendar-day sections with
+visible headings, including Today, as in Notifications. Each row shows the original
+message without an author prefix; the avatar identifies its author.
+Missing or deleted roots use the corresponding
+placeholder rather than switching to a reply. New replies update unread state,
+activity order, and time without replacing the row's subject.
+**Why:** The original message identifies the conversation. Flat rows and date
 sections distinguish this newest-first activity list from a room timeline,
 where newer messages appear at the bottom.
 **Tradeoff:** Threads and room timelines use different reading directions.
@@ -148,8 +153,8 @@ notifications for followed threads. The badge uses notification orange when
 one notification has Important attention, and the neutral badge color when all
 have Ambient attention. Unread replies without an unread notification do not
 show a navigation indicator.
-**Why:** One notification source keeps the navigation badge and thread-row
-notification markers consistent. The navigation indicator does not depend on
+**Why:** One notification source supplies the navigation badge and thread-row
+notification markers. The navigation indicator does not depend on
 unread flags in cached room timelines.
 **Tradeoff:** A notification for an unfollowed thread can still appear in
 Notifications without lighting the Threads indicator. The badge counts only

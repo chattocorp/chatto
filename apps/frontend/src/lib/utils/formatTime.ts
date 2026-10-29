@@ -357,10 +357,10 @@ export function groupByActivityDate<T>(
   return sections;
 }
 
-/** Group activity by calendar day in each item's viewer timezone, retaining input order. */
+/** Group dated activity by calendar day in each item's viewer timezone, retaining input order. */
 export function groupByActivityDay<T>(
   items: readonly T[],
-  activityAt: (item: T) => Date | string,
+  activityAt: (item: T) => Date | string | null,
   settingsFor: (item: T) => TimeFormatSettings,
   now: Date = new Date(),
   locale: string = activeLocale()
@@ -368,6 +368,7 @@ export function groupByActivityDay<T>(
   const sections = new Map<string, ActivityDateSection<T>>();
   for (const item of items) {
     const timestamp = activityAt(item);
+    if (!timestamp) continue;
     const settings = settingsFor(item);
     const parts = dateParts(toDate(timestamp), settings);
     const daysAgo = daySerial(dateParts(now, settings)) - daySerial(parts);
