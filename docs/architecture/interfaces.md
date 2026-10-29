@@ -387,6 +387,9 @@ typed historical transitions. Optional operation keys on creation and message
 import provide permanent exact retry protection. See
 [FDR-053](../fdr/FDR-053-history-import-export.md).
 
+`ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
+retains that ID for retries; receipts from older servers return no event ID.
+
 `OperatorMessageService.ImportReaction` accepts individual room join and leave
 event IDs for historical imports, without live delivery or notifications.
 

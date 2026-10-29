@@ -187,6 +187,12 @@ def validate_records(records):
                 require(state.get(data["user_id"], None if partial else False) != wanted,
                         "invalid_membership_transition")
                 state[data["user_id"]] = wanted
+                emojis = set()
+                for reaction in data.get("reactions", []):
+                    require(reaction["emoji"] not in emojis, "duplicate_reaction_group")
+                    emojis.add(reaction["emoji"])
+                    for reactor in reaction["user_ids"]:
+                        user(reactor)
         else:
             field = {"room.name_changed": "name", "room.topic_changed": "topic",
                      "room.purpose_changed": "purpose", "room.archived": "archived",
