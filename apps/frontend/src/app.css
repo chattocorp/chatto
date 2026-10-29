@@ -1864,9 +1864,9 @@
   @apply relative overflow-hidden;
 }
 
-/* Lower-priority metadata inherits its parent's text color at half strength. */
+/* Lower-priority metadata retains enough of its inherited color for readable contrast. */
 @utility text-subdued {
-  @apply text-current/50;
+  @apply text-current/90;
 }
 
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).

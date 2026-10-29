@@ -708,8 +708,10 @@ For text, use `text-text` for normal copy, `text-text-top` for the strongest
 heading contrast, and `text-muted` for metadata. Use `link` for inline links.
 
 Use `text-subdued` for lower-priority metadata. This semantic utility applies
-Tailwind's `text-current/50`: it inherits the parent's text color at half
-opacity. Set the source color on the parent, for example `text-muted`.
+Tailwind's `text-current/90`: it inherits the parent's text color at 90%
+opacity. At default contrast, this retains readable contrast with the normal
+and muted text tokens on the background. Set the source color on the parent,
+for example `text-muted`.
 It affects text color rather than the whole element's opacity. Do not nest
 the utility, because each level reduces the inherited color again. Reserve
 it for supporting metadata, not primary content, actions, or disabled states.

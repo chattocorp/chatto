@@ -174,7 +174,7 @@
   </div>
 </Story>
 
-<Story name="Subdued metadata" asChild>
+{#snippet subduedMetadata()}
   <div class="space-y-4 bg-background p-4">
     <p class="flex gap-4 text-text">
       Normal text <span class="text-subdued">Inherited metadata</span>
@@ -183,6 +183,14 @@
       Muted text <span class="text-subdued">#general · 12:30</span>
     </p>
   </div>
+{/snippet}
+
+<Story name="Subdued metadata" globals={{ theme: 'light' }} asChild>
+  {@render subduedMetadata()}
+</Story>
+
+<Story name="Subdued metadata dark" globals={{ theme: 'dark' }} asChild>
+  {@render subduedMetadata()}
 </Story>
 
 <Story name="Semantic + opacity tints" asChild>

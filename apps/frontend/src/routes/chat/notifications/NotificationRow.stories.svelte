@@ -112,7 +112,7 @@
   provideUserProfiles();
 </script>
 
-<Story name="Single server" asChild>
+{#snippet singleServer()}
   <div class="selectable-list max-w-5xl">
     {#each rows as row, index (index)}
       <NotificationRow
@@ -123,6 +123,14 @@
       />
     {/each}
   </div>
+{/snippet}
+
+<Story name="Single server" globals={{ theme: 'light' }} asChild>
+  {@render singleServer()}
+</Story>
+
+<Story name="Single server dark" globals={{ theme: 'dark' }} asChild>
+  {@render singleServer()}
 </Story>
 
 <Story name="Wrapped rows" asChild>
