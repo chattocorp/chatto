@@ -1953,7 +1953,7 @@
 }
 
 @utility sidebar-item {
-  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text comfortable-density:min-h-12;
+  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
 
