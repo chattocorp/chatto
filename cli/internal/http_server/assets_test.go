@@ -1504,6 +1504,44 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	if vary != "Accept-Encoding" {
 		t.Errorf("Expected Vary: Accept-Encoding, got: %s", vary)
 	}
+	assertPublicImageRevalidation(t, env.url("/assets/server/"+avatarPath), etag)
+}
+
+// assertPublicImageRevalidation checks the HTTP contract used by browser caches.
+func assertPublicImageRevalidation(t *testing.T, url, etag string) {
+	t.Helper()
+	for _, conditional := range []string{etag, "W/" + etag, "\"stale\", W/" + etag, "*", "\"stale\""} {
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("If-None-Match", conditional)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := http.StatusNotModified
+		if conditional == "\"stale\"" {
+			want = http.StatusOK
+		}
+		if resp.StatusCode != want {
+			t.Fatalf("conditional %q: status = %d, want %d", conditional, resp.StatusCode, want)
+		}
+		if want == http.StatusNotModified && len(body) != 0 {
+			t.Fatal("304 response contains image bytes")
+		}
+		if want == http.StatusOK && len(body) == 0 {
+			t.Fatal("200 response has no image bytes")
+		}
+		if resp.Header.Get("ETag") != etag || resp.Header.Get("Cache-Control") != "public, max-age=31536000, immutable" {
+			t.Fatal("conditional response lost cache headers")
+		}
+	}
 }
 
 func TestAsset_ServerAssetTransformKeepsDefaultQuality(t *testing.T) {
@@ -1523,6 +1561,8 @@ func TestAsset_ServerAssetTransformKeepsDefaultQuality(t *testing.T) {
 	}
 
 	transformURL := env.core.GetTransformedServerAssetURL(assetPath, 200, 200, "contain")
+	// The first conditional request must also work before a resize is cached.
+	assertPublicImageRevalidation(t, env.url(transformURL), fmt.Sprintf("\"%s-200-200-contain\"", assetPath))
 	resp, err := env.client.Get(env.url(transformURL))
 	if err != nil {
 		t.Fatalf("Failed to get transformed server asset: %v", err)
@@ -1547,6 +1587,7 @@ func TestAsset_ServerAssetTransformKeepsDefaultQuality(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Fatal("server asset transform did not retain the default image quality")
 	}
+	assertPublicImageRevalidation(t, env.url(transformURL), resp.Header.Get("ETag"))
 }
 
 func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
@@ -2428,6 +2469,7 @@ func TestAsset_NeighborhoodImage(t *testing.T) {
 	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
 	}
+	assertPublicImageRevalidation(t, env.url(core.NeighborhoodImagePath(name)), resp.Header.Get("ETag"))
 
 	for _, path := range []string{
 		core.NeighborhoodImagePath(strings.Repeat("c", 64)),
@@ -2435,7 +2477,12 @@ func TestAsset_NeighborhoodImage(t *testing.T) {
 		core.NeighborhoodImagePath(strings.ToUpper(name)),
 		core.NeighborhoodImagePath("not-a-hash"),
 	} {
-		resp, err := http.Get(env.url(path))
+		req, err := http.NewRequest(http.MethodGet, env.url(path), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("If-None-Match", "*")
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("GET %q: %v", path, err)
 		}
