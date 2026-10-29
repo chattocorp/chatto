@@ -387,6 +387,9 @@ typed historical transitions. Optional operation keys on creation and message
 import provide permanent exact retry protection. See
 [FDR-053](../fdr/FDR-053-history-import-export.md).
 
+`OperatorMessageService.ImportReaction` accepts individual room join and leave
+event IDs for historical imports, without live delivery or notifications.
+
 | Package              | Service                  | Access policy                                                                                      |
 | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | `chatto.operator.v1` | `OperatorUserService`    | Root-equivalent account and external identity management over the private Unix socket              |

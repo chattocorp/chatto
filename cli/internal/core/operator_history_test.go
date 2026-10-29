@@ -9,6 +9,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,8 +87,28 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	require.NoError(t, err)
 	reply, err := c.ImportHistoricalMessage(ctx, HistoricalMessageInput{RoomID: room.Id, AuthorID: author.Id, Body: "reply", CreatedAt: time.Now(), ThreadRootEventID: root.Id})
 	require.NoError(t, err)
+	for _, kind := range []string{"joined", "left"} {
+		require.NoError(t, c.ImportHistoricalRoomChange(ctx, HistoricalRoomChange{
+			RoomID: room.Id, OperationKey: uuid.NewString(), Kind: kind, Value: author.Id,
+		}))
+	}
+	facts, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).AllEventsFilter())
+	require.NoError(t, err)
+	targetIDs := []string{root.Id, reply.Id}
+	for _, fact := range facts {
+		if fact.GetUserJoinedRoom() != nil || fact.GetUserLeftRoom() != nil {
+			targetIDs = append(targetIDs, fact.Id)
+		}
+		if fact.GetRoomCreated() != nil {
+			_, err := c.ImportHistoricalReaction(ctx, HistoricalReactionInput{
+				RoomID: room.Id, MessageEventID: fact.Id, UserID: reactor.Id, Emoji: emoji,
+			})
+			require.ErrorIs(t, err, ErrMessageNotFound, "other room events are not reaction targets")
+		}
+	}
+	require.Len(t, targetIDs, 4)
 	replica := startReplica(t, ns, testCoreConfig())
-	for _, messageID := range []string{root.Id, reply.Id} {
+	for _, messageID := range targetIDs {
 		input := HistoricalReactionInput{RoomID: room.Id, MessageEventID: messageID, UserID: reactor.Id, Emoji: emoji}
 		var addedCount atomic.Int32
 		var wg sync.WaitGroup
@@ -114,7 +135,7 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	}
 	reactionEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventReactionAdded))
 	require.NoError(t, err)
-	require.Len(t, reactionEvents, 2)
+	require.Len(t, reactionEvents, len(targetIDs))
 	projection := NewReactionProjection()
 	for i, event := range reactionEvents {
 		require.Equal(t, SystemActorID, event.ActorId)
@@ -133,7 +154,7 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	require.True(t, removed)
 	removal := newReactionRemovedEvent(reactor.Id, room.Id, root.Id, emoji)
 	for _, p := range []*ReactionProjection{projection, restored} {
-		require.NoError(t, p.Apply(removal, 3))
+		require.NoError(t, p.Apply(removal, uint64(len(reactionEvents)+1)))
 		bytes, err := p.Snapshot()
 		require.NoError(t, err)
 		if p == projection {
@@ -146,6 +167,14 @@ func TestHistoricalReactionImportConcurrentReplayAndRemoval(t *testing.T) {
 	require.Empty(t, testNotificationOccurrences(t, c, author.Id))
 	// A fresh process must rebuild attribution and thread placement from EVT.
 	replayed := startReplica(t, ns, testCoreConfig())
+	for _, id := range targetIDs[2:] {
+		reactions, err := replayed.GetReactions(ctx, id)
+		require.NoError(t, err)
+		require.Equal(t, []ReactionSummary{{Emoji: emoji, UserIDs: []string{reactor.Id}}}, reactions)
+		added, err := replayed.ImportHistoricalReaction(ctx, HistoricalReactionInput{RoomID: room.Id, MessageEventID: id, UserID: reactor.Id, Emoji: emoji})
+		require.NoError(t, err)
+		require.False(t, added)
+	}
 	require.Equal(t, c.GetThreadMetadata(root.Id), replayed.GetThreadMetadata(root.Id))
 	require.Equal(t, []string{author.Id}, replayed.GetThreadMetadata(root.Id).ParticipantIDs)
 	reactions, err := replayed.GetReactions(ctx, reply.Id)
