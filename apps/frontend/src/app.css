@@ -1864,6 +1864,24 @@
   @apply relative overflow-hidden;
 }
 
+/* Keep adjacent segmented controls content-sized until they wrap. Each control
+   then grows across its line, including its option labels and selection pill. */
+@utility segmented-control-group {
+  @apply flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3;
+
+  & > fieldset {
+    @apply w-max flex-auto;
+  }
+
+  & > fieldset > label {
+    @apply grow;
+  }
+
+  & > fieldset > label > span {
+    @apply w-full;
+  }
+}
+
 /* Lower-priority metadata retains enough of its inherited color for readable contrast. */
 @utility text-subdued {
   @apply text-current/90;

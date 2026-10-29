@@ -7,6 +7,8 @@ sort modes that belong together, such as “All / Unread” or
 selection semantics; the surrounding pill presents the options as one control.
 
 Use `ToggleChip` instead when choices can be toggled independently.
+Place adjacent filters directly in `segmented-control-group` to fill each row
+when the controls wrap.
 -->
 <script lang="ts" generics="T extends string | number">
   import type { Attachment } from 'svelte/attachments';

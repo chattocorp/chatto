@@ -602,6 +602,12 @@ area and the visible keyboard focus outline. The colour changes with
 `feedback-quick`. Text actions such as the version number use
 `app-header-text-action` for the same treatment at content width.
 
+For adjacent filter controls, put `SegmentedControl` components directly inside
+`segmented-control-group`. The group stays content-sized while the controls fit
+on one line. When they wrap, each control fills its line and its option pills
+expand with it. Wrapping follows the labels' actual widths, including translated
+labels. Do not add wrappers between the group and its controls.
+
 Form inputs and `SegmentedControl` share the `control-frame` utility. It owns
 their rounded corners, one-pixel border, and subtle inset shadow. Inputs and
 segmented tracks read as recessed surfaces. `segmented-track` softens the track

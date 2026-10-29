@@ -575,16 +575,14 @@
   </PaneHeader>
 
   <div class="flex min-h-0 max-w-pane flex-1 flex-col">
-    <div class="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-      <div class="max-w-full overflow-x-auto">
+    <div class="shrink-0 px-4 py-3">
+      <div class="segmented-control-group">
         <SegmentedControl
           label={m('chat.notifications.filter_status')}
           options={filterOptions}
           value={filter}
           onchange={(value) => setFilter('status', value)}
         />
-      </div>
-      <div class="max-w-full overflow-x-auto">
         <SegmentedControl
           label={m('chat.notifications.filter_type')}
           options={kindOptions}

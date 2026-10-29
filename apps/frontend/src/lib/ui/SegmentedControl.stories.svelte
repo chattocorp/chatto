@@ -1,5 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
+  import { expect, waitFor } from 'storybook/test';
   import { Button, TextInput } from '$lib/ui/form';
   import SegmentedControl from './SegmentedControl.svelte';
 
@@ -99,4 +100,64 @@
     onchange={() => {}}
     disabled
   />
+</Story>
+
+<Story
+  name="Responsive filter groups"
+  asChild
+  play={async ({ canvasElement }) => {
+    const container = canvasElement.querySelector<HTMLElement>('[data-filter-demo]')!;
+    const group = container.querySelector<HTMLElement>('.segmented-control-group')!;
+    const controls = [...group.querySelectorAll('fieldset')];
+    container.style.width = '900px';
+    await waitFor(() => {
+      expect(controls[0].getBoundingClientRect().top).toBe(controls[1].getBoundingClientRect().top);
+      expect(group.getBoundingClientRect().width).toBeLessThan(
+        container.getBoundingClientRect().width
+      );
+    });
+    container.style.width = '320px';
+    await waitFor(() => {
+      expect(controls[1].getBoundingClientRect().top).toBeGreaterThan(
+        controls[0].getBoundingClientRect().bottom
+      );
+      for (const control of controls) {
+        expect(
+          Math.abs(control.getBoundingClientRect().width - container.getBoundingClientRect().width)
+        ).toBeLessThan(1);
+        const selected = control.querySelector('input:checked')!.closest('label')!;
+        expect(
+          Math.abs(
+            parseFloat(control.style.getPropertyValue('--segmented-indicator-width')) -
+              selected.getBoundingClientRect().width
+          )
+        ).toBeLessThan(1);
+      }
+    });
+  }}
+>
+  <div data-filter-demo class="max-w-full" style:width="900px">
+    <div class="segmented-control-group">
+      <SegmentedControl
+        label="Notification status"
+        options={[
+          { value: 'all', label: 'All notifications' },
+          { value: 'unread', label: 'Unread' }
+        ]}
+        value="all"
+        onchange={() => {}}
+      />
+      <SegmentedControl
+        label="Notification type"
+        options={[
+          { value: 'all', label: 'All types' },
+          { value: 'replies', label: 'Replies' },
+          { value: 'mentions', label: 'Mentions' },
+          { value: 'reactions', label: 'Reactions' }
+        ]}
+        value="all"
+        onchange={() => {}}
+      />
+    </div>
+  </div>
 </Story>
