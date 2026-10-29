@@ -135,8 +135,11 @@ the owner. These labels do not change snapshot keys or durable worker names.
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do
 not inspect consumer sequence numbers or raw JetStream metadata. An optional
-startup-batch capability groups only the replay through the target captured at
-startup; live events continue through individual `Apply` calls.
+startup-batch capability groups replay through the target captured at startup.
+An independent live-batch capability groups later events by count and a timer.
+Both commit under the apply barrier and advance waiters only after success.
+Buffered live events can be discarded on shutdown and replayed from the last
+committed checkpoint. Projections without either capability use `Apply`.
 
 The ordered replay lifecycle receives decoded application events through
 `events.EventDecoder[E]`. Chatto's `evtstream.NewProjector` constructor
@@ -198,7 +201,10 @@ generation, and user key shredding event families, and uses projector key
 
 During captured startup replay it commits up to 256 ordered events and the
 final checkpoint in one Bleve transaction, including a smaller final batch;
-once current, each relevant live event is committed immediately.
+once current, it commits up to 256 live events per transaction. A 10 ms timer
+flushes smaller batches. This bounds buffer delay, not storage commit time.
+Each batch commits the index changes and final checkpoint together, so a
+restart cannot skip uncommitted events.
 Its checkpoint contract starts with `bleve-message-index-v12-` and includes a
 stable fingerprint of the configured language analyzer set, so changing that
 set forces a cold EVT replay.

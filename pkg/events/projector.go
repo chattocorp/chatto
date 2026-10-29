@@ -86,6 +86,11 @@ type Projector struct {
 	// applyStartupBatch applies batched startup events. It is nil unless the
 	// projection implements StartupBatchEventProjection.
 	applyStartupBatch func([]sequencedDecodedEvent) error
+	applyLiveBatch    func([]sequencedDecodedEvent) error
+	liveBatchSize     int
+	liveBatchDelay    time.Duration
+	liveBatch         []sequencedDecodedEvent
+	liveFlushTimer    *time.Timer // Armed only while liveBatch is non-empty.
 
 	subjects        []string
 	replaySubjects  []string
@@ -240,6 +245,20 @@ func NewDecodedProjector[E any](
 				}
 				return projection.ApplyStartupBatch(typed)
 			}
+		}
+	}
+	if projection, ok := proj.(LiveBatchEventProjection[E]); ok {
+		p.liveBatchSize = projection.LiveBatchSize()
+		p.liveBatchDelay = projection.LiveBatchMaxDelay()
+		if p.liveBatchSize < 1 || p.liveBatchDelay <= 0 {
+			return nil, fmt.Errorf("live batch size and delay must be positive")
+		}
+		p.applyLiveBatch = func(items []sequencedDecodedEvent) error {
+			typed := make([]SequencedEventOf[E], len(items))
+			for i, item := range items {
+				typed[i] = SequencedEventOf[E]{Event: item.event.(typedDecodedEvent[E]).event, Sequence: item.sequence}
+			}
+			return projection.ApplyLiveBatch(typed)
 		}
 	}
 	return p, nil
@@ -763,6 +782,13 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	// delivery, gap detection, automatic reset) and is steady-state
 	// quiet when idle. See the perf-investigation notes accompanying
 	// this change.
+	var liveTick <-chan time.Time
+	if p.applyLiveBatch != nil {
+		p.liveFlushTimer = time.NewTimer(p.liveBatchDelay)
+		p.liveFlushTimer.Stop()
+		defer p.liveFlushTimer.Stop()
+		liveTick = p.liveFlushTimer.C
+	}
 	cc, err := cons.Consume(p.handleMessage,
 		jetstream.PullMaxBytes(projectionPullMaxBytes),
 		jetstream.ConsumeErrHandler(p.handleConsumeErr),
@@ -793,6 +819,11 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 				return err
 			}
 			return ErrProjectionFailed
+		case <-liveTick:
+			p.applyMu.Lock()
+			p.flushLiveBatch()
+			p.applyMu.Unlock()
+			p.maybeCompleteStartup(time.Now())
 		case <-startupDone:
 			reconcile.Stop()
 			startupDone = nil
@@ -921,12 +952,11 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	event, err := p.decode(msg.Data())
 	if err != nil {
 		err = fmt.Errorf("decode event on subject %q: %w", msg.Subject(), err)
-		failureSeq := p.pendingStartupBatchFirstSequence(seq)
 		p.logger.Error("Projection decode failed",
 			"subject", msg.Subject(),
 			"seq", seq,
 			"error", err)
-		p.fail(failureSeq, err)
+		p.failPendingBatch(seq, err)
 		return
 	}
 
@@ -966,6 +996,16 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 		if failureSeq, err := p.flushStartupBatch(); err != nil {
 			return failureSeq, err
 		}
+	}
+	if p.applyLiveBatch != nil && seq > p.startupTargetSequence() {
+		p.liveBatch = append(p.liveBatch, sequencedDecodedEvent{event: event, sequence: seq})
+		if len(p.liveBatch) == 1 {
+			p.liveFlushTimer.Reset(p.liveBatchDelay)
+		}
+		if len(p.liveBatch) >= p.liveBatchSize {
+			return p.flushLiveBatch()
+		}
+		return 0, nil
 	}
 	mutation, err := p.prepare(event, subject, seq)
 	if err != nil {
@@ -1013,13 +1053,35 @@ func (p *Projector) startupTargetSequence() uint64 {
 	return p.startupTargetSeq
 }
 
-func (p *Projector) pendingStartupBatchFirstSequence(fallback uint64) uint64 {
+func (p *Projector) failPendingBatch(fallback uint64, err error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 	if len(p.startupBatch) > 0 {
-		return p.startupBatch[0].sequence
+		fallback = p.startupBatch[0].sequence
+	} else if len(p.liveBatch) > 0 {
+		fallback = p.liveBatch[0].sequence
 	}
-	return fallback
+	p.fail(fallback, err)
+}
+
+// flushLiveBatch holds the apply barrier through commit and failure recording.
+// A failed batch must not be retried by the timer or a concurrent callback.
+func (p *Projector) flushLiveBatch() (uint64, error) {
+	if len(p.liveBatch) == 0 || p.hasFailed() {
+		return 0, nil
+	}
+	first := p.liveBatch[0].sequence
+	p.liveFlushTimer.Stop()
+	last := p.liveBatch[len(p.liveBatch)-1].sequence
+	if err := p.applyLiveBatch(p.liveBatch); err != nil {
+		p.fail(first, err)
+		return first, err
+	}
+	p.countStartupMessages(uint64(len(p.liveBatch)))
+	clear(p.liveBatch)
+	p.liveBatch = p.liveBatch[:0]
+	p.advance(last)
+	return 0, nil
 }
 
 func (p *Projector) hasFailed() bool {

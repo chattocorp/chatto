@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"connectrpc.com/connect"
 	"context"
 	"fmt"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -31,7 +32,7 @@ func (m *cliArchiveImport) roomChange(ctx context.Context, key string, r *op.Imp
 	if id == "" {
 		id = "done" // Older servers and receipts still support reaction-free imports.
 	}
-	return m.progress.put(key, id)
+	return m.progress.putReplayable(key, id)
 }
 func (m *cliArchiveImport) messageChange(ctx context.Context, key string, r *op.ImportMessageChangeRequest) error {
 	if m.progress.values[key] != "" {
@@ -41,7 +42,7 @@ func (m *cliArchiveImport) messageChange(ctx context.Context, key string, r *op.
 	if _, err := m.messageAPI.ImportMessageChange(ctx, operatorRequest(r)); err != nil {
 		return err
 	}
-	return m.progress.put(key, "done")
+	return m.progress.putReplayable(key, "done")
 }
 
 // history rebuilds reference and membership indexes while replaying the source.
@@ -49,12 +50,103 @@ func (m *cliArchiveImport) messageChange(ctx context.Context, key string, r *op.
 func (m *cliArchiveImport) history(ctx context.Context) error {
 	members := map[string]map[string]bool{}
 	reactions := map[string]map[string]map[string]bool{}
+	// Only adjacent reaction changes share a commit. Flush before any other
+	// source event so edits, deletes, posts, and room transitions keep their order.
+	var pending []*op.ImportMessageChangeRequest
+	var pendingKeys []string
+	legacyReactions := false
+	flush := func() error {
+		if len(pending) == 0 {
+			return nil
+		}
+		if !legacyReactions && len(pending) > 1 {
+			request := &op.ImportReactionChangesRequest{RoomId: pending[0].RoomId}
+			for _, r := range pending {
+				request.Operations = append(request.Operations, &op.HistoricalReactionOperation{
+					MessageId: r.MessageId, OperationKey: r.OperationKey, ActorId: r.ActorId, OccurredAt: r.OccurredAt, Change: r.GetReaction(),
+				})
+			}
+			_, err := m.messageAPI.ImportReactionChanges(ctx, operatorRequest(request))
+			if connect.CodeOf(err) == connect.CodeUnimplemented {
+				legacyReactions = true
+			} else if err != nil {
+				return err
+			} else {
+				for _, key := range pendingKeys {
+					if err := m.progress.putReplayable(key, "done"); err != nil {
+						return err
+					}
+				}
+				pending, pendingKeys = nil, nil
+				return nil
+			}
+		}
+		for i, r := range pending {
+			if err := m.messageChange(ctx, pendingKeys[i], r); err != nil {
+				return err
+			}
+		}
+		pending, pendingKeys = nil, nil
+		return nil
+	}
+	var messageBatch []interchange.Event
+	batchMessages := map[string]bool{}
+	batchReactions := 0
+	flushMessages := func() error {
+		if len(messageBatch) == 0 {
+			return nil
+		}
+		if err := m.importMessageBatch(ctx, messageBatch); err != nil {
+			return err
+		}
+		messageBatch, batchMessages, batchReactions = nil, map[string]bool{}, 0
+		return nil
+	}
 	err := m.archive.VisitEvents(func(e interchange.Event) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		key := "event/" + importRef(e.ID)
 		room := m.rooms[e.RoomID]
+		count := 0
+		for _, reaction := range e.Data.Reactions {
+			count += len(reaction.UserIDs)
+		}
+		canBatch := (e.Type == "message.posted" || e.Type == "message.snapshot") && len(e.Data.Content.AssetIDs) == 0 && m.messages[e.Data.MessageID] == "" && !batchMessages[e.Data.MessageID] && m.progress.values[key+"/post"] == "" && count <= core.MaxHistoricalReactionChanges
+		if canBatch {
+			if err := flush(); err != nil {
+				return err
+			}
+			if len(messageBatch) > 0 && (messageBatch[0].RoomID != e.RoomID || batchReactions+count > core.MaxHistoricalReactionChanges) {
+				if err := flushMessages(); err != nil {
+					return err
+				}
+			}
+			messageBatch = append(messageBatch, e)
+			batchMessages[e.Data.MessageID] = true
+			batchReactions += count
+			// Keep reconciliation state even before the queued write. On failure
+			// the run ends and the source plus journal rebuild all these indexes.
+			reactions[e.Data.MessageID] = map[string]map[string]bool{}
+			for _, r := range e.Data.Reactions {
+				reactions[e.Data.MessageID][r.Emoji] = map[string]bool{}
+				for _, user := range r.UserIDs {
+					reactions[e.Data.MessageID][r.Emoji][m.users[user]] = true
+				}
+			}
+			if len(messageBatch) == core.MaxHistoricalMessages {
+				return flushMessages()
+			}
+			return nil
+		}
+		if err := flushMessages(); err != nil {
+			return err
+		}
+		if (e.Type != "reaction.added" && e.Type != "reaction.removed") || (len(pending) > 0 && pending[0].RoomId != room) {
+			if err := flush(); err != nil {
+				return err
+			}
+		}
 		d := e.Data
 		at := archiveTime(e.OccurredAt)
 		actor := ""
@@ -85,8 +177,16 @@ func (m *cliArchiveImport) history(ctx context.Context) error {
 				reactions[d.MessageID][emoji] = map[string]bool{}
 			}
 			r := &op.ImportMessageChangeRequest{RoomId: room, MessageId: m.messages[d.MessageID], ActorId: actor, OccurredAt: when, Change: &op.ImportMessageChangeRequest_Reaction{Reaction: &op.HistoricalReactionChange{UserId: user, Emoji: emoji, Present: present}}}
-			if err := m.messageChange(ctx, key+"/reaction/"+emoji+"/"+user, r); err != nil {
-				return err
+			progressKey := key + "/reaction/" + emoji + "/" + user
+			if m.progress.values[progressKey] == "" {
+				r.OperationKey = m.progress.operation(progressKey)
+				pending = append(pending, r)
+				pendingKeys = append(pendingKeys, progressKey)
+				if len(pending) == core.MaxHistoricalReactionChanges {
+					if err := flush(); err != nil {
+						return err
+					}
+				}
 			}
 			reactions[d.MessageID][emoji][user] = present
 			return nil
@@ -122,7 +222,7 @@ func (m *cliArchiveImport) history(ctx context.Context) error {
 						return err
 					}
 					id = res.Msg.MessageId
-					if err = m.progress.put(key+"/post", id); err != nil {
+					if err = m.progress.putReplayable(key+"/post", id); err != nil {
 						return err
 					}
 				}
@@ -243,6 +343,12 @@ func (m *cliArchiveImport) history(ctx context.Context) error {
 		return nil
 	})
 	if err != nil {
+		return err
+	}
+	if err := flushMessages(); err != nil {
+		return err
+	}
+	if err := flush(); err != nil {
 		return err
 	}
 	for _, r := range m.archive.Rooms {

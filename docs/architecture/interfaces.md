@@ -387,6 +387,19 @@ typed historical transitions. Optional operation keys on creation and message
 import provide permanent exact retry protection. See
 [FDR-053](../fdr/FDR-053-history-import-export.md).
 
+`OperatorMessageService.ImportReactionChanges` commits a bounded set of
+historical reaction transitions in one channel. It shares validation and one
+atomic commit across the new transitions and their individual retry receipts.
+The CLI interprets archives and groups adjacent reaction changes; the server
+does not retain archive state.
+
+`OperatorMessageService.ImportMessages` commits bounded groups of messages
+without files and their reaction changes. Each message and reaction keeps its
+individual operation receipt. Earlier message operation keys can supply thread
+and reply targets within the request. Validation uses one room boundary; new
+message facts, thread declarations, reactions, and receipts share an atomic
+commit. Author key provisioning remains part of encryption preparation.
+
 `ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
 retains that ID for retries; receipts from older servers return no event ID.
 

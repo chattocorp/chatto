@@ -95,11 +95,32 @@ usable for archives without membership reactions. UI display is separate.
 for retries. Operation receipts on the server prevent duplicate mutations even
 when a successful response is lost. Recovery does not use the sending retry
 window. The CLI holds an exclusive journal lock. It does not copy source files
-into that journal. Keep imported channels unused until completion; the importer
+into that journal. Replayable history results share disk checkpoints to reduce
+import overhead. After interruption, the CLI can repeat recent requests with
+the same operation keys and recover their results without duplicate events.
+Identity and upload prerequisites remain durable before dependent requests;
+successful completion makes all progress durable.
+Adjacent message reaction transitions can share one atomic request. Invalid
+input commits none of the new transitions in that request. Exact retries skip
+previously committed transitions, including those imported through individual
+calls. The CLI preserves source order and uses individual calls when the server
+does not support batches. This does not impose an archive size limit.
+New messages without files can share a request with their reactions. Replies
+can refer to earlier messages in that request by operation key. Forward
+references and cycles are invalid. Invalid input commits no new message facts;
+new author encryption keys can remain after a later preparation failure. Thread
+declarations, tombstones, and reactions preserve their source order. Files,
+edits, and room transitions end the current group. On older servers, the CLI
+uses individual calls with the same operation keys and resolved references.
+Keep imported channels unused until completion; the importer
 does not merge concurrent changes or automatically roll back partial work.
 
 Files use chunked uploads when first referenced. Shared source files are
 uploaded separately for each message, as required by native asset ownership.
+For JetStream object storage, explicit ingest-queue rejections (429/10167)
+are retried up to five times with exponential delays. The server rewinds the
+input and retains the object key before it commits an upload offset or asset
+fact. Other errors and non-seekable inputs are not retried by this mechanism.
 Upload completion is retryable. Incomplete uploads can be restarted; normal
 server upload expiry and per-file policies still apply. There is no total
 archive size or record-count limit. One JSON record is limited to 1 MiB.
