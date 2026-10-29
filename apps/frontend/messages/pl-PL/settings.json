@@ -143,6 +143,21 @@
           "description": "Użyj ciemnego interfejsu w tej przeglądarce"
         }
       },
+      "animations": {
+        "title": "Animacje",
+        "automatic": {
+          "label": "Automatycznie",
+          "description": "Używaj systemowego ustawienia ograniczenia ruchu"
+        },
+        "enabled": {
+          "label": "Włączone",
+          "description": "Zawsze pokazuj animacje"
+        },
+        "disabled": {
+          "label": "Wyłączone",
+          "description": "Pokazuj zmiany bez animacji"
+        }
+      },
       "thread_pane": {
         "title": "Panel wątku",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "To konto ma już hasło."
       },
       "sso": {
+        "username_unavailable": "Nie można przypisać nazwy użytkownika od dostawcy logowania. Skontaktuj się z operatorem serwera.",
+        "username_managed": "Twoją nazwą użytkownika zarządza dostawca logowania i nie można jej tutaj zmienić.",
+        "unlink_disabled": "Operator serwera nie zezwala na odłączenie tego dostawcy.",
         "popup_blocked": "Zezwól na wyskakujące okna w tej witrynie i spróbuj ponownie połączyć konto.",
         "account_mismatch": "Zaloguj się na właściwe konto na tym serwerze, a następnie rozpocznij łączenie ponownie w pierwotnym oknie.",
         "provider_unavailable": "Ten dostawca logowania nie jest już dostępny.",

@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} da {users}",
+    "tone_default": "Giallo predefinito",
+    "tone_light": "Chiara",
+    "tone_medium_light": "Medio-chiara",
+    "tone_medium": "Media",
+    "tone_medium_dark": "Medio-scura",
+    "tone_dark": "Scura",
     "search_placeholder": "Cerca emoji...",
     "no_results": "Nessun emoji trovato",
     "recently_used": "Usati di recente"

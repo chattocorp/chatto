@@ -143,6 +143,21 @@
           "description": "在此瀏覽器使用深色介面"
         }
       },
+      "animations": {
+        "title": "動畫",
+        "automatic": {
+          "label": "自動",
+          "description": "遵循系統的減少動態效果偏好設定"
+        },
+        "enabled": {
+          "label": "啟用",
+          "description": "一律顯示動畫"
+        },
+        "disabled": {
+          "label": "停用",
+          "description": "顯示變更時不使用動畫"
+        }
+      },
       "thread_pane": {
         "title": "討論串窗格",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "此帳號已有密碼。"
       },
       "sso": {
+        "username_unavailable": "無法指派登入供應商的使用者名稱。請聯絡伺服器營運者。",
+        "username_managed": "你的使用者名稱由登入供應商管理，無法在此修改。",
+        "unlink_disabled": "伺服器營運者不允許解除與此供應商的連結。",
         "popup_blocked": "請允許此網站的彈出式視窗，然後再試一次連結。",
         "account_mismatch": "請在此伺服器登入正確的帳號，然後從原本的視窗重新開始連結。",
         "provider_unavailable": "此登入服務供應商已無法使用。",

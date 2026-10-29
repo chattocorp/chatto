@@ -1682,7 +1682,7 @@ describe('Room local message echo', () => {
       .toHaveClass('end-0', 'border-s');
   });
 
-  it('keeps the mobile sidebar mounted during its close transition', async () => {
+  it('removes the mobile sidebar immediately when closed', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     stubMatchMedia(false);
     appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'mobile');
@@ -1694,7 +1694,7 @@ describe('Room local message echo', () => {
     appUi.closeMobileRoomSidebarPanel();
     await tick();
 
-    expect(pane.isConnected).toBe(true);
+    expect(pane.isConnected).toBe(false);
     await expect.element(pane).not.toBeInTheDocument();
   });
 
@@ -1763,9 +1763,40 @@ describe('Room local message echo', () => {
     }
   });
 
-  it.each(['room', 'sidebar'])(
-    'dismisses only the context menu on the first %s press',
-    async (surface) => {
+  it('dismisses the user menu with Escape before closing the thread', async () => {
+    render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    const onclose = vi.fn();
+    const menu = render(ContextMenu, {
+      position: { x: 20, y: 20 },
+      presentation: 'floating',
+      role: 'dialog',
+      ariaLabel: 'User profile',
+      onclose,
+      children: testSnippet('<button>View profile</button>')
+    });
+    await tick();
+    await new Promise(requestAnimationFrame);
+    mocks.goto.mockClear();
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(onclose).toHaveBeenCalledOnce();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await menu.unmount();
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+  });
+
+  it.each([
+    { surface: 'room', role: 'menu' },
+    { surface: 'sidebar', role: 'menu' },
+    { surface: 'room', role: 'dialog' },
+    { surface: 'sidebar', role: 'dialog' }
+  ])(
+    'dismisses only the context menu with role $role on the first $surface press',
+    async ({ surface, role }) => {
       const { container } = render(Room, {
         props: { roomId: 'room-1', threadId: 'thread-root' }
       });
@@ -1773,6 +1804,7 @@ describe('Room local message echo', () => {
       const menu = render(ContextMenu, {
         position: { x: 20, y: 20 },
         presentation: 'floating',
+        role,
         onclose,
         children: testSnippet('<button role="menuitem">Menu action</button>')
       });

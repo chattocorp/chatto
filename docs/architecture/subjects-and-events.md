@@ -254,6 +254,11 @@ cursors are trusted integration coordinates and are not public API cursors.
 
 ## Durable EVT event inventory
 
+`evt.room.{roomId}.room_membership_events_visibility_changed` stores
+`RoomMembershipEventsVisibilityChangedEvent`. The room command commits it with
+other selected room settings. The room catalog projects it; timeline history
+does not include the setting-change fact. Membership facts remain available.
+
 | Subject pattern                                 | Protobuf event message                                                                                                                                        |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `evt.room.{roomId}.room_created`                | `RoomCreatedEvent`                                                                                                                                            |

@@ -85,6 +85,24 @@ vi.mock('$lib/state/globals.svelte', () => ({
   }
 }));
 describe('AppHeader', () => {
+  it('keeps the current server when opening cross-server notifications', () => {
+    mocks.activeServer = 'remote';
+    mocks.servers = [{ id: 'remote' }];
+    mocks.authenticated = { remote: true };
+    const { container } = render(AppHeader);
+    expect(
+      container.querySelector('a[href="/chat/remote.example.com/notifications"]')
+    ).not.toBeNull();
+    mocks.activeServer = '';
+  });
+
+  it('keeps global notifications available when the origin is signed out', () => {
+    mocks.activeServer = 'origin';
+    mocks.servers = [{ id: 'origin' }, { id: 'remote' }];
+    mocks.authenticated = { remote: true };
+    const { container } = render(AppHeader);
+    expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
+  });
   it('hides on mobile with the keyboard and returns when it closes', async () => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
     await page.viewport(390, 800);

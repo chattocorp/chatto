@@ -53,21 +53,23 @@ type PendingExternalIdentityLinkStart struct {
 }
 
 type PendingExternalIdentityFlow struct {
-	Kind            string    `json:"kind"`
-	ProviderID      string    `json:"provider_id"`
-	ProviderType    string    `json:"provider_type"`
-	ProviderLabel   string    `json:"provider_label"`
-	Issuer          string    `json:"issuer"`
-	Subject         string    `json:"subject"`
-	SubjectHash     string    `json:"subject_hash"`
-	VerifiedEmail   string    `json:"verified_email,omitempty"`
-	AvatarURL       string    `json:"avatar_url,omitempty"`
-	LoginHint       string    `json:"login_hint,omitempty"`
-	DisplayNameHint string    `json:"display_name_hint,omitempty"`
-	RedirectPath    string    `json:"redirect_path,omitempty"`
-	BoundUserID     string    `json:"bound_user_id,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	InvitationID    string    `json:"invitation_id,omitempty"`
+	Kind          string `json:"kind"`
+	ProviderID    string `json:"provider_id"`
+	ProviderType  string `json:"provider_type"`
+	ProviderLabel string `json:"provider_label"`
+	Issuer        string `json:"issuer"`
+	Subject       string `json:"subject"`
+	SubjectHash   string `json:"subject_hash"`
+	VerifiedEmail string `json:"verified_email,omitempty"`
+	AvatarURL     string `json:"avatar_url,omitempty"`
+	LoginHint     string `json:"login_hint,omitempty"`
+	// ProviderUsername is the verified username without email/display-name fallback.
+	ProviderUsername string    `json:"provider_username,omitempty"`
+	DisplayNameHint  string    `json:"display_name_hint,omitempty"`
+	RedirectPath     string    `json:"redirect_path,omitempty"`
+	BoundUserID      string    `json:"bound_user_id,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	InvitationID     string    `json:"invitation_id,omitempty"`
 	// Groups and GroupsKnown carry the provider groups claim to account
 	// creation for group role sync. Flows from older versions have neither.
 	Groups      []string `json:"groups,omitempty"`
@@ -270,15 +272,7 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 	if flow == nil || flow.Kind != ExternalIdentityFlowKindCreate {
 		return nil, ErrExternalIdentityFlowWrongKind
 	}
-	if displayName == "" {
-		displayName = login
-	}
-	user, err := c.createUserWithOptions(ctx, SystemActorID, login, displayName, "", userCreationOptions{
-		verifiedEmail: flow.VerifiedEmail,
-		external:      flow,
-		invitationID:  flow.InvitationID,
-		selfService:   true,
-	})
+	user, err := c.createProviderUser(ctx, login, displayName, flow)
 	if err != nil {
 		return nil, err
 	}
@@ -433,6 +427,9 @@ func (c *ChattoCore) DisconnectExternalIdentityAs(ctx context.Context, actorID, 
 		unlinked, err := c.checkExternalIdentityDisconnect(ctx, userID, subjectHash, policy)
 		if err != nil {
 			return err
+		}
+		if actorID != SystemActorID && c.IdentityUnlinkDisabled(unlinked) {
+			return ErrExternalIdentityUnlinkDisabled
 		}
 
 		entries := []evtstream.BatchEntry{{Subject: unlinkSubject, Event: unlink, Expect: events.ExpectFilterSeq(userFilter, userSeq)}}

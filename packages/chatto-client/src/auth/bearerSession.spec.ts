@@ -1,7 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { oauthBearerSession, persistedBearerSession } from './bearerSession.js';
+import {
+  directBearerSession,
+  oauthBearerSession,
+  persistedBearerSession
+} from './bearerSession.js';
 
 describe('bearer session responses', () => {
+  it('accepts renewable direct sessions without an OAuth client binding', () => {
+    expect(
+      directBearerSession({
+        token: 'access',
+        refreshToken: 'refresh',
+        expiresIn: 900,
+        refreshTokenExpiresIn: 86400
+      })
+    ).toEqual({
+      token: 'access',
+      refreshToken: 'refresh',
+      expiresIn: 900,
+      refreshTokenExpiresIn: 86400,
+      oauthClientId: null
+    });
+    for (const value of [
+      null,
+      {},
+      { token: 'access' },
+      { token: 'a', refreshToken: 'r', expiresIn: -1, refreshTokenExpiresIn: 10 }
+    ]) {
+      expect(directBearerSession(value)).toBeNull();
+    }
+  });
   it('converts a complete OAuth response to absolute persisted expiries', () => {
     const credentials = oauthBearerSession(
       {

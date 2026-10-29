@@ -66,6 +66,44 @@ function tabEvent(): KeyboardEvent {
 }
 
 describe('AutocompleteState', () => {
+  it.each(['(:he', '!:he', ':wave::he', '👋:he', ':heart: :he'])(
+    'opens and completes emoji after a valid boundary: %s',
+    (text) => {
+      const fakeEditor = editor(text);
+      const state = new AutocompleteState(
+        () => fakeEditor.api,
+        () => []
+      );
+      state.update();
+      expect(state.emoji?.query).toBe('he');
+      state.selectEmoji('❤️');
+      expect(fakeEditor.getText()).toBe(text.slice(0, -3) + '❤️ ');
+    }
+  );
+
+  it.each(['hello:he', '_:he', 'é:he', '中:he', '𐐀:he', 'e\u0301:he', ':he\n'])(
+    'does not open emoji autocomplete inside words: %s',
+    (text) => {
+      const fakeEditor = editor(text);
+      const state = new AutocompleteState(
+        () => fakeEditor.api,
+        () => []
+      );
+      state.update();
+      expect(state.emoji).toBeNull();
+    }
+  );
+
+  it.each([':+1', ':-1'])('supports signed emoji aliases: %s', (text) => {
+    const fakeEditor = editor(text);
+    const state = new AutocompleteState(
+      () => fakeEditor.api,
+      () => []
+    );
+    state.update();
+    expect(state.emoji?.query).toBe(text.slice(1));
+  });
+
   it('shows mention autocomplete when an @ partial has characters, even before members load', () => {
     const fakeEditor = editor('@');
     const state = new AutocompleteState(

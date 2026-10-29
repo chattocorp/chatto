@@ -6,6 +6,13 @@
       "confirmation": "Tímto na 15 minut zapnete další oprávnění, která vám byla na tomto serveru přidělena."
     },
     "notifications": {
+      "all_notifications": "Všechna oznámení",
+      "all_types": "Všechny typy",
+      "filter_status": "Stav",
+      "filter_type": "Typ",
+      "reactions": "Reakce",
+      "replies": "Odpovědi",
+      "mentions": "Zmínky",
       "next_unread_source": "Přejít na další nepřečtený zdroj",
       "no_unread": "Žádná nepřečtená oznámení",
       "title": "Oznámení",

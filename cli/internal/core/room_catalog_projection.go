@@ -46,6 +46,7 @@ type roomCatalogEntry struct {
 	slowModeSeconds       uint32
 	threadSlowModeSeconds *uint32
 	threadingMode         evtv1.RoomThreadingMode
+	showMembershipEvents  bool
 	notice                *readmodel.RoomNotice
 }
 
@@ -82,13 +83,14 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_RoomCreated:
 		c := e.RoomCreated
 		p.rooms[c.GetRoomId()] = &roomCatalogEntry{
-			createdAt:     proto.Clone(event.GetCreatedAt()).(*timestamppb.Timestamp),
-			name:          c.GetName(),
-			description:   c.GetDescription(),
-			purpose:       c.GetPurpose(),
-			kind:          c.GetKind(),
-			universal:     c.GetUniversal(),
-			threadingMode: c.GetThreadingMode(),
+			createdAt:            proto.Clone(event.GetCreatedAt()).(*timestamppb.Timestamp),
+			name:                 c.GetName(),
+			description:          c.GetDescription(),
+			purpose:              c.GetPurpose(),
+			kind:                 c.GetKind(),
+			universal:            c.GetUniversal(),
+			threadingMode:        c.GetThreadingMode(),
+			showMembershipEvents: true,
 		}
 	case *evtv1.Event_RoomUpdated:
 		u := e.RoomUpdated
@@ -123,6 +125,10 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_RoomThreadingModeChanged:
 		if entry := p.rooms[e.RoomThreadingModeChanged.GetRoomId()]; entry != nil {
 			entry.threadingMode = e.RoomThreadingModeChanged.GetThreadingMode()
+		}
+	case *evtv1.Event_RoomMembershipEventsVisibilityChanged:
+		if entry := p.rooms[e.RoomMembershipEventsVisibilityChanged.GetRoomId()]; entry != nil {
+			entry.showMembershipEvents = e.RoomMembershipEventsVisibilityChanged.GetShowMembershipEvents()
 		}
 	case *evtv1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
@@ -236,6 +242,7 @@ func entryToRoom(id string, entry *roomCatalogEntry) *readmodel.Room {
 		SlowModeSeconds:       entry.slowModeSeconds,
 		ThreadSlowModeSeconds: entry.threadSlowModeSeconds,
 		ThreadingMode:         normalizedRoomThreadingMode(entry.kind, entry.threadingMode),
+		ShowMembershipEvents:  entry.showMembershipEvents,
 	}
 	// Callers can change nested timestamps, notice state, and optional values
 	// without changing the projection.

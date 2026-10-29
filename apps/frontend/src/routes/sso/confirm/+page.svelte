@@ -1,11 +1,15 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
+  import { usernameChoiceUnavailableMessage } from '$lib/actionAvailability';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { isProviderCallback } from '$lib/auth/providerContinuation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
     createExternalIdentityFlowAPI,
+    createExternalIdentityAPI,
     ExternalIdentityFlowKind
   } from '$lib/api/externalIdentities';
   import { m } from '$lib/i18n/messages';
@@ -20,7 +24,12 @@
   let actionError = $state('');
   let submitting = $state(false);
   let login = $derived(pending?.loginHint ?? '');
-  let displayName = $derived(pending?.displayNameHint || pending?.loginHint || '');
+  const usernameManaged = $derived(
+    pending?.chooseUsername === UsernameChoiceAvailability.PROVIDER_MANAGED
+  );
+  let displayName = $derived(
+    pending?.displayNameHint || (usernameManaged ? '' : pending?.loginHint) || ''
+  );
 
   const loginSchema = z
     .string()
@@ -30,19 +39,31 @@
     .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
     .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
 
-  const loginError = $derived(login ? validate(loginSchema, login) : undefined);
+  // Managed names are assigned and validated by the server; this field is a preview.
+  const loginError = $derived(!usernameManaged && login ? validate(loginSchema, login) : undefined);
   const displayNameError = $derived.by(() => {
     if (!displayName) return undefined;
     return validateDisplayName(displayName).valid
       ? undefined
       : m('settings.profile.display_name.invalid');
   });
-  const isCreate = $derived(pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT);
-  const isLink = $derived(pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT);
+  const isCreate = $derived(
+    pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT && !data.existingAccount
+  );
+  const isLink = $derived(
+    pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT || data.existingAccount
+  );
+  const existingAccountHref = $derived(
+    `${resolve('/sso/confirm')}?token=${encodeURIComponent(data.token)}&existing=1`
+  );
   const canSubmit = $derived(
     pending &&
       !submitting &&
-      ((isCreate && login.trim() && displayName.trim() && !loginError && !displayNameError) ||
+      ((isCreate &&
+        (usernameManaged || login.trim()) &&
+        (usernameManaged || displayName.trim()) &&
+        !loginError &&
+        !displayNameError) ||
         isLink)
   );
 
@@ -58,10 +79,7 @@
     try {
       await flowAPI.createAccount({ token: data.token, login, displayName });
       const returnURL = new URL(redirectPath, window.location.origin);
-      if (
-        returnURL.pathname === resolve('/servers/callback') &&
-        returnURL.searchParams.get('mode') === 'provider'
-      ) {
+      if (isProviderCallback(returnURL)) {
         // The opening tab owns its saved return navigation. Complete this
         // popup before any copied sessionStorage return path can take over.
         await goto(resolve(redirectPath as '/'), { replaceState: true });
@@ -84,6 +102,24 @@
     submitting = true;
     actionError = '';
     try {
+      if (data.existingAccount) {
+        // A create token cannot authorize a link. Start a fresh provider flow
+        // bound by the server to the account that just authenticated.
+        const startUrl = await createExternalIdentityAPI({
+          baseUrl: '/api/connect',
+          bearerToken: null
+        }).startLink({
+          providerId: pending.providerId,
+          redirectPath
+        });
+        try {
+          await flowAPI.cancel(data.token);
+        } catch {
+          // The accepted link-start is independent; the old create token expires.
+        }
+        window.location.href = startUrl;
+        return;
+      }
       await flowAPI.confirmLink(data.token);
       goto(resolve(redirectPath as '/'), { replaceState: true });
     } catch (err) {
@@ -101,7 +137,11 @@
         // Cancelling is best-effort; leaving the page is enough for the user.
       }
     }
-    goto(resolve((pending?.redirectPath || '/login') as '/login'), { replaceState: true });
+    const returnURL = new URL(pending?.redirectPath || '/login', window.location.origin);
+    if (isProviderCallback(returnURL)) returnURL.searchParams.set('error', 'access_denied');
+    goto(resolve((returnURL.pathname + returnURL.search + returnURL.hash) as '/login'), {
+      replaceState: true
+    });
   }
 </script>
 
@@ -115,7 +155,11 @@
     </p>
   {:else if data.loadError}
     <Hint tone="danger">
-      {data.loadError === 'invalid' ? m('auth.sso.invalid') : m('auth.sso.load_failed')}
+      {data.loadError === 'provider_username'
+        ? m('settings.account.sso.username_unavailable')
+        : data.loadError === 'invalid'
+          ? m('auth.sso.invalid')
+          : m('auth.sso.load_failed')}
     </Hint>
     <p class="mt-6 text-center">
       <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>
@@ -136,11 +180,16 @@
         label={m('common.username')}
         bind:value={login}
         placeholder={m('common.username_placeholder')}
-        disabled={submitting}
+        disabled={submitting ||
+          (pending.chooseUsername !== undefined &&
+            pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED)}
         required
         autocomplete="username"
         error={loginError}
       />
+      {#if pending.chooseUsername !== undefined && pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED}
+        <Hint>{usernameChoiceUnavailableMessage(pending.chooseUsername)}</Hint>
+      {/if}
 
       <TextInput
         id="sso-display-name"
@@ -148,7 +197,7 @@
         bind:value={displayName}
         placeholder={m('settings.profile.display_name.placeholder')}
         disabled={submitting}
-        required
+        required={!usernameManaged}
         maxlength={32}
         autocomplete="name"
         error={displayNameError}
@@ -169,7 +218,7 @@
     </form>
 
     <div class="mt-3">
-      <Button variant="secondary" fullWidth href={resolve('/login')} disabled={submitting}>
+      <Button variant="secondary" fullWidth href={existingAccountHref} disabled={submitting}>
         <span aria-hidden="true" class="iconify icon-[mdi--login]"></span>
         {m('auth.sso.sign_in_existing')}
       </Button>
@@ -185,6 +234,9 @@
       <p class="text-sm text-muted">
         {m('auth.sso.link_intro', { provider: pending.providerLabel })}
       </p>
+      {#if data.existingAccount && data.user}
+        <p><bdi>{data.user.displayName}</bdi> (<bdi>@{data.user.login}</bdi>)</p>
+      {/if}
       {#if pending.verifiedEmail}
         <p class="text-sm">{pending.verifiedEmail}</p>
       {/if}

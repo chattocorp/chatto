@@ -143,6 +143,21 @@
           "description": "Die dunkle Oberfläche in diesem Browser verwenden"
         }
       },
+      "animations": {
+        "title": "Animationen",
+        "automatic": {
+          "label": "Automatisch",
+          "description": "Die Systemeinstellung für reduzierte Bewegung übernehmen"
+        },
+        "enabled": {
+          "label": "Aktiviert",
+          "description": "Animationen immer anzeigen"
+        },
+        "disabled": {
+          "label": "Deaktiviert",
+          "description": "Änderungen ohne Animationen anzeigen"
+        }
+      },
       "thread_pane": {
         "title": "Thread-Bereich",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Dieses Konto hat bereits ein Passwort."
       },
       "sso": {
+        "username_unavailable": "Der Benutzername deines Anmeldeanbieters kann nicht zugewiesen werden. Wende dich an den Serverbetreiber.",
+        "username_managed": "Dein Benutzername wird von deinem Anmeldeanbieter verwaltet und kann hier nicht geändert werden.",
+        "unlink_disabled": "Der Serverbetreiber erlaubt es nicht, diesen Anbieter zu trennen.",
         "popup_blocked": "Erlaube Pop-ups für diese Website und versuche die Verknüpfung erneut.",
         "account_mismatch": "Melde dich auf diesem Server mit dem richtigen Konto an und starte die Verknüpfung im ursprünglichen Fenster erneut.",
         "provider_unavailable": "Dieser Anmeldeanbieter ist nicht mehr verfügbar.",

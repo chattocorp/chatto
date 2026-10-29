@@ -25,7 +25,7 @@ External systems can issue codes with an authorized API credential.
 
 ### ListInvitationCodes
 
-Lists current and historical codes. Retired beta invite links are excluded.
+Lists current and historical codes.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/ListInvitationCodes
@@ -58,7 +58,7 @@ No message description provided.
 
 ### GetInvitationCode
 
-Reads a code by ID. Returns NOT_FOUND for an unknown ID or retired invite link.
+Reads a code by ID. Returns NOT_FOUND for an unknown ID.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInvitationCodeService/GetInvitationCode

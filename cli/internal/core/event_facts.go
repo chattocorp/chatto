@@ -53,6 +53,8 @@ func roomIDOfEvent(event *evtv1.Event) string {
 		return e.RoomSlowModeChanged.GetRoomId()
 	case *evtv1.Event_RoomThreadingModeChanged:
 		return e.RoomThreadingModeChanged.GetRoomId()
+	case *evtv1.Event_RoomMembershipEventsVisibilityChanged:
+		return e.RoomMembershipEventsVisibilityChanged.GetRoomId()
 	case *evtv1.Event_UserJoinedRoom:
 		return e.UserJoinedRoom.GetRoomId()
 	case *evtv1.Event_UserLeftRoom:
@@ -388,6 +390,7 @@ func isVisibleRoomTimelineEntry(event *evtv1.Event) bool {
 		*evtv1.Event_ThreadCreated,
 		*evtv1.Event_RoomUniversalChanged,
 		*evtv1.Event_RoomSlowModeChanged,
+		*evtv1.Event_RoomMembershipEventsVisibilityChanged,
 		*evtv1.Event_RoomMemberBanned, *evtv1.Event_RoomMemberUnbanned,
 		*evtv1.Event_RoomMemberAdded, *evtv1.Event_RoomMemberRemoved,
 		*evtv1.Event_AssetCreated, *evtv1.Event_AssetDeleted, *evtv1.Event_AssetAttached,
@@ -428,6 +431,7 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 		evtstream.EventRoomUniversalChanged,
 		evtstream.EventRoomSlowModeChanged,
 		evtstream.EventRoomThreadingModeChanged,
+		evtstream.EventRoomMembershipEventsVisibilityChanged,
 		evtstream.EventUserJoinedRoom,
 		evtstream.EventUserLeftRoom,
 		evtstream.EventRoomMemberUnbanned,
@@ -621,7 +625,8 @@ func eventNeedsRoomDirectoryProjection(event *evtv1.Event) bool {
 		*evtv1.Event_RoomUniversalChanged,
 		*evtv1.Event_RoomSlowModeChanged,
 		*evtv1.Event_RoomThreadingModeChanged,
-		*evtv1.Event_RoomDeleted:
+		*evtv1.Event_RoomDeleted,
+		*evtv1.Event_RoomMembershipEventsVisibilityChanged:
 		return true
 	default:
 		return false

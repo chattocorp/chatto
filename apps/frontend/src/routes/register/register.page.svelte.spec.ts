@@ -52,6 +52,7 @@ describe('invite-only registration', () => {
     const page = render(RegisterPage, {
       props: {
         data: {
+          redirectUrl: '/',
           user: null,
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
@@ -77,6 +78,7 @@ describe('invite-only registration', () => {
     const { getByText, getByLabelText } = render(RegisterPage, {
       props: {
         data: {
+          redirectUrl: '/',
           user: null,
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
@@ -104,7 +106,8 @@ describe('invite-only registration', () => {
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
           admissionId: '',
-          externalIdentityToken: 'verified-flow'
+          externalIdentityToken: 'verified-flow',
+          redirectUrl: '/'
         }
       }
     });
@@ -123,6 +126,7 @@ describe('invite-only registration', () => {
     const { getByRole, getByLabelText } = render(RegisterPage, {
       props: {
         data: {
+          redirectUrl: '/',
           user: null,
           serverInfoLoaded: true,
           admissionId: 'admission-1',
@@ -153,6 +157,7 @@ describe('invite-only registration', () => {
       props: {
         data: {
           user: null,
+          redirectUrl: '/',
           serverInfoLoaded: true,
           admissionId: '',
           externalIdentityToken: '',

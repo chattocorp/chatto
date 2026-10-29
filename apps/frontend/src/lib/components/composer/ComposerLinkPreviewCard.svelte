@@ -86,7 +86,7 @@ user types. A social post with a content warning shows no image or post text.
   <button
     type="button"
     onclick={onDismiss}
-    class="mini-icon-action h-8 w-8 items-center justify-center hover:text-danger touch-input:h-11 touch-input:w-11"
+    class="mini-icon-action h-8 w-8 items-center justify-center hover:text-danger comfortable-density:h-11 comfortable-density:w-11"
     aria-label={m('preview.dismiss')}
     title={m('preview.dismiss')}
   >

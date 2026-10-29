@@ -11,28 +11,25 @@
     "url_placeholder": "sohbet.example.com",
     "not_chatto_server": "Bu bir Chatto sunucusu gibi görünmüyor.",
     "directory": {
+      "added_by_you": "Sizin tarafınızdan eklendi",
+      "joined": "Katıldı",
+      "needs_login": "Giriş gerekli",
+      "learn_more": "Daha fazla bilgi mi istiyorsunuz?",
+      "learn_more_description": "Chatto'nun neler yapabileceğini keşfedin, kendi sunucunuzu yönetmeyi öğrenin veya yardım alın.",
+      "welcome_title": "Şimdi sohbet gerçek oluyor!",
       "title": "Sunucu Dizini",
-      "subtitle": "Diğer Chatto sunucularını keşfedin",
-      "lookup_description": "Katılmak için herhangi bir Chatto sunucusunun adresini girin.",
+      "lookup_description": "Bir sunucuyu dizininize eklemek ve önerilerini yüklemek için adresini girin.",
       "find": "Sunucu bul",
       "connect_by_address": "Adresle bağlan",
-      "servers_title": "Önerilen sunucular",
-      "servers_description": "Katıldığınız sunucuların önerileri. Sonuçlar sıralanmamıştır.",
       "recommended_by": "Önerenler: {servers}",
-      "more_recommenders_count": {
-        "other": "{count} tane daha"
-      },
-      "joined": "Katıldı",
       "join": "Katıl",
       "open": "Aç",
       "open_in_new_tab": "Yeni sekmede aç",
       "sign_in_unavailable": "Giriş kullanılamıyor",
       "profile_unavailable": "Bu sunucunun herkese açık profili yüklenemedi.",
-      "partial": "Katıldığınız bazı sunucular önerilerini sağlayamadı.",
+      "partial": "bazı sunucular önerilerini sağlayamadı.",
       "unavailable_title": "Dizin kullanılamıyor",
-      "unavailable_body": "Katıldığınız sunucular önerilerini sağlayamadı. Yine de doğrudan bağlanabilirsiniz.",
-      "empty_title": "Henüz önerilen sunucu yok",
-      "empty_body": "Yine de bir sunucu adresiyle doğrudan bağlanabilirsiniz."
+      "unavailable_body": "sunucular önerilerini sağlayamadı. Yine de doğrudan bağlanabilirsiniz."
     }
   }
 }

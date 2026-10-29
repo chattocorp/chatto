@@ -71,6 +71,34 @@ func TestResourceUpdateMaskCoverage(t *testing.T) {
 	require.Len(t, seen, len(updateMaskSpecs), "mask registry must contain only mounted resource updates")
 }
 
+func TestRoomMembershipEventsUpdateMask(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name  string
+		value *bool
+		mask  []string
+		want  *bool
+	}{
+		{"false", new(false), []string{"show_membership_events"}, new(false)},
+		{"reset", nil, []string{"show_membership_events"}, new(true)},
+		{"unselected", new(false), []string{"description"}, nil},
+		{"inferred", new(false), nil, new(false)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := &apiv1.UpdateRoomRequest{RoomId: "room", ShowMembershipEvents: test.value}
+			if test.mask != nil {
+				request.UpdateMask = &fieldmaskpb.FieldMask{Paths: test.mask}
+			}
+			masked, err := normalizeUpdateMask(request)
+			require.NoError(t, err)
+			require.Equal(t, test.want, masked.ShowMembershipEvents)
+			// Interceptor and handler both normalize; defaults must remain stable.
+			require.NoError(t, applyUpdateMask(masked))
+			require.Equal(t, test.want, masked.ShowMembershipEvents)
+		})
+	}
+}
+
 func TestUpdateMaskSelectionAndIsolation(t *testing.T) {
 	t.Parallel()
 

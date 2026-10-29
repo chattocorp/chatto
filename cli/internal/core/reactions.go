@@ -94,12 +94,10 @@ func (s *ReactionModel) addReaction(ctx context.Context, kind RoomKind, roomID, 
 // Returns true if the reaction was removed, false if it didn't exist.
 // Publishes a durable ReactionRemovedEvent after successful OCC write.
 func (s *ReactionModel) removeReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
-	emojiName, err := resolveEmojiInput(emojiInput)
-	if err != nil {
-		return false, err
-	}
-
-	messageEventID, err = s.core.canonicalReactionMessageEventID(roomID, messageEventID)
+	// Removal uses the persisted identity, including names no longer accepted
+	// for new reactions. An absent identity is an idempotent no-op.
+	emojiName := emojiInput
+	messageEventID, err := s.core.canonicalReactionMessageEventID(roomID, messageEventID)
 	if err != nil {
 		return false, err
 	}
@@ -289,9 +287,13 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 	if err := validateReactionMutationInput(input); err != nil {
 		return false, err
 	}
-	emojiName, err := resolveEmojiInput(input.Emoji)
-	if err != nil {
-		return false, err
+	emojiName := input.Emoji
+	// New names must be valid. Removal only targets the actor's exact stored
+	// identity, checked inside the authorized OCC decision below.
+	if add {
+		if _, err := resolveEmojiInput(emojiName); err != nil {
+			return false, err
+		}
 	}
 
 	var event *evtv1.Event

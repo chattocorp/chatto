@@ -143,6 +143,21 @@
           "description": "Use a interface escura neste navegador"
         }
       },
+      "animations": {
+        "title": "Animações",
+        "automatic": {
+          "label": "Automático",
+          "description": "Seguir a preferência do sistema por movimento reduzido"
+        },
+        "enabled": {
+          "label": "Ativadas",
+          "description": "Sempre mostrar animações"
+        },
+        "disabled": {
+          "label": "Desativadas",
+          "description": "Mostrar alterações sem animações"
+        }
+      },
       "thread_pane": {
         "title": "Painel da conversa",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Esta conta já possui uma senha."
       },
       "sso": {
+        "username_unavailable": "Não foi possível atribuir o nome de usuário do provedor de login. Entre em contato com o operador do servidor.",
+        "username_managed": "Seu nome de usuário é gerenciado pelo provedor de login e não pode ser alterado aqui.",
+        "unlink_disabled": "O operador do servidor não permite desvincular este provedor.",
         "popup_blocked": "Permita pop-ups para este site e tente vincular novamente.",
         "account_mismatch": "Entre na conta correta neste servidor e inicie a vinculação novamente pela janela original.",
         "provider_unavailable": "Este provedor de login não está mais disponível.",

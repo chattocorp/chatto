@@ -86,9 +86,9 @@ describe('UserIdentity', () => {
     expect(q(container, '[role="img"][aria-label="alice"]')).toBeTruthy();
   });
 
-  it('opens the shared profile from a clickable identity', async () => {
+  it('opens the shared profile on click by default', async () => {
     const { container } = render(UserIdentity, {
-      props: { user, openOnClick: true, size: 'xs', userContextMenuLoader }
+      props: { user, size: 'xs', userContextMenuLoader }
     });
     const button = q(container, 'button[data-testid="user-identity"]')!;
     await expect.element(button).toHaveAttribute('aria-haspopup', 'dialog');

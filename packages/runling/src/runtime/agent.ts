@@ -111,7 +111,8 @@ export interface AgentResourceOptions {
   /** Directory containing global pi configuration and resources. */
   agentDir?: string;
   extensions?: boolean;
-  skills?: boolean;
+  /** Default discovery unless false. An array loads only these paths, relative to cwd. */
+  skills?: boolean | string[];
   promptTemplates?: boolean;
   themes?: boolean;
   contextFiles?: boolean;
@@ -220,8 +221,9 @@ export interface RunAgentOptions {
 export type AgentOptions = Omit<RunAgentOptions, 'signal'>;
 
 export interface AgentRunOptions {
-  /** Receive completed assistant text during this interaction (not reasoning or tool output). */
-  onText?: (text: string) => void;
+  /** Receive completed assistant text (not reasoning or tool output). `hasToolCalls`
+   * identifies text before tool execution; it is not a guarantee that the turn has ended. */
+  onText?: (text: string, message: { hasToolCalls: boolean }) => void;
   /** Abort this model turn without disposing the agent. */
   signal?: AbortSignal;
 }
@@ -493,7 +495,8 @@ async function createRunlingAgent(
       ...(options.extensions ?? [])
     ],
     noExtensions: !extensionsEnabled,
-    noSkills: resources?.skills === false,
+    noSkills: resources?.skills === false || Array.isArray(resources?.skills),
+    ...(Array.isArray(resources?.skills) ? { additionalSkillPaths: resources.skills } : {}),
     noPromptTemplates: resources?.promptTemplates === false,
     noThemes: resources?.themes === false,
     noContextFiles: resources?.contextFiles === false,
@@ -827,7 +830,10 @@ async function createRunlingAgent(
           emitRunlingEvent({ type: 'agent.usage', agentId, usage: { ...usage } });
           agentLog.debug(`Tokens: ${formatTokenUsage(usage)}`);
           // A message that failed or was aborted can hold partial text; a retry follows.
-          if (finalText.trim() && !finalTextError) onText?.(finalText);
+          if (finalText.trim() && !finalTextError)
+            onText?.(finalText, {
+              hasToolCalls: event.message.content.some((part) => part.type === 'toolCall')
+            });
         }
       })
     );

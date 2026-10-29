@@ -398,6 +398,17 @@ calls, and similar room-specific panels can plug into the same shell. See the
       // Fullscreen can be denied by browser or OS policy; the regular pane still works.
     }
   }
+
+  /** Exit the current overlay level before closing the room extras pane. */
+  function backFromOverlay(): void {
+    if (isCallFullscreen) {
+      void toggleCallFullscreen();
+    } else if (activeProfileUserId && onBackToMembers) {
+      onBackToMembers();
+    } else {
+      onClose?.();
+    }
+  }
 </script>
 
 <svelte:document
@@ -429,8 +440,16 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {/if}
   <PaneHeader
     {title}
-    onBack={activeProfileUserId ? onBackToMembers : undefined}
-    backLabel={m('room.sidebar.members')}
+    onBack={presentation === 'overlay'
+      ? backFromOverlay
+      : activeProfileUserId
+        ? onBackToMembers
+        : undefined}
+    backLabel={isCallFullscreen
+      ? m('voice.exit_fullscreen_call')
+      : activeProfileUserId && onBackToMembers
+        ? m('room.sidebar.members')
+        : m('room.sidebar.hide')}
   >
     {#snippet actions()}
       {#if showMaximizeButton && !isCallFullscreen}
@@ -448,12 +467,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
           onclick={() => void toggleCallFullscreen()}
         />
       {/if}
-      <HeaderIconButton
-        icon="icon-[uil--times]"
-        label={isCallFullscreen ? m('voice.exit_fullscreen_call') : m('room.sidebar.hide')}
-        iconSize="lg"
-        onclick={() => (isCallFullscreen ? void toggleCallFullscreen() : onClose?.())}
-      />
+      {#if presentation === 'desktop'}
+        <HeaderIconButton
+          icon="icon-[uil--times]"
+          label={isCallFullscreen ? m('voice.exit_fullscreen_call') : m('room.sidebar.hide')}
+          iconSize="lg"
+          onclick={() => (isCallFullscreen ? void toggleCallFullscreen() : onClose?.())}
+        />
+      {/if}
     {/snippet}
   </PaneHeader>
 

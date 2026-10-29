@@ -11,6 +11,73 @@ const workflow = readFileSync(
   'utf8'
 ).replaceAll('\r\n', '\n');
 
+test('one protected job publishes built artifacts after server and desktop completion', () => {
+  const build = workflow.split('\n  build-server-release:\n')[1].split('\n  release:\n')[0];
+  const publish = workflow.split('\n  release:\n')[1].split('\n  publish-stable-docs:\n')[0];
+  const assemble = workflow
+    .split('\n  assemble-desktop-release:\n')[1]
+    .split('\n  build-server-release:\n')[0];
+  assert.equal(workflow.match(/environment: chatto-release/g)?.length, 1);
+  assert.match(publish, /environment: chatto-release/);
+  assert.match(publish, /needs: \[build-server-release, assemble-desktop-release\]/);
+  assert.ok(!publish.includes('always()'));
+  assert.match(build, /args: release --clean --skip=publish/);
+  for (const source of [build, assemble]) {
+    assert.ok(!source.includes('environment:'));
+    assert.ok(!source.includes('contents: write'));
+    assert.ok(!source.includes('packages: write'));
+    assert.ok(!source.includes('push: true'));
+    assert.ok(!source.includes('gh release upload'));
+    assert.ok(!source.includes('--draft=false'));
+  }
+  assert.match(assemble, /needs: build-desktop-release/);
+  assert.ok(!assemble.includes('always()'));
+  assert.ok(
+    assemble.indexOf('Generate desktop update manifests') <
+      assemble.indexOf('Upload desktop release verification')
+  );
+  assert.ok(publish.indexOf('Verify release archives') < publish.indexOf('Upload release assets'));
+  assert.ok(publish.indexOf('Upload release assets') < publish.indexOf('Publish release images'));
+  assert.ok(publish.indexOf('Publish release images') < publish.indexOf('Publish GitHub Release'));
+  assert.match(workflow, /publish-stable-docs:\n    needs: release\n/);
+});
+
+for (const [version, latest, serverTags, clientTags] of [
+  ['0.5.0-beta.24', 'false', ['0.5.0-beta.24', 'next'], ['0.5.0-beta.24', 'next']],
+  ['0.5.0', 'true', ['0.5.0', '0.5', 'latest'], ['0.5.0', 'latest']],
+  ['0.4.27', 'false', ['0.4.27', '0.4'], ['0.4.27']]
+]) {
+  test(`publishes both architectures and correct container tags for ${version}`, (t) => {
+    const result = runShell(t, `docker() { gh "$@"; }\n${shellStep('Publish release images')}`, {
+      VERSION: version,
+      PUSH_LATEST: latest
+    });
+    const expected = [];
+    for (const [repository, tags] of [
+      ['chatto', serverTags],
+      ['chatto-client', clientTags]
+    ]) {
+      const image = `ghcr.io/chattocorp/${repository}`;
+      expected.push(
+        `push ${image}:${version}-amd64`,
+        `push ${image}:${version}-arm64`,
+        `buildx imagetools create ${tags.map((tag) => `--tag ${image}:${tag}`).join(' ')} ${image}:${version}-amd64 ${image}:${version}-arm64`
+      );
+    }
+    assert.deepEqual(result.calls, expected);
+  });
+}
+
+test('a failed image push stops publication before GitHub release visibility changes', (t) => {
+  assert.throws(() =>
+    runShell(
+      t,
+      `docker() { return 1; }\n${shellStep('Publish release images')}\n${shellStep('Publish GitHub Release')}`,
+      { VERSION: '0.5.0', PUSH_LATEST: 'true', MAKE_LATEST: 'true' }
+    )
+  );
+});
+
 /** Extract a named shell step so tests exercise the actual publication commands. */
 function shellStep(name, source = workflow) {
   const step = source.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];

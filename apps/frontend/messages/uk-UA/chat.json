@@ -6,6 +6,13 @@
       "confirmation": "На 15 хвилин це ввімкне додаткові дозволи, призначені вам на цьому сервері."
     },
     "notifications": {
+      "all_notifications": "Усі сповіщення",
+      "all_types": "Усі типи",
+      "filter_status": "Стан",
+      "filter_type": "Тип",
+      "reactions": "Реакції",
+      "replies": "Відповіді",
+      "mentions": "Згадки",
       "next_unread_source": "Перейти до наступного непрочитаного джерела",
       "no_unread": "Немає непрочитаних сповіщень",
       "title": "Сповіщення",

@@ -143,6 +143,21 @@
           "description": "Använd det mörka gränssnittet i den här webbläsaren"
         }
       },
+      "animations": {
+        "title": "Animationer",
+        "automatic": {
+          "label": "Automatiskt",
+          "description": "Följ systemets inställning för minskad rörelse"
+        },
+        "enabled": {
+          "label": "Aktiverat",
+          "description": "Visa alltid animationer"
+        },
+        "disabled": {
+          "label": "Inaktiverat",
+          "description": "Visa ändringar utan animationer"
+        }
+      },
       "thread_pane": {
         "title": "Trådpanel",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Detta konto har redan ett lösenord."
       },
       "sso": {
+        "username_unavailable": "Användarnamnet från din inloggningsleverantör kan inte tilldelas. Kontakta serveroperatören.",
+        "username_managed": "Ditt användarnamn hanteras av din inloggningsleverantör och kan inte ändras här.",
+        "unlink_disabled": "Serveroperatören tillåter inte att den här leverantören kopplas bort.",
         "popup_blocked": "Tillåt popupfönster för denna webbplats och försök länka igen.",
         "account_mismatch": "Logga in på rätt konto på denna server och starta sedan länkningen igen från det ursprungliga fönstret.",
         "provider_unavailable": "Denna inloggningsleverantör är inte längre tillgänglig.",

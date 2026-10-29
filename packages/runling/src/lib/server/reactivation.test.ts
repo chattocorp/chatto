@@ -1,9 +1,12 @@
 /** Exercise explicit reactivation across persistence, concurrent routing, and old handles. */
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { afterEach, expect, test } from 'vitest';
-import { task, Type } from 'runling';
+import { afterEach, expect, test, vi } from 'vitest';
+import { log, task, Type } from 'runling';
 import { RunStore } from './run-store.ts';
+import { applyRecord, type RunDetail } from '../runs.ts';
+import { buildTimeline } from '../timeline.ts';
+import { runLogRows } from '../run-log.ts';
 
 const stores = new Set<RunStore>();
 const directories: string[] = [];
@@ -25,6 +28,66 @@ async function create(directory?: string) {
   await store.init();
   return store;
 }
+
+test('live, reconnected and restarted consoles retain every turn without duplicating journal history', async () => {
+  const release = Promise.withResolvers<void>();
+  const root = task(
+    { name: 'Turn', input: Type.Number(), result: Type.Number() },
+    async (ctx, input) => {
+      log.info(`Turn ${input}`);
+      ctx.recordUsage({ input: 2, output: 1, cacheRead: 0, cacheWrite: 0, cost: 0.1 });
+      if (input === 2) await release.promise;
+      return input;
+    }
+  );
+  let store = await create();
+  await store.restore({ root });
+  let browser: RunDetail | undefined;
+  const unsubscribe = store.subscribe((_id, record) => {
+    const copy = structuredClone(record);
+    browser = copy.type === 'started' ? copy.run : applyRecord(browser!, copy);
+  });
+  const first = await store.start('chat', root, 1, 'source');
+  await first.completion;
+  const initial = structuredClone(browser!);
+  const second = await store.start('chat', root, 2, 'source', first.id);
+  try {
+    await vi.waitFor(() =>
+      expect(browser?.events.some((e) => e.type === 'log' && e.message === 'Turn 2')).toBe(true)
+    );
+    expect(browser!.events.slice(0, initial.events.length)).toEqual(initial.events);
+    expect(browser!.startedAt).toBe(initial.startedAt);
+    expect(buildTimeline(browser!.events, 'running').map((node) => node.status)).toEqual([
+      'completed',
+      'running'
+    ]);
+    expect((await store.get(first.id))!.events).toEqual(browser!.events);
+  } finally {
+    release.resolve();
+  }
+  await second.completion;
+  const final = structuredClone(browser!);
+  expect(
+    runLogRows(final.events)
+      .filter((row) => /^Turn [12]$/.test(row.event.message))
+      .map((row) => row.event.message)
+  ).toEqual(['Turn 1', 'Turn 2']);
+  expect(final.usage).toMatchObject({ input: 4, output: 2, cost: 0.2 });
+  expect((await store.get(first.id))!.events).toEqual(final.events);
+  const records = (await readFile(resolve(store.directory, `${first.id}.jsonl`), 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  expect(
+    records.filter((record) => record.type === 'started').map((record) => record.run.events)
+  ).toEqual([[], []]);
+  unsubscribe();
+  await store.close();
+  stores.delete(store);
+  store = await create(store.directory);
+  expect((await store.get(first.id))!.events).toEqual(final.events);
+  expect((await store.get(first.id))!.durationMs).toBe(final.durationMs);
+});
 
 test('reactivates with fresh input and saved state, preserves history and usage, and stays closed on restart', async () => {
   const calls: number[] = [];

@@ -149,6 +149,17 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 			return nil, err
 		}
 		loginChanged = user.GetLogin() != nextLogin
+		// Clients may include an unchanged username when updating other fields.
+		// Provider management prevents renames, not full-profile submissions.
+		if actorID == userID && loginChanged {
+			managed, err := c.UsernameManaged(ctx, userID)
+			if err != nil {
+				return nil, err
+			}
+			if managed {
+				return nil, ErrUsernameManaged
+			}
+		}
 		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
 		if loginNeedsMentionCheck {
 			if c.configModel.IsUsernameBlocked(nextLogin) {
@@ -252,6 +263,9 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	}
 
 	checkUserExists := func() error {
+		if actorID == userID && loginChanged && c.usernameManaged(userID) {
+			return ErrUsernameManaged
+		}
 		if err := checkCooldown(); err != nil {
 			return err
 		}
@@ -420,6 +434,21 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 // true, the 30-day cooldown is checked before changing and a new timestamp is
 // recorded after a successful change.
 func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*readmodel.User, error) {
+	return c.applyLoginChangeChecked(ctx, actorID, userID, newLogin, enforceCooldown, nil)
+}
+
+// applyLoginChangeChecked rechecks an optional source policy under the same
+// user guard as the rename, so unlinking cannot race provider synchronization.
+func (c *ChattoCore) applyLoginChangeChecked(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool, check func() error) (*readmodel.User, error) {
+	if actorID == userID {
+		managed, err := c.UsernameManaged(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if managed {
+			return nil, ErrUsernameManaged
+		}
+	}
 	// Trim (preserve original casing).
 	newLogin = strings.TrimSpace(newLogin)
 
@@ -485,6 +514,14 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	}
 	if !caseOnly {
 		_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			if check != nil {
+				if err := check(); err != nil {
+					return err
+				}
+			}
+			if actorID == userID && c.usernameManaged(userID) {
+				return ErrUsernameManaged
+			}
 			if _, err := c.GetUser(ctx, userID); err != nil {
 				return fmt.Errorf("user not found: %w", err)
 			}
@@ -492,8 +529,23 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 		})
 	} else {
 		_, err = c.appendUserBatch(ctx, userID, entries, evtstream.UserSubjectFilter(), func() error {
-			if _, err := c.GetUser(ctx, userID); err != nil {
+			if check != nil {
+				if err := check(); err != nil {
+					return err
+				}
+			}
+			if actorID == userID && c.usernameManaged(userID) {
+				return ErrUsernameManaged
+			}
+			current, err := c.GetUser(ctx, userID)
+			if err != nil {
 				return fmt.Errorf("user not found: %w", err)
+			}
+			// The uniqueness exemption is valid only for the source username.
+			// Recheck after projection catch-up on every OCC attempt: another
+			// rename can release that name for a different account to claim.
+			if current.Login != user.Login {
+				return events.ErrConflict
 			}
 			return nil
 		})

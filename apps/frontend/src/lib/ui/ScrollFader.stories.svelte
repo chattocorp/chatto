@@ -242,6 +242,16 @@ fades use \`transition-opacity\` so the show/hide is animated.
   </div>
 </Story>
 
+<Story name="Transparent fade on hover" asChild>
+  <div class="h-48 rounded-xl bg-surface p-4 hover:bg-surface-emphasized">
+    <ScrollFader top bottom mask maskSize="1rem" scrollClass="max-h-40">
+      {#each Array(12) as _, i (i)}
+        <p class="py-2">Scrollable content {i + 1}</p>
+      {/each}
+    </ScrollFader>
+  </div>
+</Story>
+
 <Story name="Growing content" asChild>
   <div class="flex w-64 flex-col gap-3">
     <button

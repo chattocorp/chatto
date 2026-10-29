@@ -322,7 +322,7 @@ describe('CurrentUserBar', () => {
   it('uses the chosen presence instead of the first-login offline fallback', () => {
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
+    expect(q(container, '[title="Presence: Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
     const presenceDot = q(
       container,
@@ -339,7 +339,7 @@ describe('CurrentUserBar', () => {
 
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
+    expect(q(container, '[title="Presence: Online"]')).toBeTruthy();
     const presenceDot = q(
       container,
       '[data-testid="current-user-presence-menu"] [aria-label="Online"] span'
@@ -354,7 +354,7 @@ describe('CurrentUserBar', () => {
 
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
+    expect(q(container, '[title="Presence: Away"]')).toBeTruthy();
     const presenceDot = q(
       container,
       '[data-testid="current-user-presence-menu"] [aria-label="Away"] span'
@@ -384,8 +384,8 @@ describe('CurrentUserBar', () => {
 
     const { container } = render(CurrentUserBarTestHarness);
 
-    expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
-    expect(q(container, '[aria-label="Presence: Away"]')).toBeFalsy();
+    expect(q(container, '[title="Presence: Online"]')).toBeTruthy();
+    expect(q(container, '[title="Presence: Away"]')).toBeFalsy();
   });
 
   it('keeps the username line when display name and username match', () => {
@@ -483,7 +483,7 @@ describe('CurrentUserBar', () => {
     away.click();
 
     await vi.waitFor(() => {
-      expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
+      expect(q(container, '[title="Presence: Away"]')).toBeTruthy();
     });
     expect(presence.get('user-1')).toBe(PresenceStatus.AWAY);
   });

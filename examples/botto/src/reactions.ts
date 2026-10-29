@@ -17,7 +17,7 @@ export function reactionExtension(
       name: 'add_reaction',
       label: 'React to a message',
       description:
-        'Add an emoji reaction to a message in the current conversation context. The host handles initial acknowledgement; use this for meaningful additional reactions.',
+        'Add an emoji reaction to a message in the current conversation context. A reaction can be the whole response; do not add text just to explain it. Do not duplicate the host acknowledgement.',
       parameters: Type.Object({
         messageId: Type.String({ description: 'Message ID from the current context.' }),
         emoji: Type.String({

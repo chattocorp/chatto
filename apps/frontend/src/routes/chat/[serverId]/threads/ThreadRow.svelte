@@ -1,26 +1,19 @@
 <!-- @component One followed thread in My Threads. Presentational only: the page resolves names, excerpts, attention, and actions. -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import { ActivityListRow, UnreadDot } from '$lib/ui';
   import ActivityRowText from '$lib/components/ActivityRowText.svelte';
   import ActivityAvatar from '$lib/components/ActivityAvatar.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import AccountName from '$lib/components/users/AccountName.svelte';
   import { m } from '$lib/i18n/messages';
-
-  /** A message line: author name, when known, and a one-line excerpt. */
-  type MessageLine = { name: string; identity?: AccountNameIdentity | null; excerpt: string };
 
   let {
     participants,
-    latest,
-    root = null,
+    message,
     room,
     time,
-    replyCount,
     unread,
     attention,
     pending = false,
@@ -30,20 +23,16 @@
     onunfollow
   }: {
     /**
-     * Participant preview: the author of `latest` first, shown as the avatar,
+     * Participant preview: the root author first, shown as the avatar,
      * then optionally one other participant, shown in its badge.
      */
     participants: readonly UserAvatarUserView[];
-    /** Latest reply, or the root message when the thread has no reply. */
-    latest: MessageLine;
-    /** Root message context; set only when `latest` is a reply. */
-    root?: MessageLine | null;
+    /** Original thread message, including a fallback for unavailable content. */
+    message: string;
     /** Room or direct-message label. */
     room: Snippet;
-    /** Formatted time of the latest activity. */
+    /** Formatted activity or creation time, matching the selected sort order and day section. */
     time: string;
-    /** Localized reply count label. */
-    replyCount: string;
     /** The thread has unread replies. */
     unread: boolean;
     /** Unread notification attention for this thread. */
@@ -59,27 +48,18 @@
   const second = $derived(participants[1]);
 </script>
 
-{#snippet messageLine(line: MessageLine, nameClass: string)}
-  {#if line.name}<span class={nameClass}
-      ><AccountName name={line.name} identity={line.identity} /></span
-    >: {line.excerpt}{:else}{line.excerpt}{/if}
-{/snippet}
-
 {#snippet secondAvatar()}
   {#if second}<UserAvatar user={second} size="xs" />{/if}
 {/snippet}
 
-{#snippet context()}
-  <span class="font-medium">{@render room()}</span>
-  {#if root}· {@render messageLine(root, '')}{/if}
-{/snippet}
-
 <ActivityListRow
+  compact
+  overlayActions
   {pending}
   disabled={pending}
-  important={attention === NotificationAttentionLevel.IMPORTANT}
   onclick={onopen}
   rowAttributes={{
+    class: '@container/activity',
     'data-testid': 'my-thread-item',
     'data-thread-state': unread ? 'unread' : 'read',
     'data-thread-attention':
@@ -91,36 +71,36 @@
   }}
 >
   {#snippet leading()}
-    <ActivityAvatar actor={participants[0] ?? null} badge={second ? secondAvatar : undefined}>
-      {#snippet indicator()}
-        {#if hasAttention || unread}
-          <UnreadDot
-            color={attention === NotificationAttentionLevel.IMPORTANT ? 'warning' : 'ambient'}
-            overlay
-            testid={hasAttention ? 'thread-attention-dot' : 'thread-unread-dot'}
-          />
-        {/if}
-      {/snippet}
-    </ActivityAvatar>
+    <span class="self-start">
+      <ActivityAvatar
+        size="sm"
+        actor={participants[0] ?? null}
+        badge={second ? secondAvatar : undefined}
+      >
+        {#snippet indicator()}
+          {#if hasAttention || unread}
+            <UnreadDot
+              color="ambient"
+              overlay
+              testid={hasAttention ? 'thread-attention-dot' : 'thread-unread-dot'}
+            />
+          {/if}
+        {/snippet}
+      </ActivityAvatar>
+    </span>
   {/snippet}
 
   {#if unread}<span class="sr-only">{m('chat.threads.filter_unread')}</span>{/if}
   {#if hasAttention}<span class="sr-only">{m('room_list.notifications', { count: 1 })}</span>{/if}
-  <ActivityRowText
-    {time}
-    trailing={replyCount}
-    emphasized={unread}
-    subtitle={context}
-    testId="thread-content"
-  >
+  <ActivityRowText overlayActions={2} {time} emphasized={unread} testId="thread-content">
     {#snippet title()}
-      {@render messageLine(latest, unread ? '' : 'font-medium')}
+      {message}
     {/snippet}
+    {#snippet location()}<bdi dir="auto">{@render room()}</bdi>{/snippet}
   </ActivityRowText>
 
   {#snippet actions()}
-    <!-- Keep metadata aligned when Mark as read is unavailable. -->
-    <div class="flex w-20 justify-end">
+    <div class="flex justify-end">
       {#if canMarkRead}
         <button
           type="button"

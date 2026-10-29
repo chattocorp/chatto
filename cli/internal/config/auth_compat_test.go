@@ -33,6 +33,10 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_SCOPES", "openid, profile, groups")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL", "false")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION", "true")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_MANAGE_USERNAMES", "true")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_UPDATE_USERNAMES", "true")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ALLOW_UNLINKING", "false")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_USERNAME_CLAIM", "handle")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ALLOWED_GROUPS", "chat-users, admins")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_GROUPS_CLAIM", "roles")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_GROUP_ROLES", "chat-mods:moderator it-ops:admin")
@@ -56,6 +60,9 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	}
 	if got := cfg.Auth.Providers[0]; got.RequestEmail == nil || *got.RequestEmail {
 		t.Fatalf("Auth.Providers[0].RequestEmail = %v, want false", got.RequestEmail)
+	}
+	if got := cfg.Auth.Providers[0]; !got.ManageUsernames || !got.UpdateUsernames || got.AllowUnlinking == nil || *got.AllowUnlinking || got.UsernameClaim != "handle" {
+		t.Fatal("provider account policy did not load from environment")
 	}
 	if got := cfg.Auth.Providers[0]; got.AutoProvision == nil || !*got.AutoProvision {
 		t.Fatalf("Auth.Providers[0].AutoProvision = %v, want true", got.AutoProvision)

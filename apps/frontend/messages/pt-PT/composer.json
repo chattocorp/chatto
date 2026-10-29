@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Inserir emoji",
     "attach_file": "Anexar ficheiro",
     "formatting_options": "Opções de formatação",
     "send": "Enviar mensagem",

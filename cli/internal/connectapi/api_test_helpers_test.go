@@ -139,6 +139,10 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 
 // Larger fixtures can select a bounded lifecycle that also fits race-enabled runs.
 func newConnectAPITestEnvWithTimeout(t *testing.T, timeout time.Duration) *connectAPITestEnv {
+	return newConnectAPITestEnvWithAuth(t, timeout, config.AuthConfig{})
+}
+
+func newConnectAPITestEnvWithAuth(t *testing.T, timeout time.Duration, auth config.AuthConfig) *connectAPITestEnv {
 	t.Helper()
 
 	// Each environment owns its broker and event log. A shared broker reset
@@ -151,6 +155,7 @@ func newConnectAPITestEnvWithTimeout(t *testing.T, timeout time.Duration) *conne
 	t.Cleanup(cancel)
 
 	c, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
+		AuthProviders: auth.Providers,
 		SecretKey:     "test-core-secret",
 		ServerOrigins: []string{"https://self.example"},
 		Assets: config.AssetsConfig{
@@ -166,7 +171,7 @@ func newConnectAPITestEnvWithTimeout(t *testing.T, timeout time.Duration) *conne
 	if err != nil {
 		t.Fatalf("CreateUser viewer: %v", err)
 	}
-	api := New(c, config.ChattoConfig{}, "test")
+	api := New(c, config.ChattoConfig{Auth: auth}, "test")
 	return &connectAPITestEnv{
 		ctx:                  ctx,
 		core:                 c,

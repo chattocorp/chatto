@@ -31,6 +31,8 @@ export interface RunSummary {
   pid?: number;
   status: RunStatus;
   startedAt: number;
+  /** Console projection only: current execution start when startedAt covers the full history. */
+  executionStartedAt?: number;
   finishedAt?: number;
   durationMs?: number;
   /** Total usage across all execution attempts. */

@@ -111,6 +111,15 @@ func TestArchiveHistoryRules(t *testing.T) {
 			events[7]["data"].(map[string]any)["reactions"] = []any{map[string]any{"emoji": "❤️", "user_ids": []string{"missing"}}}
 			return events
 		}, "unknown reactor reference"},
+		{"unknown membership reactor", func(events []map[string]any) []map[string]any {
+			events[0]["data"].(map[string]any)["reactions"] = []any{map[string]any{"emoji": "wave", "user_ids": []string{"missing"}}}
+			return events
+		}, "unknown reactor reference"},
+		{"duplicate membership reaction", func(events []map[string]any) []map[string]any {
+			r := map[string]any{"emoji": "wave", "user_ids": []string{"user-2"}}
+			events[0]["data"].(map[string]any)["reactions"] = []any{r, r}
+			return events
+		}, "duplicate reaction group"},
 		{"future event", func(events []map[string]any) []map[string]any {
 			events[0]["occurred_at"] = "2099-01-01T00:00:00Z"
 			return events

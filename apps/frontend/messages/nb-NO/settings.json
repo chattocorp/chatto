@@ -143,6 +143,21 @@
           "description": "Bruk det mørke grensesnittet på denne nettleseren"
         }
       },
+      "animations": {
+        "title": "Animasjoner",
+        "automatic": {
+          "label": "Automatisk",
+          "description": "Følg systemets innstilling for redusert bevegelse"
+        },
+        "enabled": {
+          "label": "Aktivert",
+          "description": "Vis alltid animasjoner"
+        },
+        "disabled": {
+          "label": "Deaktivert",
+          "description": "Vis endringer uten animasjoner"
+        }
+      },
       "thread_pane": {
         "title": "Trådpanel",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Denne kontoen har allerede et passord."
       },
       "sso": {
+        "username_unavailable": "Brukernavnet fra innloggingsleverandøren kan ikke tildeles. Kontakt serveroperatøren.",
+        "username_managed": "Brukernavnet ditt administreres av innloggingsleverandøren og kan ikke endres her.",
+        "unlink_disabled": "Serveroperatøren tillater ikke at denne leverandøren kobles fra.",
         "popup_blocked": "Tillat sprettoppvinduer for dette nettstedet, og prøv å koble til igjen.",
         "account_mismatch": "Logg inn på riktig konto på denne serveren, og start koblingen på nytt fra det opprinnelige vinduet.",
         "provider_unavailable": "Denne innloggingsleverandøren er ikke lenger tilgjengelig.",

@@ -276,13 +276,17 @@ func (x *ImportMessageResponse) GetMessageId() string {
 // No source reaction time is required; the event time records the import.
 type ImportReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Active channel containing the message.
+	// Active channel containing the target event.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Message or channel echo ID. Echoes resolve to their original reply.
+	// Message, channel echo, room join, or room leave event ID.
+	// Echoes resolve to their original reply.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Existing user shown as the reactor.
 	UserId string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Supported emoji shortcode, such as heart.
+	// Case-sensitive reaction name: 1–128 ASCII letters, digits, underscores,
+	// plus signs, or hyphens, without surrounding colons. Known emoji also accept
+	// valid Slack-style suffixes, such as thumbsup::skin-tone-4, within the same
+	// length limit. Unknown plain names are stored unchanged.
 	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -447,12 +451,12 @@ func (x *HistoricalMessageEdit) GetAttachmentAssetIds() []string {
 	return nil
 }
 
-// Historical reaction transition. The emoji can be a Unicode sequence or shortcode.
+// Historical reaction transition. Accepts a supported Unicode sequence or reaction name.
 type HistoricalReactionChange struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Mapped reactor account.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Supported Unicode sequence or shortcode.
+	// Supported Unicode sequence or reaction name. Unknown names are stored unchanged.
 	Emoji string `protobuf:"bytes,2,opt,name=emoji,proto3" json:"emoji,omitempty"`
 	// True adds the reaction; false removes it.
 	Present       bool `protobuf:"varint,3,opt,name=present,proto3" json:"present,omitempty"`

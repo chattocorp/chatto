@@ -4,6 +4,7 @@
 
 <script lang="ts">
   import ComposerStatusRow from './ComposerStatusRow.svelte';
+  import ComposerShortcutHints from './ComposerShortcutHints.svelte';
   import SlowModeBadge from './SlowModeBadge.svelte';
   import { createMessageAPI } from '@chatto/client/api/messages';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -236,6 +237,7 @@
     }
   }}
 >
+  <ComposerShortcutHints disabled={composer.inputDisabled} />
   <ComposerLinkPreview state={composer.linkPreviews} />
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
@@ -301,7 +303,7 @@
         class={[
           'grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-1',
           !expandedDraft &&
-            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:mobile-presentation:items-center'
+            '@min-[560px]/composer:flex @min-[560px]/composer:items-end @min-[560px]/composer:comfortable-density:items-center'
         ]}
       >
         {#if composer.autocomplete.emoji}
@@ -326,10 +328,8 @@
         {/if}
 
         <CompactActionButton
-          wrapperClass={[
-            'mobile-presentation:pill-button-group-touch',
-            !expandedDraft && '@min-[560px]/composer:desktop-presentation:mb-1'
-          ]}
+          touchFriendly
+          wrapperClass={expandedDraft ? undefined : '@min-[560px]/composer:compact-density:mb-1'}
           label={m('composer.formatting_options')}
           type="button"
           onpointerdown={(event) => event.preventDefault()}
@@ -380,6 +380,7 @@
         </div>
 
         <ComposerToolbar
+          serverId={serverScope.serverId}
           editorApi={composer.editorApi}
           inputDisabled={composer.inputDisabled}
           {canAttach}

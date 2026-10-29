@@ -8,9 +8,11 @@ Formatting commands live in `ComposerFormattingToolbar`.
   import { CompactActionButton } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import ComposerTimestampPicker from './ComposerTimestampPicker.svelte';
+  import ComposerEmojiPicker from './ComposerEmojiPicker.svelte';
   import type { ComposerEditorApi } from './editorTypes';
 
   let {
+    serverId,
     editorApi,
     inputDisabled,
     canAttach,
@@ -28,6 +30,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
     onToggleAlsoSendToChannel = () => {},
     onsubmit
   }: {
+    serverId: string;
     editorApi: ComposerEditorApi | null;
     inputDisabled: boolean;
     canAttach: boolean;
@@ -48,13 +51,13 @@ Formatting commands live in `ComposerFormattingToolbar`.
 </script>
 
 <div
-  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap @min-[560px]/composer:desktop-presentation:mb-1"
+  class="flex min-w-0 flex-wrap items-center justify-end gap-1 @min-[560px]/composer:shrink-0 @min-[560px]/composer:flex-nowrap @min-[560px]/composer:compact-density:mb-1"
   data-testid="composer-action-toolbar"
 >
-  <div class="flex items-center gap-0.5">
+  <div class="flex max-w-full flex-wrap items-center justify-end gap-0.5">
     {#if !isEditing && canAttach}
       <CompactActionButton
-        wrapperClass="mobile-presentation:pill-button-group-touch"
+        touchFriendly
         label={m('composer.attach_file')}
         type="button"
         onclick={() => fileInputElement?.click()}
@@ -65,6 +68,7 @@ Formatting commands live in `ComposerFormattingToolbar`.
       </CompactActionButton>
     {/if}
 
+    <ComposerEmojiPicker {serverId} disabled={inputDisabled} {editorApi} />
     <ComposerTimestampPicker disabled={inputDisabled} {editorApi} {effectiveTimezone} />
   </div>
 
@@ -73,8 +77,8 @@ Formatting commands live in `ComposerFormattingToolbar`.
   >
     {#if showCreateThread}
       <CompactActionButton
-        wrapperClass="mobile-presentation:pill-button-group-touch"
-        label={m('composer.post_as_thread')}
+        touchFriendly
+        label={`${m('composer.thread_label')}: ${m('composer.post_as_thread')}`}
         type="button"
         onpointerdown={(event) => event.preventDefault()}
         onclick={onToggleCreateThread}
@@ -94,12 +98,12 @@ Formatting commands live in `ComposerFormattingToolbar`.
 
     {#if showAlsoSendToChannel}
       <CompactActionButton
-        wrapperClass="mobile-presentation:pill-button-group-touch"
-        label={m(
+        touchFriendly
+        label={`${m('composer.echo_label')}: ${m(
           echoToConversation
             ? 'composer.also_send_to_conversation'
             : 'composer.also_send_to_channel'
-        )}
+        )}`}
         type="button"
         onpointerdown={(event) => event.preventDefault()}
         onclick={onToggleAlsoSendToChannel}
@@ -120,8 +124,8 @@ Formatting commands live in `ComposerFormattingToolbar`.
       </CompactActionButton>
     {/if}
     <CompactActionButton
-      wrapperClass="mobile-presentation:pill-button-group-touch"
-      label={m('composer.send')}
+      touchFriendly
+      label={`${m('composer.send_label')}: ${m('composer.send')}`}
       type="button"
       onpointerdown={(event) => event.preventDefault()}
       onclick={onsubmit}

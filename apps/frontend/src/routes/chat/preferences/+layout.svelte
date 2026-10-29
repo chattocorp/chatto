@@ -62,7 +62,7 @@
     <SidebarNav title={m('settings.app_preferences.title')} items={navItems} />
   </ServerSidebar>
 
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-navigation-content>
     {@render children?.()}
   </div>
 {/if}

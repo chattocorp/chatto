@@ -16,8 +16,28 @@ durable namespace on every launch. Electron does not intercept ordinary HTTP
 or HTTPS traffic, so requests to Chatto servers use Chromium's normal network
 stack.
 
-The official desktop origin is accepted by Chatto's OAuth redirect policy. The
-desktop shell uses Electron's ordinary popup support for the same PKCE and
+Desktop shows a password form inside the selected server's view. Its narrow
+preload capability submits the password to that server's `/auth/login`
+endpoint and installs the returned renewable bearer session. It requires
+HTTPS except for loopback development servers and does not follow redirects.
+These are programmatic password sessions, without OAuth client grants. The
+web frontend continues to use OAuth for remote login.
+
+Configured SSO buttons appear above the password form. Each button starts
+Chatto OAuth with the selected provider ID; the Chatto server validates that
+ID and starts its configured provider flow. Older servers can show their
+normal login page instead. Password-disabled servers show the provider
+buttons without a password form.
+
+**Create account** opens server-hosted registration when direct registration
+is enabled. Email-code verification and account creation stay in the
+authorization window. After consent, Desktop receives the new session and
+opens the server. Older servers can show their login page first.
+
+**Continue in the browser** opens the server's page for external providers,
+registration, and password recovery. The official desktop origin is accepted
+by Chatto's OAuth redirect policy. The desktop shell uses Electron's ordinary
+popup support for the same PKCE and
 `BroadcastChannel` flow as a browser. Chatto 0.5 servers recognize the built-in
 `chatto://desktop` client identity and exact callback; bearer-authenticated API
 and realtime access requires no server origin configuration.
@@ -32,17 +52,86 @@ mise desktop-dev
 
 The task builds the shared frontend and opens it in Electron. Electron stores
 the default session beneath the platform's application-data directory for
-`Chatto Desktop`; the shell writes no separate credentials or settings file.
+`Chatto Desktop`. The shell stores update preferences separately in
+`updates.json` within this profile. This file contains no account credentials.
 
 ## Verify and build
+
+### macOS installation
+
+Download `chatto-desktop_<version>_macOS_ARM64.dmg` from the Chatto release.
+Open the disk image and drag **Chatto Desktop** to **Applications**. Eject the
+disk image, then open the app from Applications. Release disk images and apps
+are Developer ID signed and notarised. The ZIP download remains available.
+
+Use the **Updates** menu to check, select Stable or Beta, and restart to install.
+Registrations, sessions, and preferences remain in the existing profile.
+Older builds without this menu need one manual replacement. Moving the app to the Trash does not erase that
+profile or sign out registered servers.
+
+### Desktop updates
+
+Tagged macOS apps, Windows NSIS installations, and Linux AppImages use
+`electron-updater` with the public `chattocorp/chatto` GitHub releases. Windows
+ZIP and Linux tarball installations remain manual. Local builds and manual CI
+verification builds do not check for updates.
+
+Prerelease builds default to Beta; stable builds default to Stable. A saved
+channel choice takes precedence. Beta includes beta and subsequent stable
+releases. Switching to Stable does not downgrade an installed beta. Automatic
+checks start 30 seconds after launch and repeat every 30 minutes. Stable
+updates roll out over 36 hours; manual checks and Beta bypass this delay.
+Users can disable automatic checks and downloads in the Updates menu.
+Installation requires **Restart to Update** and confirmation. An ordinary quit
+does not install an update. The frontend stays bundled and startup uses local files.
+
+GitHub receives the user's IP address and update requests. The updater sends
+no Chatto account or connected-server information. The **About Updates** menu
+explains this connection. Downloads use full archives with SHA-512 checksums;
+macOS and Windows also verify application signatures. Linux AppImage updates
+trust HTTPS and the GitHub release manifest, without a separate publisher signature.
+
+The release workflow collects all three update artifacts before it generates
+the channel manifests. It uploads these to the existing draft release. Only
+`finalize-release`, after both server and desktop jobs succeed, makes the release
+public. Signing or packaging failures keep the release in draft. Rerun failed
+jobs against the same tag before publication. Do not replace published update
+artifacts; ship a new version instead.
+
+Before the first updater release, verify an installed signed build updating
+to a newer signed build on macOS and Windows, and an AppImage updating on Linux.
+Check stable/beta selection, signature rejection, failed downloads, retained
+sessions, and restart during a call. Existing installations need one manual
+upgrade to obtain the updater.
+
+After `mise desktop-build` on macOS, create a local disk image with:
+
+```sh
+mise x -- pnpm --filter chatto-desktop build:macos-dmg
+bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+```
+
+The output is in `apps/desktop/dist/dmg/`. Local and PR disk images are unsigned.
+The release workflow adds `--release` to sign, notarise, staple, and validate
+the disk image with the existing macOS release credentials. It preserves the
+app's existing signature and notarisation ticket. CI mounts the image, copies
+the app to a temporary folder, and checks the copied signature and native helper.
+
+Before release, test a signed DMG downloaded through a browser on a clean Mac
+with Gatekeeper enabled. Check installation, launch, login, microphone, camera,
+and screen sharing. Also replace an existing installation and confirm that
+registrations and sessions remain available. The automated copy check does not
+replace these interactive checks.
 
 ### Windows installation
 
 Download `chatto-desktop_<version>_Windows_X64_Setup.exe` from the Chatto release
 and run it. The installer installs for the current Windows user without
-administrator rights and adds a **Chatto Desktop** Start menu shortcut. Run a
-newer installer to update the application. Automatic updates are not available.
-Close Chatto Desktop before an update.
+administrator rights and adds a **Chatto Desktop** Start menu shortcut.
+Use **Updates → Release Channel** to select Stable or Beta, and the **Updates**
+menu to check for updates and restart to install them. If an older installation
+has no Updates menu, close Chatto Desktop and run a newer installer once.
+ZIP copies do not support automatic updates.
 
 The installer uses the same profile as the ZIP application. Existing server
 registrations and sessions remain available. Quit the ZIP application before
@@ -349,7 +438,7 @@ is sandboxed.
 
 ## Prototype boundaries
 
-This scaffold does not yet provide auto-update, OS deep links, macOS or Linux installers, or
+This scaffold does not yet provide OS deep links, Linux distro packages, or
 end-to-end desktop tests. Some identity providers
 reject authentication inside embedded user agents, so a system-browser OAuth
 handoff may still be required before treating this as a general release.

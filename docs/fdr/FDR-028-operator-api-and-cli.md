@@ -43,6 +43,7 @@ The Operator API gives server operators local, root-equivalent user administrati
 - `--create-thread` establishes an empty thread on the imported root. `--thread-id` takes the root message ID, places a reply in its thread, and establishes the thread if necessary. These options are mutually exclusive. A root must be a message in the same room, not a reply or channel echo. Imports preserve source placement independently of the room's interactive threading mode. They do not create channel echoes.
 - `--deleted` imports a native tombstone atomically, without a stored body. Body, attachments, preview, and edit time must be absent. Source creation time and author are retained; the retraction records import time, not an unknown source deletion time. The retraction uses ordinary live delivery and reconnect replay. Historical replies may target deleted roots. Retries use the same bounded identity reservation, and deleted state is part of the request fingerprint. No temporary visible placeholder or later cleanup is required.
 - `chatto operator message import-reaction` records an existing user as the reactor on a channel message or thread reply, including a deleted message. Reactions remain visible on native tombstones. Channel echoes resolve to their original reply. Repeating the same user/message/emoji succeeds without another reaction fact, including concurrent requests. The import bypasses membership and interactive reaction-count limits, but requires an active channel, existing user, valid message, and supported emoji. It does not notify users or send live reaction frames. The event time is the import time; the command does not invent a source reaction time.
+- `import-reaction` also accepts individual room join and leave event IDs. The same retry and historical suppression rules apply. These reactions are stored for import fidelity; the public timeline API and bundled frontend do not expose them. The interchange archive format does not yet support these targets.
 - Historical message facts do not create notifications, unread activity, thread follows, webhook deliveries, or live message-post frames. Projections retain this rule during replay. With `--idempotency-key UUID`, exact retries return the same message ID within a fixed 30-minute window. Changed arguments conflict; retries do not extend the window. Without a key, each success creates a new message. Import scripts own source mappings and must stop uncertain retries before expiry.
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
@@ -52,9 +53,27 @@ The Operator API gives server operators local, root-equivalent user administrati
   seed select the dataset. Room membership varies. Joins and some leaves occur
   between messages; authors are current members. Each room keeps at least one
   member. The manifest lists final generated members. Activity is ordered
-  without artificial waits or backdated timestamps.
+  without artificial waits or backdated timestamps by default. Optional
+  notification fixtures add historical mentions, replies, and reactions for an
+  existing login over 1–30 days. They include message targets, room membership,
+  followed reply threads, and mixed read states. They use in-app delivery only.
   Accounts have no password or owner role. JSON output provides the created IDs
   and content for later operations and test assertions.
+- `mise seed -- --avatar-dir PATH` optionally reads JPEG, PNG, and WebP files
+  in filename order and cycles them across generated users. The image pool is
+  limited to 50 files and 512 KiB in total after the CLI converts them to avatar
+  size. Input files use the normal image upload limit. Images use normal Chatto avatar
+  storage. This local-file mode makes no requests to external image providers.
+  Image headers are checked before seeding; a later decode or storage failure
+  can still leave a partial dataset.
+- `--pravatar` is an alternative to `--avatar-dir`. Before seeding, the CLI
+  downloads up to 20 portraits from `i.pravatar.cc`, with bounded response sizes,
+  a request timeout, and HTTPS redirects restricted to that host. Keys contain
+  only the seed and image index. The provider receives these keys and the CLI's
+  source IP address; no account names or credentials are sent. Larger datasets
+  cycle the pool. Downloads must succeed before writes start, without automatic
+  retries. Images are stored in Chatto, so clients do not contact Pravatar.
+  Seeding without either avatar option has no image-provider requests.
 - A pinned data generator supplies natural names, room topics, and text. Visible
   resources contain no dataset labels or message markers. Tests use IDs and
   content from the manifest. Existing name collisions receive numeric suffixes.

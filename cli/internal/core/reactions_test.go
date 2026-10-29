@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -120,7 +121,7 @@ func TestReactionModel_AddReactionWrite(t *testing.T) {
 	})
 
 	t.Run("add reaction with invalid input", func(t *testing.T) {
-		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "not_valid", user.Id)
+		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, ":invalid:", user.Id)
 		if err == nil {
 			t.Error("Expected error for invalid emoji input")
 		}
@@ -521,10 +522,10 @@ func TestReactionModel_RemoveReactionWrite(t *testing.T) {
 		}
 	})
 
-	t.Run("remove reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
-		if err == nil {
-			t.Error("Expected error when removing reaction with Unicode emoji")
+	t.Run("remove uses exact stored identity without converting unicode", func(t *testing.T) {
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
+		if err != nil || removed {
+			t.Errorf("unstored identity must be a no-op: %v, %v", removed, err)
 		}
 	})
 }
@@ -858,7 +859,7 @@ func TestEmoji(t *testing.T) {
 	t.Parallel()
 
 	t.Run("IsValidUnicodeEmoji accepts one complete emoji", func(t *testing.T) {
-		valid := []string{"🌿", "👍", "🇩🇪", "👨‍👩‍👧‍👦"}
+		valid := []string{"🌿", "👍", "🇩🇪", "👨‍👩‍👧‍👦", "👍🏽", "👩🏾‍⚕️", "✌🏿", "👩🏻‍🤝‍👨🏿"}
 		for _, emoji := range valid {
 			if !IsValidUnicodeEmoji(emoji) {
 				t.Errorf("IsValidUnicodeEmoji(%q) = false, want true", emoji)
@@ -867,28 +868,10 @@ func TestEmoji(t *testing.T) {
 	})
 
 	t.Run("IsValidUnicodeEmoji rejects text and multiple emoji", func(t *testing.T) {
-		invalid := []string{"", "e", "hello", "🌿🌿", "🌿 status"}
+		invalid := []string{"", "e", "hello", "🌿🌿", "🌿 status", "❤️🏽", "👩‍⚕️🏽", "👍🏽🏾"}
 		for _, emoji := range invalid {
 			if IsValidUnicodeEmoji(emoji) {
 				t.Errorf("IsValidUnicodeEmoji(%q) = true, want false", emoji)
-			}
-		}
-	})
-
-	t.Run("IsValidEmojiName accepts known names", func(t *testing.T) {
-		valid := []string{"thumbsup", "+1", "heart", "joy", "tada", "rocket", "fire", "grinning", "t-rex", "melting_face", "saluting_face"}
-		for _, name := range valid {
-			if !IsValidEmojiName(name) {
-				t.Errorf("Expected %q to be valid", name)
-			}
-		}
-	})
-
-	t.Run("IsValidEmojiName rejects unknown names", func(t *testing.T) {
-		invalid := []string{"invalid", "foobar", "not_an_emoji", ""}
-		for _, name := range invalid {
-			if IsValidEmojiName(name) {
-				t.Errorf("Expected %q to be invalid", name)
 			}
 		}
 	})
@@ -911,11 +894,123 @@ func TestEmoji(t *testing.T) {
 	})
 
 	t.Run("resolveEmojiInput rejects invalid input", func(t *testing.T) {
-		_, err := resolveEmojiInput("totally_bogus")
-		if err == nil {
-			t.Error("Expected error for invalid input")
+		for _, input := range []string{"", ":heart:", "two words", " foo", "foo.", "foo/bar", "é", "<img>", strings.Repeat("a", 129), "heart::skin-tone-4", "wave::skin-tone-1", "wave::skin-tone-7", "wave::skin-tone-4::skin-tone-5", "custom::skin-tone-4"} {
+			if _, err := resolveEmojiInput(input); err == nil {
+				t.Errorf("Expected error for invalid input %q", input)
+			}
 		}
 	})
+
+	t.Run("resolveEmojiInput preserves names without catalogue lookup", func(t *testing.T) {
+		for _, input := range []string{"Party_Parrot", "custom-party", "+1", "thumbsup", strings.Repeat("a", 128), "thumbsup::skin-tone-4", "+1::skin-tone-4", "woman_health_worker::skin-tone-2", "couple::skin-tone-2-6"} {
+			name, err := resolveEmojiInput(input)
+			if err != nil || name != input {
+				t.Errorf("resolveEmojiInput(%q) = %q, %v", input, name, err)
+			}
+		}
+		for name := range emojiNameToUnicode {
+			if !IsValidReactionName(name) {
+				t.Errorf("previously supported name rejected: %q", name)
+			}
+		}
+	})
+}
+
+func TestHistoricalReactionCanBeReadAndRemoved(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, messageID := setupReactionTest(t, c, ctx)
+	const historicalName = "couple::skin-tone-2::skin-tone-6"
+	input := ReactionMutationInput{ActorID: user.Id, RoomID: room.Id, MessageEventID: messageID, Emoji: historicalName}
+	if _, err := c.ReactionModel().AddReaction(ctx, input); err == nil {
+		t.Fatal("current writes must reject the historical syntax")
+	}
+	// Replay the exact stored name; do not change current write validation.
+	event := newReactionAddedEvent(user.Id, room.Id, messageID, historicalName)
+	subject := evtstream.RoomAggregate(room.Id).SubjectFor(event)
+	seq, err := c.EventPublisher.AppendEventually(ctx, subject, event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.roomModel.waitForReactions(ctx, events.SubjectPosition(subject, seq)); err != nil {
+		t.Fatal(err)
+	}
+	page, err := c.RoomTimelineReads().ListReactionUsers(ctx, user.Id, room.Id, messageID, historicalName, 50, 0)
+	if err != nil || len(page.UserIDs) != 1 || page.UserIDs[0] != user.Id || page.TotalCount != 1 {
+		t.Fatalf("historical reaction users: %v, %v", page, err)
+	}
+	page, err = c.RoomTimelineReads().ListReactionUsers(ctx, user.Id, room.Id, messageID, "couple::skin-tone-2-6", 50, 0)
+	if err != nil || page.TotalCount != 0 {
+		t.Fatalf("lookup must not merge distinct names: %v, %v", page, err)
+	}
+	if _, err := c.RoomTimelineReads().ListReactionUsers(ctx, user.Id, room.Id, messageID, "heart::skin-tone-4", 50, 0); err == nil {
+		t.Fatal("unstored invalid names must still be rejected")
+	}
+	other, err := c.CreateUser(ctx, SystemActorID, "other-reactor", "Other", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherInput := input
+	otherInput.ActorID = other.Id
+	if _, err := c.ReactionModel().RemoveReaction(ctx, otherInput); err == nil {
+		t.Fatal("historical names must not bypass room authorization")
+	}
+	if _, err := c.JoinRoom(ctx, other.Id, KindChannel, other.Id, room.Id); err != nil {
+		t.Fatal(err)
+	}
+	if removed, err := c.ReactionModel().RemoveReaction(ctx, otherInput); err != nil || removed {
+		t.Fatalf("another member must not remove the original actor's reaction: %v, %v", removed, err)
+	}
+	for i := range 2 {
+		removed, err := c.ReactionModel().RemoveReaction(ctx, input)
+		if err != nil || removed != (i == 0) {
+			t.Fatalf("historical removal attempt %d: %v, %v", i, removed, err)
+		}
+	}
+	if reactions, err := c.GetReactions(ctx, messageID); err != nil || len(reactions) != 0 {
+		t.Fatalf("historical reaction remains after removal: %v, %v", reactions, err)
+	}
+	if _, err := c.ReactionModel().AddReaction(ctx, input); err == nil {
+		t.Fatal("removing historical data must not permit adding it again")
+	}
+}
+
+func TestUnknownReactionRoundTrip(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"Party_Parrot", "thumbsup::skin-tone-4", "woman_health_worker::skin-tone-2", "couple::skin-tone-2-6"} {
+		t.Run(name, func(t *testing.T) {
+			testReactionNameRoundTrip(t, name)
+		})
+	}
+}
+
+func testReactionNameRoundTrip(t *testing.T, name string) {
+	t.Helper()
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, messageID := setupReactionTest(t, c, ctx)
+	input := ReactionMutationInput{ActorID: user.Id, RoomID: room.Id, MessageEventID: messageID, Emoji: name}
+	for i := range 2 {
+		added, err := c.ReactionModel().AddReaction(ctx, input)
+		if err != nil || added != (i == 0) {
+			t.Fatalf("add attempt %d: %v, %v", i, added, err)
+		}
+	}
+	reactions, err := c.GetReactions(ctx, messageID)
+	if err != nil || len(reactions) != 1 || reactions[0].Emoji != input.Emoji {
+		t.Fatalf("reaction name round trip: %v, %v", reactions, err)
+	}
+	page, err := c.RoomTimelineReads().ListReactionUsers(ctx, user.Id, room.Id, messageID, input.Emoji, 50, 0)
+	if err != nil || len(page.UserIDs) != 1 || page.UserIDs[0] != user.Id {
+		t.Fatalf("reaction users: %v, %v", page, err)
+	}
+	for i := range 2 {
+		removed, err := c.ReactionModel().RemoveReaction(ctx, input)
+		if err != nil || removed != (i == 0) {
+			t.Fatalf("remove attempt %d: %v, %v", i, removed, err)
+		}
+	}
 }
 
 func setupReactionTest(t *testing.T, core *ChattoCore, ctx context.Context) (*readmodel.User, *readmodel.Room, string) {

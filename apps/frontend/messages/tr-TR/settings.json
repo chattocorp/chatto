@@ -143,6 +143,21 @@
           "description": "Bu tarayıcıdaki karanlık arayüzü kullanın"
         }
       },
+      "animations": {
+        "title": "Animasyonlar",
+        "automatic": {
+          "label": "Otomatik",
+          "description": "Sistemin azaltılmış hareket tercihini kullan"
+        },
+        "enabled": {
+          "label": "Etkin",
+          "description": "Animasyonları her zaman göster"
+        },
+        "disabled": {
+          "label": "Devre dışı",
+          "description": "Değişiklikleri animasyonsuz göster"
+        }
+      },
       "thread_pane": {
         "title": "Konu paneli",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Bu hesabın zaten bir şifresi var."
       },
       "sso": {
+        "username_unavailable": "Oturum açma sağlayıcınızın kullanıcı adı atanamıyor. Sunucu yöneticisiyle iletişime geçin.",
+        "username_managed": "Kullanıcı adınız oturum açma sağlayıcınız tarafından yönetilir ve burada değiştirilemez.",
+        "unlink_disabled": "Sunucu yöneticisi bu sağlayıcının bağlantısının kesilmesine izin vermiyor.",
         "popup_blocked": "Bu site için açılır pencerelere izin ver ve bağlamayı tekrar dene.",
         "account_mismatch": "Bu sunucuda doğru hesapla oturum aç, ardından ilk pencereden bağlamayı yeniden başlat.",
         "provider_unavailable": "Bu oturum açma sağlayıcısı artık kullanılamıyor.",

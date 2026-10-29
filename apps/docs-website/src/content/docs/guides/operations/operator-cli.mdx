@@ -262,7 +262,7 @@ chatto operator message import-reaction \
   --user-id USER_ID --emoji heart --json
 ```
 
-The user and message must exist in the specified active channel. The user does not need room membership. Use a supported emoji shortcode, such as `heart`. A channel echo ID resolves to its original thread reply.
+The user and message must exist in the specified active channel. The user does not need room membership. Use a reaction name without surrounding colons, such as `heart` or `party_parrot`. Plain names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens. Known emoji also accept valid skin-tone suffixes, such as `thumbsup::skin-tone-4`, within the same length limit. Names are case-sensitive and remain unchanged. Unknown plain names are accepted; clients can show them as `:name:`. A channel echo ID resolves to its original thread reply.
 
 Historical reactions can also target deleted messages. They remain visible on the native tombstone. Upgrade all replicas before importing reactions on deleted messages.
 

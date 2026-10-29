@@ -251,7 +251,9 @@ Snapshot codecs map projection state to dedicated `projection/v1` records;
 transport adapters map read results to public API records. The
 [`snapshot adapters`](../../cli/internal/core/read_model_snapshots.go) exclude
 hydrated login, display name, and bio structurally. Room snapshots retain raw
-threading enum values before read-time normalization. Legacy group and link
+threading enum values before read-time normalization and the room-owned membership
+activity display setting. Creation facts initialize that setting to true, including
+historical creation facts. Legacy group and link
 records live with `RoomLayout` in `runtime_state/v1/legacy_state.proto`. Event-owned
 values stay in `evt/v1/event_values.proto`. See
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
@@ -377,6 +379,8 @@ Reactions interns emoji, user, and room IDs in one table and message IDs in
 the shared event ID table. It keeps the source event ID of each active
 reaction as a string, because each source ID occurs only once. Each message
 has a short slice of active reactions, sorted by emoji and user handles.
+Emoji handles retain exact case-sensitive reaction names, including names outside
+the bundled catalogue. Replay does not resolve aliases or require emoji assets.
 
 Timeline, Threads, and Reactions construct detached read results.
 

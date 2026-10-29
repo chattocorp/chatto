@@ -155,13 +155,19 @@ type ViewerUser struct {
 	// Current user's display settings.
 	Settings *UserSettings `protobuf:"bytes,8,opt,name=settings,proto3" json:"settings,omitempty"`
 	// Whether the authenticated user may delete this account.
+	// New clients use actions.delete_account and fall back to this field only
+	// when that action is absent.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/viewer.proto.
 	ViewerCanDeleteAccount bool `protobuf:"varint,9,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
 	// Last time a login credential changed, when known.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
 	// Public user fields for the authenticated user.
 	Profile *User `protobuf:"bytes,11,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Whether this account currently has a password sign-in credential.
-	HasPassword   bool `protobuf:"varint,12,opt,name=has_password,json=hasPassword,proto3" json:"has_password,omitempty"`
+	HasPassword bool `protobuf:"varint,12,opt,name=has_password,json=hasPassword,proto3" json:"has_password,omitempty"`
+	// Self-service account action snapshots. Absent on older servers.
+	Actions       *AccountActions `protobuf:"bytes,13,opt,name=actions,proto3" json:"actions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -210,6 +216,7 @@ func (x *ViewerUser) GetSettings() *UserSettings {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/api/v1/viewer.proto.
 func (x *ViewerUser) GetViewerCanDeleteAccount() bool {
 	if x != nil {
 		return x.ViewerCanDeleteAccount
@@ -236,6 +243,13 @@ func (x *ViewerUser) GetHasPassword() bool {
 		return x.HasPassword
 	}
 	return false
+}
+
+func (x *ViewerUser) GetActions() *AccountActions {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
 }
 
 // Permission-derived capabilities for the authenticated user.
@@ -775,23 +789,24 @@ var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x01\n" +
+	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a#chatto/api/v1/account_actions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x01\n" +
 	"\fUserSettings\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
 	"timeFormat\x12*\n" +
 	"\x0eshare_timezone\x18\x03 \x01(\bH\x01R\rshareTimezone\x88\x01\x01B\v\n" +
 	"\t_timezoneB\x11\n" +
-	"\x0f_share_timezone\"\x93\x03\n" +
+	"\x0f_share_timezone\"\xd0\x03\n" +
 	"\n" +
 	"ViewerUser\x12,\n" +
 	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +
-	"\bsettings\x18\b \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\x129\n" +
-	"\x19viewer_can_delete_account\x18\t \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
+	"\bsettings\x18\b \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\x12=\n" +
+	"\x19viewer_can_delete_account\x18\t \x01(\bB\x02\x18\x01R\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12-\n" +
 	"\aprofile\x18\v \x01(\v2\x13.chatto.api.v1.UserR\aprofile\x12!\n" +
-	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"\fhas_password\x18\f \x01(\bR\vhasPassword\x127\n" +
+	"\aactions\x18\r \x01(\v2\x1d.chatto.api.v1.AccountActionsR\aactionsJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
 	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8b\x01\n" +
 	"\x12ViewerCapabilities\x126\n" +
 	"\x06grants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CapabilityGrantR\x06grants\x12=\n" +
@@ -864,39 +879,41 @@ var file_chatto_api_v1_viewer_proto_goTypes = []any{
 	(*DeactivatePrivilegedModeResponse)(nil), // 12: chatto.api.v1.DeactivatePrivilegedModeResponse
 	(*timestamppb.Timestamp)(nil),            // 13: google.protobuf.Timestamp
 	(*User)(nil),                             // 14: chatto.api.v1.User
-	(*CapabilityGrant)(nil),                  // 15: chatto.api.v1.CapabilityGrant
-	(*PermissionGrant)(nil),                  // 16: chatto.api.v1.PermissionGrant
+	(*AccountActions)(nil),                   // 15: chatto.api.v1.AccountActions
+	(*CapabilityGrant)(nil),                  // 16: chatto.api.v1.CapabilityGrant
+	(*PermissionGrant)(nil),                  // 17: chatto.api.v1.PermissionGrant
 }
 var file_chatto_api_v1_viewer_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.UserSettings.time_format:type_name -> chatto.api.v1.TimeFormat
 	1,  // 1: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
 	13, // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
 	14, // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.User
-	15, // 4: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
-	16, // 5: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
-	13, // 6: chatto.api.v1.PrivilegedModeState.expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 7: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
-	3,  // 8: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 9: chatto.api.v1.GetViewerResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	5,  // 10: chatto.api.v1.GetViewerResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
-	6,  // 11: chatto.api.v1.GetViewerResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
-	6,  // 12: chatto.api.v1.ActivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
-	3,  // 13: chatto.api.v1.ActivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 14: chatto.api.v1.ActivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	6,  // 15: chatto.api.v1.DeactivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
-	3,  // 16: chatto.api.v1.DeactivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 17: chatto.api.v1.DeactivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	7,  // 18: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
-	9,  // 19: chatto.api.v1.ViewerService.ActivatePrivilegedMode:input_type -> chatto.api.v1.ActivatePrivilegedModeRequest
-	11, // 20: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:input_type -> chatto.api.v1.DeactivatePrivilegedModeRequest
-	8,  // 21: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
-	10, // 22: chatto.api.v1.ViewerService.ActivatePrivilegedMode:output_type -> chatto.api.v1.ActivatePrivilegedModeResponse
-	12, // 23: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:output_type -> chatto.api.v1.DeactivatePrivilegedModeResponse
-	21, // [21:24] is the sub-list for method output_type
-	18, // [18:21] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	15, // 4: chatto.api.v1.ViewerUser.actions:type_name -> chatto.api.v1.AccountActions
+	16, // 5: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
+	17, // 6: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
+	13, // 7: chatto.api.v1.PrivilegedModeState.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 8: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
+	3,  // 9: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 10: chatto.api.v1.GetViewerResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	5,  // 11: chatto.api.v1.GetViewerResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
+	6,  // 12: chatto.api.v1.GetViewerResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
+	6,  // 13: chatto.api.v1.ActivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
+	3,  // 14: chatto.api.v1.ActivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 15: chatto.api.v1.ActivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	6,  // 16: chatto.api.v1.DeactivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
+	3,  // 17: chatto.api.v1.DeactivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 18: chatto.api.v1.DeactivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	7,  // 19: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
+	9,  // 20: chatto.api.v1.ViewerService.ActivatePrivilegedMode:input_type -> chatto.api.v1.ActivatePrivilegedModeRequest
+	11, // 21: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:input_type -> chatto.api.v1.DeactivatePrivilegedModeRequest
+	8,  // 22: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
+	10, // 23: chatto.api.v1.ViewerService.ActivatePrivilegedMode:output_type -> chatto.api.v1.ActivatePrivilegedModeResponse
+	12, // 24: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:output_type -> chatto.api.v1.DeactivatePrivilegedModeResponse
+	22, // [22:25] is the sub-list for method output_type
+	19, // [19:22] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_viewer_proto_init() }
@@ -905,6 +922,7 @@ func file_chatto_api_v1_viewer_proto_init() {
 		return
 	}
 	file_chatto_api_v1_permissions_proto_init()
+	file_chatto_api_v1_account_actions_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_viewer_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}

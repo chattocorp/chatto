@@ -51,6 +51,24 @@ test('interrupted external effects remain visible but are not repeated', () => {
   expect(restarted.uncertain).toBe(1);
 });
 
+test('reaction metadata survives restart and duplicate events are processed once', () => {
+  const path = directory();
+  const reaction = {
+    ...message,
+    id: 'reaction-event',
+    body: '',
+    reasons: [],
+    reaction: { messageId: 'answer', emoji: 'thinking_face' }
+  };
+  const first = new Delivery(path, ['bot']);
+  first.accept(reaction);
+  const restarted = new Delivery(path, ['bot']);
+  restarted.accept(reaction);
+  expect(restarted.queued).toEqual([reaction]);
+  restarted.complete([reaction]);
+  expect(new Delivery(path, ['bot']).has(reaction.id)).toBe(true);
+});
+
 test('completed work stays deduplicated across restarts', () => {
   const path = directory();
   const first = new Delivery(path, ['bot']);

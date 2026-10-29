@@ -143,6 +143,21 @@
           "description": "Izmantojiet tumšo interfeisu šajā pārlūkprogrammā"
         }
       },
+      "animations": {
+        "title": "Animācijas",
+        "automatic": {
+          "label": "Automātiski",
+          "description": "Ievērot sistēmas samazinātas kustības iestatījumu"
+        },
+        "enabled": {
+          "label": "Iespējotas",
+          "description": "Vienmēr rādīt animācijas"
+        },
+        "disabled": {
+          "label": "Atspējotas",
+          "description": "Rādīt izmaiņas bez animācijām"
+        }
+      },
       "thread_pane": {
         "title": "Pavediena rūts",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Šim kontam jau ir parole."
       },
       "sso": {
+        "username_unavailable": "Nevar piešķirt pierakstīšanās pakalpojuma sniedzēja lietotājvārdu. Sazinies ar servera operatoru.",
+        "username_managed": "Tavu lietotājvārdu pārvalda pierakstīšanās pakalpojuma sniedzējs, un to šeit nevar mainīt.",
+        "unlink_disabled": "Servera operators neļauj atvienot šo pakalpojuma sniedzēju.",
         "popup_blocked": "Atļauj uznirstošos logus šai vietnei un mēģini saistīt vēlreiz.",
         "account_mismatch": "Pieraksties pareizajā kontā šajā serverī un sāc saistīšanu vēlreiz sākotnējā logā.",
         "provider_unavailable": "Šis pierakstīšanās pakalpojumu sniedzējs vairs nav pieejams.",

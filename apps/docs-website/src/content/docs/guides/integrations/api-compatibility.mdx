@@ -72,6 +72,11 @@ per account. Reusable links and their pending admission grants are retired.
 See [invitation codes](/guides/operations/identity-login/#invite-only-account-creation).
 This change does not raise the client connection threshold.
 
+For room membership activity, an absent `Room.show_membership_events` means
+enabled. Do not offer to edit this setting when the field is absent. Supporting
+clients use it only for join/leave rows; older clients can continue to show them.
+No client migration is required for membership state or event delivery.
+
 The bundled client connects to remote servers running `0.5.0-beta.9` or newer.
 The client uses `0.5.0-beta.18` as its full-support version threshold. This version
 adds independent channel and thread slow mode. Between these releases, the client shows a

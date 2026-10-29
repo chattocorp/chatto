@@ -11,6 +11,26 @@
   import AccentColorPicker from './AccentColorPicker.svelte';
   import SurfaceTonePicker from './SurfaceTonePicker.svelte';
   import { RangeField } from '$lib/ui/form';
+  import { transitionTheme } from '$lib/dom/viewTransitions';
+  import type { AnimationPreference } from '$lib/dom/motionPreference';
+
+  const animationOptions = $derived([
+    {
+      value: 'automatic',
+      label: m('settings.preferences.animations.automatic.label'),
+      description: m('settings.preferences.animations.automatic.description')
+    },
+    {
+      value: 'enabled',
+      label: m('settings.preferences.animations.enabled.label'),
+      description: m('settings.preferences.animations.enabled.description')
+    },
+    {
+      value: 'disabled',
+      label: m('settings.preferences.animations.disabled.label'),
+      description: m('settings.preferences.animations.disabled.description')
+    }
+  ] satisfies Array<{ value: AnimationPreference; label: string; description: string }>);
 
   const contrastDisplayValue = $derived(`${Math.round((userPreferences.contrastAge - 20) * 5)}%`);
   const contrastValueText = $derived(
@@ -87,25 +107,54 @@
   />
 
   <PaneContent>
-    <div class="flex flex-col gap-6">
-      <Panel title={m('settings.preferences.theme.title')} icon="iconify icon-[uil--palette]">
-        <div class="max-w-md">
+    <div class="@container flex flex-col gap-6">
+      <div class="grid gap-6 @min-[48rem]:grid-cols-2">
+        <Panel
+          fillHeight
+          title={m('settings.preferences.theme.title')}
+          icon="iconify icon-[uil--palette]"
+        >
+          <div class="max-w-md">
+            <div
+              class="flex flex-col gap-2"
+              role="radiogroup"
+              aria-label={m('settings.preferences.theme.title')}
+            >
+              {#each themeOptions as option (option.value)}
+                <ChoiceRow
+                  label={option.label}
+                  description={option.description}
+                  selected={userPreferences.displayTheme === option.value}
+                  onclick={(event) => {
+                    transitionTheme(event, () => (userPreferences.displayTheme = option.value));
+                  }}
+                />
+              {/each}
+            </div>
+          </div>
+        </Panel>
+
+        <Panel
+          fillHeight
+          title={m('settings.preferences.animations.title')}
+          icon="iconify icon-[uil--play-circle]"
+        >
           <div
-            class="flex flex-col gap-2"
+            class="flex max-w-md flex-col gap-2"
             role="radiogroup"
-            aria-label={m('settings.preferences.theme.title')}
+            aria-label={m('settings.preferences.animations.title')}
           >
-            {#each themeOptions as option (option.value)}
+            {#each animationOptions as option (option.value)}
               <ChoiceRow
                 label={option.label}
                 description={option.description}
-                selected={userPreferences.displayTheme === option.value}
-                onclick={() => (userPreferences.displayTheme = option.value)}
+                selected={userPreferences.animations === option.value}
+                onclick={() => (userPreferences.animations = option.value)}
               />
             {/each}
           </div>
-        </div>
-      </Panel>
+        </Panel>
+      </div>
 
       <Panel
         title={m('settings.preferences.customization.title')}

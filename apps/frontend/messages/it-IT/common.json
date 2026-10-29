@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Scorciatoie da tastiera",
+      "app": "App",
+      "undo": "Annulla",
+      "redo": "Ripristina",
+      "new_line": "Nuova riga",
+      "edit_last": "Modifica l’ultimo messaggio (bozza vuota)",
+      "complete": "Completa menzione o emoji"
+    },
+    "action_unavailable": "Questa azione non è attualmente disponibile.",
     "edit": "Modifica",
     "copy_failed": "Impossibile copiare negli appunti. Seleziona il testo e copialo manualmente.",
     "cancel": "Annulla",

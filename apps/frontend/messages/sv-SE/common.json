@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Kortkommandon",
+      "app": "App",
+      "undo": "Ångra",
+      "redo": "Gör om",
+      "new_line": "Ny rad",
+      "edit_last": "Redigera senaste meddelandet (tomt utkast)",
+      "complete": "Komplettera omnämnande eller emoji"
+    },
+    "action_unavailable": "Den här åtgärden är inte tillgänglig just nu.",
     "edit": "Redigera",
     "copy_failed": "Det gick inte att kopiera till urklipp. Markera texten och kopiera den manuellt.",
     "cancel": "Avbryt",

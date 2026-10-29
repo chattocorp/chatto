@@ -168,11 +168,13 @@ leases only; it does not recover execution or authorize new work.
 
 ## Classifiers
 
-`createClassifier({ name, label, model, input, result, systemPrompt })` defines an
+`createClassifier({ name, label, model, input, result, systemPrompt, logContent })` defines an
 ordinary task. It performs one model turn, parses JSON, and validates the output
 through the task schema. Standard Schema transformations run once. The task has
 no tools, local resources, or saved agent history. Its default thinking level is
 `low`, and its model turn receives a 30-second cancellation signal.
+Set `logContent: false` to omit model text and reasoning from logs. The task's
+explicit input and result still follow the ordinary task journal policy.
 
 The caller supplies classification policy and schemas. Invalid JSON, invalid
 output, cancellation, and provider failures reject the task without a retry or
@@ -238,6 +240,14 @@ disable ambient extensions, skills, and context files separately. Set
 parallel preparation of several calls must not wait on a lock held by another
 call in the same batch.
 
+Set `resources.skills` to an array of paths to load only those skill files or
+directories, relative to the session's `cwd`. An empty array disables discovery;
+`false` also disables skills. Omit the option or use `true` for Pi's default
+discovery. Pi adds the skill catalog when an active `read` or `bash` tool is
+available, including an extension tool with that name. Loading skills does not
+add tools or restrict file access. Applications that expose a reader must enforce
+their own file-access policy.
+
 Set `logContent: false` to omit model text, reasoning, and tool arguments from
 logs and progress events. Tool activity and usage remain visible. This does
 not remove content from private session transcripts or from explicit task
@@ -277,6 +287,10 @@ also adds its outcome rules.
 Use `run(ctx, prompt, { onText })` or `runOutcome()` with `onText` to see each
 completed assistant text message during a turn. The callback does not get
 reasoning or tool output. Agent tasks use this callback to emit replies.
+The second argument has `hasToolCalls`, which identifies text that accompanies
+tool calls. Hosts can display that text immediately and use the returned summary
+for the final answer after the turn ends. Existing one-argument callbacks need
+no changes.
 `runling run` records those replies in the journal and prints only the root
 task's final output.
 

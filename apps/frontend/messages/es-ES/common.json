@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Atajos de teclado",
+      "app": "Aplicación",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "new_line": "Nueva línea",
+      "edit_last": "Editar el último mensaje (borrador vacío)",
+      "complete": "Completar mención o emoji"
+    },
+    "action_unavailable": "Esta acción no está disponible en este momento.",
     "edit": "Editar",
     "copy_failed": "No se pudo copiar al portapapeles. Selecciona el texto y cópialo manualmente.",
     "cancel": "Cancelar",

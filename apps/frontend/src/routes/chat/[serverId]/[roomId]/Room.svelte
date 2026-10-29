@@ -536,6 +536,8 @@
   onkeydown={(e) => {
     // The modal owns keyboard actions while the room remains visible behind it.
     if (page.state.modal) return;
+    // An open menu or sheet consumes Escape before the underlying room panels.
+    if (e.key === 'Escape' && document.querySelector(':popover-open, dialog[open]')) return;
     handleWindowKeydown(e);
     if (e.defaultPrevented) return;
 
@@ -553,7 +555,7 @@
   onpointerdowncapture={(e) => {
     // Check before the menu's outside-pointer handler removes it. One press
     // dismisses only the menu, not the room overlay underneath it.
-    if (document.querySelector('[role="menu"]:popover-open')) return;
+    if (document.querySelector(':popover-open')) return;
 
     if (hasMobileRoomSidebar && e.button === 0) {
       const target = e.target as HTMLElement;
@@ -639,6 +641,7 @@
           hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
+        data-navigation-content
         inert={(threadId && canReadMessages && !splitThreadLayout) || hasMobileRoomSidebar
           ? true
           : undefined}

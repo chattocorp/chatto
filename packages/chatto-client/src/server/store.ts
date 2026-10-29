@@ -1433,6 +1433,7 @@ export class ServerStateStore {
       case 'roomUniversalChanged':
       case 'roomSlowModeChanged':
       case 'roomThreadingModeChanged':
+      case 'roomMembershipEventsVisibilityChanged':
       case 'userJoinedRoom':
         if (payload.case === 'roomUniversalChanged' && roomId) {
           this.#rooms.loaded(roomId)?.members?.resetProjectionState();

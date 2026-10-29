@@ -55,6 +55,19 @@ Enter activates the result only when the result itself has focus.
     event.preventDefault();
     onOpen(result);
   }
+
+  /** Inert previews need a name from their rendered text, including formatted Markdown. */
+  function nameFromPreview(element: HTMLDivElement): (() => void) | undefined {
+    if (!preview) return;
+    const update = () => element.setAttribute('aria-label', element.innerText);
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(element, { childList: true, characterData: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      element.removeAttribute('aria-label');
+    };
+  }
 </script>
 
 {#snippet message()}
@@ -83,6 +96,7 @@ Enter activates the result only when the result itself has focus.
 
 <div
   {...attributes}
+  {@attach nameFromPreview}
   role="link"
   tabindex="0"
   class={['cursor-pointer selectable-list-item', className]}

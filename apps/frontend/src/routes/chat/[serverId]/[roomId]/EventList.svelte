@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { onDestroy, tick, untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import {
@@ -16,6 +17,7 @@
   import { getLocale } from '$lib/i18n/runtime';
   import {
     isMessagePostedEvent,
+    TimelineEventKind,
     type TimelineEventView
   } from '@chatto/client/timeline/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
@@ -163,6 +165,9 @@
   const roomMembers = $derived(getRoomMembers());
   const userInteractions = new MessageUserInteractionState(() => roomMembers);
   const isUniversal = $derived(stores.projection?.rooms?.get(roomId)?.room?.universal ?? false);
+  const showMembershipEvents = $derived(
+    stores.projection?.rooms?.get(roomId)?.room?.showMembershipEvents ?? true
+  );
   const canStartDMs = $derived(stores.permissions?.canStartDMs ?? false);
   // Message action overlays live outside the virtualized rows, so they stay open when
   // the row of their message unmounts.
@@ -203,8 +208,19 @@
       return true;
     })
   );
+  // Apply display settings after structural filtering, retaining the original
+  // window for unread boundaries and pagination through entirely hidden pages.
+  const activityFilteredEvents = $derived(
+    showMembershipEvents
+      ? timelineEvents
+      : timelineEvents.filter(
+          (event) =>
+            event.event?.kind !== TimelineEventKind.UserJoinedRoom &&
+            event.event?.kind !== TimelineEventKind.UserLeftRoom
+        )
+  );
   let filteredEvents = $derived(
-    showTombstones ? timelineEvents : visibleTombstoneEvents(timelineEvents)
+    showTombstones ? activityFilteredEvents : visibleTombstoneEvents(activityFilteredEvents)
   );
   // The message that owns the open action overlay, while the timeline shows it as a message.
   const actionOverlayEvent = $derived.by(() => {
@@ -272,7 +288,9 @@
   $effect(() => {
     const currentTimelineKey = timelineKey;
     const jumped = isJumpedMode;
-    const newestId = timelineEvents.at(-1)?.id ?? null;
+    // Hidden membership activity does not announce new messages. Keep deleted
+    // placeholders in this boundary, even when their rows have no visible context.
+    const newestId = activityFilteredEvents.at(-1)?.id ?? null;
     untrack(() => {
       if (viewport.enterRoom(currentTimelineKey)) {
         expandedSystemEventIds.clear();
@@ -614,7 +632,9 @@
       },
       scroll: () => {
         if (!scrollContainer) return;
-        safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+        // This loop owns measurement retries and stops on user input. A virtua
+        // scrollToIndex request can keep retrying after that input and move the
+        // reader back to the bottom.
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
         scrollFader?.refresh();
       },
@@ -645,6 +665,21 @@
       viewport.isUnreadEntryLandingRunning ||
       Boolean(recoveryViewport(messageStore))
   });
+
+  function handleVirtualizerResize(): void {
+    // Font changes and late media measurements can grow rows without resizing
+    // the scroll container. Reuse the cancellable convergence loop for them.
+    if (
+      viewport.shouldScrollToBottom &&
+      !isJumpedMode &&
+      !isLoadingMore &&
+      !scrollToEventId &&
+      !pendingHighlightId &&
+      !viewport.isUnreadEntryLandingRunning
+    ) {
+      void requestBottomScroll();
+    }
+  }
 
   // Auto-scroll to bottom when new events arrive or existing events update.
   // shouldScrollToBottom is read via untrack() so toggling it doesn't re-trigger
@@ -802,7 +837,7 @@
 
     underfilledBackfillInFlight = true;
     try {
-      // A fetched page can consist entirely of context-free tombstones. There is no
+      // A fetched page can consist entirely of hidden activity or tombstones. There is no
       // Virtualizer in that state, but pagination still needs to walk backward
       // until it finds visible history or reaches the beginning.
       if (timelineEvents.length > 0 && filteredEvents.length === 0) {
@@ -1005,6 +1040,7 @@
           {keepMounted}
           itemProps={({ item }) => ({ [TIMELINE_ITEM_KEY_ATTRIBUTE]: item?.key })}
           onscroll={handleVirtuaScroll}
+          onresize={handleVirtualizerResize}
         >
           {#snippet children(item: VirtualItem)}
             {#if !item}
@@ -1065,7 +1101,7 @@
 
   {#if !viewport.shouldScrollToBottom}
     <button
-      transition:fade={{ duration: 150 }}
+      transition:fade={{ duration: userPreferences.reducedMotion ? 0 : 150 }}
       onclick={isJumpedMode ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"

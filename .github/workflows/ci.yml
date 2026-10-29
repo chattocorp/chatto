@@ -392,6 +392,21 @@ jobs:
           "$helper" help | grep -F 'publish --window'
           otool -l "$helper" | grep -F '@executable_path/../Frameworks'
 
+      - name: Build and test unsigned macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          mise x -- pnpm --filter chatto-desktop build:macos-dmg
+          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+
+      - name: Upload unsigned macOS DMG
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-macos-dmg-unsigned
+          path: apps/desktop/dist/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload desktop bundle
         uses: actions/upload-artifact@v7
         with:
@@ -420,6 +435,9 @@ jobs:
   codegen-proto-drift:
     needs: changes
     if: ${{ !cancelled() }}
+    # Always verify selection, but skip product checks for unrelated changes.
+    env:
+      RUN_PROTO_CHECKS: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -430,22 +448,26 @@ jobs:
         run: test "$SELECTION_RESULT" = success
 
       - name: Checkout code
+        if: env.RUN_PROTO_CHECKS == 'true'
         uses: actions/checkout@v6
         with:
           # The threshold check compares the PR head with its merge base.
           fetch-depth: 0
 
       - name: Setup environment
+        if: env.RUN_PROTO_CHECKS == 'true'
         uses: ./.github/actions/setup
 
       - name: Test server compatibility label check
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: mise x -- node --test tools/check-server-compatibility.test.mjs
 
       - name: Test Slack importer
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: mise test-slack
 
       - name: Check server compatibility threshold labels
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -458,16 +480,17 @@ jobs:
       # public API breaks exist only on pull requests. The target branch can
       # also move during a push run, so a shallow fetch of it is not stable.
       - name: Fetch protobuf breaking base
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           base_ref="${GITHUB_BASE_REF}"
-          git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
+          git fetch --no-tags origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
       - name: Lint Chatto protobufs
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: mise lint-proto
 
       - name: Check storage, internal, and Operator protobuf breaking changes
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           base_ref="${GITHUB_BASE_REF}"
@@ -475,11 +498,12 @@ jobs:
             "../.git#branch=origin/${base_ref},subdir=proto"
 
       - name: Check projection snapshot schema contracts
+        if: env.RUN_PROTO_CHECKS == 'true'
         working-directory: cli
         run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
       - name: Check public protobuf packages without acknowledged breaks
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           base_ref="${GITHUB_BASE_REF}"
           cd proto
@@ -495,7 +519,7 @@ jobs:
           done
 
       - name: Check Authling persisted protobuf breaking changes
-        if: github.event_name == 'pull_request'
+        if: env.RUN_PROTO_CHECKS == 'true' && github.event_name == 'pull_request'
         run: |
           base_ref="${GITHUB_BASE_REF}"
           if git cat-file -e "origin/${base_ref}:authling/buf.yaml" 2>/dev/null; then
@@ -508,16 +532,19 @@ jobs:
           fi
 
       - name: Lint Authling protobufs
+        if: env.RUN_PROTO_CHECKS == 'true'
         working-directory: authling
         run: mise x -- buf lint
 
       - name: Regenerate protobuf bindings
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: |
           mise codegen-proto
           cd authling
           mise codegen-proto
 
       - name: Check generated protobuf bindings are current
+        if: env.RUN_PROTO_CHECKS == 'true'
         run: |
           if ! git diff --exit-code; then
             git status --short
@@ -559,7 +586,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only browser tests need the image; other workspace tests use the host.
     container:
-      image: ${{ matrix.playwright && 'ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb' || '' }}
+      image: ${{ matrix.playwright && 'ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287' || '' }}
       options: --init --ipc=host
     defaults:
       run:
@@ -787,7 +814,7 @@ jobs:
     if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -836,7 +863,7 @@ jobs:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -918,7 +945,7 @@ jobs:
     runs-on: ubuntu-latest
     # Update this digest in a PR to verify a new image before changing main.
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:
@@ -971,7 +998,7 @@ jobs:
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/chattocorp/media-e2e@sha256:9c1a946791d313bcfcf5638921932a6b0aef323b33b28a2a567667894e372bcb
+      image: ghcr.io/chattocorp/media-e2e@sha256:51b6faaf77532ea291a0840bc53200199722d048aa31cf7490d9278649957287
       options: --init --ipc=host
     defaults:
       run:

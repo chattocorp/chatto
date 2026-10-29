@@ -5,6 +5,7 @@ import ProfilePage from './+page.svelte';
 import { q } from '$lib/test-utils';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import { UsernameChangeState } from '@chatto/client/api/actionAvailability';
 
 const avatarDataUrl = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
 
@@ -282,6 +283,48 @@ describe('Profile settings page', () => {
     await expect
       .element(q(container, 'form'))
       .toHaveTextContent('You can change your username again in');
+  });
+
+  it('enables an allowed username when its timestamp passes without refetching', async () => {
+    const load = vi.spyOn(server.currentUser, 'load');
+    server.currentUser.user!.actions = {
+      changeUsername: {
+        state: UsernameChangeState.ALLOWED,
+        availableAt: new Date(Date.now() + 2000).toISOString()
+      }
+    };
+    const { container } = render(ProfilePage);
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeDisabled();
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeEnabled();
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    UsernameChangeState.PROVIDER_MANAGED,
+    UsernameChangeState.UNSPECIFIED,
+    99 as UsernameChangeState
+  ])('does not enable policy state %s after its timestamp passes', async (state) => {
+    server.currentUser.user!.actions = {
+      changeUsername: { state, availableAt: '2020-01-01T00:00:00Z' }
+    };
+    const { container } = render(ProfilePage);
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeDisabled();
+  });
+
+  it('disables managed usernames even for account managers', async () => {
+    server.currentUser.user!.actions = {
+      changeUsername: { state: UsernameChangeState.PROVIDER_MANAGED }
+    };
+    server.permissions.canAdminManageAccounts = true;
+    const { container } = render(ProfilePage);
+    await settle();
+    await expect.element(q(container, '[data-testid="settings-username"]')).toBeDisabled();
+    await expect
+      .element(q(container, 'form'))
+      .toHaveTextContent(
+        'Your username is managed by your sign-in provider and cannot be edited here.'
+      );
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
   });
 
   it('lets an account manager bypass their own username cooldown', async () => {

@@ -92,6 +92,7 @@ message Event {
     RoomInvitationCreatedEvent room_invitation_created = 312;
     RoomInvitationAcceptedEvent room_invitation_accepted = 313;
     RoomInvitationDeclinedEvent room_invitation_declined = 314;
+    RoomMembershipEventsVisibilityChangedEvent room_membership_events_visibility_changed = 315;
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;

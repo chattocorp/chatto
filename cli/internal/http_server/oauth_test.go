@@ -66,6 +66,7 @@ func setupOAuthServerWithAuth(t *testing.T, auth config.AuthConfig) *HTTPServer 
 
 	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
 		AuthTokenTTL:              auth.TokenTTL.Duration(),
+		AuthProviders:             auth.Providers,
 		AuthLoopbackClientEnabled: auth.LoopbackClientEnabled,
 		SkipSetupWizard:           true,
 	})
@@ -264,6 +265,34 @@ func TestOAuthAuthorize_UsesConfiguredProviderHint(t *testing.T) {
 	}
 	if location := w.Header().Get("Location"); location != "/auth/providers/authling?redirect=%2Foauth%2Fauthorize" {
 		t.Fatalf("authorize Location = %q, want configured provider start", location)
+	}
+}
+
+func TestOAuthAuthorize_SignupHint(t *testing.T) {
+	for _, hint := range []string{"signup", "unknown"} {
+		t.Run(hint, func(t *testing.T) {
+			s := setupOAuthServer(t)
+			requestURL := "/oauth/authorize?" + url.Values{
+				"response_type": {"code"}, "client_id": {testOAuthClientID},
+				"redirect_uri":          {"https://chatto.example/servers/callback"},
+				"code_challenge":        {core.GenerateCodeChallenge("signup-verifier")},
+				"code_challenge_method": {"S256"}, "state": {"signup-state"},
+				"screen_hint": {hint},
+			}.Encode()
+			w := httptest.NewRecorder()
+			s.router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, requestURL, nil))
+			location, err := url.Parse(w.Header().Get("Location"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantPath := "/login"
+			if hint == "signup" {
+				wantPath = "/register"
+			}
+			if w.Code != http.StatusTemporaryRedirect || location.Path != wantPath || location.Query().Get("redirect") != requestURL {
+				t.Fatalf("unexpected authorization entry: status=%d path=%s", w.Code, location.Path)
+			}
+		})
 	}
 }
 

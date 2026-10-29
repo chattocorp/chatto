@@ -188,6 +188,37 @@ func TestOIDCUserInfoMergesMissingClaims(t *testing.T) {
 	}
 }
 
+func TestOIDCManagedUsernameClaim(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		id, info map[string]any
+		want     string
+	}{
+		{"token", map[string]any{"handle": "TokenName"}, map[string]any{"handle": "Other"}, "TokenName"},
+		{"userinfo", map[string]any{}, map[string]any{"handle": "InfoName"}, "InfoName"},
+		{"no email fallback", map[string]any{"email": "person@example.com", "name": "Person"}, map[string]any{}, ""},
+		{"invalid type", map[string]any{"handle": 12}, map[string]any{}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			issuer := newNoEmailOIDCIssuer(t, "client-id")
+			defer issuer.Close()
+			issuer.tokenClaims = tc.id
+			tc.info["sub"] = issuer.subject
+			issuer.userInfoClaims = tc.info
+			runtime := newTestOIDCRuntime(t, issuer, "none", "", false)
+			runtime.config.ManageUsernames = true
+			runtime.config.UsernameClaim = "handle"
+			identity, err := resolveTestOIDCRuntime(t, runtime, "test-nonce")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if identity.providerUsername != tc.want {
+				t.Fatal("wrong managed username claim")
+			}
+		})
+	}
+}
+
 func TestOIDCNonceBindsIDTokenToAuthorization(t *testing.T) {
 	for _, tc := range []struct {
 		name, sessionNonce, tokenNonce string

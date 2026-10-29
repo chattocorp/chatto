@@ -5,8 +5,8 @@
 import { batch, signal } from '../reactivity/index.js';
 import {
   getPublicServerInfo,
-  type PublicServerInfo,
-  type PublicAuthProvider
+  type PublicAuthProvider,
+  type PublicServerInfo
 } from '../api/server.js';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.js';
@@ -98,17 +98,17 @@ export class ServerInfoState {
   set directRegistrationEnabled(value) {
     this.#directRegistrationEnabledSignal.set(value);
   }
-  readonly #authProvidersSignal = signal<readonly PublicAuthProvider[]>([]);
-  /** Public sign-in providers from the latest successful discovery response. */
-  get authProviders(): readonly PublicAuthProvider[] {
-    return this.#authProvidersSignal.get();
-  }
   readonly #directLoginEnabledSignal = signal(true);
   get directLoginEnabled() {
     return this.#directLoginEnabledSignal.get();
   }
   set directLoginEnabled(value) {
     this.#directLoginEnabledSignal.set(value);
+  }
+  readonly #authProvidersSignal = signal<readonly PublicAuthProvider[]>([]);
+  /** Configured sign-in providers from public discovery, in server-defined order. */
+  get authProviders(): readonly PublicAuthProvider[] {
+    return this.#authProvidersSignal.get();
   }
   #getProjectedState: () => ProjectedServerState | null;
 
@@ -307,8 +307,8 @@ export class ServerInfoState {
         this.iconUrl = info.iconUrl;
         this.bannerUrl = info.bannerUrl;
         this.directRegistrationEnabled = info.directRegistrationEnabled;
-        this.#authProvidersSignal.set(info.authProviders);
         this.directLoginEnabled = info.directLoginEnabled;
+        this.#authProvidersSignal.set(info.authProviders);
       });
     } catch (err) {
       this.error = err;

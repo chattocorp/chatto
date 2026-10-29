@@ -11,7 +11,8 @@ export function windowsInstallerConfig(version, sign) {
     executableName: 'chatto-desktop',
     buildVersion: releaseBuildVersion(version),
     directories: { output: 'dist/installer', buildResources: 'icons' },
-    // Publication belongs to the release workflow. There is no updater yet.
+    // The release assembler writes manifests for the signed artifacts. Packager
+    // embeds the updater configuration before signing; do not replace it here.
     publish: null,
     forceCodeSigning: Boolean(sign),
     win: {

@@ -967,9 +967,7 @@ describe('MessageEvent action model integration', () => {
     const regular = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: regular } });
 
-    (
-      q(rendered.container, 'button[aria-label="Remove 👍 reaction (1)"]') as HTMLButtonElement
-    ).click();
+    (q(rendered.container, 'button[aria-label="👍 1"]') as HTMLButtonElement).click();
     await vi.waitFor(() =>
       expect(mocks.actions.toggleReaction).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -1109,10 +1107,9 @@ describe('MessageEvent action model integration', () => {
     await rendered.rerender({ event: otherUsersMessage, canReact: false, onOpenThread });
 
     expect(q(rendered.container, 'button[aria-label="Edit message"]')).toBeNull();
-    expect(
-      (q(rendered.container, 'button[aria-label="Remove 👍 reaction (1)"]') as HTMLButtonElement)
-        .disabled
-    ).toBe(true);
+    expect((q(rendered.container, 'button[aria-label="👍 1"]') as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     vi.useFakeTimers();
     q(rendered.container, '[data-testid="message-row"]')!.dispatchEvent(

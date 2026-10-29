@@ -21,7 +21,9 @@ message ExternalIdentityProvider {
   ProviderMetadata provider = 8;
 }
 
-// Eligibility to disconnect an identity at the time it is listed.
+// State of disconnecting a linked identity. Only ALLOWED enables the action.
+// UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
+// Unknown future states remain disabled.
 // This does not replace fresh authentication or the mutation's eligibility check.
 enum DisconnectEligibility {
   // Eligibility was not evaluated, including responses from older servers.
@@ -30,6 +32,8 @@ enum DisconnectEligibility {
   DISCONNECT_ELIGIBILITY_ALLOWED = 1;
   // Disconnecting would leave no enabled sign-in method.
   DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD = 2;
+  // The operator disabled user-initiated unlinking for this provider.
+  DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR = 3;
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.

@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,7 +83,13 @@ func (p *Projection) query(ctx context.Context, request *searchv1.QueryRequest) 
 	}
 	if hasMore {
 		last := hits[len(hits)-1]
-		encoded, err := json.Marshal(cursor{QueryHash: hash, Sort: last.Sort})
+		sortValues := slices.Clone(last.Sort)
+		if request.GetOrder() == searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE {
+			// Bleve returns "_score" in Sort, but SearchAfter needs the
+			// numeric score. Preserve its precision and the tie-break values.
+			sortValues[0] = strconv.FormatFloat(last.Score, 'g', -1, 64)
+		}
+		encoded, err := json.Marshal(cursor{QueryHash: hash, Sort: sortValues})
 		if err != nil {
 			return nil, err
 		}

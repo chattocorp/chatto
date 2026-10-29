@@ -13,7 +13,7 @@ export type ServerDirectoryEntry = {
   origin: string;
   profile: NeighborhoodServerProfile;
   /**
-   * Origin of the registered server that supplied the profile. Its logo and
+   * Origin of the discovery source that supplied the profile. Its logo and
    * banner URLs identify copies on that server.
    */
   imageOrigin: string;
@@ -21,12 +21,12 @@ export type ServerDirectoryEntry = {
   sourceOrigins: string[];
 };
 
-/** Merged Neighborhoods of the registered servers. */
+/** Merged Neighborhoods of the explicitly selected discovery sources. */
 export type ServerDirectory = {
   entries: ServerDirectoryEntry[];
-  /** Number of registered servers that the client asked. */
+  /** Number of discovery sources that the client asked. */
   sourceCount: number;
-  /** Number of registered servers whose Neighborhood did not load. */
+  /** Number of discovery sources whose Neighborhood did not load. */
   failedSourceCount: number;
 };
 
@@ -44,20 +44,20 @@ export function serverOriginFromInput(value: string): string | null {
 }
 
 /**
- * Load and merge the cached Neighborhood of each registered server. The client
- * contacts only registered servers. A registered server already knows the
- * user's network address, so the directory reveals it to no other server.
+ * Load and merge the cached Neighborhood of each explicit source. Callers pass
+ * registered servers and servers explicitly found by the user. Each source
+ * receives the user's network address. Returned neighbors are never queried.
  * An older server without a Neighborhood contributes no results and does not
  * count as failed. Results keep the order in which they first appear.
  */
 export async function loadServerDirectory(
-  registeredOrigins: readonly string[],
+  sourceOrigins: readonly string[],
   options: DirectoryLoadOptions = {}
 ): Promise<ServerDirectory> {
   const listNeighborhood = options.listNeighborhood ?? listNeighborhoodServers;
   const sources = [
     ...new Set(
-      registeredOrigins.flatMap((value) => {
+      sourceOrigins.flatMap((value) => {
         const origin = canonicalServerOrigin(value);
         return origin ? [origin] : [];
       })

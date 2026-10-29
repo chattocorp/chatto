@@ -143,6 +143,21 @@
           "description": "在此浏览器中使用深色界面"
         }
       },
+      "animations": {
+        "title": "动画",
+        "automatic": {
+          "label": "自动",
+          "description": "遵循系统的减少动态效果偏好设置"
+        },
+        "enabled": {
+          "label": "启用",
+          "description": "始终显示动画"
+        },
+        "disabled": {
+          "label": "禁用",
+          "description": "显示更改时不使用动画"
+        }
+      },
       "thread_pane": {
         "title": "话题窗格",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "此账号已有密码。"
       },
       "sso": {
+        "username_unavailable": "无法分配登录提供商的用户名。请联系服务器运营者。",
+        "username_managed": "你的用户名由登录提供商管理，无法在此修改。",
+        "unlink_disabled": "服务器运营者不允许解除与此提供商的关联。",
         "popup_blocked": "请允许此网站的弹出窗口，然后重试关联。",
         "account_mismatch": "请在此服务器上登录正确的账户，然后从原来的窗口重新开始关联。",
         "provider_unavailable": "此登录服务提供商已不可用。",

@@ -1,13 +1,24 @@
 /** Exercise inbox, shared client timeline, Pi input, and reply routing together. */
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import type { AddressedMessage, Destination, Server } from '@chatto/client';
+import type { Destination, Server } from '@chatto/client';
+import type { IncomingMessage } from './messages.ts';
 import { Inbox } from './inbox.ts';
+import type { ParticipantSource } from './context.ts';
 import { createTurnHandler } from './turn.ts';
 import { parseSettings } from './settings.ts';
 import { contextFixture, page, row } from './context.fixture.ts';
 import { hasTranscript } from './messages.ts';
 import { createTaskContext } from 'runling';
 import { createTitleWriter } from './title.ts';
+import type { createParticipationClassifier } from './participation.ts';
+import { withTyping } from '@chatto/client/messaging/typing';
+import { Subagents, type SubagentStatus } from './delegate.ts';
+
+const participation = vi.hoisted(() => vi.fn<ReturnType<typeof createParticipationClassifier>>());
+vi.mock('./participation.ts', async (original) => ({
+  ...(await original<typeof import('./participation.ts')>()),
+  createParticipationClassifier: () => participation
+}));
 
 const naming = vi.hoisted(() => vi.fn<ReturnType<typeof createTitleWriter>>());
 vi.mock('./title.ts', () => ({ createTitleWriter: () => naming }));
@@ -15,6 +26,7 @@ vi.mock('./title.ts', () => ({ createTitleWriter: () => naming }));
 vi.mock('./messages.ts', () => ({ hasTranscript: vi.fn() }));
 
 beforeEach(() => {
+  participation.mockReset().mockResolvedValue({ action: 'reply' });
   naming.mockReset().mockResolvedValue(undefined);
   vi.mocked(hasTranscript).mockReset().mockResolvedValue(false);
   vi.useFakeTimers();
@@ -28,7 +40,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = () => {}) {
+function setup(beforeEffects: (messages: readonly IncomingMessage[]) => void = () => {}) {
   const settings = parseSettings(
     '[chatto]\nurl="https://chat.example.com"\napi_key="test"\n[agent]\nmodel="test/model"',
     'botto.toml',
@@ -38,12 +50,16 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
   fixtures.push(fixture.rooms);
   const server = {
     ...fixture.server,
+    service: vi.fn<ParticipantSource['service']>().mockReturnValue({
+      batchGetUsers: vi.fn().mockResolvedValue({ users: [] })
+    }),
     getMessage: vi.fn<Server['getMessage']>().mockResolvedValue(undefined),
     readAttachment: vi.fn<Server['readAttachment']>(),
     addReaction: vi.fn<Server['addReaction']>().mockResolvedValue(undefined),
     postMessage: vi.fn<Server['postMessage']>().mockResolvedValue({ ids: ['reply'] }),
     withTyping: async <T>(_destination: Destination, work: () => Promise<T>) => work()
   };
+  vi.spyOn(server, 'withTyping');
   const agent = {
     reply: vi.fn<Parameters<typeof createTurnHandler>[3]['reply']>().mockResolvedValue('One answer')
   };
@@ -57,8 +73,11 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
     beforeEffects
   );
   const ctx = createTaskContext();
-  const turn = (messages: readonly AddressedMessage[]) => handle(ctx, messages);
-  const one: AddressedMessage = {
+  const children = new Subagents(ctx, () => {});
+  const turn = (messages: readonly IncomingMessage[]) => handle(ctx, messages, children);
+  const completion = (messages: readonly IncomingMessage[], result: SubagentStatus) =>
+    handle(ctx, messages, children, result);
+  const one: IncomingMessage = {
     id: 'one',
     roomId: 'room',
     threadRootId: 'root',
@@ -66,9 +85,67 @@ function setup(beforeEffects: (messages: readonly AddressedMessage[]) => void = 
     body: 'First',
     reasons: ['mention']
   };
-  const two: AddressedMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
-  return { ...fixture, settings, server, agent, controller, turn, one, two };
+  const two: IncomingMessage = { ...one, id: 'two', authorId: 'another', body: 'Clarification' };
+  return { ...fixture, settings, server, agent, controller, turn, completion, one, two };
 }
+
+test('child completion runs the parent without replaying the triggering message or delivery effects', async () => {
+  const beforeEffects = vi.fn();
+  const { completion, one, server, agent } = setup(beforeEffects);
+  await completion([one], { id: 'child', status: 'completed', progress: [], result: 'Findings' });
+  expect(participation).not.toHaveBeenCalled();
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(naming).not.toHaveBeenCalled();
+  const input = agent.reply.mock.calls[0]![1];
+  expect(JSON.parse(input.prompt)).toMatchObject({
+    currentMessages: [],
+    subagentResult: { id: 'child', result: 'Findings' }
+  });
+  expect(input.context).toBeDefined();
+  expect(server.withTyping).toHaveBeenCalledOnce();
+  expect(server.postMessage).toHaveBeenCalledWith(
+    { roomId: 'room', threadRootId: 'root', inReplyTo: 'one' },
+    'One answer',
+    expect.anything()
+  );
+});
+
+test.each([true, false])(
+  'finishes pending typing before the final post, independently of naming (addressed: %s)',
+  async (addressed) => {
+    const { turn, one, server, agent } = setup();
+    const finishModel = Promise.withResolvers<string>();
+    const finishNaming = Promise.withResolvers<void>();
+    const refresh = Promise.withResolvers<void>();
+    const events: string[] = [];
+    const update = vi.fn(async () => {
+      await refresh.promise;
+      events.push('typing');
+    });
+    vi.mocked(server.withTyping).mockImplementation((_destination, work) =>
+      withTyping(new AbortController().signal, update, work)
+    );
+    naming.mockReturnValueOnce(finishNaming.promise);
+    agent.reply.mockReturnValueOnce(finishModel.promise);
+    server.postMessage.mockImplementationOnce(async () => {
+      events.push('answer');
+      return { ids: ['reply'] };
+    });
+    const pending = turn([{ ...one, reasons: addressed ? ['mention'] : [] }]);
+    await vi.waitFor(() => expect(agent.reply).toHaveBeenCalledOnce());
+    finishModel.resolve('Done');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(server.postMessage).not.toHaveBeenCalled();
+    refresh.resolve();
+    await vi.waitFor(() => expect(server.postMessage).toHaveBeenCalledOnce());
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(events).toEqual(['typing', 'answer']);
+    expect(update).toHaveBeenCalledOnce();
+    finishNaming.resolve();
+    await pending;
+  }
+);
 
 test('posts the reply while naming is pending and joins naming before the turn ends', async () => {
   const { turn, one, history, server } = setup();
@@ -90,6 +167,170 @@ test('posts the reply while naming is pending and joins naming before the turn e
   finish();
   await pending;
   expect(ended).toBe(true);
+});
+
+test('passive silence completes without typing, acknowledgement, or a post', async () => {
+  const { turn, one, server, agent } = setup();
+  participation.mockResolvedValueOnce({ action: 'ignore' });
+  await turn([{ ...one, reasons: [] }]);
+  expect(agent.reply).not.toHaveBeenCalled();
+  expect(naming).not.toHaveBeenCalled();
+  expect(server.withTyping).not.toHaveBeenCalled();
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('a passive reaction can be the entire response', async () => {
+  const { turn, one, server, agent } = setup();
+  participation.mockResolvedValueOnce({ action: 'react', emoji: 'tada' });
+  await turn([{ ...one, reasons: [] }]);
+  expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
+    { roomId: 'room', messageId: 'one' },
+    'tada',
+    { signal: expect.any(AbortSignal) }
+  );
+  expect(server.withTyping).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+  expect(naming).not.toHaveBeenCalled();
+});
+
+test.each(['reply', 'ignore'] as const)(
+  'reaction activity uses the classifier and delivers %s without reading the event as a message',
+  async (action) => {
+    const { turn, one, server, agent, history } = setup();
+    history.mockResolvedValue(page([row('root', 'Root'), row('answer', 'Bot answer')]));
+    participation.mockResolvedValueOnce({ action });
+    const reaction = {
+      ...one,
+      id: 'reaction-event',
+      body: '',
+      reasons: [],
+      reaction: { messageId: 'answer', emoji: 'thinking_face' }
+    };
+    await turn([reaction]);
+    expect(participation).toHaveBeenCalledOnce();
+    expect(
+      server.getMessage.mock.calls.some(([target]) => target.messageId === 'reaction-event')
+    ).toBe(false);
+    expect(server.addReaction).not.toHaveBeenCalled();
+    if (action === 'reply') {
+      expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt)).toEqual({
+        currentDateTime: new Date().toISOString(),
+        currentMessages: [{ author: 'human', reaction: reaction.reaction }]
+      });
+      expect(server.postMessage).toHaveBeenCalledOnce();
+      expect(server.postMessage.mock.calls[0]![0]).toEqual({
+        roomId: 'room',
+        threadRootId: 'root',
+        inReplyTo: 'answer'
+      });
+    } else {
+      expect(agent.reply).not.toHaveBeenCalled();
+      expect(server.withTyping).not.toHaveBeenCalled();
+    }
+  }
+);
+
+test('a passive follow-up can still receive a textual answer', async () => {
+  const { turn, one, server, agent } = setup();
+  agent.reply.mockResolvedValueOnce('Thanks, that answers my question.');
+  await turn([{ ...one, reasons: [] }]);
+  expect(server.postMessage).toHaveBeenCalledOnce();
+  expect(server.postMessage.mock.calls[0]![1]).toBe('Thanks, that answers my question.');
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(server.withTyping).toHaveBeenCalledOnce();
+});
+
+test.each(['direct_message', 'mention', 'reply'] as const)(
+  'addressed %s bypasses the classifier',
+  async (reason) => {
+    const { turn, one, server, agent } = setup();
+    participation.mockRejectedValue(new Error('Must not classify'));
+    await turn([{ ...one, reasons: [reason] }]);
+    expect(participation).not.toHaveBeenCalled();
+    expect(agent.reply).toHaveBeenCalledOnce();
+    expect(server.withTyping).toHaveBeenCalledOnce();
+  }
+);
+
+test('classification failure leaves the batch retryable and produces no effects', async () => {
+  const beforeEffects = vi.fn();
+  const { turn, one, server, agent } = setup(beforeEffects);
+  participation.mockRejectedValueOnce(new Error('Classifier unavailable'));
+  await expect(turn([{ ...one, reasons: [] }])).rejects.toThrow('Classifier unavailable');
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(server.withTyping).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+});
+
+test('failed classified reactions are not retried or replaced with a textual answer', async () => {
+  const beforeEffects = vi.fn();
+  const { turn, one, server, agent } = setup(beforeEffects);
+  participation.mockResolvedValueOnce({ action: 'react', emoji: '+1' });
+  server.addReaction.mockRejectedValueOnce(new Error('Uncertain write'));
+  await expect(turn([{ ...one, reasons: [] }])).rejects.toThrow('Uncertain write');
+  expect(beforeEffects).toHaveBeenCalledOnce();
+  expect(server.addReaction).toHaveBeenCalledOnce();
+  expect(agent.reply).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('cancellation after classification prevents the selected reaction', async () => {
+  const { turn, one, server, controller } = setup();
+  participation.mockImplementationOnce(async () => {
+    controller.abort();
+    return { action: 'react', emoji: 'heart' };
+  });
+  await expect(turn([{ ...one, reasons: [] }])).rejects.toThrow();
+  expect(server.addReaction).not.toHaveBeenCalled();
+});
+
+test('passive typing starts before a completed message and ends even when later work fails', async () => {
+  const { turn, one, server, agent } = setup();
+  const release = Promise.withResolvers<void>();
+  const acknowledged = Promise.withResolvers<void>();
+  let typingActive = false;
+  vi.mocked(server.withTyping).mockImplementation(async (_destination, work) => {
+    typingActive = true;
+    try {
+      return await work();
+    } finally {
+      typingActive = false;
+    }
+  });
+  agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
+    expect(server.withTyping).toHaveBeenCalledOnce();
+    expect(typingActive).toBe(true);
+    expect(server.postMessage).not.toHaveBeenCalled();
+    onText!("I'll check the forecast.");
+    acknowledged.resolve();
+    await release.promise;
+    throw new Error('Model failed');
+  });
+  const pending = turn([{ ...one, reasons: [] }]);
+  const rejected = expect(pending).rejects.toThrow('Model failed');
+  await acknowledged.promise;
+  expect(typingActive).toBe(true);
+  release.resolve();
+  await rejected;
+  expect(typingActive).toBe(false);
+  expect(server.postMessage).toHaveBeenCalledOnce();
+});
+
+test('a mixed batch keeps addressing per message and acknowledges the addressed message', async () => {
+  const { turn, one, two, server, agent } = setup();
+  await turn([{ ...one, reasons: [] }, two]);
+  expect(
+    JSON.parse(agent.reply.mock.calls[0]![1].prompt).currentMessages.map(
+      (item: { reasons: string[] }) => item.reasons
+    )
+  ).toEqual([[], ['mention']]);
+  expect(server.withTyping).toHaveBeenCalledOnce();
+  expect(server.addReaction.mock.calls[0]![0].messageId).toBe('two');
+  expect(participation).not.toHaveBeenCalled();
 });
 
 test('joins naming even when posting the reply fails', async () => {
@@ -140,6 +381,29 @@ test('passes image-only message pixels as request context, not persisted prompt 
   expect(input.prompt).not.toContain('AQID');
   expect(server.postMessage).toHaveBeenCalledOnce();
 });
+
+test.each([false, true])(
+  'does not install an image loader for text or document-only context (document: %s)',
+  async (document) => {
+    const { turn, one, history, server, agent } = setup();
+    const message = row('one', 'Text request');
+    if (message.event.kind !== 'messagePosted') throw new Error('Expected message');
+    if (document)
+      message.event.attachments = [
+        {
+          id: 'document',
+          filename: 'notes.pdf',
+          contentType: 'application/pdf',
+          width: 0,
+          height: 0
+        }
+      ];
+    history.mockResolvedValue(page([row('root', 'Root'), message]));
+    await turn([one]);
+    expect(agent.reply.mock.calls[0]![1].loadImages).toBeUndefined();
+    expect(server.readAttachment).not.toHaveBeenCalled();
+  }
+);
 
 test('a failed durable start prevents reactions, model calls, and reply posts', async () => {
   const beforeEffects = vi.fn(() => {
@@ -209,6 +473,17 @@ test('later turns use the live timeline without another history request', async 
   controller.abort();
 });
 
+test('each turn receives a fresh UTC date and time, including across midnight', async () => {
+  const { turn, one, two, agent } = setup();
+  vi.setSystemTime(new Date('2026-10-28T23:59:00.000Z'));
+  await turn([one]);
+  vi.setSystemTime(new Date('2026-10-29T00:01:00.000Z'));
+  await turn([two]);
+  expect(
+    agent.reply.mock.calls.map(([, input]) => JSON.parse(input.prompt).currentDateTime)
+  ).toEqual(['2026-10-28T23:59:00.000Z', '2026-10-29T00:01:00.000Z']);
+});
+
 test('a debounced batch becomes one prompt and one reply in its original thread', async () => {
   const { settings, server, agent, controller, turn, one, two, history } = setup();
   const failed = vi.fn();
@@ -222,15 +497,10 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
     expect.objectContaining({ signal: expect.any(AbortSignal) }),
     {
       identity: ['https://chat.example.com', 'bot', 'room', 'root'],
-      prompt: JSON.stringify({
-        currentMessages: [
-          { id: 'one', author: 'human', text: 'First' },
-          { id: 'two', author: 'another', text: 'Clarification' }
-        ]
-      }),
+      prompt: expect.any(String),
       signal: expect.any(AbortSignal),
       onText: expect.any(Function),
-      loadImages: expect.any(Function),
+      loadImages: undefined,
       context: {
         messages: [
           { id: 'root', author: 'human', text: 'Root', fromViewer: false },
@@ -244,12 +514,21 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
           { id: 'two', author: 'another', text: 'Clarification', fromViewer: false }
         ],
         olderContextOmitted: false,
+        participants: [],
         imageNotes: []
       },
       userIds: ['human', 'another'],
-      tools: [expect.any(Function), expect.any(Function), expect.any(Function)]
+      tools: [expect.any(Function), expect.any(Function), expect.any(Function)],
+      capabilities: ['delegation', 'images', 'reactions']
     }
   );
+  expect(JSON.parse(agent.reply.mock.calls[0]![1].prompt)).toEqual({
+    currentDateTime: expect.any(String),
+    currentMessages: [
+      { id: 'one', author: 'human', text: 'First', reasons: ['mention'] },
+      { id: 'two', author: 'another', text: 'Clarification', reasons: ['mention'] }
+    ]
+  });
   expect(history).toHaveBeenCalledOnce();
   expect(server.addReaction).toHaveBeenCalledExactlyOnceWith(
     { roomId: 'room', messageId: 'one' },
@@ -342,7 +621,6 @@ test('posts interim text before model completion, preserves order, and sends the
   });
   agent.reply.mockImplementationOnce(async (_ctx, { onText }) => {
     onText!('Let me take a closer look.');
-    onText!('Here is the answer.');
     await finishModel.promise;
     return 'Here is the answer.';
   });
@@ -387,4 +665,69 @@ test('an already delivered interim message survives a later model failure withou
   });
   await expect(turn([one])).rejects.toThrow('Model failed');
   expect(server.postMessage).toHaveBeenCalledTimes(1);
+});
+
+test('supplies current directory names by author ID without changing message text', async () => {
+  const { server, agent, turn, one, two } = setup();
+  const batchGetUsers = vi.fn().mockResolvedValue({
+    users: [
+      { user: { id: 'another', login: 'river', displayName: 'River', deleted: false } },
+      { user: { id: 'human', login: 'cedar', displayName: 'Cedar', deleted: false } },
+      { user: { id: 'bot', login: 'helper', displayName: 'Helper', deleted: false } },
+      { user: { id: 'outsider', login: 'unrequested', displayName: 'Other', deleted: false } }
+    ]
+  });
+  server.service.mockReturnValue({ batchGetUsers });
+  const text = 'For you it is mister river. It is a placebo switch.';
+  await turn([one, { ...two, body: text }]);
+  expect(batchGetUsers).toHaveBeenCalledWith(
+    { userIds: ['human', 'another'] },
+    { signal: expect.any(AbortSignal), timeoutMs: 10_000 }
+  );
+  const input = agent.reply.mock.calls[0]![1];
+  expect(input.context?.participants).toEqual([
+    { id: 'another', username: 'river', displayName: 'River' },
+    { id: 'human', username: 'cedar', displayName: 'Cedar' }
+  ]);
+  expect(JSON.parse(input.prompt).currentMessages[1]).toMatchObject({
+    author: 'another',
+    text
+  });
+});
+
+test('participant lookup failure stays retryable before delivery effects', async () => {
+  const beforeEffects = vi.fn();
+  const { server, agent, turn, one } = setup(beforeEffects);
+  server.service.mockReturnValue({
+    batchGetUsers: vi.fn().mockRejectedValue(new Error('Read failed'))
+  });
+  await expect(turn([one])).rejects.toThrow();
+  expect(beforeEffects).not.toHaveBeenCalled();
+  expect(agent.reply).not.toHaveBeenCalled();
+  expect(server.addReaction).not.toHaveBeenCalled();
+  expect(server.postMessage).not.toHaveBeenCalled();
+});
+
+test('refreshes names each turn and never supplies a deleted account name', async () => {
+  const { server, agent, turn, one } = setup();
+  const batchGetUsers = vi
+    .fn()
+    .mockResolvedValueOnce({
+      users: [
+        { user: { id: 'human', login: 'old-name', displayName: 'Old name' } },
+        { user: { id: 'another', login: 'deleted-name', displayName: 'Deleted', deleted: true } }
+      ]
+    })
+    .mockResolvedValueOnce({
+      users: [{ user: { id: 'human', login: 'new-name', displayName: 'New name' } }]
+    });
+  server.service.mockReturnValue({ batchGetUsers });
+  await turn([one]);
+  await turn([one]);
+  expect(agent.reply.mock.calls[0]![1].context?.participants).toEqual([
+    { id: 'human', username: 'old-name', displayName: 'Old name' }
+  ]);
+  expect(agent.reply.mock.calls[1]![1].context?.participants).toEqual([
+    { id: 'human', username: 'new-name', displayName: 'New name' }
+  ]);
 });

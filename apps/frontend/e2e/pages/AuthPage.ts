@@ -31,7 +31,7 @@ export class AuthPage {
 
   /** Password input (works for login and registration complete) */
   get passwordInput(): Locator {
-    return this.page.locator('#password');
+    return this.page.getByLabel('Password', { exact: true });
   }
 
   /** Confirm Password input on registration complete page */
@@ -561,6 +561,7 @@ export class AuthPage {
     subject: string;
     verifiedEmail?: string;
     loginHint?: string;
+    providerUsername?: string;
     displayNameHint?: string;
     boundUserId?: string;
     redirectPath?: string;

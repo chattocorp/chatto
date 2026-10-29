@@ -6,6 +6,13 @@
       "confirmation": "Tas uz 15 minūtēm aktivizē tev šajā serverī piešķirtās papildu atļaujas."
     },
     "notifications": {
+      "all_notifications": "Visi paziņojumi",
+      "all_types": "Visi veidi",
+      "filter_status": "Statuss",
+      "filter_type": "Veids",
+      "reactions": "Reakcijas",
+      "replies": "Atbildes",
+      "mentions": "Pieminējumi",
       "next_unread_source": "Pāriet uz nākamo nelasīto avotu",
       "no_unread": "Nav nelasītu paziņojumu",
       "title": "Paziņojumi",

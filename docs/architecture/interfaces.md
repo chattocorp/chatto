@@ -53,6 +53,11 @@ fact append in one atomic batch of existing EVT events.
 
 ## Transport boundaries
 
+`GET /oauth/authorize` accepts the optional `screen_hint=signup` display hint.
+After normal client and PKCE validation, it opens `/register` with a safe
+authorization continuation. This does not change registration permissions or
+the persisted authorization state.
+
 `webserver.bind_address` selects the address for the main HTTP or HTTPS
 listener and the optional ACME HTTP listener. An empty value listens on all
 interfaces. The configured address does not change the public URL or proxy
@@ -95,6 +100,12 @@ window of at most 24 hours.
 | Operator ConnectRPC                 | `/api/connect/chatto.operator.v1.*` on the configured Unix socket                                                                                                                                                                               | Root-equivalent local unary services                                                                                                                                                                                                                                                                                                       | Unix-socket filesystem permissions; never mounted on the public listener                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Trusted NATS services               | `svc.chatto.>` and `svc.chatto_ext.>`                                                                                                                                                                                                           | Versioned protobuf request/reply through NATS micro services                                                                                                                                                                                                                                                                               | NATS account permissions; extension providers receive only their configured service and upstream Core subjects                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Reflection                          | `/api/connect/grpc.reflection.v1*` and `v1alpha*`                                                                                                                                                                                               | Public service descriptors                                                                                                                                                                                                                                                                                                                 | Public; restricted resolver excludes internal `chatto.core.*` types                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+Public server assets, their image transforms, and Neighborhood image copies
+support `If-None-Match` revalidation. The asset handlers check public access and
+availability before returning `304 Not Modified`. Protected attachments retain
+their private, no-store policy. See
+[`assets.go`](../../cli/internal/http_server/assets.go).
 
 When `[search].enabled` is true, MCP also exposes `search_messages` under
 `chatto:messages:read`. The HTTP server supplies the shared public search
@@ -391,6 +402,12 @@ typed historical transitions. Optional operation keys on creation and message
 import provide permanent exact retry protection. See
 [FDR-053](../fdr/FDR-053-history-import-export.md).
 
+`ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
+retains that ID for retries; receipts from older servers return no event ID.
+
+`OperatorMessageService.ImportReaction` accepts individual room join and leave
+event IDs for historical imports, without live delivery or notifications.
+
 | Package              | Service                  | Access policy                                                                                      |
 | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | `chatto.operator.v1` | `OperatorUserService`    | Root-equivalent account and external identity management over the private Unix socket              |
@@ -410,6 +427,11 @@ The [synthetic data generator](../../cli/internal/core/seed_development.go) uses
 existing account, channel, membership, and message operations. Its CLI is
 `chatto operator seed`. It adds no event types, streams, or projections and waits
 for serving projections before success. The
+optional avatar image pool uses the existing user-avatar operation and asset
+storage. The CLI can opt in to Pravatar downloads before the seed RPC; the server
+does not fetch external avatar URLs. Optional notification fixtures use the
+historical message import service and notification command model to populate an
+existing account's inbox across several days, without Web Push. The
 [test-only HTTP wrapper](../../cli/internal/http_server/seed_test_endpoint.go)
 also mounts `POST /auth/test/seed` and `POST /auth/test/create-session` in
 `test_endpoints` builds. Session creation accepts an existing human account ID

@@ -5,6 +5,27 @@
 @import 'tailwindcss' source('./');
 @import './prose.css';
 @import './composer.css';
+@import './view-transitions.css';
+
+/* Both CSS and JavaScript use the effective app motion policy. */
+@custom-variant motion-reduce (&:where([data-motion='reduced'], [data-motion='reduced'] *));
+@custom-variant motion-safe (&:where([data-motion='full'], [data-motion='full'] *));
+
+/* Keep the timed, static message-location cue; finish other CSS animations
+   immediately so completion events and final states still work. */
+:root[data-motion='reduced'] *:not(.highlight-flash),
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
 
 /* Registered numbers let the whole design system interpolate depth together. */
 @property --depth-strength {
@@ -186,6 +207,10 @@
  * content fitting; only narrow touch-capable windows use mobile presentation. */
 @custom-variant touch-input (@media (any-pointer: coarse));
 @custom-variant compact-input (@media not all and (any-pointer: coarse));
+/* Density follows the primary pointer.
+ * Capability variants above still own gesture and action availability. */
+@custom-variant comfortable-density (@media (pointer: coarse));
+@custom-variant compact-density (@media not all and (pointer: coarse));
 @custom-variant mobile-presentation (@media (width < 768px) and (any-pointer: coarse));
 @custom-variant desktop-presentation {
   @media (width >= 768px) {
@@ -867,6 +892,9 @@
   &:has([data-pane-content='wide']) {
     --pane-header-max-width: calc(var(--container-pane-wide) - 1rem);
   }
+  &:has([data-pane-content='fluid']) {
+    --pane-header-max-width: 100%;
+  }
 }
 
 /* Panel/card shells provide the outer surface frame. Their content sits on a
@@ -1050,7 +1078,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .loading-fog::before,
   .loading-fog::after {
     animation: none;
@@ -1322,9 +1350,9 @@
   @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-/* Keep touch targets available on hybrid devices even when a mouse is present. */
+/* The composer uses the same primary-pointer density as navigation and menus. */
 @utility pill-button-group-touch {
-  @media (any-pointer: coarse) {
+  @variant comfortable-density {
     height: 44px;
     min-height: 44px;
     & > button {
@@ -1662,7 +1690,7 @@
   --tw-ease: var(--motion-easing-feedback);
   transition-duration: var(--motion-duration-feedback);
   transition-timing-function: var(--motion-easing-feedback);
-  @media (prefers-reduced-motion: reduce) {
+  :where([data-motion='reduced']) & {
     /* Zero timing also wins when a property utility follows this utility. */
     --motion-duration-feedback: 0ms;
   }
@@ -1673,7 +1701,7 @@
   &:popover-open {
     animation: overlay-enter var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
   }
-  @media (prefers-reduced-motion: reduce) {
+  :where([data-motion='reduced']) & {
     &:popover-open {
       animation: none;
     }
@@ -1844,9 +1872,44 @@
   @apply transition-colors;
 }
 
+/* Lift a surface directly, or when its enclosing hover-lift-group is hovered. */
+@utility hover-lift {
+  @apply transition-transform duration-150;
+
+  @media (hover: hover) {
+    &:where([data-motion='full'] *):hover,
+    :where([data-motion='full']) .hover-lift-group:hover & {
+      @apply -translate-y-0.5;
+    }
+  }
+}
+
 /* Shimmer hover effect */
 @utility shimmer-hover {
   @apply relative overflow-hidden;
+}
+
+/* Keep adjacent segmented controls content-sized until they wrap. Each control
+   then grows across its line, including its option labels and selection pill. */
+@utility segmented-control-group {
+  @apply flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3;
+
+  & > fieldset {
+    @apply w-max flex-auto;
+  }
+
+  & > fieldset > label {
+    @apply grow;
+  }
+
+  & > fieldset > label > span {
+    @apply w-full;
+  }
+}
+
+/* Lower-priority metadata retains enough of its inherited color for readable contrast. */
+@utility text-subdued {
+  @apply text-current/90;
 }
 
 /* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
@@ -1886,6 +1949,7 @@
    `pane-header-icon-button-active` to mark the selected panel. */
 @utility pane-header-icon-button {
   @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center icon-action-feedback bg-transparent leading-none;
+  @apply comfortable-density:h-11 comfortable-density:w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1895,6 +1959,7 @@
    with a `pane-header` container query when the header has room. */
 @utility pane-header-label-button {
   @apply inline-flex h-10 min-w-10 shrink-0 cursor-pointer items-center justify-center gap-2 icon-action-feedback px-3 leading-none whitespace-nowrap;
+  @apply comfortable-density:h-11 comfortable-density:min-w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
@@ -1950,6 +2015,7 @@
 }
 
 .shimmer-hover:hover::before,
+.shimmer-group:hover .shimmer-hover::before,
 .server-gutter-item:hover::before {
   animation: shimmer-sweep 450ms ease-out forwards;
 }
@@ -1960,29 +2026,68 @@
   }
 }
 
-/* A gutter logo sits inside another shimmer surface; only the outer one sweeps. */
+/* A gutter logo defers to the outer shimmer. */
 .server-gutter-item .shimmer-hover::before {
   display: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .shimmer-hover:hover::before,
+  .shimmer-group:hover .shimmer-hover::before,
   .server-gutter-item:hover::before {
     animation: none;
   }
 }
 
 @utility highlight-flash {
+  --jump-edge: 3px;
   animation: highlight-flash 1.5s ease-out;
+  &:dir(rtl) {
+    --jump-edge: -3px;
+  }
 }
 
 @keyframes highlight-flash {
   0%,
-  15% {
-    background-color: color-mix(in oklch, var(--color-warning) 20%, transparent);
+  30% {
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
   }
   100% {
     background-color: transparent;
+    box-shadow: inset var(--jump-edge) 0 transparent;
+  }
+}
+
+.copy-feedback [data-copy-check],
+.copy-feedback[data-copied] [data-copy-icon] {
+  display: none;
+}
+.copy-feedback[data-copied] [data-copy-check] {
+  display: inline-block;
+  animation: copy-confirmation 160ms ease-out;
+}
+@keyframes copy-confirmation {
+  from {
+    transform: scale(0.75);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes highlight-still {
+  from,
+  to {
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
+  }
+}
+:root[data-motion='reduced'] {
+  .highlight-flash {
+    animation-name: highlight-still;
+  }
+  .copy-feedback[data-copied] [data-copy-check] {
+    animation: none;
   }
 }
 
@@ -2173,7 +2278,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .typing-dot,
   .loading-dot,
   .quick-switcher[open],
@@ -2260,7 +2365,7 @@
   outline-color: var(--color-action);
 }
 
-@media (prefers-reduced-motion: reduce) {
+:root[data-motion='reduced'] {
   .sidebar-drop-target {
     transition: none;
   }
@@ -2389,9 +2494,47 @@
   }
 }
 
+/* Palettes retain the app header even while their search opens the keyboard. */
+@media (width < 48rem) {
+  body[data-keyboard-open]:has(.palette-dialog[open]) .app-header {
+    display: flex;
+  }
+}
+
 /* Quick navigation uses the menu frame with a larger search and result rhythm. */
+@utility palette-dialog {
+  @apply fixed z-60 m-auto mt-[15vh] max-h-none max-w-none overflow-visible;
+  @media (width < 48rem) {
+    --palette-top: max(
+      var(--modal-viewport-top, 0px),
+      calc(var(--app-header-height) + env(safe-area-inset-top, 0px))
+    );
+    margin: 0;
+    top: var(--palette-top);
+    bottom: auto;
+    width: 100%;
+    height: calc(
+      var(--modal-viewport-height, 100dvh) + var(--modal-viewport-top, 0px) - var(--palette-top)
+    );
+    overflow: hidden;
+    &[open]::backdrop {
+      background: transparent;
+    }
+  }
+}
+
 @utility command-palette {
-  @apply flex w-140 max-w-[calc(100vw-2rem)] flex-col gap-1 menu rounded-lg p-1 text-sm;
+  @apply flex min-h-0 w-full flex-col gap-0 bg-background text-base;
+  @media (width < 48rem) {
+    height: 100%;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    & :is(.menu-section, .menu-section-sm) {
+      border-radius: 0;
+    }
+  }
+  @media (width >= 48rem) {
+    @apply w-140 max-w-[calc(100vw-2rem)] gap-1 menu rounded-lg p-1 text-sm;
+  }
 }
 
 @utility command-palette-leading {
@@ -2399,7 +2542,16 @@
 }
 
 @utility command-palette-result {
-  @apply menu-entry gap-2 px-2 py-1;
+  @apply menu-entry command-palette-row;
+}
+
+/* Shared geometry for actionable results and noninteractive shortcut rows. */
+@utility command-palette-row {
+  @apply flex min-h-8 items-center gap-2 px-2 py-1 comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
+}
+
+@utility command-palette-heading {
+  @apply px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase comfortable-density:px-3;
 }
 
 @utility command-palette-result-active {
@@ -2431,7 +2583,7 @@
 @utility menu-entry {
   @apply select-none;
   @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
-  @apply touch-input:min-h-11 touch-input:px-3 touch-input:py-2.5;
+  @apply comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
   @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
@@ -2557,8 +2709,6 @@ body[data-resizing-sidebar] {
   user-select: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    transition: none;
-  }
+:root[data-motion='reduced'] {
+  transition: none;
 }

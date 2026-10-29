@@ -117,7 +117,7 @@ class SlackArchiveTests(unittest.TestCase):
 
     def test_report_collects_independent_gaps_without_source_content(self):
         rows = self.data["general/2020-01-01.json"]
-        rows[1]["reactions"] = [{"name": "private_custom_name", "users": ["U2"], "count": 1}]
+        rows[1]["reactions"] = [{"name": "private invalid name", "users": ["U2"], "count": 1}]
         rows[2]["blocks"] = [{"type": "unsupported_private_block"}]
         rows[2]["text"] = "private message body"
         report = exporter.conversion_report(self.plan())
@@ -129,7 +129,7 @@ class SlackArchiveTests(unittest.TestCase):
         self.assertNotIn("alice", json.dumps(report))
 
     def test_failed_conversion_writes_private_report_without_archive(self):
-        self.data["general/2020-01-01.json"][1]["reactions"][0]["name"] = "custom"
+        self.data["general/2020-01-01.json"][1]["reactions"][0]["name"] = ":invalid:"
         self.plan()
         output = self.root / "output"
         report = self.root / "output.conversion-report.json"
@@ -286,10 +286,99 @@ class SlackArchiveTests(unittest.TestCase):
         self.assertEqual(records["events"][1]["data"]["content"]["body"]["text"], "`@b`")
         validate_records(records)
 
-    def test_unknown_custom_reaction_fails(self):
+    def test_unknown_custom_reaction_is_preserved(self):
         self.data["general/2020-01-01.json"][1]["reactions"][0]["name"] = "custom_company_emoji"
-        with self.assertRaisesRegex(ApplyError, "unknown reaction"):
-            exporter.build_archive(self.plan())
+        plan = self.plan()
+        records, _ = exporter.build_archive(plan)
+        validate_records(records)
+        reactions = [r for event in records["events"] for r in event["data"].get("reactions", [])]
+        self.assertIn({"emoji": "custom_company_emoji", "user_ids": ["U2"]}, reactions)
+        self.assertEqual(exporter.conversion_report(plan)["unsupported_emoji_names"], 0)
+
+    def test_skin_tone_reactions_use_complete_shared_sequences(self):
+        rows = self.data["general/2020-01-01.json"]
+        rows[1]["reactions"] = [
+            {"name": name, "users": ["U2"], "count": 1} for name in (
+                "thumbsup::skin-tone-4", "woman_technologist::skin-tone-4",
+                "handshake::skin-tone-2-6")]
+        plan = self.plan()
+        records, _ = exporter.build_archive(plan)
+        validate_records(records)
+        self.assertEqual({r["emoji"] for r in records["events"][1]["data"]["reactions"]},
+                         {"👍🏽", "👩🏽‍💻", "🫱🏻‍🫲🏿"})
+        self.assertEqual(exporter.conversion_report(plan)["unsupported_emoji_names"], 0)
+        self.assertFalse(any("emoji images" in o["reason"] for o in records["manifest"]["omissions"]))
+
+    def test_slack_aliases_preserve_tones_and_merge_equivalent_reactors(self):
+        rows = self.data["general/2020-01-01.json"]
+        rows[1]["reactions"] = [
+            {"name": "the_horns::skin-tone-3", "users": ["U2"], "count": 1},
+            {"name": "metal::skin-tone-3", "users": ["U1", "U2"], "count": 2},
+            {"name": "male_elf::skin-tone-3", "users": ["U2"], "count": 1},
+            {"name": "female-judge::skin-tone-3", "users": ["U2"], "count": 1},
+        ]
+        plan = self.plan()
+        records, _ = exporter.build_archive(plan)
+        validate_records(records)
+        reactions = {r["emoji"]: r["user_ids"] for r in records["events"][1]["data"]["reactions"]}
+        self.assertEqual(reactions, {"🤘🏼": ["U1", "U2"], "🧝🏼‍♂️": ["U2"], "👩🏼‍⚖️": ["U2"]})
+        self.assertEqual(exporter.conversion_report(plan)["unsupported_emoji_names"], 0)
+
+    def test_newer_standard_emoji_is_not_mislabeled_as_custom(self):
+        aliases, supported = exporter.slack_emoji_catalog()
+        with patch.object(exporter, "slack_emoji_catalog",
+                          return_value=({**aliases, "future_emoji": "🫩"}, supported - {"🫩"})):
+            self.assertEqual(exporter.reaction_unicode("future_emoji", {}), "future_emoji")
+            self.data["general/2020-01-01.json"][1]["reactions"][0]["name"] = "future_emoji"
+            plan = self.plan()
+            records, _ = exporter.build_archive(plan)
+            validate_records(records)
+            omissions = records["manifest"]["omissions"]
+            self.assertTrue(any(o["reason"].startswith("Newer standard reaction") for o in omissions))
+            self.assertFalse(any(o["reason"].startswith("Custom reaction") for o in omissions))
+            report = exporter.conversion_report(plan)
+            self.assertEqual(report["unsupported_emoji_names"], 0)
+            self.assertIn("standard_reaction_name_without_destination_glyph",
+                          {item["code"] for item in report["transformations"]})
+        with patch.object(exporter, "slack_emoji_catalog", return_value=({"future::skin-tone-2": "🫩🏻"}, frozenset())):
+            with self.assertRaisesRegex(ApplyError, "destination catalog"):
+                exporter.reaction_unicode("future::skin-tone-2", {})
+
+    def test_supplemental_standard_emoji_convert_to_unicode(self):
+        emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+        for name, glyph in {
+            "face_with_bags_under_eyes": "🫩", "head_shaking_vertically": "🙂‍↕️",
+            "leafless_tree": "🪾", "phoenix": "🐦‍🔥", "shovel": "🪏", "splatter": "🫟",
+        }.items():
+            with self.subTest(name=name):
+                self.assertEqual(exporter.reaction_unicode(name, emojis), glyph)
+
+    def test_invalid_skin_tone_combinations_are_not_constructed(self):
+        emojis = json.loads(Path(__file__).with_name("emoji-map.json").read_text())
+        for name in ("heart::skin-tone-4", "custom::skin-tone-4", "hugs::skin-tone-4",
+                     "thumbsup::skin-tone-1", "thumbsup::skin-tone-7", "thumbsup::skin-tone-4-4"):
+            with self.subTest(name=name), self.assertRaises(ApplyError):
+                exporter.reaction_unicode(name, emojis)
+
+    def test_custom_reaction_images_are_declared_once_per_retained_name(self):
+        reason = "Custom reaction names are retained; their emoji images are not included."
+        records, _ = exporter.build_archive(self.plan())
+        self.assertFalse(any(o["reason"] == reason for o in records["manifest"]["omissions"]))
+        rows = self.data["general/2020-01-01.json"]
+        rows[1]["reactions"] = [
+            {"name": "custom_one", "users": ["U1", "U2"], "count": 2},
+            {"name": "heart", "users": ["U2"], "count": 1},
+        ]
+        rows[2]["reactions"] = [
+            {"name": "custom_one", "users": ["U2"], "count": 1},
+            {"name": "custom_two", "users": ["U1"], "count": 1},
+            {"name": "custom_without_reactors", "users": [], "count": 1},
+        ]
+        records, _ = exporter.build_archive(self.plan())
+        validate_records(records)
+        omissions = [o for o in records["manifest"]["omissions"] if o["reason"] == reason]
+        self.assertEqual(omissions, [{"category": "unsupported", "reason": reason, "count": 2}])
+        self.assertNotIn("custom_one", json.dumps(omissions))
 
     def test_unresolved_reference_and_invalid_email_fail(self):
         plan = self.plan()
@@ -306,10 +395,89 @@ class SlackArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(ApplyError, "structured metadata"):
             exporter.build_archive(self.plan())
 
+    def test_channel_event_reactions_are_reported_separately_from_content(self):
+        row = self.data["general/2020-01-01.json"][-1]
+        row["reactions"] = [{"name": "heart", "users": ["U2"], "count": 1}]
+        plan = self.plan()
+        blockers = {item["code"]: item for item in exporter.conversion_report(plan)["blockers"]}
+        self.assertEqual(blockers["channel_event_reactions"]["count"], 1)
+        self.assertEqual(blockers["channel_event_reactions"]["source_records"], [6])
+        self.assertNotIn("channel_event_content", blockers)
+        with self.assertRaisesRegex(ApplyError, "channel event type"):
+            exporter.build_archive(plan)
+        row["blocks"] = [{"type": "unsupported"}]
+        blockers = {item["code"] for item in exporter.conversion_report(self.plan())["blockers"]}
+        self.assertIn("channel_event_reactions", blockers)
+        self.assertIn("channel_event_content", blockers)
+
+    def test_membership_reactions_preserve_event_identity_and_timestamp(self):
+        for index in (0, 4):
+            self.data["general/2020-01-01.json"][index]["reactions"] = [
+                {"name": "wave::skin-tone-3", "users": ["U1", "U2"], "count": 2},
+                {"name": "custom_emoji", "users": ["U2"], "count": 1}]
+        plan = self.plan()
+        records, _ = exporter.build_archive(plan)
+        validate_records(records)
+        self.assertEqual(exporter.conversion_report(plan)["blockers"], [])
+        for index, kind in ((0, "room.member_joined"), (4, "room.member_left")):
+            event = records["events"][index]
+            self.assertEqual(event["type"], kind)
+            self.assertEqual(event["occurred_at"], f"2020-01-01T00:00:0{index}.000000Z")
+            self.assertEqual(event["data"]["reactions"], [
+                {"emoji": "custom_emoji", "user_ids": ["U2"]},
+                {"emoji": "👋🏼", "user_ids": ["U1", "U2"]}])
+
     def test_private_channel_is_not_made_public(self):
         self.data["channels.json"][0]["is_private"] = True
         records, _ = exporter.build_archive(self.plan())
         self.assertEqual(records["rooms"][0]["visibility"], "private")
+
+    def test_oversized_body_replacement_preserves_message_and_reports_loss(self):
+        row = self.data["general/2020-01-01.json"][1]
+        row["text"] = "x" * 10001
+        row["files"] = [{"id": "F1", "mode": "hidden_by_limit"}]
+        plan = self.plan()
+        with self.assertRaises(exporter.OversizedBodyError):
+            exporter.build_archive(plan, allow_missing_files=True)
+        report = exporter.conversion_report(plan, allow_missing_files=True)
+        self.assertIn("oversized_message_body", {b["code"] for b in report["blockers"]})
+        records, _ = exporter.build_archive(plan, allow_missing_files=True, replace_oversized_messages=True)
+        validate_records(records)
+        root = records["events"][1]["data"]
+        self.assertEqual(root["content"]["body"]["text"], exporter.OVERSIZED_BODY_NOTICE)
+        self.assertEqual(root["content"]["asset_ids"], ["F1"])
+        self.assertEqual(root["author_id"], "U1")
+        self.assertEqual(root["created_at"], "2020-01-01T00:00:01.000001Z")
+        self.assertEqual(root["edited_at"], "2020-01-01T00:00:10.000000Z")
+        self.assertEqual(root["reactions"], [{"emoji": "❤️", "user_ids": ["U2"]}])
+        self.assertEqual(records["events"][2]["data"]["thread_id"], root["message_id"])
+        self.assertTrue(any(o["reason"].startswith("Oversized message bodies") and o["count"] == 1
+                            for o in records["manifest"]["omissions"]))
+        report = exporter.conversion_report(plan, allow_missing_files=True, replace_oversized_messages=True)
+        self.assertEqual(report["blockers"], [])
+        omission = next(o for o in report["omissions"] if o["code"] == "oversized_message_body")
+        self.assertEqual(omission["source_records"], [2])
+
+    def test_body_replacement_does_not_hide_other_conversion_errors(self):
+        for value in ("", "*unsupported legacy formatting*"):
+            self.data["general/2020-01-01.json"][1]["text"] = value
+            with self.subTest(value=value), self.assertRaises(ApplyError):
+                exporter.build_archive(self.plan(), replace_oversized_messages=True)
+
+    def test_oversized_replacement_does_not_claim_attachment_text_was_retained(self):
+        row = self.data["general/2020-01-01.json"][1]
+        row["text"] = "x" * 10001
+        row["attachments"] = [{"text": "Attachment summary"}]
+        records, _ = exporter.build_archive(
+            self.plan(), allow_attachment_summaries=True, replace_oversized_messages=True)
+        validate_records(records)
+        self.assertEqual(records["events"][1]["data"]["content"]["body"]["text"],
+                         exporter.OVERSIZED_BODY_NOTICE)
+        self.assertFalse(any(o["reason"].startswith("Attachment text is retained")
+                             for o in records["manifest"]["omissions"]))
+        report = exporter.conversion_report(
+            self.plan(), allow_attachment_summaries=True, replace_oversized_messages=True)
+        self.assertNotIn("attachment_summaries", {item["code"] for item in report["transformations"]})
 
     def test_repeated_membership_transition_fails(self):
         self.data["general/2020-01-01.json"].append({"type": "message", "subtype": "channel_join",

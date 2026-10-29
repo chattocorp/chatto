@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "鍵盤快捷鍵",
+      "app": "應用程式",
+      "undo": "復原",
+      "redo": "重做",
+      "new_line": "換行",
+      "edit_last": "編輯最後一則訊息（草稿為空時）",
+      "complete": "完成提及或表情符號"
+    },
+    "action_unavailable": "此操作目前無法使用。",
     "edit": "編輯",
     "copy_failed": "無法複製到剪貼簿。請選取文字並手動複製。",
     "cancel": "取消",

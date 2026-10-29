@@ -136,7 +136,6 @@
           {timestampSettings}
           timestampLocale="en-GB"
           class="group/search-result"
-          aria-label={`Alex: ${result.body}`}
           attachmentClass="text-xs"
           onOpen={() => (opened = true)}
         >

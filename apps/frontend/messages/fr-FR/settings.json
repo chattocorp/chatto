@@ -143,6 +143,21 @@
           "description": "Utiliser l'interface sombre sur ce navigateur"
         }
       },
+      "animations": {
+        "title": "Animations",
+        "automatic": {
+          "label": "Automatique",
+          "description": "Suivre la préférence du système pour réduire les animations"
+        },
+        "enabled": {
+          "label": "Activées",
+          "description": "Toujours afficher les animations"
+        },
+        "disabled": {
+          "label": "Désactivées",
+          "description": "Afficher les changements sans animations"
+        }
+      },
       "thread_pane": {
         "title": "Volet du fil",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Ce compte a déjà un mot de passe."
       },
       "sso": {
+        "username_unavailable": "Le nom d’utilisateur de votre fournisseur de connexion ne peut pas être attribué. Contactez l’opérateur du serveur.",
+        "username_managed": "Votre nom d’utilisateur est géré par votre fournisseur de connexion et ne peut pas être modifié ici.",
+        "unlink_disabled": "L’opérateur du serveur n’autorise pas la dissociation de ce fournisseur.",
         "popup_blocked": "Autorisez les fenêtres contextuelles pour ce site, puis réessayez de lier le compte.",
         "account_mismatch": "Connectez-vous au bon compte sur ce serveur, puis relancez la liaison depuis la fenêtre initiale.",
         "provider_unavailable": "Ce fournisseur de connexion n’est plus disponible.",

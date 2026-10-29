@@ -42,6 +42,41 @@ proto3.util.setEnumType(ExternalIdentityFlowKind, "chatto.auth.v1.ExternalIdenti
 ]);
 
 /**
+ * State of choosing a username during account creation. Only ALLOWED enables
+ * choice; creation still checks policy and input. Unknown states remain disabled.
+ *
+ * @generated from enum chatto.auth.v1.UsernameChoiceAvailability
+ */
+export enum UsernameChoiceAvailability {
+  /**
+   * No decision is supplied. This does not grant permission.
+   *
+   * @generated from enum value: USERNAME_CHOICE_AVAILABILITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The user can choose a username, subject to validation and uniqueness.
+   *
+   * @generated from enum value: USERNAME_CHOICE_AVAILABILITY_ALLOWED = 1;
+   */
+  ALLOWED = 1,
+
+  /**
+   * The provider supplies the username; the server resolves collisions.
+   *
+   * @generated from enum value: USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED = 2;
+   */
+  PROVIDER_MANAGED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(UsernameChoiceAvailability)
+proto3.util.setEnumType(UsernameChoiceAvailability, "chatto.auth.v1.UsernameChoiceAvailability", [
+  { no: 0, name: "USERNAME_CHOICE_AVAILABILITY_UNSPECIFIED" },
+  { no: 1, name: "USERNAME_CHOICE_AVAILABILITY_ALLOWED" },
+  { no: 2, name: "USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED" },
+]);
+
+/**
  * Metadata about a pending external identity flow. The provider subject is not
  * exposed; clients only need user-facing provider/profile hints.
  *
@@ -112,9 +147,17 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
   redirectPath = "";
 
   /**
+   * Whether the user can choose a username. When externally managed, the server
+   * assigns it and ignores client input. The login hint is not a reservation.
+   *
+   * @generated from field: optional chatto.auth.v1.UsernameChoiceAvailability choose_username = 10;
+   */
+  chooseUsername?: UsernameChoiceAvailability;
+
+  /**
    * A create flow must first supply an invitation code. Existing-account sign-in is unaffected.
    *
-   * @generated from field: bool invitation_required = 10;
+   * @generated from field: bool invitation_required = 11;
    */
   invitationRequired = false;
 
@@ -135,7 +178,8 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
     { no: 7, name: "display_name_hint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "bound_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "invitation_required", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "choose_username", kind: "enum", T: proto3.getEnumType(UsernameChoiceAvailability), opt: true },
+    { no: 11, name: "invitation_required", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PendingExternalIdentity {
@@ -251,7 +295,9 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
   token = "";
 
   /**
-   * Desired username.
+   * Desired username. Ignored when choose_username is externally managed;
+   * the server assigns a name from the verified provider claim in that case.
+   * Otherwise, it must contain 2 to 32 characters and use a valid username format.
    *
    * @generated from field: string login = 2;
    */
@@ -259,7 +305,7 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
 
   /**
    * Desired display name. When omitted, the server uses a valid provider hint
-   * and otherwise falls back to the requested username.
+   * and otherwise falls back to the assigned username.
    *
    * @generated from field: string display_name = 3;
    */

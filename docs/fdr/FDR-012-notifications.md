@@ -22,20 +22,33 @@ targets, unread counts, read state, or deletion semantics.
 
 - Option/Alt+Shift+Down opens the next unread notification source across signed-in
   servers. The quick switcher offers the same action. Important notifications
-  come before Ambient notifications; plain Unread dots are excluded. Sources
+  come before Ambient notifications, followed by rooms with plain Unread dots. Sources
   follow server order, room-group order, and stable room/thread IDs for remaining
   ties. The newest unread occurrence at that priority opens in the selected
   conversation. Existing view and read rules apply, so each use selects from
   the sources that still need attention. There is no Previous action. The shortcut
   works in the composer and leaves drafts intact, but does not run while a modal
-  is open. When no source remains, it shows “No unread notifications”. A failed
-  load shows an error instead.
+  is open. Selection uses only data already held by the frontend and does not
+  fetch notification pages. Unread dots open the room without a message jump.
+  When no source remains, it shows “No unread notifications”.
 
-- The notification page is one newest-activity-first chronological list that
-  contains both Unread and Read activity. Unread reactions are Ambient and use
-  a neutral treatment. Every other current cause is Important and uses Chatto's
-  notification orange. Unread rows show their summary in bold. Read rows use
-  regular weight and remain fully interactive. The list does not use a
+- The notification page combines activity from all signed-in servers. The
+  header bell opens it inside the current server's layout and keeps its room
+  sidebar available. A back link returns to that server's remembered room.
+  The global notification URL remains available without a selected server.
+- The list sorts by newest activity. All shows both Unread and Read activity;
+  Unread shows only groups with unread occurrences. A separate type filter
+  selects Reactions, Replies (including followed threads), or Mentions
+  (direct, role, @here, and @all). Filters combine, and pagination continues
+  past pages without matches. Dismiss read still applies across all servers
+  and types. Dismiss controls use the standard neutral icon treatment.
+  The filters start with All notifications and All types to distinguish their
+  purposes without visible group labels.
+  URL parameters `status` and `type` retain the filters through navigation,
+  browser Back, and reload. Missing or unknown values select All.
+  All notification rows use
+  neutral backgrounds. Unread rows show their summary in bold. Read rows use
+  muted text in regular weight and remain fully interactive. The list does not use a
   separate unread dot on each row.
 - Unread dot activity does not add a row to the notification page. It adds a neutral
   unread dot to the applicable room. A thread-scoped Unread dot contributes to its
@@ -55,11 +68,19 @@ targets, unread counts, read state, or deletion semantics.
   App-wide pages and app preferences use `Page · Chatto`, including preferences
   opened from server settings. Public authentication pages use the origin server
   name. The Important count is a prefix, for example `(3) #general · Chatto HQ`.
-- The list is divided into Today, Yesterday, This Week, and month sections
-  using the preferred time zone of the account on each server.
+- The list groups activity by calendar day using the preferred time zone of
+  the account on each server. Today's rows show elapsed time; older rows show
+  the local clock time. Each section has a visible heading: Today, Yesterday,
+  or the date for older days.
 - Rows use short localized summaries without message previews. Reaction rows
   show the emoji that were given. The time is at the end of the summary line.
-  The room name is on a second line for every cause. A badge on the actor
+  Wide rows show the summary, room, server, and time on one line. Narrow rows
+  hide the room name. Summaries truncate with an ellipsis. Room names remain
+  visible at intermediate widths and truncate before they are hidden.
+  The server name stays visible
+  when the list combines servers. On hover-capable devices, dismiss controls
+  replace the timestamp on hover or keyboard focus without reserving a column.
+  Touch devices keep a visible dismiss control. A badge on the actor
   avatar shows the cause: the first reaction emoji, or an icon for direct
   messages, mentions, replies, and room messages.
 - When more than one server is signed in, a small server logo before the

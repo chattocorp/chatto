@@ -437,6 +437,18 @@ To allow only the members of some groups of an OIDC provider, set `allowed_group
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 
+Provider account settings also support counted environment variables:
+
+| TOML option | Environment suffix after `CHATTO_AUTH_PROVIDERS_0_` | Default |
+| --- | --- | --- |
+| `manage_usernames` | `MANAGE_USERNAMES` | `false` |
+| `update_usernames` | `UPDATE_USERNAMES` | `false`; requires `manage_usernames` |
+| `username_claim` | `USERNAME_CLAIM` | `preferred_username`; OIDC only |
+| `allow_unlinking` | `ALLOW_UNLINKING` | `true` |
+
+See [managed usernames and account links](/guides/integrations/external-login-providers/#manage-usernames-and-account-links)
+for collision handling, existing accounts, and operator controls.
+
 See [External Login Providers](/guides/integrations/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 
 ## Transactional Email

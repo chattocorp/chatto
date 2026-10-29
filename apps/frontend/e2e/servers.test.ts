@@ -92,20 +92,22 @@ test.describe('Server Directory (sidebar entry point)', () => {
       .toEqual(['/chat/-', '/chat/order-b.localhost', '/chat/order-a.localhost']);
   });
 
-  test('sidebar "+" opens the Server Directory in a dialog', async ({ page, chatPage }) => {
+  test('sidebar "+" opens the shared directory page and Back returns to chat', async ({
+    page,
+    chatPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const chatURL = page.url();
 
     await page.getByTitle('Add Server').click();
-    const dialog = page.getByRole('dialog', { name: 'Add Server' });
-    await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await expect(dialog.getByLabel('Server URL')).toBeVisible();
-    expect(page.url()).toBe(chatURL);
+    await expect(page).toHaveURL(/\/chat\/servers$/);
+    await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Connect by address' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 
     await page.goBack();
-    await expect(dialog).toBeHidden({ timeout: TIMEOUTS.UI_FAST });
-    expect(page.url()).toBe(chatURL);
+    await expect(page).toHaveURL(chatURL);
   });
 
   test('the Server Directory route shows the directory as a page', async ({ page }) => {
@@ -115,7 +117,7 @@ test.describe('Server Directory (sidebar entry point)', () => {
     await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible({
       timeout: TIMEOUTS.UI_FAST
     });
-    await expect(page.getByLabel('Server URL')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Connect by address' })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
@@ -380,7 +382,8 @@ test.describe('Leave Server', () => {
     await remoteSidebarIcon.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Sign out of server' }).click();
 
-    await expect(page).toHaveURL(/\/chat\/-/);
+    await expect(page).toHaveURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}(/|$)`));
+    await expect(page.getByTestId('server-signed-out')).toBeVisible();
     await expect(remoteSidebarIcon).toHaveAttribute('title', /needs sign-in/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -401,7 +404,7 @@ test.describe('Leave Server', () => {
     await expect(page.getByRole('menuitem', { name: 'Log in to server' })).toHaveCount(0);
     expect(openedPopups).toBe(0);
     const popupPromise = page.waitForEvent('popup');
-    await signedOutView.getByRole('button', { name: 'Log in to server' }).click();
+    await signedOutView.getByRole('button', { name: 'Continue on server' }).click();
     const popup = await popupPromise;
     expect(openedPopups).toBe(1);
     await popup.close();
@@ -437,6 +440,9 @@ test.describe('Leave Server', () => {
     await page.getByRole('menuitem', { name: 'Sign out of server' }).click();
 
     const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
+    await page.waitForURL(routes.login);
+    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`).first().click();
     await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });

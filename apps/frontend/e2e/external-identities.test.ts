@@ -1,6 +1,116 @@
 import { test, expect } from './setup';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import { createAndLoginTestUser, logoutCurrentUser } from './fixtures/testUser';
 import * as routes from './routes';
+import { StartExternalIdentityLinkRequest } from '@chatto/api-types/api/v1/external_identities_pb';
+
+test.describe('Managed provider accounts', () => {
+  test.use({
+    serverOptions: {
+      env: {
+        CHATTO_AUTH_PROVIDERS_0_ID: 'company',
+        CHATTO_AUTH_PROVIDERS_0_TYPE: 'github',
+        CHATTO_AUTH_PROVIDERS_0_LABEL: 'Company',
+        CHATTO_AUTH_PROVIDERS_0_CLIENT_ID: 'test-client',
+        CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET: 'test-secret',
+        CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION: 'true',
+        CHATTO_AUTH_PROVIDERS_0_MANAGE_USERNAMES: 'true',
+        CHATTO_AUTH_PROVIDERS_0_ALLOW_UNLINKING: 'false'
+      }
+    }
+  });
+
+  test('explains when the provider username cannot be assigned', async ({ page, authPage }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `invalid-${Date.now()}`,
+      providerUsername: 'invalid@name'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(
+      page.getByText(
+        'Your sign-in provider’s username cannot be assigned. Contact the server operator.'
+      )
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toHaveCount(0);
+  });
+
+  test('assigns a collision suffix and disables local username edits and unlinking', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      providerLabel: 'Company',
+      subject: `managed-${Date.now()}`,
+      providerUsername: 'e2eadmin',
+      displayNameHint: 'Managed Person'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByLabel('Display Name')).toBeEnabled();
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByTestId('settings-username')).toBeDisabled();
+    await expect(
+      page.getByText('Your username is managed by your sign-in provider and cannot be edited here.')
+    ).toBeVisible();
+    await page.goto(routes.settingsAccount);
+    await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toBeDisabled();
+    await expect(
+      page.getByText('The server operator does not allow this provider to be disconnected.')
+    ).toBeVisible();
+  });
+
+  test('uses the assigned username as the display name after a preview collision', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `collision-${Date.now()}`,
+      providerUsername: 'e2eadmin'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByLabel('Display Name')).toHaveValue('');
+    await authPage.createUserViaApi('e2eadmin-2', 'password123');
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('e2eadmin-3');
+    await expect(page.getByPlaceholder('Enter your display name')).toHaveValue('e2eadmin-3');
+  });
+
+  test('accepts a server-assigned username with consecutive periods', async ({
+    page,
+    authPage
+  }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'company',
+      providerType: 'github',
+      subject: `periods-${Date.now()}`,
+      providerUsername: 'john..doe'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toHaveValue('john..doe');
+    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Create Account' }).click();
+    await page.waitForURL(routes.patterns.chatRedirect);
+    await page.goto(routes.settingsProfile);
+    await expect(page.getByTestId('settings-username')).toHaveValue('john..doe');
+  });
+});
 
 test.describe('External identity confirmation flows', () => {
   test.use({
@@ -19,6 +129,22 @@ test.describe('External identity confirmation flows', () => {
         CHATTO_AUTH_PROVIDERS_1_CLIENT_SECRET: 'discord-secret'
       }
     }
+  });
+
+  test('still validates usernames when the user can edit them', async ({ page, authPage }) => {
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'create',
+      providerId: 'github-main',
+      providerType: 'github',
+      subject: `editable-periods-${Date.now()}`,
+      loginHint: 'john..doe',
+      displayNameHint: 'John'
+    });
+    await page.goto(flow.confirmUrl);
+    await expect(page.getByLabel('Username')).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeDisabled();
+    await page.getByLabel('Username').fill('john.doe');
+    await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
   });
 
   test('shows immediate feedback while starting provider sign-in', async ({ page, context }) => {
@@ -192,7 +318,7 @@ test.describe('External identity confirmation flows', () => {
     await page.getByLabel('Display Name').fill('Chosen SSO Name');
     await expect(page.getByRole('link', { name: 'Sign in with existing account' })).toHaveAttribute(
       'href',
-      '/login'
+      `${flow.confirmUrl}&existing=1`
     );
 
     await page.getByRole('button', { name: 'Create Account' }).click();
@@ -218,17 +344,13 @@ test.describe('External identity confirmation flows', () => {
       }
     );
 
-    await githubRow.getByRole('button', { name: 'Disconnect' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'Provider cannot be disconnected' })
-    ).toBeVisible();
+    await expect(githubRow.getByRole('button', { name: 'Disconnect' })).toBeDisabled();
     await expect(
       page.getByText(
         'Set up another sign-in method supported by this server before disconnecting GitHub.'
       )
     ).toBeVisible();
     expect(disconnectRequestCount).toBe(0);
-    await page.getByRole('dialog').getByText('Close').click();
     await expect(githubRow.getByText('Linked')).toBeVisible();
     await expect(githubRow.locator('[class~="icon-[uil--link-broken]"]')).toBeVisible();
 
@@ -238,6 +360,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByLabel('Current Password')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change password' })).toBeVisible();
 
+    await expect(githubRow.getByRole('button', { name: 'Disconnect' })).toBeEnabled();
     await githubRow.getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await expect(page.getByText('Disconnect GitHub from this account?')).toBeVisible();
@@ -262,11 +385,148 @@ test.describe('External identity confirmation flows', () => {
 
     await page.goto(flow.confirmUrl);
     await page.getByRole('link', { name: 'Sign in with existing account' }).click();
-    await page.waitForURL(routes.login);
+    await page.waitForURL(/\/login\?redirect=/);
 
     await page.goto(flow.confirmUrl);
     await expect(page.getByText('GitHub verified your identity')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create Account' })).toBeVisible();
+  });
+
+  for (const outcome of ['linked', 'denied', 'conflict'] as const) {
+    test(`continues existing-account provider sign-in in its popup: ${outcome}`, async ({
+      page,
+      context,
+      authPage,
+      serverURL
+    }) => {
+      const user = await createAndLoginTestUser(page, { loginPrefix: 'existingpopup' });
+      await logoutCurrentUser(page);
+      const destination = '/chat/-/settings/account';
+      const subject = `existing-popup-${Date.now()}`;
+      let callback = '';
+      let startCount = 0;
+      let createToken = '';
+      // Keep the actual authenticated start RPC and capture its continuation.
+      await context.route(
+        '**/api/connect/chatto.api.v1.MyAccountService/StartExternalIdentityLink',
+        async (route) => {
+          const input = StartExternalIdentityLinkRequest.fromBinary(
+            route.request().postDataBuffer()!
+          );
+          expect(input.providerId).toBe('discord-main');
+          expect(input.redirectPath).toBe(callback);
+          startCount++;
+          await route.continue();
+        }
+      );
+      await context.route('**/auth/providers/discord-main?**', async (route) => {
+        const url = new URL(route.request().url());
+        if (url.searchParams.get('intent') !== 'link') {
+          callback = url.searchParams.get('redirect')!;
+          const flow = await authPage.createExternalIdentityFlow({
+            kind: 'create',
+            providerId: 'discord-main',
+            providerType: 'discord',
+            providerLabel: 'Discord',
+            subject,
+            loginHint: 'newidentity',
+            redirectPath: callback
+          });
+          createToken = flow.token;
+          await route.fulfill({ status: 302, headers: { Location: flow.confirmUrl } });
+          return;
+        }
+        expect(url.searchParams.get('link_start')).toBeTruthy();
+        expect(startCount).toBe(1);
+        // Simulate the external provider boundary only. Backend integration tests
+        // cover the verified callback and its account-bound handoff.
+        if (outcome === 'linked') {
+          const flow = await authPage.createExternalIdentityFlow({
+            kind: 'link',
+            providerId: 'discord-main',
+            providerType: 'discord',
+            providerLabel: 'Discord',
+            subject,
+            boundUserId: user.id,
+            redirectPath: callback
+          });
+          const response = await context.request.post(
+            '/api/connect/chatto.auth.v1.ExternalIdentityAuthService/ConfirmExternalIdentityLink',
+            { data: { token: flow.token } }
+          );
+          expect(response.ok()).toBe(true);
+        }
+        const target = new URL(callback, serverURL);
+        if (outcome !== 'linked') {
+          target.searchParams.set(
+            'error',
+            outcome === 'denied' ? 'provider_denied' : 'external_identity_conflict'
+          );
+        }
+        await route.fulfill({ status: 302, headers: { Location: target.href } });
+      });
+      await page.goto('/login');
+      await page.evaluate((path) => sessionStorage.setItem('returnUrl', path), destination);
+      const popupPromise = page.waitForEvent('popup');
+      await page.getByRole('link', { name: 'Continue with Discord' }).click();
+      const popup = await popupPromise;
+      await popup.getByRole('link', { name: 'Sign in with existing account' }).click();
+      await popup.getByLabel('Username or Email').fill(user.login);
+      await popup.getByLabel('Password', { exact: true }).fill(user.password);
+      await popup.getByRole('button', { name: 'Sign In', exact: true }).click();
+      await expect(popup.getByText(`@${user.login}`, { exact: true })).toBeVisible();
+      await expect(
+        popup.getByRole('button', { name: 'Create Account', exact: true })
+      ).not.toBeVisible();
+      await popup.getByRole('button', { name: 'Link Account', exact: true }).click();
+      await expect.poll(() => popup.isClosed()).toBe(true);
+      if (outcome === 'linked') {
+        await expect(page).toHaveURL(new URL(destination, serverURL).href);
+        const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+        await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
+        await page.reload();
+        await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
+      } else {
+        await expect(page).toHaveURL(/\/login$/);
+        await expect(page.getByRole('link', { name: 'Continue with Discord' })).not.toHaveAttribute(
+          'aria-busy',
+          'true'
+        );
+        expect(await page.evaluate(() => sessionStorage.getItem('returnUrl'))).toBe(destination);
+      }
+      const abandoned = await context.request.post(
+        '/api/connect/chatto.auth.v1.ExternalIdentityAuthService/GetPendingExternalIdentity',
+        { data: { token: createToken } }
+      );
+      expect(abandoned.status()).toBe(404);
+    });
+  }
+
+  test('cancels provider confirmation without reporting successful sign-in', async ({
+    page,
+    context,
+    authPage
+  }) => {
+    await context.route('**/auth/providers/discord-main?**', async (route) => {
+      const flow = await authPage.createExternalIdentityFlow({
+        kind: 'create',
+        providerId: 'discord-main',
+        providerType: 'discord',
+        providerLabel: 'Discord',
+        subject: `cancel-popup-${Date.now()}`,
+        redirectPath: new URL(route.request().url()).searchParams.get('redirect')!
+      });
+      await route.fulfill({ status: 302, headers: { Location: flow.confirmUrl } });
+    });
+    await page.goto('/login');
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('link', { name: 'Continue with Discord' }).click();
+    const popup = await popupPromise;
+    await popup.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByLabel('Username or Email')).toBeEnabled();
+    await expect(page.getByText('Login failed')).toBeVisible();
   });
 
   test('links a pending provider identity to the authenticated account', async ({

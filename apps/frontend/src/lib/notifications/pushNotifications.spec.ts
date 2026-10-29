@@ -1279,8 +1279,11 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
 
   it('retries a failed save on the next check without a new browser subscription', async () => {
     const created = makeSubscription('https://push.example/created');
-    getSubscription.mockResolvedValueOnce(null).mockResolvedValue(created);
-    subscribe.mockResolvedValueOnce(created);
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockImplementationOnce(async () => {
+      getSubscription.mockResolvedValue(created);
+      return created;
+    });
     const originSubscribe = vi
       .fn()
       .mockRejectedValueOnce(new Error('unavailable'))
@@ -1317,8 +1320,12 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
     // Both servers need a new subscription on both checks, but only the first
     // attempt asks the browser; the others fail without another registration.
     expect(subscribe).toHaveBeenCalledOnce();
-    expect(pushRegistrationFailure('origin')).toContain('push service error');
-    expect(pushRegistrationFailure('remote')).toContain('push service error');
+    // Either server can acquire the origin-wide browser lock first.
+    const failures = [pushRegistrationFailure('origin'), pushRegistrationFailure('remote')];
+    expect(failures.some((failure) => failure?.includes('push service error'))).toBe(true);
+    expect(failures.some((failure) => failure?.includes('Automatic push setup is paused'))).toBe(
+      true
+    );
 
     // An explicit retry still asks the browser and lifts the stop on success.
     const recovered = makeSubscription('https://push.example/recovered');
@@ -1349,6 +1356,40 @@ describe('pushNotifications.refreshPushSubscriptions', () => {
 
     expect(result.registrations.every((registration) => registration.registered)).toBe(true);
     expect(subscribe).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops the remaining servers when an Enable recovery fails again', async () => {
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockRejectedValue(new DOMException('push service error', 'AbortError'));
+    const result = await enablePushOnAllServers();
+    expect(result.registrations.every((registration) => !registration.registered)).toBe(true);
+    expect(subscribe).toHaveBeenCalledOnce();
+  });
+
+  it('clears an earlier success when a lost browser subscription cannot be recreated', async () => {
+    expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(true);
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockRejectedValue(new DOMException('push service error', 'AbortError'));
+    await refreshPushSubscriptions();
+    expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(false);
+    expect(pushRegistrationFailure('origin')).not.toBeNull();
+  });
+
+  it('does not save an incompatible subscription that remains after unsubscribe', async () => {
+    const incompatible = makeSubscription('https://push.example/old-key');
+    Object.defineProperty(incompatible, 'options', {
+      value: { applicationServerKey: new Uint8Array([255]).buffer }
+    });
+    incompatible.unsubscribe.mockResolvedValue(false);
+    getSubscription.mockResolvedValue(incompatible);
+
+    await expect(retryPushRegistration('origin')).resolves.toBe(false);
+
+    expect(incompatible.unsubscribe).toHaveBeenCalledOnce();
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(mocks.subscribePush).not.toHaveBeenCalled();
+    expect(hasSavedPushRegistration('origin', 'origin-user')).toBe(false);
+    expect(pushRegistrationFailure('origin')).toContain('different VAPID key');
   });
 
   it('never asks for permission', async () => {

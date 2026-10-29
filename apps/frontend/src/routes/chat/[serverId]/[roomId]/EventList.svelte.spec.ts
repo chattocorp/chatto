@@ -13,6 +13,111 @@ import { loadLocaleMessages, m } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import type { JumpToMessageState } from '$lib/state/room';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { ReactiveMap } from '@chatto/client/reactivity';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+
+describe('membership activity display', () => {
+  it.each(['join', 'leave'] as const)(
+    'does not announce a hidden live %s while reading history',
+    async (kind) => {
+      const rooms = new ReactiveMap([
+        [
+          'room-1',
+          new RoomWithViewerState({
+            room: new Room({ id: 'room-1', showMembershipEvents: false })
+          })
+        ]
+      ]);
+      createTestServerScope({
+        store: { projection: { rooms }, realtimeSync: { isRecoveringSnapshot: false } },
+        ui: { activeCallRooms: { getCallId: () => null } }
+      });
+      setVirtualizerScrollOffset(400);
+      try {
+        const view = render(EventListTestHarness, {
+          props: {
+            eventIds: ['old', 'latest'],
+            scrollToEventId: null,
+            recoveryViewport: { eventId: 'old', offset: 0 },
+            hasReachedStart: true
+          }
+        });
+        const button = view.getByTestId('jump-to-present');
+        await expect.element(button).toHaveTextContent(m('room.jump_to_present'));
+        await view.rerender({
+          eventIds: ['old', 'latest', 'activity'],
+          eventKinds: { activity: kind }
+        });
+        await expect.element(button).toHaveTextContent(m('room.jump_to_present'));
+        // Deleted placeholders still advance the newest-message boundary.
+        await view.rerender({
+          eventIds: ['old', 'latest', 'activity', 'deleted'],
+          eventKinds: { activity: kind, deleted: 'deleted' }
+        });
+        await expect.element(button).toHaveTextContent(m('room.unread_separator'));
+      } finally {
+        setVirtualizerScrollOffset(700);
+      }
+    }
+  );
+
+  it.each(['join', 'leave'] as const)(
+    'hides and restores %s activity when the room setting changes',
+    async (eventKind) => {
+      const rooms = new ReactiveMap([
+        ['room-1', new RoomWithViewerState({ room: new Room({ id: 'room-1' }) })]
+      ]);
+      createTestServerScope({
+        store: { projection: { rooms }, realtimeSync: { isRecoveringSnapshot: false } },
+        ui: { activeCallRooms: { getCallId: () => null } }
+      });
+      const view = render(EventListTestHarness, {
+        props: { eventIds: ['activity'], eventKind, scrollToEventId: null, hasReachedStart: true }
+      });
+      await expect.element(view.getByText('User activity', { exact: true })).toBeVisible();
+      rooms.set(
+        'room-1',
+        new RoomWithViewerState({ room: new Room({ id: 'room-1', showMembershipEvents: false }) })
+      );
+      await expect
+        .element(view.getByText('User activity', { exact: true }))
+        .not.toBeInTheDocument();
+      rooms.set(
+        'room-1',
+        new RoomWithViewerState({ room: new Room({ id: 'room-1', showMembershipEvents: true }) })
+      );
+      await expect.element(view.getByText('User activity', { exact: true })).toBeVisible();
+    }
+  );
+
+  it('loads past a page containing only hidden activity', async () => {
+    const rooms = new ReactiveMap([
+      [
+        'room-1',
+        new RoomWithViewerState({ room: new Room({ id: 'room-1', showMembershipEvents: false }) })
+      ]
+    ]);
+    createTestServerScope({
+      store: { projection: { rooms }, realtimeSync: { isRecoveringSnapshot: false } },
+      ui: { activeCallRooms: { getCallId: () => null } }
+    });
+    const onLoadMore = vi.fn(async () => {
+      // Backfill can start during render. Wait until the harness exists.
+      await Promise.resolve();
+      await view.rerender({
+        eventIds: ['older-message'],
+        eventKind: 'message',
+        hasReachedStart: true
+      });
+    });
+    const view = render(EventListTestHarness, {
+      props: { eventIds: ['activity'], eventKind: 'join', scrollToEventId: null, onLoadMore }
+    });
+    await vi.waitFor(() => expect(onLoadMore).toHaveBeenCalled());
+    await expect.element(view.getByText('older-message', { exact: true })).toBeVisible();
+  });
+});
 
 beforeEach(() => {
   createTestServerScope({
@@ -461,6 +566,10 @@ describe('EventList jump completion', () => {
     await expect
       .element(page.getByTestId('virtualizer-scroll-alignment'))
       .toHaveTextContent('center');
+    const scroller = rendered.container.querySelector<HTMLElement>(
+      '[data-testid="messages-container"]'
+    )!;
+    const scrollToBottom = vi.spyOn(scroller, 'scrollTop', 'set');
     (page.getByTestId('jump-to-present').element() as HTMLButtonElement).click();
     expect(onPresentRequested).toHaveBeenCalledOnce();
     expect(onJumpToPresent).toHaveBeenCalledOnce();
@@ -476,7 +585,8 @@ describe('EventList jump completion', () => {
       onJumpToPresent,
       pendingHighlightId: 'suppress-normal-auto-scroll'
     });
-    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+    await vi.waitFor(() => expect(scrollToBottom).toHaveBeenCalledWith(scroller.scrollHeight));
+    scrollToBottom.mockRestore();
   });
 
   it('completes initialization when a bottom scroll supersedes the initial request', async () => {
@@ -496,6 +606,11 @@ describe('EventList jump completion', () => {
         }
       });
 
+      const scroller = rendered.container.querySelector<HTMLElement>(
+        '[data-testid="messages-container"]'
+      )!;
+      const scrollToBottom = vi.spyOn(scroller, 'scrollTop', 'set');
+
       await vi.waitFor(() => expect(animationFrames.length).toBeGreaterThan(0));
       // A newly arrived message starts a second bottom scroll.
       await rendered.rerender({
@@ -506,15 +621,12 @@ describe('EventList jump completion', () => {
       for (let frame = 0; frame < 50; frame++) {
         await vi.waitFor(() => expect(animationFrames.length).toBeGreaterThan(0));
         animationFrames.shift()?.(frame * 16);
-        if (Number(page.getByTestId('virtualizer-scroll-calls').element().textContent) >= 7) {
+        if (scrollToBottom.mock.calls.length >= 7) {
           break;
         }
       }
-      await vi.waitFor(() =>
-        expect(
-          Number(page.getByTestId('virtualizer-scroll-calls').element().textContent)
-        ).toBeGreaterThanOrEqual(7)
-      );
+      expect(scrollToBottom.mock.calls.length).toBeGreaterThanOrEqual(7);
+      scrollToBottom.mockRestore();
       await Promise.resolve();
 
       const resume = resumeCallbacks.at(-1);
@@ -597,6 +709,12 @@ describe('EventList localisation', () => {
 describe('EventList unread entry landing', () => {
   const eventIds = ['msg-1', 'msg-2', 'msg-3'];
 
+  /** Observe native bottom scrolling separately from virtualized message jumps. */
+  function observeBottomScroll(container: HTMLElement) {
+    const scroller = container.querySelector<HTMLElement>('[data-testid="messages-container"]')!;
+    return vi.spyOn(scroller, 'scrollTop', 'set');
+  }
+
   async function nextFrames(count = 3) {
     for (let frame = 0; frame < count; frame++) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -609,9 +727,8 @@ describe('EventList unread entry landing', () => {
       const rendered = render(EventListTestHarness, {
         props: { eventIds, scrollToEventId: null }
       });
-      await expect
-        .element(page.getByTestId('virtualizer-scroll-alignment'))
-        .toHaveTextContent('end');
+      const bottomScroll = observeBottomScroll(rendered.container);
+      await vi.waitFor(() => expect(bottomScroll).toHaveBeenCalled());
 
       await rendered.rerender({
         eventIds,
@@ -637,9 +754,8 @@ describe('EventList unread entry landing', () => {
       const rendered = render(EventListTestHarness, {
         props: { eventIds, scrollToEventId: null }
       });
-      await expect
-        .element(page.getByTestId('virtualizer-scroll-alignment'))
-        .toHaveTextContent('end');
+      const bottomScroll = observeBottomScroll(rendered.container);
+      await vi.waitFor(() => expect(bottomScroll).toHaveBeenCalled());
 
       window.dispatchEvent(new Event('blur'));
       await rendered.rerender({
@@ -650,9 +766,7 @@ describe('EventList unread entry landing', () => {
       await nextFrames();
 
       // While away, the timeline keeps following the latest message.
-      await expect
-        .element(page.getByTestId('virtualizer-scroll-alignment'))
-        .toHaveTextContent('end');
+      expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('');
 
       window.dispatchEvent(new Event('focus'));
 
@@ -678,13 +792,14 @@ describe('EventList unread entry landing', () => {
       });
     setVirtualizerScrollOffset(400);
     try {
-      render(EventListTestHarness, {
+      const rendered = render(EventListTestHarness, {
         props: {
           eventIds,
           scrollToEventId: null,
           unreadAfterEventId: 'msg-2'
         }
       });
+      const bottomScroll = observeBottomScroll(rendered.container);
       await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
 
       (page.getByTestId('jump-to-present').element() as HTMLButtonElement).click();
@@ -697,7 +812,7 @@ describe('EventList unread entry landing', () => {
       requestFrame.mockRestore();
 
       await expect.element(page.getByTestId('jump-to-present')).not.toBeInTheDocument();
-      expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+      expect(bottomScroll).toHaveBeenCalled();
     } finally {
       requestFrame.mockRestore();
       setVirtualizerScrollOffset(700);
@@ -713,6 +828,7 @@ describe('EventList unread entry landing', () => {
         pendingHighlightId: 'msg-3'
       }
     });
+    const bottomScroll = observeBottomScroll(rendered.container);
     await nextFrames();
 
     // The highlight can clear without a jump, for example when the target
@@ -723,10 +839,10 @@ describe('EventList unread entry landing', () => {
       unreadAfterEventId: 'msg-2',
       pendingHighlightId: null
     });
-    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+    await vi.waitFor(() => expect(bottomScroll).toHaveBeenCalled());
     await nextFrames();
 
-    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('');
   });
 
   it('lands again when a thread timeline switches to another thread', async () => {
@@ -737,13 +853,14 @@ describe('EventList unread entry landing', () => {
       unreadAfterEventId: marker
     });
     const rendered = render(EventListTestHarness, { props: threadProps('thread-1', 'msg-2') });
+    const bottomScroll = observeBottomScroll(rendered.container);
     await expect
       .element(page.getByTestId('virtualizer-rendered-key'))
       .toHaveAttribute('data-rendered-key', 'unread-separator-msg-2');
 
     await rendered.rerender(threadProps('thread-2', null));
     await rendered.rerender({ ...threadProps('thread-2', null), eventIds: [...eventIds, 'msg-4'] });
-    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+    await vi.waitFor(() => expect(bottomScroll).toHaveBeenCalled());
 
     await rendered.rerender({
       ...threadProps('thread-2', 'msg-3'),
@@ -761,7 +878,8 @@ describe('EventList unread entry landing', () => {
     const rendered = render(EventListTestHarness, {
       props: { eventIds, scrollToEventId: null }
     });
-    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
+    const bottomScroll = observeBottomScroll(rendered.container);
+    await vi.waitFor(() => expect(bottomScroll).toHaveBeenCalled());
 
     page
       .getByTestId('messages-container')
@@ -774,6 +892,6 @@ describe('EventList unread entry landing', () => {
     });
     await nextFrames();
 
-    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('end');
+    expect(page.getByTestId('virtualizer-scroll-alignment').element().textContent).toBe('');
   });
 });

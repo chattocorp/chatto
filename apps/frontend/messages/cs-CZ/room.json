@@ -276,6 +276,7 @@
     "thread": {
       "title": "Vlákno v #{room}",
       "back_to_room": "Zpátky do pokoje",
+      "participants": "Účastníci vlákna ({count})",
       "follow": "Sledujte vlákno",
       "unfollow": "Přestat sledovat vlákno",
       "close": "Zavřete vlákno",

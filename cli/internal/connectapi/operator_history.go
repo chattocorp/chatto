@@ -46,10 +46,11 @@ func (s *operatorRoomService) ImportRoomEvent(ctx context.Context, req *connect.
 	default:
 		return nil, invalidArgument("room change is required")
 	}
-	if err = s.api.core.ImportHistoricalRoomChange(ctx, in); err != nil {
+	id, err := s.api.core.ImportHistoricalRoomEvent(ctx, in)
+	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&operatorv1.ImportRoomEventResponse{}), nil
+	return connect.NewResponse(&operatorv1.ImportRoomEventResponse{EventId: id}), nil
 }
 
 func (s *operatorMessageService) ImportMessageChange(ctx context.Context, req *connect.Request[operatorv1.ImportMessageChangeRequest]) (*connect.Response[operatorv1.ImportMessageChangeResponse], error) {

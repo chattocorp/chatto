@@ -1,7 +1,7 @@
 # FDR-042: Chatto Neighbors
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-26
+**Last reviewed:** 2026-10-27
 
 ## Overview
 
@@ -41,19 +41,61 @@ recommendation, not a trust or reciprocal relationship.
   another public HTTP or HTTPS host than the advertised origin. The
   `ListNeighborhoodServers` response gives each copy as a server-relative path
   on the called server.
-- The Add Server action in the Server Gutter opens the Server Directory in a
-  history-backed dialog. The browser Back action closes it. The
-  `/chat/servers` route shows the same directory as a page. The standalone
-  client uses this page before it registers a server.
-- The Server Directory starts with the recommendations. A **Connect by
-  address** action opens the direct server-address lookup. The lookup shows
-  immediately when the directory has no recommendations.
-- The Server Directory loads the cached Neighborhood of each server that is
-  registered in the client. It contacts no other server to show results and
-  does not ask for consent. A registered server already knows the user's
-  network address.
-- The client removes duplicate canonical origins but does not rank or sort the
-  results. Each result identifies all sources whose recommendations are shown.
+- The Add Server action in the Server Gutter opens `/chat/servers`. This is
+  the only Server Directory surface. Back returns to the previous page.
+  Static hosting and Desktop open this directory directly instead of a
+  separate welcome screen. A server-hosted frontend retains its required
+  origin registration and its normal local sign-in or chat landing page.
+- The directory shows registered, explicitly discovered, and recommended servers in one grid without
+  section headings or introductory text. This includes signed-out servers and
+  the origin server. Saved cards use existing registration and store data.
+  Recommendations exclude all registered servers, so each server appears once.
+  A **Connect by address** action in the pane header opens the direct lookup
+  in a modal. Close or Back dismisses it without changing the server grid.
+  The lookup shows immediately for an empty catalogue.
+  An empty catalogue shows a welcome heading and an explanation of independent
+  communities above the address form, without a separate welcome step.
+  A successful address lookup remembers the server as a **known server** on
+  this device. A modal lookup also registers a compatible server with sign-in
+  support and opens its signed-out view, without a separate Join action.
+  Back returns to the directory with the modal closed. An already registered
+  server opens with its existing session. Servers that cannot be joined remain
+  in the directory with their existing fallback action. First-run lookup
+  opens the directory instead of a preview. Known servers do not create a
+  registration, session, live connection, or sidebar entry. Join remains the
+  action for first-run results and recommendations, with compatibility and sign-in checks.
+  Duplicate origins update the existing record instead of adding another card.
+  The welcome uses an open layout without panels and links to the Chatto
+  website at `https://chatto.run`. The link opens in a new tab without referrer
+  data. The website receives the user's IP address only when they open it.
+  An empty standalone catalogue does not contact a default third-party directory.
+- The directory and Neighbors administration share the server profile card.
+  Each card reserves a fixed area for its description and scrolls longer text.
+  Shared scroll fades indicate text beyond the visible edges.
+  A 1200:630 banner sits above the logo, name, and hostname.
+  The Server Directory uses two equal columns in narrow panes so mobile users
+  can see more servers at once. Narrow cards use smaller logos, less padding,
+  and smaller description text, with the logo above the name and hostname.
+  Wide directory panes and the Neighbors administration grid use fixed 18rem
+  cards. Extra space adds columns instead of stretching these cards.
+  A darker footer shows **Added by you** or
+  **Recommended by** with the first source name and a count of extra sources.
+  Selecting the recommendation line opens all sources and their hostnames in
+  a dialog, using cached data only. Back or Close dismisses the dialog.
+  Every directory card has a centred status footer. Registered servers show
+  **Joined** when authenticated and **Needs login** otherwise. Selecting a directory card opens or joins
+  the server. Cards expose native link or button keyboard behavior. Clickability
+  is optional; Neighbors administration retains its separate edit controls.
+- The Server Directory loads the cached Neighborhood of each registered or
+  explicitly discovered server. These servers see the user's IP address when
+  the directory loads. The address form explains that lookup adds the server
+  and loads its recommendations. The client remembers public profile fields
+  and source origins in device storage, never credentials. It does not query
+  servers merely because they appear in a Neighborhood response. Their cached
+  images still come from the source server. Discovery does not crawl recursively.
+- The client removes duplicate canonical origins. Registered servers come
+  first, followed by explicitly added servers, then recommendations. Order
+  within each set stays stable; the page has no separate groups or headings.
   A direct Neighbor of a registered server names that registered server as a
   source.
 - The Server Directory shows its results as server profile cards in a grid. A
@@ -69,24 +111,25 @@ recommendation, not a trust or reciprocal relationship.
   direct server-address lookup, this is the server at that address. The
   client loads the image without credentials or referrer data, rejects
   redirects, and accepts only responses that declare a supported raster image
-  media type and contain at most 5 MiB.
+  media type and contain at most 5 MiB. It uses normal browser caching. If
+  the fetch fails with a network or CORS error, it retries once without using
+  the cached response. This lets older servers replace cached responses that
+  lack CORS headers without forcing a download on every visit.
 - The Server Directory sends one request to each registered server, with at
   most six active requests and a ten-second timeout for each request. A
   registered server that does not provide a Neighborhood contributes no
   results and does not count as a failure.
-- Joining a server adds it to the gutter without a session. The join does not
-  open the server or start sign-in, and the directory stays open, so the user
-  can add more servers. The entry then shows the joined state and an open
-  action. The server view tells the user that they are signed out and offers
-  **Log in to this server**, which opens the sign-in window (FDR-023). Before
+- Joining a server adds it to the gutter without a session and opens its
+  signed-out view. Back returns to the directory. The server
+  view offers sign-in (FDR-023), including the inline Desktop password form
+  (FDR-034). Joining does not submit credentials or open a sign-in window. Before
   it adds a recommended server, the client loads the server's current public
   data. The user starts this request with the join action. If the current
   version is not compatible or sign-in is not available, the client stops the
   join and shows the current action for that server.
-- An advertised server that is already registered remains visible and is
-  marked as joined. Its action opens the server, also when the client has no
-  session for it. Opening a server from the dialog replaces the dialog's
-  history entry, so Back does not reopen the dialog.
+- A registered server appears first in the shared grid. Its action opens the
+  server, also when the client has no session for it. A direct address lookup
+  for a registered server also offers the open action instead of joining again.
 - An unregistered server has a join action only when its discovered version is
   compatible with the client. When the version is incompatible or unknown,
   the client opens the server origin in a new tab. The server can then provide

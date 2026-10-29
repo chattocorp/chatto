@@ -155,7 +155,7 @@ func operatorReactionImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&roomID, "room-id", "", "active channel room ID")
 	cmd.Flags().StringVar(&messageID, "message-event-id", "", "message or channel echo ID")
 	cmd.Flags().StringVar(&userID, "user-id", "", "mapped Chatto reactor ID")
-	cmd.Flags().StringVar(&emoji, "emoji", "", "supported emoji shortcode")
+	cmd.Flags().StringVar(&emoji, "emoji", "", "reaction name without colons")
 	return cmd
 }
 

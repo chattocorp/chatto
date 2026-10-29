@@ -17,6 +17,16 @@ import (
 	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 )
 
+func TestMembershipEventsVisibilityPublicMapping(t *testing.T) {
+	for _, show := range []bool{false, true} {
+		source := &evtv1.Event{Event: &evtv1.Event_RoomMembershipEventsVisibilityChanged{RoomMembershipEventsVisibilityChanged: &evtv1.RoomMembershipEventsVisibilityChangedEvent{RoomId: "room", ShowMembershipEvents: show}}}
+		projected := projectRealtimeEvent("viewer", source)
+		if projected == nil || projected.GetRoomMembershipEventsVisibilityChanged().GetRoomId() != "room" || projected.GetRoomMembershipEventsVisibilityChanged().GetShowMembershipEvents() != show {
+			t.Fatalf("unexpected public setting: %v", projected)
+		}
+	}
+}
+
 func TestAccountDeactivationPublicEventOmitsAdministrator(t *testing.T) {
 	for _, deactivated := range []bool{true, false} {
 		source := &evtv1.Event{ActorId: "administrator", Event: &evtv1.Event_UserAccountDeactivationChanged{

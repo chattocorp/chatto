@@ -26,7 +26,8 @@ Public external identity authentication operations.
 
 Reads safe metadata for a pending create/link flow. This public RPC
 requires a valid pending-flow capability token and returns NOT_FOUND when
-the token is unknown or expired.
+the token is unknown or expired. Returns FAILED_PRECONDITION when a managed
+provider username cannot be assigned; the user must contact the operator.
 
 ```http
 POST /api/connect/chatto.auth.v1.ExternalIdentityAuthService/GetPendingExternalIdentity
@@ -74,8 +75,8 @@ Request to create a new passwordless account from a pending provider identity.
 | Field | Type | Description |
 | --- | --- | --- |
 | `token` | `string` | Raw pending create token from the provider callback redirect. |
-| `login` | `string` | Desired username. |
-| `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the requested username. |
+| `login` | `string` | Desired username. Ignored when choose_username is externally managed; the server assigns a name from the verified provider claim in that case. Otherwise, it must contain 2 to 32 characters and use a valid username format. |
+| `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the assigned username. |
 | `invitation_code` | `string` | Required on invite-only servers when the pending flow has no invitation. Supplying a code does not consume it until account creation succeeds. |
 
 

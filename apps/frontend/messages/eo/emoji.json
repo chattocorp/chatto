@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} de {users}",
+    "tone_default": "Defaŭlta flavo",
+    "tone_light": "Hela",
+    "tone_medium_light": "Mezhele",
+    "tone_medium": "Meza",
+    "tone_medium_dark": "Mezmalhele",
+    "tone_dark": "Malhela",
     "search_placeholder": "Serĉu emojis...",
     "no_results": "Neniuj emojis trovitaj",
     "recently_used": "Lastatempe uzitaj"

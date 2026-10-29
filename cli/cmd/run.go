@@ -179,6 +179,7 @@ func runServer(configPath string) {
 
 	// Create Chatto core
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
+	cfg.Core.AuthProviders = cfg.Auth.Providers
 	cfg.Core.AuthAccessTokenTTL = cfg.Auth.AccessTokenTTLOrDefault()
 	cfg.Core.AuthLoopbackClientEnabled = cfg.Auth.LoopbackClientEnabled
 	cfg.Core.EmailOTP = cfg.Auth.EmailOTP

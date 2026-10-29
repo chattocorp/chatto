@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} av {users}",
+    "tone_default": "Standardgul",
+    "tone_light": "Ljus",
+    "tone_medium_light": "Mellanljus",
+    "tone_medium": "Mellan",
+    "tone_medium_dark": "Mellanmörk",
+    "tone_dark": "Mörk",
     "search_placeholder": "Sök efter emojis...",
     "no_results": "Inga emojis hittades",
     "recently_used": "Senast använda"

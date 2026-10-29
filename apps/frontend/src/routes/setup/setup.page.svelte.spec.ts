@@ -14,10 +14,11 @@ vi.mock('$app/navigation', async (importOriginal) => ({
   goto: mocks.goto
 }));
 
-function renderSetup() {
-  return render(SetupPage, {
+function renderSetup(step = 'details', directLoginEnabled = true) {
+  const view = render(SetupPage, {
     props: {
       data: {
+        step,
         user: null,
         serverInfo: null,
         serverInfoLoaded: true,
@@ -26,7 +27,7 @@ function renderSetup() {
           version: '0.5.0',
           authorizeUrl: '',
           directRegistrationEnabled: false,
-          directLoginEnabled: true,
+          directLoginEnabled,
           accountCreationPolicy: 'open',
           welcomeMessage: null,
           description: null,
@@ -38,6 +39,7 @@ function renderSetup() {
       }
     }
   });
+  return view;
 }
 
 describe('first-run wizard', () => {
@@ -46,12 +48,40 @@ describe('first-run wizard', () => {
     mocks.discovery.mockResolvedValue({ setupRequired: true });
   });
 
-  it('shows the complete form without starting a page-local animation', async () => {
+  it('welcomes the installer with a navigable link to the form', async () => {
+    const view = renderSetup('welcome');
+    await expect.element(view.getByRole('heading', { name: 'Chat just got real!' })).toBeVisible();
+    expect(view.container.querySelectorAll('form')).toHaveLength(0);
+    expect(mocks.complete).not.toHaveBeenCalled();
+    await expect
+      .element(view.getByRole('link', { name: 'Set up your server' }))
+      .toHaveAttribute('href', '/setup?step=details');
+  });
+
+  it('shows the form on its own URL with a link back to the welcome screen', async () => {
     const view = renderSetup();
     await expect.element(view.getByLabelText('Server name')).toBeVisible();
+    await expect
+      .element(view.getByRole('link', { name: 'Back', exact: true }))
+      .toHaveAttribute('href', '/setup');
     await expect.element(view.getByLabelText('Username', { exact: true })).toBeVisible();
     expect(view.container.querySelectorAll('form')).toHaveLength(1);
     expect(view.container.getAnimations({ subtree: true })).toHaveLength(0);
+  });
+
+  it('shows configuration guidance immediately when password login is disabled', async () => {
+    const view = renderSetup('welcome', false);
+    await expect
+      .element(
+        view.getByText(
+          'Enable direct login in the server configuration to create a local owner account.'
+        )
+      )
+      .toBeVisible();
+    await expect
+      .element(view.getByRole('link', { name: 'Set up your server' }))
+      .not.toBeInTheDocument();
+    expect(view.container.querySelectorAll('form')).toHaveLength(0);
   });
 
   it('keeps the draft after validation failure and submits all fields together', async () => {
@@ -62,7 +92,7 @@ describe('first-run wizard', () => {
         })
       )
       .mockResolvedValueOnce(undefined);
-    const view = renderSetup();
+    const view = await renderSetup();
     await view.getByLabelText('Server name').fill('Our community');
     await view.getByLabelText('Description (optional)').fill('Our description');
     await view.getByLabelText('Username', { exact: true }).fill('founder');
@@ -91,7 +121,7 @@ describe('first-run wizard', () => {
     'rejects an overlength password and accepts a multibyte correction',
     async (password) => {
       mocks.complete.mockResolvedValue(undefined);
-      const view = renderSetup();
+      const view = await renderSetup();
       await view.getByLabelText('Server name').fill('Community');
       await view.getByLabelText('Username', { exact: true }).fill('founder');
       await view.getByLabelText('Display name').fill('Founder');
@@ -110,8 +140,31 @@ describe('first-run wizard', () => {
     }
   );
 
-  it('rejects mismatched confirmation without submitting credentials', async () => {
+  it('updates mismatch feedback as either password changes without submitting', async () => {
     const view = renderSetup();
+    const password = view.getByLabelText('Password', { exact: true });
+    const confirmation = view.getByLabelText('Confirm Password', { exact: true });
+    await password.fill('password123');
+    await expect.element(view.getByRole('alert')).not.toBeInTheDocument();
+    await confirmation.fill('different123');
+    await expect.element(view.getByRole('alert')).toHaveTextContent('Passwords do not match');
+    await expect.element(confirmation).toHaveAttribute('aria-invalid', 'true');
+    await view.getByLabelText('Username', { exact: true }).fill('founder');
+    await expect.element(view.getByRole('alert')).toHaveTextContent('Passwords do not match');
+    await confirmation.fill('password123');
+    await expect.element(view.getByRole('alert')).not.toBeInTheDocument();
+    await expect.element(confirmation).not.toHaveAttribute('aria-invalid');
+    await password.fill('changed123');
+    await expect.element(view.getByRole('alert')).toHaveTextContent('Passwords do not match');
+    await password.fill('password123');
+    await expect.element(view.getByRole('alert')).not.toBeInTheDocument();
+    await confirmation.fill('');
+    await expect.element(view.getByRole('alert')).not.toBeInTheDocument();
+    expect(mocks.complete).not.toHaveBeenCalled();
+  });
+
+  it('rejects mismatched confirmation without submitting credentials', async () => {
+    const view = await renderSetup();
     await view.getByLabelText('Server name').fill('Community');
     await view.getByLabelText('Username', { exact: true }).fill('founder');
     await view.getByLabelText('Display name').fill('Founder');
@@ -128,7 +181,7 @@ describe('first-run wizard', () => {
   it('offers sign-in after a lost response when setup has committed', async () => {
     mocks.complete.mockRejectedValue(new Error('Connection lost'));
     mocks.discovery.mockResolvedValue({ setupRequired: false });
-    const view = renderSetup();
+    const view = await renderSetup();
     await view.getByLabelText('Server name').fill('Our community');
     await view.getByLabelText('Username', { exact: true }).fill('founder');
     await view.getByLabelText('Display name').fill('Founder');

@@ -695,8 +695,9 @@ mask stay unchanged.
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user root posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread. The root starts its author's timer. Zero disables it. Updating this field does not change the root interval. |
+| `show_membership_events` | `optional bool` | Whether clients show join/leave activity in this channel's history and live timeline. Requires room.manage. Selecting an absent value resets to true. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -3629,7 +3630,7 @@ the original message. Users are ordered by user ID ascending.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Message or channel echo ID. |
-| `emoji` | `string` | Emoji shortcode, such as "thumbsup". |
+| `emoji` | `string` | Exact reaction name returned by the server, without surrounding colons. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
 
 
@@ -4001,12 +4002,17 @@ treats it as an alias for the original thread reply and stores the reaction
 on that original event. The server returns `RESOURCE_EXHAUSTED` when the
 current user already has 20 distinct emoji reactions on the canonical
 message; adding an emoji that already exists remains an idempotent success.
+Names contain 1–128 ASCII letters, digits, underscores, plus signs, or hyphens,
+without surrounding colons. Known emoji also accept valid Slack-style skin-tone
+suffixes, such as thumbsup::skin-tone-4. The full name must fit in 128 characters.
+Names are case-sensitive and are stored unchanged, including
+unknown names. Clients can display an unknown name as :name:.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid. |
 
 
 <a id="chatto-api-v1-AddReactionResponse"></a>
@@ -4047,7 +4053,7 @@ from that original event.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
 | `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+| `emoji` | `string` | Required. Exact reaction name returned by the server, without surrounding colons. |
 
 
 <a id="chatto-api-v1-RemoveReactionResponse"></a>
@@ -5661,7 +5667,7 @@ Aggregated state for one message thread.
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
+| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve user IDs that have participated in this message's thread. |
 | `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
 
@@ -5936,6 +5942,7 @@ Public room metadata returned by room commands.
 | `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Effective threading policy for this room. Direct-message rooms always report ENABLED. |
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 | `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
+| `show_membership_events` | `optional bool` | Whether clients show room join/leave activity. Absence on older servers means true. Membership state and event delivery are not affected. |
 
 
 
@@ -6143,6 +6150,35 @@ Linked provider identity metadata for the authenticated user's settings UI.
 
 
 
+<a id="chatto-api-v1-AccountActions"></a>
+
+### AccountActions
+
+Self-service decisions for the current viewer. Each action owns its states.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `change_username` | [`UsernameChangeAvailability`](#chatto-api-v1-UsernameChangeAvailability) | Changing the username, excluding input-specific exceptions such as case-only edits. |
+| `change_password` | optional [`PasswordChangeAvailability`](#chatto-api-v1-PasswordChangeAvailability) | Setting an initial password or changing an existing password. Absent on older servers. |
+| `delete_account` | optional [`AccountDeletionAvailability`](#chatto-api-v1-AccountDeletionAvailability) | Starting self-service account deletion. Absent on older servers. |
+
+
+
+<a id="chatto-api-v1-UsernameChangeAvailability"></a>
+
+### UsernameChangeAvailability
+
+Snapshot for changing a username. Missing means not reported. Commands still
+check policy and input, including case-only exceptions. ALLOWED enables it
+only when available_at is absent or has passed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`UsernameChangeAvailability.State`](#chatto-api-v1-UsernameChangeAvailability-State) | Unknown states remain disabled. Commands recheck authority and policy. |
+| `available_at` | `google.protobuf.Timestamp` | Independent earliest attempt time. Absent means no time restriction. Clients enable ALLOWED when this time passes; they should update a visible control once per second while waiting and stop its timer when it is removed or no longer waiting. This time never overrides a blocking or unknown state. |
+
+
+
 <a id="chatto-api-v1-PrivilegedModeState"></a>
 
 ### PrivilegedModeState
@@ -6218,10 +6254,11 @@ Current authenticated user's public profile plus self-only settings.
 | --- | --- | --- |
 | `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
+| `viewer_can_delete_account` | `bool` | **Deprecated.** Whether the authenticated user may delete this account. New clients use actions.delete_account and fall back to this field only when that action is absent. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+| `actions` | [`AccountActions`](#chatto-api-v1-AccountActions) | Self-service account action snapshots. Absent on older servers. |
 
 
 
@@ -6894,7 +6931,9 @@ Policy controlling whether self-service account creation requires an invitation.
 
 ### DisconnectEligibility
 
-Eligibility to disconnect an identity at the time it is listed.
+State of disconnecting a linked identity. Only ALLOWED enables the action.
+UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
+Unknown future states remain disabled.
 This does not replace fresh authentication or the mutation's eligibility check.
 
 | Name | Number | Description |
@@ -6902,6 +6941,50 @@ This does not replace fresh authentication or the mutation's eligibility check.
 | `DISCONNECT_ELIGIBILITY_UNSPECIFIED` | `0` | Eligibility was not evaluated, including responses from older servers. |
 | `DISCONNECT_ELIGIBILITY_ALLOWED` | `1` | Another enabled sign-in method would remain. |
 | `DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD` | `2` | Disconnecting would leave no enabled sign-in method. |
+| `DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR` | `3` | The operator disabled user-initiated unlinking for this provider. |
+
+
+<a id="chatto-api-v1-AccountDeletionAvailability"></a>
+
+### AccountDeletionAvailability
+
+State of self-service account deletion. Only ALLOWED enables the action;
+commands still check authority and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `ACCOUNT_DELETION_AVAILABILITY_ALLOWED` | `1` | The user can attempt to start account deletion. |
+| `ACCOUNT_DELETION_AVAILABILITY_PERMISSION_DENIED` | `2` | The viewer lacks permission to delete this account. |
+| `ACCOUNT_DELETION_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support self-service deletion. |
+
+
+<a id="chatto-api-v1-PasswordChangeAvailability"></a>
+
+### PasswordChangeAvailability
+
+State of setting or changing a password. Only ALLOWED enables the action;
+commands still validate passwords and authentication.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `PASSWORD_CHANGE_AVAILABILITY_ALLOWED` | `1` | The user can attempt to set or change a password. |
+| `PASSWORD_CHANGE_AVAILABILITY_DIRECT_LOGIN_DISABLED` | `2` | The operator disabled direct login and password self-service. |
+| `PASSWORD_CHANGE_AVAILABILITY_UNSUPPORTED_ACCOUNT` | `3` | This account type does not support password self-service. |
+
+
+<a id="chatto-api-v1-UsernameChangeAvailability-State"></a>
+
+### UsernameChangeAvailability.State
+
+State of username self-service, including its primary blocking condition.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `STATE_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
+| `STATE_ALLOWED` | `1` | Policy permits a username change, subject to available_at. |
+| `STATE_PROVIDER_MANAGED` | `2` | A linked provider manages the username. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

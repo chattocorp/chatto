@@ -1,5 +1,6 @@
 {
   "composer": {
+    "insert_emoji": "Sett inn emoji",
     "attach_file": "Legg ved fil",
     "formatting_options": "Formateringsalternativer",
     "send": "Send melding",

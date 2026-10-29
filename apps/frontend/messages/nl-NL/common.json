@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Sneltoetsen",
+      "app": "App",
+      "undo": "Ongedaan maken",
+      "redo": "Opnieuw uitvoeren",
+      "new_line": "Nieuwe regel",
+      "edit_last": "Laatste bericht bewerken (leeg concept)",
+      "complete": "Vermelding of emoji aanvullen"
+    },
+    "action_unavailable": "Deze actie is momenteel niet beschikbaar.",
     "edit": "Bewerken",
     "copy_failed": "Kopiëren naar het klembord is mislukt. Selecteer de tekst en kopieer deze handmatig.",
     "cancel": "Annuleren",

@@ -276,6 +276,7 @@
     "thread": {
       "title": "Pavediens #{room}",
       "back_to_room": "Atpakaļ uz istabu",
+      "participants": "Pavediena dalībnieki ({count})",
       "follow": "Sekojiet pavedienam",
       "unfollow": "Pārtraukt sekošanu pavedienam",
       "close": "Aizveriet pavedienu",

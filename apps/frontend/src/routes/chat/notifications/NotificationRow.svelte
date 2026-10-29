@@ -33,10 +33,10 @@
     /** Rendered reaction emoji for the cause badge of a reaction group. */
     reactionEmoji?: string | null;
     roomName: string | null;
-    /** Formatted relative time of the newest occurrence. */
+    /** Relative time for today's activity; local clock time for older days. */
     time: string;
     unread: boolean;
-    /** Unread Important attention; adds the notification tint. */
+    /** Attention classification for row metadata; never changes the background. */
     important: boolean;
     /** False when this client cannot open the notification target. */
     interactive?: boolean;
@@ -73,33 +73,39 @@
 </script>
 
 {#snippet location()}
-  {#if roomName}<bdi dir="auto">#{roomName}</bdi>{/if}
-  {#if roomName && server}<span aria-hidden="true">·</span>{/if}
+  {#if roomName}<bdi dir="auto" class="hidden @min-[36rem]/activity:block">#{roomName}</bdi>{/if}
+  {#if roomName && server}<span aria-hidden="true" class="hidden @min-[36rem]/activity:block"
+      >·</span
+    >{/if}
   {#if server}<bdi dir="auto" data-testid="notification-server-name">{server.name}</bdi>{/if}
 {/snippet}
 
 <ActivityListRow
+  compact
+  overlayActions
   {interactive}
   {pending}
   disabled={pending || !interactive}
-  {important}
   onclick={onopen}
   rowAttributes={{
+    class: '@container/activity',
     'data-testid': 'notification-group',
     'data-notification-state': unread ? 'unread' : 'read',
     'data-notification-attention': unread ? (important ? 'important' : 'ambient') : 'none'
   }}
 >
   {#snippet leading()}
-    <ActivityAvatar {actor} {server}>
-      {#snippet badge()}
-        {#if reactionEmoji}
-          <span class="leading-none">{reactionEmoji}</span>
-        {:else}
-          <span class="iconify {signalIcon(signalKind)}" aria-hidden="true"></span>
-        {/if}
-      {/snippet}
-    </ActivityAvatar>
+    <span class="shrink-0 self-start">
+      <ActivityAvatar {actor} {server} size="sm">
+        {#snippet badge()}
+          {#if reactionEmoji}
+            <span class="leading-none">{reactionEmoji}</span>
+          {:else}
+            <span class="iconify {signalIcon(signalKind)}" aria-hidden="true"></span>
+          {/if}
+        {/snippet}
+      </ActivityAvatar>
+    </span>
   {/snippet}
   {#if unread}
     <span class="sr-only">{m('chat.notifications.unread')}</span>
@@ -107,8 +113,9 @@
   <ActivityRowText
     {time}
     emphasized={unread}
-    wrapOnNarrow
-    subtitle={roomName || server ? location : undefined}
+    overlayActions={1}
+    location={roomName || server ? location : undefined}
+    locationOnNarrow={Boolean(server)}
     testId="notification-content"
   >
     {#snippet title()}
@@ -118,7 +125,7 @@
   {#snippet actions()}
     <button
       type="button"
-      class="icon-action icon-action-danger"
+      class="icon-action"
       disabled={pending}
       aria-label={m('common.delete')}
       title={m('common.delete')}

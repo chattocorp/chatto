@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Klaviatuuri otseteed",
+      "app": "Rakendus",
+      "undo": "Võta tagasi",
+      "redo": "Tee uuesti",
+      "new_line": "Uus rida",
+      "edit_last": "Muuda viimast sõnumit (tühi mustand)",
+      "complete": "Lõpeta mainimine või emotikon"
+    },
+    "action_unavailable": "See toiming pole praegu saadaval.",
     "edit": "Muuda",
     "copy_failed": "Lõikelauale kopeerimine ebaõnnestus. Valige tekst ja kopeerige see käsitsi.",
     "cancel": "Tühista",

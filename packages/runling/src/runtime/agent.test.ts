@@ -1191,7 +1191,7 @@ describe('runAgent', () => {
       resources: {
         agentDir: '/tmp/agent',
         extensions: false,
-        skills: false,
+        skills: ['./skills'],
         promptTemplates: false,
         themes: false,
         contextFiles: false
@@ -1205,6 +1205,7 @@ describe('runAgent', () => {
       agentDir: '/tmp/agent',
       noExtensions: true,
       noSkills: true,
+      additionalSkillPaths: ['./skills'],
       noPromptTemplates: true,
       noThemes: true,
       noContextFiles: true,
@@ -1816,7 +1817,7 @@ test('forwards completed assistant text during the interaction, excluding reason
     type: 'message_end',
     message: { role: 'toolResult', content: [{ type: 'text', text: 'file contents' }] }
   });
-  expect(onText.mock.calls).toEqual([['Here is the joke.']]);
+  expect(onText.mock.calls).toEqual([['Here is the joke.', { hasToolCalls: true }]]);
   gate.resolve();
   await run;
   await instance.runOutcome(createTaskContext(), 'Next');
@@ -2037,7 +2038,7 @@ test('text mode delivers a natural response once without report tools or retries
   try {
     const result = await bot.run(createTaskContext(), 'Hi', { onText: text });
     expect(result).toMatchObject({ outcome: 'completed', summary: 'Hello!' });
-    expect(text.mock.calls).toEqual([['Hello!']]);
+    expect(text.mock.calls).toEqual([['Hello!', { hasToolCalls: false }]]);
     expect(promptCalls).toBe(1);
     expect(sessionOptions.customTools).toEqual([]);
     expect(sessionOptions.tools).toEqual([]);
@@ -2108,7 +2109,10 @@ test('text mode keeps progress delivery but returns only the final response', as
     expect((await bot.run(createTaskContext(), 'Look it up', { onText: text })).summary).toBe(
       'Here is the answer.'
     );
-    expect(text.mock.calls).toEqual([['Checking the page.'], ['Here is the answer.']]);
+    expect(text.mock.calls).toEqual([
+      ['Checking the page.', { hasToolCalls: false }],
+      ['Here is the answer.', { hasToolCalls: false }]
+    ]);
   } finally {
     bot.dispose();
   }
@@ -2227,7 +2231,7 @@ test('a provider retry stays one interaction and does not deliver the failed tex
     () => instance.runOutcome(createTaskContext(), 'Investigate', { onText })
   );
   expect(result).toMatchObject({ outcome: 'completed', summary: 'Full answer' });
-  expect(onText.mock.calls).toEqual([['Full answer']]);
+  expect(onText.mock.calls).toEqual([['Full answer', { hasToolCalls: false }]]);
   expect(events.filter((event) => event.type === 'agent.started')).toHaveLength(1);
 });
 

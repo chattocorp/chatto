@@ -28,6 +28,25 @@ function mockSystemTheme(theme: 'light' | 'dark') {
 }
 
 describe('UserPreferencesState', () => {
+  it.each(['automatic', 'enabled', 'disabled'] as const)(
+    'restores and persists animation choice %s',
+    (choice) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ animations: choice }));
+      const state = new UserPreferencesState();
+      expect(state.animations).toBe(choice);
+      expect(document.documentElement.dataset.animations).toBe(choice);
+      state.animations = choice === 'disabled' ? 'enabled' : 'disabled';
+      expect(new UserPreferencesState().animations).toBe(state.animations);
+    }
+  );
+
+  it.each([null, 'unknown', false, 1])(
+    'falls back to automatic for invalid animation choice %j',
+    (animations) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ animations }));
+      expect(new UserPreferencesState().animations).toBe('automatic');
+    }
+  );
   beforeEach(() => {
     vi.unstubAllGlobals();
     mockSystemTheme('light');

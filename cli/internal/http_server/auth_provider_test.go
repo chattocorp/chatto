@@ -133,6 +133,48 @@ func TestVerifiedEmailFromGothUser(t *testing.T) {
 	})
 }
 
+func TestManagedOAuthUsernameFields(t *testing.T) {
+	for _, tc := range []struct {
+		name, providerType, profile, want string
+	}{
+		{"github login", "github", `{"id":1,"login":"github-user","name":"Display Name","email":"other@example.com"}`, "github-user"},
+		{"gitlab username", "gitlab", `{"id":1,"username":"gitlab-user","name":"Display Name","email":"other@example.com"}`, "gitlab-user"},
+		{"discord username", "discord", `{"id":"1","username":"discord-user","global_name":"Display Name","email":"other@example.com"}`, "discord-user"},
+		{"google verified email", "google", `{"id":"1","name":"Alice","email":"Account.Name@example.com","verified_email":true}`, "account.name"},
+		{"google unverified email", "google", `{"id":"1","name":"Alice","email":"account@example.com","verified_email":false}`, ""},
+		{"google missing email", "google", `{"id":"1","name":"Alice"}`, ""},
+		{"google malformed email", "google", `{"id":"1","name":"Alice","email":"account","verified_email":true}`, ""},
+		{"github missing login", "github", `{"id":1,"name":"Alice","email":"other@example.com"}`, ""},
+		{"gitlab missing username", "gitlab", `{"id":1,"name":"Alice","email":"other@example.com"}`, ""},
+		{"discord missing username", "discord", `{"id":"1","global_name":"Alice","email":"other@example.com"}`, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runtime, err := newAuthProviderRuntime(config.AuthProviderConfig{
+				ID: tc.providerType, Type: tc.providerType, ClientID: "id", ClientSecret: "secret", ManageUsernames: true,
+			}, "http://chat.example/callback")
+			require.NoError(t, err)
+			// Exercise Goth's actual JSON mappings; its common field names differ
+			// between providers and are not a username contract on their own.
+			runtime.httpClient.Transport = handlerRoundTripper{handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if strings.HasSuffix(req.URL.Path, "/emails") {
+					_, _ = w.Write([]byte(`[]`))
+					return
+				}
+				_, _ = w.Write([]byte(tc.profile))
+			})}
+			session, err := runtime.goth.UnmarshalSession(`{"AccessToken":"test-access-token"}`)
+			require.NoError(t, err)
+			user, err := runtime.goth.FetchUser(session)
+			require.NoError(t, err)
+			verifiedEmail := runtime.verifiedEmailFromGothUser(t.Context(), user)
+			require.Equal(t, tc.want, runtime.managedUsernameFromGothUser(user, verifiedEmail))
+			runtime.config.ManageUsernames = false
+			require.Empty(t, runtime.managedUsernameFromGothUser(user, verifiedEmail))
+		})
+	}
+}
+
 func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer token-1" {
@@ -361,6 +403,37 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	}
 
 	issuer.SetSubject("subject-conflict")
+	// Failed account-link authorization must notify the original popup owner.
+	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+	for _, tc := range []struct{ providerError, wantError string }{
+		{"access_denied", "provider_denied"},
+		{"", "provider_failed"},
+	} {
+		failedStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", popupReturn, linkUser.Id)
+		if err != nil {
+			t.Fatalf("create failed link start: %v", err)
+		}
+		failedLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-no-email", url.Values{
+			"intent": {"link"}, "link_start": {failedStart},
+		})
+		issuer.tokenCheck = func(*http.Request) bool { return false }
+		failedResponse, err := client.Get(ts.URL + "/auth/providers/oidc-no-email/callback?" + url.Values{
+			"state": {authStateFromLocation(t, failedLocation)}, "error": {tc.providerError}, "code": {"test-code"},
+		}.Encode())
+		if err != nil {
+			t.Fatalf("fail provider authorization: %v", err)
+		}
+		failedResponse.Body.Close()
+		issuer.tokenCheck = nil
+		failedReturn, err := url.Parse(failedResponse.Header.Get("Location"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if failedReturn.Path != "/servers/callback" || failedReturn.Query().Get("state") != "popup-state" || failedReturn.Query().Get("mode") != "provider" || failedReturn.Query().Get("error") != tc.wantError {
+			t.Fatalf("failed link return = %q, want popup callback with %s", failedReturn, tc.wantError)
+		}
+	}
+
 	conflictToken, err := chattoCore.CreatePendingExternalIdentityCreateFlow(t.Context(), core.PendingExternalIdentityFlow{
 		ProviderID:    "oidc-no-email",
 		ProviderType:  config.AuthProviderTypeOpenIDConnect,

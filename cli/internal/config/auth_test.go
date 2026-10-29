@@ -441,6 +441,14 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		wantErr  string
 	}{
 		{"group roles", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "chat-mods:moderator urn:corp:it:admin"}, ""},
+		{"managed google without email", AuthProviderConfig{Type: AuthProviderTypeGoogle, ManageUsernames: true}, "managed Google usernames require email access"},
+		{"managed google email disabled", AuthProviderConfig{Type: AuthProviderTypeGoogle, ManageUsernames: true, RequestEmail: new(false)}, "managed Google usernames require email access"},
+		{"managed google default email scopes", AuthProviderConfig{Type: AuthProviderTypeGoogle, ManageUsernames: true, RequestEmail: new(true)}, ""},
+		{"managed google explicit scopes omit email", AuthProviderConfig{Type: AuthProviderTypeGoogle, ManageUsernames: true, RequestEmail: new(true), Scopes: []string{"openid", "profile"}}, "managed Google usernames require email access"},
+		{"managed google explicit email scope", AuthProviderConfig{Type: AuthProviderTypeGoogle, ManageUsernames: true, Scopes: []string{"openid", "email"}}, ""},
+		{"managed google email scope URL", AuthProviderConfig{Type: AuthProviderTypeGoogle, ManageUsernames: true, Scopes: []string{"https://www.googleapis.com/auth/userinfo.email"}}, ""},
+		{"unmanaged google without email", AuthProviderConfig{Type: AuthProviderTypeGoogle}, ""},
+		{"managed github without email", AuthProviderConfig{Type: AuthProviderTypeGitHub, ManageUsernames: true}, ""},
 		{"group roles on github", AuthProviderConfig{Type: AuthProviderTypeGitHub, GroupRoles: "chat-mods:moderator"}, "only supported for OIDC"},
 		{"group roles without role", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "chat-mods:"}, "must use group:role"},
 		{"group roles without colon", AuthProviderConfig{Type: AuthProviderTypeOpenIDConnect, GroupRoles: "chat-mods"}, "must use group:role"},

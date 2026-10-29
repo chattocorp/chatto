@@ -11,28 +11,25 @@
     "url_placeholder": "chat.example.com",
     "not_chatto_server": "Šķiet, ka tas nav Chatto serveris.",
     "directory": {
+      "added_by_you": "Jūsu pievienots",
+      "joined": "Pievienojies",
+      "needs_login": "Nepieciešama pieteikšanās",
+      "learn_more": "Vēlies uzzināt vairāk?",
+      "learn_more_description": "Atklāj Chatto iespējas, uzzini, kā uzturēt savu serveri, vai saņem palīdzību.",
+      "welcome_title": "Tagad sarunas kļūst īstas!",
       "title": "Serveru katalogs",
-      "subtitle": "Atklājiet citus Chatto serverus",
-      "lookup_description": "Ievadiet jebkura Chatto servera adresi, lai tam pievienotos.",
+      "lookup_description": "Ievadiet servera adresi, lai to pievienotu savam katalogam un ielādētu tā ieteikumus.",
       "find": "Atrast serveri",
       "connect_by_address": "Savienot pēc adreses",
-      "servers_title": "Ieteiktie serveri",
-      "servers_description": "Ieteikumi no serveriem, kuriem esat pievienojies. Rezultāti nav sarindoti.",
       "recommended_by": "Iesaka {servers}",
-      "more_recommenders_count": {
-        "other": "vēl {count}"
-      },
-      "joined": "Pievienojies",
       "join": "Pievienoties",
       "open": "Atvērt",
       "open_in_new_tab": "Atvērt jaunā cilnē",
       "sign_in_unavailable": "Pieteikšanās nav pieejama",
       "profile_unavailable": "Neizdevās ielādēt šī servera publisko profilu.",
-      "partial": "Daži serveri, kuriem esat pievienojies, nevarēja sniegt savus ieteikumus.",
+      "partial": "Daži serveri nevarēja sniegt savus ieteikumus.",
       "unavailable_title": "Katalogs nav pieejams",
-      "unavailable_body": "Serveri, kuriem esat pievienojies, nevarēja sniegt savus ieteikumus. Jūs joprojām varat savienoties tieši.",
-      "empty_title": "Vēl nav ieteikto serveru",
-      "empty_body": "Jūs joprojām varat savienoties tieši, izmantojot servera adresi."
+      "unavailable_body": "Serveri nevarēja sniegt savus ieteikumus. Jūs joprojām varat savienoties tieši."
     }
   }
 }

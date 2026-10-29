@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-09-24
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -18,6 +18,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
   membership changes remain separate commands.
 - **Settings access** — a visible room's sidebar action menu links `room.manage` holders directly to that room's management page and lets them start the archive flow. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
+- **Membership activity** — `room.manage` holders can turn **Show join/leave events** off in General settings. It is on by default for new and existing channel rooms. The current setting applies to history and live activity for all clients that support it. Turning it on reveals stored activity again. It does not change membership, event delivery, calls, or moderation records. Older clients can continue to show the activity; older servers cannot edit the setting.
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
 - **Bootstrap defaults** — fresh servers seed `#announcements` as Universal with announcement-only posting defaults and `#general` as a normal channel room in the default Lobby group. Those posting defaults are an explicit trusted seed option; a user-created room merely named `announcements` receives ordinary permissions.
@@ -154,6 +155,14 @@ changes to fields the manager did not supply.
 guard. Other settings need only the target room's guard. Concurrent edits to
 the same supplied field can still replace each other because the request does
 not contain a client revision.
+
+### 15. The room owns membership activity display
+
+**Decision:** Keep the display setting as durable room state. Clients apply it
+to timeline rows only.
+**Why:** Room managers choose the shared display behavior. Hiding rows reduces
+timeline noise without removing facts that clients and integrations need.
+**Tradeoff:** Older clients can continue to show membership activity.
 
 ## Permissions
 

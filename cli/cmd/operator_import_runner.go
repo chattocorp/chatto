@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -171,7 +172,7 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 			return fmt.Errorf("users.jsonl record %d: new account needs a username", i+1)
 		}
 		name := m.username(*u.Username)
-		if core.ValidateLogin(name) != nil || strings.TrimSpace(name) != name || core.ValidateDisplayName(u.DisplayName) != nil {
+		if core.ValidateLogin(name) != nil || strings.TrimSpace(name) != name || core.ValidateDisplayName(u.DisplayName) != nil || utf8.RuneCountInString(u.DisplayName) > core.MaxDisplayNameLength {
 			return fmt.Errorf("users.jsonl record %d: unsupported destination name", i+1)
 		}
 		lower := strings.ToLower(name)
@@ -219,12 +220,12 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 			usedAssets[id] = true
 		}
 		if strings.HasPrefix(e.Type, "reaction.") {
-			if _, err := core.HistoricalEmojiName(d.Emoji); err != nil {
+			if _, err := core.HistoricalReactionName(d.Emoji); err != nil {
 				return err
 			}
 		}
 		for _, r := range d.Reactions {
-			if _, err := core.HistoricalEmojiName(r.Emoji); err != nil {
+			if _, err := core.HistoricalReactionName(r.Emoji); err != nil {
 				return err
 			}
 		}

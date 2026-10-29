@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
@@ -115,6 +116,37 @@ func TestInvitationNotesValidateAndSurviveColdReplay(t *testing.T) {
 		if revoked.Note != state.Note {
 			t.Fatal("revocation lost the creation note")
 		}
+	}
+}
+
+func TestManagedProviderSignupRequiresInvitation(t *testing.T) {
+	t.Parallel()
+	c, _ := setupTestCore(t)
+	adminID := invitationAdmin(t, c)
+	ctx := testContext(t)
+	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "oidc", IssuerURL: "https://company.example", ManageUsernames: true}}
+	flow := &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "company", ProviderType: "oidc", Issuer: "https://company.example", Subject: "new-subject", ProviderUsername: "new-member"}
+	if _, err := c.CreateUserForExternalIdentity(ctx, "ignored", "", flow); !errors.Is(err, ErrInvitationInvalid) {
+		t.Fatalf("managed signup without code: got %v, want invalid invitation", err)
+	}
+	invitation, err := c.CreateInvitationCode(ctx, adminID, nil, "For new member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow.InvitationID = invitation.ID
+	user, err := c.CreateUserForExternalIdentity(ctx, "ignored", "", flow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user.Login != "new-member" {
+		t.Fatalf("managed username = %q", user.Login)
+	}
+	state, err := c.GetInvitation(ctx, adminID, invitation.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.Used || state.Note != invitation.Note {
+		t.Fatal("managed signup did not retain and consume the invitation")
 	}
 }
 

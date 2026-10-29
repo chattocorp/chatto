@@ -16,7 +16,7 @@ export const AdminInvitationCodeService = {
   typeName: "chatto.admin.v1.AdminInvitationCodeService",
   methods: {
     /**
-     * Lists current and historical codes. Retired beta invite links are excluded.
+     * Lists current and historical codes.
      *
      * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.ListInvitationCodes
      */
@@ -27,7 +27,7 @@ export const AdminInvitationCodeService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads a code by ID. Returns NOT_FOUND for an unknown ID or retired invite link.
+     * Reads a code by ID. Returns NOT_FOUND for an unknown ID.
      *
      * @generated from rpc chatto.admin.v1.AdminInvitationCodeService.GetInvitationCode
      */

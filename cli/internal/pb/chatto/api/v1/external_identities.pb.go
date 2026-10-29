@@ -22,7 +22,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Eligibility to disconnect an identity at the time it is listed.
+// State of disconnecting a linked identity. Only ALLOWED enables the action.
+// UNSPECIFIED means not evaluated; older-server fallbacks may use account state.
+// Unknown future states remain disabled.
 // This does not replace fresh authentication or the mutation's eligibility check.
 type DisconnectEligibility int32
 
@@ -33,6 +35,8 @@ const (
 	DisconnectEligibility_DISCONNECT_ELIGIBILITY_ALLOWED DisconnectEligibility = 1
 	// Disconnecting would leave no enabled sign-in method.
 	DisconnectEligibility_DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD DisconnectEligibility = 2
+	// The operator disabled user-initiated unlinking for this provider.
+	DisconnectEligibility_DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR DisconnectEligibility = 3
 )
 
 // Enum value maps for DisconnectEligibility.
@@ -41,11 +45,13 @@ var (
 		0: "DISCONNECT_ELIGIBILITY_UNSPECIFIED",
 		1: "DISCONNECT_ELIGIBILITY_ALLOWED",
 		2: "DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD",
+		3: "DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR",
 	}
 	DisconnectEligibility_value = map[string]int32{
 		"DISCONNECT_ELIGIBILITY_UNSPECIFIED":                 0,
 		"DISCONNECT_ELIGIBILITY_ALLOWED":                     1,
 		"DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD": 2,
+		"DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR":        3,
 	}
 )
 
@@ -559,11 +565,12 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"!DisconnectExternalIdentityRequest\x12*\n" +
 	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"8\n" +
-	"\"DisconnectExternalIdentityResponseJ\x04\b\x01\x10\x02R\fdisconnected*\x9b\x01\n" +
+	"\"DisconnectExternalIdentityResponseJ\x04\b\x01\x10\x02R\fdisconnected*\xcc\x01\n" +
 	"\x15DisconnectEligibility\x12&\n" +
 	"\"DISCONNECT_ELIGIBILITY_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eDISCONNECT_ELIGIBILITY_ALLOWED\x10\x01\x126\n" +
-	"2DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD\x10\x02B\xc4\x01\n" +
+	"2DISCONNECT_ELIGIBILITY_LAST_ENABLED_SIGN_IN_METHOD\x10\x02\x12/\n" +
+	"+DISCONNECT_ELIGIBILITY_DISABLED_BY_OPERATOR\x10\x03B\xc4\x01\n" +
 	"\x11com.chatto.api.v1B\x17ExternalIdentitiesProtoP\x01Z@github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (

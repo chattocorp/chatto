@@ -1,5 +1,15 @@
 {
   "common": {
+    "keyboard_shortcuts": {
+      "title": "Hurtigtaster",
+      "app": "App",
+      "undo": "Angre",
+      "redo": "Gjør om",
+      "new_line": "Ny linje",
+      "edit_last": "Rediger siste melding (tomt utkast)",
+      "complete": "Fullfør omtale eller emoji"
+    },
+    "action_unavailable": "Denne handlingen er ikke tilgjengelig akkurat nå.",
     "edit": "Rediger",
     "copy_failed": "Kunne ikke kopiere til utklippstavlen. Marker teksten og kopier den manuelt.",
     "cancel": "Avbryt",

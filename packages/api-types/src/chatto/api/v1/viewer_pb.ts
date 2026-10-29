@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
+import { AccountActions } from "./account_actions_pb.js";
 import { CapabilityGrant, PermissionGrant } from "./permissions_pb.js";
 
 /**
@@ -133,8 +134,11 @@ export class ViewerUser extends Message<ViewerUser> {
 
   /**
    * Whether the authenticated user may delete this account.
+   * New clients use actions.delete_account and fall back to this field only
+   * when that action is absent.
    *
-   * @generated from field: bool viewer_can_delete_account = 9;
+   * @generated from field: bool viewer_can_delete_account = 9 [deprecated = true];
+   * @deprecated
    */
   viewerCanDeleteAccount = false;
 
@@ -159,6 +163,13 @@ export class ViewerUser extends Message<ViewerUser> {
    */
   hasPassword = false;
 
+  /**
+   * Self-service account action snapshots. Absent on older servers.
+   *
+   * @generated from field: chatto.api.v1.AccountActions actions = 13;
+   */
+  actions?: AccountActions;
+
   constructor(data?: PartialMessage<ViewerUser>) {
     super();
     proto3.util.initPartial(data, this);
@@ -173,6 +184,7 @@ export class ViewerUser extends Message<ViewerUser> {
     { no: 10, name: "last_login_change", kind: "message", T: Timestamp },
     { no: 11, name: "profile", kind: "message", T: User },
     { no: 12, name: "has_password", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "actions", kind: "message", T: AccountActions },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerUser {

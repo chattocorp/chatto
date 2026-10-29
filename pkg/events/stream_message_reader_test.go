@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -394,8 +395,53 @@ func TestStreamMessageReaderLogsBatchCacheResults(t *testing.T) {
 		t.Fatalf("second batch fields = %v", logs[1].fields)
 	}
 	for i, entry := range logs {
+		if got, ok := entry.fields["stream_sequences"].([]uint64); !ok || !slices.Equal(got, []uint64{1, 2}) {
+			t.Errorf("batch %d stream_sequences = %v, want [1 2]", i, entry.fields["stream_sequences"])
+		}
+		wantMisses := []uint64{1, 2}
+		if i == 1 {
+			wantMisses = nil
+		}
+		if got, ok := entry.fields["miss_sequences"].([]uint64); !ok || !slices.Equal(got, wantMisses) {
+			t.Errorf("batch %d miss_sequences = %v, want %v", i, entry.fields["miss_sequences"], wantMisses)
+		}
 		if _, ok := entry.fields["duration"].(time.Duration); !ok {
 			t.Errorf("batch %d duration = %T, want time.Duration", i, entry.fields["duration"])
+		}
+	}
+}
+
+func TestStreamMessageReaderBoundsLoggedSequences(t *testing.T) {
+	logger := newRecordingStreamMessageLogger()
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs:  make(map[uint64]*jetstream.RawStreamMsg),
+	}
+	sequences := make([]uint64, 20)
+	for i := range sequences {
+		sequence := uint64(i + 1)
+		sequences[i] = sequence
+		source.msgs[sequence] = &jetstream.RawStreamMsg{Sequence: sequence}
+	}
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderOptions{
+		CacheIdleTTL: time.Minute,
+		Logger:       logger.logger(),
+	})
+	if _, err := reader.Messages(context.Background(), sequences); err != nil {
+		t.Fatal(err)
+	}
+	logs := logger.matching("Stream message cache batch read")
+	if len(logs) != 1 {
+		t.Fatalf("batch logs = %d, want 1", len(logs))
+	}
+	for _, key := range []string{"stream_sequences", "miss_sequences"} {
+		if got, ok := logs[0].fields[key].([]uint64); !ok || !slices.Equal(got, sequences[:16]) {
+			t.Errorf("%s = %v, want first 16 sequences", key, logs[0].fields[key])
+		}
+	}
+	for _, key := range []string{"sequences_omitted", "miss_sequences_omitted"} {
+		if got := logs[0].fields[key]; got != 4 {
+			t.Errorf("%s = %v, want 4", key, got)
 		}
 	}
 }

@@ -6,6 +6,13 @@
       "confirmation": "Por 15 minutos, isso ativa as permissões adicionais atribuídas a você neste servidor."
     },
     "notifications": {
+      "all_notifications": "Todas as notificações",
+      "all_types": "Todos os tipos",
+      "filter_status": "Status",
+      "filter_type": "Tipo",
+      "reactions": "Reações",
+      "replies": "Respostas",
+      "mentions": "Menções",
       "next_unread_source": "Ir para a próxima origem não lida",
       "no_unread": "Nenhuma notificação não lida",
       "title": "Notificações",

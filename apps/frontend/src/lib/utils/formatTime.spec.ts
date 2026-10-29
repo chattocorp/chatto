@@ -9,6 +9,7 @@ import {
   formatMonthYear,
   formatDayLabel,
   groupByActivityDate,
+  groupByActivityDay,
   isSameDay,
   type TimeFormatSettings
 } from './formatTime';
@@ -30,6 +31,36 @@ function setBrowserLocale(locale: string): void {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('groupByActivityDay', () => {
+  it('leaves missing timestamps out of dated sections', () => {
+    const dates = [null, '2026-10-12T12:00:00Z'];
+    const sections = groupByActivityDay(
+      dates,
+      (date) => date,
+      () => settings('UTC'),
+      new Date('2026-10-29T12:00:00Z'),
+      'en-GB'
+    );
+    expect(sections).toHaveLength(1);
+    expect(sections[0].items).toEqual([dates[1]]);
+  });
+  it('keeps older days separate and groups midnight boundaries in the viewer timezone', () => {
+    const dates = ['2026-10-12T22:30:00Z', '2026-10-12T21:30:00Z', '2026-10-11T22:30:00Z'];
+    const sections = groupByActivityDay(
+      dates,
+      (date) => date,
+      () => settings('Europe/Berlin'),
+      new Date('2026-10-29T12:00:00Z'),
+      'en-GB'
+    );
+    expect(sections.map(({ key, items }) => ({ key, items }))).toEqual([
+      { key: '2026-10-13', items: [dates[0]] },
+      { key: '2026-10-12', items: [dates[1], dates[2]] }
+    ]);
+    expect(sections.map(({ label }) => label)).toEqual(['13 Oct 2026', '12 Oct 2026']);
+  });
+});
 
 describe('formatMessageTime', () => {
   it('uses the selected British English region for the automatic time format', () => {

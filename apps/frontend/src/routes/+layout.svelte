@@ -1,16 +1,20 @@
 <script lang="ts">
   import { initialPageReveal } from '$lib/dom/initialPageReveal';
+  import { watchMotionPreference } from '$lib/dom/motionPreference';
   import { deactivateManagementLocaleMessages } from '$lib/i18n/messages';
-  import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
+  import { afterNavigate, beforeNavigate, goto, onNavigate } from '$app/navigation';
+  import { stopViewTransition } from '$lib/dom/viewTransitions';
+  import { fadePageContent } from '$lib/dom/pageFade';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { retireOfflineShell } from '$lib/pwa/retireOfflineShell';
   import { onNotificationClick } from '$lib/notifications/notificationClick';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
+  import { provideKeyboardShortcuts } from '$lib/keyboardShortcuts';
   import InputModalityTracker from '$lib/components/InputModalityTracker.svelte';
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
@@ -45,7 +49,27 @@
 
   setAuthServerInfo(() => data.serverInfo);
   const appUi = provideAppUiState();
+  provideKeyboardShortcuts();
   beforeNavigate(() => navigationVisits.leave());
+  let stopPageFade = () => {};
+  onNavigate(({ from, to }) => {
+    stopPageFade();
+    stopViewTransition();
+    // Query, hash, and shallow overlay changes keep the current page steady.
+    if (!from || !to || from.url.pathname === to.url.pathname) return;
+    // Thread and message links use path segments but keep the same room pane.
+    if (
+      from.route.id?.startsWith('/chat/[serverId]/[roomId]') &&
+      to.route.id?.startsWith('/chat/[serverId]/[roomId]') &&
+      from.params?.serverId === to.params?.serverId &&
+      from.params?.roomId === to.params?.roomId
+    )
+      return;
+    return () => {
+      stopPageFade = fadePageContent();
+    };
+  });
+  onDestroy(() => stopPageFade());
   useVisualViewport();
   usePinchZoomPrevention();
 
@@ -65,7 +89,7 @@
     if (page.route.id === '/servers/callback') {
       return ['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '');
     }
-    if (page.route.id !== '/login') return false;
+    if (page.route.id !== '/login' && page.route.id !== '/register') return false;
     const redirect = page.url.searchParams.get('redirect');
     if (!isSafeInternalPath(redirect)) return false;
     const target = new URL(redirect, page.url).pathname;
@@ -119,6 +143,7 @@
 {#if standaloneOAuth}
   <div
     {@attach initialPageReveal}
+    {@attach watchMotionPreference}
     class="flex h-full w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
   >
     {@render children?.()}
@@ -126,6 +151,7 @@
 {:else}
   <div
     {@attach initialPageReveal}
+    {@attach watchMotionPreference}
     use:sidebarSwipe
     class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3"
   >

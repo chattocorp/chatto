@@ -3887,6 +3887,30 @@ describe('ServerStateStore unified realtime resources', () => {
     );
   });
 
+  it('refreshes room state for membership display changes without treating them as timeline rows', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const refresh = apiMocks.readRealtimeResource;
+    const messages = store.rooms.messages('R1');
+    const refreshWindow = vi.spyOn(messages, 'refreshCurrentWindow');
+    await flushPromises();
+    refresh.mockClear();
+    refreshWindow.mockClear();
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          id: 'DISPLAY',
+          event: {
+            case: 'roomMembershipEventsVisibilityChanged',
+            value: { roomId: 'R1', showMembershipEvents: false }
+          }
+        })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    expect(refresh).toHaveBeenCalledWith('rooms', undefined);
+    expect(refreshWindow).not.toHaveBeenCalled();
+  });
+
   it('refreshes independent thread deadlines without using the settings event as a message anchor', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.rooms.messages('R1');

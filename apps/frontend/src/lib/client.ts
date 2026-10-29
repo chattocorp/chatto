@@ -30,6 +30,8 @@ if (import.meta.hot) import.meta.hot.dispose(() => client.close());
 
 /** The client's servers, sessions, and stores. */
 export const serverRegistry = client.registry;
+/** Explicit discovery sources, without sidebar registration or authentication. */
+export const knownServers = client.knownServers;
 /** The client's server connections. */
 export const serverConnectionManager = client.connections;
 /** The client's event buses and realtime transports. */

@@ -5,6 +5,7 @@ import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identit
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import { createExternalIdentityAPI, createExternalIdentityFlowAPI } from './externalIdentities';
 import { ExternalIdentityFlowKind } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
+import { UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
 import {
   fakeServer,
   mockService,
@@ -28,6 +29,20 @@ beforeEach(() => {
 });
 
 describe('createExternalIdentityFlowAPI', () => {
+  it.each([
+    undefined,
+    UsernameChoiceAvailability.UNSPECIFIED,
+    UsernameChoiceAvailability.ALLOWED,
+    99 as UsernameChoiceAvailability
+  ])('preserves optional username choice state %s', async (chooseUsername) => {
+    flow.getPendingExternalIdentity.mockReturnValue({
+      pending: { kind: ExternalIdentityFlowKind.CREATE_ACCOUNT, chooseUsername }
+    });
+    const pending = await createExternalIdentityFlowAPI(config()).getPending('token-1');
+    expect(pending).not.toBeNull();
+    expect(pending?.chooseUsername).toBe(chooseUsername);
+  });
+
   it('maps pending external identity metadata', async () => {
     flow.getPendingExternalIdentity.mockReturnValue({
       pending: {
@@ -51,6 +66,7 @@ describe('createExternalIdentityFlowAPI', () => {
       providerLabel: 'GitHub',
       verifiedEmail: null,
       loginHint: 'octo',
+      chooseUsername: undefined,
       displayNameHint: 'Octo',
       boundUserId: null,
       redirectPath: '/chat/-/settings/account',
@@ -93,6 +109,7 @@ describe('createExternalIdentityAPI', () => {
   it.each([
     DisconnectEligibility.ALLOWED,
     DisconnectEligibility.LAST_ENABLED_SIGN_IN_METHOD,
+    DisconnectEligibility.DISABLED_BY_OPERATOR,
     DisconnectEligibility.UNSPECIFIED,
     99
   ])('preserves disconnect eligibility: %s', async (disconnectEligibility) => {

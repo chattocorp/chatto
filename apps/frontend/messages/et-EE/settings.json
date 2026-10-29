@@ -143,6 +143,21 @@
           "description": "Kasutage selles brauseris tumedat liidest"
         }
       },
+      "animations": {
+        "title": "Animatsioonid",
+        "automatic": {
+          "label": "Automaatne",
+          "description": "Järgi süsteemi vähendatud liikumise eelistust"
+        },
+        "enabled": {
+          "label": "Lubatud",
+          "description": "Kuva alati animatsioonid"
+        },
+        "disabled": {
+          "label": "Keelatud",
+          "description": "Kuva muudatused ilma animatsioonideta"
+        }
+      },
       "thread_pane": {
         "title": "Lõimepaan",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Sellel kontol on juba parool."
       },
       "sso": {
+        "username_unavailable": "Sisselogimisteenuse pakkuja kasutajanime ei saa määrata. Võta ühendust serveri haldajaga.",
+        "username_managed": "Sinu kasutajanime haldab sisselogimisteenuse pakkuja ja seda ei saa siin muuta.",
+        "unlink_disabled": "Serveri haldaja ei luba seda teenusepakkujat lahti ühendada.",
         "popup_blocked": "Luba selle saidi hüpikaknad ja proovi uuesti siduda.",
         "account_mismatch": "Logi selles serveris sisse õigesse kontosse ja alusta sidumist uuesti algsest aknast.",
         "provider_unavailable": "See sisselogimisteenuse pakkuja pole enam saadaval.",

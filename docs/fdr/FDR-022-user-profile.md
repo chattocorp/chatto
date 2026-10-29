@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-10-24
+**Last reviewed:** 2026-10-28
 
 ## Overview
 
@@ -59,7 +59,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **User Preferences** — human accounts currently support a time zone (IANA name, e.g., `Europe/Berlin`), a time format (browser default / 12-hour / 24-hour), and permission to share the time zone. The server stores these choices and syncs them across devices. The stored time zone is private by default. If a choice is not set, the frontend uses the browser time zone and locale time-format default. A compatible web client reports the device time zone to the server once when no explicit time zone is set. It does not overwrite an explicitly selected zone. The unified Settings sidebar puts these personal choices in the Your account group. Permission-gated Server configuration remains separate.
 - **About** — human and bot accounts can set public Markdown profile text of up to 1,000 characters through `UserService.UpdateUserProfile`. The text is shown on the Profile Card and in the Profile View. Profiles use the message Markdown renderer and block styles, including headings, lists, quotes, code blocks, tables, links, and timestamp controls. The client disables source HTML and sanitizes rendered output. The About editor uses the app's selected Markdown or visual editor and the message formatting toolbar. Both editors save Markdown source. The 1,000-character limit applies to that source. Switching editors and failed saves preserve the current draft. In the Profile View, non-empty About text appears in a collapsible **About** section. It starts expanded. The browser remembers the choice per server. The content stays mounted while collapsed so Markdown loading does not interrupt the expansion animation. The label applies to human and bot accounts because the text can describe either. The API field remains `bio`.
 - **Public time zone** — a user must explicitly enable time-zone sharing. When sharing is enabled, public user reads include the stored IANA zone and clients show the current local time on profile surfaces. When sharing is disabled, public reads and realtime updates omit both values. The account can still use its stored time zone for private formatting.
-- **Profile View** — “View profile” shows the complete public profile as a temporary subview of Members in the current Room Sidebar. It does not navigate or create a DM, and does not require permission to start DMs. The back arrow returns to the current room's Member List; the close button hides the sidebar. This also applies on mobile and inside DMs. Selecting another profile replaces the current subview. Changing rooms or servers clears it. The Profile View shows the avatar, display name, login, custom status, bio, and local time. Its header is the shared user card. A right-click, a touch long-press, or the menu button of the card opens the user's Profile Card. That card has the same actions as in the Member List, except “View profile” and “Remove from room”. For example, the card of a bot shows **Manage bot** to the viewers that FDR-038 allows. The direct-message header retains its information button, including in a self-DM. Closing a profile opened by that button returns to the prior room-extras panel, or hides the Room Sidebar when no panel was open.
+- **Profile View** — “View profile” shows the complete public profile as a temporary subview of Members in the current Room Sidebar. It does not navigate or create a DM, and does not require permission to start DMs. The back arrow returns to the current room's Member List. On desktop, the close button hides the sidebar. Below 1024 px viewport width, overlay headers have only the back arrow: return to Members first, then use the Members back arrow to close the sidebar. This also applies inside DMs. Selecting another profile replaces the current subview. Changing rooms or servers clears it. The Profile View shows the avatar, display name, login, custom status, bio, and local time. Its header is the shared user card. A right-click, a touch long-press, or the menu button of the card opens the user's Profile Card. That card has the same actions as in the Member List, except “View profile” and “Remove from room”. For example, the card of a bot shows **Manage bot** to the viewers that FDR-038 allows. The direct-message header retains its information button, including in a self-DM. Closing a profile opened by that button returns to the prior room-extras panel, or hides the Room Sidebar when no panel was open.
 - **Desktop sidebar memory** — On desktop (at least 1024px wide), channels open Members by default, and a one-to-one DM or self-DM opens its profile by default. The browser remembers explicit choices, including closed, separately for each server and conversation within the current page session. Room navigation, reloads, and browser session restoration retain these choices. A fresh page session starts with the defaults; choices from earlier permanent storage are ignored. Putting the PWA in the background does not reset a choice. A saved profile also retains the previous room-extras panel. Mobile panes open only after an explicit action. Automatic and restored desktop views do not open a mobile overlay when the viewport becomes narrow. An explicitly opened Profile View follows the responsive Room Sidebar layout when the viewport changes. A mobile room-extras overlay does not block the room while the viewport is desktop-wide. The overlay opens again when the viewport becomes narrow. Mobile actions do not change the saved desktop choice.
 - **App Preferences** — users can select System, Light, or Dark appearance, overlay or side-by-side thread presentation, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. Overlay thread presentation is the default. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile Card** — opening a user's Profile Card as a popover or bottom sheet shows their public identity, bio snippet, live local time in their shared zone, and available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
@@ -100,9 +100,25 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
   the active theme, so the user changes the theme to select the other tone.
   Each sample shows the tone with the selected accent. Choices apply immediately, stay in this
   browser, and need no server request or external service. Accent, status
-  colours, contrast, and surface depth do not change. Palette changes from
-  theme, tone, accent, or contrast fade briefly unless reduced motion is
-  enabled.
+  colours, contrast, and surface depth do not change. Tone, accent, and contrast
+  changes fade briefly unless reduced motion is enabled. An explicit theme
+  choice reveals the new palette in a circle from the selected control. Keyboard
+  activation starts the circle at the centre of the control. Browsers without
+  View Transitions keep the colour fade. Reduced motion disables the reveal.
+- **Animations** — Appearance offers Automatic, Enabled, and Disabled. Automatic
+  is the default and follows the system's reduced-motion preference. Enabled
+  overrides that preference; Disabled suppresses app motion. The choice applies
+  immediately to CSS effects, canvas decoration, and JavaScript transitions,
+  including startup motion on reload. It stays in this browser, applies to all
+  registered servers, and makes no external connection. Static feedback, such
+  as copy confirmation and the message-location cue, remains visible.
+- **Navigation motion** — switching channels or pages briefly fades the new
+  main content to full opacity without moving or scaling it. Navigation does
+  not wait for the fade. Initial loads, query changes, and overlays do not
+  trigger it. Reduced motion disables it. The Room Sidebar changes immediately,
+  including opening, closing, and switching sidebar panels or profiles.
+  Navigation stops an active theme reveal. Theme effects run locally and make
+  no external connections. Thread-pane motion is described in FDR-002.
 
 ## Design Decisions
 

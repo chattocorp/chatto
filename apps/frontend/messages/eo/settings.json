@@ -143,6 +143,21 @@
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
         }
       },
+      "animations": {
+        "title": "Animacioj",
+        "automatic": {
+          "label": "Aŭtomate",
+          "description": "Sekvi la sisteman preferon pri reduktita movado"
+        },
+        "enabled": {
+          "label": "Ŝaltitaj",
+          "description": "Ĉiam montri animaciojn"
+        },
+        "disabled": {
+          "label": "Malŝaltitaj",
+          "description": "Montri ŝanĝojn sen animacioj"
+        }
+      },
       "thread_pane": {
         "title": "Fadena panelo",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Ĉi tiu konto jam havas pasvorton."
       },
       "sso": {
+        "username_unavailable": "La uzantnomo de via ensaluta provizanto ne povas esti asignita. Kontaktu la servilan administranton.",
+        "username_managed": "Vian uzantnomon administras via ensaluta provizanto kaj ĝi ne povas esti ŝanĝita ĉi tie.",
+        "unlink_disabled": "La servila administranto ne permesas malkonekti ĉi tiun provizanton.",
         "popup_blocked": "Permesu ŝprucfenestrojn por ĉi tiu retejo, poste reprovu la ligon.",
         "account_mismatch": "Ensalutu en la ĝustan konton ĉe ĉi tiu servilo, poste rekomencu la ligon el la origina fenestro.",
         "provider_unavailable": "Ĉi tiu ensalutprovizanto ne plu disponeblas.",

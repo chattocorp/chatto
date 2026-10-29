@@ -1,5 +1,6 @@
 import type { RoomMember } from '$lib/state/room';
 import { searchEmojis } from '$lib/emoji';
+import { emojiShortcodeQuery } from '@chatto/client/messaging/emojiShortcodes';
 import type { ComposerEditorApi } from './editorTypes';
 import { rankMentionCandidates } from './mentionRanking';
 
@@ -188,13 +189,12 @@ export class AutocompleteState {
     const editorApi = this.getEditorApi();
     if (!editorApi) return null;
 
-    const textBefore = editorApi.getTextBeforeCursor();
-    const match = textBefore.match(/(?:^|[\s]):([\w]{2,})$/);
-    if (!match) return null;
+    const match = emojiShortcodeQuery(editorApi.getTextBeforeCursor());
+    if (!match || match.name.length < 2) return null;
 
     return {
-      query: match[1],
-      start: textBefore.length - match[1].length - 1
+      query: match.name,
+      start: match.start
     };
   }
 

@@ -276,6 +276,7 @@
     "thread": {
       "title": "Lõim: #{room}",
       "back_to_room": "Tagasi tuppa",
+      "participants": "Lõime osalejad ({count})",
       "follow": "Jälgi lõime",
       "unfollow": "Lõpeta lõime jälgimine",
       "close": "Sule lõime",

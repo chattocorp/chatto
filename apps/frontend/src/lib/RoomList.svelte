@@ -915,7 +915,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
 
     const path = notificationPath(activeServerId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- notificationPath returns a resolved app path.
     await navigateNotification(stores, notification, () => goto(path));
   }
 </script>
@@ -1235,12 +1234,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       type="button"
       class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-start text-xs"
       aria-expanded={expanded}
-      aria-label={expanded
+      title={expanded
         ? m('room_list.hide_rooms_in_group', { group: section.label })
         : m('room_list.show_rooms_in_group', { count: unjoinedCount, group: section.label })}
-      title={expanded
-        ? m('room_list.show_less')
-        : m('room_list.more_rooms', { count: unjoinedCount })}
       data-testid="room-group-more"
       onclick={() => {
         expandedRoomSections.set(section.persistKey, !expanded);

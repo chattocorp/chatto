@@ -1,5 +1,12 @@
 {
   "emoji": {
+    "reaction_summary": "{emoji} von {users}",
+    "tone_default": "Standardgelb",
+    "tone_light": "Hell",
+    "tone_medium_light": "Mittelhell",
+    "tone_medium": "Mittel",
+    "tone_medium_dark": "Mitteldunkel",
+    "tone_dark": "Dunkel",
     "search_placeholder": "Emojis suchen...",
     "no_results": "Keine Emojis gefunden",
     "recently_used": "Zuletzt verwendet"

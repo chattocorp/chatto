@@ -1,4 +1,4 @@
-import { prefersReducedMotion } from 'svelte/motion';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { q, testSnippet } from '$lib/test-utils';
@@ -229,7 +229,7 @@ it('slides a footer-only section and can reverse an unfinished collapse', async 
 });
 
 it('skips spatial animations when reduced motion is requested', async () => {
-  vi.spyOn(prefersReducedMotion, 'current', 'get').mockReturnValue(true);
+  vi.spyOn(userPreferences, 'reducedMotion', 'get').mockReturnValue(true);
   const { container } = render(RoomGroupSection, {
     label: 'Reduced',
     items,

@@ -11,6 +11,12 @@ import {
 } from '@chatto/client';
 import { transcriptName } from './agent.ts';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+
+/** Queued conversation activity. Reaction IDs identify the event, not a message. */
+export interface IncomingMessage extends AddressedMessage {
+  reaction?: { messageId: string; emoji: string };
+}
 
 /** Check current author state for live and recovered messages. Read failures
  * reject so delivery can retry; other bots must never trigger reply loops. */
@@ -50,15 +56,26 @@ export async function incomingMessage(
   isActive: (location: ThreadLocation) => Promise<boolean>,
   signal: AbortSignal,
   respondTo: readonly AddressingReason[] = DEFAULT_ADDRESSING_REASONS
-): Promise<AddressedMessage | undefined> {
+): Promise<IncomingMessage | undefined> {
   signal.throwIfAborted();
-  if (
-    event.event.case !== 'messagePosted' ||
-    !event.id ||
-    !event.actorId ||
-    event.actorId === server.accountId
-  )
-    return;
+  if (!event.id || !event.actorId || event.actorId === server.accountId) return;
+  if (event.event.case === 'reactionAdded') {
+    const { roomId, messageEventId, emoji } = event.event.value;
+    if (!roomId || !messageEventId || !emoji) return;
+    const target = await server.getMessage({ roomId, messageId: messageEventId }, { signal });
+    signal.throwIfAborted();
+    if (!target || target.authorId !== server.accountId) return;
+    return {
+      id: event.id,
+      roomId,
+      threadRootId: target.threadRootId || target.id,
+      authorId: event.actorId,
+      body: '',
+      reasons: [],
+      reaction: { messageId: target.id, emoji }
+    };
+  }
+  if (event.event.case !== 'messagePosted') return;
   const posted = event.event.value;
   if (!posted.roomId || posted.bodyPlaintext === undefined) return;
   // Realtime events contain no attachment metadata. Read only when text is absent.
@@ -70,7 +87,10 @@ export async function incomingMessage(
     if (!message?.attachments?.some((attachment) => attachment.contentType.startsWith('image/')))
       return;
   }
-  // An explicit reply selects its recipient, even when it also mentions the bot.
+  // DM messages address Botto even when they reply to an earlier human message.
+  if (posted.roomKind === RoomKind.DM && respondTo.includes('direct_message'))
+    return server.addressedMessage(event, { signal, reasons: ['direct_message'] });
+  // In shared rooms, an explicit reply selects its recipient, even when it mentions the bot.
   if (posted.threadRootEventId && posted.inReplyTo)
     return respondTo.includes('reply')
       ? server.addressedMessage(event, { signal, reasons: ['reply'] })

@@ -12,7 +12,6 @@
 
     // Bundler mode
     "moduleResolution": "bundler",
-    "customConditions": ["runling-source"],
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,

@@ -1,4 +1,5 @@
 import type { Attachment } from 'svelte/attachments';
+import { motionPreference } from './motionPreference';
 
 /** Split the initial app into sections, without animating both a parent and its children. */
 function revealSections(element: Element): Element[] {
@@ -16,7 +17,7 @@ function revealSections(element: Element): Element[] {
 export const initialPageReveal: Attachment = (element) => {
   // The HTML shell is visible while SvelteKit resolves the initial route.
   const loadingShell = document.getElementById('app-loading');
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const reducedMotion = motionPreference();
   if (reducedMotion.matches) {
     loadingShell?.remove();
     return;

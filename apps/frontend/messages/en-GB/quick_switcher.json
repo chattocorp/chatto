@@ -1,5 +1,6 @@
 {
   "quick_switcher": {
+    "title": "Quick switcher",
     "placeholder": "Go somewhere, or type ? to search messages...",
     "no_results": "No results",
     "recent": "Recent",

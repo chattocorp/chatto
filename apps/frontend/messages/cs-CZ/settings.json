@@ -143,6 +143,21 @@
           "description": "V tomto prohlížeči použijte tmavé rozhraní"
         }
       },
+      "animations": {
+        "title": "Animace",
+        "automatic": {
+          "label": "Automaticky",
+          "description": "Použít systémové nastavení omezeného pohybu"
+        },
+        "enabled": {
+          "label": "Zapnuté",
+          "description": "Vždy zobrazovat animace"
+        },
+        "disabled": {
+          "label": "Vypnuté",
+          "description": "Zobrazovat změny bez animací"
+        }
+      },
       "thread_pane": {
         "title": "Panel vlákna",
         "overlay": {
@@ -438,6 +453,9 @@
         "already_set": "Tento účet již má heslo."
       },
       "sso": {
+        "username_unavailable": "Uživatelské jméno od poskytovatele přihlášení nelze přiřadit. Kontaktujte provozovatele serveru.",
+        "username_managed": "Vaše uživatelské jméno spravuje poskytovatel přihlášení a nelze je zde změnit.",
+        "unlink_disabled": "Provozovatel serveru nepovoluje odpojení tohoto poskytovatele.",
         "popup_blocked": "Povol vyskakovací okna pro tento web a zkus propojení znovu.",
         "account_mismatch": "Přihlas se ke správnému účtu na tomto serveru a pak spusť propojení znovu z původního okna.",
         "provider_unavailable": "Tento poskytovatel přihlášení už není dostupný.",
