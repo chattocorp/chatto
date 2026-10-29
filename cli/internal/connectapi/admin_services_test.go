@@ -28,7 +28,124 @@ import (
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func TestServerDiscoveryReadsProjectedAdmissionWithoutNATS(t *testing.T) {
+	t.Parallel()
+	_, nc := testutil.StartNATS(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	// SetupRequired has its own broker reads. Disable setup to isolate discovery's
+	// policy hint; authoritative account creation still requires a current policy.
+	cfg := config.ChattoConfig{Core: config.CoreConfig{SkipSetupWizard: true, SecretKey: "test-core-secret"}}
+	c, err := core.NewChattoCore(ctx, nc, cfg.Core)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startConnectAPITestCore(t, c)
+	if err := c.ConfigModel().SetServerConfig(ctx, core.SystemActorID, &configv1.ServerConfig{
+		RegistrationAdmission: evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	nc.Close()
+	service := &serverDiscoveryService{api: New(c, cfg, "test")}
+	response, err := service.GetServer(ctx, connect.NewRequest(&discoveryv1.GetServerRequest{}))
+	if err != nil {
+		t.Fatalf("discovery requires NATS for projected admission: %v", err)
+	}
+	if response.Msg.GetLogin().GetAccountCreationPolicy() != apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_INVITE_ONLY {
+		t.Fatal("discovery lost the projected invite-only policy")
+	}
+}
+
+func TestExternalIdentityAccountCreationReplacesBoundInvitation(t *testing.T) {
+	t.Parallel()
+	for _, status := range []string{"active", "used", "revoked", "expired"} {
+		t.Run(status, func(t *testing.T) {
+			env := newConnectAPITestEnv(t)
+			if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
+				t.Fatal(err)
+			}
+			if err := env.core.ConfigModel().SetServerConfig(env.ctx, core.SystemActorID, &configv1.ServerConfig{
+				RegistrationAdmission: evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			var original core.InvitationState
+			var err error
+			if status == "expired" {
+				// Replay an already expired creation fact without a wall-clock sleep.
+				id := core.NewInvitationID()
+				event := &evtv1.Event{Id: core.NewEventID(), ActorId: env.viewer.Id, CreatedAt: timestamppb.New(time.Now().Add(-2 * time.Hour)),
+					Event: &evtv1.Event_InvitationCreated{InvitationCreated: &evtv1.InvitationCreatedEvent{
+						InvitationId: id, ExpiresAt: timestamppb.New(time.Now().Add(-time.Hour)),
+					}}}
+				if _, err := env.core.EventPublisher.AppendEventually(env.ctx, evtstream.InvitationAggregate(id).SubjectFor(event), event); err != nil {
+					t.Fatal(err)
+				}
+				original, err = env.core.GetInvitation(env.ctx, env.viewer.Id, id)
+			} else {
+				original, err = env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch status {
+			case "used":
+				_, err = env.core.CreateVerifiedUserWithInvitation(env.ctx, core.SystemActorID, "earlier-user", "Earlier User", "password123", "earlier@example.test", original.ID)
+			case "revoked":
+				_, err = env.core.RevokeInvitation(env.ctx, env.viewer.Id, original.ID)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+				ProviderID: "oidc-main", ProviderType: config.AuthProviderTypeOpenIDConnect,
+				Issuer: "https://id.example", Subject: "replacement-code", InvitationID: original.ID,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			pending, err := env.externalAuth.GetPendingExternalIdentity(env.ctx, connect.NewRequest(&authv1.GetPendingExternalIdentityRequest{Token: token}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if pending.Msg.GetPending().GetInvitationRequired() != (status != "active") {
+				t.Fatal("incorrect invitation-required hint")
+			}
+			// Explicit invalid input must not fall back to even an active bound code.
+			_, err = env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+				Token: token, Login: "replacement-user", InvitationCode: "invalid",
+			}))
+			requireConnectCode(t, err, connect.CodeInvalidArgument)
+			flow, err := env.core.GetPendingExternalIdentityCreateFlow(env.ctx, token)
+			if err != nil || flow.InvitationID != original.ID {
+				t.Fatalf("failed replacement changed the stored flow: %v", err)
+			}
+			replacement, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+				Token: token, Login: "replacement-user", InvitationCode: env.core.InvitationCode(replacement.ID),
+			}))
+			if err != nil {
+				t.Fatalf("replacement signup: %v", err)
+			}
+			after, err := env.core.GetInvitation(env.ctx, env.viewer.Id, replacement.ID)
+			if err != nil || !after.Used {
+				t.Fatalf("replacement not consumed: %v", err)
+			}
+			old, err := env.core.GetInvitation(env.ctx, env.viewer.Id, original.ID)
+			if err != nil || string(core.InvitationStatusAt(old, time.Now())) != status {
+				t.Fatalf("original invitation changed: %v", err)
+			}
+		})
+	}
+}
 
 func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	t.Parallel()

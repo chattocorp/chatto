@@ -228,8 +228,9 @@ pending new identity still needs admission.
 `AdminServerService.GetServerConfig` returns typed registration settings.
 `UpdateServerConfig` accepts the `registration.admission` leaf mask and requires
 `server.manage`. The mutation emits a config fact and waits for its projection.
-`ServerDiscoveryService.GetServer` returns the effective admission policy from
-this projection. Account creation enforces it independently of discovery hints.
+`ServerDiscoveryService.GetServer` reads the local admission projection without
+waiting for catch-up. Account creation catches up and enforces admission
+independently of this discovery hint.
 
 `AdminServerService` provides CRUD operations for Neighbor resources. These
 methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors`

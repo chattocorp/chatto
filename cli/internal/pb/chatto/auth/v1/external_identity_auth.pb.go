@@ -372,8 +372,9 @@ type CreateExternalIdentityAccountRequest struct {
 	// Desired display name. When omitted, the server uses a valid provider hint
 	// and otherwise falls back to the assigned username.
 	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Required on invite-only servers when the pending flow has no invitation.
-	// Supplying a code does not consume it until account creation succeeds.
+	// Required on invite-only servers when the flow has no valid invitation.
+	// A supplied code replaces the flow's invitation for this attempt; an invalid
+	// code fails without fallback. Consumed only when account creation succeeds.
 	InvitationCode string `protobuf:"bytes,4,opt,name=invitation_code,json=invitationCode,proto3" json:"invitation_code,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache

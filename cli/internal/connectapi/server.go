@@ -41,11 +41,8 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			return nil, connectInternalError(err)
 		}
 	}
-	if s.api.core != nil {
-		if err := s.api.core.WaitForRegistrationPolicy(ctx); err != nil {
-			return nil, err
-		}
-	}
+	// Discovery reports the local projection as a UI hint. Account creation
+	// independently catches up and checks admission under OCC.
 	admission := evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN
 	if s.api.core != nil {
 		admission = s.api.core.ConfigModel().RegistrationAdmission()

@@ -312,8 +312,9 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
   displayName = "";
 
   /**
-   * Required on invite-only servers when the pending flow has no invitation.
-   * Supplying a code does not consume it until account creation succeeds.
+   * Required on invite-only servers when the flow has no valid invitation.
+   * A supplied code replaces the flow's invitation for this attempt; an invalid
+   * code fails without fallback. Consumed only when account creation succeeds.
    *
    * @generated from field: string invitation_code = 4;
    */

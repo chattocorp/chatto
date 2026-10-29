@@ -77,8 +77,9 @@ message CreateExternalIdentityAccountRequest {
   // Desired display name. When omitted, the server uses a valid provider hint
   // and otherwise falls back to the assigned username.
   string display_name = 3 [(buf.validate.field).string.max_len = 32];
-  // Required on invite-only servers when the pending flow has no invitation.
-  // Supplying a code does not consume it until account creation succeeds.
+  // Required on invite-only servers when the flow has no valid invitation.
+  // A supplied code replaces the flow's invitation for this attempt; an invalid
+  // code fails without fallback. Consumed only when account creation succeeds.
   string invitation_code = 4 [(buf.validate.field).string.max_len = 128];
 }
 

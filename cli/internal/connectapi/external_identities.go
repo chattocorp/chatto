@@ -88,7 +88,9 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		return nil, err
 	}
 	if s.api.core.InvitationRequired() {
-		if flow.InvitationID == "" && req.Msg.GetInvitationCode() != "" {
+		// An explicit code replaces the captured invitation for this attempt,
+		// including when the captured invitation is no longer usable.
+		if req.Msg.GetInvitationCode() != "" {
 			flow.InvitationID, err = s.api.core.ValidateInvitationCode(ctx, req.Msg.GetInvitationCode())
 			if err != nil {
 				return nil, err
