@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { macOSVersions, releaseBuildVersion, restoreReleaseVersion } from './version.mjs';
 import { updatePreferences } from '../updates.mjs';
 
 test('restores release metadata before archiving a macOS beta', async (t) => {
   const scratch = new URL('../../../.context/', import.meta.url);
   await mkdir(scratch, { recursive: true });
-  const buildPath = await mkdtemp(new URL('desktop-version-', scratch).pathname);
+  const buildPath = await mkdtemp(fileURLToPath(new URL('desktop-version-', scratch)));
   t.after(() => rm(buildPath, { recursive: true, force: true }));
   const filename = `${buildPath}/package.json`;
   // The packager writes appVersion after the build's afterCopy hook.
