@@ -51,6 +51,21 @@
   </div>
 </Story>
 
+<Story name="Mobile directory" parameters={{ layout: 'fullscreen' }} asChild>
+  <div class="grid w-full grid-cols-2 gap-2 p-4">
+    {#each ['Chatto HQ', 'The Extremely Long Neighbourhood Server Name'] as name (name)}
+      {#snippet footer()}Joined{/snippet}
+      <ServerProfileCard
+        origin="https://long-neighbourhood.example"
+        profile={{ ...profile, name }}
+        href="https://long-neighbourhood.example"
+        actionLabel="Open"
+        {footer}
+      />
+    {/each}
+  </div>
+</Story>
+
 <Story name="Admin actions" asChild>
   <div class="mx-auto w-full max-w-md p-4 text-start">
     {#snippet actions()}

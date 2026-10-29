@@ -99,7 +99,7 @@ card. Callers supply trusted badges and actions through explicit props.
 
 <article
   class={[
-    'relative isolate flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border text-start shadow-[var(--depth-shadow-sm)]',
+    '@container/card relative isolate flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border text-start shadow-[var(--depth-shadow-sm)]',
     footer ? 'bg-[color-mix(in_srgb,var(--color-surface),var(--color-background))]' : 'bg-surface',
     interactive && !disabled && 'shimmer-group hover-lift'
   ]}
@@ -155,18 +155,20 @@ card. Callers supply trusted badges and actions through explicit props.
 
   <div
     class={[
-      'flex flex-1 flex-col gap-3 rounded-b-xl bg-surface p-4',
+      'flex flex-1 flex-col gap-2 rounded-b-xl bg-surface p-2.5 @min-[16rem]/card:gap-3 @min-[16rem]/card:p-4',
       footer && 'shadow-[var(--depth-shadow-sm)]'
     ]}
   >
-    <div class="flex h-12 min-w-0 shrink-0 items-center gap-3">
+    <div
+      class="flex min-w-0 shrink-0 flex-col items-start gap-2 @min-[16rem]/card:h-12 @min-[16rem]/card:flex-row @min-[16rem]/card:items-center @min-[16rem]/card:gap-3"
+    >
       <div
-        class="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-emphasized"
+        class="size-8 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-emphasized @min-[16rem]/card:size-12 @min-[16rem]/card:rounded-xl"
       >
         <ServerLogo server={logoServer} publicImageOrigin={imageOrigin} fill />
       </div>
 
-      <div class="min-w-0 flex-1">
+      <div class="w-full min-w-0 flex-1">
         <div class="flex min-w-0 items-center gap-2">
           <svelte:element
             this={headingTag}
@@ -177,7 +179,13 @@ card. Callers supply trusted badges and actions through explicit props.
           </svelte:element>
           {#if badge}<Pill tone="success">{badge}</Pill>{/if}
         </div>
-        <p id={`${titleId}-host`} class="truncate text-muted" dir="ltr">{hostname}</p>
+        <p
+          id={`${titleId}-host`}
+          class="truncate text-xs text-muted @min-[16rem]/card:text-base"
+          dir="ltr"
+        >
+          {hostname}
+        </p>
       </div>
     </div>
 
@@ -189,14 +197,14 @@ card. Callers supply trusted badges and actions through explicit props.
       mask
       maskSize="1rem"
       fill={false}
-      class={`relative z-20 h-18 shrink-0${interactive ? ' cursor-pointer' : ''}`}
+      class={`relative z-20 h-16 shrink-0 @min-[16rem]/card:h-18${interactive ? ' cursor-pointer' : ''}`}
       onclick={interactive ? activateFromDescription : undefined}
       aria-labelledby={`${titleId} ${titleId}-host`}
       keyboardFocusable={!!profile?.description}
       data-testid="server-card-description"
     >
       {#if profile?.description}
-        <p class="text-sm wrap-anywhere whitespace-pre-wrap text-muted">
+        <p class="text-xs wrap-anywhere whitespace-pre-wrap text-muted @min-[16rem]/card:text-sm">
           <bdi dir="auto">{profile.description}</bdi>
         </p>
       {:else if profile === null}
@@ -210,7 +218,7 @@ card. Callers supply trusted badges and actions through explicit props.
   </div>
   {#if footer}
     <div
-      class="pointer-events-none relative z-20 flex items-center justify-center px-4 py-2 text-center text-sm text-muted"
+      class="pointer-events-none relative z-20 flex items-center justify-center px-2.5 py-2 text-center text-sm text-muted @min-[16rem]/card:px-4"
     >
       {@render footer()}
     </div>
