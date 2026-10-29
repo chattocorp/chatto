@@ -3,6 +3,43 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.24](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.23...v0.5.0-beta.24) (2026-10-29)
+
+
+### Features
+
+* **desktop:** add GitHub updates with stable and beta channels ([#3292](https://github.com/chattocorp/chatto/issues/3292)) ([60dce9f](https://github.com/chattocorp/chatto/commit/60dce9fae97ee57fbf68f56e56562e522da8c0b6))
+* **desktop:** support mouse back and forward navigation ([#3276](https://github.com/chattocorp/chatto/issues/3276)) ([38fe1d4](https://github.com/chattocorp/chatto/commit/38fe1d4ad5a1e2306892ad7416095bbb6dadc9eb))
+* **emoji:** map Slack aliases and support newer built-in emoji ([#3286](https://github.com/chattocorp/chatto/issues/3286)) ([6fa2401](https://github.com/chattocorp/chatto/commit/6fa240153694d704409743e3c52057d05fe5a49a))
+* **emoji:** support skin tones and improve reaction pickers ([#3285](https://github.com/chattocorp/chatto/issues/3285)) ([7cf85dd](https://github.com/chattocorp/chatto/commit/7cf85dd5628cdcf6fefdf11189aff338bc7d7b44))
+* **frontend:** adapt command palettes to mobile panes ([#3266](https://github.com/chattocorp/chatto/issues/3266)) ([0c11ae5](https://github.com/chattocorp/chatto/commit/0c11ae58576ab4cabd87547e2ee96fb3fab9cb34))
+* **frontend:** add animation preferences and UI motion polish ([#3284](https://github.com/chattocorp/chatto/issues/3284)) ([353b2d1](https://github.com/chattocorp/chatto/commit/353b2d1cf9454b18a778c3fec8de73e959a4f328))
+* **frontend:** add emoji picker to message composer ([#3298](https://github.com/chattocorp/chatto/issues/3298)) ([ee6ce45](https://github.com/chattocorp/chatto/commit/ee6ce4598c3779435fd2e589ee1949575d5d34fa))
+* **frontend:** improve first-run setup experience ([#3271](https://github.com/chattocorp/chatto/issues/3271)) ([f9e28f0](https://github.com/chattocorp/chatto/commit/f9e28f085ac32783a842b9e54b3e06b2e866d094))
+* **import:** preserve membership reactions and replace oversized bodies ([#3299](https://github.com/chattocorp/chatto/issues/3299)) ([6400113](https://github.com/chattocorp/chatto/commit/6400113b02ccfe4730c18324ec1115396236a5ec))
+* **notifications:** refine inbox navigation, filters, and density ([#3288](https://github.com/chattocorp/chatto/issues/3288)) ([70b8358](https://github.com/chattocorp/chatto/commit/70b8358e62a08cce512d07cce2add84b2401014f))
+* **operator:** import reactions on room join and leave events ([#3294](https://github.com/chattocorp/chatto/issues/3294)) ([317f6a7](https://github.com/chattocorp/chatto/commit/317f6a7305e20512bd7e07cdb52a2e3bb009c1d2))
+* **reactions:** preserve unknown emoji names ([#3265](https://github.com/chattocorp/chatto/issues/3265)) ([176e5f7](https://github.com/chattocorp/chatto/commit/176e5f7ab81828e0b2afd75dab2c21de27a04393))
+* **rooms:** configure join and leave event display ([#3277](https://github.com/chattocorp/chatto/issues/3277)) ([da6a06a](https://github.com/chattocorp/chatto/commit/da6a06a9a9950b69ed17cdb1fcbf529a282d7784))
+* show thread participants and seed avatar examples ([#3287](https://github.com/chattocorp/chatto/issues/3287)) ([b68ff67](https://github.com/chattocorp/chatto/commit/b68ff673e83e10d832a394dc450f144b7f655fe9))
+* **threads:** align compact activity rows with notifications ([#3295](https://github.com/chattocorp/chatto/issues/3295)) ([7d042d0](https://github.com/chattocorp/chatto/commit/7d042d0b315aab786e4bf65d38508b74e48b0028))
+
+
+### Bug Fixes
+
+* **desktop:** restore the last selected server on launch ([#3289](https://github.com/chattocorp/chatto/issues/3289)) ([a5fa54e](https://github.com/chattocorp/chatto/commit/a5fa54ec305fedce1a2ce0d1d191e459ce49d7d9))
+* **desktop:** update Electron to 45.1.0 ([#3283](https://github.com/chattocorp/chatto/issues/3283)) ([b93bbbc](https://github.com/chattocorp/chatto/commit/b93bbbc1a436084d8854ade403b0b05c2fce6b0a))
+* **frontend:** fit server directory cards into two mobile columns ([#3297](https://github.com/chattocorp/chatto/issues/3297)) ([5c5f465](https://github.com/chattocorp/chatto/commit/5c5f465e9898388a1a2d9bb0e7ee282defca1011))
+* **frontend:** keep touch sidebar navigation compact ([#3291](https://github.com/chattocorp/chatto/issues/3291)) ([59e391c](https://github.com/chattocorp/chatto/commit/59e391c50f7ee5eaf58dd62b56ca36ba081e281f))
+* **frontend:** open server sign-in after address lookup ([#3280](https://github.com/chattocorp/chatto/issues/3280)) ([1c92311](https://github.com/chattocorp/chatto/commit/1c923116157b1e4e672444ddb7fe6ae41d48393f))
+* **frontend:** open user badge menus on either click ([#3282](https://github.com/chattocorp/chatto/issues/3282)) ([85cea52](https://github.com/chattocorp/chatto/commit/85cea52fc3773e12ce64496e61d6f7424df235fd))
+* **frontend:** persist push registration recovery across tabs ([#3281](https://github.com/chattocorp/chatto/issues/3281)) ([53153fa](https://github.com/chattocorp/chatto/commit/53153fa77481c4eb32d53772b3bbf2cb98f3a017))
+* **frontend:** update thread participant names reactively ([#3293](https://github.com/chattocorp/chatto/issues/3293)) ([b99b3cb](https://github.com/chattocorp/chatto/commit/b99b3cbdbee5c13cc56deb69d1e9be10d3a39048))
+* **frontend:** use primary input for automatic control density ([#3274](https://github.com/chattocorp/chatto/issues/3274)) ([54bb1b8](https://github.com/chattocorp/chatto/commit/54bb1b870ea93871b0b7ebcaf7f1f818af5b2a1c))
+* **permissions:** grant owners posting access to announcements ([#3279](https://github.com/chattocorp/chatto/issues/3279)) ([1d76a76](https://github.com/chattocorp/chatto/commit/1d76a76a1a72f76d6f148b86c185aac084c627b1))
+* **search:** preserve relevance scores in pagination cursors ([#3273](https://github.com/chattocorp/chatto/issues/3273)) ([d6072e0](https://github.com/chattocorp/chatto/commit/d6072e0e6403859848a697020e9a1927237d711d))
+* **sso:** rename sync_usernames to update_usernames ([#3267](https://github.com/chattocorp/chatto/issues/3267)) ([9ea047c](https://github.com/chattocorp/chatto/commit/9ea047c2096a9c38ceb5f828a06b887c992ee671))
+
 ## [0.5.0-beta.23](https://github.com/chattocorp/chatto/compare/v0.5.0-beta.22...v0.5.0-beta.23) (2026-10-28)
 
 
