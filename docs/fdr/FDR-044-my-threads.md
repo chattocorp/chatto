@@ -28,7 +28,7 @@ find replies that they have not read.
   All/Unread selection. Both tabs require follow state: unfollowing removes a
   thread even when the current user started it.
 - Each row shows the original thread message on one line, with no reply preview
-  or byline. It includes the last activity time and a participant preview.
+  or byline. It includes the selected sort time and a participant preview.
   The room has its own column before
   the time. Long room labels truncate; the room column disappears on narrow
   rows. Reply counts are not shown. The participant preview shows the

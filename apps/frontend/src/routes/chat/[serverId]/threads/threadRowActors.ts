@@ -3,8 +3,8 @@ import type { UserAvatarUserView } from '@chatto/client/timeline/users';
 /**
  * Choose the participant preview for a My Threads row.
  *
- * The root author comes first, so the row avatar matches the
- * name on the row's first line. The second entry, shown as the avatar badge,
+ * The root author comes first, so the row avatar identifies the author of the
+ * original message. The second entry, shown as the avatar badge,
  * is the first other person among `others` (DM partners or repliers in reply
  * order) and then the latest reply author.
  */
