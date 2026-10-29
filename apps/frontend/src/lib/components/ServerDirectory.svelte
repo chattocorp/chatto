@@ -416,7 +416,10 @@ single directory surface for every host and the standalone start page. See FDR-0
 {/snippet}
 
 <div
-  class={['flex w-full flex-col gap-8', firstRun && 'mx-auto max-w-3xl text-center']}
+  class={[
+    '@container/directory flex w-full flex-col gap-8',
+    firstRun && 'mx-auto max-w-3xl text-center'
+  ]}
   data-testid="server-directory"
 >
   {#if firstRun}
@@ -456,7 +459,7 @@ single directory surface for every host and the standalone start page. See FDR-0
 
   {#if !firstRun}
     <div
-      class="grid grid-cols-[repeat(auto-fill,min(100%,18rem))] gap-4"
+      class="grid grid-cols-2 gap-2 @min-[40rem]/directory:grid-cols-[repeat(auto-fill,18rem)] @min-[40rem]/directory:gap-4"
       data-testid="server-directory-grid"
     >
       {#each savedServers as server (server.id)}

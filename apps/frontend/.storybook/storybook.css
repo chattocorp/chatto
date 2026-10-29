@@ -30,6 +30,10 @@ body {
   padding: 1.5rem;
 }
 
+.sb-main-fullscreen #storybook-root {
+  padding: 0;
+}
+
 /* The story embed canvas (where the actual component is rendered inside a
    docs page) should track the active app theme so light components sit on
    a light surface and dark on a dark one — even when the surrounding

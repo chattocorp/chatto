@@ -70,11 +70,15 @@ recommendation, not a trust or reciprocal relationship.
   data. The website receives the user's IP address only when they open it.
   An empty standalone catalogue does not contact a default third-party directory.
 - The directory and Neighbors administration share the server profile card.
-  Each card reserves three lines for its description and scrolls longer text.
+  Each card reserves a fixed area for its description and scrolls longer text.
   Shared scroll fades indicate text beyond the visible edges.
-  A 1200:630 banner sits above a row with the logo, name, and hostname.
-  The grids use fixed 18rem cards, shrinking only when the available width is
-  narrower. Extra space adds columns instead of stretching cards. A darker footer shows **Added by you** or
+  A 1200:630 banner sits above the logo, name, and hostname.
+  The Server Directory uses two equal columns in narrow panes so mobile users
+  can see more servers at once. Narrow cards use smaller logos, less padding,
+  and smaller description text, with the logo above the name and hostname.
+  Wide directory panes and the Neighbors administration grid use fixed 18rem
+  cards. Extra space adds columns instead of stretching these cards.
+  A darker footer shows **Added by you** or
   **Recommended by** with the first source name and a count of extra sources.
   Selecting the recommendation line opens all sources and their hostnames in
   a dialog, using cached data only. Back or Close dismisses the dialog.
