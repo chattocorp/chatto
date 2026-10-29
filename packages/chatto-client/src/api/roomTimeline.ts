@@ -17,7 +17,6 @@ import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import { MessageVideoProcessingStatus } from '@chatto/api-types/api/v1/message_types_pb';
 import type {
   Message,
-  MessageReaction,
   MessageAssetUrl,
   MessageVideoProcessing,
   ThreadViewerState
@@ -371,14 +370,12 @@ function timelinePayload(
     case 'userJoinedRoom':
       return {
         kind: TimelineEventKind.UserJoinedRoom,
-        roomId: event.event.value.roomId,
-        reactions: reactionViews(event.event.value.reactions, users)
+        roomId: event.event.value.roomId
       };
     case 'userLeftRoom':
       return {
         kind: TimelineEventKind.UserLeftRoom,
-        roomId: event.event.value.roomId,
-        reactions: reactionViews(event.event.value.reactions, users)
+        roomId: event.event.value.roomId
       };
     default:
       return null;
@@ -421,20 +418,15 @@ export function messagePostedPayload(
       thread?.viewerState?.hasUnreadReplies !== undefined
         ? thread.viewerState.hasUnreadReplies
         : null,
-    reactions: reactionViews(message.reactions, users)
+    reactions: message.reactions.map((reaction) => ({
+      emoji: reaction.emoji,
+      count: reaction.count,
+      hasReacted: reaction.hasReacted,
+      users: reaction.previewUserIds
+        .map((id) => userView(id, users))
+        .filter((user): user is NonNullable<ReturnType<typeof userView>> => user !== null)
+    }))
   };
-}
-
-/** Resolve the preview accounts of message and membership-event reactions. */
-function reactionViews(reactions: MessageReaction[], users: Record<string, User>) {
-  return reactions.map((reaction) => ({
-    emoji: reaction.emoji,
-    count: reaction.count,
-    hasReacted: reaction.hasReacted,
-    users: reaction.previewUserIds
-      .map((id) => userView(id, users))
-      .filter((user): user is NonNullable<ReturnType<typeof userView>> => user !== null)
-  }));
 }
 
 function userView(userId: string, users: Record<string, User>) {

@@ -9,19 +9,6 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ## Behavior
 
-- The API and client data model retain reactions on individual room join and
-  leave events. The bundled frontend does not render these reactions or offer
-  controls to change them. Grouped notices and the hide/show room setting stay
-  unchanged. Each reaction targets one event ID.
-- The Operator API can import these reactions for existing users, including
-  users who are no longer room members. Imports retain the existing retry,
-  replay, and notification-suppression rules.
-- Membership-event reactions use the existing room membership and
-  `message.react` checks. The timeline returns their summaries in
-  `RoomTimelineRoomEvent.reactions`. Older servers omit this additive field.
-  Live reaction changes refresh the timeline window, because these events
-  are not `Message` resources.
-
 - Integrations can read all user IDs for a message reaction in bounded pages.
   The five-user preview does not limit this list. The list requires the same
   access as the message and accepts channel echoes as aliases.

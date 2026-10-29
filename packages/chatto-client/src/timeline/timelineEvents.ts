@@ -66,16 +66,8 @@ export type TimelineEventPayload =
     }
   | { kind: typeof TimelineEventKind.RoomUnarchived; roomId: string }
   | { kind: typeof TimelineEventKind.RoomUpdated; roomId: string }
-  | {
-      kind: typeof TimelineEventKind.UserJoinedRoom;
-      roomId: string;
-      reactions?: ReactionSummaryView[];
-    }
-  | {
-      kind: typeof TimelineEventKind.UserLeftRoom;
-      roomId: string;
-      reactions?: ReactionSummaryView[];
-    };
+  | { kind: typeof TimelineEventKind.UserJoinedRoom; roomId: string }
+  | { kind: typeof TimelineEventKind.UserLeftRoom; roomId: string };
 
 export type TimelineEventView = {
   id: string;

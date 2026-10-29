@@ -20,72 +20,8 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
-	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
-
-func TestMembershipEventReactions(t *testing.T) {
-	t.Parallel()
-	env := newConnectAPITestEnv(t)
-	room := env.createJoinedRoom("membership-reactions")
-	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "joining-user", "Joining User", "password")
-	require.NoError(t, err)
-	_, err = env.core.JoinRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id)
-	require.NoError(t, err)
-	require.NoError(t, env.core.LeaveRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id))
-	ctx := withCaller(env.ctx, env.viewer)
-	read := func() *apiv1.RoomTimelinePage {
-		response, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id, Limit: 100}))
-		require.NoError(t, err)
-		return response.Msg.Page
-	}
-	count := 0
-	imports := &operatorMessageService{api: env.api}
-	for _, event := range read().Events {
-		if event.ActorId != actor.Id || (event.GetUserJoinedRoom() == nil && event.GetUserLeftRoom() == nil) {
-			continue
-		}
-		count++
-		added, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{RoomId: room.Id, MessageEventId: event.Id, Emoji: "wave"}))
-		require.NoError(t, err)
-		require.True(t, added.Msg.Added)
-		hydrated := timelinePageEvent(read(), event.Id)
-		payload := hydrated.GetUserJoinedRoom()
-		if payload == nil {
-			payload = hydrated.GetUserLeftRoom()
-		}
-		require.Len(t, payload.Reactions, 1)
-		require.Equal(t, "wave", payload.Reactions[0].Emoji)
-		require.True(t, payload.Reactions[0].HasReacted)
-		_, err = env.messages.AddReaction(withCaller(env.ctx, actor), connect.NewRequest(&apiv1.AddReactionRequest{RoomId: room.Id, MessageEventId: event.Id, Emoji: "wave"}))
-		require.Error(t, err, "a user who left cannot react")
-		removed, err := env.messages.RemoveReaction(ctx, connect.NewRequest(&apiv1.RemoveReactionRequest{RoomId: room.Id, MessageEventId: event.Id, Emoji: "wave"}))
-		require.NoError(t, err)
-		require.True(t, removed.Msg.Removed)
-		hydrated = timelinePageEvent(read(), event.Id)
-		require.Empty(t, hydrated.GetUserJoinedRoom().GetReactions())
-		require.Empty(t, hydrated.GetUserLeftRoom().GetReactions())
-		// Historical imports accept a mapped reactor who is no longer a member.
-		for _, wantAdded := range []bool{true, false} {
-			imported, err := imports.ImportReaction(env.ctx, connect.NewRequest(&operatorv1.ImportReactionRequest{
-				RoomId: room.Id, MessageEventId: event.Id, UserId: actor.Id, Emoji: "heart",
-			}))
-			require.NoError(t, err)
-			require.Equal(t, wantAdded, imported.Msg.Added)
-		}
-		hydrated = timelinePageEvent(read(), event.Id)
-		payload = hydrated.GetUserJoinedRoom()
-		if payload == nil {
-			payload = hydrated.GetUserLeftRoom()
-		}
-		require.Len(t, payload.Reactions, 1)
-		require.Equal(t, "heart", payload.Reactions[0].Emoji)
-		require.EqualValues(t, 1, payload.Reactions[0].Count)
-		require.Equal(t, []string{actor.Id}, payload.Reactions[0].PreviewUserIds)
-		require.False(t, payload.Reactions[0].HasReacted)
-	}
-	require.Equal(t, 2, count)
-}
 
 func TestThreadSlowModeViewerStateAndRoomPatch(t *testing.T) {
 	t.Parallel()

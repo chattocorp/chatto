@@ -127,11 +127,11 @@ type MessageServiceClient interface {
 	// Results preserve first-seen request order, and repeated event IDs are
 	// de-duplicated.
 	BatchGetMessages(context.Context, *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error)
-	// Adds a reaction to a message or room join/leave event. The user must be a room member and have
+	// Adds a reaction to a message. The user must be a room member and have
 	// message.react. Reactions also require message.read or a matching thread
 	// relationship with message.read-interactions.
 	AddReaction(context.Context, *connect.Request[v1.AddReactionRequest]) (*connect.Response[v1.AddReactionResponse], error)
-	// Removes a reaction from a message or room join/leave event. The user must be a room member and have
+	// Removes a reaction from a message. The user must be a room member and have
 	// message.react. Reactions also require message.read or a matching thread
 	// relationship with message.read-interactions.
 	RemoveReaction(context.Context, *connect.Request[v1.RemoveReactionRequest]) (*connect.Response[v1.RemoveReactionResponse], error)
@@ -355,11 +355,11 @@ type MessageServiceHandler interface {
 	// Results preserve first-seen request order, and repeated event IDs are
 	// de-duplicated.
 	BatchGetMessages(context.Context, *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error)
-	// Adds a reaction to a message or room join/leave event. The user must be a room member and have
+	// Adds a reaction to a message. The user must be a room member and have
 	// message.react. Reactions also require message.read or a matching thread
 	// relationship with message.read-interactions.
 	AddReaction(context.Context, *connect.Request[v1.AddReactionRequest]) (*connect.Response[v1.AddReactionResponse], error)
-	// Removes a reaction from a message or room join/leave event. The user must be a room member and have
+	// Removes a reaction from a message. The user must be a room member and have
 	// message.react. Reactions also require message.read or a matching thread
 	// relationship with message.read-interactions.
 	RemoveReaction(context.Context, *connect.Request[v1.RemoveReactionRequest]) (*connect.Response[v1.RemoveReactionResponse], error)

@@ -22,8 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Request to add the current user's reaction to a message or an individual
-// room join or leave event.
+// Request to add the current user's reaction to a message.
 //
 // When `message_event_id` names a channel echo of a thread reply, the server
 // treats it as an alias for the original thread reply and stores the reaction
@@ -39,7 +38,8 @@ type AddReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message event.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required. Message, channel echo, room join, or room leave event ID.
+	// Required. Event ID of the message being reacted to, or a channel echo of
+	// the message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid.
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
@@ -153,8 +153,7 @@ func (x *AddReactionResponse) GetReaction() *MessageReaction {
 	return nil
 }
 
-// Request to remove the current user's reaction from a message or an individual
-// room join or leave event.
+// Request to remove the current user's reaction from a message.
 //
 // When `message_event_id` names a channel echo of a thread reply, the server
 // treats it as an alias for the original thread reply and removes the reaction
@@ -163,7 +162,8 @@ type RemoveReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message event.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required. Message, channel echo, room join, or room leave event ID.
+	// Required. Event ID of the message whose reaction should be removed, or a
+	// channel echo of the message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Required. Exact reaction name returned by the server, without surrounding colons.
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`

@@ -143,20 +143,6 @@ function isMessagePostedPayload(
 function scrubUserFromEvent(event: TimelineEventView, userId: string): TimelineEventView {
   const scrubActor = event.actorId === userId || event.actor?.id === userId;
   const payload = event.event;
-  if (payload.kind === 'userJoinedRoom' || payload.kind === 'userLeftRoom') {
-    return {
-      ...event,
-      actor: scrubActor ? null : event.actor,
-      actorResolution: scrubActor ? 'deleted' : event.actorResolution,
-      event: {
-        ...payload,
-        reactions: payload.reactions?.map((reaction) => ({
-          ...reaction,
-          users: reaction.users.filter((user) => user.id !== userId)
-        }))
-      }
-    };
-  }
   if (!isMessagePostedPayload(payload)) {
     return scrubActor ? { ...event, actor: null, actorResolution: 'deleted' } : event;
   }

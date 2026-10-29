@@ -89,7 +89,7 @@ func (a *roomTimelineAssembler) hydrateEvents(ctx context.Context, viewerID stri
 	threadMetadata := make(map[string]*core.ThreadMetadata)
 	for _, event := range events {
 		posted := event.GetMessagePosted()
-		if posted != nil || event.GetUserJoinedRoom() != nil || event.GetUserLeftRoom() != nil {
+		if posted != nil {
 			messageIDs = append(messageIDs, event.Id)
 		}
 		if posted == nil || posted.GetInThread() != "" {
@@ -262,10 +262,8 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 		}
 	case *evtv1.Event_UserJoinedRoom:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserJoinedRoom{UserJoinedRoom: roomEvent(payload.UserJoinedRoom.GetRoomId())}
-		apiEvent.GetUserJoinedRoom().Reactions = h.reactions(event.Id)
 	case *evtv1.Event_UserLeftRoom:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserLeftRoom{UserLeftRoom: roomEvent(payload.UserLeftRoom.GetRoomId())}
-		apiEvent.GetUserLeftRoom().Reactions = h.reactions(event.Id)
 	case *evtv1.Event_VoiceCallStarted:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_CallStarted{CallStarted: callEvent(payload.VoiceCallStarted.GetRoomId(), payload.VoiceCallStarted.GetCallId())}
 	case *evtv1.Event_VoiceCallEnded:

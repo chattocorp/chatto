@@ -6,8 +6,8 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
-import { Message as Message$1, MessageReaction, ThreadViewerState } from "./message_types_pb.js";
 import { RoomThreadingMode } from "./common_pb.js";
+import { Message as Message$1, ThreadViewerState } from "./message_types_pb.js";
 
 /**
  * Related entities included beside timeline/feed events.
@@ -68,13 +68,6 @@ export class RoomTimelineRoomEvent extends Message<RoomTimelineRoomEvent> {
    */
   roomId = "";
 
-  /**
-   * Reactions to this individual join or leave event. Empty for other room events.
-   *
-   * @generated from field: repeated chatto.api.v1.MessageReaction reactions = 2;
-   */
-  reactions: MessageReaction[] = [];
-
   constructor(data?: PartialMessage<RoomTimelineRoomEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -84,7 +77,6 @@ export class RoomTimelineRoomEvent extends Message<RoomTimelineRoomEvent> {
   static readonly typeName = "chatto.api.v1.RoomTimelineRoomEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "reactions", kind: "message", T: MessageReaction, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineRoomEvent {

@@ -23,8 +23,6 @@ message RoomTimelineIncludes {
 message RoomTimelineRoomEvent {
   // Room affected by the event.
   string room_id = 1;
-  // Reactions to this individual join or leave event. Empty for other room events.
-  repeated MessageReaction reactions = 2;
 }
 
 // Payload for voice-call lifecycle timeline events.

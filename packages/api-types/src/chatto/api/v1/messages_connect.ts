@@ -161,7 +161,7 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Adds a reaction to a message or room join/leave event. The user must be a room member and have
+     * Adds a reaction to a message. The user must be a room member and have
      * message.react. Reactions also require message.read or a matching thread
      * relationship with message.read-interactions.
      *
@@ -174,7 +174,7 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Removes a reaction from a message or room join/leave event. The user must be a room member and have
+     * Removes a reaction from a message. The user must be a room member and have
      * message.react. Reactions also require message.read or a matching thread
      * relationship with message.read-interactions.
      *

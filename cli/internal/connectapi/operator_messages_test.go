@@ -12,6 +12,39 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestOperatorImportMembershipEventReactions(t *testing.T) {
+	t.Parallel()
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("operator-membership-reactions")
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "joining-user", "Joining User", "password")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, env.core.LeaveRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id))
+	timeline, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id, Limit: 100}))
+	require.NoError(t, err)
+	service := &operatorMessageService{api: env.api}
+	count := 0
+	for _, event := range timeline.Msg.Page.Events {
+		if event.ActorId != actor.Id || (event.GetUserJoinedRoom() == nil && event.GetUserLeftRoom() == nil) {
+			continue
+		}
+		count++
+		// Historical imports accept reactors who are no longer room members.
+		for _, wantAdded := range []bool{true, false} {
+			response, err := service.ImportReaction(env.ctx, connect.NewRequest(&operatorv1.ImportReactionRequest{
+				RoomId: room.Id, MessageEventId: event.Id, UserId: actor.Id, Emoji: "wave",
+			}))
+			require.NoError(t, err)
+			require.Equal(t, wantAdded, response.Msg.Added)
+		}
+		reactions, err := env.core.GetReactions(env.ctx, event.Id)
+		require.NoError(t, err)
+		require.Equal(t, []core.ReactionSummary{{Emoji: "wave", UserIDs: []string{actor.Id}}}, reactions)
+	}
+	require.Equal(t, 2, count)
+}
+
 func TestOperatorImportMessageAppearsWithMappedAuthorInPublicRead(t *testing.T) {
 	t.Parallel()
 

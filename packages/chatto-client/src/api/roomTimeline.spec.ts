@@ -20,26 +20,6 @@ import {
 } from './roomTimeline.js';
 
 describe('roomTimelineEventToView', () => {
-  it.each(['userJoinedRoom', 'userLeftRoom'] as const)('hydrates reactions on %s', (kind) => {
-    const event = new RoomTimelineEvent({
-      id: 'membership',
-      event: {
-        case: kind,
-        value: {
-          roomId: 'room',
-          reactions: [{ emoji: 'wave', count: 1, hasReacted: true, previewUserIds: ['reactor'] }]
-        }
-      }
-    });
-    expect(
-      roomTimelineEventToView(event, {
-        reactor: new User({ id: 'reactor', displayName: 'Reactor' })
-      })?.event
-    ).toMatchObject({
-      kind,
-      reactions: [{ emoji: 'wave', count: 1, hasReacted: true, users: [{ id: 'reactor' }] }]
-    });
-  });
   it('keeps a missing author unresolved and preserves an explicit deleted reference', () => {
     const message = new Message({ id: 'message-1', actorId: 'author', roomId: 'room-1' });
 

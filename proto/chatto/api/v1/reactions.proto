@@ -6,8 +6,7 @@ import "buf/validate/validate.proto";
 import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/pagination.proto";
 
-// Request to add the current user's reaction to a message or an individual
-// room join or leave event.
+// Request to add the current user's reaction to a message.
 //
 // When `message_event_id` names a channel echo of a thread reply, the server
 // treats it as an alias for the original thread reply and stores the reaction
@@ -22,7 +21,8 @@ import "chatto/api/v1/pagination.proto";
 message AddReactionRequest {
   // Required. Room containing the message event.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Message, channel echo, room join, or room leave event ID.
+  // Required. Event ID of the message being reacted to, or a channel echo of
+  // the message.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid.
   string emoji = 3 [(buf.validate.field).string.min_len = 1];
@@ -36,8 +36,7 @@ message AddReactionResponse {
   MessageReaction reaction = 2;
 }
 
-// Request to remove the current user's reaction from a message or an individual
-// room join or leave event.
+// Request to remove the current user's reaction from a message.
 //
 // When `message_event_id` names a channel echo of a thread reply, the server
 // treats it as an alias for the original thread reply and removes the reaction
@@ -45,7 +44,8 @@ message AddReactionResponse {
 message RemoveReactionRequest {
   // Required. Room containing the message event.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Message, channel echo, room join, or room leave event ID.
+  // Required. Event ID of the message whose reaction should be removed, or a
+  // channel echo of the message.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required. Exact reaction name returned by the server, without surrounding colons.
   string emoji = 3 [(buf.validate.field).string.min_len = 1];

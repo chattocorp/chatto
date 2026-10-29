@@ -3983,7 +3983,7 @@ Response containing renderable messages.
 
 ### AddReaction
 
-Adds a reaction to a message or room join/leave event. The user must be a room member and have
+Adds a reaction to a message. The user must be a room member and have
 message.react. Reactions also require message.read or a matching thread
 relationship with message.read-interactions.
 
@@ -3995,8 +3995,7 @@ POST /api/connect/chatto.api.v1.MessageService/AddReaction
 
 #### Input: AddReactionRequest
 
-Request to add the current user's reaction to a message or an individual
-room join or leave event.
+Request to add the current user's reaction to a message.
 
 When `message_event_id` names a channel echo of a thread reply, the server
 treats it as an alias for the original thread reply and stores the reaction
@@ -4012,7 +4011,7 @@ unknown names. Clients can display an unknown name as :name:.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Message, channel echo, room join, or room leave event ID. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
 | `emoji` | `string` | Required. Reaction name, such as "heart" or "party_parrot". Unknown names are valid. |
 
 
@@ -4032,7 +4031,7 @@ Result of adding a reaction.
 
 ### RemoveReaction
 
-Removes a reaction from a message or room join/leave event. The user must be a room member and have
+Removes a reaction from a message. The user must be a room member and have
 message.react. Reactions also require message.read or a matching thread
 relationship with message.read-interactions.
 
@@ -4044,8 +4043,7 @@ POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
 
 #### Input: RemoveReactionRequest
 
-Request to remove the current user's reaction from a message or an individual
-room join or leave event.
+Request to remove the current user's reaction from a message.
 
 When `message_event_id` names a channel echo of a thread reply, the server
 treats it as an alias for the original thread reply and removes the reaction
@@ -4054,7 +4052,7 @@ from that original event.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Message, channel echo, room join, or room leave event ID. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
 | `emoji` | `string` | Required. Exact reaction name returned by the server, without surrounding colons. |
 
 
@@ -5897,7 +5895,6 @@ Payload for room lifecycle and membership timeline events.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
-| `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reactions to this individual join or leave event. Empty for other room events. |
 
 
 
