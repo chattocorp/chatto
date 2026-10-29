@@ -1146,7 +1146,8 @@ when this transition ends. Keyboard or pointer input ends all startup
 animations and shows the complete page immediately. Automatic form focus does
 not stop the reveal. Reduced motion removes the shell without a transition.
 
-Server banners fill the sidebar width with square corners and a bottom
-`border-border` separator. They form part of the app grid and use no bevel,
-gloss overlay, or outer shadow. Display the complete image at its original aspect ratio, with no height cap.
-Server operators control the banner shape through the uploaded image.
+Server banners use an 8 px inset from the sidebar edges and header (`px-2 pt-2`),
+with `rounded-lg` corners on the image. They use no separator, bevel, gloss
+overlay, or outer shadow. Display the complete image at its original aspect
+ratio, with no height cap. Server operators control the banner proportions
+through the uploaded image.
