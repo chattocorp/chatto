@@ -579,10 +579,15 @@ describe('ThreadPane', () => {
     const pane = q(rendered.container, '[data-testid="thread-pane"]') as HTMLElement;
     const conversation = q(rendered.container, '[data-testid="thread-conversation-pane"]');
     const animate = vi.spyOn(pane, 'animate');
+    // The initial Svelte fly transition can start after tick on a busy browser.
+    // Count only selection reveals, while still detecting duplicate reveals.
+    const selectionReveals = () =>
+      animate.mock.calls.filter(
+        ([, options]) => typeof options === 'object' && options?.duration === 140
+      );
     try {
       await rendered.rerender({ ...threadProps, threadRootEventId: 'thread-2' });
-      expect(animate).toHaveBeenCalledOnce();
-      expect(animate.mock.calls[0][1]).toMatchObject({ duration: 140 });
+      expect(selectionReveals()).toHaveLength(1);
       expect(q(rendered.container, '[data-testid="thread-pane"]')).toBe(pane);
       expect(q(rendered.container, '[data-testid="thread-conversation-pane"]')).toBe(conversation);
 
@@ -594,7 +599,7 @@ describe('ThreadPane', () => {
       });
       mocks.threadStore!.threadEvents = [...mocks.threadStore!.threadEvents];
       await tick();
-      expect(animate).toHaveBeenCalledOnce();
+      expect(selectionReveals()).toHaveLength(1);
     } finally {
       animate.mockRestore();
     }
