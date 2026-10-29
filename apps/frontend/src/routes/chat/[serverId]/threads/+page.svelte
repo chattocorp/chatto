@@ -388,7 +388,7 @@
             />
           </div>
         {/if}
-        <div class="ms-auto flex max-w-full shrink-0 flex-wrap items-center gap-3">
+        <div class="segmented-control-group flex-auto">
           <SegmentedControl
             label={m('chat.threads.tab_label')}
             options={tabOptions}
