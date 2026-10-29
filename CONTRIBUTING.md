@@ -197,6 +197,20 @@ IDs and timestamps change. Each run adds data. A failed run can leave partial
 data. Add `--json` to get the generated IDs and text, or `--help` for options.
 Seeding is available only in development and test builds.
 
+To give generated users face avatars, place JPEG, PNG, or WebP portraits in a
+local directory and add `--avatar-dir`:
+
+```sh
+mise seed -- --seed 42 --users 20 --rooms 1 --messages 100 --thread-replies 99 --avatar-dir "$PWD/.context/avatars" --json
+```
+
+The CLI converts images to avatar size, reads them in filename order, and cycles
+through them across users. Use up to 50 files, each within the normal 25 MiB image
+upload limit. The converted pool must fit within 512 KiB. Images are stored by
+Chatto; neither seeding nor viewing the avatars contacts an external image
+provider. Obtain images separately from a source you can use. The example above
+creates one root message with 99 replies for a populated thread preview.
+
 ## Local Development with Conductor
 
 [Conductor](https://conductor.build) runs the root `mise` tasks as native

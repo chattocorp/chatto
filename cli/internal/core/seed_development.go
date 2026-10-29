@@ -3,6 +3,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"github.com/brianvoe/gofakeit/v7"
@@ -29,7 +31,13 @@ type SeedOptions struct {
 	Rooms         int   `json:"rooms"`
 	Messages      int   `json:"messages"`
 	ThreadReplies int   `json:"threadReplies"`
+	// AvatarImages are optional local image bytes, cycled in order across users.
+	AvatarImages [][]byte `json:"avatarImages,omitempty"`
 }
+
+// MaxSeedAvatarBytes keeps the image pool below the operator request size limit,
+// including base64 expansion when a caller uses JSON.
+const MaxSeedAvatarBytes = 512 << 10
 
 // SeedUser identifies a passwordless synthetic account in generation order.
 type SeedUser struct {
@@ -70,6 +78,19 @@ var seedNameSeparators = regexp.MustCompile(`[^a-z0-9]+`)
 
 // Validate rejects the complete request before any durable writes occur.
 func (o SeedOptions) Validate() error {
+	if len(o.AvatarImages) > 50 {
+		return invalidArgument("at most 50 seed avatar images are allowed")
+	}
+	total := 0
+	for i, data := range o.AvatarImages {
+		total += len(data)
+		if total > MaxSeedAvatarBytes {
+			return invalidArgument("seed avatar images must not exceed 512 KiB in total")
+		}
+		if _, err := assets.InspectImage(bytes.NewReader(data)); err != nil {
+			return invalidArgument(fmt.Sprintf("seed avatar %d is not a supported image", i+1))
+		}
+	}
 	if o.Users < 1 || o.Users > 5000 {
 		return invalidArgument("users must be between 1 and 5000")
 	}
@@ -115,6 +136,11 @@ func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, 
 			return result, fmt.Errorf("seed user %d: %w", i+1, err)
 		}
 		result.Users = append(result.Users, SeedUser{ID: user.Id, Login: user.Login, DisplayName: user.DisplayName})
+		if len(o.AvatarImages) > 0 {
+			if _, err := c.UpdateUserAvatar(ctx, user.Id, user.Id, bytes.NewReader(o.AvatarImages[i%len(o.AvatarImages)])); err != nil {
+				return result, fmt.Errorf("seed avatar for user %d: %w", i+1, err)
+			}
+		}
 	}
 	for i := 0; i < o.Rooms; i++ {
 		room, err := c.createSeedRoom(ctx, seedName(faker.Hobby()), faker.Sentence())

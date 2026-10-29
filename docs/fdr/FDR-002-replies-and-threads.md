@@ -58,6 +58,8 @@ can configure their Threading Mode. DMs always use Enabled behavior.
 - The thread header shows up to 3, 5, 8, or 12 participant avatars at pane widths
   below 360 px, from 360 px, from 480 px, or from 640 px respectively, plus the
   number of additional participants. It adapts when the pane is resized.
+  Timeline and followed-thread responses include up to 12 participant identities
+  for this preview. The total count can be larger.
   Left-click, right-click, or long-press an avatar to
   open the user context menu. The menu includes the full profile action.
   Participants are authors of current replies; the root author appears only

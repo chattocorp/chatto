@@ -6,12 +6,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1/operatorv1connect"
@@ -25,6 +29,7 @@ func init() { operatorCmd.AddCommand(operatorSeedCmd()) }
 func operatorSeedCmd() *cobra.Command {
 	var request operatorv1.SeedDataRequest
 	var timeout time.Duration
+	var avatarDir string
 	cmd := &cobra.Command{
 		Use:   "seed",
 		Short: "Create synthetic users, rooms, and messages (development builds)",
@@ -33,10 +38,16 @@ func operatorSeedCmd() *cobra.Command {
 			if timeout <= 0 {
 				return fmt.Errorf("timeout must be positive")
 			}
+			images, err := readSeedAvatarImages(avatarDir)
+			if err != nil {
+				return err
+			}
+			request.AvatarImages = images
 			options := core.SeedOptions{
 				Seed:  request.Seed,
 				Users: int(request.Users), Rooms: int(request.Rooms),
 				Messages: int(request.Messages), ThreadReplies: int(request.ThreadReplies),
+				AvatarImages: images,
 			}
 			if err := options.Validate(); err != nil {
 				return err
@@ -64,7 +75,57 @@ func operatorSeedCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&request.Messages, "messages", 200, "total posts, including thread replies")
 	cmd.Flags().Int32Var(&request.ThreadReplies, "thread-replies", 0, "posts that reply to generated root messages")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "maximum time to wait for seeding")
+	cmd.Flags().StringVar(&avatarDir, "avatar-dir", "", "optional folder of JPEG, PNG, or WebP avatars (sorted by filename, resized and cycled across users; 50 files and 512 KiB converted total maximum; no network requests)")
 	return cmd
+}
+
+// readSeedAvatarImages reads a bounded, filename-sorted pool before any seed writes.
+// Symlinks and non-image files are skipped; an explicitly selected empty folder fails.
+func readSeedAvatarImages(directory string) ([][]byte, error) {
+	if directory == "" {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return nil, fmt.Errorf("read avatar directory: %w", err)
+	}
+	var images [][]byte
+	remaining := int64(core.MaxSeedAvatarBytes)
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(entry.Name())) {
+		case ".jpg", ".jpeg", ".png", ".webp":
+		default:
+			continue
+		}
+		if len(images) == 50 {
+			return nil, fmt.Errorf("at most 50 seed avatar images are allowed")
+		}
+		file, err := os.Open(filepath.Join(directory, entry.Name()))
+		if err != nil {
+			return nil, fmt.Errorf("open seed avatar: %w", err)
+		}
+		processed, readErr := assets.ProcessAvatarImage(file)
+		closeErr := file.Close()
+		if err := errors.Join(readErr, closeErr); err != nil {
+			return nil, fmt.Errorf("read seed avatar: %w", err)
+		}
+		data, err := io.ReadAll(io.LimitReader(processed, remaining+1))
+		if err != nil {
+			return nil, fmt.Errorf("read processed seed avatar: %w", err)
+		}
+		remaining -= int64(len(data))
+		if remaining < 0 {
+			return nil, fmt.Errorf("seed avatar images must not exceed 512 KiB in total")
+		}
+		images = append(images, data)
+	}
+	if len(images) == 0 {
+		return nil, fmt.Errorf("avatar directory contains no JPEG, PNG, or WebP files")
+	}
+	return images, nil
 }
 
 // A missing or refused Unix-socket dial cannot have sent the seed request.

@@ -16,6 +16,9 @@ message SeedDataRequest {
   int32 messages = 5;
   // Number of posts that reply to generated root messages. Requires at least one root.
   int32 thread_replies = 6;
+  // Optional image files, cycled in order across users and stored as Chatto avatars.
+  // At most 50 images and 512 KiB in total. No remote image URLs are fetched.
+  repeated bytes avatar_images = 7;
 }
 
 // A generated passwordless account. Use operator user commands to set a password.

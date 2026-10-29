@@ -34,6 +34,9 @@ type SeedDataRequest struct {
 	Messages int32 `protobuf:"varint,5,opt,name=messages,proto3" json:"messages,omitempty"`
 	// Number of posts that reply to generated root messages. Requires at least one root.
 	ThreadReplies int32 `protobuf:"varint,6,opt,name=thread_replies,json=threadReplies,proto3" json:"thread_replies,omitempty"`
+	// Optional image files, cycled in order across users and stored as Chatto avatars.
+	// At most 50 images and 512 KiB in total. No remote image URLs are fetched.
+	AvatarImages  [][]byte `protobuf:"bytes,7,rep,name=avatar_images,json=avatarImages,proto3" json:"avatar_images,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -101,6 +104,13 @@ func (x *SeedDataRequest) GetThreadReplies() int32 {
 		return x.ThreadReplies
 	}
 	return 0
+}
+
+func (x *SeedDataRequest) GetAvatarImages() [][]byte {
+	if x != nil {
+		return x.AvatarImages
+	}
+	return nil
 }
 
 // A generated passwordless account. Use operator user commands to set a password.
@@ -399,13 +409,14 @@ var File_chatto_operator_v1_seed_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_seed_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/operator/v1/seed.proto\x12\x12chatto.operator.v1\"\xa2\x01\n" +
+	"\x1dchatto/operator/v1/seed.proto\x12\x12chatto.operator.v1\"\xc7\x01\n" +
 	"\x0fSeedDataRequest\x12\x12\n" +
 	"\x04seed\x18\x01 \x01(\x03R\x04seed\x12\x14\n" +
 	"\x05users\x18\x03 \x01(\x05R\x05users\x12\x14\n" +
 	"\x05rooms\x18\x04 \x01(\x05R\x05rooms\x12\x1a\n" +
 	"\bmessages\x18\x05 \x01(\x05R\bmessages\x12%\n" +
-	"\x0ethread_replies\x18\x06 \x01(\x05R\rthreadRepliesJ\x04\b\x02\x10\x03R\x06prefix\"S\n" +
+	"\x0ethread_replies\x18\x06 \x01(\x05R\rthreadReplies\x12#\n" +
+	"\ravatar_images\x18\a \x03(\fR\favatarImagesJ\x04\b\x02\x10\x03R\x06prefix\"S\n" +
 	"\bSeedUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +

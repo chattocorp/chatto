@@ -406,6 +406,8 @@ The [synthetic data generator](../../cli/internal/core/seed_development.go) uses
 existing account, channel, membership, and message operations. Its CLI is
 `chatto operator seed`. It adds no event types, streams, or projections and waits
 for serving projections before success. The
+optional avatar image pool uses the existing user-avatar operation and asset
+storage; it adds no external image fetches. The
 [test-only HTTP wrapper](../../cli/internal/http_server/seed_test_endpoint.go)
 also mounts `POST /auth/test/seed` and `POST /auth/test/create-session` in
 `test_endpoints` builds. Session creation accepts an existing human account ID

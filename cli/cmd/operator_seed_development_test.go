@@ -3,7 +3,10 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/png"
 	"io"
 	"net"
 	"os"
@@ -12,11 +15,53 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	operatorv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )
+
+func TestSeedCLIUploadsLocalAvatars(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	directory := t.TempDir()
+	var portrait bytes.Buffer
+	require.NoError(t, png.Encode(&portrait, image.NewRGBA(image.Rect(0, 0, 32, 32))))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "portrait.png"), portrait.Bytes(), 0600))
+	output := env.run(t, "operator", "seed", "--users", "2", "--rooms", "1", "--messages", "0", "--avatar-dir", directory, "--json")
+	var result operatorv1.SeedDataResponse
+	require.NoError(t, protojson.Unmarshal([]byte(output), &result))
+	for _, seeded := range result.Users {
+		avatarURL, err := env.core.GetUserAvatarURL(env.ctx, seeded.Id, nil, nil, "")
+		require.NoError(t, err)
+		require.NotEmpty(t, avatarURL)
+	}
+}
+
+func TestReadSeedAvatarImages(t *testing.T) {
+	directory := t.TempDir()
+	_, err := readSeedAvatarImages(directory)
+	require.ErrorContains(t, err, "contains no")
+	var portrait bytes.Buffer
+	require.NoError(t, png.Encode(&portrait, image.NewRGBA(image.Rect(0, 0, 32, 32))))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "b.png"), portrait.Bytes(), 0600))
+	portrait.Reset()
+	require.NoError(t, png.Encode(&portrait, image.NewRGBA(image.Rect(0, 0, 16, 16))))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "a.png"), portrait.Bytes(), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "notes.txt"), []byte("ignored"), 0600))
+	images, err := readSeedAvatarImages(directory)
+	require.NoError(t, err)
+	require.Len(t, images, 2)
+	first, err := assets.InspectImage(bytes.NewReader(images[0]))
+	require.NoError(t, err)
+	second, err := assets.InspectImage(bytes.NewReader(images[1]))
+	require.NoError(t, err)
+	require.Equal(t, 16, first.Width)
+	require.Equal(t, 32, second.Width)
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "invalid.png"), []byte("invalid image"), 0600))
+	_, err = readSeedAvatarImages(directory)
+	require.ErrorContains(t, err, "read seed avatar")
+}
 
 func TestSeedCLIUsesOperatorSocket(t *testing.T) {
 	env := newOperatorCLITestEnv(t)

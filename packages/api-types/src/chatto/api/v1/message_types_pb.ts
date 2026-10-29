@@ -590,7 +590,7 @@ export class ThreadSummary extends Message$1<ThreadSummary> {
   lastReplyAt?: Timestamp;
 
   /**
-   * Preview of up to five user IDs that have participated in this message's
+   * Preview of up to twelve user IDs that have participated in this message's
    * thread.
    *
    * @generated from field: repeated string participant_preview_user_ids = 4;

@@ -55,6 +55,13 @@ The Operator API gives server operators local, root-equivalent user administrati
   without artificial waits or backdated timestamps.
   Accounts have no password or owner role. JSON output provides the created IDs
   and content for later operations and test assertions.
+- `mise seed -- --avatar-dir PATH` optionally reads JPEG, PNG, and WebP files
+  in filename order and cycles them across generated users. The image pool is
+  limited to 50 files and 512 KiB in total after the CLI converts them to avatar
+  size. Input files use the normal image upload limit. Images use normal Chatto avatar
+  storage. The command and clients make no requests to external image providers.
+  Image headers are checked before seeding; a later decode or storage failure
+  can still leave a partial dataset. Without this flag, seeding adds no avatars.
 - A pinned data generator supplies natural names, room topics, and text. Visible
   resources contain no dataset labels or message markers. Tests use IDs and
   content from the manifest. Existing name collisions receive numeric suffixes.
