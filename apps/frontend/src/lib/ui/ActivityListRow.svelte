@@ -60,7 +60,7 @@
       class={[
         'hover-reveal-action flex shrink-0 items-center',
         overlayActions &&
-          '[@media(hover:hover)]:absolute [@media(hover:hover)]:end-3 [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:-translate-y-1/2'
+          '[@media(hover:hover)_and_(pointer:fine)]:absolute [@media(hover:hover)_and_(pointer:fine)]:end-3 [@media(hover:hover)_and_(pointer:fine)]:top-1/2 [@media(hover:hover)_and_(pointer:fine)]:-translate-y-1/2'
       ]}
     >
       {@render actions()}

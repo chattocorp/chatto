@@ -29,10 +29,12 @@ type SeedOptions struct {
 	Rooms         int   `json:"rooms"`
 	Messages      int   `json:"messages"`
 	ThreadReplies int   `json:"threadReplies"`
-	// Notifications adds historical targets and a mixed read/unread inbox for an existing login.
+	// NotificationRecipient is the existing login that receives the fixtures.
 	NotificationRecipient string `json:"notificationRecipient"`
-	Notifications         int    `json:"notifications"`
-	NotificationDays      int    `json:"notificationDays"`
+	// Notifications adds historical targets and a mixed read/unread inbox.
+	Notifications int `json:"notifications"`
+	// NotificationDays is the number of days over which to distribute fixtures.
+	NotificationDays int `json:"notificationDays"`
 }
 
 // SeedUser identifies a passwordless synthetic account in generation order.

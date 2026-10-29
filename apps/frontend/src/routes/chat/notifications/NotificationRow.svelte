@@ -134,7 +134,7 @@
       </span>
     {/if}
     <span
-      class="col-start-2 row-start-1 text-end text-sm whitespace-nowrap text-muted tabular-nums @min-[36rem]/notification:col-start-3 [@media(hover:hover)]:group-focus-within:opacity-0 [@media(hover:hover)]:group-hover:opacity-0"
+      class="col-start-2 row-start-1 text-end text-sm whitespace-nowrap text-muted tabular-nums @min-[36rem]/notification:col-start-3 [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0"
       >{time}</span
     >
   </span>

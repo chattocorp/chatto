@@ -31,7 +31,7 @@
   <ActivityListRow compact overlayActions onclick={() => undefined}>
     <span class="min-w-0 flex-1 truncate">Mention in general</span>
     <span
-      class="text-sm text-muted [@media(hover:hover)]:group-focus-within:opacity-0 [@media(hover:hover)]:group-hover:opacity-0"
+      class="text-sm text-muted [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0"
       >2m ago</span
     >
     {#snippet actions()}
