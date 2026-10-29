@@ -464,6 +464,21 @@ class SlackArchiveTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ApplyError):
                 exporter.build_archive(self.plan(), replace_oversized_messages=True)
 
+    def test_oversized_replacement_does_not_claim_attachment_text_was_retained(self):
+        row = self.data["general/2020-01-01.json"][1]
+        row["text"] = "x" * 10001
+        row["attachments"] = [{"text": "Attachment summary"}]
+        records, _ = exporter.build_archive(
+            self.plan(), allow_attachment_summaries=True, replace_oversized_messages=True)
+        validate_records(records)
+        self.assertEqual(records["events"][1]["data"]["content"]["body"]["text"],
+                         exporter.OVERSIZED_BODY_NOTICE)
+        self.assertFalse(any(o["reason"].startswith("Attachment text is retained")
+                             for o in records["manifest"]["omissions"]))
+        report = exporter.conversion_report(
+            self.plan(), allow_attachment_summaries=True, replace_oversized_messages=True)
+        self.assertNotIn("attachment_summaries", {item["code"] for item in report["transformations"]})
+
     def test_repeated_membership_transition_fails(self):
         self.data["general/2020-01-01.json"].append({"type": "message", "subtype": "channel_join",
                                                   "user": "U1", "ts": "1577836900.000000"})

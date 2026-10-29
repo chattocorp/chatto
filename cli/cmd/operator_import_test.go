@@ -274,3 +274,43 @@ func TestOperatorImportMembershipReactions(t *testing.T) {
 		})
 	}
 }
+
+func TestOperatorImportMembershipReactionsRequireEventID(t *testing.T) {
+	env := newOperatorCLITestEnv(t)
+	dir := t.TempDir()
+	require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+	path := filepath.Join(dir, "events.jsonl")
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	var event map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[0]), &event))
+	event["data"].(map[string]any)["reactions"] = []any{map[string]any{"emoji": "wave", "user_ids": []string{"user-2"}}}
+	encoded, err := json.Marshal(event)
+	require.NoError(t, err)
+	lines[0] = string(encoded)
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600))
+	original := env.server.Handler
+	env.server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorded := httptest.NewRecorder()
+		original.ServeHTTP(recorded, r)
+		maps.Copy(w.Header(), recorded.Header())
+		w.Header().Del("Content-Length")
+		w.WriteHeader(recorded.Code)
+		if strings.HasSuffix(r.URL.Path, "/ImportRoomEvent") && recorded.Code == http.StatusOK {
+			// Older servers return an empty protobuf response after committing.
+			return
+		}
+		_, _ = w.Write(recorded.Body.Bytes())
+	})
+	args := []string{"operator", "import", dir, "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress")}
+	_, err = env.execute(t, args...)
+	require.ErrorContains(t, err, "membership reactions require an event ID")
+	before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	_, err = env.execute(t, args...)
+	require.ErrorContains(t, err, "membership reactions require an event ID")
+	after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "retry must not repeat the membership transition")
+}

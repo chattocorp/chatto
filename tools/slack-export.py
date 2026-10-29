@@ -250,22 +250,25 @@ def conversion_report(plan, *, allow_attachment_summaries=False, skip_canvases=F
             add("blockers", "thread_root_not_before_reply", position=position)
         introduced.add(row["source_key"])
         message, references, mentions, attachments = prepare_message(original)
-        if mentions:
-            add("transformations", "literal_user_mentions", mentions, position)
-        if attachments:
-            add("transformations" if allow_attachment_summaries else "blockers",
-                "attachment_summaries", position=position)
         if original.get("subtype") == "thread_broadcast":
             add("transformations", "thread_broadcast_without_channel_echo", position=position)
         if original.get("subtype") == "tombstone" and references:
             add("blockers", "tombstone_content", position=position)
+        body_replaced = False
         try:
             convert(message, logins, False, allow_attachment_summaries, channels, bool(references))
         except OversizedBodyError:
+            body_replaced = replace_oversized_messages
             add("omissions" if replace_oversized_messages else "blockers",
                 "oversized_message_body", position=position)
         except ApplyError:
             add("blockers", "unsupported_message_content", position=position)
+        if not body_replaced:
+            if mentions:
+                add("transformations", "literal_user_mentions", mentions, position)
+            if attachments:
+                add("transformations" if allow_attachment_summaries else "blockers",
+                    "attachment_summaries", position=position)
     report["unsupported_emoji_names"] = len(unknown_names)
     try:
         inventory = file_inventory(plan)
@@ -418,7 +421,6 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
         message, references, mention_count, has_attachments = prepare_message(original)
         if subtype == "tombstone" and references:
             raise ApplyError("Tombstone contains unsupported content.")
-        mentions += mention_count
         try:
             body = convert(message, logins, False, allow_attachment_summaries, channels, bool(references))
         except OversizedBodyError:
@@ -426,7 +428,9 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
                 raise
             body = OVERSIZED_BODY_NOTICE
             oversized_bodies += 1
-        summaries += has_attachments
+        else:
+            mentions += mention_count
+            summaries += has_attachments
         broadcasts += subtype == "thread_broadcast"
         content = {"status": "deleted"} if subtype == "tombstone" else {
             "status": "available", "body": {"format": "chatto-markdown", "text": body}, "asset_ids": references}
