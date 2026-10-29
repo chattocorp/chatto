@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Criação de contas",
+      "open": "Cadastro aberto",
+      "invite_only": "Código de convite obrigatório",
+      "open_description": "Qualquer pessoa pode criar uma conta usando os métodos de cadastro configurados.",
+      "invite_only_description": "Novas contas precisam de um código de convite de uso único. Usuários existentes podem continuar entrando.",
+      "methods": "Métodos de cadastro configurados",
+      "email_password": "E-mail e senha",
+      "no_methods": "Nenhum método de cadastro está habilitado. Usuários não podem criar contas em nenhum dos modos."
+    },
     "neighbors": {
       "title": "Vizinhos",
       "subtitle": "Divulgue servidores Chatto amigos no seu diretório público",
@@ -549,6 +559,11 @@
       "total": "Total de usuários {count}"
     },
     "invitations": {
+      "note_label": "Nota (opcional)",
+      "note_placeholder": "Para Alex da equipe de design",
+      "note_description": "Somente gerentes de convites podem ver esta nota.",
+      "note_too_long": "Use no máximo 250 caracteres.",
+      "usage": "Novos códigos expiram após 7 dias e permitem uma conta cada. Copie um código e envie ao destinatário. Ele só é usado quando o cadastro é concluído.",
       "title": "Códigos de convite",
       "subtitle": "Crie e gerencie códigos. Cada código permite criar uma conta.",
       "create_title": "Criar código",

@@ -8,9 +8,23 @@ import (
 	"testing"
 	"time"
 
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 )
+
+func setTestRegistrationAdmission(t *testing.T, c *core.ChattoCore, inviteOnly bool) {
+	t.Helper()
+	admission := evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN
+	if inviteOnly {
+		admission = evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY
+	}
+	if err := c.ConfigModel().SetServerConfig(t.Context(), "test", &configv1.ServerConfig{RegistrationAdmission: admission}); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // acceptTestInvitation uses the browser cookie contract, including its CSRF header.
 func acceptTestInvitation(t *testing.T, client *http.Client, baseURL, code, externalToken string) map[string]string {
@@ -38,7 +52,8 @@ func acceptTestInvitation(t *testing.T, client *http.Client, baseURL, code, exte
 }
 
 func TestRegistrationAdmissionIsCookieBoundAndKeepsTabSelection(t *testing.T) {
-	ts, client, c, _ := setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{AccountCreationPolicy: config.AccountCreationPolicyInviteOnly})
+	ts, client, c, _ := setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{})
+	setTestRegistrationAdmission(t, c, true)
 	ctx := t.Context()
 	admin, err := c.CreateUser(ctx, core.SystemActorID, "gate-admin", "Gate Admin", "password123")
 	if err != nil {
@@ -47,11 +62,11 @@ func TestRegistrationAdmissionIsCookieBoundAndKeepsTabSelection(t *testing.T) {
 	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	first, err := c.CreateInvitationCode(ctx, admin.Id, nil)
+	first, err := c.CreateInvitationCode(ctx, admin.Id, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := c.CreateInvitationCode(ctx, admin.Id, nil)
+	second, err := c.CreateInvitationCode(ctx, admin.Id, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +101,7 @@ func TestRegistrationAdmissionIsCookieBoundAndKeepsTabSelection(t *testing.T) {
 		t.Fatal("revocation removed unrelated admission")
 	}
 	state, err := c.GetInvitation(ctx, admin.Id, second.ID)
-	if err != nil || state.UseCount != 0 {
+	if err != nil || state.Used {
 		t.Fatalf("validation consumed code: %v", err)
 	}
 
@@ -112,7 +127,8 @@ func TestRegistrationAdmissionIsCookieBoundAndKeepsTabSelection(t *testing.T) {
 }
 
 func TestRegistrationAdmissionBindsSSOWithoutExtendingExpiry(t *testing.T) {
-	ts, client, c, _ := setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{AccountCreationPolicy: config.AccountCreationPolicyInviteOnly})
+	ts, client, c, _ := setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{})
+	setTestRegistrationAdmission(t, c, true)
 	ctx := t.Context()
 	admin, err := c.CreateUser(ctx, core.SystemActorID, "sso-gate-admin", "SSO Gate Admin", "password123")
 	if err != nil {
@@ -121,7 +137,7 @@ func TestRegistrationAdmissionBindsSSOWithoutExtendingExpiry(t *testing.T) {
 	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	invitation, err := c.CreateInvitationCode(ctx, admin.Id, nil)
+	invitation, err := c.CreateInvitationCode(ctx, admin.Id, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +166,7 @@ func TestRegistrationAdmissionBindsSSOWithoutExtendingExpiry(t *testing.T) {
 		t.Fatalf("original flow changed: %v", err)
 	}
 	state, err := c.GetInvitation(ctx, admin.Id, invitation.ID)
-	if err != nil || state.UseCount != 0 {
+	if err != nil || state.Used {
 		t.Fatalf("SSO binding consumed code: %v", err)
 	}
 }

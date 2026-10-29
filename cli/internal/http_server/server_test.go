@@ -542,9 +542,8 @@ func setTestServerName(t *testing.T, ctx context.Context, chattoCore *core.Chatt
 // ============================================================================
 
 func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
-	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{
-		AccountCreationPolicy: config.AccountCreationPolicyInviteOnly,
-	})
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{})
+	setTestRegistrationAdmission(t, chattoCore, true)
 	ctx := testContext(t)
 	admin, err := chattoCore.CreateUser(ctx, core.SystemActorID, "http-invite-admin", "HTTP Invite Admin", "password123")
 	if err != nil {
@@ -553,7 +552,7 @@ func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
 	if err := chattoCore.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	invitation, err := chattoCore.CreateInvitationCode(ctx, admin.Id, nil)
+	invitation, err := chattoCore.CreateInvitationCode(ctx, admin.Id, nil, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -576,16 +575,7 @@ func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
 
 	missingStatus, _ := postRegistration()
 	if missingStatus != http.StatusBadRequest {
-		t.Fatalf("registration without invite link status = %d, want %d", missingStatus, http.StatusBadRequest)
-	}
-
-	invalidResp, err := client.Get(ts.URL + "/invite/not-a-valid-token")
-	if err != nil {
-		t.Fatalf("GET invalid invite link: %v", err)
-	}
-	invalidResp.Body.Close()
-	if invalidResp.StatusCode != http.StatusSeeOther || invalidResp.Header.Get("Location") != "/register?error=retired_invitation" {
-		t.Fatalf("invalid invite link = %d %q", invalidResp.StatusCode, invalidResp.Header.Get("Location"))
+		t.Fatalf("registration without invitation code status = %d, want %d", missingStatus, http.StatusBadRequest)
 	}
 
 	admissionID = acceptTestInvitation(t, client, ts.URL, chattoCore.InvitationCode(invitation.ID), "")["admissionId"]
@@ -631,23 +621,15 @@ func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetInvitation: %v", err)
 	}
-	if state.UseCount != 1 {
-		t.Fatalf("invitation use count = %d, want 1", state.UseCount)
+	if !state.Used {
+		t.Fatalf("invitation used = %t, want true", state.Used)
 	}
 }
 
-func TestAuthRoutes_OpenRegistrationIgnoresInviteLinks(t *testing.T) {
+func TestAuthRoutes_OpenRegistrationWithoutInvitation(t *testing.T) {
 	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
-	inviteResp, err := client.Get(ts.URL + "/invite/not-a-valid-token")
-	if err != nil {
-		t.Fatalf("GET invite link: %v", err)
-	}
-	inviteResp.Body.Close()
-	if inviteResp.StatusCode != http.StatusSeeOther || inviteResp.Header.Get("Location") != "/register?error=retired_invitation" {
-		t.Fatalf("open-mode invite link = %d %q", inviteResp.StatusCode, inviteResp.Header.Get("Location"))
-	}
 	body, _ := json.Marshal(map[string]string{
-		"email": "open-with-link@example.test",
+		"email": "open-registration@example.test",
 	})
 	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
 	if err != nil {

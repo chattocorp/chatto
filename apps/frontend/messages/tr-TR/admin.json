@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Hesap oluşturma",
+      "open": "Açık kayıt",
+      "invite_only": "Davet kodu gerekli",
+      "open_description": "Herkes yapılandırılmış kayıt yöntemleriyle hesap oluşturabilir.",
+      "invite_only_description": "Yeni hesaplar için tek kullanımlık davet kodu gerekir. Mevcut kullanıcılar giriş yapmaya devam edebilir.",
+      "methods": "Yapılandırılmış kayıt yöntemleri",
+      "email_password": "E-posta ve parola",
+      "no_methods": "Hiçbir kayıt yöntemi etkin değil. Kullanıcılar her iki modda da hesap oluşturamaz."
+    },
     "neighbors": {
       "title": "Komşular",
       "subtitle": "Dost Chatto sunucularını herkese açık dizininizde tanıtın",
@@ -549,6 +559,11 @@
       "total": "Toplam {count} kullanıcı(lar)"
     },
     "invitations": {
+      "note_label": "Not (isteğe bağlı)",
+      "note_placeholder": "Tasarım ekibinden Alex için",
+      "note_description": "Bu notu yalnızca davet yöneticileri görebilir.",
+      "note_too_long": "En fazla 250 karakter kullanın.",
+      "usage": "Yeni kodlar 7 gün sonra sona erer ve her biri bir hesap için geçerlidir. Bir kodu kopyalayıp alıcısına gönderin. Kod yalnızca kayıt başarılı olduğunda kullanılır.",
       "title": "Davet kodları",
       "subtitle": "Kod oluşturun ve yönetin. Her kod bir yeni hesaba izin verir.",
       "create_title": "Kod oluştur",

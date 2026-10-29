@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Opprettelse av kontoer",
+      "open": "Åpen registrering",
+      "invite_only": "Invitasjonskode kreves",
+      "open_description": "Alle kan opprette en konto med de konfigurerte registreringsmetodene.",
+      "invite_only_description": "Nye kontoer krever en invitasjonskode som bare kan brukes én gang. Eksisterende brukere kan fortsatt logge inn.",
+      "methods": "Konfigurerte registreringsmetoder",
+      "email_password": "E-post og passord",
+      "no_methods": "Ingen registreringsmetoder er aktivert. Brukere kan ikke opprette kontoer i noen av modusene."
+    },
     "neighbors": {
       "title": "Naboer",
       "subtitle": "Promoter vennlige Chatto-servere i den offentlige katalogen din",
@@ -549,6 +559,11 @@
       "total": "{count} bruker(e) totalt"
     },
     "invitations": {
+      "note_label": "Merknad (valgfritt)",
+      "note_placeholder": "Til Alex fra designteamet",
+      "note_description": "Bare invitasjonsadministratorer kan se denne merknaden.",
+      "note_too_long": "Bruk høyst 250 tegn.",
+      "usage": "Nye koder utløper etter 7 dager og gir tilgang til én konto hver. Kopier en kode og send den til mottakeren. Koden brukes først når registreringen lykkes.",
       "title": "Invitasjonskoder",
       "subtitle": "Opprett og administrer koder. Hver kode gir adgang til én ny konto.",
       "create_title": "Opprett kode",

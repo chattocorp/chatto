@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Kreado de kontoj",
+      "open": "Malferma registriĝo",
+      "invite_only": "Invitkodo bezonata",
+      "open_description": "Ĉiu povas krei konton per la agorditaj registriĝaj metodoj.",
+      "invite_only_description": "Novaj kontoj bezonas unuuzan invitkodon. Ekzistantaj uzantoj ankoraŭ povas ensaluti.",
+      "methods": "Agorditaj registriĝaj metodoj",
+      "email_password": "Retpoŝto kaj pasvorto",
+      "no_methods": "Neniuj registriĝaj metodoj estas aktivaj. Uzantoj ne povas krei kontojn en iu ajn reĝimo."
+    },
     "neighbors": {
       "title": "Najbaroj",
       "subtitle": "Reklamu amikajn Chatto-servilojn en via publika katalogo",
@@ -549,6 +559,11 @@
       "total": "{count} uzanto(j) entute"
     },
     "invitations": {
+      "note_label": "Noto (nedeviga)",
+      "note_placeholder": "Por Alex el la dezajna teamo",
+      "note_description": "Nur administrantoj de invitoj povas vidi ĉi tiun noton.",
+      "note_too_long": "Uzu maksimume 250 signojn.",
+      "usage": "Novaj kodoj validas dum 7 tagoj kaj ĉiu permesas unu konton. Kopiu kodon kaj sendu ĝin al la ricevonto. Kodo estas uzita nur post sukcesa registriĝo.",
       "title": "Invitkodoj",
       "subtitle": "Kreu kaj administru kodojn. Ĉiu kodo permesas unu novan konton.",
       "create_title": "Krei kodon",

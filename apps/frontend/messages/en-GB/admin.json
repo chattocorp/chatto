@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Account creation",
+      "open": "Open Registration",
+      "invite_only": "Invite Code Required",
+      "open_description": "Anyone can create an account using the configured signup methods.",
+      "invite_only_description": "New accounts need a single-use invitation code. Existing users can still sign in.",
+      "methods": "Configured signup methods",
+      "email_password": "Email and password",
+      "no_methods": "No signup methods are enabled. Users cannot create accounts in either mode."
+    },
     "neighbors": {
       "title": "Neighbors",
       "subtitle": "Advertise friendly Chatto servers in your public directory",
@@ -549,6 +559,11 @@
       "total": "{count} user(s) total"
     },
     "invitations": {
+      "note_label": "Note (optional)",
+      "note_placeholder": "For Alex from the design team",
+      "note_description": "Only invitation managers can see this note.",
+      "note_too_long": "Use 250 characters or fewer.",
+      "usage": "New codes expire after 7 days and admit one account each. Copy a code and send it to its recipient. A code is used only when signup succeeds.",
       "title": "Invitation codes",
       "subtitle": "Create and manage codes. Each code admits one new account.",
       "create_title": "Create code",

@@ -7,7 +7,19 @@ import "buf/validate/validate.proto";
 import "chatto/api/v1/common.proto";
 import "chatto/api/v1/server.proto";
 
-// Runtime-editable server profile settings.
+// Account creation settings. Admission applies to direct signup and new SSO accounts.
+message RegistrationSettings {
+  // Effective policy. OPEN permits signup without an invitation.
+  chatto.api.v1.AccountCreationPolicy admission = 1;
+}
+
+// Partial registration update. Unselected fields stay unchanged.
+message RegistrationSettingsUpdate {
+  // Unspecified or a selected absent value resets admission to OPEN.
+  optional chatto.api.v1.AccountCreationPolicy admission = 1 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Runtime-editable server settings.
 message ServerConfig {
   // Server name for page titles. Empty means the default is used.
   string server_name = 1;
@@ -17,23 +29,25 @@ message ServerConfig {
   string motd = 3;
   // Welcome message shown on the login page.
   string welcome_message = 4;
+  // Settings for new self-service accounts.
+  RegistrationSettings registration = 5;
 }
 
-// Request server profile settings.
+// Request runtime-editable server settings; requires server.manage.
 message GetServerConfigRequest {}
 
-// Server profile settings plus effective public branding.
+// Server settings plus effective public branding.
 message GetServerConfigResponse {
   reserved 2;
   reserved "profile";
 
-  // Runtime-editable server profile settings.
+  // Runtime-editable server settings.
   ServerConfig config = 1;
   // Effective public server profile and branding.
   chatto.api.v1.ServerPublicProfile public_profile = 3;
 }
 
-// Request to update runtime-editable server profile settings.
+// Request to update runtime-editable server settings; requires server.manage.
 message UpdateServerConfigRequest {
   // Optional server name for page titles. Set to empty string to use default.
   optional string server_name = 1 [(buf.validate.field).string.max_len = 80];
@@ -45,21 +59,23 @@ message UpdateServerConfigRequest {
   // Optional welcome message shown on the login page. Set to empty string to
   // clear.
   optional string welcome_message = 4 [(buf.validate.field).string.max_len = 10000];
-  // Editable fields to apply or reset: server_name, description, motd, welcome_message.
+  // Partial account creation settings; requires server.manage.
+  RegistrationSettingsUpdate registration = 6;
+  // Editable fields to apply or reset: server_name, description, motd, welcome_message, registration.admission.
   // Omit to infer populated fields; * selects all editable fields. An explicit
   // empty mask is invalid. Unselected values are ignored. Selected absent values
   // reset the field to its default, subject to field validation.
   google.protobuf.FieldMask update_mask = 5;
 }
 
-// Result of updating runtime-editable server profile settings.
+// Result of updating runtime-editable server settings.
 message UpdateServerConfigResponse {
   reserved 1;
   reserved "profile";
 
   // Updated public server profile and branding.
   chatto.api.v1.ServerPublicProfile public_profile = 3;
-  // Updated runtime-editable server profile settings.
+  // Updated runtime-editable server settings.
   ServerConfig config = 2;
 }
 
@@ -228,10 +244,10 @@ message DeleteNeighborResponse {}
 // Provides server-administration commands for profile, branding, and security
 // settings.
 service AdminServerService {
-  // Gets runtime-editable server profile settings. This RPC requires
+  // Gets runtime-editable server settings. This RPC requires
   // server.manage.
   rpc GetServerConfig(GetServerConfigRequest) returns (GetServerConfigResponse);
-  // Updates runtime-editable server profile settings. This RPC requires
+  // Updates runtime-editable server settings. This RPC requires
   // server.manage.
   rpc UpdateServerConfig(UpdateServerConfigRequest) returns (UpdateServerConfigResponse);
   // Uploads and sets the public server logo. This RPC requires server.manage.

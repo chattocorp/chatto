@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Création de comptes",
+      "open": "Inscription ouverte",
+      "invite_only": "Code d’invitation requis",
+      "open_description": "Toute personne peut créer un compte avec les méthodes d’inscription configurées.",
+      "invite_only_description": "Les nouveaux comptes nécessitent un code d’invitation à usage unique. Les utilisateurs existants peuvent toujours se connecter.",
+      "methods": "Méthodes d’inscription configurées",
+      "email_password": "Courriel et mot de passe",
+      "no_methods": "Aucune méthode d’inscription n’est activée. Les utilisateurs ne peuvent créer de compte dans aucun des deux modes."
+    },
     "neighbors": {
       "title": "Voisins",
       "subtitle": "Publiez des serveurs Chatto amis dans votre répertoire public",
@@ -549,6 +559,11 @@
       "total": "Nombre total d'utilisateurs {count}"
     },
     "invitations": {
+      "note_label": "Note (facultative)",
+      "note_placeholder": "Pour Alex de l’équipe de conception",
+      "note_description": "Seuls les gestionnaires des invitations peuvent voir cette note.",
+      "note_too_long": "Utilisez 250 caractères au maximum.",
+      "usage": "Les nouveaux codes expirent après 7 jours et permettent chacun de créer un compte. Copiez un code et envoyez-le à son destinataire. Il est utilisé uniquement lorsque l’inscription réussit.",
       "title": "Codes d’invitation",
       "subtitle": "Créez et gérez des codes. Chaque code autorise un nouveau compte.",
       "create_title": "Créer un code",

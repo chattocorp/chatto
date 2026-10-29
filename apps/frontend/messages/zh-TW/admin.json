@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "建立帳戶",
+      "open": "開放註冊",
+      "invite_only": "需要邀請碼",
+      "open_description": "任何人都可以透過已設定的註冊方式建立帳號。",
+      "invite_only_description": "新帳號需要一次性邀請碼。現有使用者仍可登入。",
+      "methods": "已設定的註冊方式",
+      "email_password": "電子郵件和密碼",
+      "no_methods": "未啟用任何註冊方式。使用者在兩種模式下都無法建立帳號。"
+    },
     "neighbors": {
       "title": "鄰居",
       "subtitle": "在你的公開目錄中推廣友好的 Chatto 伺服器",
@@ -538,6 +548,11 @@
       "total": "共 {count} 位使用者"
     },
     "invitations": {
+      "note_label": "備註（選填）",
+      "note_placeholder": "給設計團隊的 Alex",
+      "note_description": "只有邀請管理員可以查看此備註。",
+      "note_too_long": "請使用不超過 250 個字元。",
+      "usage": "新邀請碼有效期為 7 天，每個邀請碼只能建立一個帳號。複製邀請碼並傳送給接收者。只有註冊成功後，邀請碼才會被使用。",
       "title": "邀請碼",
       "subtitle": "建立及管理邀請碼。每個邀請碼可建立一個新帳號。",
       "create_title": "建立邀請碼",

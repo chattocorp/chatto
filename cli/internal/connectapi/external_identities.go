@@ -32,7 +32,10 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
 	}
 	pending := apiPendingExternalIdentity(flow)
-	if flow.Kind == core.ExternalIdentityFlowKindCreate && s.api.config.Auth.InvitationRequired() {
+	if err := s.api.core.WaitForRegistrationPolicy(ctx); err != nil {
+		return nil, err
+	}
+	if flow.Kind == core.ExternalIdentityFlowKindCreate && s.api.core.InvitationRequired() {
 		err := s.api.core.ValidateInvitationAdmission(ctx, flow.InvitationID)
 		if err != nil && !errors.Is(err, core.ErrInvitationInvalid) {
 			return nil, err
@@ -70,7 +73,10 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err != nil {
 		return nil, err
 	}
-	if s.api.config.Auth.InvitationRequired() {
+	if err := s.api.core.WaitForRegistrationPolicy(ctx); err != nil {
+		return nil, err
+	}
+	if s.api.core.InvitationRequired() {
 		if flow.InvitationID == "" && req.Msg.GetInvitationCode() != "" {
 			flow.InvitationID, err = s.api.core.ValidateInvitationCode(ctx, req.Msg.GetInvitationCode())
 			if err != nil {
@@ -80,11 +86,8 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		if strings.TrimSpace(flow.InvitationID) == "" {
 			return nil, core.ErrInvitationInvalid
 		}
-	} else {
-		// Pending flows survive configuration rollouts. Re-evaluate admission
-		// now, and never redeem an invitation while the server is open.
-		flow.InvitationID = ""
 	}
+	// Keep captured admission until the core chooses the facts under OCC.
 	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), req.Msg.GetDisplayName(), flow.DisplayNameHint)
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {

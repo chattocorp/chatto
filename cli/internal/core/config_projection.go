@@ -19,14 +19,15 @@ type ConfigProjection struct {
 }
 
 type serverConfigState struct {
-	serverName       string
-	description      string
-	welcomeMessage   string
-	motd             string
-	blockedUsernames *string
-	logo             *evtv1.AssetRecord
-	banner           *evtv1.AssetRecord
-	neighbors        map[string]Neighbor
+	registrationAdmission evtv1.RegistrationAdmission
+	serverName            string
+	description           string
+	welcomeMessage        string
+	motd                  string
+	blockedUsernames      *string
+	logo                  *evtv1.AssetRecord
+	banner                *evtv1.AssetRecord
+	neighbors             map[string]Neighbor
 }
 
 // Neighbor is one server advertised through the public Neighbor directory.
@@ -72,6 +73,8 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 		p.server.description = e.ServerDescriptionChanged.GetDescription()
 	case *evtv1.Event_ServerWelcomeMessageChanged:
 		p.server.welcomeMessage = e.ServerWelcomeMessageChanged.GetWelcomeMessage()
+	case *evtv1.Event_ServerRegistrationAdmissionChanged:
+		p.server.registrationAdmission = e.ServerRegistrationAdmissionChanged.GetAdmission()
 	case *evtv1.Event_ServerMotdChanged:
 		p.server.motd = e.ServerMotdChanged.GetMotd()
 	case *evtv1.Event_ServerBlockedUsernamesChanged:

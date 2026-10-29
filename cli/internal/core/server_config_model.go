@@ -41,14 +41,15 @@ func (cm *ConfigModel) GetServerConfig() *configv1.ServerConfig {
 		p.server.description == "" &&
 		p.server.welcomeMessage == "" &&
 		p.server.motd == "" &&
-		p.server.blockedUsernames == nil {
+		p.server.blockedUsernames == nil && effectiveRegistrationAdmission(p.server.registrationAdmission) == evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN {
 		return nil
 	}
 	cfg := &configv1.ServerConfig{
-		ServerName:     p.server.serverName,
-		Description:    p.server.description,
-		WelcomeMessage: p.server.welcomeMessage,
-		Motd:           p.server.motd,
+		RegistrationAdmission: effectiveRegistrationAdmission(p.server.registrationAdmission),
+		ServerName:            p.server.serverName,
+		Description:           p.server.description,
+		WelcomeMessage:        p.server.welcomeMessage,
+		Motd:                  p.server.motd,
 	}
 	if p.server.blockedUsernames != nil {
 		cfg.BlockedUsernames = *p.server.blockedUsernames
@@ -191,6 +192,11 @@ func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []
 	if current.GetMotd() != next.GetMotd() {
 		evs = append(evs, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerMotdChanged{
 			ServerMotdChanged: &evtv1.ServerMotdChangedEvent{Motd: next.GetMotd()},
+		}}))
+	}
+	if effectiveRegistrationAdmission(current.GetRegistrationAdmission()) != effectiveRegistrationAdmission(next.GetRegistrationAdmission()) {
+		evs = append(evs, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerRegistrationAdmissionChanged{
+			ServerRegistrationAdmissionChanged: &evtv1.ServerRegistrationAdmissionChangedEvent{Admission: effectiveRegistrationAdmission(next.GetRegistrationAdmission())},
 		}}))
 	}
 	if current.GetBlockedUsernames() != next.GetBlockedUsernames() {

@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Skapa konton",
+      "open": "Öppen registrering",
+      "invite_only": "Inbjudningskod krävs",
+      "open_description": "Vem som helst kan skapa ett konto med de konfigurerade registreringsmetoderna.",
+      "invite_only_description": "Nya konton kräver en inbjudningskod som bara kan användas en gång. Befintliga användare kan fortfarande logga in.",
+      "methods": "Konfigurerade registreringsmetoder",
+      "email_password": "E-post och lösenord",
+      "no_methods": "Inga registreringsmetoder är aktiverade. Användare kan inte skapa konton i något av lägena."
+    },
     "neighbors": {
       "title": "Grannar",
       "subtitle": "Marknadsför vänliga Chatto-servrar i din offentliga katalog",
@@ -549,6 +559,11 @@
       "total": "{count} användare totalt"
     },
     "invitations": {
+      "note_label": "Anteckning (valfritt)",
+      "note_placeholder": "Till Alex från designteamet",
+      "note_description": "Endast inbjudningsadministratörer kan se denna anteckning.",
+      "note_too_long": "Använd högst 250 tecken.",
+      "usage": "Nya koder gäller i 7 dagar och ger ett konto vardera. Kopiera en kod och skicka den till mottagaren. Koden används först när registreringen lyckas.",
       "title": "Inbjudningskoder",
       "subtitle": "Skapa och hantera koder. Varje kod tillåter ett nytt konto.",
       "create_title": "Skapa kod",

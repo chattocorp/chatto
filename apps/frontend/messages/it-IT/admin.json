@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Creazione degli account",
+      "open": "Registrazione aperta",
+      "invite_only": "Codice d'invito obbligatorio",
+      "open_description": "Chiunque può creare un account con i metodi di registrazione configurati.",
+      "invite_only_description": "I nuovi account richiedono un codice d'invito monouso. Gli utenti esistenti possono continuare ad accedere.",
+      "methods": "Metodi di registrazione configurati",
+      "email_password": "Email e password",
+      "no_methods": "Nessun metodo di registrazione è abilitato. Gli utenti non possono creare account in nessuna delle due modalità."
+    },
     "neighbors": {
       "title": "Vicini",
       "subtitle": "Pubblica server Chatto amici nella directory pubblica",
@@ -549,6 +559,11 @@
       "total": "{count} utenti totali"
     },
     "invitations": {
+      "note_label": "Nota (facoltativa)",
+      "note_placeholder": "Per Alex del team di design",
+      "note_description": "Solo i gestori degli inviti possono vedere questa nota.",
+      "note_too_long": "Usa al massimo 250 caratteri.",
+      "usage": "I nuovi codici scadono dopo 7 giorni e consentono un account ciascuno. Copia un codice e invialo al destinatario. Viene utilizzato solo al completamento della registrazione.",
       "title": "Codici di invito",
       "subtitle": "Crea e gestisci i codici. Ogni codice consente un nuovo account.",
       "create_title": "Crea codice",

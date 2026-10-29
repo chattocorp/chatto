@@ -1730,7 +1730,9 @@
 
 @utility checkbox-box {
   @apply control-well;
-  @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
+  @apply grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
+  /* Centre the indicator on the first title line, regardless of help-text height. */
+  margin-block-start: calc((1lh - 1.25rem) / 2);
   @apply transition-[background-color,border-color,color] feedback-quick;
 }
 
@@ -1746,7 +1748,7 @@
 /* Single-choice rows used by settings radio groups. */
 @utility choice-row {
   @apply option-depth;
-  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-start transition-colors feedback-quick;
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 text-start transition-colors feedback-quick;
   @apply hover:border-input-border hover:bg-surface;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -1758,6 +1760,8 @@
 @utility choice-indicator {
   @apply control-well;
   @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors feedback-quick;
+  /* Match checkbox alignment to the first title line. */
+  margin-block-start: calc((1lh - 1.25rem) / 2);
 }
 
 @utility choice-indicator-selected {

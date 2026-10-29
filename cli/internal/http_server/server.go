@@ -243,9 +243,6 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 }
 
 func requestLogPath(path string) string {
-	if strings.HasPrefix(path, "/invite/") {
-		return "/invite/:token"
-	}
 	if strings.HasPrefix(path, "/webhooks/incoming/") {
 		return "/webhooks/incoming/:credential"
 	}

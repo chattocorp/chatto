@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chattocorp/chatto/cli/internal/readmodel"
-
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
@@ -124,16 +122,6 @@ func (s *HTTPServer) emailOTPExpirationText() string {
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
-	// Beta invite links are retired. Keep this explicit route so the SPA does
-	// not interpret an old bearer URL as a usable registration entry point.
-	s.router.GET("/invite/:token", func(c *gin.Context) {
-		c.Header("Cache-Control", "no-store")
-		c.Header("Referrer-Policy", "no-referrer")
-		c.Header("X-Robots-Tag", "noindex, nofollow")
-
-		c.Redirect(http.StatusSeeOther, "/register?error=retired_invitation")
-	})
-
 	auth := s.router.Group("/auth")
 	auth.Use(limitLegacyRequestBody())
 	s.setupRegistrationAdmissionRoutes(auth)
@@ -625,7 +613,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		ctx := c.Request.Context()
 		invitationID := ""
-		if s.config.Auth.InvitationRequired() {
+		if err := s.core.WaitForRegistrationPolicy(ctx); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Registration is temporarily unavailable"})
+			return
+		}
+		if s.core.InvitationRequired() {
 			var err error
 			if req.InvitationCode != "" {
 				invitationID, err = s.core.ValidateInvitationCode(ctx, req.InvitationCode)
@@ -813,16 +805,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		var user *readmodel.User
-		if s.config.Auth.InvitationRequired() {
-			if tokenData.InvitationID == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation code is invalid or no longer available"})
-				return
-			}
-			user, err = s.core.CreateVerifiedUserWithInvitation(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
-		} else {
-			user, err = s.core.CreateVerifiedUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email)
-		}
+		user, err := s.core.CreateVerifiedUserWithInvitation(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrInvitationInvalid) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation code is invalid or no longer available"})

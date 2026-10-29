@@ -27,6 +27,9 @@ message InvitationCode {
   google.protobuf.Timestamp expires_at = 5;
   InvitationCodeStatus status = 6;
   google.protobuf.Timestamp revoked_at = 7;
+  // Optional creation-time note for invitation managers. Empty means no note.
+  // This does not restrict who can redeem the code.
+  string note = 8;
 }
 
 // Lists codes newest first, with ID as the tie-breaker.
@@ -47,6 +50,9 @@ message GetInvitationCodeResponse {
 // Creates one code. Every code is single-use, including when expiry is omitted.
 message CreateInvitationCodeRequest {
   google.protobuf.Timestamp expires_at = 1;
+  // Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
+  // Visible only to invitation managers; it does not bind the code to a recipient.
+  string note = 2 [(buf.validate.field).string.max_len = 250];
 }
 message CreateInvitationCodeResponse {
   InvitationCode invitation_code = 1;

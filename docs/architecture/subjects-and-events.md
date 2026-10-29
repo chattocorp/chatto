@@ -322,6 +322,7 @@ reaction projection and read behavior.
 | `evt.config.{subject}.server_welcome_message_changed` | `ServerWelcomeMessageChangedEvent` |
 | `evt.config.{subject}.server_motd_changed` | `ServerMotdChangedEvent` |
 | `evt.config.{subject}.server_blocked_usernames_changed` | `ServerBlockedUsernamesChangedEvent` |
+| `evt.config.server.server_registration_admission_changed` | `ServerRegistrationAdmissionChangedEvent`; selects open or invitation-only account creation |
 | `evt.config.{subject}.server_logo_set` | `ServerLogoSetEvent` |
 | `evt.config.{subject}.server_logo_cleared` | `ServerLogoClearedEvent` |
 | `evt.config.{subject}.server_banner_set` | `ServerBannerSetEvent` |
@@ -412,7 +413,7 @@ reaction projection and read behavior.
 | `evt.authorization.server.fence_advanced` | `AuthorizationFenceAdvancedEvent` (historical replay only) |
 | `evt.auth.server.registration_verification_code_issued` | `RegistrationVerificationCodeIssuedEvent` |
 | `evt.auth.server.login_failed` | `LoginFailedEvent` |
-| `evt.invitation.{invitationId}.created` | `InvitationCreatedEvent` |
+| `evt.invitation.{invitationId}.created` | `InvitationCreatedEvent`; includes the immutable manager-only note |
 | `evt.invitation.{invitationId}.redeemed` | `InvitationRedeemedEvent` |
 | `evt.invitation.{invitationId}.revoked` | `InvitationRevokedEvent` |
 

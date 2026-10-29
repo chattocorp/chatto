@@ -363,10 +363,6 @@ environment variables from your configuration. These settings no longer have an 
 
 ## Authentication
 
-<EnvVar name="CHATTO_AUTH_ACCOUNT_CREATION_POLICY" toml="auth.account_creation_policy" default="open">
-  Controls who may create a new account. Use `open` for public self-service account creation or `invite_only` to require a valid invitation code for direct registration and external-provider auto-provisioning. Existing account sign-in, account linking, and operator-created accounts are unaffected. Upgrade every serving replica before enabling `invite_only`.
-</EnvVar>
-
 <EnvVar name="CHATTO_AUTH_DIRECT_REGISTRATION" toml="auth.direct_registration" default="true">
   Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Existing users can still sign in through enabled password login or configured SSO providers.
 </EnvVar>

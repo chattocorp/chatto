@@ -21,20 +21,14 @@ func (s *adminInvitationCodeService) ListInvitationCodes(ctx context.Context, re
 	if err != nil {
 		return nil, err
 	}
-	codes := make([]core.InvitationState, 0, len(states))
-	for _, state := range states {
-		if state.CodeVersion == 1 {
-			codes = append(codes, state)
-		}
-	}
 	limit, offset := apiPagination(req.Msg.GetPage(), 20, 100)
-	offset = min(offset, len(codes))
-	end := min(offset+limit, len(codes))
+	offset = min(offset, len(states))
+	end := min(offset+limit, len(states))
 	result := make([]*adminv1.InvitationCode, 0, end-offset)
-	for _, state := range codes[offset:end] {
+	for _, state := range states[offset:end] {
 		result = append(result, s.apiInvitationCode(state))
 	}
-	response := connect.NewResponse(&adminv1.ListInvitationCodesResponse{InvitationCodes: result, Page: apiPageInfo(len(codes), end < len(codes))})
+	response := connect.NewResponse(&adminv1.ListInvitationCodesResponse{InvitationCodes: result, Page: apiPageInfo(len(states), end < len(states))})
 	response.Header().Set("Cache-Control", "no-store")
 	return response, nil
 }
@@ -58,7 +52,7 @@ func (s *adminInvitationCodeService) CreateInvitationCode(ctx context.Context, r
 	if err != nil {
 		return nil, err
 	}
-	state, err := s.api.core.CreateInvitationCode(ctx, caller.UserID, expiresAt)
+	state, err := s.api.core.CreateInvitationCode(ctx, caller.UserID, expiresAt, req.Msg.GetNote())
 	if err != nil {
 		return nil, err
 	}
@@ -93,20 +87,18 @@ func (s *adminInvitationCodeService) get(ctx context.Context, id string) (core.I
 	if err != nil {
 		return core.InvitationState{}, err
 	}
-	if state.CodeVersion != 1 {
-		return core.InvitationState{}, core.ErrNotFound
-	}
 	return state, nil
 }
 
 func (s *adminInvitationCodeService) apiInvitationCode(state core.InvitationState) *adminv1.InvitationCode {
 	code := &adminv1.InvitationCode{Id: state.ID, Code: s.api.core.InvitationCode(state.ID), CreatedBy: state.CreatedBy, CreatedAt: timestamppb.New(state.CreatedAt)}
+	code.Note = state.Note
 	switch core.InvitationStatusAt(state, time.Now()) {
 	case core.InvitationStatusActive:
 		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_ACTIVE
 	case core.InvitationStatusExpired:
 		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_EXPIRED
-	case core.InvitationStatusExhausted:
+	case core.InvitationStatusUsed:
 		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_USED
 	case core.InvitationStatusRevoked:
 		code.Status = adminv1.InvitationCodeStatus_INVITATION_CODE_STATUS_REVOKED

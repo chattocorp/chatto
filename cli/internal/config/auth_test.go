@@ -9,21 +9,6 @@ import (
 	"time"
 )
 
-func TestAuthConfig_AccountCreationPolicy(t *testing.T) {
-	open := AuthConfig{}
-	if got := open.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyOpen {
-		t.Fatalf("default policy = %q, want %q", got, AccountCreationPolicyOpen)
-	}
-	if open.InvitationRequired() {
-		t.Fatal("empty policy unexpectedly requires an invitation")
-	}
-
-	inviteOnly := AuthConfig{AccountCreationPolicy: AccountCreationPolicyInviteOnly}
-	if !inviteOnly.InvitationRequired() {
-		t.Fatal("invite_only policy does not require an invitation")
-	}
-}
-
 func TestAuthConfig_DirectLogin(t *testing.T) {
 	if !(&AuthConfig{}).DirectLoginOrDefault() {
 		t.Fatal("unset password login = false, want true")
@@ -140,9 +125,6 @@ max_wrong_attempts = 2
 	if got := cfg.Auth.EmailOTP.MaxWrongAttemptsOrDefault(); got != 2 {
 		t.Errorf("auth.email_otp.max_wrong_attempts from TOML = %d, want 2", got)
 	}
-	if got := cfg.Auth.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyOpen {
-		t.Errorf("default account creation policy = %q, want open", got)
-	}
 	if got := cfg.Auth.TokenTTLOrDefault(); got != 30*24*time.Hour {
 		t.Errorf("auth.token_ttl from TOML = %v, want 30d", got)
 	}
@@ -167,7 +149,6 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_TTL", "45m")
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_MAX_DELIVERED_CODES", "6")
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS", "3")
-	t.Setenv("CHATTO_AUTH_ACCOUNT_CREATION_POLICY", AccountCreationPolicyInviteOnly)
 	t.Setenv("CHATTO_AUTH_DIRECT_LOGIN", "false")
 	t.Setenv("CHATTO_AUTH_TOKEN_TTL", "45d")
 	t.Setenv("CHATTO_AUTH_ACCESS_TOKEN_TTL", "20m")
@@ -187,9 +168,6 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	}
 	if got := cfg.Auth.EmailOTP.MaxWrongAttemptsOrDefault(); got != 3 {
 		t.Errorf("CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS = %d, want 3", got)
-	}
-	if got := cfg.Auth.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyInviteOnly {
-		t.Errorf("CHATTO_AUTH_ACCOUNT_CREATION_POLICY = %q, want invite_only", got)
 	}
 	if cfg.Auth.DirectLoginOrDefault() {
 		t.Error("CHATTO_AUTH_DIRECT_LOGIN = true, want false")

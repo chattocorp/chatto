@@ -254,6 +254,7 @@ Creates one code. Every code is single-use, including when expiry is omitted.
 | Field | Type | Description |
 | --- | --- | --- |
 | `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `note` | `string` | Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed. Visible only to invitation managers; it does not bind the code to a recipient. |
 
 
 <a id="chatto-admin-v1-CreateInvitationCodeResponse"></a>
@@ -1783,7 +1784,7 @@ settings.
 
 ### GetServerConfig
 
-Gets runtime-editable server profile settings. This RPC requires
+Gets runtime-editable server settings. This RPC requires
 server.manage.
 
 ```http
@@ -1794,18 +1795,18 @@ POST /api/connect/chatto.admin.v1.AdminServerService/GetServerConfig
 
 #### Input: GetServerConfigRequest
 
-Request server profile settings.
+Request runtime-editable server settings; requires server.manage.
 
 
 <a id="chatto-admin-v1-GetServerConfigResponse"></a>
 
 #### Result: GetServerConfigResponse
 
-Server profile settings plus effective public branding.
+Server settings plus effective public branding.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Runtime-editable server profile settings. |
+| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Runtime-editable server settings. |
 | `public_profile` | `chatto.api.v1.ServerPublicProfile` | Effective public server profile and branding. |
 
 
@@ -1813,7 +1814,7 @@ Server profile settings plus effective public branding.
 
 ### UpdateServerConfig
 
-Updates runtime-editable server profile settings. This RPC requires
+Updates runtime-editable server settings. This RPC requires
 server.manage.
 
 ```http
@@ -1824,7 +1825,7 @@ POST /api/connect/chatto.admin.v1.AdminServerService/UpdateServerConfig
 
 #### Input: UpdateServerConfigRequest
 
-Request to update runtime-editable server profile settings.
+Request to update runtime-editable server settings; requires server.manage.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1832,19 +1833,20 @@ Request to update runtime-editable server profile settings.
 | `description` | `optional string` | Optional short server description for OG link-preview metadata. Set to empty string to clear. |
 | `motd` | `optional string` | Optional message of the day for the header. Set to empty string to clear. |
 | `welcome_message` | `optional string` | Optional welcome message shown on the login page. Set to empty string to clear. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: server_name, description, motd, welcome_message. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `registration` | [`RegistrationSettingsUpdate`](#chatto-admin-v1-RegistrationSettingsUpdate) | Partial account creation settings; requires server.manage. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: server_name, description, motd, welcome_message, registration.admission. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateServerConfigResponse"></a>
 
 #### Result: UpdateServerConfigResponse
 
-Result of updating runtime-editable server profile settings.
+Result of updating runtime-editable server settings.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `public_profile` | `chatto.api.v1.ServerPublicProfile` | Updated public server profile and branding. |
-| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Updated runtime-editable server profile settings. |
+| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Updated runtime-editable server settings. |
 
 
 <a id="chatto-admin-v1-AdminServerService-UploadServerLogo"></a>
@@ -2484,6 +2486,7 @@ the code can use it; it is not bound to an email address or recipient.
 | `expires_at` | `google.protobuf.Timestamp` | Absent means no expiry. Revocation and successful account creation still invalidate the code. |
 | `status` | [`InvitationCodeStatus`](#chatto-admin-v1-InvitationCodeStatus) | No field description provided. |
 | `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `note` | `string` | Optional creation-time note for invitation managers. Empty means no note. This does not restrict who can redeem the code. |
 
 
 
@@ -2780,11 +2783,35 @@ One server advertised in the public Neighbor directory.
 
 
 
+<a id="chatto-admin-v1-RegistrationSettings"></a>
+
+### RegistrationSettings
+
+Account creation settings. Admission applies to direct signup and new SSO accounts.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `admission` | `chatto.api.v1.AccountCreationPolicy` | Effective policy. OPEN permits signup without an invitation. |
+
+
+
+<a id="chatto-admin-v1-RegistrationSettingsUpdate"></a>
+
+### RegistrationSettingsUpdate
+
+Partial registration update. Unselected fields stay unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `admission` | `optional chatto.api.v1.AccountCreationPolicy` | Unspecified or a selected absent value resets admission to OPEN. |
+
+
+
 <a id="chatto-admin-v1-ServerConfig"></a>
 
 ### ServerConfig
 
-Runtime-editable server profile settings.
+Runtime-editable server settings.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2792,6 +2819,7 @@ Runtime-editable server profile settings.
 | `description` | `string` | Short server description for OG link-preview metadata. |
 | `motd` | `string` | Message of the day for the authenticated header. |
 | `welcome_message` | `string` | Welcome message shown on the login page. |
+| `registration` | [`RegistrationSettings`](#chatto-admin-v1-RegistrationSettings) | Settings for new self-service accounts. |
 
 
 

@@ -277,6 +277,7 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 		verifiedEmail: flow.VerifiedEmail,
 		external:      flow,
 		invitationID:  flow.InvitationID,
+		selfService:   true,
 	})
 	if err != nil {
 		return nil, err

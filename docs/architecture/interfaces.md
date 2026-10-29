@@ -212,8 +212,13 @@ POST endpoint `/auth/browser/registration-invitation` validates a code and
 stores an expiring admission binding in the signed HttpOnly session.
 Its GET endpoint rechecks that admission. Email and provider flows snapshot
 the selected invitation ID. `ExternalIdentityAuthService` reports whether a
-pending new identity still needs admission. Legacy `/invite/{token}` requests
-only redirect to a retirement message.
+pending new identity still needs admission.
+
+`AdminServerService.GetServerConfig` returns typed registration settings.
+`UpdateServerConfig` accepts the `registration.admission` leaf mask and requires
+`server.manage`. The mutation emits a config fact and waits for its projection.
+`ServerDiscoveryService.GetServer` returns the effective admission policy from
+this projection. Account creation enforces it independently of discovery hints.
 
 `AdminServerService` provides CRUD operations for Neighbor resources. These
 methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors`

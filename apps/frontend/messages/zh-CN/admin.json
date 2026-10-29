@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "创建账户",
+      "open": "开放注册",
+      "invite_only": "需要邀请码",
+      "open_description": "任何人都可以通过已配置的注册方式创建账户。",
+      "invite_only_description": "新账户需要一次性邀请码。现有用户仍可登录。",
+      "methods": "已配置的注册方式",
+      "email_password": "电子邮件和密码",
+      "no_methods": "未启用任何注册方式。用户在两种模式下都无法创建账户。"
+    },
     "neighbors": {
       "title": "邻居",
       "subtitle": "在你的公开目录中推广友好的 Chatto 服务器",
@@ -538,6 +548,11 @@
       "total": "共 {count} 名用户"
     },
     "invitations": {
+      "note_label": "备注（可选）",
+      "note_placeholder": "给设计团队的 Alex",
+      "note_description": "只有邀请管理员可以查看此备注。",
+      "note_too_long": "请使用不超过 250 个字符。",
+      "usage": "新邀请码有效期为 7 天，每个邀请码只能创建一个账号。复制邀请码并发送给接收者。只有注册成功后，邀请码才会被使用。",
       "title": "邀请码",
       "subtitle": "创建和管理邀请码。每个邀请码可创建一个新账号。",
       "create_title": "创建邀请码",

@@ -272,7 +272,7 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 		invitationID, _ := s.registrationInvitation(c, c.Query("admission"))
-		if s.config.Auth.InvitationRequired() && invitationID != "" {
+		if invitationID != "" {
 			session.Set(providerSessionKey(providerRuntime.config.ID, "invitation_id"), invitationID)
 		} else {
 			session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
@@ -934,16 +934,14 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
 		return
 	}
-	if s.config.Auth.InvitationRequired() {
-		flow.InvitationID = invitationID
-	}
+	flow.InvitationID = invitationID
 	token, err := s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	if err != nil {
 		log.Error("Failed to create pending external identity flow", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return
 	}
-	if s.config.Auth.InvitationRequired() && invitationID == "" {
+	if s.core.InvitationRequired() && invitationID == "" {
 		c.Redirect(http.StatusTemporaryRedirect, "/register?external_identity="+url.QueryEscape(token))
 		return
 	}

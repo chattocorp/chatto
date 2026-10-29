@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"connectrpc.com/connect"
@@ -136,7 +139,9 @@ func TestExternalIdentityAccountCreationRechecksCurrentInvitationPolicy(t *testi
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
 	}
-	env.api.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+	if err := env.core.ConfigModel().SetServerConfig(env.ctx, "test", &configv1.ServerConfig{RegistrationAdmission: evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY}); err != nil {
+		t.Fatal(err)
+	}
 	_, err = env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
 		Token: createToken,
 		Login: "policy-change",
@@ -147,11 +152,13 @@ func TestExternalIdentityAccountCreationRechecksCurrentInvitationPolicy(t *testi
 func TestExternalIdentityAccountCreationAcceptsCodeAndReportsGate(t *testing.T) {
 	t.Parallel()
 	env := newConnectAPITestEnv(t)
-	env.api.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+	if err := env.core.ConfigModel().SetServerConfig(env.ctx, "test", &configv1.ServerConfig{RegistrationAdmission: evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY}); err != nil {
+		t.Fatal(err)
+	}
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatal(err)
 	}
-	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil)
+	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +180,7 @@ func TestExternalIdentityAccountCreationAcceptsCodeAndReportsGate(t *testing.T) 
 		t.Fatal(err)
 	}
 	state, err := env.core.GetInvitation(env.ctx, env.viewer.Id, invitation.ID)
-	if err != nil || state.UseCount != 1 {
+	if err != nil || !state.Used {
 		t.Fatalf("SSO did not consume code: %v", err)
 	}
 }
@@ -185,7 +192,7 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil)
+	invitation, err := env.core.CreateInvitationCode(env.ctx, env.viewer.Id, nil, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -199,7 +206,9 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
 	}
-	env.api.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyOpen
+	if err := env.core.ConfigModel().SetServerConfig(env.ctx, "test", &configv1.ServerConfig{}); err != nil {
+		t.Fatal(err)
+	}
 	_, err = env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
 		Token: createToken,
 		Login: "now-open",
@@ -211,8 +220,8 @@ func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *t
 	if err != nil {
 		t.Fatalf("GetInvitation: %v", err)
 	}
-	if state.UseCount != 0 {
-		t.Fatalf("invitation use count = %d, want 0", state.UseCount)
+	if state.Used {
+		t.Fatalf("invitation used = %t, want false", state.Used)
 	}
 }
 

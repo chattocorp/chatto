@@ -16,7 +16,7 @@ export const AdminServerService = {
   typeName: "chatto.admin.v1.AdminServerService",
   methods: {
     /**
-     * Gets runtime-editable server profile settings. This RPC requires
+     * Gets runtime-editable server settings. This RPC requires
      * server.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminServerService.GetServerConfig
@@ -28,7 +28,7 @@ export const AdminServerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates runtime-editable server profile settings. This RPC requires
+     * Updates runtime-editable server settings. This RPC requires
      * server.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminServerService.UpdateServerConfig

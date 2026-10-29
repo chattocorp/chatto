@@ -274,9 +274,6 @@
       ? m('auth.register.complete_title')
       : m('auth.register.title')}
 >
-  {#if data.retiredInvitation}
-    <Hint>{m('auth.register.invitation.retired')}</Hint>
-  {/if}
   {#if !selfServiceAvailable}
     <Hint>{m('auth.register.unavailable')}</Hint>
   {:else if invitationRequired && !admissionId}

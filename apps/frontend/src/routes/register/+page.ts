@@ -19,7 +19,6 @@ export const load: PageLoad = async ({ parent, url, fetch }) => {
       serverInfo?.accountCreationPolicy === 'invite_only' && !externalIdentityToken
         ? await getRegistrationAdmission(fetch)
         : '',
-    externalIdentityToken,
-    retiredInvitation: url.searchParams.get('error') === 'retired_invitation'
+    externalIdentityToken
   };
 };

@@ -3,7 +3,11 @@
  */
 
 import { batch, signal } from '../reactivity/index.js';
-import { getPublicServerInfo, type PublicServerInfo } from '../api/server.js';
+import {
+  getPublicServerInfo,
+  type PublicServerInfo,
+  type PublicAuthProvider
+} from '../api/server.js';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ProjectedServerState } from './projection.js';
 import {
@@ -93,6 +97,11 @@ export class ServerInfoState {
   }
   set directRegistrationEnabled(value) {
     this.#directRegistrationEnabledSignal.set(value);
+  }
+  readonly #authProvidersSignal = signal<readonly PublicAuthProvider[]>([]);
+  /** Public sign-in providers from the latest successful discovery response. */
+  get authProviders(): readonly PublicAuthProvider[] {
+    return this.#authProvidersSignal.get();
   }
   readonly #directLoginEnabledSignal = signal(true);
   get directLoginEnabled() {
@@ -298,6 +307,7 @@ export class ServerInfoState {
         this.iconUrl = info.iconUrl;
         this.bannerUrl = info.bannerUrl;
         this.directRegistrationEnabled = info.directRegistrationEnabled;
+        this.#authProvidersSignal.set(info.authProviders);
         this.directLoginEnabled = info.directLoginEnabled;
       });
     } catch (err) {

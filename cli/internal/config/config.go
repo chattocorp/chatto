@@ -293,11 +293,6 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// External auth providers
-	switch c.Auth.AccountCreationPolicyOrDefault() {
-	case AccountCreationPolicyOpen, AccountCreationPolicyInviteOnly:
-	default:
-		errs = append(errs, "auth.account_creation_policy must be one of: open, invite_only")
-	}
 	if c.Auth.TokenTTL.Duration() < 0 {
 		errs = append(errs, "auth.token_ttl must not be negative")
 	}

@@ -55,6 +55,28 @@ describe('ServerInfoState.init()', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
+  it('refreshes the configured providers with discovery', async () => {
+    const info = publicServerInfo({
+      authProviders: [
+        {
+          id: 'company',
+          type: 'oidc',
+          label: 'Company SSO',
+          loginUrl: '/auth/company',
+          issuerUrl: null,
+          autoProvision: true
+        }
+      ]
+    });
+    const state = new ServerInfoState('https://acme.test', async () => info);
+    await state.init();
+    expect(state.authProviders).toEqual(info.authProviders);
+
+    info.authProviders = [];
+    await state.refreshProfile();
+    expect(state.authProviders).toEqual([]);
+  });
+
   it('coalesces concurrent discovery requests', async () => {
     let resolve!: (info: PublicServerInfo) => void;
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockImplementation(

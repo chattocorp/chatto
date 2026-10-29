@@ -15,6 +15,8 @@ export type InvitationCode = {
   expiresAt: string | null;
   status: 'active' | 'expired' | 'used' | 'revoked';
   revokedAt: string | null;
+  /** Plain-text creation note for invitation managers; empty when omitted. */
+  note: string;
 };
 
 export function createInvitationCodeAPI(config: ConnectAPIConfig) {
@@ -31,9 +33,10 @@ export function createInvitationCodeAPI(config: ConnectAPIConfig) {
         hasMore: response.page?.hasMore ?? false
       };
     },
-    async create(input: { expiresAt: string | null }) {
+    async create(input: { expiresAt: string | null; note?: string }) {
       const response = await client.createInvitationCode({
-        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined,
+        note: input.note ?? ''
       });
       if (!response.invitationCode) throw new Error('Invitation-code response was incomplete.');
       return mapInvitationCode(response.invitationCode);
@@ -54,7 +57,8 @@ function mapInvitationCode(invitation: APIInvitationCode): InvitationCode {
     createdAt: invitation.createdAt?.toDate().toISOString() ?? '',
     expiresAt: invitation.expiresAt?.toDate().toISOString() ?? null,
     status: mapInvitationCodeStatus(invitation.status),
-    revokedAt: invitation.revokedAt?.toDate().toISOString() ?? null
+    revokedAt: invitation.revokedAt?.toDate().toISOString() ?? null,
+    note: invitation.note
   };
 }
 

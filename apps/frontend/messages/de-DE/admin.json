@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Kontoerstellung",
+      "open": "Offene Registrierung",
+      "invite_only": "Einladungscode erforderlich",
+      "open_description": "Jeder kann über die konfigurierten Registrierungsmethoden ein Konto erstellen.",
+      "invite_only_description": "Neue Konten benötigen einen einmalig nutzbaren Einladungscode. Bestehende Nutzer können sich weiterhin anmelden.",
+      "methods": "Konfigurierte Registrierungsmethoden",
+      "email_password": "E-Mail und Passwort",
+      "no_methods": "Keine Registrierungsmethoden sind aktiviert. In keinem der beiden Modi können Nutzer Konten erstellen."
+    },
     "neighbors": {
       "title": "Nachbarn",
       "subtitle": "Bewirb befreundete Chatto-Server in deinem öffentlichen Verzeichnis",
@@ -549,6 +559,11 @@
       "total": "{count} Benutzer insgesamt"
     },
     "invitations": {
+      "note_label": "Notiz (optional)",
+      "note_placeholder": "Für Alex aus dem Designteam",
+      "note_description": "Nur Einladungsverwalter können diese Notiz sehen.",
+      "note_too_long": "Verwende höchstens 250 Zeichen.",
+      "usage": "Neue Codes gelten 7 Tage und erlauben jeweils ein Konto. Kopiere einen Code und schicke ihn an den Empfänger. Er wird erst bei erfolgreicher Registrierung verbraucht.",
       "title": "Einladungscodes",
       "subtitle": "Codes erstellen und verwalten. Jeder Code erlaubt ein neues Konto.",
       "create_title": "Code erstellen",

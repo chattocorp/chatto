@@ -13,8 +13,8 @@ import (
 )
 
 // updateMaskSpec limits masks to editable resource fields. Request identifiers
-// and concurrency tokens are deliberately not maskable. These resources have
-// no editable nested messages; notification overrides use their own container.
+// and concurrency tokens are deliberately not maskable. Nested leaf paths select
+// individual settings; notification overrides use their own container.
 type updateMaskSpec struct {
 	fields          string
 	container       protoreflect.Name
@@ -27,7 +27,7 @@ var updateMaskSpecs = map[protoreflect.FullName]updateMaskSpec{
 	"chatto.api.v1.UpdateRoomRequest":                                        {fields: "name description universal slow_mode_seconds threading_mode thread_slow_mode_seconds"},
 	"chatto.api.v1.UpdateMessageRequest":                                     {fields: "body also_send_to_channel"},
 	"chatto.api.v1.UpdateBotOutboundWebhookRequest":                          {fields: "enabled url authorization"},
-	"chatto.admin.v1.UpdateServerConfigRequest":                              {fields: "server_name description motd welcome_message"},
+	"chatto.admin.v1.UpdateServerConfigRequest":                              {fields: "server_name description motd welcome_message registration.admission"},
 	"chatto.admin.v1.UpdateBlockedUsernamesRequest":                          {fields: "blocked_usernames"},
 	"chatto.admin.v1.UpdateNeighborRequest":                                  {fields: "origin"},
 	"chatto.admin.v1.UpdateRoleRequest":                                      {fields: "display_name description pingable"},
@@ -72,7 +72,7 @@ func applyUpdateMask(request proto.Message) error {
 	selected := map[string]bool{}
 	if mask == nil {
 		for _, name := range allowed {
-			if values.Has(values.Descriptor().Fields().ByName(protoreflect.Name(name))) {
+			if message, field := updateMaskLeaf(values, name, false); field != nil && message.Has(field) {
 				selected[name] = true
 			}
 		}
@@ -94,18 +94,38 @@ func applyUpdateMask(request proto.Message) error {
 	}
 	canonical := &fieldmaskpb.FieldMask{}
 	for _, name := range allowed {
-		field := values.Descriptor().Fields().ByName(protoreflect.Name(name))
+		message, field := updateMaskLeaf(values, name, selected[name])
 		if !selected[name] {
-			values.Clear(field)
+			if field != nil {
+				message.Clear(field)
+			}
 			continue
 		}
 		canonical.Paths = append(canonical.Paths, name)
-		if !spec.preserveAbsence && !values.Has(field) && !field.IsList() && !field.IsMap() {
-			values.Set(field, field.Default())
+		if !spec.preserveAbsence && !message.Has(field) && !field.IsList() && !field.IsMap() {
+			message.Set(field, field.Default())
 		}
 	}
 	root.Set(maskField, protoreflect.ValueOfMessage(canonical.ProtoReflect()))
 	return nil
+}
+
+// updateMaskLeaf resolves an allow-listed leaf path. Only selected paths create
+// missing parent messages; clearing an absent parent has no effect.
+func updateMaskLeaf(message protoreflect.Message, path string, create bool) (protoreflect.Message, protoreflect.FieldDescriptor) {
+	parts := strings.Split(path, ".")
+	for _, part := range parts[:len(parts)-1] {
+		field := message.Descriptor().Fields().ByName(protoreflect.Name(part))
+		if create {
+			message = message.Mutable(field).Message()
+		} else {
+			if !message.Has(field) {
+				return message, nil
+			}
+			message = message.Get(field).Message()
+		}
+	}
+	return message, message.Descriptor().Fields().ByName(protoreflect.Name(parts[len(parts)-1]))
 }
 
 // updateMaskInterceptor removes unselected values before protobuf validation.

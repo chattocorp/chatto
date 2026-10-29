@@ -56,8 +56,7 @@ describe('invite-only registration', () => {
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
           admissionId: '',
-          externalIdentityToken: '',
-          retiredInvitation: false
+          externalIdentityToken: ''
         }
       }
     });
@@ -82,8 +81,7 @@ describe('invite-only registration', () => {
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
           admissionId: '',
-          externalIdentityToken: '',
-          retiredInvitation: false
+          externalIdentityToken: ''
         }
       }
     });
@@ -106,8 +104,7 @@ describe('invite-only registration', () => {
           serverInfo: serverInfo(),
           serverInfoLoaded: true,
           admissionId: '',
-          externalIdentityToken: 'verified-flow',
-          retiredInvitation: false
+          externalIdentityToken: 'verified-flow'
         }
       }
     });
@@ -130,7 +127,6 @@ describe('invite-only registration', () => {
           serverInfoLoaded: true,
           admissionId: 'admission-1',
           externalIdentityToken: '',
-          retiredInvitation: false,
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
             authProviders: [
@@ -152,29 +148,6 @@ describe('invite-only registration', () => {
     await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
   });
 
-  it('explains the retirement of beta links', async () => {
-    const { getByText } = render(RegisterPage, {
-      props: {
-        data: {
-          user: null,
-          serverInfoLoaded: true,
-          admissionId: '',
-          externalIdentityToken: '',
-          retiredInvitation: true,
-          serverInfo: serverInfo()
-        }
-      }
-    });
-
-    await expect
-      .element(
-        getByText(
-          'This invite link has been retired. Ask an administrator for a new invitation code.'
-        )
-      )
-      .toBeVisible();
-  });
-
   it('does not offer sign-in-only providers as registration options', async () => {
     const { getByText } = render(RegisterPage, {
       props: {
@@ -183,7 +156,6 @@ describe('invite-only registration', () => {
           serverInfoLoaded: true,
           admissionId: '',
           externalIdentityToken: '',
-          retiredInvitation: false,
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
             authProviders: [

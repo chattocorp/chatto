@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -44,6 +45,7 @@ type userCreationOptions struct {
 	verifiedEmail string
 	external      *PendingExternalIdentityFlow
 	invitationID  string
+	selfService   bool // Admission is checked under account creation's EVT OCC.
 	isBot         bool
 	botOwnerID    string
 	botAPIKeyOut  *string
@@ -245,15 +247,16 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		})
 	}
 
+	var invitationEntry *evtstream.BatchEntry
 	if options.invitationID != "" {
 		invitationEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_InvitationRedeemed{
 			InvitationRedeemed: &evtv1.InvitationRedeemedEvent{InvitationId: options.invitationID, UserId: userID},
 		}})
 		invitationEvent.CreatedAt = now
-		entries = append(entries, evtstream.BatchEntry{
+		invitationEntry = &evtstream.BatchEntry{
 			Subject: evtstream.InvitationAggregate(options.invitationID).SubjectFor(invitationEvent),
 			Event:   invitationEvent,
-		})
+		}
 	}
 
 	creationEmails := options.importEmails
@@ -310,7 +313,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		entries = append(entries, options.importReceipt(userID))
 		cleanupEncryptionKey = false
 	}
-	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+	check := func() error {
 		if options.setup != nil {
 			if err := c.requireSetupAvailable(ctx); err != nil {
 				return err
@@ -356,12 +359,34 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 				return err
 			}
 		}
-		if options.invitationID != "" {
-			if _, err := c.invitationModel.validateIDAt(options.invitationID, time.Now()); err != nil {
-				return err
+		return nil
+	}
+	_, err = c.appendUserBatchWithMentionableCompose(ctx, userID, maxUserMutationRetries, func() ([]evtstream.BatchEntry, error) {
+		if err := check(); err != nil {
+			return nil, err
+		}
+		if options.selfService {
+			if err := c.WaitForRegistrationPolicy(ctx); err != nil {
+				return nil, err
+			}
+			switch c.ConfigModel().RegistrationAdmission() {
+			case evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_OPEN:
+				return entries, nil
+			case evtv1.RegistrationAdmission_REGISTRATION_ADMISSION_INVITE_ONLY:
+				if invitationEntry == nil {
+					return nil, ErrInvitationInvalid
+				}
+			default:
+				return nil, ErrInvitationInvalid
 			}
 		}
-		return nil
+		if invitationEntry != nil {
+			if _, err := c.invitationModel.validateIDAt(options.invitationID, time.Now()); err != nil {
+				return nil, err
+			}
+			return append(slices.Clone(entries), *invitationEntry), nil
+		}
+		return entries, nil
 	})
 	if err != nil {
 		if options.setup != nil && errors.Is(err, ErrSetupUnavailable) {
@@ -413,20 +438,19 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{verifiedEmail: email})
 }
 
-// CreateVerifiedUserWithInvitation atomically creates a verified account and
-// records its invitation redemption.
+// CreateVerifiedUserWithInvitation completes self-service registration under the
+// current admission policy. An empty invitation is allowed only when open.
+// Invitation redemption and account creation commit atomically when required.
 func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*readmodel.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return nil, ErrInvalidArgument
 	}
 	invitationID = strings.TrimSpace(invitationID)
-	if invitationID == "" {
-		return nil, ErrInvitationInvalid
-	}
 	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{
 		verifiedEmail: email,
 		invitationID:  invitationID,
+		selfService:   true,
 	})
 }
 

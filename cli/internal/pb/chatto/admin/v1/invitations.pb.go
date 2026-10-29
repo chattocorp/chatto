@@ -90,9 +90,12 @@ type InvitationCode struct {
 	CreatedBy string                 `protobuf:"bytes,3,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Absent means no expiry. Revocation and successful account creation still invalidate the code.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	Status        InvitationCodeStatus   `protobuf:"varint,6,opt,name=status,proto3,enum=chatto.admin.v1.InvitationCodeStatus" json:"status,omitempty"`
-	RevokedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Status    InvitationCodeStatus   `protobuf:"varint,6,opt,name=status,proto3,enum=chatto.admin.v1.InvitationCodeStatus" json:"status,omitempty"`
+	RevokedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	// Optional creation-time note for invitation managers. Empty means no note.
+	// This does not restrict who can redeem the code.
+	Note          string `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -174,6 +177,13 @@ func (x *InvitationCode) GetRevokedAt() *timestamppb.Timestamp {
 		return x.RevokedAt
 	}
 	return nil
+}
+
+func (x *InvitationCode) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
 }
 
 // Lists codes newest first, with ID as the tie-breaker.
@@ -364,8 +374,11 @@ func (x *GetInvitationCodeResponse) GetInvitationCode() *InvitationCode {
 
 // Creates one code. Every code is single-use, including when expiry is omitted.
 type CreateInvitationCodeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
+	// Visible only to invitation managers; it does not bind the code to a recipient.
+	Note          string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -405,6 +418,13 @@ func (x *CreateInvitationCodeRequest) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
+}
+
+func (x *CreateInvitationCodeRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
 }
 
 type CreateInvitationCodeResponse struct {
@@ -543,7 +563,7 @@ var File_chatto_admin_v1_invitations_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/admin/v1/invitations.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc3\x02\n" +
+	"!chatto/admin/v1/invitations.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd7\x02\n" +
 	"\x0eInvitationCode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1d\n" +
@@ -555,7 +575,8 @@ const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
 	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12=\n" +
 	"\x06status\x18\x06 \x01(\x0e2%.chatto.admin.v1.InvitationCodeStatusR\x06status\x129\n" +
 	"\n" +
-	"revoked_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\"L\n" +
+	"revoked_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\x12\x12\n" +
+	"\x04note\x18\b \x01(\tR\x04note\"L\n" +
 	"\x1aListInvitationCodesRequest\x12.\n" +
 	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x96\x01\n" +
 	"\x1bListInvitationCodesResponse\x12J\n" +
@@ -564,10 +585,11 @@ const file_chatto_admin_v1_invitations_proto_rawDesc = "" +
 	"\x18GetInvitationCodeRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"e\n" +
 	"\x19GetInvitationCodeResponse\x12H\n" +
-	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"X\n" +
+	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"v\n" +
 	"\x1bCreateInvitationCodeRequest\x129\n" +
 	"\n" +
-	"expires_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"h\n" +
+	"expires_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1c\n" +
+	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xfa\x01R\x04note\"h\n" +
 	"\x1cCreateInvitationCodeResponse\x12H\n" +
 	"\x0finvitation_code\x18\x01 \x01(\v2\x1f.chatto.admin.v1.InvitationCodeR\x0einvitationCode\"6\n" +
 	"\x1bRevokeInvitationCodeRequest\x12\x17\n" +

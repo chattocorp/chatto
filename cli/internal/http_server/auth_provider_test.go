@@ -432,7 +432,7 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.config.Webserver.URL = "http://chat.example"
-		s.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+		setTestRegistrationAdmission(t, s.core, true)
 		s.config.Auth.Providers = []config.AuthProviderConfig{{
 			ID:            "oidc-invited",
 			Type:          config.AuthProviderTypeOpenIDConnect,
@@ -453,7 +453,7 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 	if err := chattoCore.AssignAdminRole(t.Context(), admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	invitation, err := chattoCore.CreateInvitationCode(t.Context(), admin.Id, nil)
+	invitation, err := chattoCore.CreateInvitationCode(t.Context(), admin.Id, nil, "")
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
@@ -478,7 +478,7 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 		t.Fatalf("CreateUserForExternalIdentity: %v", err)
 	}
 	state, err := chattoCore.GetInvitation(t.Context(), admin.Id, invitation.ID)
-	if err != nil || state.UseCount != 1 {
+	if err != nil || !state.Used {
 		t.Fatalf("invitation after SSO signup = %+v, %v; want one use", state, err)
 	}
 

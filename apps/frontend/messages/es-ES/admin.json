@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Creación de cuentas",
+      "open": "Registro abierto",
+      "invite_only": "Código de invitación obligatorio",
+      "open_description": "Cualquiera puede crear una cuenta con los métodos de registro configurados.",
+      "invite_only_description": "Las cuentas nuevas necesitan un código de invitación de un solo uso. Los usuarios existentes pueden seguir iniciando sesión.",
+      "methods": "Métodos de registro configurados",
+      "email_password": "Correo electrónico y contraseña",
+      "no_methods": "No hay métodos de registro habilitados. Los usuarios no pueden crear cuentas en ninguno de los modos."
+    },
     "neighbors": {
       "title": "Vecinos",
       "subtitle": "Publica servidores de Chatto amigos en tu directorio público",
@@ -549,6 +559,11 @@
       "total": "Total de usuarios de {count}"
     },
     "invitations": {
+      "note_label": "Nota (opcional)",
+      "note_placeholder": "Para Alex del equipo de diseño",
+      "note_description": "Solo los administradores de invitaciones pueden ver esta nota.",
+      "note_too_long": "Usa 250 caracteres o menos.",
+      "usage": "Los códigos nuevos caducan a los 7 días y permiten crear una cuenta cada uno. Copia un código y envíalo a su destinatario. Solo se consume cuando el registro se completa.",
       "title": "Códigos de invitación",
       "subtitle": "Crea y gestiona códigos. Cada código permite crear una cuenta.",
       "create_title": "Crear código",

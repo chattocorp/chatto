@@ -1,7 +1,7 @@
 # FDR-036: Invitation Codes
 
 **Status:** Active
-**Last reviewed:** 2026-10-19
+**Last reviewed:** 2026-10-29
 
 ## Overview
 
@@ -26,15 +26,25 @@ the API to integrate code issuance with an external system.
 - Each code permits exactly one account. The account and code use succeed
   together. Failed signup does not consume the code. Concurrent signups with
   one code can create at most one account.
-- Codes can expire. The admin screen defaults to seven days and also offers
-  one day, 30 days, or no expiry. Codes can be revoked before use.
+- **Create code** in the table header opens a confirmation dialog. It explains
+  that a code expires after seven days, admits one account, and is used only
+  after successful signup. Confirmation creates one code and closes the dialog.
+  The API can set a different expiry or no expiry. Active codes can be
+  copied and revoked; inactive rows show their status without these actions.
+- A creation-time note can identify the intended recipient or purpose. It is
+  optional plain text, limited to 250 Unicode characters, and shown beneath the
+  code. Surrounding whitespace is removed. Only invitation managers can read
+  notes through the app or API; the event log omits them. A note does not restrict
+  who can redeem the code. Existing codes have no note.
+- **Server Admin → Registration**, directly below General, contains the admission
+  setting and code management. Radio options select **Open Registration** or
+  **Invite Code Required** and save immediately. The page lists enabled signup
+  methods: email/password registration and providers that can create accounts.
+  Each section requires its own permission.
 - Administrators can list, read, create, copy, and revoke codes. The API
   offers the same operations. Chatto does not send codes to recipients.
 - Expired, used, revoked, malformed, and unknown codes show the same public
   error. A code is checked again when the account is created.
-- Beta invite links are retired, including pending registrations that carry
-  them. Administrators must issue new codes. Existing accounts and historical
-  invitation records remain intact.
 - Changing the server secret invalidates distributed codes. Administrators
   can copy newly derived codes for records that remain active.
 
@@ -43,6 +53,8 @@ the API to integrate code issuance with an external system.
 ### 1. Each code admits one account
 
 **Decision:** Remove reusable links and use limits. Every code is single-use.
+The unused beta link system has no compatibility or migration support. Its
+removed `max_uses` protobuf field number and name stay reserved.
 **Why:** Chatto supports open registration. Invitations serve controlled
 account creation rather than general community discovery.
 **Tradeoff:** Administrators must issue one code per intended new account.
@@ -70,17 +82,16 @@ the same code first.
 send a code again. ADR-070 avoids storing raw codes in durable history.
 **Tradeoff:** This permission grants access to all active codes.
 
-### 5. Retire beta links without conversion
-
-**Decision:** Reject old links instead of converting their remaining uses.
-**Why:** Reusable links have no single intended recipient. Conversion would
-give the first visitor an arbitrary claim on a shared invitation.
-**Tradeoff:** Administrators must replace invitations they already shared.
-
 ## Gates
 
-- `auth.account_creation_policy = "invite_only"` requires a code for new
-  self-service accounts. Enabled signup methods remain separate settings.
+- `registration.admission = invite_only` in the admin server resource requires
+  a code for new self-service accounts. A server manager changes this under
+  **Server Admin → Registration → Account creation**. The default is open.
+  `ServerRegistrationAdmissionChangedEvent` stores the change in EVT.
+  Enabled signup methods remain separate settings.
+- `server.manage` permits admission changes. Account creation checks the current
+  policy under stream-wide EVT OCC, including after a retry. A pending signup
+  has no exemption. When the policy is open, a supplied code is not consumed.
 - `user.invite` permits code management. Existing RBAC grants remain in use.
 
 ## Related

@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Tworzenie kont",
+      "open": "Otwarta rejestracja",
+      "invite_only": "Wymagany kod zaproszenia",
+      "open_description": "Każdy może utworzyć konto przy użyciu skonfigurowanych metod rejestracji.",
+      "invite_only_description": "Nowe konta wymagają jednorazowego kodu zaproszenia. Dotychczasowi użytkownicy nadal mogą się logować.",
+      "methods": "Skonfigurowane metody rejestracji",
+      "email_password": "E-mail i hasło",
+      "no_methods": "Nie włączono żadnej metody rejestracji. Użytkownicy nie mogą tworzyć kont w żadnym trybie."
+    },
     "neighbors": {
       "title": "Sąsiedzi",
       "subtitle": "Promuj zaprzyjaźnione serwery Chatto w swoim publicznym katalogu",
@@ -571,6 +581,11 @@
       "total": "Łączna liczba użytkowników {count}"
     },
     "invitations": {
+      "note_label": "Notatka (opcjonalna)",
+      "note_placeholder": "Dla Aleksa z zespołu projektowego",
+      "note_description": "Tylko osoby zarządzające zaproszeniami mogą zobaczyć tę notatkę.",
+      "note_too_long": "Użyj najwyżej 250 znaków.",
+      "usage": "Nowe kody wygasają po 7 dniach i każdy pozwala utworzyć jedno konto. Skopiuj kod i wyślij go odbiorcy. Kod zostaje wykorzystany dopiero po udanej rejestracji.",
       "title": "Kody zaproszeń",
       "subtitle": "Twórz kody i zarządzaj nimi. Każdy kod pozwala utworzyć jedno konto.",
       "create_title": "Utwórz kod",

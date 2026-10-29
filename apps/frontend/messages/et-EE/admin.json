@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Kontode loomine",
+      "open": "Avatud registreerimine",
+      "invite_only": "Kutsekood on nõutav",
+      "open_description": "Igaüks saab luua konto seadistatud registreerimisviisidega.",
+      "invite_only_description": "Uued kontod vajavad ühekordset kutsekoodi. Olemasolevad kasutajad saavad endiselt sisse logida.",
+      "methods": "Seadistatud registreerimisviisid",
+      "email_password": "E-post ja parool",
+      "no_methods": "Ükski registreerimisviis pole lubatud. Kasutajad ei saa kummaski režiimis kontosid luua."
+    },
     "neighbors": {
       "title": "Naabrid",
       "subtitle": "Tutvustage sõbralikke Chatto servereid oma avalikus kataloogis",
@@ -549,6 +559,11 @@
       "total": "{count} kasutaja(t) kokku"
     },
     "invitations": {
+      "note_label": "Märkus (valikuline)",
+      "note_placeholder": "Alexile disainimeeskonnast",
+      "note_description": "Seda märkust näevad ainult kutsete haldajad.",
+      "note_too_long": "Kasuta kuni 250 märki.",
+      "usage": "Uued koodid kehtivad 7 päeva ja iga kood lubab luua ühe konto. Kopeerige kood ja saatke see saajale. Kood kasutatakse ära ainult eduka registreerimise korral.",
       "title": "Kutsekoodid",
       "subtitle": "Loo ja halda koode. Iga kood lubab ühe uue konto.",
       "create_title": "Loo kood",

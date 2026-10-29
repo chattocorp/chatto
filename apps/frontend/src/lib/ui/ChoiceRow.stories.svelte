@@ -50,3 +50,17 @@
     <ChoiceRow label="Custom" disabled />
   </div>
 </Story>
+
+<Story name="Wrapped help text" asChild>
+  <div class="flex max-w-xs flex-col gap-2" role="radiogroup" aria-label="Registration mode">
+    <ChoiceRow
+      label="Open Registration"
+      description="Anyone can create an account using the signup methods configured on this server."
+      selected
+    />
+    <ChoiceRow
+      label="Invite Code Required"
+      description="New accounts need a single-use invitation code. Existing users can still sign in."
+    />
+  </div>
+</Story>

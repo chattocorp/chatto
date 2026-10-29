@@ -213,23 +213,11 @@ verified addresses.
 
 ## Invite-Only Account Creation
 
-<Tabs>
-<TabItem label="TOML">
+Open **Server Admin → Registration → Account creation**. Select **Invite Code
+Required**. The selection saves immediately. This requires the `server.manage` permission. Registration is open
+by default. Changes apply to all replicas without a restart.
 
-```toml
-[auth]
-account_creation_policy = "invite_only"
-```
-
-</TabItem>
-<TabItem label="Environment">
-
-```bash
-CHATTO_AUTH_ACCOUNT_CREATION_POLICY=invite_only
-```
-
-</TabItem>
-</Tabs>
+The policy at account creation also applies to signups already in progress.
 
 Each new self-service account then needs an invitation code. This applies to
 email/password registration and to provider auto-provisioning. Existing users
@@ -237,10 +225,15 @@ can still sign in and link providers. Accounts that operators create are not
 affected.
 
 Administrators with `user.invite` create and revoke codes under
-**Server Admin → Invitation codes**. Each code permits one new account.
-The default expiry is seven days. You can select a different expiry or no
-expiry, and copy a code again later. Distribute the code through your chosen
-channel. Chatto does not send it for you.
+**Server Admin → Registration**. Each code permits one new account.
+Use **Create code** in the table header, then confirm in the dialog. Each new code expires after seven
+days. Copy an active code and send it through your chosen channel. Chatto does
+not send it for you. The API supports other expiry times or no expiry.
+
+You can add an optional note when you create a code, for example to record who
+it is for. Notes accept up to 250 characters and appear beneath the code in the
+table. Only invitation managers can read them. A note does not restrict who can
+use the code. API integrations can set the `note` field when creating a code.
 
 People open **Create Account** and enter the code before choosing a signup
 method. Chatto remembers admission during signup and consumes the code only
@@ -266,15 +259,6 @@ successful account creation.
   Keep `core.secret_key` the same on all replicas and after a restore. A new
   key makes all shared codes invalid. Administrators can then copy new
   codes for the same active invitations.
-</Aside>
-
-<Aside type="note" title="Replacing beta invite links">
-  Old beta links no longer grant admission, including pending signups that
-  started with those links. Administrators must issue new codes. Invitation
-  history and existing accounts remain intact. The old administration API is
-  replaced by `AdminInvitationCodeService`; update integrations to use it.
-  Finish the server rollout before issuing replacement codes or relying on
-  retirement of old links.
 </Aside>
 
 ## Owner Recovery

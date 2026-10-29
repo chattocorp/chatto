@@ -93,6 +93,14 @@ export class InvitationCode extends Message<InvitationCode> {
    */
   revokedAt?: Timestamp;
 
+  /**
+   * Optional creation-time note for invitation managers. Empty means no note.
+   * This does not restrict who can redeem the code.
+   *
+   * @generated from field: string note = 8;
+   */
+  note = "";
+
   constructor(data?: PartialMessage<InvitationCode>) {
     super();
     proto3.util.initPartial(data, this);
@@ -108,6 +116,7 @@ export class InvitationCode extends Message<InvitationCode> {
     { no: 5, name: "expires_at", kind: "message", T: Timestamp },
     { no: 6, name: "status", kind: "enum", T: proto3.getEnumType(InvitationCodeStatus) },
     { no: 7, name: "revoked_at", kind: "message", T: Timestamp },
+    { no: 8, name: "note", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InvitationCode {
@@ -296,6 +305,14 @@ export class CreateInvitationCodeRequest extends Message<CreateInvitationCodeReq
    */
   expiresAt?: Timestamp;
 
+  /**
+   * Optional plain-text note, up to 250 Unicode characters. Surrounding whitespace is removed.
+   * Visible only to invitation managers; it does not bind the code to a recipient.
+   *
+   * @generated from field: string note = 2;
+   */
+  note = "";
+
   constructor(data?: PartialMessage<CreateInvitationCodeRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -305,6 +322,7 @@ export class CreateInvitationCodeRequest extends Message<CreateInvitationCodeReq
   static readonly typeName = "chatto.admin.v1.CreateInvitationCodeRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "expires_at", kind: "message", T: Timestamp },
+    { no: 2, name: "note", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateInvitationCodeRequest {

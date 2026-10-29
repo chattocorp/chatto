@@ -1,5 +1,15 @@
 {
   "admin": {
+    "registration": {
+      "title": "Vytváření účtů",
+      "open": "Otevřená registrace",
+      "invite_only": "Vyžadován kód pozvánky",
+      "open_description": "Kdokoli si může vytvořit účet pomocí nakonfigurovaných způsobů registrace.",
+      "invite_only_description": "Nové účty vyžadují jednorázový kód pozvánky. Stávající uživatelé se mohou nadále přihlašovat.",
+      "methods": "Nakonfigurované způsoby registrace",
+      "email_password": "E-mail a heslo",
+      "no_methods": "Nejsou povoleny žádné způsoby registrace. Uživatelé nemohou vytvářet účty v žádném režimu."
+    },
     "neighbors": {
       "title": "Sousedé",
       "subtitle": "Propagujte spřátelené servery Chatto ve svém veřejném adresáři",
@@ -571,6 +581,11 @@
       "total": "Celkem {count} uživatelů"
     },
     "invitations": {
+      "note_label": "Poznámka (volitelná)",
+      "note_placeholder": "Pro Alexe z designového týmu",
+      "note_description": "Tuto poznámku vidí pouze správci pozvánek.",
+      "note_too_long": "Použijte nejvýše 250 znaků.",
+      "usage": "Nové kódy platí 7 dní a každý umožňuje vytvořit jeden účet. Zkopírujte kód a pošlete jej příjemci. Kód se použije až po úspěšné registraci.",
       "title": "Kódy pozvánek",
       "subtitle": "Vytvářejte a spravujte kódy. Každý kód umožňuje vytvořit jeden účet.",
       "create_title": "Vytvořit kód",

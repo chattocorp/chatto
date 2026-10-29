@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -57,7 +58,7 @@ func (c *ChattoCore) ValidateInvitationCode(ctx context.Context, code string) (s
 	return id, nil
 }
 
-// ValidateInvitationAdmission rechecks remembered admission, including retirement,
+// ValidateInvitationAdmission rechecks remembered admission, including
 // expiry, revocation, and consumption. It does not consume the code.
 func (c *ChattoCore) ValidateInvitationAdmission(ctx context.Context, id string) error {
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
@@ -65,13 +66,6 @@ func (c *ChattoCore) ValidateInvitationAdmission(ctx context.Context, id string)
 	}
 	_, err := c.invitationModel.validateIDAt(id, time.Now())
 	return err
-}
-
-// CreateInvitationCode grants admission for exactly one new account. Expiry is
-// optional; all callers must have user.invite permission.
-func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time) (InvitationState, error) {
-	maxUses := uint32(1)
-	return c.createInvitation(ctx, actorID, &maxUses, expiresAt, 1)
 }
 
 var (
@@ -83,10 +77,10 @@ var (
 type InvitationStatus string
 
 const (
-	InvitationStatusActive    InvitationStatus = "active"
-	InvitationStatusExpired   InvitationStatus = "expired"
-	InvitationStatusExhausted InvitationStatus = "exhausted"
-	InvitationStatusRevoked   InvitationStatus = "revoked"
+	InvitationStatusActive  InvitationStatus = "active"
+	InvitationStatusExpired InvitationStatus = "expired"
+	InvitationStatusUsed    InvitationStatus = "used"
+	InvitationStatusRevoked InvitationStatus = "revoked"
 )
 
 type InvitationModel struct {
@@ -138,8 +132,8 @@ func InvitationStatusAt(state InvitationState, now time.Time) InvitationStatus {
 	if state.RevokedAt != nil {
 		return InvitationStatusRevoked
 	}
-	if state.MaxUses != nil && state.UseCount >= *state.MaxUses {
-		return InvitationStatusExhausted
+	if state.Used {
+		return InvitationStatusUsed
 	}
 	if state.ExpiresAt != nil && !now.Before(*state.ExpiresAt) {
 		return InvitationStatusExpired
@@ -149,7 +143,7 @@ func InvitationStatusAt(state InvitationState, now time.Time) InvitationStatus {
 
 func (m *InvitationModel) validateIDAt(id string, now time.Time) (InvitationState, error) {
 	state, ok := m.projection.Projection().get(id)
-	if !ok || state.CodeVersion != 1 || state.MaxUses == nil || *state.MaxUses != 1 || state.UseCount != 0 || InvitationStatusAt(state, now) != InvitationStatusActive {
+	if !ok || InvitationStatusAt(state, now) != InvitationStatusActive {
 		return InvitationState{}, ErrInvitationInvalid
 	}
 	return state, nil
@@ -179,18 +173,23 @@ func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]Inv
 	return c.invitationModel.projection.Projection().all(), nil
 }
 
-func (c *ChattoCore) createInvitation(ctx context.Context, actorID string, maxUses *uint32, expiresAt *time.Time, codeVersion uint32) (InvitationState, error) {
+// InvitationNoteMaxLength is the maximum number of Unicode code points in a creation note.
+const InvitationNoteMaxLength = 250
+
+// CreateInvitationCode grants admission for exactly one new account. Expiry and
+// the manager-only note are optional; all callers must have user.invite permission.
+func (c *ChattoCore) CreateInvitationCode(ctx context.Context, actorID string, expiresAt *time.Time, note string) (InvitationState, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return InvitationState{}, err
-	}
-	if maxUses != nil && *maxUses == 0 {
-		return InvitationState{}, ErrInvalidArgument
 	}
 	if expiresAt != nil && !expiresAt.After(time.Now()) {
 		return InvitationState{}, ErrInvalidArgument
 	}
+	if !utf8.ValidString(note) || utf8.RuneCountInString(note) > InvitationNoteMaxLength {
+		return InvitationState{}, ErrInvalidArgument
+	}
 	id := NewInvitationID()
-	payload := &evtv1.InvitationCreatedEvent{InvitationId: id, MaxUses: maxUses, CodeVersion: codeVersion}
+	payload := &evtv1.InvitationCreatedEvent{InvitationId: id, Note: strings.TrimSpace(note)}
 	if expiresAt != nil {
 		payload.ExpiresAt = timestamppb.New(*expiresAt)
 	}

@@ -1,16 +1,14 @@
 # ADR-070: Derive Invitation Capabilities from Durable EVT Identity
 
 **Date:** 2026-08-11
-**Amended:** 2026-10-19
+**Amended:** 2026-10-29
 **Status:** Accepted
 
 ## Context
 
 Invite-only account creation needs capabilities that administrators can copy
 again, revoke, and redeem correctly across replicas. Invitation lifecycle
-needs durable audit history. The initial beta used reusable invite links;
-FDR-036 now specifies single-use codes. The durable ownership and atomic
-redemption decision remains the same.
+needs durable audit history. FDR-036 specifies single-use codes.
 
 Persisting raw capabilities in `EVT` would expose them in event history and
 backups. A hash alone would prevent administrators from copying a code again.
@@ -18,15 +16,14 @@ A separate mutable record would split invitation state from its audit history.
 
 ## Decision
 
-Account admission policy remains static server configuration: `open` or
-`invite_only`, with `open` as the default. All serving replicas must use the
-same policy.
+Account admission policy is the typed admin setting `registration.admission`:
+`open` or `invite_only`, with `open` as the default. Changes are durable config
+facts in EVT and apply to all replicas.
 
 Creation, redemption, and revocation remain protobuf facts in `EVT`. The
-invitation projection retains historical records. New creation events set
-`code_version = 1` and a use limit of one. Version zero identifies retired
-beta invitations. Validation rejects those records, including IDs already
-bound to pending signup flows. Existing stored fields remain readable.
+invitation projection retains each code's creation, used state, expiry, and
+revocation. Every code permits exactly one account. There are no reusable
+invitations, use limits, or code-version fields.
 
 Invitation mutations use the invitation aggregate's subject-filter OCC
 boundary. Account creation adds the redemption fact to the same atomic EVT
@@ -59,8 +56,6 @@ response can be retried. Each copy keeps its invitation. Identity uniqueness
 and atomic account creation prevent duplicate accounts or consuming two codes
 for the same identity. Linking flows are not accepted by this gate.
 
-The legacy `/invite/{token}` endpoint only redirects to a retirement message.
-It grants no admission. It retains privacy headers and redacted request paths.
 Code handoff through URLs is deferred.
 
 ## Consequences
@@ -78,8 +73,7 @@ collision risk. Detected collisions fail closed.
 
 The public administration API replaces `AdminInviteLinkService` with
 `AdminInvitationCodeService`. Integrations must use the new service. No
-client connection floor increase is required. All serving replicas must run
-the replacement before administrators rely on retirement of beta links.
+client connection floor increase is required.
 
 ## Related
 

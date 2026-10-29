@@ -134,3 +134,19 @@
     </div>
   </div>
 </Story>
+
+<Story name="Wrapped help text" asChild>
+  <div class="flex max-w-xs flex-col gap-2">
+    <Checkbox
+      id="wrapped-checked"
+      label="Email notifications"
+      description="Send an email when someone mentions you while you are away from this server."
+      checked
+    />
+    <Checkbox
+      id="wrapped-unchecked"
+      label="Show my time zone"
+      description="Other members can see your current local time when they open your profile."
+    />
+  </div>
+</Story>
