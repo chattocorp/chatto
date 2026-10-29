@@ -87,7 +87,9 @@ test.describe('Link previews', () => {
 
     // Now send — the preview data is included in the mutation
     await roomPage.messageInput.press('Control+Enter');
-    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    const postedMessage = page
+      .locator('[role="article"]')
+      .filter({ has: page.locator(`a[data-content-href="${testUrl}"]`) });
     await expect(postedMessage).toBeVisible();
 
     // The preview should be visible on the posted message (stored at post-time)
@@ -139,7 +141,9 @@ test.describe('Link previews', () => {
 
     // Send the message (preview data included in mutation)
     await roomPage.messageInput.press('Control+Enter');
-    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    const postedMessage = page
+      .locator('[role="article"]')
+      .filter({ has: page.locator(`a[data-content-href="${testUrl}"]`) });
     await expect(postedMessage).toBeVisible();
 
     // Wait for the preview to appear on the posted message
@@ -186,7 +190,9 @@ test.describe('Link previews', () => {
 
     // Send the message (preview data included in mutation)
     await roomPage.messageInput.press('Control+Enter');
-    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    const postedMessage = page
+      .locator('[role="article"]')
+      .filter({ has: page.locator(`a[data-content-href="${firstUrl}"]`) });
     await expect(postedMessage).toBeVisible();
 
     // Wait for the first preview to appear
