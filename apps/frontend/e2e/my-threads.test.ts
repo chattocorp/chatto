@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { Timestamp } from '@bufbuild/protobuf';
 import { ListFollowedThreadsResponse } from '@chatto/api-types/api/v1/threads_pb';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { postThreadReplyFromServerUser, withServerUser } from './fixtures/serverUser';
@@ -14,6 +15,41 @@ import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
 
 test.describe('My Threads', () => {
+  test('uses Today and relative time for activity, and the root day and clock time for Age', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const root = await postMessageViaConnect(page, roomId, 'Calendar day thread');
+    await postThreadReplyViaConnect(page, roomId, 'Recent reply', root);
+    const rootDate = await page.evaluate(() => {
+      const date = new Date();
+      date.setDate(date.getDate() - 3);
+      date.setHours(13, 45, 0, 0);
+      return date.toISOString();
+    });
+    await page.route('**/chatto.api.v1.ThreadService/ListFollowedThreads', async (route) => {
+      const response = await route.fetch();
+      const body = ListFollowedThreadsResponse.fromBinary(await response.body());
+      for (const item of body.threads) {
+        if (item.thread?.threadRootEventId === root && item.rootMessage)
+          item.rootMessage.createdAt = Timestamp.fromDate(new Date(rootDate));
+      }
+      await route.fulfill({ response, body: Buffer.from(body.toBinary()) });
+    });
+    const myThreads = new MyThreadsPage(page);
+    await myThreads.goto();
+    await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+    await expect(myThreads.threadItems).toContainText(/Just now|\d+[sm] ago/);
+    await page.getByRole('radio', { name: 'Age', exact: true }).check();
+    await expect(page.getByRole('heading', { name: 'Today', exact: true })).toHaveCount(0);
+    await expect(myThreads.threadItems).toContainText(/(?:13|01):45/);
+    await expect(myThreads.threadItems).not.toContainText(/Just now|ago/);
+  });
+
   test('refreshes cached threads when switching tabs and returning to the page', async ({
     page,
     chatPage
@@ -27,33 +63,34 @@ test.describe('My Threads', () => {
 
     // Simulate server snapshots changing without a realtime notification.
     // Returning to a cached view must still read the new snapshot.
-    let replyCount = 1;
+    let rootBody = 'Snapshot one';
     await page.route('**/chatto.api.v1.ThreadService/ListFollowedThreads', async (route) => {
       const response = await route.fetch();
       const body = ListFollowedThreadsResponse.fromBinary(await response.body());
       for (const thread of body.threads ?? []) {
-        if (thread.thread?.threadRootEventId === root) thread.thread.replyCount = replyCount;
+        if (thread.thread?.threadRootEventId === root && thread.rootMessage)
+          thread.rootMessage.body = rootBody;
       }
       await route.fulfill({ response, body: Buffer.from(body.toBinary()) });
     });
 
     const myThreads = new MyThreadsPage(page);
     await myThreads.goto();
-    await expect(myThreads.threadItems).toContainText('1 reply');
+    await expect(myThreads.threadItems).toContainText('Snapshot one');
     await page.getByRole('radio', { name: 'Mine', exact: true }).check();
-    await expect(myThreads.threadItems).toContainText('1 reply');
+    await expect(myThreads.threadItems).toContainText('Snapshot one');
 
-    replyCount = 2;
+    rootBody = 'Snapshot two';
     await page.getByRole('radio', { name: 'Followed', exact: true }).check();
-    await expect(myThreads.threadItems).toContainText('2 replies');
-    replyCount = 3;
+    await expect(myThreads.threadItems).toContainText('Snapshot two');
+    rootBody = 'Snapshot three';
     await page.getByRole('radio', { name: 'Mine', exact: true }).check();
-    await expect(myThreads.threadItems).toContainText('3 replies');
+    await expect(myThreads.threadItems).toContainText('Snapshot three');
 
     await page.getByRole('link', { name: 'Overview', exact: true }).click();
-    replyCount = 4;
+    rootBody = 'Snapshot four';
     await myThreads.goto();
-    await expect(myThreads.threadItems).toContainText('4 replies');
+    await expect(myThreads.threadItems).toContainText('Snapshot four');
   });
 
   test('includes own threads in Followed and narrows Mine while retaining unread selection', async ({
@@ -146,14 +183,14 @@ test.describe('My Threads', () => {
 
     await myThreads.goto('mine');
 
-    // Thread should appear with room name, root message preview, and reply count
-    await expect(page.getByRole('heading', { name: 'Today' })).toHaveCount(0);
+    // Thread shows its room and root context without a reply count.
+    await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Today', exact: true })).toBeVisible();
     const threadItem = myThreads.threadItems;
     await expect(threadItem).toBeVisible();
     await expect(threadItem.getByText('#general')).toBeVisible();
     await expect(threadItem.getByText(rootText)).toBeVisible();
-    await expect(threadItem.getByText('1 reply')).toBeVisible();
+    await expect(threadItem.getByText('1 reply')).toHaveCount(0);
   });
 
   test('followed thread without a visible latest reply uses the root as its activity', async ({
@@ -180,9 +217,9 @@ test.describe('My Threads', () => {
     const threadItem = myThreads.threadItems;
     await expect(threadItem).toBeVisible();
     await expect(threadItem.getByText(rootText)).toBeVisible();
-    // The canonical thread projection counts only visible replies. Retraction
-    // removes this reply from both the latest activity and the reply count.
-    await expect(threadItem.getByText('0 replies')).toBeVisible();
+    // Removing the final reply preserves the original-message preview.
+    await expect(threadItem.getByText(replyText)).toHaveCount(0);
+    await expect(threadItem.getByText('0 replies')).toHaveCount(0);
     await expect(threadItem.getByText('Message no longer available')).not.toBeVisible();
   });
 
@@ -240,7 +277,7 @@ test.describe('My Threads', () => {
     await expect(page.getByText('No threads started by you')).toBeVisible();
   });
 
-  test('new reply updates reply count in real-time', async ({
+  test('new reply updates unread state while keeping the root preview', async ({
     page,
     chatPage,
     roomPage,
@@ -258,33 +295,33 @@ test.describe('My Threads', () => {
     const rootMsg = await roomPage.sendMessage(rootText);
     await rootMsg.openThread();
     await roomPage.expectThreadPaneVisible();
-    await roomPage.postThreadReply(`Reply from A ${Date.now()}`);
+    const firstReply = `Reply from A ${Date.now()}`;
+    await roomPage.postThreadReply(firstReply);
     await roomPage.closeThread();
 
     await myThreads.goto('mine');
 
-    // Verify 1 reply shown
-    await expect(page.getByText('1 reply')).toBeVisible();
+    await expect(myThreads.threadItems).toContainText(rootText);
+    await expect(myThreads.threadItems).not.toContainText(firstReply);
 
     // Reload on My Threads so the source room timeline is not retained. Reply
     // activity must still refresh the query-backed conversation summary.
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Threads', exact: true })).toBeVisible();
     await page.getByRole('radio', { name: 'Mine', exact: true }).check();
-    await expect(page.getByText('1 reply')).toBeVisible();
+    await expect(myThreads.threadItems).toContainText(rootText);
+    await expect(myThreads.threadItems).toHaveAttribute('data-thread-state', 'read');
 
     // User B opens the thread and posts a reply
-    await postThreadReplyFromServerUser(
-      browser!,
-      serverURL,
-      rootText,
-      `Reply from B ${Date.now()}`
-    );
+    const nextReply = `Reply from B ${Date.now()}`;
+    await postThreadReplyFromServerUser(browser!, serverURL, rootText, nextReply);
 
-    // User A should see the reply count update
-    await expect(page.getByText('2 replies')).toBeVisible({
+    // Reply activity updates the row without replacing the original message.
+    await expect(myThreads.threadItems).toHaveAttribute('data-thread-state', 'unread', {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
+    await expect(myThreads.threadItems).toContainText(rootText);
+    await expect(myThreads.threadItems).not.toContainText(nextReply);
   });
 
   test('unread indicator appears when new replies arrive', async ({
@@ -468,7 +505,8 @@ test.describe('My Threads', () => {
       const threadItem = myThreads.threadItems;
       await expect(threadItem).toHaveCount(1);
       await expect(threadItem).toHaveAttribute('data-thread-state', 'unread');
-      await expect(threadItem.getByText(replyText)).toBeVisible();
+      await expect(threadItem.getByText(rootText)).toBeVisible();
+      await expect(threadItem.getByText(replyText)).toHaveCount(0);
       await expect(threadItem).toHaveAttribute('data-thread-attention', 'none');
       await expect(myThreads.myThreadsLink.locator('[data-testid]')).toHaveCount(0);
 

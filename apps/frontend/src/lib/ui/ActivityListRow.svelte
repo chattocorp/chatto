@@ -24,7 +24,7 @@
     interactive?: boolean;
     pending?: boolean;
     important?: boolean;
-    /** Reduce vertical padding for single-line activity feeds. */
+    /** Reduce vertical padding for compact activity feeds. */
     compact?: boolean;
     /** On hover-capable devices, reveal actions over the trailing content without reserving a column. */
     overlayActions?: boolean;

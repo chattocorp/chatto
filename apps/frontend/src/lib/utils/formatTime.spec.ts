@@ -33,6 +33,18 @@ function setBrowserLocale(locale: string): void {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('groupByActivityDay', () => {
+  it('leaves missing timestamps out of dated sections', () => {
+    const dates = [null, '2026-10-12T12:00:00Z'];
+    const sections = groupByActivityDay(
+      dates,
+      (date) => date,
+      () => settings('UTC'),
+      new Date('2026-10-29T12:00:00Z'),
+      'en-GB'
+    );
+    expect(sections).toHaveLength(1);
+    expect(sections[0].items).toEqual([dates[1]]);
+  });
   it('keeps older days separate and groups midnight boundaries in the viewer timezone', () => {
     const dates = ['2026-10-12T22:30:00Z', '2026-10-12T21:30:00Z', '2026-10-11T22:30:00Z'];
     const sections = groupByActivityDay(

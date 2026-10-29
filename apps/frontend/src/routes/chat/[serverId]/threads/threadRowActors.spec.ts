@@ -12,13 +12,13 @@ const user = (id: string): UserAvatarUserView => ({
 });
 
 describe('threadRowActors', () => {
-  it('shows the latest author even when participants are in first-reply order', () => {
+  it('shows the root author even when participants are in first-reply order', () => {
     const [alice, bob, carol] = [user('alice'), user('bob'), user('carol')];
     // Bob replied first, Carol replied last.
-    expect(threadRowActors(carol, [bob, carol], alice)).toEqual([carol, bob]);
+    expect(threadRowActors(alice, [bob, carol], carol)).toEqual([alice, bob]);
   });
 
-  it('falls back to the root author for the badge', () => {
+  it('falls back to the latest reply author for the badge', () => {
     const [alice, bob] = [user('alice'), user('bob')];
     expect(threadRowActors(bob, [bob], alice)).toEqual([bob, alice]);
   });
@@ -28,7 +28,7 @@ describe('threadRowActors', () => {
     expect(threadRowActors(alice, [], alice)).toEqual([alice]);
   });
 
-  it('uses the other candidates when the latest author is unknown', () => {
+  it('uses the other candidates when the root author is unknown', () => {
     const [alice, bob] = [user('alice'), user('bob')];
     expect(threadRowActors(null, [bob], alice)).toEqual([bob, alice]);
     expect(threadRowActors(null, [], null)).toEqual([]);

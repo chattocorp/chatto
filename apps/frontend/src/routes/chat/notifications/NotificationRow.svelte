@@ -3,6 +3,7 @@
   import type { AccountNameIdentity } from '@chatto/client/timeline/accountName';
   import { NotificationSignalKind, type NotificationActor } from '@chatto/client/api/notifications';
   import { ActivityListRow } from '$lib/ui';
+  import ActivityRowText from '$lib/components/ActivityRowText.svelte';
   import ActivityAvatar, { type ActivityServer } from '$lib/components/ActivityAvatar.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import { m } from '$lib/i18n/messages';
@@ -72,9 +73,8 @@
 </script>
 
 {#snippet location()}
-  {#if roomName}<bdi dir="auto" class="hidden @min-[36rem]/notification:block">#{roomName}</bdi
-    >{/if}
-  {#if roomName && server}<span aria-hidden="true" class="hidden @min-[36rem]/notification:block"
+  {#if roomName}<bdi dir="auto" class="hidden @min-[36rem]/activity:block">#{roomName}</bdi>{/if}
+  {#if roomName && server}<span aria-hidden="true" class="hidden @min-[36rem]/activity:block"
       >·</span
     >{/if}
   {#if server}<bdi dir="auto" data-testid="notification-server-name">{server.name}</bdi>{/if}
@@ -88,7 +88,7 @@
   disabled={pending || !interactive}
   onclick={onopen}
   rowAttributes={{
-    class: '@container/notification',
+    class: '@container/activity',
     'data-testid': 'notification-group',
     'data-notification-state': unread ? 'unread' : 'read',
     'data-notification-attention': unread ? (important ? 'important' : 'ambient') : 'none'
@@ -110,34 +110,18 @@
   {#if unread}
     <span class="sr-only">{m('chat.notifications.unread')}</span>
   {/if}
-  <span
-    class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 text-muted @min-[36rem]/notification:grid-cols-[minmax(0,1fr)_fit-content(40%)_5rem]"
-    data-testid="notification-content"
+  <ActivityRowText
+    {time}
+    emphasized={unread}
+    overlayActions={1}
+    location={roomName || server ? location : undefined}
+    locationOnNarrow={Boolean(server)}
+    testId="notification-content"
   >
-    <bdi
-      dir="auto"
-      class={[
-        'col-start-1 row-start-1 min-w-0 truncate',
-        unread ? 'font-semibold text-text-top' : 'text-muted'
-      ]}
-    >
+    {#snippet title()}
       <AccountNameTokens text={summary} accounts={summaryAccounts} />
-    </bdi>
-    {#if roomName || server}
-      <span
-        class={[
-          'col-start-1 row-start-2 min-w-0 flex-wrap items-baseline gap-1 text-sm text-subdued @min-[36rem]/notification:col-start-2 @min-[36rem]/notification:row-start-1 @min-[36rem]/notification:flex @min-[36rem]/notification:flex-nowrap [&>bdi]:min-w-0 [&>bdi]:wrap-anywhere @min-[36rem]/notification:[&>bdi]:truncate',
-          server ? 'flex' : 'hidden'
-        ]}
-      >
-        {@render location()}
-      </span>
-    {/if}
-    <span
-      class="col-start-2 row-start-1 text-end text-sm whitespace-nowrap text-subdued tabular-nums @min-[36rem]/notification:col-start-3 [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-0"
-      >{time}</span
-    >
-  </span>
+    {/snippet}
+  </ActivityRowText>
   {#snippet actions()}
     <button
       type="button"
